@@ -1,5 +1,7 @@
 # Dependencies
 node_modules/
+/.pnp
+.pnp.js
 
 # Build outputs
 dist/
@@ -13,6 +15,7 @@ build/
 *.env
 
 # IDE
+.vscode/
 .idea/
 *.swp
 *.swo
@@ -42,3 +45,19 @@ coverage/
 
 # TypeScript
 *.tsbuildinfo
+
+# vercel
+.vercel
+
+**/*.trace
+**/*.zip
+**/*.tar.gz
+**/*.tgz
+**/*.log
+package-lock.json
+**/*.bun
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
