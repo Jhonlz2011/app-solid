@@ -8,7 +8,7 @@ const queryClient = postgres(env.DATABASE_URL, {
   max: 10,
   idle_timeout: 20,
   connect_timeout: 10,
-  ssl: env.NODE_ENV === 'production',
+  ssl: false,
 });
 
 // Cliente dedicado para escuchar notificaciones (LISTEN)
@@ -16,7 +16,7 @@ const queryClient = postgres(env.DATABASE_URL, {
 const listener = postgres(env.DATABASE_URL, {
   max: 1,
   idle_timeout: 0, // Mantener conexión viva
-  ssl: env.NODE_ENV === 'production',
+  ssl: false,
 });
 
 listener.listen('db_change', (payload: string) => {

@@ -98,7 +98,7 @@
   --color-border: #e2e8f0;
   --color-border-strong: #d0d7e5;
   --color-border-subtle: rgba(15, 23, 42, 0.08);
-  --color-table-hover: rgba(15, 23, 42, 0.06);
+  --color-table-hover: rgba(15, 23, 42, 0.04);
 
   --color-primary: #2563eb;
   --color-primary-strong: #1d4ed8;
@@ -831,4 +831,153 @@ button:focus-visible {
   bottom: 0;
   width: 4px;
   background: linear-gradient(to right, rgba(0, 0, 0, 0.1), transparent);
+}
+
+/* ========================================
+   SIDEBAR MENU SYSTEM
+   ======================================== */
+
+/* Sidebar Item Base */
+.sidebar-item {
+  @apply w-full flex items-center rounded-xl h-11 px-4 gap-3;
+  @apply text-muted cursor-pointer;
+  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400;
+  @apply focus-visible:ring-offset-1 focus-visible:ring-offset-transparent;
+  position: relative;
+  isolation: isolate;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover State */
+.sidebar-item:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  color: var(--color-heading);
+}
+
+/* Active State */
+.sidebar-item--active {
+  background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary-strong) !important;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 0 var(--color-primary);
+}
+
+.sidebar-item--active:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+/* Parent with active child */
+.sidebar-item--parent-active {
+  color: var(--color-primary) !important;
+  font-weight: 600;
+  background-color: color-mix(in srgb, var(--color-primary) 5%, transparent);
+}
+
+.sidebar-item--parent-active:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+/* Expanded Parent State (when submenu is open) */
+.sidebar-item[aria-expanded="true"] {
+  color: var(--color-heading);
+  background-color: color-mix(in srgb, var(--color-primary) 5%, transparent);
+}
+
+/* Child item styles */
+.sidebar-item--child {
+  @apply pl-8.5 text-sm h-10;
+  /* Removed border-left, margin-left, width calculation for cleaner look */
+}
+
+.sidebar-item--child:hover {
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.sidebar-item--child.sidebar-item--active {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary-strong);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+/* Dot indicator for children */
+.sidebar-item-dot {
+  @apply w-1.5 h-1.5 rounded-full;
+  background-color: var(--color-border-strong);
+}
+
+.sidebar-item:hover .sidebar-item-dot {
+  background-color: var(--color-primary);
+}
+
+.sidebar-item--active .sidebar-item-dot {
+  background-color: var(--color-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 60%, transparent);
+}
+
+/* Icon styles */
+.sidebar-item-icon {
+  @apply w-5 h-5 shrink-0 transition-colors duration-200;
+  color: currentColor;
+  opacity: 0.7;
+}
+
+.sidebar-item:hover .sidebar-item-icon,
+.sidebar-item--active .sidebar-item-icon,
+.sidebar-item--parent-active .sidebar-item-icon {
+  opacity: 1;
+}
+
+/* Chevron for expandable menus */
+.sidebar-item-chevron {
+  @apply w-4 h-4 shrink-0 ml-auto;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0.5;
+}
+
+.sidebar-item:hover .sidebar-item-chevron {
+  opacity: 0.8;
+}
+
+.sidebar-item-chevron--expanded {
+  transform: rotate(180deg);
+  opacity: 1;
+}
+
+/* Submenu Grid Transition */
+.sidebar-submenu-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-submenu-wrapper.expanded {
+  grid-template-rows: 1fr;
+}
+
+.sidebar-submenu-inner {
+  overflow: hidden;
+}
+
+/* Collapsed tooltip menu styles */
+.sidebar-tooltip-menu {
+  @apply min-w-[180px] p-2 space-y-1;
+}
+
+.sidebar-tooltip-item {
+  @apply w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm;
+  @apply transition-all duration-150;
+  @apply text-muted;
+  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400;
+}
+
+.sidebar-tooltip-item:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-heading);
+}
+
+.sidebar-tooltip-item--active {
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  color: var(--color-primary-strong) !important;
+  font-weight: 600;
 }

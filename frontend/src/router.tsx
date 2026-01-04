@@ -20,10 +20,14 @@ const ProductNewPanel = lazy(() => import('./modules/products/components/Product
 
 // Crear la ruta raíz simple - TanStack Router maneja Suspense internamente
 const rootRoute = createRootRoute({
+  beforeLoad: () => {
+    // Initialize auth store listeners FIRST (before any auth checks)
+    // This ensures BroadcastChannel is ready to receive/respond to token requests
+    authActions.initStore();
+  },
   component: () => {
-    // Inicializar stores globales
+    // Inicializar stores globales (WebSocket and modules)
     connectWs();
-    authActions.initStore(); // Enable cross-tab session sync
     // Modules se cargan bajo demanda o al autenticar, pero podemos intentar cargar si ya hay sesión
     moduleActions.fetchModules();
     return <Outlet />;

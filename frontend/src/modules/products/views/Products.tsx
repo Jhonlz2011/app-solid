@@ -761,7 +761,7 @@ const ProductsPage: Component = () => {
                   <For each={table.getRowModel().rows}>
                     {(row) => (
                       <TableRow
-                        class={`table-row-hover hover:bg-surface/50 transition-colors cursor-pointer ${row.getIsSelected() ? 'bg-primary-soft' : ''}`}
+                        class={`table-row-hover hover:bg-surface/50 cursor-pointer ${row.getIsSelected() ? 'bg-primary-soft' : ''}`}
                         onClick={() => handleView(row.original)}
                         onMouseEnter={() => handlePrefetch(row.original)}
                       >

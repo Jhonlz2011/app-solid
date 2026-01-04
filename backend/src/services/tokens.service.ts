@@ -1,6 +1,5 @@
 // src/services/tokens.service.ts
 import { randomBytes } from 'crypto';
-import argon2 from 'argon2';
 import { SignJWT } from 'jose';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -13,6 +12,7 @@ export type RefreshTokenPair = {
 
 export type AccessPayload = {
   userId: number;
+  sessionId: string; // Selector del refresh token
   // agrega claims que necesites (roles, perms)
 };
 
@@ -38,10 +38,9 @@ export async function generateAccessToken(payload: AccessPayload) {
 }
 
 export async function hashToken(token: string) {
-  // Usamos la librería 'argon2' (ya está en package.json) para compatibilidad
-  return await argon2.hash(token);
+  return await Bun.password.hash(token);
 }
 
 export async function verifyTokenHash(token: string, hash: string) {
-  return await argon2.verify(hash, token);
+  return await Bun.password.verify(token, hash);
 }

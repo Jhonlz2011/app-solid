@@ -81,9 +81,21 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   .post(
     '/login',
     async ({ body, set, request }) => {
-      const userAgent = request.headers.get('user-agent') || undefined;
-      // Simple IP extraction - in production with proxy, trust x-forwarded-for
-      const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] || undefined;
+      const userAgent = request.headers.get('user-agent') || 'Desconocido';
+
+      // Improved IP extraction
+      let ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0].trim();
+      if (!ipAddress) {
+        ipAddress = request.headers.get('x-real-ip') || undefined;
+      }
+      // Fallback for local development if no headers present or localhost/private IP
+      const isPrivateIP = !ipAddress || ipAddress === '::1' || ipAddress === '127.0.0.1' || ipAddress.startsWith('192.168.') || ipAddress.startsWith('10.');
+
+      if (isPrivateIP && process.env.NODE_ENV !== 'production') {
+        ipAddress = '157.100.108.123'; // Public IP for testing location (Guayaquil)
+      }
+
+      console.log('Login attempt:', { email: body.email, userAgent, ipAddress, env: process.env.NODE_ENV });
 
       const { user, accessToken, refreshToken } = await login(body.email, body.password, userAgent, ipAddress);
 

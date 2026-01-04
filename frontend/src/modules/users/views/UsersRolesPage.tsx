@@ -356,7 +356,7 @@ const UsersRolesPage: Component = () => {
                                     <TableBody>
                                         <For each={userTable.getRowModel().rows}>
                                             {(row) => (
-                                                <TableRow class="group cursor-pointer hover:bg-surface/50 transition-colors">
+                                                <TableRow class="group cursor-pointer hover:bg-surface/50">
                                                     <For each={row.getVisibleCells()}>
                                                         {(cell) => <TableCell>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>}
                                                     </For>

@@ -671,8 +671,10 @@ export const refreshTokens = pgTableV2("refresh_tokens", {
   user_id: integer("user_id").references(() => authUsers.id, { onDelete: 'cascade' }).notNull(),
   selector: text("selector").notNull().unique(),
   token_hash: text("token_hash").notNull(),
+  session_chain_id: text("session_chain_id").notNull(), // Persists through rotations to identify logical session
   created_at: timestamp("created_at").defaultNow().notNull(),
   expires_at: timestamp("expires_at").notNull(),
+  last_activity: timestamp("last_activity").defaultNow().notNull(),
   revoked: boolean("revoked").default(false),
   replaced_by: integer("replaced_by"),
   user_agent: text("user_agent"),

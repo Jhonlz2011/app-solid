@@ -1,4 +1,4 @@
-import { Component, createSignal, Show, For, createEffect, onCleanup, Accessor, on } from 'solid-js';
+import { Component, createSignal, Show, For, createEffect, onCleanup, Accessor, on, Index } from 'solid-js';
 import { useNavigate, useLocation, Link } from '@tanstack/solid-router';
 import { useAuth, actions as authActions } from '@modules/auth/auth.store';
 import SimpleBar from 'simplebar';
@@ -137,9 +137,10 @@ const Sidebar: Component = () => {
   });
 
   const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed());
+    const newState = !isCollapsed();
+    setIsCollapsed(newState);
     // Cerrar todos los submenús cuando se colapsa
-    if (!isCollapsed()) {
+    if (newState) {
       setExpandedMenus(new Set<string>());
     }
   };
@@ -397,15 +398,15 @@ const Sidebar: Component = () => {
           class="sidebar-scroll flex-1 py-4 px-3 min-h-0"
         >
           <div class="space-y-1 px-0" role="list" tabIndex={-1}>
-            <For each={menuItems()}>
+            <Index each={menuItems()}>
               {(item) => (
                 <div role="listitem" tabIndex={-1}>
                   <SidebarItem
-                    item={item}
+                    item={item()}
                     activeTooltipId={activeTooltipId}
                     setActiveTooltipId={setActiveTooltipId}
                     collapsed={effectiveCollapsed}
-                    expanded={() => isMenuExpanded(item.id)}
+                    expanded={() => isMenuExpanded(item().id)}
                     toggleMenu={toggleMenu}
                     handleNavigation={handleNavigation}
                     isMobileViewport={isMobileViewport}
@@ -417,7 +418,7 @@ const Sidebar: Component = () => {
                   />
                 </div>
               )}
-            </For>
+            </Index>
           </div>
         </nav>
 

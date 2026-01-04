@@ -371,8 +371,6 @@ export async function assignUserRoles(userId: number, roleIds: number[]) {
  * Create a new user (admin function)
  */
 export async function createUser(data: { username: string; email: string; password: string; roleIds?: number[] }) {
-    const argon2 = await import('argon2');
-
     // Check for existing user
     const existing = await db
         .select()
@@ -394,7 +392,7 @@ export async function createUser(data: { username: string; email: string; passwo
         throw new DomainError('Ya existe un usuario con ese nombre de usuario', 409);
     }
 
-    const password_hash = await argon2.hash(data.password);
+    const password_hash = await Bun.password.hash(data.password);
 
     const [user] = await db
         .insert(authUsers)
