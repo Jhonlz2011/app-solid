@@ -8,6 +8,13 @@
       "when": 1766110244465,
       "tag": "0000_majestic_emma_frost",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1767564253167,
+      "tag": "0001_majestic_rafael_vega",
+      "breakpoints": true
     }
   ]
 }

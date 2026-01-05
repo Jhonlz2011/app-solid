@@ -12,6 +12,7 @@ const [isConnected, setIsConnected] = createSignal(false);
 // Variables privadas (no reactivas)
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 let reconnectAttempts = 0;
+let shouldReconnect = true; // Controla si debe reconectarse automáticamente
 const pendingSubscriptions = new Set<string>();
 const activeSubscriptions = new Set<string>();
 
@@ -84,7 +85,7 @@ export const connect = () => {
 };
 
 const attemptReconnect = () => {
-    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+    if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
         const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
         console.log(`🔄 Reconnecting in ${delay}ms...`);
         reconnectTimeout = setTimeout(() => {
@@ -95,10 +96,19 @@ const attemptReconnect = () => {
 };
 
 export const disconnect = () => {
+    shouldReconnect = false; // Prevenir reconexión automática después de logout
     if (reconnectTimeout) clearTimeout(reconnectTimeout);
     socket()?.close();
     setSocket(null);
     setIsConnected(false);
+};
+
+/**
+ * Re-enable automatic reconnection (call before connect after login)
+ */
+export const enableReconnect = () => {
+    shouldReconnect = true;
+    reconnectAttempts = 0;
 };
 
 export const subscribe = (room: string) => {

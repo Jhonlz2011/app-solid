@@ -32,7 +32,7 @@ import { jwtPlugin } from './plugins/jwt';
 import { AuthError } from './services/auth.service';
 import { DomainError } from './services/errors';
 import { env } from './config/env';
-import { redisSub, subscribeToChannel } from './config/redis';
+import { subscribeToChannel } from './config/redis';
 import { broadcast } from './plugins/ws';
 
 // Validate required environment variables
@@ -173,12 +173,10 @@ const app = new Elysia({ prefix: '/api', aot: false })
   .use(rbacRoutes);
 
 // Server configuration with optional Unix Socket support
-const serverConfig = env.UNIX_SOCKET_PATH
-  ? { unix: env.UNIX_SOCKET_PATH }
-  : {
-    port: env.PORT,
-    hostname: '0.0.0.0'
-  };
+const serverConfig = {
+  port: env.PORT,
+  hostname: '0.0.0.0'
+};
 
 
 app.listen(serverConfig);
@@ -186,8 +184,6 @@ app.listen(serverConfig);
 // Redis Pub/Sub for real-time events
 (async () => {
   try {
-    await redisSub.connect();
-
     // Subscribe to update channels
     const channels = [
       'updates:products',
@@ -205,15 +201,15 @@ app.listen(serverConfig);
         }
       });
     }
+
+    console.log('✅ Redis Pub/Sub initialized');
   } catch (error) {
     console.warn('⚠️ Redis Pub/Sub unavailable. Real-time updates may be limited.');
   }
 })();
 
 // Startup message
-const serverAddress = env.UNIX_SOCKET_PATH
-  ? `unix:${env.UNIX_SOCKET_PATH}`
-  : `http://${app.server?.hostname}:${app.server?.port}`;
+const serverAddress = `http://${app.server?.hostname}:${app.server?.port}`;
 
 console.log(`
 🚀 ERP Backend Server Started

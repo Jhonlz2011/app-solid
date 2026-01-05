@@ -3,7 +3,7 @@ import { createStore, produce } from "solid-js/store";
 import { batch } from "solid-js";
 import { authApi } from "./auth.api";
 import { LoginRequest, User } from "./models/auth.types";
-import { connect, subscribe, disconnect } from "../../shared/store/ws.store";
+import { connect, subscribe, disconnect, enableReconnect } from "../../shared/store/ws.store";
 
 // --- CONFIGURACIÓN ---
 const SESSION_FLAG_KEY = 'hasSession';
@@ -93,6 +93,7 @@ const handleTokenUpdate = (token: string, user?: User, broadcast = true) => {
     });
 
     // Conectar WebSocket y suscribirse al canal del usuario
+    enableReconnect(); // Habilitar reconexión para nueva sesión
     connect();
     if (user?.id) {
         subscribe(`user:${user.id}`);
