@@ -345,16 +345,16 @@ const ProductFormSections: Component<ProductFormSectionsProps> = (props) => {
                                 </NumberField.Root>
 
                                 <div class="flex flex-wrap gap-4 items-end pb-1 md:col-span-2">
-                                    <Checkbox.Root checked={isActive()} onChange={setIsActive} class="checkbox-root group">
-                                        <Checkbox.Input /><Checkbox.Control class="checkbox-control"><Checkbox.Indicator><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg></Checkbox.Indicator></Checkbox.Control>
+                                    <Checkbox.Root checked={isActive()} onChange={setIsActive} class="flex items-center gap-3 cursor-pointer group">
+                                        <Checkbox.Input /><Checkbox.Control class="size-5 rounded-md border-2 border-border bg-card-alt flex items-center justify-center group-focus-visible:ring-2 group-focus-visible:ring-primary/40"><Checkbox.Indicator><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg></Checkbox.Indicator></Checkbox.Control>
                                         <Checkbox.Label class="checkbox-label">Activo</Checkbox.Label>
                                     </Checkbox.Root>
-                                    <Checkbox.Root checked={trackDimensional()} onChange={setTrackDimensional} class="checkbox-root group">
-                                        <Checkbox.Input /><Checkbox.Control class="checkbox-control"><Checkbox.Indicator><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg></Checkbox.Indicator></Checkbox.Control>
+                                    <Checkbox.Root checked={trackDimensional()} onChange={setTrackDimensional} class="flex items-center gap-3 cursor-pointer group">
+                                        <Checkbox.Input /><Checkbox.Control class="size-5 rounded-md border-2 border-border bg-card-alt flex items-center justify-center group-focus-visible:ring-2 group-focus-visible:ring-primary/40"><Checkbox.Indicator><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg></Checkbox.Indicator></Checkbox.Control>
                                         <Checkbox.Label class="checkbox-label">Dimensional</Checkbox.Label>
                                     </Checkbox.Root>
-                                    <Checkbox.Root checked={isService()} onChange={setIsService} class="checkbox-root group">
-                                        <Checkbox.Input /><Checkbox.Control class="checkbox-control"><Checkbox.Indicator><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg></Checkbox.Indicator></Checkbox.Control>
+                                    <Checkbox.Root checked={isService()} onChange={setIsService} class="flex items-center gap-3 cursor-pointer group">
+                                        <Checkbox.Input /><Checkbox.Control class="size-5 rounded-md border-2 border-border bg-card-alt flex items-center justify-center group-focus-visible:ring-2 group-focus-visible:ring-primary/40"><Checkbox.Indicator><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg></Checkbox.Indicator></Checkbox.Control>
                                         <Checkbox.Label class="checkbox-label">Servicio</Checkbox.Label>
                                     </Checkbox.Root>
                                 </div>

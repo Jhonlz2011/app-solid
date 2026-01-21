@@ -148,7 +148,7 @@ const UsersRolesPage: Component = () => {
             size: 180,
             cell: (info) => (
                 <div class="min-w-0">
-                    <div class="font-medium title-primary">{info.getValue<string>()}</div>
+                    <div class="font-medium">{info.getValue<string>()}</div>
                     <div class="text-xs text-muted truncate">{info.row.original.email}</div>
                 </div>
             ),
@@ -528,10 +528,10 @@ const RoleCard: Component<{
     };
 
     return (
-        <div class="card-panel rounded-xl p-5 hover:shadow-lg transition-shadow">
+        <div class="bg-card border border-border shadow-card-soft rounded-xl p-5 hover:shadow-lg transition-shadow">
             <div class="flex items-start justify-between mb-3">
                 <div>
-                    <h3 class="title-primary font-semibold text-lg">{props.role.name}</h3>
+                    <h3 class="font-semibold text-lg">{props.role.name}</h3>
                     <p class="text-muted text-sm mt-1">{props.role.description || 'Sin descripción'}</p>
                 </div>
                 <div class="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: bgColor() }}>
@@ -584,8 +584,8 @@ const RoleFormModal: Component<{
         <Portal>
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={props.onClose} />
-                <div class="relative card-panel rounded-2xl p-6 w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
-                    <h2 class="title-primary text-xl font-bold mb-4">{props.role ? 'Editar Rol' : 'Nuevo Rol'}</h2>
+                <div class="relative bg-card border border-border shadow-card-soft rounded-2xl p-6 w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+                    <h2 class="text-xl font-bold mb-4">{props.role ? 'Editar Rol' : 'Nuevo Rol'}</h2>
                     <form onSubmit={(e) => { e.preventDefault(); props.onSave({ name: name(), description: description() || undefined }); }}>
                         <div class="space-y-4">
                             <div>
@@ -629,8 +629,8 @@ const UserFormModal: Component<{
         <Portal>
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={props.onClose} />
-                <div class="relative card-panel rounded-2xl p-6 w-full max-w-lg animate-in fade-in zoom-in-95 duration-200">
-                    <h2 class="title-primary text-xl font-bold mb-4">Nuevo Usuario</h2>
+                <div class="relative bg-card border border-border shadow-card-soft rounded-2xl p-6 w-full max-w-lg animate-in fade-in zoom-in-95 duration-200">
+                    <h2 class="text-xl font-bold mb-4">Nuevo Usuario</h2>
                     <form onSubmit={(e) => {
                         e.preventDefault();
                         props.onSave({ username: username(), email: email(), password: password(), roleIds: selectedRoles().size > 0 ? Array.from(selectedRoles()) : undefined });
@@ -657,7 +657,7 @@ const UserFormModal: Component<{
                                         {(role) => (
                                             <label class={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${selectedRoles().has(role.id) ? 'bg-primary/10' : 'hover:bg-surface/50'}`}>
                                                 <input type="checkbox" checked={selectedRoles().has(role.id)} onChange={() => toggleRole(role.id)} class="custom-checkbox" />
-                                                <span class="text-sm title-primary">{role.name}</span>
+                                                <span class="text-sm ">{role.name}</span>
                                             </label>
                                         )}
                                     </For>
@@ -757,9 +757,9 @@ const PermissionAssignModal: Component<{
         <Portal>
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={props.onClose} />
-                <div class="relative card-panel rounded-2xl p-6 w-full max-w-4xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+                <div class="relative bg-card border border-border shadow-card-soft rounded-2xl p-6 w-full max-w-4xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="title-primary text-xl font-bold">Permisos para: <span style={{ color: 'var(--color-primary)' }}>{props.role.name}</span></h2>
+                        <h2 class="text-xl font-bold">Permisos para: <span style={{ color: 'var(--color-primary)' }}>{props.role.name}</span></h2>
                         <div class="flex items-center gap-2">
                             <button onClick={expandAll} class="btn btn-ghost text-xs">Expandir</button>
                             <button onClick={collapseAll} class="btn btn-ghost text-xs">Colapsar</button>
@@ -774,7 +774,7 @@ const PermissionAssignModal: Component<{
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ 'align-items': 'start' }}>
                                 <For each={Object.entries(filteredGrouped())}>
                                     {([module, perms]) => (
-                                        <div class="card-panel rounded-lg overflow-hidden">
+                                        <div class="bg-card border border-border shadow-card-soft rounded-lg overflow-hidden">
                                             <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-surface/50 transition-colors" onClick={() => toggleExpand(module)}>
                                                 <div class="flex items-center gap-3">
                                                     <input
@@ -785,7 +785,7 @@ const PermissionAssignModal: Component<{
                                                         onClick={(e) => e.stopPropagation()}
                                                         class="custom-checkbox"
                                                     />
-                                                    <span class="font-medium title-primary">{moduleLabels[module] || module}</span>
+                                                    <span class="font-medium ">{moduleLabels[module] || module}</span>
                                                     <span class="text-xs text-muted">({perms.length})</span>
                                                 </div>
                                                 <svg class={`w-4 h-4 text-muted transition-transform ${expandedModules().has(module) ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -846,8 +846,8 @@ const UserRoleModal: Component<{
         <Portal>
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={props.onClose} />
-                <div class="relative card-panel rounded-2xl p-6 w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
-                    <h2 class="title-primary text-xl font-bold mb-2">Roles para: <span style={{ color: 'var(--color-primary)' }}>{props.user.username}</span></h2>
+                <div class="relative bg-card border border-border shadow-card-soft rounded-2xl p-6 w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+                    <h2 class="text-xl font-bold mb-2">Roles para: <span style={{ color: 'var(--color-primary)' }}>{props.user.username}</span></h2>
                     <p class="text-muted text-sm mb-4">{props.user.email}</p>
                     <div class="space-y-2 max-h-64 overflow-y-auto">
                         <For each={props.allRoles}>
@@ -855,7 +855,7 @@ const UserRoleModal: Component<{
                                 <label class={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${selectedRoles().has(role.id) ? 'bg-primary/10' : 'hover:bg-surface/50'}`}>
                                     <input type="checkbox" checked={selectedRoles().has(role.id)} onChange={() => toggleRole(role.id)} class="custom-checkbox" />
                                     <div class="flex-1">
-                                        <p class="title-primary font-medium">{role.name}</p>
+                                        <p class="font-medium">{role.name}</p>
                                         <p class="text-xs text-muted">{role.description || 'Sin descripción'}</p>
                                     </div>
                                 </label>
@@ -898,10 +898,10 @@ const RoleUsersModal: Component<{
         <Portal>
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={props.onClose} />
-                <div class="relative card-panel rounded-2xl p-6 w-full max-w-lg animate-in fade-in zoom-in-95 duration-200">
+                <div class="relative bg-card border border-border shadow-card-soft rounded-2xl p-6 w-full max-w-lg animate-in fade-in zoom-in-95 duration-200">
                     <div class="flex items-center justify-between mb-4">
                         <div>
-                            <h2 class="title-primary text-xl font-bold">
+                            <h2 class="text-xl font-bold">
                                 Usuarios con rol: <span style={{ color: 'var(--color-primary)' }}>{props.role.name}</span>
                             </h2>
                             <p class="text-muted text-sm">{props.role.description || 'Sin descripción'}</p>
@@ -934,7 +934,7 @@ const RoleUsersModal: Component<{
                                                 </span>
                                             </div>
                                             <div class="flex-1 min-w-0">
-                                                <p class="title-primary font-medium truncate">{user.username}</p>
+                                                <p class="font-medium truncate">{user.username}</p>
                                                 <p class="text-xs text-muted truncate">{user.email}</p>
                                             </div>
                                             <StatusBadge isActive={user.isActive} />
@@ -983,8 +983,8 @@ const UserEditModal: Component<{
         <Portal>
             <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={props.onClose} />
-                <div class="relative card-panel rounded-2xl p-6 w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
-                    <h2 class="title-primary text-xl font-bold mb-4">Editar Usuario</h2>
+                <div class="relative bg-card border border-border shadow-card-soft rounded-2xl p-6 w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+                    <h2 class="text-xl font-bold mb-4">Editar Usuario</h2>
                     <form onSubmit={(e) => {
                         e.preventDefault();
                         props.onSave({
@@ -1020,7 +1020,7 @@ const UserEditModal: Component<{
                                     id="edit-active"
                                 />
                                 <label for="edit-active" class="flex-1 cursor-pointer">
-                                    <p class="title-primary font-medium">Estado Activo</p>
+                                    <p class="font-medium">Estado Activo</p>
                                     <p class="text-xs text-muted">El usuario puede iniciar sesión</p>
                                 </label>
                             </div>

@@ -18,7 +18,7 @@ export const EmptyState: Component<EmptyStateProps> = (props) => (
         <div class="mb-4">
             {props.icon ?? <DefaultIcon />}
         </div>
-        <h3 class="text-lg font-medium title-primary mb-1">{props.message}</h3>
+        <h3 class="text-lg font-medium mb-1">{props.message}</h3>
         <Show when={props.description}>
             <p class="text-sm text-muted mb-4">{props.description}</p>
         </Show>

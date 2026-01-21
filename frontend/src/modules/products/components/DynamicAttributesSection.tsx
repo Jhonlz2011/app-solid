@@ -1,6 +1,6 @@
 import { Component, For, Show, createMemo } from 'solid-js';
 import { TextField, Select, Checkbox, NumberField } from '@kobalte/core';
-import type { CategoryAttribute, AttributeDefinition } from '../models/products.type';
+import type { CategoryAttribute } from '../models/products.type';
 
 interface DynamicAttributesSectionProps {
     attributes: CategoryAttribute[];
@@ -113,17 +113,22 @@ const DynamicAttributesSection: Component<DynamicAttributesSectionProps> = (prop
                             checked={value || false}
                             onChange={(checked) => props.onSpecChange(def.key, checked)}
                             validationState={error ? 'invalid' : 'valid'}
-                            class="checkbox-root py-2 group"
+                            class="group flex items-center gap-3 cursor-pointer py-2 outline-none"
                         >
-                            <Checkbox.Input />
-                            <Checkbox.Control class="checkbox-control">
+                            <Checkbox.Input class="sr-only" />
+                            <Checkbox.Control class="size-5 rounded-md border-2 border-border bg-card-alt 
+      flex items-center justify-center
+      group-hover:border-border-strong
+      data-[checked]:bg-primary data-[checked]:border-primary data-[checked]:text-on-primary
+      data-[invalid]:border-red-500
+      group-focus-visible:ring-2 group-focus-visible:ring-primary/40">
                                 <Checkbox.Indicator>
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
                                     </svg>
                                 </Checkbox.Indicator>
                             </Checkbox.Control>
-                            <Checkbox.Label class="checkbox-label">
+                            <Checkbox.Label class="text-sm font-medium text-muted transition-colors group-hover:text-text select-none">
                                 {def.label}
                                 {attr.required && <span class="text-red-400 ml-1">*</span>}
                             </Checkbox.Label>

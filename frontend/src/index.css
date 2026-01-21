@@ -29,121 +29,67 @@
 }
 
 :root {
-  color-scheme: dark;
-  --color-bg: #020617;
-  --color-surface: #0f172a;
-  --color-card: #111827;
-  --color-card-alt: #1f2937;
-  --color-text: #f8fafc;
-  --color-heading: #f8fafc;
-  --color-muted: #94a3b8;
-  --color-border: #1f2533;
-  --color-border-strong: #222c3c;
-  --color-border-subtle: rgba(148, 163, 184, 0.25);
-  --color-table-hover: rgba(148, 163, 184, 0.08);
+  color-scheme: light dark;
+  /* Core UI Colors - using light-dark(light-value, dark-value) */
+  --color-bg: light-dark(#f4f7fb, #020617);
+  --color-surface: light-dark(#ffffff, #0f172a);
+  --color-card: light-dark(#ffffff, #111827);
+  --color-card-alt: light-dark(#eef2ff, #1f2937);
+  --color-text: light-dark(#0f172a, #f8fafc);
+  --color-heading: light-dark(#0b1220, #f8fafc);
+  --color-muted: light-dark(#475569, #94a3b8);
+  --color-border: light-dark(#e2e8f0, #1f2533);
+  --color-border-strong: light-dark(#d0d7e5, #222c3c);
+  --color-border-subtle: light-dark(rgba(15, 23, 42, 0.08), rgba(148, 163, 184, 0.25));
+  --color-table-hover: light-dark(rgba(15, 23, 42, 0.04), rgba(148, 163, 184, 0.08));
 
-  --color-primary: #60a5fa;
-  --color-primary-strong: #93c5fd;
-  --color-primary-soft: rgba(91, 141, 255, 0.18);
+  /* Primary Colors */
+  --color-primary: light-dark(#2563eb, #60a5fa);
+  --color-primary-strong: light-dark(#1d4ed8, #93c5fd);
+  --color-primary-soft: light-dark(rgba(37, 99, 235, 0.15), rgba(91, 141, 255, 0.18));
   --color-on-primary: #f8fafc;
 
-  --color-info: #38bdf8;
-  --color-success: #22c55e;
-  --color-warning: #facc15;
-  --color-danger: #f87171;
+  /* Semantic Colors */
+  --color-info: light-dark(#0ea5e9, #38bdf8);
+  --color-success: light-dark(#16a34a, #22c55e);
+  --color-warning: light-dark(#ca8a04, #facc15);
+  --color-danger: light-dark(#dc2626, #f87171);
 
-  /* Semantic text colors for stats/badges (dark mode - lighter for contrast) */
-  --color-info-text: #60a5fa;
-  --color-success-text: #4ade80;
-  --color-warning-text: #fbbf24;
-  --color-danger-text: #fb7185;
-  --color-price-text: #34d399;
+  /* Semantic Text Colors */
+  --color-info-text: light-dark(#1d4ed8, #60a5fa);
+  --color-success-text: light-dark(#15803d, #4ade80);
+  --color-warning-text: light-dark(#a16207, #fbbf24);
+  --color-danger-text: light-dark(#b91c1c, #fb7185);
+  --color-price-text: light-dark(#059669, #34d399);
 
-  /* Semantic background colors for badges/cards */
-  --color-info-bg: rgba(96, 165, 250, 0.15);
-  --color-success-bg: rgba(74, 222, 128, 0.15);
-  --color-warning-bg: rgba(251, 191, 36, 0.15);
-  --color-danger-bg: rgba(251, 113, 133, 0.15);
+  /* Semantic Background Colors */
+  --color-info-bg: light-dark(rgba(37, 99, 235, 0.1), rgba(96, 165, 250, 0.15));
+  --color-success-bg: light-dark(rgba(22, 163, 74, 0.1), rgba(74, 222, 128, 0.15));
+  --color-warning-bg: light-dark(rgba(202, 138, 4, 0.1), rgba(251, 191, 36, 0.15));
+  --color-danger-bg: light-dark(rgba(220, 38, 38, 0.1), rgba(251, 113, 133, 0.15));
 
-  /* Semantic border colors */
-  --color-info-border: rgba(96, 165, 250, 0.3);
-  --color-success-border: rgba(74, 222, 128, 0.3);
-  --color-warning-border: rgba(251, 191, 36, 0.3);
-  --color-danger-border: rgba(251, 113, 133, 0.3);
+  /* Semantic Border Colors */
+  --color-info-border: light-dark(rgba(37, 99, 235, 0.25), rgba(96, 165, 250, 0.3));
+  --color-success-border: light-dark(rgba(22, 163, 74, 0.25), rgba(74, 222, 128, 0.3));
+  --color-warning-border: light-dark(rgba(202, 138, 4, 0.25), rgba(251, 191, 36, 0.3));
+  --color-danger-border: light-dark(rgba(220, 38, 38, 0.25), rgba(251, 113, 133, 0.3));
 
-  --shadow-card: 0 18px 40px rgba(2, 6, 23, 0.55);
-  --shadow-card-soft: 0 12px 30px rgba(2, 6, 23, 0.35);
+  /* Shadows */
+  --shadow-card: light-dark(0 12px 40px rgba(15, 23, 42, 0.08), 0 18px 40px rgba(2, 6, 23, 0.55));
+  --shadow-card-soft: light-dark(0 8px 24px rgba(15, 23, 42, 0.05), 0 12px 30px rgba(2, 6, 23, 0.35));
 
-  --badge-neutral-bg: rgba(148, 163, 184, 0.3);
-  --badge-neutral-text: #f8fafc;
-  --badge-info-bg: rgba(56, 189, 248, 0.28);
-  --badge-info-text: #d2f2ff;
-  --badge-success-bg: rgba(34, 197, 94, 0.25);
-  --badge-success-text: #bbf7d0;
-  --badge-warning-bg: rgba(250, 204, 21, 0.25);
-  --badge-warning-text: #fef9c3;
-  --badge-danger-bg: rgba(248, 113, 113, 0.25);
-  --badge-danger-text: #ffe4e6;
+  /* Badge Colors */
+  --badge-neutral-bg: light-dark(rgba(71, 85, 105, 0.15), rgba(148, 163, 184, 0.3));
+  --badge-neutral-text: light-dark(#334155, #f8fafc);
+  --badge-info-bg: light-dark(rgba(14, 165, 233, 0.15), rgba(56, 189, 248, 0.28));
+  --badge-info-text: light-dark(#0369a1, #d2f2ff);
+  --badge-success-bg: light-dark(rgba(22, 163, 74, 0.15), rgba(34, 197, 94, 0.25));
+  --badge-success-text: light-dark(#15803d, #bbf7d0);
+  --badge-warning-bg: light-dark(rgba(202, 138, 4, 0.15), rgba(250, 204, 21, 0.25));
+  --badge-warning-text: light-dark(#a16207, #fef9c3);
+  --badge-danger-bg: light-dark(rgba(220, 38, 38, 0.15), rgba(248, 113, 113, 0.25));
+  --badge-danger-text: light-dark(#b91c1c, #ffe4e6);
 }
-
-.theme-light {
-  color-scheme: light;
-  --color-bg: #f4f7fb;
-  --color-surface: #ffffff;
-  --color-card: #ffffff;
-  --color-card-alt: #eef2ff;
-  --color-text: #0f172a;
-  --color-heading: #0b1220;
-  --color-muted: #475569;
-  --color-border: #e2e8f0;
-  --color-border-strong: #d0d7e5;
-  --color-border-subtle: rgba(15, 23, 42, 0.08);
-  --color-table-hover: rgba(15, 23, 42, 0.04);
-
-  --color-primary: #2563eb;
-  --color-primary-strong: #1d4ed8;
-  --color-primary-soft: rgba(37, 99, 235, 0.15);
-  --color-on-primary: #f8fafc;
-
-  --color-info: #0ea5e9;
-  --color-success: #16a34a;
-  --color-warning: #ca8a04;
-  --color-danger: #dc2626;
-
-  /* Semantic text colors for stats/badges (light mode - darker for contrast) */
-  --color-info-text: #1d4ed8;
-  --color-success-text: #15803d;
-  --color-warning-text: #a16207;
-  --color-danger-text: #b91c1c;
-  --color-price-text: #059669;
-
-  /* Semantic background colors for badges/cards */
-  --color-info-bg: rgba(37, 99, 235, 0.1);
-  --color-success-bg: rgba(21, 128, 61, 0.1);
-  --color-warning-bg: rgba(161, 98, 7, 0.1);
-  --color-danger-bg: rgba(185, 28, 28, 0.1);
-
-  /* Semantic border colors */
-  --color-info-border: rgba(37, 99, 235, 0.25);
-  --color-success-border: rgba(21, 128, 61, 0.25);
-  --color-warning-border: rgba(161, 98, 7, 0.25);
-  --color-danger-border: rgba(185, 28, 28, 0.25);
-
-  --shadow-card: 0 22px 45px rgba(15, 23, 42, 0.08);
-  --shadow-card-soft: 0 12px 25px rgba(15, 23, 42, 0.08);
-
-  --badge-neutral-bg: #e2e8f0;
-  --badge-neutral-text: #0f172a;
-  --badge-info-bg: #dbeafe;
-  --badge-info-text: #1d4ed8;
-  --badge-success-bg: #dcfce7;
-  --badge-success-text: #166534;
-  --badge-warning-bg: #fef9c3;
-  --badge-warning-text: #854d0e;
-  --badge-danger-bg: #fee2e2;
-  --badge-danger-text: #991b1b;
-}
-
 
 ::-webkit-scrollbar {
   width: 6px;
@@ -169,57 +115,15 @@
 }
 
 
-.app-shell {
-  @apply bg-bg text-text;
-}
-
-.surface-panel {
-  @apply bg-surface border border-border;
-}
-
-.bg-surface {
-  background-color: var(--color-surface) !important;
-}
-
-.bg-card-alt {
-  background-color: var(--color-card-alt) !important;
-}
-
-.bg-card {
-  background-color: var(--color-card) !important;
-}
-
-.sidebar-panel {
-  @apply bg-surface border-r border-border;
-}
-
-.card-panel {
-  @apply bg-card border border-border shadow-card-soft;
-}
-
-.theme-light .card-panel {
-  @apply shadow-card;
-}
-
-.border-surface {
-  border-color: var(--color-border) !important;
-}
-
-.text-muted {
-  color: var(--color-muted) !important;
-}
-
-.title-primary {
-  color: var(--color-heading);
-}
-
-.hover-surface:hover {
-  background-color: var(--color-card-alt) !important;
-  color: var(--color-text) !important;
-}
 
 .btn {
-  @apply inline-flex items-center justify-center gap-[0.45rem] rounded-[0.9rem] px-[1.3rem] py-[0.65rem] font-semibold;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0.9rem;
+  padding: 0.65rem 1.3rem;
+  font-weight: 600;
 }
 
 .btn-primary {
@@ -230,24 +134,30 @@
 }
 
 .btn-primary:hover {
-  @apply -translate-y-[1px] brightness-105;
+  transform: translateY(-1px);
+  filter: brightness(1.05);
 }
 
 .btn-outline {
-  @apply border border-border-strong text-text bg-transparent;
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text);
+  background-color: transparent;
 }
 
 .btn-outline:hover {
-  @apply bg-card-alt text-heading;
+  background-color: var(--color-card-alt);
+  color: var(--color-heading);
   border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border-strong));
 }
 
 .btn-ghost {
-  @apply bg-transparent text-muted;
+  background-color: transparent;
+  color: var(--color-muted);
 }
 
 .btn-ghost:hover {
-  @apply text-heading bg-card-alt;
+  color: var(--color-heading);
+  background-color: var(--color-card-alt);
 }
 
 .button-danger {
@@ -276,65 +186,8 @@
   box-shadow: 0 10px 30px color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
 
-.chip {
-  @apply inline-flex items-center px-[0.85rem] py-[0.15rem] rounded-full text-[0.75rem] font-semibold bg-card-alt text-muted;
-}
-
-.chip--primary {
-  @apply bg-primary-soft text-primary-strong;
-}
-
-.stat-card {
-  @apply bg-card border border-border shadow-card rounded-3xl p-6;
-}
-
-.table-wrapper {
-  @apply bg-card border border-border rounded-3xl overflow-hidden shadow-card-soft;
-}
-
-.data-table {
-  @apply w-full border-separate border-spacing-0;
-}
-
-.table-head {
-  @apply text-[0.7rem] tracking-wider uppercase text-muted;
-}
-
 .row-hover:hover {
   background: var(--color-table-hover);
-}
-
-.table-body tr+tr {
-  @apply border-t border-border;
-}
-
-.badge {
-  @apply inline-flex items-center gap-1 px-[0.85rem] py-[0.15rem] rounded-full font-semibold text-[0.75rem] tracking-wide;
-}
-
-.badge-neutral {
-  background: var(--badge-neutral-bg);
-  color: var(--badge-neutral-text);
-}
-
-.badge-info {
-  background: var(--badge-info-bg);
-  color: var(--badge-info-text);
-}
-
-.badge-success {
-  background: var(--badge-success-bg);
-  color: var(--badge-success-text);
-}
-
-.badge-warning {
-  background: var(--badge-warning-bg);
-  color: var(--badge-warning-text);
-}
-
-.badge-danger {
-  background: var(--badge-danger-bg);
-  color: var(--badge-danger-text);
 }
 
 .input-control {
@@ -350,163 +203,11 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
 }
 
-.text-accent {
-  @apply text-primary;
-}
-
-.text-accent-soft {
-  color: color-mix(in srgb, var(--color-primary) 60%, var(--color-muted));
-}
-
-.menu-active {
-  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
-  @apply text-on-primary;
-}
-
-.menu-active-parent {
-  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
-  @apply text-primary;
-  border-left: 4px solid color-mix(in srgb, var(--color-primary) 70%, transparent);
-}
-
-
-/* .menu-active-collapsed {
-  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
-  color: var(--color-primary);
-  box-shadow: 0 12px 35px color-mix(in srgb, var(--color-primary) 35%, transparent);
-  outline: 2px solid color-mix(in srgb, var(--color-primary) 60%, transparent);
-} */
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-    max-height: 0;
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    max-height: 500px;
-  }
-}
-
 /* Prevenir flash blanco durante transiciones */
 html,
 body,
 #root {
   @apply bg-bg text-text overflow-x-hidden;
-}
-
-/* Transición suave para cambios de ruta */
-body {
-  @apply transition-opacity duration-150 ease-in-out;
-}
-
-/* Skeleton placeholder para cargas */
-.route-loading {
-  @apply animate-pulse;
-}
-
-@keyframes pulse {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.5;
-  }
-}
-
-/* SimpleBar custom styles */
-.simplebar-scrollbar::before {
-  background-color: rgba(148, 163, 184, 0.4) !important;
-  @apply rounded-full;
-}
-
-.simplebar-scrollbar:hover::before {
-  background-color: rgba(96, 165, 250, 0.6) !important;
-}
-
-.simplebar-track {
-  background: transparent !important;
-}
-
-/* Remover outline por defecto - usamos Tailwind focus-visible */
-*:focus {
-  @apply outline-none;
-}
-
-/* Focus visible para navegación por teclado */
-*:focus-visible {
-  @apply outline-none;
-  /* Tailwind manejará el ring */
-}
-
-/* Asegurar que el ring focus-visible sea visible */
-button:focus-visible {
-  @apply relative z-10;
-}
-
-.theme-light .bg-gray-950,
-.theme-light .bg-gray-900 {
-  background-color: var(--color-surface) !important;
-  color: var(--color-text) !important;
-}
-
-.theme-light .bg-gray-800,
-.theme-light .bg-gray-700,
-.theme-light .bg-gray-600,
-.theme-light .bg-gray-800\/60,
-.theme-light .bg-gray-800\/70 {
-  background-color: var(--color-card-alt) !important;
-  color: var(--color-text) !important;
-}
-
-.theme-light .text-gray-200,
-.theme-light .text-gray-300,
-.theme-light .text-gray-400,
-.theme-light .text-gray-500 {
-  color: var(--color-muted) !important;
-}
-
-.theme-light .border-gray-800,
-.theme-light .border-gray-700 {
-  border-color: var(--color-border) !important;
-}
-
-.theme-light .shadow-blue-600\/50 {
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.25) !important;
-}
-
-.theme-light button.text-white,
-.theme-light .bg-blue-600,
-.theme-light .bg-emerald-600,
-.theme-light .bg-amber-600,
-.theme-light .bg-red-600,
-.theme-light .bg-blue-600\/20,
-.theme-light .bg-blue-600\/30,
-.theme-light .bg-emerald-600\/20 {
-  color: #ffffff !important;
-}
-
-.theme-light .card-shadow {
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
-}
-
-/* Focus visible para modo de alto contraste */
-@media (prefers-contrast: high) {
-  button:focus-visible {
-    outline: 3px solid currentColor !important;
-    outline-offset: 2px !important;
-  }
-}
-
-/* Mejoras visuales para el ring */
-.focus-visible\:ring-2:focus-visible {
-  box-shadow: 0 0 0 1px transparent, 0 0 0 3px rgba(96, 165, 250, 0.5);
 }
 
 /* --- KOBALTE UI STYLES --- */
@@ -573,112 +274,9 @@ button:focus-visible {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
 }
 
-.text-field-textarea {
-  @apply min-h-[100px] resize-none;
-}
-
-/* Checkbox */
-.checkbox-root {
-  @apply flex items-center gap-3 cursor-pointer;
-}
-
-.checkbox-control {
-  @apply w-5 h-5 rounded-md border-2 border-border bg-card-alt flex items-center justify-center;
-}
-
-.checkbox-root:hover .checkbox-control {
-  @apply border-border-strong;
-}
-
-.checkbox-control[data-checked] {
-  @apply bg-primary border-primary text-on-primary;
-}
-
-.checkbox-label {
-  @apply text-sm font-medium text-muted group-hover:text-text transition-colors;
-}
-
-/* Tabs */
-.tabs-list {
-  @apply flex gap-1 p-1 bg-surface/50 rounded-2xl mb-6 border border-border/50;
-}
-
-.tabs-trigger {
-  @apply flex-1 px-4 py-2.5 text-sm font-medium rounded-xl text-muted transition-all duration-200 outline-none;
-}
-
-.tabs-trigger:hover {
-  @apply text-text bg-white/5;
-}
-
-.tabs-trigger[data-selected] {
-  @apply bg-primary text-on-primary shadow-lg shadow-blue-500/20;
-}
-
-.tabs-content {
-  @apply outline-none animate-in fade-in slide-in-from-bottom-2 duration-300;
-}
-
-/* Dialog */
-.dialog-overlay {
-  @apply fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200;
-}
-
-.dialog-content {
-  @apply fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] bg-card border border-border rounded-3xl shadow-card p-6 outline-none animate-in zoom-in-95 fade-in duration-200;
-}
-
-/* Animations */
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.animate-slide-in-right {
-  animation: slideInRight 0.3s ease-out forwards;
-}
-
 /* Dropdown Menu */
 .dropdown-content {
   @apply bg-card border border-border rounded-xl shadow-card-soft z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150;
-}
-
-.dropdown-item {
-  @apply flex items-center gap-3 px-3 py-2.5 text-sm text-text cursor-pointer outline-none;
-}
-
-.dropdown-item:hover,
-.dropdown-item[data-highlighted] {
-  @apply bg-primary-soft text-primary;
-}
-
-.dropdown-item[data-disabled] {
-  @apply opacity-50 cursor-not-allowed;
-}
-
-/* Improved Search Input */
-.search-input {
-  @apply w-full bg-card border border-border text-text rounded-xl px-4 py-2.5 pl-10;
-}
-
-.search-input::placeholder {
-  @apply text-muted;
-}
-
-.search-input:hover {
-  @apply border-border-strong;
-}
-
-.search-input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
 
 /* Table Improvements */
@@ -686,14 +284,10 @@ button:focus-visible {
   @apply bg-card border border-border rounded-2xl shadow-card-soft;
 }
 
-.theme-light .table-container {
-  @apply shadow-card;
-}
-
 /* Table Row Hover - semantic */
-.table-row-hover:hover {
+/* .table-row-hover:hover {
   background-color: var(--color-table-hover);
-}
+} */
 
 /* Custom Checkbox */
 .custom-checkbox {
@@ -789,32 +383,6 @@ button:focus-visible {
   box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
 
-/* Column Filter Inputs */
-.column-filter-input {
-  @apply text-xs bg-surface border border-border rounded-md px-2 py-1 w-full text-text placeholder:text-muted;
-}
-
-.column-filter-input:focus {
-  @apply border-primary outline-none;
-}
-
-.column-filter-select {
-  @apply text-xs bg-surface border border-border rounded-md px-2 py-1 w-full text-text cursor-pointer;
-}
-
-.column-filter-select:focus {
-  @apply border-primary outline-none;
-}
-
-/* Sort Icon */
-.sort-icon {
-  @apply w-3.5 h-3.5 text-muted;
-}
-
-.sort-icon--active {
-  @apply text-primary;
-}
-
 /* Pinned Column */
 .pinned-column {
   position: sticky;
@@ -835,149 +403,7 @@ button:focus-visible {
 
 /* ========================================
    SIDEBAR MENU SYSTEM
+   Note: Most styles are now inline in components
+   using data-attributes and direct Tailwind classes.
+   Only keeping scrollbar and animation-related styles here.
    ======================================== */
-
-/* Sidebar Item Base */
-.sidebar-item {
-  @apply w-full flex items-center rounded-xl h-11 px-4 gap-3;
-  @apply text-muted cursor-pointer;
-  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400;
-  @apply focus-visible:ring-offset-1 focus-visible:ring-offset-transparent;
-  position: relative;
-  isolation: isolate;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Hover State */
-.sidebar-item:hover {
-  background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
-  color: var(--color-heading);
-}
-
-/* Active State */
-.sidebar-item--active {
-  background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary-strong) !important;
-  font-weight: 600;
-  box-shadow: inset 3px 0 0 0 var(--color-primary);
-}
-
-.sidebar-item--active:hover {
-  background-color: color-mix(in srgb, var(--color-primary) 16%, transparent);
-}
-
-/* Parent with active child */
-.sidebar-item--parent-active {
-  color: var(--color-primary) !important;
-  font-weight: 600;
-  background-color: color-mix(in srgb, var(--color-primary) 5%, transparent);
-}
-
-.sidebar-item--parent-active:hover {
-  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
-}
-
-/* Expanded Parent State (when submenu is open) */
-.sidebar-item[aria-expanded="true"] {
-  color: var(--color-heading);
-  background-color: color-mix(in srgb, var(--color-primary) 5%, transparent);
-}
-
-/* Child item styles */
-.sidebar-item--child {
-  @apply pl-8.5 text-sm h-10;
-  /* Removed border-left, margin-left, width calculation for cleaner look */
-}
-
-.sidebar-item--child:hover {
-  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
-}
-
-.sidebar-item--child.sidebar-item--active {
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  color: var(--color-primary-strong);
-  font-weight: 500;
-  box-shadow: none;
-}
-
-/* Dot indicator for children */
-.sidebar-item-dot {
-  @apply w-1.5 h-1.5 rounded-full;
-  background-color: var(--color-border-strong);
-}
-
-.sidebar-item:hover .sidebar-item-dot {
-  background-color: var(--color-primary);
-}
-
-.sidebar-item--active .sidebar-item-dot {
-  background-color: var(--color-primary);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 60%, transparent);
-}
-
-/* Icon styles */
-.sidebar-item-icon {
-  @apply w-5 h-5 shrink-0 transition-colors duration-200;
-  color: currentColor;
-  opacity: 0.7;
-}
-
-.sidebar-item:hover .sidebar-item-icon,
-.sidebar-item--active .sidebar-item-icon,
-.sidebar-item--parent-active .sidebar-item-icon {
-  opacity: 1;
-}
-
-/* Chevron for expandable menus */
-.sidebar-item-chevron {
-  @apply w-4 h-4 shrink-0 ml-auto;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  opacity: 0.5;
-}
-
-.sidebar-item:hover .sidebar-item-chevron {
-  opacity: 0.8;
-}
-
-.sidebar-item-chevron--expanded {
-  transform: rotate(180deg);
-  opacity: 1;
-}
-
-/* Submenu Grid Transition */
-.sidebar-submenu-wrapper {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.sidebar-submenu-wrapper.expanded {
-  grid-template-rows: 1fr;
-}
-
-.sidebar-submenu-inner {
-  overflow: hidden;
-}
-
-/* Collapsed tooltip menu styles */
-.sidebar-tooltip-menu {
-  @apply min-w-[180px] p-2 space-y-1;
-}
-
-.sidebar-tooltip-item {
-  @apply w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm;
-  @apply transition-all duration-150;
-  @apply text-muted;
-  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400;
-}
-
-.sidebar-tooltip-item:hover {
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  color: var(--color-heading);
-}
-
-.sidebar-tooltip-item--active {
-  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
-  color: var(--color-primary-strong) !important;
-  font-weight: 600;
-}

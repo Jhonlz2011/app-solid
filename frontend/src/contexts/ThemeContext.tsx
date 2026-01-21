@@ -24,17 +24,15 @@ const getInitialTheme = (): Theme => {
   return getSystemTheme();
 };
 
-const applyThemeClasses = (value: Theme) => {
+const applyTheme = (value: Theme) => {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  const body = document.body;
 
+  // Set data attribute for tracking
   root.dataset.theme = value;
-  root.classList.remove('theme-light', 'theme-dark');
-  root.classList.add(`theme-${value}`);
 
-  body.classList.remove('theme-light', 'theme-dark');
-  body.classList.add(`theme-${value}`);
+  // Set CSS color-scheme property to enable light-dark()
+  root.style.colorScheme = value;
 };
 
 export const ThemeProvider: ParentComponent = (props) => {
@@ -48,7 +46,7 @@ export const ThemeProvider: ParentComponent = (props) => {
   const setTheme = (newTheme: Theme) => {
     setThemeSignal(newTheme);
     persistTheme(newTheme);
-    applyThemeClasses(newTheme);
+    applyTheme(newTheme);
   };
 
   const toggleTheme = () => {
@@ -57,7 +55,7 @@ export const ThemeProvider: ParentComponent = (props) => {
 
   // Apply theme on mount/initial load
   createEffect(() => {
-    applyThemeClasses(theme());
+    applyTheme(theme());
   });
 
   return (

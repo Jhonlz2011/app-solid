@@ -13,6 +13,7 @@ import {
   jsonb,
   index,
   bigint,
+  smallint,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -703,6 +704,26 @@ export const authUserRoles = pgTableV2("auth_user_roles", {
   role_id: integer("role_id").references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
 }, (t) => [primaryKey({ columns: [t.user_id, t.role_id] })]);
 
+// --- 9. MENU SYSTEM (Dynamic Menus) ---
+export const authMenuItems = pgTableV2("auth_menu_items", {
+  id: smallint("id").generatedAlwaysAsIdentity().primaryKey(),
+  key: text("key").notNull().unique(),               // 'inventory', 'products'
+  label: text("label").notNull(),                    // 'Inventario' (editable by admin)
+  icon: text("icon"),                                // SVG path data
+  path: text("path"),                                // '/products' (null for parent categories)
+  parent_id: smallint("parent_id"),                   // Self-reference for tree hierarchy
+  sort_order: smallint("sort_order").default(0),      // For custom ordering
+  permission_prefix: text("permission_prefix"),      // 'products' -> products.read/.add/.edit/.delete
+  is_active: boolean("is_active").default(true),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  foreignKey({ columns: [t.parent_id], foreignColumns: [t.id] }),
+  index("idx_menu_parent").on(t.parent_id),
+  index("idx_menu_order").on(t.parent_id, t.sort_order),
+  index("idx_menu_active").on(t.is_active),
+]);
+
 // --- RELATIONS (CORREGIDAS Y COMPLETAS) ---
 
 // 1. Entities & Contacts
@@ -750,6 +771,15 @@ export const authRolePermissionsRelations = relations(authRolePermissions, ({ on
 
 export const authUsersRelations = relations(authUsers, ({ many }) => ({
   roles: many(authUserRoles),
+}));
+
+export const authMenuItemsRelations = relations(authMenuItems, ({ one, many }) => ({
+  parent: one(authMenuItems, {
+    fields: [authMenuItems.parent_id],
+    references: [authMenuItems.id],
+    relationName: 'menuParentChild',
+  }),
+  children: many(authMenuItems, { relationName: 'menuParentChild' }),
 }));
 
 // 3. Products

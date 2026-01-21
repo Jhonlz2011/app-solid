@@ -101,6 +101,9 @@ export const disconnect = () => {
     socket()?.close();
     setSocket(null);
     setIsConnected(false);
+    // Clear subscriptions to prevent stale rooms when logging in as different user
+    activeSubscriptions.clear();
+    pendingSubscriptions.clear();
 };
 
 /**

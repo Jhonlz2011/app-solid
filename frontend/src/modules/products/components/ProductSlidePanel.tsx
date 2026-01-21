@@ -153,7 +153,7 @@ const ProductSlidePanel: Component<ProductSlidePanelProps> = (props) => {
                                             </svg>
                                         </div>
                                     </Show>
-                                    <h2 class="text-lg font-semibold title-primary">{headerTitle()}</h2>
+                                    <h2 class="text-lg font-semibold ">{headerTitle()}</h2>
                                 </div>
 
                                 <div class="flex items-center gap-2">
@@ -230,7 +230,7 @@ const ProductSlidePanel: Component<ProductSlidePanelProps> = (props) => {
                                             </Show>
                                             <div class="flex-1 min-w-0">
                                                 <p class="font-mono text-sm text-primary font-semibold">{product()!.sku}</p>
-                                                <h3 class="text-xl font-bold title-primary mt-1 leading-tight">{product()!.name}</h3>
+                                                <h3 class="text-xl font-bold  mt-1 leading-tight">{product()!.name}</h3>
                                                 <Show when={product()!.description}>
                                                     <p class="text-muted text-sm mt-2 line-clamp-2">{product()!.description}</p>
                                                 </Show>
@@ -241,11 +241,11 @@ const ProductSlidePanel: Component<ProductSlidePanelProps> = (props) => {
                                         <div class="grid grid-cols-2 gap-3">
                                             <div class="p-4 bg-surface/30 rounded-xl border border-white/5">
                                                 <p class="text-xs text-muted uppercase tracking-wider font-medium">Categoría</p>
-                                                <p class="font-semibold title-primary mt-1">{product()!.category?.name || '—'}</p>
+                                                <p class="font-semibold  mt-1">{product()!.category?.name || '—'}</p>
                                             </div>
                                             <div class="p-4 bg-surface/30 rounded-xl border border-white/5">
                                                 <p class="text-xs text-muted uppercase tracking-wider font-medium">Marca</p>
-                                                <p class="font-semibold title-primary mt-1">{product()!.brand?.name || '—'}</p>
+                                                <p class="font-semibold  mt-1">{product()!.brand?.name || '—'}</p>
                                             </div>
                                         </div>
 
@@ -275,15 +275,15 @@ const ProductSlidePanel: Component<ProductSlidePanelProps> = (props) => {
                                         <div class="grid grid-cols-3 gap-3">
                                             <div class="p-3 bg-surface/30 rounded-xl border border-white/5 text-center">
                                                 <p class="text-xs text-muted">UOM</p>
-                                                <p class="font-semibold title-primary mt-1">{product()!.uom_inventory_code || 'UND'}</p>
+                                                <p class="font-semibold  mt-1">{product()!.uom_inventory_code || 'UND'}</p>
                                             </div>
                                             <div class="p-3 bg-surface/30 rounded-xl border border-white/5 text-center">
                                                 <p class="text-xs text-muted">Stock Mín.</p>
-                                                <p class="font-semibold title-primary mt-1">{product()!.min_stock_alert || '0'}</p>
+                                                <p class="font-semibold  mt-1">{product()!.min_stock_alert || '0'}</p>
                                             </div>
                                             <div class="p-3 bg-surface/30 rounded-xl border border-white/5 text-center">
                                                 <p class="text-xs text-muted">IVA</p>
-                                                <p class="font-semibold title-primary mt-1">{ivaRateLabels[product()!.iva_rate_code] || '15%'}</p>
+                                                <p class="font-semibold  mt-1">{ivaRateLabels[product()!.iva_rate_code] || '15%'}</p>
                                             </div>
                                         </div>
 
@@ -301,7 +301,7 @@ const ProductSlidePanel: Component<ProductSlidePanelProps> = (props) => {
                                                         {([key, value]) => (
                                                             <div class="flex justify-between items-center py-1.5 border-b border-white/5 last:border-0">
                                                                 <span class="text-sm text-muted capitalize">{key.replace(/_/g, ' ')}</span>
-                                                                <span class="font-medium title-primary text-sm">{String(value)}</span>
+                                                                <span class="font-medium  text-sm">{String(value)}</span>
                                                             </div>
                                                         )}
                                                     </For>

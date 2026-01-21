@@ -171,18 +171,6 @@ const ProductsPage: Component = () => {
     });
   };
 
-  // Stats
-  const stats = createMemo(() => {
-    const data = products();
-    const byClass: Record<ProductClass, number> = { MATERIAL: 0, TOOL: 0, EPP: 0, ASSET: 0, SERVICE: 0, MANUFACTURED: 0 };
-
-    for (const p of data) {
-      byClass[p.product_class] = (byClass[p.product_class] || 0) + 1;
-    }
-
-    return { byClass, total: meta()?.total || data.length };
-  });
-
   // Table columns
   const columns: ColumnDef<Product>[] = [
     {
@@ -248,7 +236,7 @@ const ProductsPage: Component = () => {
         const row = info.row.original;
         return (
           <div class="min-w-0">
-            <div class="font-medium title-primary truncate">{row.name}</div>
+            <div class="font-medium truncate">{row.name}</div>
             <Show when={row.description}>
               <div class="text-xs text-muted truncate mt-0.5 max-w-[250px]">{row.description}</div>
             </Show>
@@ -461,26 +449,6 @@ const ProductsPage: Component = () => {
           }
         />
 
-        {/* Stats Cards */}
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="stat-card bg-gradient-to-br from-surface/80 to-surface/40 backdrop-blur-sm border border-border">
-            <p class="text-muted text-xs font-medium uppercase tracking-wider">Total Productos</p>
-            <p class="text-3xl font-bold title-primary mt-1">{stats().total}</p>
-          </div>
-          <div class="stat-card border" style={{ background: 'var(--color-info-bg)', 'border-color': 'var(--color-info-border)' }}>
-            <p class="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-info-text)', opacity: 0.8 }}>Materiales</p>
-            <p class="text-3xl font-bold mt-1" style={{ color: 'var(--color-info-text)' }}>{stats().byClass.MATERIAL}</p>
-          </div>
-          <div class="stat-card border" style={{ background: 'var(--color-warning-bg)', 'border-color': 'var(--color-warning-border)' }}>
-            <p class="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-warning-text)', opacity: 0.8 }}>Herramientas</p>
-            <p class="text-3xl font-bold mt-1" style={{ color: 'var(--color-warning-text)' }}>{stats().byClass.TOOL}</p>
-          </div>
-          <div class="stat-card border" style={{ background: 'var(--color-success-bg)', 'border-color': 'var(--color-success-border)' }}>
-            <p class="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-success-text)', opacity: 0.8 }}>EPP / Activos</p>
-            <p class="text-3xl font-bold mt-1" style={{ color: 'var(--color-success-text)' }}>{stats().byClass.EPP + stats().byClass.ASSET}</p>
-          </div>
-        </div>
-
         {/* Toolbar */}
         <div class="flex flex-wrap items-center gap-3">
           <SearchInput
@@ -652,7 +620,7 @@ const ProductsPage: Component = () => {
                                           placeholder="Filtrar..."
                                           value={(header.column.getFilterValue() as string) ?? ''}
                                           onInput={(e) => header.column.setFilterValue(e.currentTarget.value || undefined)}
-                                          class="column-filter-input"
+                                          class="text-xs bg-surface border border-border rounded-md px-2 py-1 w-full text-text placeholder:text-muted"
                                         />
                                       </Show>
                                       {/* Select filter for product_class */}
@@ -660,7 +628,7 @@ const ProductsPage: Component = () => {
                                         <select
                                           value={(header.column.getFilterValue() as string) ?? ''}
                                           onChange={(e) => header.column.setFilterValue(e.currentTarget.value || undefined)}
-                                          class="column-filter-select"
+                                          class="text-xs bg-surface border border-border rounded-md px-2 py-1 w-full text-text cursor-pointer focus:border-primary focus:outline-none"
                                         >
                                           <option value="">Todos</option>
                                           <For each={Object.entries(productClassLabels)}>
@@ -673,7 +641,7 @@ const ProductsPage: Component = () => {
                                         <select
                                           value={(header.column.getFilterValue() as string) ?? ''}
                                           onChange={(e) => header.column.setFilterValue(e.currentTarget.value || undefined)}
-                                          class="column-filter-select"
+                                          class="text-xs bg-surface border border-border rounded-md px-2 py-1 w-full text-text cursor-pointer focus:border-primary focus:outline-none"
                                         >
                                           <option value="">Todas</option>
                                           <For each={flatCategories()}>
@@ -686,7 +654,7 @@ const ProductsPage: Component = () => {
                                         <select
                                           value={(header.column.getFilterValue() as string) ?? ''}
                                           onChange={(e) => header.column.setFilterValue(e.currentTarget.value || undefined)}
-                                          class="column-filter-select"
+                                          class="text-xs bg-surface border border-border rounded-md px-2 py-1 w-full text-text cursor-pointer focus:border-primary focus:outline-none"
                                         >
                                           <option value="">Todas</option>
                                           <For each={brands()}>
@@ -699,7 +667,7 @@ const ProductsPage: Component = () => {
                                         <select
                                           value={(header.column.getFilterValue() as string) ?? ''}
                                           onChange={(e) => header.column.setFilterValue(e.currentTarget.value === '' ? undefined : e.currentTarget.value === 'true')}
-                                          class="column-filter-select"
+                                          class="text-xs bg-surface border border-border rounded-md px-2 py-1 w-full text-text cursor-pointer focus:border-primary focus:outline-none"
                                         >
                                           <option value="">Todos</option>
                                           <option value="true">Activo</option>
@@ -713,7 +681,7 @@ const ProductsPage: Component = () => {
                                           placeholder="Min..."
                                           value={(header.column.getFilterValue() as string) ?? ''}
                                           onInput={(e) => header.column.setFilterValue(e.currentTarget.value ? Number(e.currentTarget.value) : undefined)}
-                                          class="column-filter-input"
+                                          class="text-xs bg-surface border border-border rounded-md px-2 py-1 w-full text-text placeholder:text-muted"
                                           step="0.01"
                                         />
                                       </Show>
@@ -761,7 +729,7 @@ const ProductsPage: Component = () => {
                   <For each={table.getRowModel().rows}>
                     {(row) => (
                       <TableRow
-                        class={`table-row-hover hover:bg-surface/50 cursor-pointer ${row.getIsSelected() ? 'bg-primary-soft' : ''}`}
+                        class={`hover:bg-surface/50 cursor-pointer ${row.getIsSelected() ? 'bg-primary-soft' : ''}`}
                         onClick={() => handleView(row.original)}
                         onMouseEnter={() => handlePrefetch(row.original)}
                       >

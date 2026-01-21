@@ -1,7 +1,7 @@
 // src/seeds/seed.ts
 // Run with: bun run db:seed
 import { db } from '../db';
-import { authPermissions, authRoles, authRolePermissions, authUserRoles } from '../schema';
+import { authPermissions, authRoles, authRolePermissions, authUserRoles, authUsers } from '../schema';
 import { sql } from 'drizzle-orm';
 
 // ============================================
@@ -388,25 +388,73 @@ async function seed() {
             console.log(`   ✅ ${roleName}: ${permissionsForRole.length} permissions`);
         }
 
-        // 5. Assign superadmin role to user ID 1 (if exists)
-        console.log('👤 Assigning superadmin to user ID 1...');
-        const superadminRoleId = roleMap.get('superadmin');
-        if (superadminRoleId) {
-            await db
-                .insert(authUserRoles)
-                .values({ user_id: 1, role_id: superadminRoleId })
-                .onConflictDoNothing();
-            console.log('   ✅ User ID 1 is now superadmin');
+        // 5. Create Default Users
+        console.log('👤 Creating default users...');
+
+        const defaultPassword = 'password123';
+        const hashedPassword = await Bun.password.hash(defaultPassword);
+
+        const usersToCreate = [
+            {
+                username: 'superadmin',
+                email: 'superadmin@app.com',
+                role: 'superadmin',
+                entity_id: null // System user
+            },
+            {
+                username: 'admin',
+                email: 'admin@app.com',
+                role: 'admin',
+                entity_id: null // System user
+            }
+        ];
+
+        for (const userData of usersToCreate) {
+            // Check if user exists
+            const existingUser = await db.select().from(authUsers).where(sql`${authUsers.email} = ${userData.email}`).limit(1);
+
+            let userId;
+
+            if (existingUser.length === 0) {
+                const [newUser] = await db.insert(authUsers).values({
+                    username: userData.username,
+                    email: userData.email,
+                    password_hash: hashedPassword,
+                    is_active: true,
+                    entity_id: userData.entity_id
+                }).returning();
+                userId = newUser.id;
+                console.log(`  ✅ Created user: ${userData.username}`);
+            } else {
+                userId = existingUser[0].id;
+                console.log(`  ℹ️ User already exists: ${userData.username}`);
+            }
+
+            // Assign Role
+            const roleId = roleMap.get(userData.role);
+            if (roleId) {
+                await db
+                    .insert(authUserRoles)
+                    .values({ user_id: userId, role_id: roleId })
+                    .onConflictDoNothing();
+                console.log(`   🔗 Assigned role ${userData.role} to ${userData.username}`);
+            } else {
+                console.warn(`   ⚠️ Role ${userData.role} not found for user ${userData.username}`);
+            }
         }
 
-        console.log('\n✅ RBAC seed completed successfully!');
+        console.log('\n✅ Seed completed successfully!');
 
         // Verification
         const permCount = await db.select({ count: sql<number>`count(*)` }).from(authPermissions);
         const roleCount = await db.select({ count: sql<number>`count(*)` }).from(authRoles);
+        const userCount = await db.select({ count: sql<number>`count(*)` }).from(authUsers);
+
         console.log(`\n📊 Summary:`);
         console.log(`   - Total permissions: ${permCount[0].count}`);
         console.log(`   - Total roles: ${roleCount[0].count}`);
+        console.log(`   - Total users: ${userCount[0].count}`);
+
 
     } catch (error) {
         console.error('❌ Seed failed:', error);

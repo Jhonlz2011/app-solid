@@ -311,14 +311,17 @@ export const SidebarItem: Component<SidebarItemProps> = (props) => {
             classes.push('sidebar-item--child');
         }
 
-        // Active state (direct match or parent in collapsed mode with active descendant)
+        // Active state logic
         const isDirectlyActive = !hasChildren() && active();
-        const isParentActiveCollapsed = hasChildren() && props.collapsed() && props.hasActiveDescendant(props.item);
+        // Parent active when sidebar is collapsed
+        const isParentActiveSidebarCollapsed = hasChildren() && props.collapsed() && props.hasActiveDescendant(props.item);
+        // Parent active when sidebar is open but submenu is closed
+        const isParentActiveSubmenuClosed = hasChildren() && !props.collapsed() && !props.expanded() && props.hasActiveDescendant(props.item);
 
-        if (isDirectlyActive || isParentActiveCollapsed) {
+        if (isDirectlyActive || isParentActiveSidebarCollapsed || isParentActiveSubmenuClosed) {
             classes.push('sidebar-item--active');
         } else if (hasChildren() && !props.collapsed() && props.hasActiveDescendant(props.item)) {
-            // Parent with active child (not collapsed)
+            // Parent with active child (expanded) - keeps text highlight but no border
             classes.push('sidebar-item--parent-active');
         }
 
@@ -327,12 +330,8 @@ export const SidebarItem: Component<SidebarItemProps> = (props) => {
 
     const content = (
         <>
-            {/* Icono - envuelto para mantener posición */}
-            <div class="flex items-center justify-center w-5 h-5 flex-none relative">
-                <Show when={level() > 0}>
-                    {/* Dot indicator for children */}
-                    <div class="sidebar-item-dot absolute left-[-12px]"></div>
-                </Show>
+            {/* Icono */}
+            <div class="flex items-center justify-center w-5 h-5 shrink-0">
                 <svg class="sidebar-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={props.item.icon} />
                 </svg>
@@ -345,15 +344,14 @@ export const SidebarItem: Component<SidebarItemProps> = (props) => {
                     'flex-1 opacity-100 max-w-full': !props.collapsed(),
                     'flex-none opacity-0 max-w-0': props.collapsed()
                 }}
-                style={{ transition: 'opacity 0.3s ease, max-width 0.3s ease' }}
                 aria-hidden={props.collapsed() ? 'true' : 'false'}
             >
                 <span class="whitespace-nowrap">{props.item.label}</span>
                 <Show when={hasChildren()}>
-                    <svg
+                    <svg class="size-4 shrink-0 ml-auto transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] group-hover:opacity-80"
                         classList={{
-                            'sidebar-item-chevron': true,
-                            'sidebar-item-chevron--expanded': props.expanded()
+                            'rotate-180 opacity-100': props.expanded(),
+                            'opacity-50': !props.expanded()
                         }}
                         fill="none"
                         stroke="currentColor"
@@ -431,7 +429,7 @@ export const SidebarItem: Component<SidebarItemProps> = (props) => {
                         role={hasChildren() ? 'menu' : 'tooltip'}
                         aria-label={`Menú de ${props.item.label}`}
                         tabIndex={-1}
-                        class={`fixed px-3 py-2 surface-panel text-sm rounded-lg shadow-xl z-[9999] border border-surface ${hasChildren() ? 'min-w-[180px] pointer-events-auto' : 'whitespace-nowrap pointer-events-auto'}`}
+                        class={`fixed px-3 py-2 bg-surface border-border text-sm rounded-lg shadow-xl z-[9999] border ${hasChildren() ? 'min-w-[180px] pointer-events-auto' : 'whitespace-nowrap pointer-events-auto'}`}
                         style={{
                             top: `${tooltipPosition()!.top}px`,
                             left: `${tooltipPosition()!.left}px`,
@@ -473,8 +471,10 @@ export const SidebarItem: Component<SidebarItemProps> = (props) => {
                                                 role="menuitem"
                                                 tabIndex={0}
                                                 classList={{
-                                                    'sidebar-tooltip-item': true,
-                                                    'sidebar-tooltip-item--active': isActive(),
+                                                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-all duration-150 text-muted focus:outline-none hover:bg-primary/10 hover:text-heading': true,
+                                                    'bg-primary/15 !text-primary-strong font-semibold': isActive(),
+                                                    'relative overflow-hidden': true,
+                                                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset': true,
                                                 }}
                                                 onClick={(event) => {
                                                     event.stopPropagation();
@@ -510,11 +510,19 @@ export const SidebarItem: Component<SidebarItemProps> = (props) => {
                                                 }}
                                                 aria-label={child().label}
                                             >
+                                                {/* Line indicator - always visible, highlighted when active */}
+                                                <div
+                                                    classList={{
+                                                        'absolute left-0 top-0 h-full w-1 rounded-r transition-all duration-200': true,
+                                                        'bg-primary': isActive(),
+                                                        'bg-muted/20': !isActive()
+                                                    }}
+                                                ></div>
                                                 <svg
                                                     classList={{
                                                         'w-4 h-4 transition-colors duration-150': true,
-                                                        'text-muted group-hover:text-accent': !isActive(),
-                                                        'text-primary-strong': isActive(),
+                                                        'text-muted group-hover:text-primary': !isActive(),
+                                                        'text-primary': isActive(),
                                                     }}
                                                     fill="none"
                                                     stroke="currentColor"
@@ -526,14 +534,11 @@ export const SidebarItem: Component<SidebarItemProps> = (props) => {
                                                     classList={{
                                                         'flex-1 text-xs font-medium transition-colors duration-150': true,
                                                         'text-muted': !isActive(),
-                                                        'text-primary-strong font-semibold': isActive(),
+                                                        'text-primary font-semibold': isActive(),
                                                     }}
                                                 >
                                                     {child().label}
                                                 </span>
-                                                <Show when={isActive()}>
-                                                    <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-                                                </Show>
                                             </button>
                                         );
                                     }}
@@ -552,38 +557,62 @@ export const SidebarItem: Component<SidebarItemProps> = (props) => {
 
             <Show when={hasChildren() && !props.collapsed()}>
                 <div
-                    class="sidebar-submenu-wrapper"
+                    class="grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] "
                     classList={{
-                        'expanded': props.expanded()
+                        'grid-rows-[0fr]': !props.expanded(),
+                        'grid-rows-[1fr]': props.expanded()
                     }}
                 >
                     <div
-                        class="sidebar-submenu-inner"
+                        class="overflow-hidden"
                         id={submenuId()}
                         role="group"
                         aria-label={`Submenú de ${props.item.label}`}
                     >
-                        <div class="sidebar-submenu space-y-0.5 mt-1">
-                            <Index each={props.item.children}>
-                                {(child) => (
-                                    <SidebarItem
-                                        item={child()}
-                                        level={level() + 1}
-                                        activeTooltipId={props.activeTooltipId}
-                                        setActiveTooltipId={props.setActiveTooltipId}
-                                        collapsed={props.collapsed}
-                                        expanded={() => false} // Children don't expand recursively in this design
-                                        toggleMenu={() => { }} // No sub-sub menus for now
-                                        handleNavigation={props.handleNavigation}
-                                        isMobileViewport={props.isMobileViewport}
-                                        setIsMobileOpen={props.setIsMobileOpen}
-                                        setExpandedMenus={props.setExpandedMenus}
-                                        isActive={props.isActive}
-                                        isItemActive={props.isItemActive}
-                                        hasActiveDescendant={props.hasActiveDescendant}
-                                    />
-                                )}
-                            </Index>
+                        {/* Container with continuous vertical line (Track) */}
+                        <div class="relative ml-6 mt-1 pl-2">
+                            {/* Continuous vertical line */}
+                            <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-border"></div>
+
+                            {/* Submenu items */}
+                            <div class="space-y-0.5">
+                                <Index each={props.item.children}>
+                                    {(child) => {
+                                        const isChildActive = () => props.isItemActive(child());
+                                        return (
+                                            <Link
+                                                to={child().path || '#'}
+                                                class="sidebar-submenu-item"
+                                                classList={{
+                                                    'active': isChildActive()
+                                                }}
+                                                onClick={() => {
+                                                    if (props.isMobileViewport()) props.setIsMobileOpen(false);
+                                                }}
+                                            >
+                                                {/* Active Vertical Indicator (The "Light" on the track) */}
+                                                <Show when={isChildActive()}>
+                                                    <div class="absolute left-[-9px] top-0 bottom-0 w-0.5 bg-primary rounded-full shadow-[0_0_6px_var(--color-primary)]"></div>
+                                                </Show>
+
+                                                {/* Submenu Icon */}
+                                                <Show when={child().icon}>
+                                                    <svg
+                                                        class="w-4 h-4 mr-2 shrink-0 transition-colors duration-200"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={child().icon} />
+                                                    </svg>
+                                                </Show>
+
+                                                <span class="truncate">{child().label}</span>
+                                            </Link>
+                                        );
+                                    }}
+                                </Index>
+                            </div>
                         </div>
                     </div>
                 </div>

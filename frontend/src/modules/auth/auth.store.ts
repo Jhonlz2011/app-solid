@@ -1,5 +1,5 @@
 // src/modules/auth/auth.store.ts
-import { createStore, produce } from "solid-js/store";
+import { createStore } from "solid-js/store";
 import { batch } from "solid-js";
 import { authApi } from "./auth.api";
 import { LoginRequest, User } from "./models/auth.types";
@@ -111,21 +111,32 @@ const silentRefresh = async (retryCount = 0) => {
     try {
         await actions.refresh();
     } catch (error: any) {
-        // Si es un error de autenticación (401/403), el token ya no sirve -> Logout
-        if (error.code === 401 || error.code === 403 || error.message === 'Refresh fallido') {
-            console.warn('Silent refresh rejected by server:', error);
+        const errorMessage = error.message || '';
+
+        // Only logout on definitive auth errors (token-related)
+        // These indicate the token is truly invalid, not just a network issue
+        const isDefinitiveAuthError =
+            errorMessage.includes('Token') ||
+            errorMessage.includes('revocado') ||
+            errorMessage.includes('expirado') ||
+            errorMessage.includes('inválido');
+
+        if (isDefinitiveAuthError) {
+            console.warn('Silent refresh: token is invalid, logging out:', errorMessage);
             actions.logout(false);
             return;
         }
 
-        // Si es otro error (Red, Servidor caído, etc.), reintentar
-        if (retryCount < 3) {
-            console.log(`Silent refresh failed (Network/Server?), retrying (${retryCount + 1}/3)...`);
-            setTimeout(() => silentRefresh(retryCount + 1), 5000); // Reintentar en 5s
+        // For network errors or server issues, retry with exponential backoff
+        const MAX_RETRIES = 5;
+        if (retryCount < MAX_RETRIES) {
+            const delay = Math.min(5000 * Math.pow(1.5, retryCount), 30000); // 5s -> 7.5s -> 11s -> 17s -> 25s
+            console.log(`Silent refresh failed (Network/Server?), retrying in ${Math.round(delay / 1000)}s (${retryCount + 1}/${MAX_RETRIES})...`);
+            setTimeout(() => silentRefresh(retryCount + 1), delay);
         } else {
-            console.error('Silent refresh failed after retries, forcing logout:', error);
-            // Force logout to clean local state and prevent ghost sessions
-            actions.logout(false);
+            // After all retries, schedule one more attempt later instead of logging out
+            console.warn('Silent refresh failed after retries, will retry in 1 minute...');
+            setTimeout(() => silentRefresh(0), 60000);
         }
     }
 };
@@ -151,17 +162,21 @@ export const actions = {
         setSessionFlag(false);
         setState({ user: null, status: 'unauthenticated' });
 
-        // 2. Broadcast logout to other tabs
+        // 2. Clear cached modules (important for different user login)
+        const { actions: moduleActions } = await import('../../shared/store/modules.store');
+        moduleActions.clearModules();
+
+        // 3. Broadcast logout to other tabs
         if (authChannel) {
             authChannel.postMessage({ type: 'LOGOUT' });
         }
 
-        // 3. Notificar al servidor (solo si fue logout voluntario)
+        // 4. Notificar al servidor (solo si fue logout voluntario)
         if (notifyServer) {
             authApi.logout().catch(() => { });
         }
 
-        // 4. Desconectar WebSocket
+        // 5. Desconectar WebSocket
         disconnect();
 
         // Nota: La navegación se maneja en el componente que llama (ej: Sidebar)
@@ -182,8 +197,8 @@ export const actions = {
                 handleTokenUpdate(newToken);
                 return newToken;
             } catch (error) {
-                console.log('[Auth] refresh: failed, logging out');
-                actions.logout(false); // Si falla el refresh, no notificar al server (ya sabe o token inválido)
+                console.log('[Auth] refresh: failed');
+                // Don't logout here - let the caller decide (initSession has retries, silentRefresh handles errors)
                 throw error;
             } finally {
                 refreshPromise = null;
@@ -193,10 +208,11 @@ export const actions = {
         return refreshPromise;
     },
 
-    // Inicialización al cargar la App
+    // Inicialización al cargar la App (called from protected routes)
     initSession: async (): Promise<boolean> => {
-        // Si no hay flag, ni intentamos (optimización)
-        if (!state.hasSessionFlag) return false;
+        // NOTE: We intentionally DON'T check hasSessionFlag here anymore.
+        // On mobile devices, localStorage can be cleared when the browser is killed,
+        // but httpOnly cookies persist. Always try refresh to recover the session.
 
         // Si ya estamos autenticados, no hacer nada
         if (accessToken && state.status === 'authenticated') return true;
@@ -235,17 +251,43 @@ export const actions = {
         }
 
         // Fallback: refresh token from server (only if no other tab responded)
-        try {
-            const token = await actions.refresh();
-            const user = await authApi.getMe(token);
-            batch(() => {
-                setState('user', user);
-                setState('status', 'authenticated');
-            });
-            return true;
-        } catch {
-            return false;
+        // Retry a few times in case the network is slow to initialize after browser restart
+        let retries = 3;
+        while (retries > 0) {
+            try {
+                const token = await actions.refresh();
+                const user = await authApi.getMe(token);
+                batch(() => {
+                    setState('user', user);
+                    setState('status', 'authenticated');
+                });
+                return true;
+            } catch (error: any) {
+                const errorMessage = error.message || '';
+
+                // If it's a definitive auth error, don't retry
+                const isDefinitiveAuthError =
+                    errorMessage.includes('Token') ||
+                    errorMessage.includes('revocado') ||
+                    errorMessage.includes('expirado') ||
+                    errorMessage.includes('inválido');
+
+                if (isDefinitiveAuthError) {
+                    console.warn('[Auth] initSession: auth error, not retrying:', errorMessage);
+                    break;
+                }
+
+                retries--;
+                if (retries > 0) {
+                    console.log(`[Auth] initSession: refresh failed, retrying (${3 - retries}/3)...`);
+                    await new Promise(r => setTimeout(r, 500)); // Wait 500ms before retry
+                }
+            }
         }
+
+        // All retries failed
+        setState('status', 'unauthenticated');
+        return false;
     },
 
     // Inicializar listeners globales (Storage)
@@ -313,7 +355,9 @@ export const actions = {
                 window.location.href = '/login';
             } else if (type === 'revoke') {
                 // Revocación específica: Solo salir si es MI sesión
-                if (sessionId && sessionId === currentSessionId) {
+                // sessionId puede ser string o array (para manejar rotación de tokens)
+                const ids = Array.isArray(sessionId) ? sessionId : [sessionId];
+                if (currentSessionId && ids.includes(currentSessionId)) {
                     actions.logout(false); // No notificar al servidor (ya está revocado)
                     window.location.href = '/login';
                 }

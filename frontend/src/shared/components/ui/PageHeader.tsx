@@ -11,7 +11,7 @@ interface PageHeaderProps {
 export const PageHeader: Component<PageHeaderProps> = (props) => (
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold title-primary flex items-center gap-3">
+            <h1 class="text-2xl font-bold flex items-center gap-3">
                 <div
                     class="w-10 h-10 rounded-xl flex items-center justify-center"
                     style={{ background: props.iconBg ?? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))' }}

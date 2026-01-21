@@ -20,7 +20,7 @@ export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
   return (
     <button
       onClick={toggleTheme}
-      class="flex items-center justify-center text-muted hover-surface p-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
+      class="flex items-center justify-center text-muted hover:bg-card-alt hover:text-text p-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent focus-visible:text-heading"
       data-collapsed={props.collapsed ? 'true' : 'false'}
       title={`Tema actual: ${labels[theme()]}. Cambiar a ${nextThemeLabel()}`}
       aria-label={`Tema actual: ${labels[theme()]}`}

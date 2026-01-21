@@ -1,6 +1,13 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
 import { getAllowedModules, getUserPermissions, getUserRoles } from '../services/rbac.service';
+import {
+    getMenuForUser,
+    getFullMenuTree,
+    getAllMenuItems,
+    updateMenuItem,
+    reorderMenuItems
+} from '../services/menu.service';
 
 export const modulesRoutes = new Elysia({ prefix: '/modules' })
     .use(authGuard)
@@ -13,10 +20,9 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
         return allowedModules;
     })
     /**
-     * Get full menu tree for current user
+     * Get full menu tree for current user (filtered by permissions)
      */
     .get('/tree', async ({ currentUserId }) => {
-        const { getMenuForUser } = await import('../services/menu.service');
         return getMenuForUser(currentUserId);
     })
     /**
@@ -51,4 +57,72 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
         {
             params: t.Object({ permission: t.String() }),
         }
+    )
+    // ============================================
+    // MENU MANAGEMENT ENDPOINTS (Admin only)
+    // ============================================
+    /**
+     * Get full menu tree (admin only, no filtering)
+     */
+    .get('/tree-full', async ({ currentUserId }) => {
+        const roles = await getUserRoles(currentUserId);
+        if (!roles.includes('admin') && !roles.includes('superadmin')) {
+            throw new Error('Unauthorized: Admin access required');
+        }
+        return getFullMenuTree();
+    })
+    /**
+     * Get all menu items as flat list (admin only)
+     */
+    .get('/items', async ({ currentUserId }) => {
+        const roles = await getUserRoles(currentUserId);
+        if (!roles.includes('admin') && !roles.includes('superadmin')) {
+            throw new Error('Unauthorized: Admin access required');
+        }
+        return getAllMenuItems();
+    })
+    /**
+     * Update a menu item (admin only)
+     */
+    .put(
+        '/:id',
+        async ({ currentUserId, params, body }) => {
+            const roles = await getUserRoles(currentUserId);
+            if (!roles.includes('admin') && !roles.includes('superadmin')) {
+                throw new Error('Unauthorized: Admin access required');
+            }
+            const [updated] = await updateMenuItem(parseInt(params.id), body);
+            return updated;
+        },
+        {
+            params: t.Object({ id: t.String() }),
+            body: t.Object({
+                label: t.Optional(t.String()),
+                icon: t.Optional(t.String()),
+                sort_order: t.Optional(t.Number()),
+            }),
+        }
+    )
+    /**
+     * Reorder menu items (admin only)
+     */
+    .put(
+        '/reorder',
+        async ({ currentUserId, body }) => {
+            const roles = await getUserRoles(currentUserId);
+            if (!roles.includes('admin') && !roles.includes('superadmin')) {
+                throw new Error('Unauthorized: Admin access required');
+            }
+            const results = await reorderMenuItems(body.items);
+            return { updated: results.length };
+        },
+        {
+            body: t.Object({
+                items: t.Array(t.Object({
+                    id: t.Number(),
+                    sort_order: t.Number(),
+                })),
+            }),
+        }
     );
+

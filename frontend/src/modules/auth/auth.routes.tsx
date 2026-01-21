@@ -1,5 +1,5 @@
 import { lazy, Component } from 'solid-js';
-import { createRoute } from '@tanstack/solid-router';
+import { createRoute, redirect } from '@tanstack/solid-router';
 import AuthLayout from '@layout/AuthLayout';
 
 const Login = lazy(() => import('./views/Login')) as Component;
@@ -8,6 +8,14 @@ export const createAuthRoutes = (rootRoute: any) => {
     const authRoute = createRoute({
         getParentRoute: () => rootRoute,
         id: 'auth-layout',
+        beforeLoad: async () => {
+            // Redirect to dashboard if already authenticated
+            const { useAuth } = await import('./auth.store');
+            const auth = useAuth();
+            if (auth.isAuthenticated()) {
+                throw redirect({ to: '/dashboard' });
+            }
+        },
         component: AuthLayout,
     });
 

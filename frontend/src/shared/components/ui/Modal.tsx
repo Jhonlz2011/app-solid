@@ -55,18 +55,18 @@ const Modal: Component<ModalProps> = (props) => {
           {/* Modal */}
           <div class="flex min-h-full items-center justify-center p-4">
             <div
-              class={`relative w-full ${sizeClasses[props.size || 'md']} card-panel rounded-2xl shadow-2xl transform transition-all`}
+              class={`relative w-full ${sizeClasses[props.size || 'md']} bg-card border border-border shadow-card-soft rounded-2xl shadow-2xl transform transition-all`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
               <div class="flex items-center justify-between px-6 py-4 border-b border-surface">
-                <h3 class="text-xl font-semibold title-primary">{props.title}</h3>
+                <h3 class="text-xl font-semibold">{props.title}</h3>
                 <button
                   onClick={props.onClose}
-                  class="text-muted hover-surface transition-colors p-2 rounded-lg"
+                  class="text-muted hover:bg-card-alt hover:text-text transition-colors p-2 rounded-lg"
                   aria-label="Cerrar"
                 >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>

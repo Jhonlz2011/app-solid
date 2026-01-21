@@ -18,7 +18,7 @@ const TableRowSkeleton = () => (
 );
 
 const CardSkeleton = () => (
-    <div class="card-panel rounded-xl p-5 animate-pulse">
+    <div class="bg-card border border-border shadow-card-soft rounded-xl p-5 animate-pulse">
         <div class="flex items-start justify-between mb-3">
             <div class="space-y-2">
                 <div class="h-6 w-24 bg-surface rounded" />

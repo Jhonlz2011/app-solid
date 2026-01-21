@@ -14,9 +14,6 @@ const clients = new Map<string, WsClient>();
 // Room-based index for O(1) broadcast lookups
 const roomIndex = new Map<string, Set<string>>();
 
-// Pre-allocated buffer for broadcast messages (reused to reduce GC pressure)
-let broadcastBuffer: Buffer | null = null;
-
 // --- HELPERS ---
 
 function generateClientId(): string {

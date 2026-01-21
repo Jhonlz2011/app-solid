@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { authUsers as users, refreshTokens, entities } from '../schema';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, sql } from 'drizzle-orm';
 import {
   genRefreshTokenPair,
   hashToken,
@@ -89,7 +89,7 @@ export async function login(email: string, password: string, userAgent?: string,
   const MAX_SESSIONS = 5;
 
   await db.transaction(async (tx) => {
-    // 1. Get active sessions count and oldest session
+    // 1. Get active sessions count
     const activeSessions = await tx
       .select({ id: refreshTokens.id, created_at: refreshTokens.created_at })
       .from(refreshTokens)
@@ -99,7 +99,9 @@ export async function login(email: string, password: string, userAgent?: string,
       ))
       .orderBy(refreshTokens.created_at); // Oldest first
 
-    // 2. If limit reached, revoke oldest
+    // 2. If limit reached, revoke oldest sessions
+    // Note: We don't revoke by User-Agent to avoid Normal/Incognito conflicts
+    // Stale sessions (>3h inactive) are filtered out in getActiveSessions()
     if (activeSessions.length >= MAX_SESSIONS) {
       const sessionsToRevoke = activeSessions.slice(0, activeSessions.length - MAX_SESSIONS + 1);
       for (const session of sessionsToRevoke) {
@@ -109,10 +111,6 @@ export async function login(email: string, password: string, userAgent?: string,
           .where(eq(refreshTokens.id, session.id));
       }
     }
-
-    // NOTE: User-Agent based duplicate session cleanup was removed.
-    // It was causing issues when the same user logs in from Incognito (same UA).
-    // The MAX_SESSIONS limit above is sufficient to prevent runaway sessions.
 
     // 4. Insert new session with new chain ID
     await tx
@@ -167,62 +165,79 @@ export async function rotateRefreshToken(oldCombined: string) {
     throw new AuthError('Token inválido');
   }
 
-  const storedToken = await db
-    .select()
-    .from(refreshTokens)
-    .where(eq(refreshTokens.selector, selector))
-    .then(r => r[0]);
+  // Wrap everything in a transaction with row-level locking
+  return await db.transaction(async (tx) => {
+    // Lock the row with FOR UPDATE to prevent concurrent rotations
+    // This serializes parallel refresh attempts on the same token
+    const [storedToken] = await tx.execute<{
+      id: number;
+      user_id: number;
+      selector: string;
+      token_hash: string;
+      session_chain_id: string;
+      expires_at: Date;
+      revoked: boolean;
+      replaced_by: number | null;
+      user_agent: string | null;
+      ip_address: string | null;
+    }>(sql`
+      SELECT * FROM refresh_tokens 
+      WHERE selector = ${selector} 
+      FOR UPDATE
+    `);
 
-  if (!storedToken) throw new AuthError('Token inválido');
+    if (!storedToken) throw new AuthError('Token inválido');
 
-  if (storedToken.revoked) {
-    if (storedToken.replaced_by) {
-      const replacement = await db
-        .select()
-        .from(refreshTokens)
-        .where(eq(refreshTokens.id, storedToken.replaced_by))
-        .then(r => r[0]);
-
-      if (replacement) {
-        const timeSinceReplacement = Date.now() - new Date(replacement.created_at).getTime();
-        if (timeSinceReplacement < 30 * 1000) {
-          const accessToken = await generateAccessToken({ userId: storedToken.user_id, sessionId: replacement.selector });
-          return {
-            accessToken,
-            refreshToken: '',
-            expiresAt: new Date(Date.now() + 15 * 60 * 1000)
-          };
+    // If already revoked, check if we can reuse the replacement (grace period for concurrent requests)
+    if (storedToken.revoked) {
+      if (storedToken.replaced_by) {
+        const replacement = await tx
+          .select()
+          .from(refreshTokens)
+          .where(eq(refreshTokens.id, storedToken.replaced_by))
+          .then(r => r[0]);
+        if (replacement) {
+          const timeSinceReplacement = Date.now() - new Date(replacement.created_at).getTime();
+          // Grace period: within 30 seconds, reuse the same replacement token
+          if (timeSinceReplacement < 30 * 1000) {
+            const accessToken = await generateAccessToken({ userId: storedToken.user_id, sessionId: replacement.selector });
+            return {
+              accessToken,
+              refreshToken: '', // Don't issue new refresh token, use existing from other request
+              expiresAt: new Date(Date.now() + 15 * 60 * 1000)
+            };
+          }
         }
       }
+      throw new AuthError('Token revocado');
     }
-    throw new AuthError('Token revocado');
-  }
 
-  if (new Date(storedToken.expires_at) < new Date()) throw new AuthError('Token expirado');
+    if (new Date(storedToken.expires_at) < new Date()) throw new AuthError('Token expirado');
 
-  const valid = await verifyTokenHash(token, storedToken.token_hash);
-  if (!valid) throw new AuthError('Token inválido');
+    const valid = await verifyTokenHash(token, storedToken.token_hash);
+    if (!valid) throw new AuthError('Token inválido');
 
-  const { user_id } = storedToken;
-  if (!user_id) throw new AuthError('Token inválido');
+    const { user_id } = storedToken;
+    if (!user_id) throw new AuthError('Token inválido');
 
-  const newPair = await genRefreshTokenPair();
-  const newHash = await hashToken(newPair.token);
-  const expiresAt = new Date(Date.now() + REFRESH_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
+    const newPair = await genRefreshTokenPair();
+    const newHash = await hashToken(newPair.token);
+    const expiresAt = new Date(Date.now() + REFRESH_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
 
-  await db.transaction(async (tx) => {
+    // Revoke old token
     await tx
       .update(refreshTokens)
       .set({ revoked: true })
       .where(eq(refreshTokens.id, storedToken.id));
 
+    // Insert new token
     const [newToken] = await tx
       .insert(refreshTokens)
       .values({
         user_id,
         selector: newPair.selector,
         token_hash: newHash,
-        session_chain_id: storedToken.session_chain_id, // Preserve chain ID through rotation
+        session_chain_id: storedToken.session_chain_id,
         expires_at: expiresAt,
         last_activity: new Date(),
         user_agent: storedToken.user_agent,
@@ -230,19 +245,20 @@ export async function rotateRefreshToken(oldCombined: string) {
       })
       .returning();
 
+    // Link old token to new
     await tx
       .update(refreshTokens)
       .set({ replaced_by: newToken.id })
       .where(eq(refreshTokens.id, storedToken.id));
+
+    const accessToken = await generateAccessToken({ userId: user_id, sessionId: newPair.selector });
+
+    return {
+      accessToken,
+      refreshToken: newPair.combined,
+      expiresAt,
+    };
   });
-
-  const accessToken = await generateAccessToken({ userId: user_id, sessionId: newPair.selector });
-
-  return {
-    accessToken,
-    refreshToken: newPair.combined,
-    expiresAt,
-  };
 }
 
 export async function logout(selector: string) {
@@ -293,7 +309,7 @@ export async function getActiveSessions(userId: number, currentSelector?: string
     )
     .orderBy(refreshTokens.created_at);
 
-  return sessions.map((s) => {
+  const mapped = sessions.map((s) => {
     const geo = s.ip_address ? geoip.lookup(s.ip_address) : null;
     const location = geo ? `${geo.city}, ${geo.country}` : null;
 
@@ -305,6 +321,13 @@ export async function getActiveSessions(userId: number, currentSelector?: string
       created_at: s.created_at,
       is_current: s.selector === currentSelector,
     };
+  });
+
+  // Sort: current session first, then by created_at descending (newest first)
+  return mapped.sort((a, b) => {
+    if (a.is_current) return -1;
+    if (b.is_current) return 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 }
 
@@ -320,50 +343,42 @@ export async function revokeSession(sessionId: number, userId: number) {
     )
     .then((r) => r[0]);
 
-  const initialSelector = currentSession?.selector;
-
   if (!currentSession) {
     throw new AuthError('Sesión no encontrada', 404);
   }
 
+  // Collect ALL selectors in the chain (handles token rotation)
+  const revokedSelectors: string[] = [];
+
   // Revoke the target session and any session that replaced it (recursively)
   // This handles the race condition where a session rotates just before being revoked
   while (currentSession) {
+    revokedSelectors.push(currentSession.selector);
+
     await db
       .update(refreshTokens)
       .set({ revoked: true })
       .where(eq(refreshTokens.id, currentSession.id));
 
-    if (currentSession.replaced_by) {
-      // Add replaced session to blacklist too
-      await redis.set(`blacklist:${currentSession.selector}`, 'revoked', 'EX', ACCESS_TOKEN_EXP_SECONDS);
+    // Add to blacklist
+    await redis.set(`blacklist:${currentSession.selector}`, 'revoked', 'EX', ACCESS_TOKEN_EXP_SECONDS);
 
+    if (currentSession.replaced_by) {
       currentSession = await db
         .select()
         .from(refreshTokens)
         .where(eq(refreshTokens.id, currentSession.replaced_by))
         .then((r) => r[0]);
     } else {
-      // Add final session to blacklist
-      await redis.set(`blacklist:${currentSession.selector}`, 'revoked', 'EX', ACCESS_TOKEN_EXP_SECONDS);
       break;
     }
   }
 
-  // Broadcast with the specific session selector so only that client logs out
-  // We use the selector of the *original* target session (or the last one in the chain if we want to be specific, 
-  // but usually the client has the selector of the session they are using).
-  // Actually, if we revoked a chain, we should probably broadcast the *target* session's selector 
-  // OR the selector of the session that was actually active.
-  // Ideally, we broadcast the selector of the session that was passed in (if it's the one the user clicked).
-  // But the user clicked an ID.
-
-  // Let's broadcast the selector of the session that was found first (the one the user clicked to revoke).
-  // Wait, `currentSession` is modified in the loop.
-  // I should store the initial selector.
-
-
-  broadcastJSON('sessions:update', { type: 'revoke', sessionId: initialSelector }, `user:${userId}`);
+  // Broadcast ALL selectors so client matches even after rotation
+  broadcastJSON('sessions:update', {
+    type: 'revoke',
+    sessionId: revokedSelectors // Array of all selectors in chain
+  }, `user:${userId}`);
 
   return { success: true };
 }
@@ -428,7 +443,11 @@ export async function changePassword(userId: number, currentPassword: string, ne
   const newHash = await Bun.password.hash(newPassword);
   await db.update(users).set({ password_hash: newHash }).where(eq(users.id, userId));
 
+  // Revoke all sessions
   await db.update(refreshTokens).set({ revoked: true }).where(eq(refreshTokens.user_id, userId));
+
+  // Broadcast logout to all connected clients for this user
+  broadcastJSON('sessions:update', { type: 'logout' }, `user:${userId}`);
 
   return { success: true };
 }

@@ -47,9 +47,9 @@ const Login: Component = () => {
   };
 
   return (
-    <div class="min-h-screen flex items-center justify-center app-shell p-4">
-      <div class="max-w-md w-full p-8 card-panel rounded-2xl shadow-lg">
-        <h2 class="text-3xl font-bold text-white mb-2">Iniciar sesión</h2>
+    <div class="min-h-screen flex items-center justify-center bg-bg text-text p-4">
+      <div class="max-w-md w-full p-8 bg-card border border-border shadow-card-soft rounded-2xl shadow-lg">
+        <h2 class="text-3xl font-bold mb-2 text-dark">Iniciar sesión</h2>
         <p class="text-muted text-sm mb-6">Ingresa tus credenciales para continuar</p>
 
         <form onSubmit={handleSubmit} class="flex flex-col gap-5" aria-labelledby="login-form" novalidate>

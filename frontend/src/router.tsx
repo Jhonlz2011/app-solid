@@ -1,4 +1,4 @@
-import { lazy, Component } from 'solid-js';
+import { lazy, Component, onMount } from 'solid-js';
 import { createRouter, createRootRoute, createRoute, RouterProvider, Outlet, redirect } from '@tanstack/solid-router';
 
 import MainLayout from './layout/MainLayout';
@@ -26,16 +26,30 @@ const rootRoute = createRootRoute({
     authActions.initStore();
   },
   component: () => {
-    // Inicializar stores globales (WebSocket and modules)
-    connectWs();
-    // Modules se cargan bajo demanda o al autenticar, pero podemos intentar cargar si ya hay sesión
-    moduleActions.fetchModules();
+    // Root just renders children - WebSocket and modules are initialized in layoutRoute (protected)
     return <Outlet />;
   },
 });
 
 // Integrar rutas de autenticación
 const authRoute = createAuthRoutes(rootRoute);
+
+// Layout wrapper component that initializes modules and WebSocket
+const ProtectedLayout: Component = () => {
+  onMount(() => {
+    // Load modules only once when layout mounts
+    moduleActions.fetchModules();
+  });
+
+  // Initialize WebSocket only for authenticated users
+  connectWs();
+
+  return (
+    <MainLayout>
+      <Outlet />
+    </MainLayout>
+  );
+};
 
 // Ruta para páginas con Layout (protegidas)
 const layoutRoute = createRoute({
@@ -48,15 +62,12 @@ const layoutRoute = createRoute({
 
     // 1. Si ya estamos autenticados, todo bien
     if (auth.isAuthenticated()) {
-      // Asegurar que los módulos estén cargados
-      moduleActions.fetchModules();
       return;
     }
 
     // 2. Intentar inicializar sesión (si hay cookie/localStorage)
     const restored = await actions.initSession();
     if (restored) {
-      moduleActions.fetchModules();
       return;
     }
 
@@ -68,11 +79,7 @@ const layoutRoute = createRoute({
       },
     });
   },
-  component: () => (
-    <MainLayout>
-      <Outlet />
-    </MainLayout>
-  ),
+  component: ProtectedLayout,
 });
 
 // Crear las rutas hijas del layout - solo el contenido
@@ -96,6 +103,14 @@ const indexRoute = createRoute({
 const productsRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: 'products',
+  beforeLoad: async () => {
+    // Permission guard for products module
+    const { useAuth } = await import('./modules/auth/auth.store');
+    const auth = useAuth();
+    if (!auth.canRead('products')) {
+      throw redirect({ to: '/dashboard' });
+    }
+  },
   component: ProductsPage,
 });
 
@@ -128,6 +143,14 @@ const productNewRoute = createRoute({
 const systemUsersRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: '/system/users',
+  beforeLoad: async () => {
+    // Permission guard for users module
+    const { useAuth } = await import('./modules/auth/auth.store');
+    const auth = useAuth();
+    if (!auth.canRead('users')) {
+      throw redirect({ to: '/dashboard' });
+    }
+  },
   component: () => <UsersRolesPage />,
 });
 

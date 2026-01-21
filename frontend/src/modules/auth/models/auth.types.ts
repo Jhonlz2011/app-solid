@@ -1,9 +1,18 @@
+export interface Entity {
+    id: number;
+    businessName: string;
+    isClient: boolean;
+    isSupplier: boolean;
+    isEmployee: boolean;
+}
+
 export interface User {
     id: number;
     email: string;
     username?: string;
     roles?: string[];
     permissions?: string[];
+    entity?: Entity | null;
 }
 
 
