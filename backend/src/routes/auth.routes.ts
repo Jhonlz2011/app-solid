@@ -6,6 +6,7 @@ import {
   logout,
   getMe,
   changePassword,
+  updateProfile,
   getActiveSessions,
   revokeSession,
   AuthError,
@@ -190,6 +191,18 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         body: t.Object({
           currentPassword: t.String(),
           newPassword: t.String({ minLength: 8 }),
+        }),
+      }
+    )
+    .put(
+      '/profile',
+      async ({ body, currentUserId }) => {
+        return updateProfile(currentUserId, body);
+      },
+      {
+        body: t.Object({
+          username: t.Optional(t.String({ minLength: 3 })),
+          email: t.Optional(t.String({ format: 'email' })),
         }),
       }
     )

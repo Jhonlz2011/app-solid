@@ -451,3 +451,74 @@ export async function changePassword(userId: number, currentPassword: string, ne
 
   return { success: true };
 }
+
+export async function updateProfile(
+  userId: number,
+  data: { username?: string; email?: string }
+) {
+  const user = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .then(r => r[0]);
+
+  if (!user) throw new AuthError('Usuario no encontrado');
+
+  const updateData: { username?: string; email?: string } = {};
+
+  // Validate and prepare username update
+  if (data.username && data.username !== user.username) {
+    if (data.username.length < 3) {
+      throw new AuthError('El nombre de usuario debe tener al menos 3 caracteres', 400);
+    }
+    // Check for duplicate
+    const existingUser = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, data.username))
+      .then(r => r[0]);
+
+    if (existingUser && existingUser.id !== userId) {
+      throw new AuthError('El nombre de usuario ya está en uso', 409);
+    }
+    updateData.username = data.username;
+  }
+
+  // Validate and prepare email update
+  if (data.email && data.email !== user.email) {
+    if (!(await validateEmail(data.email))) {
+      throw new AuthError('Email inválido', 400);
+    }
+    // Check for duplicate
+    const existingEmail = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, data.email))
+      .then(r => r[0]);
+
+    if (existingEmail && existingEmail.id !== userId) {
+      throw new AuthError('El email ya está en uso', 409);
+    }
+    updateData.email = data.email;
+  }
+
+  // Only update if there are changes
+  if (Object.keys(updateData).length === 0) {
+    return { success: true, message: 'Sin cambios' };
+  }
+
+  await db.update(users).set(updateData).where(eq(users.id, userId));
+
+  // Return updated user data
+  const updatedUser = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      username: users.username,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .then(r => r[0]);
+
+  return { success: true, user: updatedUser };
+}

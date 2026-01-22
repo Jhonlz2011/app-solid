@@ -67,7 +67,6 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
                                             >
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={child.icon} />
                                             </svg>
-
                                             {/* Label */}
                                             <span class="truncate">{child.label}</span>
                                         </Link>

@@ -1,7 +1,7 @@
 import { Component, For, Accessor } from 'solid-js';
 import type { MenuItem } from './types';
 import { SidebarNavItem } from './SidebarNavItem';
-import { scrollBar } from '@/shared/directives/scroll';
+import { scrollBar } from '@shared/directives/scroll';
 
 // Register directive
 false && scrollBar;

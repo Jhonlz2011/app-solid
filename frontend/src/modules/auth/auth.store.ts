@@ -4,10 +4,18 @@ import { batch } from "solid-js";
 import { authApi } from "./auth.api";
 import { LoginRequest, User } from "./models/auth.types";
 import { connect, subscribe, disconnect, enableReconnect } from "../../shared/store/ws.store";
+import { broadcast, BroadcastEvents } from "../../shared/store/broadcast.store";
 
 // --- CONFIGURACIÓN ---
 const SESSION_FLAG_KEY = 'hasSession';
 const TOKEN_REFRESH_MARGIN = 2 * 60 * 1000; // 2 minutos
+
+// Helper to strip non‑serializable fields from User before sending via BroadcastChannel
+const sanitizeUser = (user: User): Partial<User> => {
+    // Keep only plain, JSON‑serializable properties
+    const { id, username, email, roles, permissions, entity } = user;
+    return { id, username, email, roles, permissions, entity };
+};
 
 // --- VARIABLES PRIVADAS (Memoria, fuera del Store reactivo) ---
 // Reemplazan a las propiedades privadas de tu clase
@@ -103,7 +111,8 @@ const handleTokenUpdate = (token: string, user?: User, broadcast = true) => {
 
     // Broadcast to other tabs (only if this is the originating tab)
     if (broadcast && authChannel && user) {
-        authChannel.postMessage({ type: 'TOKEN_SYNC', accessToken: token, user });
+        const safeUser = sanitizeUser(user);
+        authChannel.postMessage({ type: 'TOKEN_SYNC', accessToken: token, user: safeUser });
     }
 };
 
@@ -180,6 +189,20 @@ export const actions = {
         disconnect();
 
         // Nota: La navegación se maneja en el componente que llama (ej: Sidebar)
+    },
+
+    // Update user profile in store (for fine-grained reactivity)
+    updateUser: (updates: Partial<User>, shouldBroadcast = true) => {
+        if (!state.user) return;
+
+        // Merge updates into existing user
+        const updatedUser = { ...state.user, ...updates };
+        setState('user', updatedUser);
+
+        // Broadcast to other tabs using centralized broadcast store (auto-sanitizes)
+        if (shouldBroadcast) {
+            broadcast.emit(BroadcastEvents.PROFILE_UPDATE, { user: updatedUser });
+        }
     },
 
     // Tu lógica de Mutex para evitar dobles refrescos
@@ -335,14 +358,25 @@ export const actions = {
                     console.log('[Auth] BroadcastChannel: received TOKEN_REQUEST, hasToken:', !!accessToken);
                     if (accessToken && state.user) {
                         console.log('[Auth] BroadcastChannel: sending TOKEN_RESPONSE');
-                        authChannel.postMessage({ type: 'TOKEN_RESPONSE', accessToken, user: state.user });
+                        const safeUser = sanitizeUser(state.user);
+                        authChannel.postMessage({ type: 'TOKEN_RESPONSE', accessToken, user: safeUser });
                     }
                 } else if (e.data.type === 'LOGOUT') {
                     clearInternalState();
                     setState({ user: null, status: 'unauthenticated' });
                 }
+                // Note: PROFILE_UPDATE is now handled via centralized broadcast store below
             };
         }
+
+        // Initialize centralized broadcast store and listen for profile updates
+        broadcast.init();
+        broadcast.on(BroadcastEvents.PROFILE_UPDATE, (data) => {
+            if (data?.user) {
+                console.log('[Auth] Broadcast: received PROFILE_UPDATE');
+                setState('user', data.user);
+            }
+        });
 
         // Escuchar eventos de WebSocket (Revocación de sesión)
         window.addEventListener('sessions:update', ((e: CustomEvent) => {

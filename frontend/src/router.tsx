@@ -154,19 +154,20 @@ const systemUsersRoute = createRoute({
   component: () => <UsersRolesPage />,
 });
 
-// Settings routes
-const SessionsPage = lazy(() => import('./modules/profile/views/SessionsPage')) as Component;
-
-const settingsSessionsRoute = createRoute({
-  getParentRoute: () => layoutRoute,
-  path: '/settings/sessions',
-  component: () => <SessionsPage />,
-});
+// Profile route
+const ProfilePage = lazy(() => import('./modules/profile/views/ProfilePage')) as Component;
 
 const settingsGeneralRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: '/settings/general',
   component: () => <div class="p-6"><h1>Configuración General</h1><p>Próximamente...</p></div>,
+});
+
+// Profile route
+const profileRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: '/profile',
+  component: () => <ProfilePage />,
 });
 
 // Construir el árbol de rutas
@@ -182,8 +183,8 @@ const routeTree = rootRoute.addChildren([
       productNewRoute,
     ]),
     systemUsersRoute,
-    settingsSessionsRoute,
     settingsGeneralRoute,
+    profileRoute,
   ]),
 ]);
 

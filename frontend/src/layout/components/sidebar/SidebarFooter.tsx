@@ -1,5 +1,6 @@
 import { Component, Show, createSignal } from 'solid-js';
 import { Portal } from 'solid-js/web';
+import { Link } from '@tanstack/solid-router';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
 import { useSidebar } from './SidebarContext';
 import { clickOutside } from '@shared/directives/clickOutside';
@@ -16,12 +17,13 @@ interface SidebarFooterProps {
 }
 
 export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
-    const { collapsed, handleNavigation } = useSidebar();
+    const { collapsed, isMobileViewport, setIsMobileOpen } = useSidebar();
     const [showUserMenu, setShowUserMenu] = createSignal(false);
 
-    const handleAccountClick = () => {
-        handleNavigation('/');
+    // Close menu and mobile sidebar on navigation
+    const handleNavClick = () => {
         setShowUserMenu(false);
+        if (isMobileViewport()) setIsMobileOpen(false);
     };
 
     const handleLogout = () => {
@@ -81,15 +83,16 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                                     <p class="text-xs text-muted">{props.userRole}</p>
                                 </div>
                                 <div class="p-1">
-                                    <button
-                                        tabIndex={0}
-                                        onClick={handleAccountClick}
+                                    <Link
+                                        to="/profile"
+                                        onClick={handleNavClick}
+                                        preload="intent"
                                         class="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-heading hover:bg-card-alt rounded-lg text-left
                                                focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
                                     >
                                         <UserIcon class="size-4" />
                                         Mi Cuenta
-                                    </button>
+                                    </Link>
 
                                     <div class="h-px bg-border my-1" />
 
@@ -114,39 +117,40 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
             {/* EXPANDED CONTENT LAYER - User info and logout button */}
             <Show when={!collapsed()}>
                 <div class="absolute inset-0 flex items-center gap-2 px-4 sm:pl-5 sm:pr-4 animate-in fade-in duration-200">
-                    {/* Profile Button (Avatar + Info) - Avatar is hidden here (covered by layer above) */}
-                    <button
-                        onClick={handleAccountClick}
-                        class="flex-1 flex items-center gap-3 rounded-xl cursor-pointer text-left group items-start 
+                    {/* Profile Link (Avatar + Info) - Avatar is hidden here (covered by layer above) */}
+                    <Link
+                        to="/profile"
+                        onClick={handleNavClick}
+                        preload="intent"
+                        class="flex-1 min-w-0 flex items-center gap-3 rounded-xl cursor-pointer text-left group
                                focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
                         aria-label="Ir a mi perfil"
                     >
                         {/* Invisible spacer for avatar */}
                         <div class="size-10 shrink-0 opacity-0" />
 
-                        <div class="flex-1 overflow-hidden">
+                        <div class="flex-1 min-w-0">
                             <p class="font-semibold text-sm truncate text-heading group-hover:text-primary">
                                 {props.userName}
                             </p>
                             <p class="text-muted text-xs truncate">{props.userRole}</p>
                         </div>
-                    </button>
+                    </Link>
 
                     {/* Logout Button */}
                     <button
                         onClick={handleLogout}
                         disabled={props.isLoggingOut()}
-                        class="group/logout flex items-center justify-center gap-2 p-2.5 rounded-xl
+                        class="group/logout flex items-center justify-center gap-2 p-2.5 rounded-xl text-red-500/70 hover:bg-red-500/10 hover:text-red-500
                                focus:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
                         classList={{
-                            'text-red-500/70 hover:bg-red-500/10 hover:text-red-500': !props.isLoggingOut(),
                             'opacity-50 cursor-not-allowed text-red-500/50': props.isLoggingOut()
                         }}
                         title="Cerrar Sesión"
                         aria-label="Cerrar Sesión"
                     >
                         <LogoutIcon
-                            class={`size-5 ${!props.isLoggingOut() ? 'group-hover/logout:rotate-12' : 'animate-pulse'}`}
+                            class={`size-5 `}
                         />
                     </button>
                 </div>

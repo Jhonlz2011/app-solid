@@ -102,7 +102,7 @@ export const SessionItem: Component<SessionItemProps> = (props) => {
                             </span>
                         </div>
                         <div class="text-xs text-muted/70 mt-1">
-                            Iniciado el {formatDate(props.session.created_at)}
+                            Ultima vez iniciado el {formatDate(props.session.created_at)}
                         </div>
                     </div>
                 </div>
