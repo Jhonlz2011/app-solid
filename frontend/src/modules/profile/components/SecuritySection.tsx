@@ -27,12 +27,18 @@ export const SecuritySection: Component<SecuritySectionProps> = (props) => {
             onSubmit: ChangePasswordSchema,
         },
         onSubmit: async ({ value }) => {
-            await props.onChangePassword({
-                currentPassword: value.currentPassword,
-                newPassword: value.newPassword,
-            });
-            // Reset form on success
-            form.reset();
+            try {
+                await props.onChangePassword({
+                    currentPassword: value.currentPassword,
+                    newPassword: value.newPassword,
+                });
+                // Reset form only on success
+                form.reset();
+            } catch {
+                // Error is handled by parent (ProfilePage shows toast)
+                // Don't throw - TanStack Form doesn't handle thrown errors well
+                // and isSubmitting won't reset. Just catch silently.
+            }
         },
     }));
 
@@ -102,15 +108,21 @@ export const SecuritySection: Component<SecuritySectionProps> = (props) => {
                     </p>
                 </div>
 
-                {/* Submit Button */}
-                <Button
-                    type="submit"
-                    disabled={props.isChanging || form.state.isSubmitting}
-                    loading={props.isChanging || form.state.isSubmitting}
-                    size="lg"
-                >
-                    Cambiar contraseña
-                </Button>
+                {/* Submit Button - using form.Subscribe for proper reactivity */}
+                <form.Subscribe selector={(state) => ({
+                    isSubmitting: state.isSubmitting,
+                })}>
+                    {(state) => (
+                        <Button
+                            type="submit"
+                            disabled={props.isChanging || state().isSubmitting}
+                            loading={props.isChanging || state().isSubmitting}
+                            size="lg"
+                        >
+                            Cambiar contraseña
+                        </Button>
+                    )}
+                </form.Subscribe>
             </form>
         </div>
     );

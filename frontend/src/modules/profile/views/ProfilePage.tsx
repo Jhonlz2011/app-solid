@@ -65,7 +65,7 @@ const ProfilePage: Component = () => {
             toast.success('Contraseña cambiada correctamente. Debes iniciar sesión de nuevo.');
         } catch (error: any) {
             toast.error(error?.message || 'Error al cambiar la contraseña');
-            throw error;
+            // Don't throw - let the promise resolve so form exits isSubmitting
         }
     };
 

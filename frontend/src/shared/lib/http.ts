@@ -44,12 +44,25 @@ export async function request<T>(endpoint: string, options: RequestOptions = {})
     let response = await fetch(url, config);
 
     if (response.status === 401) {
+        console.log('[HTTP] Got 401, attempting token refresh...');
         try {
             const newToken = await actions.refresh();
+            console.log('[HTTP] Token refreshed, retrying request...');
             headers.set('Authorization', `Bearer ${newToken}`);
             response = await fetch(url, { ...config, headers });
+            console.log('[HTTP] Retry response status:', response.status);
+
+            // If still 401 after retry with fresh token, it's a real auth error (e.g., wrong password)
+            // Throw immediately - don't let it fall through to the generic error handler
+            if (response.status === 401) {
+                console.log('[HTTP] Still 401 after retry, throwing error...');
+                const errorData = await response.json().catch(() => ({}));
+                console.log('[HTTP] Error data:', errorData);
+                throw new Error(errorData.error || errorData.message || 'Error de autenticación');
+            }
         } catch (error) {
-            // Refresh failed, actions.refresh() already handles logout
+            // Refresh failed or second request failed
+            console.log('[HTTP] Error in 401 handler:', error);
             throw error;
         }
     }

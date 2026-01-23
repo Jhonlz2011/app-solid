@@ -8,6 +8,7 @@ import { RouterApp } from './router';
 import { QueryClientProvider } from '@tanstack/solid-query';
 import { queryClient } from './shared/lib/queryClient';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { Toaster } from 'solid-sonner';
 
 const root = document.getElementById('root');
 
@@ -23,6 +24,7 @@ render(
         <QueryClientProvider client={queryClient}>
             <ThemeProvider>
                 <RouterApp />
+                <Toaster position="top-right" richColors />
             </ThemeProvider>
         </QueryClientProvider>
     ),
