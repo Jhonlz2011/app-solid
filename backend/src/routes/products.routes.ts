@@ -1,4 +1,5 @@
 import { Elysia, t } from 'elysia';
+import { ProductInsert } from '@app/schema/backend';
 import { authGuard } from '../plugins/auth-guard';
 import {
   listProducts,
@@ -6,7 +7,28 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  type ProductPayload,
 } from '../services/products.service';
+
+// Schema for extra fields not in the DB table
+const ExtraFields = t.Object({
+  components: t.Optional(
+    t.Array(
+      t.Object({
+        componentId: t.Number(),
+        quantity: t.Number(),
+        wastagePercent: t.Optional(t.Number()),
+      })
+    )
+  ),
+  dimensions: t.Optional(
+    t.Object({
+      width: t.Optional(t.Number()),
+      length: t.Optional(t.Number()),
+      thickness: t.Optional(t.Number()),
+    })
+  ),
+});
 
 export const productRoutes = new Elysia({ prefix: '/products' })
   .use(authGuard)
@@ -17,7 +39,8 @@ export const productRoutes = new Elysia({ prefix: '/products' })
         search: query.search,
         categoryId: query.categoryId ? Number(query.categoryId) : undefined,
         brandId: query.brandId ? Number(query.brandId) : undefined,
-        productClass: query.productClass as any,
+        productType: query.productType,
+        productSubtype: query.productSubtype,
         isActive: query.isActive === 'true' ? true : query.isActive === 'false' ? false : undefined,
         limit: query.limit ? Number(query.limit) : undefined,
         offset: query.offset ? Number(query.offset) : undefined,
@@ -27,7 +50,8 @@ export const productRoutes = new Elysia({ prefix: '/products' })
         search: t.Optional(t.String()),
         categoryId: t.Optional(t.Numeric()),
         brandId: t.Optional(t.Numeric()),
-        productClass: t.Optional(t.String()),
+        productType: t.Optional(t.String()),
+        productSubtype: t.Optional(t.String()),
         isActive: t.Optional(t.String()),
         limit: t.Optional(t.Numeric()),
         offset: t.Optional(t.Numeric()),
@@ -44,74 +68,23 @@ export const productRoutes = new Elysia({ prefix: '/products' })
   .post(
     '/',
     async ({ body, currentUserId, set }) => {
-      const product = await createProduct(body, currentUserId);
+      // Body is already validated and typed by Elysia + TypeBox
+      // It matches ProductPayload because ProductInsert is derived from the same schema
+      const product = await createProduct(body as ProductPayload, currentUserId);
       set.status = 201;
       return product;
     },
     {
-      body: t.Object({
-        sku: t.String(),
-        name: t.String(),
-        productClass: t.Union([
-          t.Literal('MATERIAL'),
-          t.Literal('TOOL'),
-          t.Literal('EPP'),
-          t.Literal('ASSET'),
-        ]),
-        categoryId: t.Optional(t.Number()),
-        brandId: t.Optional(t.Number()),
-        description: t.Optional(t.String()),
-        specs: t.Optional(t.Any()),
-        imageUrls: t.Optional(t.Array(t.String())),
-        uomInventoryCode: t.Optional(t.String()),
-        uomConsumptionCode: t.Optional(t.String()),
-        trackDimensional: t.Optional(t.Boolean()),
-        isService: t.Optional(t.Boolean()),
-        minStockAlert: t.Optional(t.Number()),
-        lastCost: t.Optional(t.Number()),
-        basePrice: t.Optional(t.Number()),
-        ivaRateCode: t.Optional(t.Number()),
-        components: t.Optional(
-          t.Array(
-            t.Object({
-              componentId: t.Number(),
-              quantity: t.Number(),
-              wastagePercent: t.Optional(t.Number()),
-            })
-          )
-        ),
-      }),
+      body: t.Composite([ProductInsert, ExtraFields]),
     }
   )
   .put(
     '/:id',
     ({ params, body, currentUserId }) =>
-      updateProduct(Number(params.id), body, currentUserId),
+      updateProduct(Number(params.id), body as Partial<ProductPayload>, currentUserId),
     {
       params: t.Object({ id: t.Numeric() }),
-      body: t.Partial(
-        t.Object({
-          name: t.String(),
-          productClass: t.Union([
-            t.Literal('MATERIAL'),
-            t.Literal('TOOL'),
-            t.Literal('EPP'),
-            t.Literal('ASSET'),
-          ]),
-          categoryId: t.Number(),
-          brandId: t.Number(),
-          description: t.String(),
-          specs: t.Any(),
-          uomInventoryCode: t.String(),
-          uomConsumptionCode: t.String(),
-          trackDimensional: t.Boolean(),
-          isService: t.Boolean(),
-          minStockAlert: t.Number(),
-          lastCost: t.Number(),
-          basePrice: t.Number(),
-          ivaRateCode: t.Number(),
-        })
-      ),
+      body: t.Partial(t.Composite([ProductInsert, ExtraFields])),
     }
   )
   .delete(

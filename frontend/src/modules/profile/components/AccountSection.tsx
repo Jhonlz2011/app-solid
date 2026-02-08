@@ -1,12 +1,12 @@
 // Account Section - Username/Email Form with TanStack Form + Valibot
-import { Component, createEffect, on, Show } from 'solid-js';
+import { Component, Show, createMemo } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import type { Profile } from '../models/profile.types';
 import { UpdateProfileSchema } from '../models/profile.schemas';
 import { TextField } from './fields/TextField';
-import Button from '@shared/components/ui/Button';
-import { AlertCircleIcon } from '@shared/components/icons';
+import Button from '@shared/ui/Button';
+import { AlertCircleIcon } from '@shared/ui/icons';
 
 interface AccountSectionProps {
     profile: Profile;
@@ -15,10 +15,14 @@ interface AccountSectionProps {
 }
 
 export const AccountSection: Component<AccountSectionProps> = (props) => {
+    // Memoize profile values to prevent unnecessary re-renders
+    const profileUsername = createMemo(() => props.profile.username || '');
+    const profileEmail = createMemo(() => props.profile.email || '');
+
     const form = createForm(() => ({
         defaultValues: {
-            username: props.profile.username || '',
-            email: props.profile.email || '',
+            username: profileUsername(),
+            email: profileEmail(),
         },
         validatorAdapter: valibotValidator(),
         validators: {
@@ -28,29 +32,18 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
         onSubmit: async ({ value }) => {
             // Only send changed fields
             const updates: { username?: string; email?: string } = {};
-            if (value.username !== props.profile.username) {
+            if (value.username !== profileUsername()) {
                 updates.username = value.username;
             }
-            if (value.email !== props.profile.email) {
+            if (value.email !== profileEmail()) {
                 updates.email = value.email;
             }
 
             if (Object.keys(updates).length > 0) {
-                // Toast handling is in parent (ProfilePage) for consistency
                 await props.onUpdate(updates);
             }
         },
     }));
-
-    // Reset form when profile changes externally
-    createEffect(on(
-        () => props.profile,
-        () => form.reset({
-            username: props.profile.username || '',
-            email: props.profile.email || '',
-        }),
-        { defer: true }
-    ));
 
     return (
         <div>
@@ -106,14 +99,15 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 })}>
                     {(state) => {
                         const hasChanges = () =>
-                            state().values.username !== props.profile.username ||
-                            state().values.email !== props.profile.email;
+                            state().values.username !== profileUsername() ||
+                            state().values.email !== profileEmail();
 
                         return (
                             <Button
                                 type="submit"
                                 disabled={!hasChanges() || props.isUpdating || state().isSubmitting}
                                 loading={props.isUpdating || state().isSubmitting}
+                                loadingText="Guardando..."
                                 size="lg"
                             >
                                 Guardar cambios

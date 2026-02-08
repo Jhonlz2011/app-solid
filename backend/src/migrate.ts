@@ -1,5 +1,4 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import { drizzlePostgres as drizzle, migrate } from '@app/schema';
 import postgres from 'postgres';
 import fs from 'fs';
 import path from 'path';

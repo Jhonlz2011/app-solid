@@ -2,11 +2,11 @@
 import { Component, createSignal, For, Show, onMount, onCleanup } from 'solid-js';
 import { createQuery, createMutation, useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
-import { request } from '@shared/lib/http';
+import { api } from '@shared/lib/eden';
 import { useWebSocket } from '@shared/store/ws.store';
-import { useAuth } from '@modules/auth/auth.store';
-import { SessionItem, Session } from './SessionItem';
-import { DeviceIcon, WarningIcon } from '@shared/components/icons';
+import { useAuth } from '@modules/auth/store/auth.store';
+import { SessionItem, type Session } from './SessionItem';
+import { DeviceIcon, WarningIcon } from '@shared/ui/icons';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 
 // Skeleton loader component for instant perceived loading
@@ -33,8 +33,14 @@ export const SessionsSection: Component = () => {
 
     const sessionsQuery = createQuery(() => ({
         queryKey: ['auth', 'sessions'],
-        queryFn: async () => {
-            return request<Session[]>('/auth/sessions');
+        queryFn: async (): Promise<Session[]> => {
+            const { data, error } = await api.api.auth.sessions.get();
+            if (error) throw new Error(String(error.value));
+            // Map Date to string for SessionItem component
+            return (data as any[]).map(s => ({
+                ...s,
+                created_at: typeof s.created_at === 'string' ? s.created_at : s.created_at.toISOString(),
+            }));
         },
         // 2026 Best Practices for 0ms UX:
         staleTime: 60 * 1000, // Data stays fresh for 1 minute
@@ -76,7 +82,9 @@ export const SessionsSection: Component = () => {
 
     const revokeMutation = createMutation(() => ({
         mutationFn: async (sessionId: number) => {
-            return request(`/auth/sessions/${sessionId}`, { method: 'DELETE' });
+            const { error } = await api.api.auth.sessions({ id: sessionId }).delete();
+            if (error) throw new Error(String(error.value));
+            return { success: true };
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
@@ -96,7 +104,8 @@ export const SessionsSection: Component = () => {
         }
     };
 
-    // Show cached data while fetching in background
+    // Derived state
+    const sessions = () => sessionsQuery.data ?? [];
     const hasCachedData = () => sessionsQuery.data !== undefined;
     const isInitialLoading = () => sessionsQuery.isLoading && !hasCachedData();
     const isBackgroundRefetching = () => sessionsQuery.isFetching && hasCachedData();
@@ -114,9 +123,9 @@ export const SessionsSection: Component = () => {
                     </h2>
                     <p class="text-sm text-muted">Dispositivos donde has iniciado sesión.</p>
                 </div>
-                <Show when={sessionsQuery.data && sessionsQuery.data.length > 0}>
+                <Show when={sessions().length > 0}>
                     <span class="px-2.5 py-1 text-xs font-bold text-nowrap rounded-full bg-primary/10 text-primary">
-                        {sessionsQuery.data?.length} activas
+                        {sessions().length} activas
                     </span>
                 </Show>
             </div>
@@ -146,7 +155,7 @@ export const SessionsSection: Component = () => {
             </Show>
 
             {/* Empty State */}
-            <Show when={sessionsQuery.data && sessionsQuery.data.length === 0}>
+            <Show when={sessions().length === 0 && !isInitialLoading() && !sessionsQuery.isError}>
                 <div class="text-center py-8">
                     <div class="size-12 mx-auto mb-3 rounded-full bg-card-alt flex items-center justify-center">
                         <DeviceIcon class="size-6 text-muted" />
@@ -156,9 +165,9 @@ export const SessionsSection: Component = () => {
             </Show>
 
             {/* Sessions List - Shows cached data even during refetch */}
-            <Show when={sessionsQuery.data && sessionsQuery.data.length > 0}>
+            <Show when={sessions().length > 0}>
                 <div class="space-y-3">
-                    <For each={sessionsQuery.data}>
+                    <For each={sessions()}>
                         {(session) => (
                             <SessionItem
                                 session={session}

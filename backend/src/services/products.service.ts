@@ -1,45 +1,46 @@
-import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
-import { db } from '../db';
-import { products, bomHeaders, bomDetails, productDimensions } from '../schema';
+import { and, desc, eq, ilike, or, sql } from '@app/schema';
+import { db, type Tx } from '../db';
+import { products, bomHeaders, bomDetails, productDimensions } from '@app/schema/tables';
+import { type ProductInsertType } from '@app/schema/typebox';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/ws';
 
-// Product class enum matching schema
-type ProductClass = 'MATERIAL' | 'TOOL' | 'EPP' | 'ASSET' | 'SERVICE' | 'MANUFACTURED';
+// Use inferred type from schema for the base payload
+// type ProductInsert = InferInsertModel<typeof products>;
 
-export interface ProductPayload {
-  sku: string;
-  name: string;
-  productClass: ProductClass;
-  categoryId?: number;
-  brandId?: number;
-  description?: string;
-  specs?: Record<string, any>;
-  imageUrls?: string[];
-  uomInventoryCode?: string;
-  uomConsumptionCode?: string;
-  secondaryUomCode?: string;
-  conversionFactorSecondary?: number;
-  trackDimensional?: boolean;
-  isService?: boolean;
-  minStockAlert?: number;
-  lastCost?: number;
-  basePrice?: number;
-  ivaRateCode?: number;
-  components?: { componentId: number; quantity: number; wastagePercent?: number }[];
+
+
+export type ProductPayload = ProductInsertType & {
+  // Campos extra que no están en la tabla 'products' pero sí en el formulario
+  components?: {
+    componentId: number;
+    quantity: number;
+    wastagePercent?: number
+  }[];
   dimensions?: {
     width?: number;
     length?: number;
     thickness?: number;
   };
-}
+};
 
-interface ProductFilters {
+// export interface ProductPayload extends ProductInsert {
+//   // Extra fields not in products table
+//   components?: { componentId: number; quantity: number; wastagePercent?: number }[];
+//   dimensions?: {
+//     width?: number;
+//     length?: number;
+//     thickness?: number;
+//   };
+// }
+
+export interface ProductFilters {
   search?: string;
   categoryId?: number;
   brandId?: number;
-  productClass?: ProductClass;
+  productType?: string;
+  productSubtype?: string;
   isActive?: boolean;
   limit?: number;
   offset?: number;
@@ -49,7 +50,7 @@ export async function listProducts(filters: ProductFilters) {
   const cacheKey = `products:list:${JSON.stringify(filters)}`;
 
   return cacheService.getOrSet(cacheKey, async () => {
-    const { search, categoryId, brandId, productClass, isActive, limit = 25, offset = 0 } = filters;
+    const { search, categoryId, brandId, productType, productSubtype, isActive, limit = 25, offset = 0 } = filters;
     const conditions = [];
 
     if (search) {
@@ -64,7 +65,8 @@ export async function listProducts(filters: ProductFilters) {
 
     if (categoryId) conditions.push(eq(products.category_id, categoryId));
     if (brandId) conditions.push(eq(products.brand_id, brandId));
-    if (productClass) conditions.push(eq(products.product_class, productClass));
+    if (productType) conditions.push(eq(products.product_type, productType as any));
+    if (productSubtype) conditions.push(eq(products.product_subtype, productSubtype as any));
     if (isActive !== undefined) conditions.push(eq(products.is_active, isActive));
 
     const whereClause = conditions.length ? and(...conditions) : undefined;
@@ -97,6 +99,8 @@ export async function getProduct(id: number) {
       where: eq(products.id, id),
       with: {
         dimensions: true,
+        category: true,
+        brand: true,
       }
     });
 
@@ -116,8 +120,12 @@ export async function getProduct(id: number) {
         .select({
           id: bomDetails.id,
           componentProductId: bomDetails.component_product_id,
-          quantityNeeded: bomDetails.quantity_factor, // Updated field name
+          quantityFactor: bomDetails.quantity_factor,
           wastagePercent: bomDetails.wastage_percent,
+          calculationType: bomDetails.calculation_type,
+          formulaExpression: bomDetails.formula_expression,
+          sortOrder: bomDetails.sort_order,
+          isOptional: bomDetails.is_optional,
         })
         .from(bomDetails)
         .where(eq(bomDetails.bom_id, bom.id));
@@ -137,43 +145,31 @@ export async function createProduct(payload: ProductPayload, userId: number) {
     throw new DomainError('El SKU ya está registrado', 409);
   }
 
-  return db.transaction(async (tx) => {
+  return db.transaction(async (tx: Tx) => {
+    // Extract extra fields
+    const { components, dimensions, ...productData } = payload;
+
     const [created] = await tx
       .insert(products)
       .values({
-        sku: payload.sku,
-        name: payload.name,
-        product_class: payload.productClass,
-        category_id: payload.categoryId,
-        brand_id: payload.brandId,
-        description: payload.description,
-        specs: payload.specs ?? {},
-        uom_inventory_code: payload.uomInventoryCode,
-        uom_consumption_code: payload.uomConsumptionCode,
-        secondary_uom_code: payload.secondaryUomCode,
-        conversion_factor_secondary: payload.conversionFactorSecondary?.toString() ?? '1',
-        track_dimensional: payload.trackDimensional ?? false,
-        is_service: payload.isService ?? false,
-        min_stock_alert: payload.minStockAlert?.toString() ?? '0',
-        last_cost: payload.lastCost?.toString() ?? '0',
-        base_price: payload.basePrice?.toString() ?? '0',
-        iva_rate_code: payload.ivaRateCode ?? 4,
+        ...productData,
         updated_by: userId,
       })
       .returning();
 
     // Insert Dimensions if provided
-    if (payload.dimensions) {
+    if (dimensions) {
       await tx.insert(productDimensions).values({
         product_id: created.id,
-        width: payload.dimensions.width?.toString() ?? '0',
-        length: payload.dimensions.length?.toString() ?? '0',
-        thickness: payload.dimensions.thickness?.toString() ?? '0',
-        area: ((payload.dimensions.width || 0) * (payload.dimensions.length || 0)).toString(),
+        width: dimensions.width?.toString() ?? '0',
+        length: dimensions.length?.toString() ?? '0',
+        thickness: dimensions.thickness?.toString() ?? '0',
+        area: ((dimensions.width || 0) * (dimensions.length || 0)).toString(),
       });
     }
 
-    if (payload.components?.length) {
+    // Create BOM if components provided
+    if (components?.length) {
       const [bom] = await tx
         .insert(bomHeaders)
         .values({
@@ -184,7 +180,7 @@ export async function createProduct(payload: ProductPayload, userId: number) {
         .returning();
 
       await tx.insert(bomDetails).values(
-        payload.components.map((c) => ({
+        components.map((c) => ({
           bom_id: bom.id,
           component_product_id: c.componentId,
           quantity_factor: c.quantity.toString(),
@@ -201,28 +197,14 @@ export async function createProduct(payload: ProductPayload, userId: number) {
 }
 
 export async function updateProduct(productId: number, payload: Partial<ProductPayload>, userId: number) {
-  return db.transaction(async (tx) => {
+  return db.transaction(async (tx: Tx) => {
+    const { components, dimensions, ...productData } = payload;
+
     const updateValues: any = {
+      ...productData,
       updated_at: new Date(),
       updated_by: userId,
     };
-
-    if (payload.name !== undefined) updateValues.name = payload.name;
-    if (payload.productClass !== undefined) updateValues.product_class = payload.productClass;
-    if (payload.categoryId !== undefined) updateValues.category_id = payload.categoryId;
-    if (payload.brandId !== undefined) updateValues.brand_id = payload.brandId;
-    if (payload.description !== undefined) updateValues.description = payload.description;
-    if (payload.specs !== undefined) updateValues.specs = payload.specs;
-    if (payload.uomInventoryCode !== undefined) updateValues.uom_inventory_code = payload.uomInventoryCode;
-    if (payload.uomConsumptionCode !== undefined) updateValues.uom_consumption_code = payload.uomConsumptionCode;
-    if (payload.secondaryUomCode !== undefined) updateValues.secondary_uom_code = payload.secondaryUomCode;
-    if (payload.conversionFactorSecondary !== undefined) updateValues.conversion_factor_secondary = payload.conversionFactorSecondary.toString();
-    if (payload.trackDimensional !== undefined) updateValues.track_dimensional = payload.trackDimensional;
-    if (payload.isService !== undefined) updateValues.is_service = payload.isService;
-    if (payload.minStockAlert !== undefined) updateValues.min_stock_alert = payload.minStockAlert.toString();
-    if (payload.lastCost !== undefined) updateValues.last_cost = payload.lastCost.toString();
-    if (payload.basePrice !== undefined) updateValues.base_price = payload.basePrice.toString();
-    if (payload.ivaRateCode !== undefined) updateValues.iva_rate_code = payload.ivaRateCode;
 
     const [updated] = await tx
       .update(products)
@@ -235,12 +217,12 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
     }
 
     // Update Dimensions if provided
-    if (payload.dimensions) {
+    if (dimensions) {
       const dimValues = {
-        width: payload.dimensions.width?.toString() ?? '0',
-        length: payload.dimensions.length?.toString() ?? '0',
-        thickness: payload.dimensions.thickness?.toString() ?? '0',
-        area: ((payload.dimensions.width || 0) * (payload.dimensions.length || 0)).toString(),
+        width: dimensions.width?.toString() ?? '0',
+        length: dimensions.length?.toString() ?? '0',
+        thickness: dimensions.thickness?.toString() ?? '0',
+        area: ((dimensions.width || 0) * (dimensions.length || 0)).toString(),
       };
 
       await tx
@@ -251,6 +233,10 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
           set: dimValues,
         });
     }
+
+    // Note: Updating BOM components is complex and usually requires a new revision or full replace.
+    // For now, we'll skip updating BOMs in this simple update function unless explicitly requested.
+    // A dedicated endpoint for BOM management is usually better.
 
     cacheService.invalidate(`products:${productId}`);
     cacheService.invalidate('products:list:*');

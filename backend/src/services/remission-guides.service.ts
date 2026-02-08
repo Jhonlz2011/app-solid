@@ -1,6 +1,6 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from '@app/schema';
 import { db } from '../db';
-import { electronicDocuments, remissionGuides, entities } from '../schema';
+import { electronicDocuments, remissionGuides, entities } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/ws';

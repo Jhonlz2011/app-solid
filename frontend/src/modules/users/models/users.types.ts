@@ -1,26 +1,9 @@
-export interface Role {
-    id: number;
-    name: string;
-    description: string | null;
-    userCount: number;
-}
+// Users/RBAC types inferred from Eden
+import { usersApi } from '../data/users.api';
 
-export interface Permission {
-    id: number;
-    slug: string;
-    description: string | null;
-}
-
-export interface PermissionsResponse {
-    all: Permission[];
-    grouped: Record<string, Permission[]>;
-}
-
-export interface UserWithRoles {
-    id: number;
-    username: string;
-    email: string;
-    isActive: boolean | null;
-    lastLogin: Date | null;
-    roles: { id: number; name: string }[];
-}
+// Infer types from Eden API responses
+export type Role = Awaited<ReturnType<typeof usersApi.listRoles>>[number];
+export type Permission = Awaited<ReturnType<typeof usersApi.listPermissions>>['all'][number];
+export type PermissionsResponse = Awaited<ReturnType<typeof usersApi.listPermissions>>;
+export type UserWithRoles = Awaited<ReturnType<typeof usersApi.listUsersWithRoles>>[number];
+export type RoleUsers = Awaited<ReturnType<typeof usersApi.getRoleUsers>>;

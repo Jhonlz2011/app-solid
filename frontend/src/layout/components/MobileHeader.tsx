@@ -1,5 +1,5 @@
 import { Component } from 'solid-js';
-import { useAuth } from '@modules/auth/auth.store';
+import { useAuth } from '@modules/auth/store/auth.store';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
 
 const MobileHeader: Component = () => {

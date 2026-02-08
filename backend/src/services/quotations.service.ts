@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { quotations, quotationItems, workOrders, entities } from '../schema';
-import { eq, desc } from 'drizzle-orm';
+import { quotations, quotationItems, workOrders, entities } from '@app/schema/tables';
+import { eq, desc } from '@app/schema';
 import { DomainError } from './errors';
 
 type CreateQuotationDTO = typeof quotations.$inferInsert & {

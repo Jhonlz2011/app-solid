@@ -4,7 +4,7 @@ import { Link, useLocation } from '@tanstack/solid-router';
 import type { MenuItem } from './types';
 import { SidebarSubmenu } from './SidebarSubmenu';
 import { useSidebar } from './SidebarContext';
-import { ChevronDownIcon } from '@shared/components/icons';
+import { ChevronDownIcon } from '@shared/ui/icons';
 
 interface SidebarNavItemProps {
     item: MenuItem;
@@ -248,7 +248,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                                                 setActiveTooltipId(null);
                                                 if (isMobileOpen()) setIsMobileOpen(false);
                                             }}
-                                            onKeyDown={(e) => {
+                                            onKeyDown={(e: KeyboardEvent) => {
                                                 const links = Array.from(tooltipRef?.querySelectorAll('a[role="menuitem"]') || []) as HTMLAnchorElement[];
                                                 const currentIndex = links.indexOf(e.currentTarget);
                                                 const isFirst = currentIndex === 0;

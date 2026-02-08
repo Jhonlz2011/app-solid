@@ -1,27 +1,26 @@
 import { Component, For, Show, createMemo, createSignal, onMount, onCleanup, batch } from 'solid-js';
 import { createQuery, createMutation, useQueryClient, keepPreviousData } from '@tanstack/solid-query';
 import { createSolidTable, flexRender, getCoreRowModel, getSortedRowModel, getFilteredRowModel, type ColumnDef, type SortingState, type VisibilityState, type RowSelectionState } from '@tanstack/solid-table';
-import { Toaster, toast } from 'solid-sonner';
+import { toast } from 'solid-sonner';
 import { DropdownMenu } from '@kobalte/core';
 import { useNavigate, Outlet } from '@tanstack/solid-router';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@shared/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@shared/ui/table';
 import { productsApi } from '../data/products.api';
 import { productKeys, categoryKeys, brandKeys } from '../data/products.keys';
-import type { Product, ProductClass, ProductFilters, Category, Brand } from '../models/products.type';
-import { productClassLabels } from '../models/products.type';
+import type { Product, ProductClass, ProductFilters, Category, Brand } from '../models/products.types';
+import { productTypeLabels } from '../models/products.types';
 import { useWebSocket } from '@shared/store/ws.store';
-import { ProductClassBadge } from '../components/ProductClassBadge';
+import { ProductTypeBadge } from '../components/ProductTypeBadge';
+import { PageHeader } from '@shared/ui/PageHeader';
+import { SearchInput } from '@shared/ui/SearchInput';
+import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import { EmptyState } from '@shared/ui/EmptyState';
+import Switch from '@shared/ui/Switch';
+import Checkbox from '@shared/ui/Checkbox';
+import { StatusBadge } from '@shared/ui/Badge';
 
-// Atomic Components
-import { PageHeader } from '@shared/components/ui/PageHeader';
-import { SearchInput } from '@shared/components/ui/SearchInput';
-import { SkeletonLoader } from '@shared/components/ui/SkeletonLoader';
-import { EmptyState } from '@shared/components/ui/EmptyState';
+import { PlusIcon, EditIcon, TrashIcon, ColumnsIcon, FilterIcon, ChevronDownIcon, ProductIcon } from '@shared/ui/icons';
 
-// Icons - from shared library
-import { PlusIcon, EditIcon, TrashIcon, ColumnsIcon, FilterIcon, ChevronDownIcon, ProductIcon } from '@shared/components/icons';
-
-// Helpers
 const formatCurrency = (value: string | number) => {
   const num = typeof value === 'string' ? parseFloat(value) : value;
   return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(num);
@@ -30,10 +29,8 @@ const formatCurrency = (value: string | number) => {
 const ProductsPage: Component = () => {
   const queryClient = useQueryClient();
 
-  // State
   const [filters, setFilters] = createSignal<ProductFilters>({ limit: 50, offset: 0 });
   const [searchInput, setSearchInput] = createSignal('');
-
   const [sorting, setSorting] = createSignal<SortingState>([]);
   const [globalFilter, setGlobalFilter] = createSignal('');
   const [columnVisibility, setColumnVisibility] = createSignal<VisibilityState>({});
@@ -41,10 +38,8 @@ const ProductsPage: Component = () => {
   const [columnFilters, setColumnFilters] = createSignal<{ id: string; value: any }[]>([]);
   const [columnPinning, setColumnPinning] = createSignal<{ left?: string[]; right?: string[] }>({});
   let tableContainerRef: HTMLDivElement | undefined;
-
   // Router - simple path navigation
   const navigate = useNavigate();
-
   // WebSocket for real-time updates
   const { subscribe, unsubscribe } = useWebSocket();
 
@@ -176,24 +171,18 @@ const ProductsPage: Component = () => {
     {
       id: 'select',
       header: ({ table }) => (
-        <input
-          ref={(el) => {
-            el.indeterminate = table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected();
-          }}
-          type="checkbox"
+        <Checkbox
+          indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
           checked={table.getIsAllPageRowsSelected()}
           onChange={table.getToggleAllPageRowsSelectedHandler()}
-          class="custom-checkbox"
         />
       ),
       cell: ({ row }) => (
         <div onClick={(e) => e.stopPropagation()}>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={row.getIsSelected()}
             disabled={!row.getCanSelect()}
             onChange={row.getToggleSelectedHandler()}
-            class="custom-checkbox"
           />
         </div>
       ),
@@ -245,10 +234,10 @@ const ProductsPage: Component = () => {
       },
     },
     {
-      accessorKey: 'product_class',
+      accessorKey: 'product_type',
       header: 'Tipo',
       size: 100,
-      cell: (info) => <ProductClassBadge productClass={info.getValue<ProductClass>()} />,
+      cell: (info) => <ProductTypeBadge type={info.getValue<ProductClass>()} />,
     },
     {
       id: 'category',
@@ -283,15 +272,7 @@ const ProductsPage: Component = () => {
       cell: (info) => {
         const active = info.getValue<boolean>();
         return (
-          <span
-            class="px-2 py-0.5 text-xs font-medium rounded-full"
-            style={{
-              background: active ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-              color: active ? 'var(--color-success-text)' : 'var(--color-danger-text)'
-            }}
-          >
-            {active ? 'Activo' : 'Inactivo'}
-          </span>
+          <StatusBadge isActive={active} />
         );
       },
     },
@@ -364,11 +345,10 @@ const ProductsPage: Component = () => {
   };
 
   const handlePrefetch = (product: Product) => {
-    // Prefetch product details on hover for instant navigation
     queryClient.prefetchQuery({
       queryKey: productKeys.detail(product.id),
       queryFn: () => productsApi.get(product.id),
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
     });
   };
 
@@ -390,51 +370,13 @@ const ProductsPage: Component = () => {
     toast.info('Actualizando productos...');
   };
 
-  const handleFilterClass = (productClass?: ProductClass) => {
-    setFilters((prev) => ({ ...prev, productClass, offset: 0 }));
-  };
-
-  const handleFilterCategory = (categoryId?: number) => {
-    setFilters((prev) => ({ ...prev, categoryId, offset: 0 }));
-  };
-
-  const handleFilterBrand = (brandId?: number) => {
-    setFilters((prev) => ({ ...prev, brandId, offset: 0 }));
-  };
-
-  const handleFilterStatus = (isActive?: boolean) => {
-    setFilters((prev) => ({ ...prev, isActive, offset: 0 }));
-  };
-
-  const clearFilters = () => {
-    setFilters({ limit: 50, offset: 0 });
-    setSearchInput('');
-    setGlobalFilter('');
+  const handleFilterType = (product_type?: ProductClass) => {
+    setFilters((prev) => ({ ...prev, product_type, offset: 0 }));
   };
 
   // Pagination
-  const currentPage = () => Math.floor((filters().offset || 0) / (filters().limit || 50)) + 1;
-  const totalPages = () => Math.ceil((meta()?.total || 0) / (filters().limit || 50));
-
-  const goToPage = (page: number) => {
-    const limit = filters().limit || 50;
-    setFilters((prev) => ({ ...prev, offset: (page - 1) * limit }));
-  };
-
-  const activeFilterCount = createMemo(() => {
-    let count = 0;
-    if (filters().productClass) count++;
-    if (filters().categoryId) count++;
-    if (filters().brandId) count++;
-    if (filters().isActive !== undefined) count++;
-    if (filters().search) count++;
-    return count;
-  });
-
   return (
     <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
-      <Toaster position="top-right" richColors closeButton />
-
       {/* Header */}
       <div class="flex-shrink-0 p-6 space-y-5">
         <PageHeader
@@ -466,7 +408,7 @@ const ProductsPage: Component = () => {
               <span class="hidden sm:inline">Columnas</span>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
-              <DropdownMenu.Content class="dropdown-content min-w-[220px] p-3 space-y-2">
+              <DropdownMenu.Content class="bg-card border border-border rounded-xl shadow-card-soft z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 min-w-[220px] p-3 space-y-2">
                 <div class="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Visibilidad</div>
                 <For each={table.getAllLeafColumns().filter(col => col.getCanHide())}>
                   {(column) => (
@@ -488,11 +430,10 @@ const ProductsPage: Component = () => {
                           </button>
                         </Show>
                         {/* Toggle switch */}
-                        <input
-                          type="checkbox"
+                        <Switch
                           checked={column.getIsVisible()}
-                          onChange={(e) => column.toggleVisibility(e.currentTarget.checked)}
-                          class="toggle-switch"
+                          onChange={column.toggleVisibility}
+                          aria-label="Alternar columna"
                         />
                       </div>
                     </div>
@@ -505,16 +446,16 @@ const ProductsPage: Component = () => {
           {/* Class Filter Pills */}
           <div class="hidden lg:flex items-center gap-1.5">
             <button
-              class={`filter-pill ${!filters().productClass ? 'filter-pill--active' : ''}`}
-              onClick={() => handleFilterClass(undefined)}
+              class={`filter-pill ${!filters().product_type ? 'filter-pill--active' : ''}`}
+              onClick={() => handleFilterType(undefined)}
             >
               Todos
             </button>
-            <For each={Object.entries(productClassLabels)}>
+            <For each={Object.entries(productTypeLabels)}>
               {([key, label]) => (
                 <button
-                  class={`filter-pill ${filters().productClass === key ? 'filter-pill--active' : ''}`}
-                  onClick={() => handleFilterClass(key as ProductClass)}
+                  class={`filter-pill ${filters().product_type === key ? 'filter-pill--active' : ''}`}
+                  onClick={() => handleFilterType(key as ProductClass)}
                 >
                   {label}
                 </button>
@@ -554,7 +495,7 @@ const ProductsPage: Component = () => {
       <div class="flex-1 min-h-0 px-6 pb-6 overflow-hidden flex flex-col">
         <div
           ref={tableContainerRef}
-          class="table-container h-full overflow-auto relative"
+          class="bg-card border border-border rounded-2xl shadow-card-soft h-full overflow-auto relative"
         >
           <Table>
             <TableHeader class="sticky top-0 z-10 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -612,7 +553,7 @@ const ProductsPage: Component = () => {
                                     </svg>
                                   </DropdownMenu.Trigger>
                                   <DropdownMenu.Portal>
-                                    <DropdownMenu.Content class="dropdown-content min-w-[180px] p-3">
+                                    <DropdownMenu.Content class="bg-card border border-border rounded-xl shadow-card-soft z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 min-w-[180px] p-3">
                                       {/* Text filter for SKU and Name */}
                                       <Show when={header.column.id === 'sku' || header.column.id === 'name'}>
                                         <input
@@ -623,15 +564,15 @@ const ProductsPage: Component = () => {
                                           class="text-xs bg-surface border border-border rounded-md px-2 py-1 w-full text-text placeholder:text-muted"
                                         />
                                       </Show>
-                                      {/* Select filter for product_class */}
-                                      <Show when={header.column.id === 'product_class'}>
+                                      {/* Select filter for product_type */}
+                                      <Show when={header.column.id === 'product_type'}>
                                         <select
                                           value={(header.column.getFilterValue() as string) ?? ''}
                                           onChange={(e) => header.column.setFilterValue(e.currentTarget.value || undefined)}
                                           class="text-xs bg-surface border border-border rounded-md px-2 py-1 w-full text-text cursor-pointer focus:border-primary focus:outline-none"
                                         >
                                           <option value="">Todos</option>
-                                          <For each={Object.entries(productClassLabels)}>
+                                          <For each={Object.entries(productTypeLabels)}>
                                             {([key, label]) => <option value={key}>{label}</option>}
                                           </For>
                                         </select>

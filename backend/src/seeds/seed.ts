@@ -1,8 +1,8 @@
 // src/seeds/seed.ts
 // Run with: bun run db:seed
 import { db } from '../db';
-import { authPermissions, authRoles, authRolePermissions, authUserRoles, authUsers } from '../schema';
-import { sql } from 'drizzle-orm';
+import { authPermissions, authRoles, authRolePermissions, authUserRoles, authUsers, uom } from '@app/schema/tables';
+import { sql } from '@app/schema';
 
 // ============================================
 // RBAC SEED DATA FOR ERP SYSTEM
@@ -336,10 +336,44 @@ const ROLE_PERMISSIONS: Record<string, (slug: string) => boolean> = {
     },
 };
 
+const UOM_DATA = [
+    // Length
+    { code: 'M', name: 'Metro' },
+    { code: 'CM', name: 'Centímetro' },
+    { code: 'MM', name: 'Milímetro' },
+    // Area
+    { code: 'M2', name: 'Metro Cuadrado' },
+    // Volume
+    { code: 'M3', name: 'Metro Cúbico' },
+    { code: 'L', name: 'Litro' },
+    { code: 'GAL', name: 'Galón' },
+    // Weight
+    { code: 'KG', name: 'Kilogramo' },
+    { code: 'G', name: 'Gramo' },
+    { code: 'LB', name: 'Libra' },
+    // Quantity
+    { code: 'UND', name: 'Unidad' },
+    { code: 'PZA', name: 'Pieza' },
+    { code: 'JGO', name: 'Juego' },
+    { code: 'CAJA', name: 'Caja' },
+    { code: 'PAQ', name: 'Paquete' },
+    { code: 'ROLLO', name: 'Rollo' },
+];
+
 async function seed() {
     console.log('🌱 Starting RBAC seed...');
 
     try {
+        // 0. Insert UOMs
+        console.log('📏 Inserting UOMs...');
+        for (const unit of UOM_DATA) {
+            await db
+                .insert(uom)
+                .values(unit)
+                .onConflictDoNothing({ target: uom.code });
+        }
+        console.log(`   ✅ ${UOM_DATA.length} UOMs processed`);
+
         // 1. Insert permissions (upsert)
         console.log('📝 Inserting permissions...');
         for (const perm of PERMISSIONS) {

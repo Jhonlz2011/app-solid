@@ -123,13 +123,58 @@ export const wsPlugin = (app: Elysia) =>
         },
     });
 
+// --- REDIS ADAPTER ---
+import { redis } from '../config/redis';
+
+// Duplicate Redis connection for subscription (required by Redis)
+const redisSub = redis.duplicate();
+
+export async function initWsRedisAdapter() {
+    await redisSub.subscribe('ws:events');
+
+    redisSub.on('message', (channel, message) => {
+        if (channel === 'ws:events') {
+            try {
+                const { event, data, room, format } = JSON.parse(message);
+
+                if (format === 'json') {
+                    localBroadcastJSON(event, data, room);
+                } else {
+                    localBroadcast(event, data, room);
+                }
+            } catch (e) {
+                console.error('Redis WS message parse error:', e);
+            }
+        }
+    });
+
+    console.log('✅ Redis WebSocket Adapter Initialized');
+}
+
 // --- BROADCAST FUNCTIONS ---
 
 /**
- * Broadcast to all clients or specific room using MessagePack (binary)
+ * Broadcast to all clients or specific room via Redis Pub/Sub
+ * This ensures scaling across multiple instances
+ */
+export async function broadcast(event: string, data: any, room: string = '*'): Promise<void> {
+    const payload = JSON.stringify({ event, data, room, format: 'msgpack' });
+    await redis.publish('ws:events', payload);
+}
+
+/**
+ * Broadcast JSON via Redis Pub/Sub
+ */
+export async function broadcastJSON(event: string, data: any, room: string = '*'): Promise<void> {
+    const payload = JSON.stringify({ event, data, room, format: 'json' });
+    await redis.publish('ws:events', payload);
+}
+
+/**
+ * INTERNAL: Broadcast to LOCAL clients or specific room using MessagePack (binary)
  * Optimized with room indexing for O(1) lookups
  */
-export function broadcast(event: string, data: any, room: string = '*'): void {
+function localBroadcast(event: string, data: any, room: string = '*'): void {
     // Encode message once
     const encoded = encode({ event, data, timestamp: Date.now() });
     const message = Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength);
@@ -177,9 +222,9 @@ export function broadcast(event: string, data: any, room: string = '*'): void {
 }
 
 /**
- * Broadcast JSON (for backward compatibility)
+ * INTERNAL: Broadcast JSON (for backward compatibility)
  */
-export function broadcastJSON(event: string, data: any, room: string = '*'): void {
+function localBroadcastJSON(event: string, data: any, room: string = '*'): void {
     const message = JSON.stringify({ event, data, timestamp: Date.now() });
 
     const targetClients = new Set<string>();

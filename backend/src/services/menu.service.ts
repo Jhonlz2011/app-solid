@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { authMenuItems } from '../schema';
-import { eq, isNull, asc } from 'drizzle-orm';
+import { authMenuItems } from '@app/schema/tables';
+import { eq, asc } from '@app/schema';
 import { getUserPermissions, getUserRoles } from './rbac.service';
 
 // Keep backward-compatible interface
@@ -94,15 +94,18 @@ export async function updateMenuItem(
  * Reorder multiple menu items
  */
 export async function reorderMenuItems(items: { id: number; sort_order: number }[]) {
-    const results = [];
-    for (const item of items) {
-        const [result] = await db
-            .update(authMenuItems)
-            .set({ sort_order: item.sort_order, updated_at: new Date() })
-            .where(eq(authMenuItems.id, item.id))
-            .returning();
-        results.push(result);
-    }
+    if (items.length === 0) return [];
+
+    // Batch update all items in parallel
+    const results = await Promise.all(
+        items.map(item =>
+            db.update(authMenuItems)
+                .set({ sort_order: item.sort_order, updated_at: new Date() })
+                .where(eq(authMenuItems.id, item.id))
+                .returning()
+                .then(r => r[0])
+        )
+    );
     return results;
 }
 

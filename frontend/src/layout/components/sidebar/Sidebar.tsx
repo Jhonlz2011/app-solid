@@ -1,6 +1,6 @@
 import { Component, createSignal, Show, createEffect, createMemo } from 'solid-js';
 import { useNavigate, useLocation } from '@tanstack/solid-router';
-import { useAuth, actions as authActions } from '@modules/auth/auth.store';
+import { useAuth, actions as authActions } from '@modules/auth/store/auth.store';
 import { useModules } from '@shared/store/modules.store';
 import { SidebarHeader } from './SidebarHeader';
 import { SidebarNav } from './SidebarNav';

@@ -1,8 +1,8 @@
 // src/seeds/menu-seed.ts
 // Run with: bun run src/seeds/menu-seed.ts
 import { db } from '../db';
-import { authMenuItems } from '../schema';
-import { sql } from 'drizzle-orm';
+import { authMenuItems } from '@app/schema/tables';
+import { sql } from '@app/schema';
 
 // ============================================
 // MENU ITEMS SEED - Based on menu.ts config

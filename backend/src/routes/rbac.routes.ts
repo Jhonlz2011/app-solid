@@ -22,7 +22,6 @@ import {
 export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     .use(authGuard)
     .use(rbac)
-    // Roles CRUD
     .get('/roles', async () => {
         return await getAllRoles();
     }, { permission: 'roles.read' })
@@ -51,7 +50,6 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await deleteRole(Number(params.id));
     }, { permission: 'roles.delete' })
 
-    // Role permissions
     .get('/roles/:id/permissions', async ({ params }) => {
         return await getRolePermissions(Number(params.id));
     }, { permission: 'roles.read' })

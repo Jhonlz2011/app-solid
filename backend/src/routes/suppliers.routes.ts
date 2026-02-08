@@ -1,11 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { suppliersService } from '../services/suppliers.service';
 import {
-    listEntities,
-    getEntity,
-    createEntity,
-    updateEntity,
-    deactivateEntity,
     addAddress,
     getAddresses,
     addContact,
@@ -13,31 +9,14 @@ import {
     deleteContact,
     getContacts,
 } from '../services/entities.service';
-
-const taxIdTypeSchema = t.Union([
-    t.Literal('RUC'),
-    t.Literal('CEDULA'),
-    t.Literal('PASAPORTE'),
-]);
-
-const personTypeSchema = t.Union([
-    t.Literal('NATURAL'),
-    t.Literal('JURIDICA'),
-]);
-
-const sriContributorTypeSchema = t.Union([
-    t.Literal('RIMPE_POPULAR'),
-    t.Literal('RIMPE_EMPRENDEDOR'),
-    t.Literal('GENERAL'),
-    t.Literal('ESP_AGENT'),
-]);
+import { SupplierBodySchema, SupplierUpdateSchema } from '@app/schema/backend';
 
 export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     .use(authGuard)
     .get(
         '/',
         ({ query }) =>
-            listEntities('supplier', {
+            suppliersService.list({
                 search: query.search,
                 limit: query.limit ? Number(query.limit) : undefined,
                 offset: query.offset ? Number(query.offset) : undefined,
@@ -52,55 +31,30 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     )
     .get(
         '/:id',
-        ({ params }) => getEntity(Number(params.id)),
+        ({ params }) => suppliersService.get(Number(params.id)),
         { params: t.Object({ id: t.Numeric() }) }
     )
     .post(
         '/',
         async ({ body, set }) => {
-            const supplier = await createEntity('supplier', body);
+            const supplier = await suppliersService.create(body);
             set.status = 201;
             return supplier;
         },
-        {
-            body: t.Object({
-                taxId: t.String(),
-                taxIdType: taxIdTypeSchema,
-                personType: t.Optional(personTypeSchema),
-                businessName: t.String(),
-                tradeName: t.Optional(t.String()),
-                emailBilling: t.String({ format: 'email' }),
-                phone: t.Optional(t.String()),
-                addressFiscal: t.String(),
-                sriContributorType: t.Optional(sriContributorTypeSchema),
-                obligadoContabilidad: t.Optional(t.Boolean()),
-                parteRelacionada: t.Optional(t.Boolean()),
-            }),
-        }
+        { body: SupplierBodySchema }
     )
     .put(
         '/:id',
-        ({ params, body }) => updateEntity(Number(params.id), 'supplier', body),
+        ({ params, body }) => suppliersService.update(Number(params.id), body),
         {
             params: t.Object({ id: t.Numeric() }),
-            body: t.Partial(
-                t.Object({
-                    businessName: t.String(),
-                    tradeName: t.String(),
-                    emailBilling: t.String({ format: 'email' }),
-                    phone: t.String(),
-                    addressFiscal: t.String(),
-                    sriContributorType: sriContributorTypeSchema,
-                    obligadoContabilidad: t.Boolean(),
-                    parteRelacionada: t.Boolean(),
-                })
-            ),
+            body: SupplierUpdateSchema,
         }
     )
     .delete(
         '/:id',
         async ({ params, set }) => {
-            await deactivateEntity(Number(params.id), 'supplier');
+            await suppliersService.delete(Number(params.id));
             set.status = 204;
         },
         { params: t.Object({ id: t.Numeric() }) }

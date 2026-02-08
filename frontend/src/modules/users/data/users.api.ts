@@ -1,95 +1,105 @@
 // users/data/users.api.ts
-// Pure API functions using shared/lib/http
-import { request } from '@shared/lib/http';
-import type { Role, Permission, PermissionsResponse, UserWithRoles } from '../models/users.types';
+// Pure API functions using Eden treaty client - Types inferred from backend
+import { api } from '@shared/lib/eden';
 
-export interface RoleUser {
-    id: number;
-    username: string;
-    email: string;
-    isActive: boolean | null;
-}
+// Type utilities - Extract body types from Eden
+type RoleBody = Parameters<typeof api.api.rbac.roles.post>[0];
 
 export const usersApi = {
     // Roles
-    listRoles: (): Promise<Role[]> => {
-        return request<Role[]>('/rbac/roles');
+    listRoles: async () => {
+        const { data, error } = await api.api.rbac.roles.get();
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
-    getRole: (id: number): Promise<Role> => {
-        return request<Role>(`/rbac/roles/${id}`);
+    getRole: async (id: number) => {
+        const { data, error } = await api.api.rbac.roles({ id }).get();
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
-    createRole: (data: { name: string; description?: string }): Promise<Role> => {
-        return request<Role>('/rbac/roles', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
+    createRole: async (body: RoleBody) => {
+        const { data, error } = await api.api.rbac.roles.post(body);
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
-    updateRole: (id: number, data: { name: string; description?: string }): Promise<Role> => {
-        return request<Role>(`/rbac/roles/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        });
+    updateRole: async (id: number, body: RoleBody) => {
+        const { data, error } = await api.api.rbac.roles({ id }).put(body);
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
-    deleteRole: (id: number): Promise<{ success: boolean }> => {
-        return request(`/rbac/roles/${id}`, { method: 'DELETE' });
+    deleteRole: async (id: number) => {
+        const { data, error } = await api.api.rbac.roles({ id }).delete();
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
     // Permissions
-    listPermissions: (): Promise<PermissionsResponse> => {
-        return request<PermissionsResponse>('/rbac/permissions');
+    listPermissions: async () => {
+        const { data, error } = await api.api.rbac.permissions.get();
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
-    getRolePermissions: (roleId: number): Promise<Permission[]> => {
-        return request<Permission[]>(`/rbac/roles/${roleId}/permissions`);
+    getRolePermissions: async (roleId: number) => {
+        const { data, error } = await api.api.rbac.roles({ id: roleId }).permissions.get();
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
-    updateRolePermissions: (roleId: number, permissionIds: number[]): Promise<{ success: boolean }> => {
-        return request(`/rbac/roles/${roleId}/permissions`, {
-            method: 'PUT',
-            body: JSON.stringify({ permissionIds }),
-        });
+    updateRolePermissions: async (roleId: number, permissionIds: number[]) => {
+        const { data, error } = await api.api.rbac.roles({ id: roleId }).permissions.put({ permissionIds });
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
     // Users
-    listUsersWithRoles: (): Promise<UserWithRoles[]> => {
-        return request<UserWithRoles[]>('/rbac/users');
+    listUsersWithRoles: async () => {
+        const { data, error } = await api.api.rbac.users.get();
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
-    createUser: (data: { username: string; email: string; password: string; roleIds?: number[] }): Promise<{ id: number; username: string; email: string }> => {
-        return request('/rbac/users', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
+    createUser: async (body: Parameters<typeof api.api.rbac.users.post>[0]) => {
+        const { data, error } = await api.api.rbac.users.post(body);
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
-    updateUser: (id: number, data: { username?: string; email?: string; isActive?: boolean }): Promise<{ id: number; username: string; email: string; isActive: boolean }> => {
-        return request(`/rbac/users/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        });
+    updateUser: async (id: number, body: Parameters<typeof api.api.rbac.users.put>[0]) => {
+        const { data, error } = await api.api.rbac.users({ id }).put(body);
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
-    deleteUser: (id: number): Promise<{ success: boolean }> => {
-        return request(`/rbac/users/${id}`, { method: 'DELETE' });
+    deleteUser: async (id: number) => {
+        const { data, error } = await api.api.rbac.users({ id }).delete();
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
-    assignUserRoles: (userId: number, roleIds: number[]): Promise<{ success: boolean }> => {
-        return request(`/rbac/users/${userId}/roles`, {
-            method: 'PUT',
-            body: JSON.stringify({ roleIds }),
-        });
+    assignUserRoles: async (userId: number, roleIds: number[]) => {
+        const { data, error } = await api.api.rbac.users({ id: userId }).roles.put({ roleIds });
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
     // Role Users
-    getRoleUsers: (roleId: number): Promise<RoleUser[]> => {
-        return request<RoleUser[]>(`/rbac/roles/${roleId}/users`);
+    getRoleUsers: async (roleId: number) => {
+        const { data, error } = await api.api.rbac.roles({ id: roleId }).users.get();
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 
-    removeUserFromRole: (roleId: number, userId: number): Promise<{ success: boolean }> => {
-        return request(`/rbac/roles/${roleId}/users/${userId}`, { method: 'DELETE' });
+    removeUserFromRole: async (roleId: number, userId: number) => {
+        const { data, error } = await api.api.rbac.roles({ id: roleId }).users({ userId }).delete();
+        if (error) throw new Error(String(error.value));
+        return data!;
     },
 };
+
+// Re-export inferred types for consumers
+export type { RoleBody };

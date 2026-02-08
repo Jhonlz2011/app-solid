@@ -24,7 +24,6 @@ export const initBroadcast = () => {
         const { type, data } = e.data || {};
         if (!type) return;
 
-        console.log(`[Broadcast] Received: ${type}`, data);
 
         // Call all registered handlers for this type
         const handlers = listeners.get(type);
@@ -57,7 +56,6 @@ export const emit = (type: string, data?: any) => {
         handlers.forEach(handler => handler(safeData));
     }
 
-    console.log(`[Broadcast] Emitted: ${type}`, safeData);
 };
 
 /**

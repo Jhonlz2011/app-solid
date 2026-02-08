@@ -1,6 +1,6 @@
 import { createStore } from "solid-js/store";
-import { request } from "../lib/http";
-import { useAuth } from "@modules/auth/auth.store";
+import { api } from "../lib/eden";
+import { useAuth } from "@modules/auth/store/auth.store";
 
 export interface ModuleConfig {
     key: string;
@@ -55,9 +55,10 @@ export const actions = {
         setState("isLoading", true);
         fetchPromise = (async () => {
             try {
-                const menuTree = await request<ModuleConfig[]>('/modules/tree');
+                const { data, error } = await api.api.modules.tree.get();
+                if (error) throw new Error(String(error.value));
                 setState({
-                    modules: menuTree,
+                    modules: data as ModuleConfig[],
                     error: null,
                     cachedForUserId: currentUserId,
                 });

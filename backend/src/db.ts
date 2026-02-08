@@ -1,4 +1,4 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
+import { drizzlePostgres as drizzle } from '@app/schema';
 import postgres from 'postgres';
 import { env } from './config/env';
 import { cacheService } from './services/cache.service';
@@ -38,9 +38,12 @@ listener.listen('db_change', (payload: string) => {
   }
 });
 
-import * as schema from './schema';
+import * as schema from '@app/schema';
 
 export const db = drizzle(queryClient, {
   schema,
   logger: env.NODE_ENV === 'development',
 });
+
+export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+

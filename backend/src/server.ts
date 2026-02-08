@@ -33,7 +33,7 @@ import { AuthError } from './services/auth.service';
 import { DomainError } from './services/errors';
 import { env } from './config/env';
 import { subscribeToChannel } from './config/redis';
-import { broadcast } from './plugins/ws';
+import { broadcast, initWsRedisAdapter } from './plugins/ws';
 
 // Validate required environment variables
 const REQUIRED_ENV = ['JWT_SECRET', 'FRONTEND_URL'] as const;
@@ -63,7 +63,7 @@ const app = new Elysia({ prefix: '/api', aot: false })
       return origin ? allowedOrigins.has(origin) : false;
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     exposeHeaders: ['Authorization'],
     credentials: true,
     preflight: true,
@@ -201,6 +201,9 @@ app.listen(serverConfig);
         }
       });
     }
+
+    // Initialize Global WebSocket Redis Adapter
+    await initWsRedisAdapter();
 
     console.log('✅ Redis Pub/Sub initialized');
   } catch (error) {

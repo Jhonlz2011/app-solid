@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { authUserRoles, authRoles, authRolePermissions, authPermissions, authUsers } from '../schema';
-import { eq, inArray, sql, count } from 'drizzle-orm';
+import { authUserRoles, authRoles, authRolePermissions, authPermissions, authUsers } from '@app/schema/tables';
+import { eq, sql, count } from '@app/schema';
 import { cacheService } from './cache.service';
 import { DomainError } from './errors';
 

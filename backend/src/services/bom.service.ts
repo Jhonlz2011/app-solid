@@ -1,6 +1,6 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc } from '@app/schema';
 import { db } from '../db';
-import { bomHeaders, bomDetails, products } from '../schema';
+import { bomHeaders, bomDetails, products } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/ws';

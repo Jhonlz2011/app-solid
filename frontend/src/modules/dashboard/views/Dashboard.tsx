@@ -1,21 +1,21 @@
 import { Component, For, Show } from 'solid-js';
 import { useQuery } from '@tanstack/solid-query';
-import { useAuth } from '@modules/auth/auth.store';
-import { productsApi, productKeys } from '@modules/products';
+import { useAuth } from '@modules/auth/store/auth.store';
+// import { productsApi, productKeys } from '@modules/products';
 
 const Dashboard: Component = () => {
   const auth = useAuth();
   const canReadProducts = () => auth.canRead('products');
 
-  const productsQuery = useQuery(() => ({
-    queryKey: [...productKeys.lists(), 'dashboard'],
-    queryFn: async () => productsApi.list({ limit: 5 }),
-    staleTime: 1000 * 60 * 5, // 5 minutos
-    enabled: canReadProducts(), // Only fetch if user has permission
-  }));
+  // const productsQuery = useQuery(() => ({
+  //   queryKey: [...productKeys.lists(), 'dashboard'],
+  //   queryFn: async () => productsApi.list({ limit: 5 }),
+  //   staleTime: 1000 * 60 * 5, // 5 minutos
+  //   enabled: canReadProducts(), // Only fetch if user has permission
+  // }));
 
   const lowStock = () => 0; // TODO: Add lowStock calculation
-  const latestProducts = () => canReadProducts() ? (productsQuery.data?.data ?? []) : [];
+  // const latestProducts = () => canReadProducts() ? (productsQuery.data?.data ?? []) : [];
 
   return (
     <div class="p-4 lg:p-6">
@@ -65,7 +65,7 @@ const Dashboard: Component = () => {
               </div>
             </div>
             <div class="space-y-3">
-              <Show
+              {/* <Show
                 when={latestProducts().length > 0}
                 fallback={<p class="text-muted text-sm">Sin órdenes registradas.</p>}
               >
@@ -79,7 +79,7 @@ const Dashboard: Component = () => {
                     </div>
                   )}
                 </For>
-              </Show>
+              </Show> */}
             </div>
           </div>
 
@@ -115,7 +115,7 @@ const Dashboard: Component = () => {
           <div class="bg-card border border-border shadow-card-soft rounded-xl p-6">
             <h2 class=" text-xl font-semibold mb-4">Inventario crítico</h2>
             <div class="space-y-3">
-              <Show
+              {/* <Show
                 when={productsQuery.isSuccess && latestProducts().length > 0}
                 fallback={<p class="text-muted text-sm">Inventario vacío.</p>}
               >
@@ -135,7 +135,7 @@ const Dashboard: Component = () => {
                     </div>
                   )}
                 </For>
-              </Show>
+              </Show> */}
             </div>
           </div>
         </div>

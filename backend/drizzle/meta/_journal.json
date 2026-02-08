@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1766110244465,
-      "tag": "0000_majestic_emma_frost",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1767564253167,
-      "tag": "0001_majestic_rafael_vega",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1768005877481,
-      "tag": "0002_gray_makkari",
+      "when": 1769494550425,
+      "tag": "0000_sad_psylocke",
       "breakpoints": true
     }
   ]

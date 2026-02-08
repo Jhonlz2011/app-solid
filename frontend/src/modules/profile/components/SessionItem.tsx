@@ -69,7 +69,7 @@ export const SessionItem: Component<SessionItemProps> = (props) => {
     return (
         <div
             classList={{
-                ' rounded-xl p-4 border transition-all': true,
+                ' rounded-xl p-4 border': true,
                 'border-primary/30 bg-primary/5 ring-1 ring-primary/20': props.session.is_current,
                 'border-surface hover:border-border': !props.session.is_current,
             }}

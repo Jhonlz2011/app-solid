@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { technicalVisits, entities } from '../schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { technicalVisits, entities } from '@app/schema/tables';
+import { eq, desc, and } from '@app/schema';
 import { DomainError } from './errors';
 
 export class TechnicalVisitsService {

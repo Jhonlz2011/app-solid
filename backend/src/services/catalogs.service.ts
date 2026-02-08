@@ -1,6 +1,6 @@
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql } from '@app/schema';
 import { db } from '../db';
-import { uom, brands, attributeDefinitions, categories, categoryAttributes } from '../schema';
+import { uom, brands, attributeDefinitions, categories, categoryAttributes } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/ws';

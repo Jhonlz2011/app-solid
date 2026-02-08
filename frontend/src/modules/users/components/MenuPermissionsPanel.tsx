@@ -2,9 +2,9 @@ import { Component, createSignal, createEffect, createMemo, Show } from 'solid-j
 import { Portal } from 'solid-js/web';
 import { createQuery } from '@tanstack/solid-query';
 import { MenuTreeView } from './MenuTreeView';
-import { SearchInput } from '@shared/components/ui/SearchInput';
-import { SkeletonLoader } from '@shared/components/ui/SkeletonLoader';
-import { request } from '@shared/lib/http';
+import { SearchInput } from '@shared/ui/SearchInput';
+import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import { api } from '@shared/lib/eden';
 
 interface Permission {
     id: number;
@@ -50,8 +50,9 @@ export const MenuPermissionsPanel: Component<MenuPermissionsPanelProps> = (props
     const menusQuery = createQuery(() => ({
         queryKey: ['admin', 'menus'],
         queryFn: async () => {
-            const items = await request<MenuItem[]>('/modules/admin/items');
-            return buildMenuTree(items);
+            const { data, error } = await api.api.modules.admin.items.get();
+            if (error) throw new Error(String(error.value));
+            return buildMenuTree(data!);
         },
         staleTime: 1000 * 60 * 5, // 5 minutes
     }));

@@ -1,6 +1,6 @@
 // products/data/products.keys.ts
 // Query key factory for TanStack Query cache management
-import type { ProductFilters } from '../models/products.type';
+import type { ProductFilters } from '../models/products.types';
 
 export const productKeys = {
     // Base key

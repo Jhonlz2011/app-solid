@@ -1,56 +1,46 @@
 // Profile Page - My Account View (Optimized for 0ms UX)
-import { Component, createSignal, Show, onMount, onCleanup } from 'solid-js';
+import { Component, Show, onMount, onCleanup, createMemo } from 'solid-js';
 import { useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
-import { actions as authActions } from '@modules/auth/auth.store';
+import { actions as authActions } from '@modules/auth/store/auth.store';
 import { useProfile, useUpdateProfile, useChangePassword, profileKeys } from '../data/profile.api';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { AccountSection } from '../components/AccountSection';
 import { SecuritySection } from '../components/SecuritySection';
 import { SessionsSection } from '../components/SessionsSection';
-import { UserIcon, ShieldIcon, DeviceIcon } from '@shared/components/icons';
+import { ShieldIcon, UserIcon, DeviceIcon } from '@shared/ui/icons';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 
-type TabId = 'account' | 'security' | 'sessions';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
+
 
 const ProfilePage: Component = () => {
-    const [activeTab, setActiveTab] = createSignal<TabId>('account');
     const queryClient = useQueryClient();
 
     const profileQuery = useProfile();
     const updateProfileMutation = useUpdateProfile();
     const changePasswordMutation = useChangePassword();
 
+    // Stable profile reference - prevents re-renders on refetch when data hasn't changed
+    const profile = createMemo(() => profileQuery.data);
+
     // Listen for profile updates from other tabs (via centralized broadcast store)
     onMount(() => {
         const cleanup = broadcast.on(BroadcastEvents.PROFILE_UPDATE, () => {
-            console.log('[ProfilePage] Received PROFILE_UPDATE, invalidating query');
             queryClient.invalidateQueries({ queryKey: profileKeys.me() });
         });
 
         onCleanup(cleanup);
     });
 
-    // Prefetch sessions data on hover for instant data availability
-    const handleTabHover = (tabId: TabId) => {
-        if (tabId === 'sessions') {
-            queryClient.prefetchQuery({
-                queryKey: ['auth', 'sessions'],
-                staleTime: 30 * 1000,
-            });
-        }
-    };
-
     const handleUpdateProfile = async (data: { username?: string; email?: string }) => {
         try {
             const result = await updateProfileMutation.mutateAsync(data);
             if (result.success) {
-                // 1. Invalidate profile query for fresh data
-                queryClient.invalidateQueries({ queryKey: profileKeys.me() });
-
-                // 2. Update auth store immediately for sidebar reactivity + broadcast to other tabs
+                // Update auth store immediately for sidebar reactivity + broadcast to other tabs
                 authActions.updateUser(data);
-
+                // Invalidate query in background (won't cause flash because we don't use keyed)
+                queryClient.invalidateQueries({ queryKey: profileKeys.me() });
                 toast.success('Perfil actualizado correctamente');
             }
         } catch (error: any) {
@@ -69,23 +59,17 @@ const ProfilePage: Component = () => {
         }
     };
 
-    const tabs = [
-        { id: 'account' as const, label: 'Cuenta', Icon: UserIcon },
-        { id: 'security' as const, label: 'Seguridad', Icon: ShieldIcon },
-        { id: 'sessions' as const, label: 'Sesiones', Icon: DeviceIcon },
-    ];
-
     return (
         <div class="w-full p-4 sm:p-6 max-w-3xl mx-auto">
             {/* Loading State */}
-            <Show when={profileQuery.isLoading}>
+            <Show when={profileQuery.isLoading && !profile()}>
                 <div class="flex justify-center py-16">
                     <div class="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
                 </div>
             </Show>
 
             {/* Error State */}
-            <Show when={profileQuery.isError}>
+            <Show when={profileQuery.isError && !profile()}>
                 <div class="text-center py-16">
                     <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-danger/10 flex items-center justify-center">
                         <svg class="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,61 +86,57 @@ const ProfilePage: Component = () => {
                 </div>
             </Show>
 
-            {/* Content */}
-            <Show when={profileQuery.data} keyed>
-                {(profile) => (
+            {/* Content - Use profile() memo instead of keyed Show */}
+            <Show when={profile()}>
+                {(profileData) => (
                     <>
                         {/* Profile Header */}
-                        <ProfileHeader profile={profile} />
+                        <ProfileHeader profile={profileData()} />
 
-                        {/* Tab Navigation */}
-                        <div class="flex gap-1 p-1 bg-card-alt rounded-xl mb-6">
-                            {tabs.map((tab) => (
-                                <button
-                                    onClick={() => setActiveTab(tab.id)}
-                                    onMouseEnter={() => handleTabHover(tab.id)}
-                                    onFocus={() => handleTabHover(tab.id)}
-                                    class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium"
-                                    classList={{
-                                        'bg-surface shadow-sm text-heading': activeTab() === tab.id,
-                                        'text-muted hover:text-heading hover:bg-surface/50': activeTab() !== tab.id,
-                                    }}
-                                >
-                                    <tab.Icon class="w-4 h-4" />
-                                    <span class="hidden sm:inline">{tab.label}</span>
-                                </button>
-                            ))}
-                        </div>
+                        {/* IMPLEMENTACIÓN GLOBAL */}
+                        <Tabs defaultValue="account">
 
-                        {/* 
-                            Tab Content - Simple approach with display:none
-                            All tabs are always mounted but only one is displayed.
-                            Using 'hidden' class = display:none = instant, no transitions
-                            w-full ensures consistent width regardless of tab content
-                        */}
-                        <div class="w-full bg-card border border-border rounded-2xl p-6 shadow-card-soft">
-                            {/* Account Tab */}
-                            <div classList={{ 'hidden': activeTab() !== 'account' }}>
-                                <AccountSection
-                                    profile={profile}
-                                    onUpdate={handleUpdateProfile}
-                                    isUpdating={updateProfileMutation.isPending}
-                                />
+                            {/* Navegación */}
+                            <TabsList>
+                                <TabsTrigger value="account">
+                                    <UserIcon class="size-4" />
+                                    <span class="hidden sm:inline">Cuenta</span>
+                                </TabsTrigger>
+
+                                <TabsTrigger value="security">
+                                    <ShieldIcon class="size-4" />
+                                    <span class="hidden sm:inline">Seguridad</span>
+                                </TabsTrigger>
+
+                                <TabsTrigger value="sessions">
+                                    <DeviceIcon class="size-4" />
+                                    <span class="hidden sm:inline">Sesiones</span>
+                                </TabsTrigger>
+                            </TabsList>
+
+                            {/* Paneles */}
+                            <div class="mt-6 bg-card border border-border rounded-2xl p-6 shadow-sm">
+                                <TabsContent value="account" forceMount>
+                                    <AccountSection
+                                        profile={profileData()}
+                                        onUpdate={handleUpdateProfile}
+                                        isUpdating={updateProfileMutation.isPending}
+                                    />
+                                </TabsContent>
+
+                                <TabsContent value="security" forceMount>
+                                    <SecuritySection
+                                        onChangePassword={handleChangePassword}
+                                        isChanging={changePasswordMutation.isPending}
+                                    />
+                                </TabsContent>
+
+                                <TabsContent value="sessions" forceMount>
+                                    <SessionsSection />
+                                </TabsContent>
                             </div>
 
-                            {/* Security Tab */}
-                            <div classList={{ 'hidden': activeTab() !== 'security' }}>
-                                <SecuritySection
-                                    onChangePassword={handleChangePassword}
-                                    isChanging={changePasswordMutation.isPending}
-                                />
-                            </div>
-
-                            {/* Sessions Tab */}
-                            <div classList={{ 'hidden': activeTab() !== 'sessions' }}>
-                                <SessionsSection />
-                            </div>
-                        </div>
+                        </Tabs>
                     </>
                 )}
             </Show>

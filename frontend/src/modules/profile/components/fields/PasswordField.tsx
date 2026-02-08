@@ -3,7 +3,7 @@
 import { Component, Show, createSignal } from 'solid-js';
 import type { FieldLike } from './field.types';
 import { extractErrorMessage } from './field.types';
-import { EyeIcon, EyeOffIcon } from '@shared/components/icons';
+import { EyeIcon, EyeOffIcon } from '@shared/ui/icons';
 
 interface PasswordFieldProps {
     field: FieldLike;

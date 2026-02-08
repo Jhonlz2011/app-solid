@@ -13,11 +13,14 @@
   --color-border-strong: var(--color-border-strong);
   --color-border-subtle: var(--color-border-subtle);
   --color-table-hover: var(--color-table-hover);
+  --color-dropdown-hover: var(--color-dropdown-hover);
 
   --color-primary: var(--color-primary);
   --color-primary-strong: var(--color-primary-strong);
   --color-primary-soft: var(--color-primary-soft);
   --color-on-primary: var(--color-on-primary);
+  --color-row-selected: var(--color-row-selected);
+  --color-row-selected-hover: var(--color-row-selected-hover);
 
   --color-info: var(--color-info);
   --color-success: var(--color-success);
@@ -32,22 +35,28 @@
   color-scheme: light dark;
   /* Core UI Colors - using light-dark(light-value, dark-value) */
   --color-bg: light-dark(#f4f7fb, #020617);
-  --color-surface: light-dark(#ffffff, #0f172a);
-  --color-card: light-dark(#ffffff, #111827);
+  --color-surface: light-dark(#fff, #0f172a);
+  --color-card: light-dark(#fff, #111827);
   --color-card-alt: light-dark(#eef2ff, #1f2937);
   --color-text: light-dark(#0f172a, #f8fafc);
   --color-heading: light-dark(#0b1220, #f8fafc);
   --color-muted: light-dark(#475569, #94a3b8);
-  --color-border: light-dark(#e2e8f0, #1f2533);
+  --color-border: light-dark(#e7eff8, #1f2533);
   --color-border-strong: light-dark(#d0d7e5, #222c3c);
   --color-border-subtle: light-dark(rgba(15, 23, 42, 0.08), rgba(148, 163, 184, 0.25));
-  --color-table-hover: light-dark(rgba(15, 23, 42, 0.04), rgba(148, 163, 184, 0.08));
+  --color-table-hover: light-dark(#f4f7fc, #0c1222);
+  --color-text-muted: light-dark(#475569, #94a3b8);
+  --color-dropdown-hover: light-dark(#f4f7fb, #1f2937);
 
   /* Primary Colors */
   --color-primary: light-dark(#2563eb, #60a5fa);
   --color-primary-strong: light-dark(#1d4ed8, #93c5fd);
   --color-primary-soft: light-dark(rgba(37, 99, 235, 0.15), rgba(91, 141, 255, 0.18));
   --color-on-primary: #f8fafc;
+
+  /* Table row selected - solid color (primary-soft blended with card background) */
+  --color-row-selected: light-dark(#e0e9fc, #1a2744);
+  --color-row-selected-hover: light-dark(#d0dffa, #1f3055);
 
   /* Semantic Colors */
   --color-info: light-dark(#0ea5e9, #38bdf8);
@@ -160,17 +169,6 @@
   background-color: var(--color-card-alt);
 }
 
-.button-danger {
-  background-color: color-mix(in srgb, var(--color-danger) 15%, transparent);
-  color: var(--color-danger);
-  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent);
-}
-
-.button-danger:hover {
-  background-color: color-mix(in srgb, var(--color-danger) 25%, transparent);
-  color: var(--color-on-primary);
-}
-
 .filter-pill {
   @apply font-semibold rounded-full border border-border-strong px-[1.15rem] py-[0.45rem] text-[0.9rem] text-muted bg-white/1;
 }
@@ -186,224 +184,9 @@
   box-shadow: 0 10px 30px color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
 
-.row-hover:hover {
-  background: var(--color-table-hover);
-}
-
-.input-control {
-  @apply bg-card-alt border border-border text-text rounded-2xl px-4 py-3 transition-all duration-200;
-}
-
-.input-control::placeholder {
-  @apply text-muted;
-}
-
-.input-control:focus {
-  border-color: color-mix(in srgb, var(--color-primary) 65%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
-}
-
 /* Prevenir flash blanco durante transiciones */
 html,
 body,
 #root {
   @apply bg-bg text-text overflow-x-hidden;
 }
-
-/* --- KOBALTE UI STYLES --- */
-
-/* Select */
-.select-trigger {
-  @apply flex items-center justify-between w-full px-4 py-3 bg-card-alt border border-border rounded-2xl text-text;
-}
-
-.select-trigger:hover {
-  @apply border-border-strong bg-card;
-}
-
-.select-trigger:focus-visible {
-  border-color: color-mix(in srgb, var(--color-primary) 65%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
-}
-
-.select-content {
-  @apply bg-card border border-border rounded-xl shadow-card-soft z-[100] min-w-[var(--kb-select-trigger-width)] p-1 animate-in fade-in zoom-in-95 duration-200;
-}
-
-.select-listbox {
-  @apply max-h-[256px] overflow-y-auto outline-none;
-}
-
-.select-item {
-  @apply flex items-center justify-between px-3 py-2 rounded-lg text-sm text-muted cursor-pointer outline-none transition-colors;
-}
-
-.select-item:hover,
-.select-item[data-highlighted] {
-  @apply bg-primary-soft text-primary-strong;
-}
-
-.select-item[data-selected] {
-  @apply text-primary font-medium;
-}
-
-/* TextField & NumberField */
-.text-field-root,
-.number-field-root {
-  @apply flex flex-col gap-1.5;
-}
-
-.text-field-label,
-.number-field-label {
-  @apply text-sm font-medium text-muted ml-1;
-}
-
-.text-field-input,
-.number-field-input {
-  @apply w-full bg-card-alt border border-border text-text rounded-2xl px-4 py-3 outline-none transition-all duration-200;
-}
-
-.text-field-input:hover,
-.number-field-input:hover {
-  @apply border-border-strong bg-card;
-}
-
-.text-field-input:focus,
-.number-field-input:focus {
-  border-color: color-mix(in srgb, var(--color-primary) 65%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
-}
-
-/* Dropdown Menu */
-.dropdown-content {
-  @apply bg-card border border-border rounded-xl shadow-card-soft z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150;
-}
-
-/* Table Improvements */
-.table-container {
-  @apply bg-card border border-border rounded-2xl shadow-card-soft;
-}
-
-/* Table Row Hover - semantic */
-/* .table-row-hover:hover {
-  background-color: var(--color-table-hover);
-} */
-
-/* Custom Checkbox */
-.custom-checkbox {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 1.125rem;
-  height: 1.125rem;
-  border-radius: 0.375rem;
-  border: 2px solid var(--color-border-strong);
-  background-color: transparent;
-  cursor: pointer;
-  position: relative;
-}
-
-.custom-checkbox:hover {
-  border-color: var(--color-primary);
-  background-color: var(--color-primary-soft);
-}
-
-.custom-checkbox:checked {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.custom-checkbox:checked::after {
-  content: '';
-  position: absolute;
-  left: 5px;
-  top: 2px;
-  width: 4px;
-  height: 8px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.custom-checkbox:indeterminate {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.custom-checkbox:indeterminate::after {
-  content: '';
-  position: absolute;
-  left: 3px;
-  top: 6px;
-  width: 8px;
-  height: 2px;
-  background-color: white;
-}
-
-.custom-checkbox:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--color-primary-soft);
-}
-
-/* Toggle Switch */
-.toggle-switch {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 2.25rem;
-  height: 1.25rem;
-  border-radius: 9999px;
-  background-color: var(--color-border-strong);
-  cursor: pointer;
-  position: relative;
-  transition: background-color 0.2s ease;
-}
-
-.toggle-switch::after {
-  content: '';
-  position: absolute;
-  left: 2px;
-  top: 2px;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 9999px;
-  background-color: white;
-  transition: transform 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.toggle-switch:checked {
-  background-color: var(--color-primary);
-}
-
-.toggle-switch:checked::after {
-  transform: translateX(1rem);
-}
-
-.toggle-switch:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--color-primary-soft);
-}
-
-/* Pinned Column */
-.pinned-column {
-  position: sticky;
-  left: 0;
-  z-index: 5;
-  background-color: var(--color-card);
-}
-
-.pinned-column::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.1), transparent);
-}
-
-/* ========================================
-   SIDEBAR MENU SYSTEM
-   Note: Most styles are now inline in components
-   using data-attributes and direct Tailwind classes.
-   Only keeping scrollbar and animation-related styles here.
-   ======================================== */

@@ -3,7 +3,7 @@
 import { queryOptions } from '@tanstack/solid-query';
 import { productsApi } from './products.api';
 import { productKeys, categoryKeys, brandKeys, catalogKeys } from './products.keys';
-import type { ProductFilters } from '../models/products.type';
+import type { ProductFilters } from '../models/products.types';
 
 // Query Options - use with createQuery(() => productQueries.list(filters))
 export const productQueries = {

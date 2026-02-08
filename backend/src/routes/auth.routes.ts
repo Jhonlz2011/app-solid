@@ -11,29 +11,14 @@ import {
   revokeSession,
   AuthError,
 } from '../services/auth.service';
+import { AuthRegisterDto, AuthLoginDto, AuthChangePasswordDto, AuthUpdateProfileDto, AuthResponseDto } from '@app/schema/backend';
 import { authGuard } from '../plugins/auth-guard';
-import { loginRateLimit } from '../plugins/login-rate-limit';
-import { serialize, parse as parseCookie } from 'cookie';
-
-const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
-const COOKIE_DOMAIN = (() => {
-  try {
-    return new URL(FRONTEND_URL).hostname;
-  } catch {
-    return undefined;
-  }
-})();
-
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? ('strict' as const) : ('lax' as const),
-  path: '/api/auth',
-  domain: COOKIE_DOMAIN === 'localhost' ? undefined : COOKIE_DOMAIN,
-  maxAge: 60 * 60 * 24 * Number(process.env.REFRESH_TOKEN_EXP_DAYS ?? 14),
-};
+import { loginRateLimit, resetLoginAttempts } from '../plugins/login-rate-limit';
+import { COOKIE_OPTIONS } from '../config/auth';
+import { ipPlugin, getIpAndUserAgent } from '../plugins/ip';
 
 export const authRoutes = new Elysia({ prefix: '/auth' })
+  .use(ipPlugin)
   .onError(({ error, code }) => {
     // Handle AuthError (custom)
     if (error instanceof AuthError) {
@@ -71,53 +56,40 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       return { user: { id: user.id, email: user.email, username: user.username } };
     },
     {
-      body: t.Object({
-        email: t.String({ format: 'email' }),
-        password: t.String({ minLength: 8 }),
-        username: t.Optional(t.String({ minLength: 3 })),
-      }),
+      body: AuthRegisterDto
     }
   )
-  .use(loginRateLimit)
   .post(
     '/login',
-    async ({ body, set, request }) => {
-      const userAgent = request.headers.get('user-agent') || 'Desconocido';
-
-      // Improved IP extraction
-      let ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0].trim();
-      if (!ipAddress) {
-        ipAddress = request.headers.get('x-real-ip') || undefined;
-      }
-      // Fallback for local development if no headers present or localhost/private IP
-      const isPrivateIP = !ipAddress || ipAddress === '::1' || ipAddress === '127.0.0.1' || ipAddress.startsWith('192.168.') || ipAddress.startsWith('10.');
-
-      if (isPrivateIP && process.env.NODE_ENV !== 'production') {
-        ipAddress = '157.100.108.123'; // Public IP for testing location (Guayaquil)
-      }
-
+    async ({ body, cookie, request }) => {
+      const { ipAddress, userAgent } = getIpAndUserAgent(request);
       console.log('Login attempt:', { email: body.email, userAgent, ipAddress, env: process.env.NODE_ENV });
-
       const { user, accessToken, refreshToken } = await login(body.email, body.password, userAgent, ipAddress);
 
-      set.headers = {
-        'Access-Control-Allow-Origin': FRONTEND_URL,
-        'Access-Control-Allow-Credentials': 'true',
-        'Set-Cookie': serialize('refresh_token', refreshToken, COOKIE_OPTIONS),
-      };
+      // Reset rate limit on success
+      resetLoginAttempts(request);
+
+      cookie.refresh_token.set({
+        value: refreshToken,
+        ...COOKIE_OPTIONS,
+      });
 
       return { accessToken, user };
     },
     {
-      body: t.Object({
-        email: t.String(), // Can be email or username
-        password: t.String(),
-      }),
+      body: AuthLoginDto,
+      response: {
+        200: AuthResponseDto,
+        429: t.Object({
+          error: t.String(),
+          retryAfter: t.Number(),
+        }),
+      },
+      beforeHandle: loginRateLimit as any,
     }
   )
-  .post('/refresh', async ({ request, set }) => {
-    const cookies = parseCookie(request.headers.get('cookie') || '');
-    const refreshToken = cookies.refresh_token;
+  .post('/refresh', async ({ cookie, set }) => {
+    const refreshToken = cookie.refresh_token.value as string | undefined;
 
     if (!refreshToken) {
       set.status = 401;
@@ -126,24 +98,19 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
 
     const result = await rotateRefreshToken(refreshToken);
 
-    const headers: Record<string, string> = {
-      'Access-Control-Allow-Origin': FRONTEND_URL,
-      'Access-Control-Allow-Credentials': 'true',
-    };
-
     // Only set cookie if a new refresh token was issued
     if (result.refreshToken) {
-      headers['Set-Cookie'] = serialize('refresh_token', result.refreshToken, COOKIE_OPTIONS);
+      cookie.refresh_token.set({
+        value: result.refreshToken,
+        ...COOKIE_OPTIONS,
+      });
     }
-
-    set.headers = headers;
 
     return { accessToken: result.accessToken };
   })
-  .post('/logout', async ({ request, set }) => {
+  .post('/logout', async ({ cookie }) => {
     try {
-      const cookies = parseCookie(request.headers.get('cookie') || '');
-      const refreshToken = cookies.refresh_token;
+      const refreshToken = cookie.refresh_token.value as string | undefined;
 
       if (refreshToken && refreshToken.includes('.')) {
         try {
@@ -153,28 +120,22 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         }
       }
 
-      set.headers = {
-        'Access-Control-Allow-Origin': FRONTEND_URL,
-        'Access-Control-Allow-Credentials': 'true',
-        'Set-Cookie': serialize('refresh_token', '', {
-          ...COOKIE_OPTIONS,
-          maxAge: 0,
-          expires: new Date(0),
-        }),
-      };
+      cookie.refresh_token.set({
+        ...COOKIE_OPTIONS,
+        value: '',
+        maxAge: 0,
+        expires: new Date(0),
+      });
 
       return { success: true };
     } catch (error) {
       console.error('Error en logout:', error);
-      set.headers = {
-        'Access-Control-Allow-Origin': FRONTEND_URL,
-        'Access-Control-Allow-Credentials': 'true',
-        'Set-Cookie': serialize('refresh_token', '', {
-          ...COOKIE_OPTIONS,
-          maxAge: 0,
-          expires: new Date(0),
-        }),
-      };
+      cookie.refresh_token.set({
+        ...COOKIE_OPTIONS,
+        value: '',
+        maxAge: 0,
+        expires: new Date(0),
+      });
       return { success: true };
     }
   })
@@ -188,10 +149,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         return changePassword(currentUserId, body.currentPassword, body.newPassword);
       },
       {
-        body: t.Object({
-          currentPassword: t.String(),
-          newPassword: t.String({ minLength: 8 }),
-        }),
+        body: AuthChangePasswordDto,
       }
     )
     .put(
@@ -200,15 +158,11 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         return updateProfile(currentUserId, body);
       },
       {
-        body: t.Object({
-          username: t.Optional(t.String({ minLength: 3 })),
-          email: t.Optional(t.String({ format: 'email' })),
-        }),
+        body: AuthUpdateProfileDto,
       }
     )
-    .get('/sessions', async ({ currentUserId, request }) => {
-      const cookies = parseCookie(request.headers.get('cookie') || '');
-      const refreshToken = cookies.refresh_token;
+    .get('/sessions', async ({ currentUserId, cookie }) => {
+      const refreshToken = cookie.refresh_token.value as string | undefined;
       const currentSelector = refreshToken?.includes('.') ? refreshToken.split('.')[0] : undefined;
       return getActiveSessions(currentUserId, currentSelector);
     })

@@ -1,5 +1,7 @@
 // Profile Types for My Account Page
 
+import type { Entity } from '@app/schema/types';
+
 export interface Profile {
     id: number;
     email: string;
@@ -9,13 +11,7 @@ export interface Profile {
     lastLogin: string | null;
     roles: string[];
     permissions: string[];
-    entity: {
-        id: number;
-        businessName: string;
-        isClient: boolean;
-        isSupplier: boolean;
-        isEmployee: boolean;
-    } | null;
+    entity: Entity | null;
 }
 
 export interface UpdateProfileRequest {

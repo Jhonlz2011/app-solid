@@ -1,0 +1,13 @@
+{
+    "name": "app-monorepo",
+    "private": true,
+    "scripts": {
+        "lint": "biome check .",
+        "format": "biome check --write ."
+    },
+    "workspaces": [
+        "packages/*",
+        "backend",
+        "frontend"
+    ]
+}

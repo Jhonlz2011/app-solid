@@ -1,6 +1,6 @@
-// Profile API - TanStack Query Hooks
+// Profile API - TanStack Query Hooks (Using Eden)
 import { createQuery, createMutation } from '@tanstack/solid-query';
-import { request } from '@shared/lib/http';
+import { api } from '@shared/lib/eden';
 import type {
     Profile,
     UpdateProfileRequest,
@@ -19,8 +19,22 @@ export const profileKeys = {
 export function useProfile() {
     return createQuery(() => ({
         queryKey: profileKeys.me(),
-        queryFn: async () => {
-            return request<Profile>('/auth/me');
+        queryFn: async (): Promise<Profile> => {
+            const { data, error } = await api.api.auth.me.get();
+            if (error) throw new Error(String(error.value));
+            // Map backend response to Profile type
+            const d = data as any;
+            return {
+                id: d.id,
+                email: d.email,
+                username: d.username,
+                entityId: d.entityId ?? d.entity_id ?? null,
+                isActive: d.isActive ?? d.is_active ?? true,
+                lastLogin: d.lastLogin ?? d.last_login ?? null,
+                roles: d.roles ?? [],
+                permissions: d.permissions ?? [],
+                entity: d.entity ?? null,
+            };
         },
         staleTime: 5 * 60 * 1000, // 5 minutes
     }));
@@ -29,11 +43,10 @@ export function useProfile() {
 // Update profile (username/email)
 export function useUpdateProfile() {
     return createMutation(() => ({
-        mutationFn: async (data: UpdateProfileRequest) => {
-            return request<UpdateProfileResponse>('/auth/profile', {
-                method: 'PUT',
-                body: JSON.stringify(data),
-            });
+        mutationFn: async (body: UpdateProfileRequest): Promise<UpdateProfileResponse> => {
+            const { data, error } = await api.api.auth.profile.put(body);
+            if (error) throw new Error(String(error.value));
+            return data as UpdateProfileResponse;
         },
     }));
 }
@@ -41,11 +54,10 @@ export function useUpdateProfile() {
 // Change password
 export function useChangePassword() {
     return createMutation(() => ({
-        mutationFn: async (data: ChangePasswordRequest) => {
-            return request<ChangePasswordResponse>('/auth/change-password', {
-                method: 'POST',
-                body: JSON.stringify(data),
-            });
+        mutationFn: async (body: ChangePasswordRequest): Promise<ChangePasswordResponse> => {
+            const { data, error } = await api.api.auth["change-password"].post(body);
+            if (error) throw new Error(String(error.value));
+            return data as ChangePasswordResponse;
         },
     }));
 }

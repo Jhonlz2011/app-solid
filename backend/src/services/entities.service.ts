@@ -1,15 +1,16 @@
-import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, or, sql } from '@app/schema';
 import { db } from '../db';
-import { entities, entityAddresses, employeeDetails, entityContacts } from '../schema';
+import { entities, entityAddresses, employeeDetails, entityContacts } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/ws';
+import type { TaxIdType, PersonType, SriContributorType } from '@app/schema/enums';
 
-// Types
+// Entity type discriminator
 export type EntityType = 'client' | 'supplier' | 'employee' | 'carrier';
-export type PersonType = 'NATURAL' | 'JURIDICA';
-export type TaxIdType = 'RUC' | 'CEDULA' | 'PASAPORTE';
-export type SriContributorType = 'RIMPE_POPULAR' | 'RIMPE_EMPRENDEDOR' | 'GENERAL' | 'ESP_AGENT';
+
+// Re-export imported types for consumers of this service
+export type { TaxIdType, PersonType, SriContributorType };
 
 export interface EntityPayload {
     taxId: string;
@@ -113,7 +114,7 @@ export async function listEntities(type: EntityType, filters: ListFilters) {
             .where(whereClause);
 
         return { data, meta: { total: count, limit, offset } };
-    }, 300);
+    }, 3600);
 }
 
 /**
@@ -146,7 +147,7 @@ export async function getEntity(id: number) {
         }
 
         return { ...entity, addresses, contacts, employeeDetails: details };
-    }, 600);
+    }, 3600);
 }
 
 /**

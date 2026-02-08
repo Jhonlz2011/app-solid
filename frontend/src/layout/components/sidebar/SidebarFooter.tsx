@@ -4,7 +4,7 @@ import { Link } from '@tanstack/solid-router';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
 import { useSidebar } from './SidebarContext';
 import { clickOutside } from '@shared/directives/clickOutside';
-import { UserIcon, LogoutIcon } from '@shared/components/icons';
+import { UserIcon, LogoutIcon } from '@shared/ui/icons';
 
 // Register directive
 false && clickOutside;

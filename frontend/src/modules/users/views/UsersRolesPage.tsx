@@ -2,15 +2,15 @@ import { Component, For, Show, createMemo, createSignal, createEffect } from 'so
 import { createSolidTable, flexRender, getCoreRowModel, getSortedRowModel, getFilteredRowModel, type ColumnDef, type SortingState } from '@tanstack/solid-table';
 import { Toaster, toast } from 'solid-sonner';
 import { Portal } from 'solid-js/web';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@shared/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@shared/ui/table';
 
 // Atomic Components
-import { RoleBadge, StatusBadge, ActionBadge } from '@shared/components/ui/Badge';
-import { PageHeader } from '@shared/components/ui/PageHeader';
-import { SearchInput } from '@shared/components/ui/SearchInput';
-import { TabPills, type Tab } from '@shared/components/ui/TabPills';
-import { SkeletonLoader } from '@shared/components/ui/SkeletonLoader';
-import { EmptyState } from '@shared/components/ui/EmptyState';
+import { RoleBadge, StatusBadge, ActionBadge } from '@shared/ui/Badge';
+import { PageHeader } from '@shared/ui/PageHeader';
+import { SearchInput } from '@shared/ui/SearchInput';
+import { TabPills, type Tab } from '@shared/ui/TabPills';
+import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import { EmptyState } from '@shared/ui/EmptyState';
 
 // RBAC Service
 import {
@@ -30,11 +30,12 @@ import {
     useDeleteUser,
 } from '../data/users.queries';
 import type { Role, Permission, UserWithRoles } from '../models/users.types';
-import type { RoleUser } from '../data/users.api';
-import Input from '@shared/components/ui/Input';
+
+import Input from '@shared/ui/Input';
+import Checkbox from '@shared/ui/Checkbox';
 
 // Icons - from shared library
-import { UsersIcon, PlusIcon, ShieldIcon, KeyIcon, EditIcon, TrashIcon, SearchIcon } from '@shared/components/icons';
+import { UsersIcon, PlusIcon, ShieldIcon, KeyIcon, EditIcon, TrashIcon, SearchIcon } from '@shared/ui/icons';
 
 type TabType = 'users' | 'roles';
 
@@ -330,7 +331,7 @@ const UsersRolesPage: Component = () => {
             <div class="flex-1 min-h-0 px-6 pb-6 overflow-hidden flex flex-col">
                 {/* Users Tab */}
                 <Show when={activeTab() === 'users'}>
-                    <div class="table-container h-full overflow-auto relative">
+                    <div class="bg-card border border-border rounded-2xl shadow-card-soft h-full overflow-auto relative">
                         <Show when={!usersQuery.isLoading} fallback={<SkeletonLoader type="table-row" count={5} />}>
                             <Show when={filteredUsers().length > 0} fallback={
                                 <EmptyState message="No hay usuarios" description="Crea un nuevo usuario para comenzar" />
@@ -656,7 +657,7 @@ const UserFormModal: Component<{
                                     <For each={props.roles}>
                                         {(role) => (
                                             <label class={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${selectedRoles().has(role.id) ? 'bg-primary/10' : 'hover:bg-surface/50'}`}>
-                                                <input type="checkbox" checked={selectedRoles().has(role.id)} onChange={() => toggleRole(role.id)} class="custom-checkbox" />
+                                                <Checkbox checked={selectedRoles().has(role.id)} onChange={() => toggleRole(role.id)} />
                                                 <span class="text-sm ">{role.name}</span>
                                             </label>
                                         )}
@@ -777,13 +778,17 @@ const PermissionAssignModal: Component<{
                                         <div class="bg-card border border-border shadow-card-soft rounded-lg overflow-hidden">
                                             <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-surface/50 transition-colors" onClick={() => toggleExpand(module)}>
                                                 <div class="flex items-center gap-3">
-                                                    <input
-                                                        type="checkbox"
+                                                    <Checkbox
                                                         checked={isModuleSelected(module)}
-                                                        ref={(el) => { el.indeterminate = isModulePartial(module); }}
-                                                        onChange={(e) => { e.stopPropagation(); toggleModule(module); }}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        class="custom-checkbox"
+                                                        indeterminate={isModulePartial(module)}
+
+                                                        /* CAMBIO 1: onChange ahora recibe el valor (boolean), no el evento.
+                                                           Ya no necesitamos detener propagación aquí. */
+                                                        onChange={(isChecked) => toggleModule(module)}
+
+                                                        /* CAMBIO 2: Detenemos la propagación en el evento nativo onClick.
+                                                           Esto evita que el clic "suba" al contenedor padre (ej. si está en una tarjeta o fila). */
+                                                        onClick={(e: MouseEvent) => e.stopPropagation()}
                                                     />
                                                     <span class="font-medium ">{moduleLabels[module] || module}</span>
                                                     <span class="text-xs text-muted">({perms.length})</span>
@@ -799,7 +804,11 @@ const PermissionAssignModal: Component<{
                                                             const action = perm.slug.split('.')[1];
                                                             return (
                                                                 <label class={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${selectedIds().has(perm.id) ? 'bg-primary/5' : 'hover:bg-surface/30'}`}>
-                                                                    <input type="checkbox" checked={selectedIds().has(perm.id)} onChange={() => togglePermission(perm.id)} class="custom-checkbox" />
+                                                                    <Checkbox
+                                                                        checked={selectedIds().has(perm.id)}
+                                                                        onChange={() => togglePermission(perm.id)}
+                                                                        onClick={(e: MouseEvent) => e.stopPropagation()}
+                                                                    />
                                                                     <ActionBadge action={action} />
                                                                     <span class="text-sm text-muted truncate">{perm.description}</span>
                                                                 </label>
@@ -853,7 +862,7 @@ const UserRoleModal: Component<{
                         <For each={props.allRoles}>
                             {(role) => (
                                 <label class={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${selectedRoles().has(role.id) ? 'bg-primary/10' : 'hover:bg-surface/50'}`}>
-                                    <input type="checkbox" checked={selectedRoles().has(role.id)} onChange={() => toggleRole(role.id)} class="custom-checkbox" />
+                                    <Checkbox checked={selectedRoles().has(role.id)} onChange={() => toggleRole(role.id)} />
                                     <div class="flex-1">
                                         <p class="font-medium">{role.name}</p>
                                         <p class="text-xs text-muted">{role.description || 'Sin descripción'}</p>
@@ -1012,11 +1021,10 @@ const UserEditModal: Component<{
                                 required
                             />
                             <div class="flex items-center gap-3 p-3 rounded-lg bg-surface/30">
-                                <input
-                                    type="checkbox"
+                                <Checkbox
                                     checked={isActive()}
-                                    onChange={(e) => setIsActive(e.currentTarget.checked)}
-                                    class="custom-checkbox"
+                                    /* Al recibir el valor directo, pasamos el setter directamente */
+                                    onChange={setIsActive}
                                     id="edit-active"
                                 />
                                 <label for="edit-active" class="flex-1 cursor-pointer">

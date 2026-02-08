@@ -32,7 +32,10 @@
       ], // Acceso a env/menu
       "@layout/*": [
         "./src/layout/*"
-      ] // Acceso a layouts
+      ], // Acceso a layouts
+      "@backend/*": [
+        "../backend/src/*"
+      ]
     }
   }
 }

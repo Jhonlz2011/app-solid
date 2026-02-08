@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { employeeWorkSchedules, entities } from '../schema';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { employeeWorkSchedules, entities } from '@app/schema/tables';
+import { eq, and, gte, lte, desc } from '@app/schema';
 import { DomainError } from './errors';
 
 export class EmployeeSchedulesService {

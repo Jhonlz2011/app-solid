@@ -1,7 +1,7 @@
 import { Component, Show } from 'solid-js';
 import ThemeToggle from '../ThemeToggle';
 import { useSidebar } from './SidebarContext';
-import { SidebarCollapseIcon, CloseIcon } from '@shared/components/icons';
+import { SidebarCollapseIcon, CloseIcon } from '@shared/ui/icons';
 
 interface SidebarHeaderProps {
     toggleCollapse: () => void;
