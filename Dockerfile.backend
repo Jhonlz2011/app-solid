@@ -1,0 +1,23 @@
+FROM oven/bun:1 as base
+WORKDIR /app
+
+# COPY ONLY package.json and lockfiles to cache dependencies
+COPY package.json bun.lock biome.json ./
+COPY packages/schema/package.json ./packages/schema/package.json
+COPY backend/package.json ./backend/package.json
+
+# Install dependencies (cached)
+RUN bun install
+
+# Copy source code (this layer changes frequently)
+COPY packages ./packages
+COPY backend ./backend
+
+# Set working directory
+WORKDIR /app/backend
+
+# Expose port
+EXPOSE 3000
+
+# Start server
+CMD ["bun", "run", "src/server.ts"]

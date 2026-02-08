@@ -1,0 +1,35 @@
+{
+    # Admin API off for production security
+    admin off
+    # Global options
+    auto_https off
+}
+
+:80 {
+    # Set root directory
+    root * /usr/share/caddy
+
+    # Enable Zstandard (zstd) and Gzip compression
+    # Zstd is significantly faster and better compressing than Brotli/Gzip
+    encode zstd gzip
+
+    # Serve static files
+    file_server
+
+    # SPA Routing: Redirect all 404s to index.html
+    try_files {path} /index.html
+
+    # Cache Control for Static Assets (Vite hashed files)
+    @static {
+        file
+        path *.js *.css *.jpg *.jpeg *.png *.gif *.ico *.svg *.woff *.woff2
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
+    # Security Headers (Modern Best Practices)
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}

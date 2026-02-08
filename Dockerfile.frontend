@@ -1,0 +1,33 @@
+FROM oven/bun:1 as builder
+WORKDIR /app
+
+# COPY ONLY package.json and lockfiles to cache dependencies
+COPY package.json bun.lock biome.json ./
+COPY packages/schema/package.json ./packages/schema/package.json
+COPY frontend/package.json ./frontend/package.json
+
+# Install dependencies (cached)
+RUN bun install
+
+# Copy source code (this layer changes frequently)
+COPY packages ./packages
+COPY frontend ./frontend
+
+# Build frontend
+WORKDIR /app/frontend
+ENV NODE_ENV=production
+RUN bun run build
+
+# Production stage
+# Caddy Alpine is 2026 standard for lightweight, high-performance web servers
+FROM caddy:alpine
+
+# Copy built assets
+COPY --from=builder /app/frontend/dist /usr/share/caddy
+
+# Copy Caddy configuration
+COPY Caddyfile /etc/caddy/Caddyfile
+
+EXPOSE 80
+
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
