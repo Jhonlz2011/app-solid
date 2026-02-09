@@ -1,9 +1,10 @@
-FROM oven/bun:1 as builder
+FROM oven/bun:1 AS builder
 WORKDIR /app
 
 # COPY ONLY package.json and lockfiles to cache dependencies
 COPY package.json bun.lock biome.json ./
 COPY packages/schema/package.json ./packages/schema/package.json
+COPY backend/package.json ./backend/package.json
 COPY frontend/package.json ./frontend/package.json
 
 # Install dependencies (cached)
