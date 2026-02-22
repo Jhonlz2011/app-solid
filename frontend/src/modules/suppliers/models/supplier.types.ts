@@ -1,5 +1,5 @@
 // Supplier types - UI constants and type definitions
-import type { SupplierBody, SupplierFilters, SupplierListItem } from '../data/suppliers.api';
+import type { SupplierBody, SupplierFilters } from '../data/suppliers.api';
 import { suppliersApi } from '../data/suppliers.api';
 import type { TaxIdType, PersonType, SriContributorType } from '@app/schema/frontend';
 
@@ -9,7 +9,7 @@ export type Supplier = Awaited<ReturnType<typeof suppliersApi.get>>;
 export type SuppliersResponse = Awaited<ReturnType<typeof suppliersApi.list>>;
 
 // Re-export for convenience
-export type { SupplierBody as SupplierPayload, SupplierFilters, SupplierListItem };
+export type { SupplierBody as SupplierPayload, SupplierFilters };
 export type { TaxIdType, PersonType, SriContributorType };
 
 // UI Label mappings
@@ -29,4 +29,9 @@ export const sriContributorLabels: Record<SriContributorType, string> = {
     RIMPE_EMPRENDEDOR: 'RIMPE Emprendedor',
     GENERAL: 'Régimen General',
     ESP_AGENT: 'Agente de Retención',
+};
+
+export const isActiveLabels: Record<string, string> = {
+    'true': 'Activo',
+    'false': 'Inactivo',
 };

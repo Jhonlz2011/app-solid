@@ -1,5 +1,7 @@
 import { createSignal, batch } from 'solid-js';
 import { decode } from '@msgpack/msgpack';
+import { getAccessToken } from '@modules/auth/store/auth.store';
+import type { WsMessage, EntityEventPayload } from '@app/schema/ws-events';
 
 // --- CONFIGURACIÓN ---
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/api/ws';
@@ -18,11 +20,10 @@ const activeSubscriptions = new Set<string>();
 
 // --- LÓGICA INTERNA ---
 
-const dispatchMessage = (message: any) => {
-    const eventName = message?.event || message?.type;
+const dispatchMessage = (message: WsMessage<EntityEventPayload>) => {
+    const eventName = message?.event || (message as any)?.type;
     const eventData = message?.data ?? message;
     if (eventName) {
-        // Mantenemos tu sistema de eventos global, es útil para desacoplar
         window.dispatchEvent(new CustomEvent(eventName, { detail: eventData }));
     }
 };
@@ -32,8 +33,15 @@ const dispatchMessage = (message: any) => {
 export const connect = () => {
     if (socket()?.readyState === WebSocket.OPEN) return;
 
+    // Don't connect without a valid token
+    const token = getAccessToken();
+    if (!token) {
+        console.warn('WS: No access token available, skipping connection');
+        return;
+    }
+
     try {
-        const ws = new WebSocket(WS_URL);
+        const ws = new WebSocket(`${WS_URL}?token=${token}`);
         ws.binaryType = 'arraybuffer';
 
         ws.onopen = () => {

@@ -272,3 +272,14 @@ export const InfoIcon: Component<IconProps> = (props) => (
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
 );
+
+
+
+// Download icon
+export const DownloadIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" x2="12" y1="15" y2="3" />
+    </BaseIcon>
+);

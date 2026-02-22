@@ -10,6 +10,8 @@ import { queryClient } from './shared/lib/queryClient';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster } from 'solid-sonner';
 
+import { actions as authActions } from './modules/auth/store/auth.store';
+
 const root = document.getElementById('root');
 
 if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
@@ -17,6 +19,10 @@ if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
         'Root element not found. Did you forget to add it to your index.html? Or maybe the id attribute got misspelled?',
     );
 }
+
+// Initialize auth listeners once before rendering (storage, BroadcastChannel, WS events)
+authActions.initStore();
+
 // Mount the app with QueryClient and Router
 render(
     () => (

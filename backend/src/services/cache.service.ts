@@ -32,29 +32,41 @@ export const cacheService = {
 
     /**
      * Invalidate cache keys matching a pattern.
+     * Properly awaitable — resolves only after ALL keys are deleted.
+     * Uses SCAN to avoid blocking Redis with KEYS command.
      * @param pattern Pattern to match (e.g. "products:*")
      */
     async invalidate(pattern: string): Promise<void> {
         try {
-            // Usar SCAN para borrar claves de forma segura sin bloquear
-            const stream = redis.scanStream({
-                match: pattern,
-                count: 100
-            });
+            return new Promise<void>((resolve, reject) => {
+                const stream = redis.scanStream({
+                    match: pattern,
+                    count: 100,
+                });
 
-            stream.on('data', async (keys: string[]) => {
-                if (keys.length) {
-                    const pipeline = redis.pipeline();
-                    keys.forEach((key) => pipeline.del(key));
-                    await pipeline.exec();
-                }
-            });
+                const deletions: Promise<any>[] = [];
 
-            stream.on('end', () => {
-                console.log(`Cache invalidated for pattern: ${pattern}`);
+                stream.on('data', (keys: string[]) => {
+                    if (keys.length) {
+                        const pipeline = redis.pipeline();
+                        keys.forEach((key) => pipeline.del(key));
+                        deletions.push(pipeline.exec());
+                    }
+                });
+
+                stream.on('end', () => {
+                    Promise.all(deletions)
+                        .then(() => resolve())
+                        .catch(reject);
+                });
+
+                stream.on('error', (err) => {
+                    console.error('Cache invalidation stream error:', err);
+                    reject(err);
+                });
             });
         } catch (error) {
             console.error('Cache invalidation error:', error);
         }
-    }
+    },
 };

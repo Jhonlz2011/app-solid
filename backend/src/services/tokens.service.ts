@@ -1,5 +1,5 @@
 // src/services/tokens.service.ts
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { SignJWT } from 'jose';
 
 if (!process.env.JWT_SECRET) {
@@ -16,8 +16,9 @@ export type RefreshTokenPair = {
 
 export type AccessPayload = {
   userId: number;
-  sessionId: string; // Selector del refresh token
-  // agrega claims que necesites (roles, perms)
+  sessionId: string;
+  roles: string[];
+  permissions: string[];
 };
 
 export async function genRefreshTokenPair(): Promise<RefreshTokenPair> {
@@ -41,10 +42,10 @@ export async function generateAccessToken(payload: AccessPayload) {
     .sign(secret);
 }
 
-export async function hashToken(token: string) {
-  return await Bun.password.hash(token);
+export function hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
 }
 
-export async function verifyTokenHash(token: string, hash: string) {
-  return await Bun.password.verify(token, hash);
+export function verifyTokenHash(token: string, hash: string): boolean {
+    return createHash('sha256').update(token).digest('hex') === hash;
 }

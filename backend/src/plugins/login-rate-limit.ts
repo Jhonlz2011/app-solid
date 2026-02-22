@@ -1,37 +1,29 @@
-import { Elysia, type Context } from 'elysia';
-
-type RateLimitStore = {
-    attempts: number;
-    windowStart: number;
-};
-
-const store = new Map<string, RateLimitStore>();
+import { redis } from '../config/redis';
 
 const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 60 * 1000; // 1 minute
+const WINDOW_SECONDS = 60; // 1 minute
 
 /**
- * Strict rate limiter for login endpoint.
- * 5 attempts per minute per IP.
+ * Distributed rate limiter for login endpoint using Redis.
+ * 5 attempts per minute per IP. Survives process restarts and scales across instances.
  */
 export const loginRateLimit = async ({ request, set }: { request: any, set: any }) => {
-    const now = Date.now();
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
         request.headers.get('x-real-ip') ||
         'unknown';
 
-    let bucket = store.get(ip);
+    const key = `rate:login:${ip}`;
+    const attempts = await redis.incr(key);
 
-    if (!bucket || now - bucket.windowStart > WINDOW_MS) {
-        // New window
-        bucket = { attempts: 0, windowStart: now };
-        store.set(ip, bucket);
+    // Set TTL only on first attempt (when INCR creates the key)
+    if (attempts === 1) {
+        await redis.expire(key, WINDOW_SECONDS);
     }
 
-    bucket.attempts++;
+    if (attempts > MAX_ATTEMPTS) {
+        const ttl = await redis.ttl(key);
+        const retryAfter = ttl > 0 ? ttl : WINDOW_SECONDS;
 
-    if (bucket.attempts > MAX_ATTEMPTS) {
-        const retryAfter = Math.ceil((WINDOW_MS - (now - bucket.windowStart)) / 1000);
         set.status = 429;
         set.headers['Retry-After'] = retryAfter.toString();
         return new Response(JSON.stringify({
@@ -45,27 +37,16 @@ export const loginRateLimit = async ({ request, set }: { request: any, set: any 
             }
         });
     }
-
-    // Cleanup old entries every 5 minutes
-    if (store.size > 1000) {
-        for (const [key, value] of store.entries()) {
-            if (now - value.windowStart > WINDOW_MS * 5) {
-                store.delete(key);
-            }
-        }
-    }
 };
 
 /**
  * Resets the attempt counter for a specific IP.
  * Should be called after a successful login.
  */
-export const resetLoginAttempts = (request: Request) => {
+export const resetLoginAttempts = async (request: Request) => {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
         request.headers.get('x-real-ip') ||
         'unknown';
 
-    if (store.has(ip)) {
-        store.delete(ip);
-    }
+    await redis.del(`rate:login:${ip}`);
 };

@@ -1,6 +1,7 @@
 import { Show, JSX } from 'solid-js';
 import type { Column } from '@tanstack/solid-table';
 import { DropdownMenu } from './DropdownMenu';
+import { DataTableColumnFilter, type FilterOption } from './DataTableColumnFilter';
 import { ArrowUpIcon, ArrowDownIcon, EyeOffIcon, PinIcon, PinOffIcon, ChevronsUpDownIcon } from './icons';
 import { cn } from '../lib/utils';
 
@@ -13,6 +14,11 @@ interface DataTableColumnHeaderProps<TData, TValue> {
     column: Column<TData, TValue>;
     title: string;
     class?: string;
+    // Filter support (optional)
+    filterOptions?: FilterOption[];
+    selectedFilters?: string[];
+    onFilterChange?: (selected: string[]) => void;
+    isFilterLoading?: boolean;
 }
 
 export function DataTableColumnHeader<TData, TValue>(
@@ -155,6 +161,18 @@ export function DataTableColumnHeader<TData, TValue>(
                 >
                     <PinOffIcon class="size-3.5" />
                 </button>
+            </Show>
+
+            {/* Column filter popover */}
+            <Show when={props.filterOptions && props.onFilterChange}>
+                <DataTableColumnFilter
+                    options={props.filterOptions!}
+                    selected={props.selectedFilters ?? []}
+                    onSelectionChange={props.onFilterChange!}
+                    title={props.title}
+                    isLoading={props.isFilterLoading}
+                    enableVirtualization={props.filterOptions!.length > 50}
+                />
             </Show>
         </div>
     );

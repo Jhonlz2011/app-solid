@@ -9,7 +9,9 @@
         "./tables": "./src/tables/index.ts",
         "./backend": "./src/backend.ts",
         "./frontend": "./src/frontend.ts",
-        "./types": "./src/types.ts"
+        "./types": "./src/types.ts",
+        "./enums": "./src/enums.ts",
+        "./ws-events": "./src/ws-events.ts"
     },
     "typesVersions": {
         "*": {
@@ -24,6 +26,12 @@
             ],
             "types": [
                 "./src/types.ts"
+            ],
+            "enums": [
+                "./src/enums.ts"
+            ],
+            "ws-events": [
+                "./src/ws-events.ts"
             ]
         }
     },

@@ -63,11 +63,13 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     '/login',
     async ({ body, cookie, request }) => {
       const { ipAddress, userAgent } = getIpAndUserAgent(request);
-      console.log('Login attempt:', { email: body.email, userAgent, ipAddress, env: process.env.NODE_ENV });
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Login attempt:', { email: body.email, userAgent, ipAddress });
+      }
       const { user, accessToken, refreshToken } = await login(body.email, body.password, userAgent, ipAddress);
 
       // Reset rate limit on success
-      resetLoginAttempts(request);
+      await resetLoginAttempts(request);
 
       cookie.refresh_token.set({
         value: refreshToken,
@@ -113,10 +115,13 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       const refreshToken = cookie.refresh_token.value as string | undefined;
 
       if (refreshToken && refreshToken.includes('.')) {
-        try {
-          await logout(refreshToken.split('.')[0]);
-        } catch (error) {
-          console.warn('Error al revocar token:', error);
+        const selector = refreshToken.split('.')[0];
+        if (selector.length >= 8) {
+          try {
+            await logout(selector);
+          } catch (error) {
+            console.warn('Error al revocar token:', error);
+          }
         }
       }
 

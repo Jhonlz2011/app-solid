@@ -28,6 +28,9 @@ export const entities = pgTableV2("entities", {
     index("idx_entities_active").on(t.is_active),
     // Partial index for active suppliers (most common query)
     index("idx_active_suppliers").on(t.id).where(sql`${t.is_supplier} = true AND ${t.is_active} = true`),
+    // Composite indexes for sorted pagination (column + id tiebreaker)
+    index("idx_entities_business_name_id").on(t.business_name, t.id),
+    index("idx_entities_created_at_id").on(t.created_at, t.id),
 ]);
 
 export const entityContacts = pgTableV2("entity_contacts", {

@@ -11,21 +11,64 @@ import {
 } from '../services/entities.service';
 import { SupplierBodySchema, SupplierUpdateSchema } from '@app/schema/backend';
 
+/** Parse comma-separated string into array (shared by list + facets) */
+const parseArray = (val?: string) => val?.split(',').filter(Boolean);
+
 export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     .use(authGuard)
+    // List with cursor pagination
     .get(
         '/',
-        ({ query }) =>
-            suppliersService.list({
-                search: query.search,
+        ({ query }) => {
+            return suppliersService.list({
+                cursor: query.cursor,
+                direction: query.direction as 'next' | 'prev' | 'first' | 'last' | undefined,
                 limit: query.limit ? Number(query.limit) : undefined,
-                offset: query.offset ? Number(query.offset) : undefined,
+                search: query.search,
+                sortBy: query.sortBy,
+                sortOrder: query.sortOrder as 'asc' | 'desc' | undefined,
+                page: query.page ? Number(query.page) : undefined,
+                personType: parseArray(query.personType),
+                taxIdType: parseArray(query.taxIdType),
+                isActive: parseArray(query.isActive),
+                businessName: parseArray(query.businessName),
+            });
+        },
+        {
+            query: t.Object({
+                cursor: t.Optional(t.String()),
+                direction: t.Optional(t.String()),
+                search: t.Optional(t.String()),
+                limit: t.Optional(t.Numeric()),
+                sortBy: t.Optional(t.String()),
+                sortOrder: t.Optional(t.String()),
+                page: t.Optional(t.Numeric()),
+                personType: t.Optional(t.String()),
+                taxIdType: t.Optional(t.String()),
+                isActive: t.Optional(t.String()),
+                businessName: t.Optional(t.String()),
             }),
+        }
+    )
+    // Get faceted filter values + counts (with cross-filtering)
+    .get(
+        '/facets',
+        ({ query }) => {
+            return suppliersService.facets({
+                search: query.search,
+                personType: parseArray(query.personType),
+                taxIdType: parseArray(query.taxIdType),
+                isActive: parseArray(query.isActive),
+                businessName: parseArray(query.businessName),
+            });
+        },
         {
             query: t.Object({
                 search: t.Optional(t.String()),
-                limit: t.Optional(t.Numeric()),
-                offset: t.Optional(t.Numeric()),
+                personType: t.Optional(t.String()),
+                taxIdType: t.Optional(t.String()),
+                isActive: t.Optional(t.String()),
+                businessName: t.Optional(t.String()),
             }),
         }
     )
@@ -49,6 +92,19 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
         {
             params: t.Object({ id: t.Numeric() }),
             body: SupplierUpdateSchema,
+        }
+    )
+    // Bulk delete - must be before /:id to avoid route conflict
+    .delete(
+        '/bulk',
+        async ({ body }) => {
+            const result = await suppliersService.bulkDelete(body.ids);
+            return result;
+        },
+        {
+            body: t.Object({
+                ids: t.Array(t.Number(), { minItems: 1 })
+            })
         }
     )
     .delete(

@@ -6,7 +6,6 @@ import { createAuthRoutes } from './modules/auth/auth.routes';
 
 import { connect as connectWs } from './shared/store/ws.store';
 import { actions as moduleActions } from './shared/store/modules.store';
-import { actions as authActions } from './modules/auth/store/auth.store';
 import { queryClient } from './shared/lib/queryClient';
 
 const Dashboard = lazy(() => import('./modules/dashboard/views/Dashboard')) as Component;
@@ -20,9 +19,6 @@ const SupplierEditSheet = lazy(() => import('./modules/suppliers/components/Supp
 const SupplierShowPanel = lazy(() => import('./modules/suppliers/components/SupplierShowPanel')) as Component<{ supplierId: number }>;
 
 const rootRoute = createRootRoute({
-  beforeLoad: () => {
-    authActions.initStore();
-  },
   component: () => {
     return <Outlet />;
   },
@@ -33,9 +29,8 @@ const authRoute = createAuthRoutes(rootRoute);
 const ProtectedLayout: Component = () => {
   onMount(() => {
     moduleActions.fetchModules();
+    connectWs();
   });
-
-  connectWs();
 
   return (
     <MainLayout>
@@ -112,10 +107,16 @@ const profileRoute = createRoute({
   component: () => <ProfilePage />,
 });
 
-// Suppliers routes - parent route with nested children
 const suppliersRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: 'suppliers',
+  beforeLoad: async () => {
+    const { useAuth } = await import('./modules/auth/store/auth.store');
+    const auth = useAuth();
+    if (!auth.canRead('suppliers')) {
+      throw redirect({ to: '/dashboard' });
+    }
+  },
   component: () => <SuppliersPage />,
 });
 
@@ -131,25 +132,15 @@ const supplierNewRoute = createRoute({
   component: () => <SupplierNewSheet />,
 });
 
-// Wrapper component that properly handles reactive params for edit
 const SupplierEditWrapper = () => {
   const params = useParams({ strict: false });
-  // Debug: log params to understand what's happening
-  console.log('[SupplierEditWrapper] params():', params());
-  console.log('[SupplierEditWrapper] params().id:', params()?.id);
   const supplierId = Number(params()?.id) || 0;
-  console.log('[SupplierEditWrapper] supplierId:', supplierId);
   return <SupplierEditSheet supplierId={supplierId} />;
 };
 
-// Wrapper component that properly handles reactive params for show
 const SupplierShowWrapper = () => {
   const params = useParams({ strict: false });
-  // Debug: log params to understand what's happening
-  console.log('[SupplierShowWrapper] params():', params());
-  console.log('[SupplierShowWrapper] params().id:', params()?.id);
   const supplierId = Number(params()?.id) || 0;
-  console.log('[SupplierShowWrapper] supplierId:', supplierId);
   return <SupplierShowPanel supplierId={supplierId} />;
 };
 
@@ -172,12 +163,6 @@ const routeTree = rootRoute.addChildren([
   layoutRoute.addChildren([
     indexRoute,
     dashboardRoute,
-    // productsRoute.addChildren([
-    //   productsIndexRoute,
-    //   productShowRoute,
-    //   productEditRoute,
-    //   productNewRoute,
-    // ]),
     systemUsersRoute,
     settingsGeneralRoute,
     profileRoute,

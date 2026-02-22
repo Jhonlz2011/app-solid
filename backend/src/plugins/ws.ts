@@ -1,11 +1,15 @@
 import { Elysia } from 'elysia';
 import { encode, decode } from '@msgpack/msgpack';
+import { jwtVerify } from 'jose';
 
 // --- TYPES ---
 interface WsClient {
     ws: any;
     rooms: Set<string>;
+    userId: number | null;
 }
+
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || '');
 
 // --- STATE ---
 // Main client storage
@@ -59,18 +63,57 @@ function removeClientFromAllRooms(clientId: string, rooms: Set<string>): void {
 
 export const wsPlugin = (app: Elysia) =>
     app.ws('/ws', {
-        open(ws) {
+        async open(ws) {
+            // Extract token from the raw request URL
+            // Bun's ServerWebSocket stores the original request in ws.data
+            let token: string | null = null;
+            try {
+                const rawUrl = (ws as any).data?.request?.url
+                    || (ws as any).data?.url
+                    || '';
+                if (rawUrl) {
+                    const url = new URL(rawUrl, 'http://localhost');
+                    token = url.searchParams.get('token');
+                }
+            } catch {
+                // URL parsing failed, continue without token
+            }
+
+            let userId: number | null = null;
+
+            if (token) {
+                try {
+                    const { payload } = await jwtVerify(token, JWT_SECRET, {
+                        algorithms: ['HS256'],
+                    });
+                    userId = Number(payload.userId) || null;
+                } catch {
+                    ws.close(4001, 'Token inválido o expirado');
+                    return;
+                }
+            } else {
+                ws.close(4001, 'Token requerido');
+                return;
+            }
+
             const clientId = generateClientId();
             (ws as any).clientId = clientId;
 
             // Initialize with wildcard subscription
             const rooms = new Set(['*']);
-            clients.set(clientId, { ws, rooms });
+            clients.set(clientId, { ws, rooms, userId });
 
             // Add to room index
             addToRoomIndex(clientId, '*');
 
-            console.log(`🔌 WS Connected: ${clientId} (Total: ${clients.size})`);
+            // Auto-subscribe to user's personal room
+            if (userId) {
+                const userRoom = `user:${userId}`;
+                rooms.add(userRoom);
+                addToRoomIndex(clientId, userRoom);
+            }
+
+            console.log(`🔌 WS Connected: ${clientId} (userId: ${userId ?? 'anonymous'}, Total: ${clients.size})`);
         },
 
         message(ws, message) {
@@ -124,27 +167,20 @@ export const wsPlugin = (app: Elysia) =>
     });
 
 // --- REDIS ADAPTER ---
-import { redis } from '../config/redis';
-
-// Duplicate Redis connection for subscription (required by Redis)
-const redisSub = redis.duplicate();
+import { redis, subscribeToChannel } from '../config/redis';
 
 export async function initWsRedisAdapter() {
-    await redisSub.subscribe('ws:events');
+    await subscribeToChannel('ws:events', (message) => {
+        try {
+            const { event, data, room, format } = JSON.parse(message);
 
-    redisSub.on('message', (channel, message) => {
-        if (channel === 'ws:events') {
-            try {
-                const { event, data, room, format } = JSON.parse(message);
-
-                if (format === 'json') {
-                    localBroadcastJSON(event, data, room);
-                } else {
-                    localBroadcast(event, data, room);
-                }
-            } catch (e) {
-                console.error('Redis WS message parse error:', e);
+            if (format === 'json') {
+                localBroadcastJSON(event, data, room);
+            } else {
+                localBroadcast(event, data, room);
             }
+        } catch (e) {
+            console.error('Redis WS message parse error:', e);
         }
     });
 
@@ -170,96 +206,53 @@ export async function broadcastJSON(event: string, data: any, room: string = '*'
     await redis.publish('ws:events', payload);
 }
 
+// --- BROADCAST INTERNALS (Shared) ---
+
 /**
- * INTERNAL: Broadcast to LOCAL clients or specific room using MessagePack (binary)
- * Optimized with room indexing for O(1) lookups
+ * Resolve target client IDs for a room (including wildcard subscribers)
  */
-function localBroadcast(event: string, data: any, room: string = '*'): void {
-    // Encode message once
-    const encoded = encode({ event, data, timestamp: Date.now() });
-    const message = Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength);
-
-    // Collect target clients (avoid duplicates when broadcasting to '*')
-    const targetClients = new Set<string>();
-
+function getTargetClientIds(room: string): string[] {
+    const targets = new Set<string>();
     if (room === '*') {
-        // Broadcast to everyone
-        for (const clientId of clients.keys()) {
-            targetClients.add(clientId);
-        }
+        for (const id of clients.keys()) targets.add(id);
     } else {
-        // Get clients subscribed to this specific room
-        const roomClients = roomIndex.get(room);
-        if (roomClients) {
-            for (const clientId of roomClients) {
-                targetClients.add(clientId);
-            }
-        }
-
-        // Also include clients subscribed to wildcard '*'
-        const wildcardClients = roomIndex.get('*');
-        if (wildcardClients) {
-            for (const clientId of wildcardClients) {
-                targetClients.add(clientId);
-            }
-        }
+        roomIndex.get(room)?.forEach(id => targets.add(id));
+        roomIndex.get('*')?.forEach(id => targets.add(id));
     }
+    return Array.from(targets);
+}
 
-    // Send to all target clients
-    for (const clientId of targetClients) {
+/**
+ * Send a pre-encoded message to a list of client IDs
+ */
+function sendToClients(targetIds: string[], message: ArrayBuffer | string): void {
+    for (const clientId of targetIds) {
         const client = clients.get(clientId);
-        if (client) {
-            try {
-                client.ws.send(message);
-            } catch (e) {
-                console.error(`Error broadcasting to ${clientId}:`, e);
-                // Clean up failed connection
-                removeClientFromAllRooms(clientId, client.rooms);
-                clients.delete(clientId);
-            }
+        if (!client) continue;
+        try {
+            client.ws.send(message);
+        } catch {
+            removeClientFromAllRooms(clientId, client.rooms);
+            clients.delete(clientId);
         }
     }
 }
 
 /**
- * INTERNAL: Broadcast JSON (for backward compatibility)
+ * INTERNAL: Broadcast MessagePack (binary) to local clients
+ */
+function localBroadcast(event: string, data: any, room: string = '*'): void {
+    const encoded = encode({ event, data, timestamp: Date.now() });
+    const message = encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength);
+    sendToClients(getTargetClientIds(room), message);
+}
+
+/**
+ * INTERNAL: Broadcast JSON to local clients
  */
 function localBroadcastJSON(event: string, data: any, room: string = '*'): void {
     const message = JSON.stringify({ event, data, timestamp: Date.now() });
-
-    const targetClients = new Set<string>();
-
-    if (room === '*') {
-        for (const clientId of clients.keys()) {
-            targetClients.add(clientId);
-        }
-    } else {
-        const roomClients = roomIndex.get(room);
-        if (roomClients) {
-            for (const clientId of roomClients) {
-                targetClients.add(clientId);
-            }
-        }
-        const wildcardClients = roomIndex.get('*');
-        if (wildcardClients) {
-            for (const clientId of wildcardClients) {
-                targetClients.add(clientId);
-            }
-        }
-    }
-
-    for (const clientId of targetClients) {
-        const client = clients.get(clientId);
-        if (client) {
-            try {
-                client.ws.send(message);
-            } catch (e) {
-                console.error(`Error broadcasting JSON to ${clientId}:`, e);
-                removeClientFromAllRooms(clientId, client.rooms);
-                clients.delete(clientId);
-            }
-        }
-    }
+    sendToClients(getTargetClientIds(room), message);
 }
 
 // --- STATS ---

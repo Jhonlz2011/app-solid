@@ -1,4 +1,5 @@
 import { text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { pgTableV2 } from '../utils';
 import { entities } from './entities';
 
@@ -27,7 +28,12 @@ export const refreshTokens = pgTableV2("refresh_tokens", {
     replaced_by: integer("replaced_by"),
     user_agent: text("user_agent"),
     ip_address: text("ip_address"),
-});
+}, (t) => [
+    // Covers: login session lookup, getActiveSessions, session cleanup
+    index("idx_rt_user_active").on(t.user_id, t.revoked),
+    // Covers: expired token cleanup
+    index("idx_rt_expires").on(t.expires_at).where(sql`revoked = false`),
+]);
 
 export const authRoles = pgTableV2("auth_roles", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),

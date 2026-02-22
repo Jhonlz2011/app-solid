@@ -1,5 +1,4 @@
 import { QueryClient } from '@tanstack/solid-query';
-import { PersistQueryClientProvider } from '@tanstack/solid-query-persist-client';
 import { get, set, del } from 'idb-keyval';
 
 // Crear persister con IndexedDB para usar con PersistQueryClientProvider

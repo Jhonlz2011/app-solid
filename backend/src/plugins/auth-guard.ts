@@ -34,6 +34,8 @@ export const authGuard = (app: Elysia) => app
 
         return {
           currentUserId: Number(payload.userId),
+          currentRoles: (payload.roles as string[]) ?? [],
+          currentPermissions: (payload.permissions as string[]) ?? [],
         };
       } catch (error) {
         set.status = 401;

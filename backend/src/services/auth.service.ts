@@ -1,5 +1,5 @@
 import { db, type Tx } from '../db';
-import { authUsers as users, refreshTokens, entities } from '@app/schema/tables';
+import { authUsers as users, refreshTokens } from '@app/schema/tables';
 import { eq, and, gt, sql, or, inArray } from '@app/schema';
 import type { AuthUserSelectType, PublicUserType } from '@app/schema/backend';
 import {
@@ -80,10 +80,14 @@ export async function login(email: string, password: string, userAgent?: string,
     getUserPermissions(user.id)
   ]);
 
-  const [accessToken, refreshHash] = await Promise.all([
-    generateAccessToken({ userId: user.id, sessionId: refreshPair.selector }),
-    hashToken(refreshPair.token)
-  ]);
+  // hashToken is sync (SHA-256) — no need for Promise.all
+  const refreshHash = hashToken(refreshPair.token);
+  const accessToken = await generateAccessToken({
+    userId: user.id,
+    sessionId: refreshPair.selector,
+    roles,
+    permissions,
+  });
 
   const expiresAt = new Date(Date.now() + REFRESH_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
 
@@ -106,8 +110,10 @@ export async function login(email: string, password: string, userAgent?: string,
     const MAX_SESSIONS = 5;
     if (activeSessions.length >= MAX_SESSIONS) {
       const sessionsToRevoke = activeSessions.slice(0, activeSessions.length - MAX_SESSIONS + 1);
-      for (const session of sessionsToRevoke) {
-        await tx.update(refreshTokens).set({ revoked: true }).where(eq(refreshTokens.id, session.id));
+      if (sessionsToRevoke.length > 0) {
+        await tx.update(refreshTokens)
+          .set({ revoked: true })
+          .where(inArray(refreshTokens.id, sessionsToRevoke.map(s => s.id)));
       }
     }
 
@@ -200,7 +206,17 @@ export async function rotateRefreshToken(oldCombined: string) {
           const timeSinceReplacement = Date.now() - new Date(replacement.created_at).getTime();
           // Grace period: within 30 seconds, reuse the same replacement token
           if (timeSinceReplacement < 30 * 1000) {
-            const accessToken = await generateAccessToken({ userId: storedToken.user_id, sessionId: replacement.selector });
+            // Fetch roles/permissions for JWT
+            const [graceRoles, gracePerms] = await Promise.all([
+              getUserRoles(storedToken.user_id),
+              getUserPermissions(storedToken.user_id),
+            ]);
+            const accessToken = await generateAccessToken({
+              userId: storedToken.user_id,
+              sessionId: replacement.selector,
+              roles: graceRoles,
+              permissions: gracePerms,
+            });
             return {
               accessToken,
               refreshToken: '', // Don't issue new refresh token, use existing from other request
@@ -214,20 +230,17 @@ export async function rotateRefreshToken(oldCombined: string) {
 
     if (new Date(storedToken.expires_at) < new Date()) throw new AuthError('Token expirado');
 
-    const valid = await verifyTokenHash(token, storedToken.token_hash);
+    const valid = verifyTokenHash(token, storedToken.token_hash);
     if (!valid) throw new AuthError('Token inválido');
 
     const { user_id } = storedToken;
     if (!user_id) throw new AuthError('Token inválido');
 
     const newPair = await genRefreshTokenPair();
-    const newHash = await hashToken(newPair.token);
+    const newHash = hashToken(newPair.token);
     const expiresAt = new Date(Date.now() + REFRESH_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
 
-    await tx
-      .update(refreshTokens)
-      .set({ revoked: true })
-      .where(eq(refreshTokens.id, storedToken.id));
+    // Insert new token first to get its ID
     const [newToken] = await tx
       .insert(refreshTokens)
       .values({
@@ -242,13 +255,24 @@ export async function rotateRefreshToken(oldCombined: string) {
       })
       .returning();
 
-    // Link old token to new
+    // Revoke old + link to new in a single UPDATE
     await tx
       .update(refreshTokens)
-      .set({ replaced_by: newToken.id })
+      .set({ revoked: true, replaced_by: newToken.id })
       .where(eq(refreshTokens.id, storedToken.id));
 
-    const accessToken = await generateAccessToken({ userId: user_id, sessionId: newPair.selector });
+    // Fetch roles/permissions for JWT (cached in Redis, fast)
+    const [roles, permissions] = await Promise.all([
+      getUserRoles(user_id),
+      getUserPermissions(user_id),
+    ]);
+
+    const accessToken = await generateAccessToken({
+      userId: user_id,
+      sessionId: newPair.selector,
+      roles,
+      permissions,
+    });
 
     return {
       accessToken,
@@ -339,47 +363,37 @@ export async function getActiveSessions(userId: number, currentSelector?: string
 }
 
 export async function revokeSession(sessionId: number, userId: number) {
-  // 1. Collect entire chain of rotated tokens starting from sessionId
-  const chainIds: number[] = [];
-  const chainSelectors: string[] = [];
+  // Use recursive CTE to collect entire chain in a single query
+  const chain = await db.execute(sql`
+    WITH RECURSIVE chain AS (
+      SELECT id, selector, replaced_by, user_id
+      FROM refresh_tokens WHERE id = ${sessionId}
+      UNION ALL
+      SELECT rt.id, rt.selector, rt.replaced_by, rt.user_id
+      FROM refresh_tokens rt JOIN chain c ON rt.id = c.replaced_by
+    )
+    SELECT id, selector FROM chain WHERE user_id = ${userId}
+  `) as unknown as { id: number; selector: string }[];
 
-  let currentId: number | null = sessionId;
-  while (currentId !== null) {
-    const session: { id: number; selector: string; replaced_by: number | null; user_id: number } | undefined = await db
-      .select({ id: refreshTokens.id, selector: refreshTokens.selector, replaced_by: refreshTokens.replaced_by, user_id: refreshTokens.user_id })
-      .from(refreshTokens)
-      .where(eq(refreshTokens.id, currentId))
-      .then((r) => r[0]);
+  if (!chain.length) throw new AuthError('Sesión no encontrada', 404);
 
-    if (!session) {
-      if (chainIds.length === 0) throw new AuthError('Sesión no encontrada', 404);
-      break;
-    }
+  const chainIds = chain.map(r => r.id);
+  const chainSelectors = chain.map(r => r.selector);
 
-    // Security: verify user owns this session
-    if (session.user_id !== userId) {
-      throw new AuthError('Sesión no encontrada', 404);
-    }
-
-    chainIds.push(session.id);
-    chainSelectors.push(session.selector);
-    currentId = session.replaced_by;
-  }
-
-  // 2. Batch update: revoke all in one query
+  // Batch update: revoke all in one query
   await db
     .update(refreshTokens)
     .set({ revoked: true })
     .where(inArray(refreshTokens.id, chainIds));
 
-  // 3. Batch blacklist in parallel
+  // Batch blacklist in parallel
   await Promise.all(
     chainSelectors.map(sel =>
       redis.set(`blacklist:${sel}`, 'revoked', 'EX', ACCESS_TOKEN_EXP_SECONDS)
     )
   );
 
-  // 4. Broadcast ALL selectors so client matches even after rotation
+  // Broadcast ALL selectors so client matches even after rotation
   broadcastJSON('sessions:update', {
     type: 'revoke',
     sessionId: chainSelectors
@@ -398,27 +412,24 @@ export async function getMe(userId: number) {
       entity_id: true,
       is_active: true,
       last_login: true,
-    }
+    },
+    with: { entity: true },
   });
 
   if (!user) throw new AuthError('Usuario no encontrado');
 
-  // Parallelize ALL async operations
-  const [roles, permissions, entityResult] = await Promise.all([
+  // Parallelize role/permission fetching
+  const [roles, permissions] = await Promise.all([
     getUserRoles(user.id),
     getUserPermissions(user.id),
-    user.entity_id
-      ? db.select().from(entities).where(eq(entities.id, user.entity_id))
-      : Promise.resolve([])
   ]);
 
-  const e = entityResult[0];
-  const entity = e ? {
-    id: e.id,
-    businessName: e.business_name,
-    isClient: e.is_client ?? false,
-    isSupplier: e.is_supplier ?? false,
-    isEmployee: e.is_employee ?? false,
+  const entity = user.entity ? {
+    id: user.entity.id,
+    businessName: user.entity.business_name,
+    isClient: user.entity.is_client ?? false,
+    isSupplier: user.entity.is_supplier ?? false,
+    isEmployee: user.entity.is_employee ?? false,
   } : undefined;
 
   return {
@@ -505,17 +516,11 @@ export async function updateProfile(
     return { success: true, message: 'Sin cambios' };
   }
 
-  await db.update(users).set(updateData).where(eq(users.id, userId));
-
-  // Return updated user data
-  const updatedUser = await db.query.authUsers.findFirst({
-    where: eq(users.id, userId),
-    columns: {
-      id: true,
-      email: true,
-      username: true,
-    }
+  const [updated] = await db.update(users).set(updateData).where(eq(users.id, userId)).returning({
+    id: users.id,
+    email: users.email,
+    username: users.username,
   });
 
-  return { success: true, user: updatedUser };
+  return { success: true, user: updated };
 }

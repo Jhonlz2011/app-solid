@@ -4,7 +4,9 @@ import * as tables from './tables';
 
 // ============================================================================
 // SHARED ENTITY ENUM SCHEMAS (TypeBox for Elysia routes)
-// Must use explicit literals for proper type inference
+// ⚠️ Must use explicit Type.Literal() — generic helpers (mapped tuples,
+// T[number] unions) break Eden's narrow type inference, collapsing to `never`.
+// Keep values in sync with const arrays in enums.ts.
 // ============================================================================
 
 export const TaxIdTypeSchema = Type.Union([
