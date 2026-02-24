@@ -1,12 +1,13 @@
-import { ParentComponent } from 'solid-js';
+import { Component } from 'solid-js';
 import { Outlet, useLocation } from '@tanstack/solid-router';
 import { Sidebar } from './components/sidebar';
 import MobileHeader from './components/MobileHeader';
 import { scrollBar } from '@shared/directives/scroll';
 
-false && scrollBar;
+// Preserve directive from tree-shaking
+void scrollBar;
 
-const MainLayout: ParentComponent = () => {
+const MainLayout: Component = () => {
     const location = useLocation();
 
     return (

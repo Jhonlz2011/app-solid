@@ -94,12 +94,6 @@ export const broadcast = {
 
 // Event type constants for type safety
 export const BroadcastEvents = {
-    // Auth events
-    TOKEN_SYNC: 'auth:token_sync',
-    TOKEN_REQUEST: 'auth:token_request',
-    TOKEN_RESPONSE: 'auth:token_response',
-    LOGOUT: 'auth:logout',
     PROFILE_UPDATE: 'auth:profile_update',
-    // Session events
     SESSIONS_REFRESH: 'sessions:refresh',
 } as const;

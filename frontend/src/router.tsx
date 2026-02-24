@@ -8,35 +8,34 @@ import { connect as connectWs } from './shared/store/ws.store';
 import { actions as moduleActions } from './shared/store/modules.store';
 import { queryClient } from './shared/lib/queryClient';
 
+// --- LAZY COMPONENTS ---
 const Dashboard = lazy(() => import('./modules/dashboard/views/Dashboard')) as Component;
 const UsersRolesPage = lazy(() => import('./modules/users/views/UsersRolesPage')) as Component;
 const ProductsPage = lazy(() => import('./modules/products/views/Products')) as Component;
 const SuppliersPage = lazy(() => import('./modules/suppliers/views/SuppliersPage')) as Component;
+const ProfilePage = lazy(() => import('./modules/profile/views/ProfilePage')) as Component;
 
 // Suppliers components - Sheet pattern
 const SupplierNewSheet = lazy(() => import('./modules/suppliers/components/SupplierNewSheet')) as Component;
 const SupplierEditSheet = lazy(() => import('./modules/suppliers/components/SupplierEditSheet')) as Component<{ supplierId: number }>;
 const SupplierShowPanel = lazy(() => import('./modules/suppliers/components/SupplierShowPanel')) as Component<{ supplierId: number }>;
 
+// --- ROOT ---
 const rootRoute = createRootRoute({
-  component: () => {
-    return <Outlet />;
-  },
+  component: () => <Outlet />,
 });
 
+// --- AUTH ROUTES (login) ---
 const authRoute = createAuthRoutes(rootRoute);
 
+// --- PROTECTED LAYOUT ---
 const ProtectedLayout: Component = () => {
   onMount(() => {
     moduleActions.fetchModules();
     connectWs();
   });
 
-  return (
-    <MainLayout>
-      <Outlet />
-    </MainLayout>
-  );
+  return <MainLayout />;
 };
 
 const layoutRoute = createRoute({
@@ -46,23 +45,47 @@ const layoutRoute = createRoute({
     const { actions, useAuth } = await import('./modules/auth/store/auth.store');
     const auth = useAuth();
 
-    if (auth.isAuthenticated()) {
-      return;
+    // Fast path: already authenticated in memory
+    if (auth.isAuthenticated()) return;
+
+    // Fast path: no session flag → redirect to login instantly (zero API calls)
+    if (!localStorage.getItem('hasSession')) {
+      throw redirect({ to: '/login', search: { redirect: location.href } });
     }
 
+    // Session flag exists but state not initialized → validate with server
     const restored = await actions.initSession();
-    if (restored) {
-      return;
-    }
+    if (restored) return;
 
-    throw redirect({
-      to: '/login',
-      search: {
-        redirect: location.href,
-      },
-    });
+    throw redirect({ to: '/login', search: { redirect: location.href } });
   },
   component: ProtectedLayout,
+});
+
+// --- HELPER: Permission-guarded module route ---
+const createModuleRoute = (opts: {
+  path: string;
+  permission: string;
+  component: Component;
+  parent?: any;
+}) =>
+  createRoute({
+    getParentRoute: () => opts.parent ?? layoutRoute,
+    path: opts.path,
+    beforeLoad: async () => {
+      const { useAuth } = await import('./modules/auth/store/auth.store');
+      if (!useAuth().canRead(opts.permission)) {
+        throw redirect({ to: '/dashboard' });
+      }
+    },
+    component: () => <opts.component />,
+  });
+
+// --- ROUTES ---
+const indexRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: '/',
+  beforeLoad: () => { throw redirect({ to: '/dashboard' }); },
 });
 
 const dashboardRoute = createRoute({
@@ -71,29 +94,11 @@ const dashboardRoute = createRoute({
   component: () => <Dashboard />,
 });
 
-const indexRoute = createRoute({
-  getParentRoute: () => layoutRoute,
-  path: '/',
-  component: () => <div />,
-  beforeLoad: () => {
-    throw redirect({ to: '/dashboard' });
-  },
-});
-
-const systemUsersRoute = createRoute({
-  getParentRoute: () => layoutRoute,
+const systemUsersRoute = createModuleRoute({
   path: '/system/users',
-  beforeLoad: async () => {
-    const { useAuth } = await import('./modules/auth/store/auth.store');
-    const auth = useAuth();
-    if (!auth.canRead('users')) {
-      throw redirect({ to: '/dashboard' });
-    }
-  },
-  component: () => <UsersRolesPage />,
+  permission: 'users',
+  component: UsersRolesPage,
 });
-
-const ProfilePage = lazy(() => import('./modules/profile/views/ProfilePage')) as Component;
 
 const settingsGeneralRoute = createRoute({
   getParentRoute: () => layoutRoute,
@@ -107,17 +112,10 @@ const profileRoute = createRoute({
   component: () => <ProfilePage />,
 });
 
-const suppliersRoute = createRoute({
-  getParentRoute: () => layoutRoute,
+const suppliersRoute = createModuleRoute({
   path: 'suppliers',
-  beforeLoad: async () => {
-    const { useAuth } = await import('./modules/auth/store/auth.store');
-    const auth = useAuth();
-    if (!auth.canRead('suppliers')) {
-      throw redirect({ to: '/dashboard' });
-    }
-  },
-  component: () => <SuppliersPage />,
+  permission: 'suppliers',
+  component: SuppliersPage,
 });
 
 const suppliersIndexRoute = createRoute({
@@ -144,20 +142,19 @@ const SupplierShowWrapper = () => {
   return <SupplierShowPanel supplierId={supplierId} />;
 };
 
-// Edit route with wrapper component
 export const supplierEditRoute = createRoute({
   getParentRoute: () => suppliersRoute,
   path: 'edit/$id',
   component: SupplierEditWrapper,
 });
 
-// Show route with wrapper component
 export const supplierShowRoute = createRoute({
   getParentRoute: () => suppliersRoute,
   path: 'show/$id',
   component: SupplierShowWrapper,
 });
 
+// --- ROUTE TREE ---
 const routeTree = rootRoute.addChildren([
   authRoute,
   layoutRoute.addChildren([
@@ -175,11 +172,10 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
+// --- ROUTER ---
 const router = createRouter({
   routeTree,
-  context: {
-    queryClient,
-  },
+  context: { queryClient },
   defaultPreload: 'intent',
   defaultPreloadDelay: 100,
 });
@@ -191,9 +187,7 @@ declare module '@tanstack/solid-router' {
 }
 
 export function RouterApp() {
-  return (
-    <RouterProvider router={router} />
-  );
+  return <RouterProvider router={router} />;
 }
 
 export default router;
