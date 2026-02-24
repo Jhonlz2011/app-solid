@@ -136,11 +136,9 @@ export async function getAllRoles() {
  * Create a new role
  */
 export async function createRole(name: string, description?: string) {
-    const existing = await db
-        .select()
-        .from(authRoles)
-        .where(eq(authRoles.name, name))
-        .then(r => r[0]);
+    const existing = await db.query.authRoles.findFirst({
+        where: eq(authRoles.name, name),
+    });
 
     if (existing) {
         throw new DomainError('Ya existe un rol con ese nombre', 409);
@@ -175,11 +173,9 @@ export async function updateRole(id: number, name: string, description?: string)
  * Delete a role (with protection for system roles)
  */
 export async function deleteRole(id: number) {
-    const role = await db
-        .select()
-        .from(authRoles)
-        .where(eq(authRoles.id, id))
-        .then(r => r[0]);
+    const role = await db.query.authRoles.findFirst({
+        where: eq(authRoles.id, id),
+    });
 
     if (!role) {
         throw new DomainError('Rol no encontrado', 404);
@@ -239,11 +235,9 @@ export async function getRolePermissions(roleId: number) {
  * Update permissions for a role
  */
 export async function updateRolePermissions(roleId: number, permissionIds: number[]) {
-    const role = await db
-        .select()
-        .from(authRoles)
-        .where(eq(authRoles.id, roleId))
-        .then(r => r[0]);
+    const role = await db.query.authRoles.findFirst({
+        where: eq(authRoles.id, roleId),
+    });
 
     if (!role) {
         throw new DomainError('Rol no encontrado', 404);
@@ -336,11 +330,9 @@ export async function getUserRolesById(userId: number) {
  * Assign roles to a user
  */
 export async function assignUserRoles(userId: number, roleIds: number[]) {
-    const user = await db
-        .select()
-        .from(authUsers)
-        .where(eq(authUsers.id, userId))
-        .then(r => r[0]);
+    const user = await db.query.authUsers.findFirst({
+        where: eq(authUsers.id, userId),
+    });
 
     if (!user) {
         throw new DomainError('Usuario no encontrado', 404);
@@ -372,21 +364,17 @@ export async function assignUserRoles(userId: number, roleIds: number[]) {
  */
 export async function createUser(data: { username: string; email: string; password: string; roleIds?: number[] }) {
     // Check for existing user
-    const existing = await db
-        .select()
-        .from(authUsers)
-        .where(eq(authUsers.email, data.email))
-        .then(r => r[0]);
+    const existing = await db.query.authUsers.findFirst({
+        where: eq(authUsers.email, data.email),
+    });
 
     if (existing) {
         throw new DomainError('Ya existe un usuario con ese email', 409);
     }
 
-    const existingUsername = await db
-        .select()
-        .from(authUsers)
-        .where(eq(authUsers.username, data.username))
-        .then(r => r[0]);
+    const existingUsername = await db.query.authUsers.findFirst({
+        where: eq(authUsers.username, data.username),
+    });
 
     if (existingUsername) {
         throw new DomainError('Ya existe un usuario con ese nombre de usuario', 409);
@@ -462,11 +450,9 @@ export async function removeUserFromRole(userId: number, roleId: number) {
 export async function updateUser(userId: number, data: { username?: string; email?: string; isActive?: boolean }) {
     // Check for existing email/username if changing
     if (data.email) {
-        const existing = await db
-            .select()
-            .from(authUsers)
-            .where(sql`${authUsers.email} = ${data.email} AND ${authUsers.id} != ${userId}`)
-            .then(r => r[0]);
+        const existing = await db.query.authUsers.findFirst({
+            where: sql`${authUsers.email} = ${data.email} AND ${authUsers.id} != ${userId}`,
+        });
 
         if (existing) {
             throw new DomainError('Ya existe un usuario con ese email', 409);
@@ -474,11 +460,9 @@ export async function updateUser(userId: number, data: { username?: string; emai
     }
 
     if (data.username) {
-        const existing = await db
-            .select()
-            .from(authUsers)
-            .where(sql`${authUsers.username} = ${data.username} AND ${authUsers.id} != ${userId}`)
-            .then(r => r[0]);
+        const existing = await db.query.authUsers.findFirst({
+            where: sql`${authUsers.username} = ${data.username} AND ${authUsers.id} != ${userId}`,
+        });
 
         if (existing) {
             throw new DomainError('Ya existe un usuario con ese nombre de usuario', 409);

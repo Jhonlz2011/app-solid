@@ -4,8 +4,7 @@
  * Subscribes to a WebSocket room and auto-invalidates TanStack Query
  * when entity events are received. Uses smart invalidation:
  * - 'created' → invalidates only first-page queries (new item at top)
- * - 'updated' → invalidates lists + detail for the specific entity
- * - 'deleted'→ invalidates all list queries
+ * - 'updated' / 'deleted' → invalidates all list queries
  *
  * @example
  * useDataTableWebSocket({ room: 'suppliers', queryKey: supplierKeys.lists() });
@@ -44,38 +43,27 @@ export function useDataTableWebSocket(options: UseDataTableWebSocketOptions) {
         subscribe(options.room);
 
         /**
-         * Smart invalidation handler — avoids "sledgehammer" invalidation
-         * by targeting only the queries that need refresh based on event type.
+         * Smart invalidation handler:
+         * - CREATED: only invalidates first-page queries (cursor pagination optimization)
+         * - UPDATED/DELETED/other: invalidates all list queries
          */
         const createHandler = (eventName: string) => () => {
-            switch (eventName) {
-                case WsEvents.ENTITY.CREATED:
-                    // New entity → only first page needs refresh (appears at top)
-                    queryClient.invalidateQueries({
-                        queryKey: options.queryKey,
-                        predicate: (query) => {
-                            const key = query.queryKey;
-                            const filters = key[2] as Record<string, unknown> | undefined;
-                            if (!filters) return true;
-                            return !filters.cursor || filters.direction === 'first';
-                        },
-                    });
-                    break;
-
-                case WsEvents.ENTITY.UPDATED:
-                    queryClient.invalidateQueries({ queryKey: options.queryKey });
-                    break;
-
-                case WsEvents.ENTITY.DELETED:
-                    queryClient.invalidateQueries({ queryKey: options.queryKey });
-                    break;
-
-                default:
-                    queryClient.invalidateQueries({ queryKey: options.queryKey });
+            if (eventName === WsEvents.ENTITY.CREATED) {
+                queryClient.invalidateQueries({
+                    queryKey: options.queryKey,
+                    predicate: (query) => {
+                        const key = query.queryKey;
+                        const filters = key[2] as Record<string, unknown> | undefined;
+                        if (!filters) return true;
+                        return !filters.cursor || filters.direction === 'first';
+                    },
+                });
+            } else {
+                queryClient.invalidateQueries({ queryKey: options.queryKey });
             }
         };
 
-        // Register per-event handlers for targeted invalidation
+        // Register per-event handlers
         const handlers = new Map<string, () => void>();
         events.forEach(event => {
             const handler = createHandler(event);

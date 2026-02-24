@@ -29,7 +29,7 @@ export const SessionsSection: Component = () => {
     const queryClient = useQueryClient();
     const auth = useAuth();
     const { subscribe, unsubscribe } = useWebSocket();
-    const [revoking, setRevoking] = createSignal<number | null>(null);
+    const [revoking, setRevoking] = createSignal<string | null>(null);
 
     const sessionsQuery = createQuery(() => ({
         queryKey: ['auth', 'sessions'],
@@ -81,7 +81,7 @@ export const SessionsSection: Component = () => {
     });
 
     const revokeMutation = createMutation(() => ({
-        mutationFn: async (sessionId: number) => {
+        mutationFn: async (sessionId: string) => {
             const { error } = await api.api.auth.sessions({ id: sessionId }).delete();
             if (error) throw new Error(String(error.value));
             return { success: true };
@@ -95,7 +95,7 @@ export const SessionsSection: Component = () => {
         },
     }));
 
-    const handleRevoke = async (sessionId: number) => {
+    const handleRevoke = async (sessionId: string) => {
         setRevoking(sessionId);
         try {
             await revokeMutation.mutateAsync(sessionId);

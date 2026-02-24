@@ -1,6 +1,5 @@
-import { createSignal, batch } from 'solid-js';
+import { createSignal } from 'solid-js';
 import { decode } from '@msgpack/msgpack';
-import { getAccessToken } from '@modules/auth/store/auth.store';
 import type { WsMessage, EntityEventPayload } from '@app/schema/ws-events';
 
 // --- CONFIGURACIÓN ---
@@ -14,60 +13,63 @@ const [isConnected, setIsConnected] = createSignal(false);
 // Variables privadas (no reactivas)
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 let reconnectAttempts = 0;
-let shouldReconnect = true; // Controla si debe reconectarse automáticamente
+let shouldReconnect = true;
 const pendingSubscriptions = new Set<string>();
 const activeSubscriptions = new Set<string>();
 
 // --- LÓGICA INTERNA ---
 
+/** Internal protocol ACKs that should not be dispatched as events */
+const INTERNAL_TYPES = new Set(['subscribed', 'unsubscribed']);
+
 const dispatchMessage = (message: WsMessage<EntityEventPayload>) => {
     const eventName = message?.event || (message as any)?.type;
     const eventData = message?.data ?? message;
-    if (eventName) {
-        window.dispatchEvent(new CustomEvent(eventName, { detail: eventData }));
-    }
+
+    // Skip internal protocol ACKs (subscribe/unsubscribe confirmations)
+    if (!eventName || INTERNAL_TYPES.has(eventName)) return;
+
+    window.dispatchEvent(new CustomEvent(eventName, { detail: eventData }));
 };
 
 // --- ACCIONES EXPORTADAS ---
 
 export const connect = () => {
-    if (socket()?.readyState === WebSocket.OPEN) return;
-
-    // Don't connect without a valid token
-    const token = getAccessToken();
-    if (!token) {
-        console.warn('WS: No access token available, skipping connection');
-        return;
-    }
+    const ws = socket();
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
 
     try {
-        const ws = new WebSocket(`${WS_URL}?token=${token}`);
-        ws.binaryType = 'arraybuffer';
+        // Cookie is sent automatically by the browser on WebSocket upgrade
+        // No token needed — httpOnly session cookie handles auth
+        const newWs = new WebSocket(WS_URL);
+        newWs.binaryType = 'arraybuffer';
 
-        ws.onopen = () => {
+        // Store immediately so subsequent connect() calls see CONNECTING state
+        setSocket(newWs);
+
+        newWs.onopen = () => {
             console.log('✅ WebSocket Connected');
-            batch(() => {
-                setSocket(ws);
-                setIsConnected(true);
-            });
+            setIsConnected(true);
             reconnectAttempts = 0;
 
-            // Procesar suscripciones pendientes
+            // Process pending subscriptions
             pendingSubscriptions.forEach(room => subscribe(room));
             pendingSubscriptions.clear();
 
-            // Re-suscribir a las activas (si fue una reconexión)
+            // Re-subscribe active rooms (on reconnection)
             activeSubscriptions.forEach(room => {
-                ws.send(JSON.stringify({ type: 'subscribe', room }));
+                newWs.send(JSON.stringify({ type: 'subscribe', room }));
             });
         };
 
-        ws.onmessage = (event) => {
+        newWs.onmessage = (event) => {
             try {
                 let message: any;
                 if (event.data instanceof ArrayBuffer) {
+                    // MessagePack binary frame → decode
                     message = decode(new Uint8Array(event.data));
                 } else if (typeof event.data === 'string') {
+                    // JSON text frame
                     message = JSON.parse(event.data);
                 }
                 if (message) dispatchMessage(message);
@@ -76,16 +78,14 @@ export const connect = () => {
             }
         };
 
-        ws.onclose = () => {
+        newWs.onclose = () => {
             console.log('❌ WebSocket Disconnected');
-            batch(() => {
-                setSocket(null);
-                setIsConnected(false);
-            });
+            setSocket(null);
+            setIsConnected(false);
             attemptReconnect();
         };
 
-        ws.onerror = (err) => console.error('WS Error', err);
+        newWs.onerror = (err) => console.error('WS Error', err);
 
     } catch (error) {
         console.error('Failed to create WebSocket:', error);
@@ -104,19 +104,15 @@ const attemptReconnect = () => {
 };
 
 export const disconnect = () => {
-    shouldReconnect = false; // Prevenir reconexión automática después de logout
+    shouldReconnect = false;
     if (reconnectTimeout) clearTimeout(reconnectTimeout);
     socket()?.close();
     setSocket(null);
     setIsConnected(false);
-    // Clear subscriptions to prevent stale rooms when logging in as different user
     activeSubscriptions.clear();
     pendingSubscriptions.clear();
 };
 
-/**
- * Re-enable automatic reconnection (call before connect after login)
- */
 export const enableReconnect = () => {
     shouldReconnect = true;
     reconnectAttempts = 0;
@@ -129,7 +125,7 @@ export const subscribe = (room: string) => {
         activeSubscriptions.add(room);
     } else {
         pendingSubscriptions.add(room);
-        activeSubscriptions.add(room); // La marcamos como activa para cuando se reconecte
+        activeSubscriptions.add(room);
     }
 };
 
@@ -142,12 +138,11 @@ export const unsubscribe = (room: string) => {
     }
 };
 
-// --- API PÚBLICA (HOOK SIMULADO) ---
-// Esto hace que se sienta igual que antes, pero sin Context
+// --- API PÚBLICA ---
 export const useWebSocket = () => {
     return {
-        socket,       // Signal getter
-        isConnected,  // Signal getter
+        socket,
+        isConnected,
         subscribe,
         unsubscribe,
         connect,

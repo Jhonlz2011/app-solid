@@ -26,33 +26,23 @@ import { rbacRoutes } from './routes/rbac.routes';
 import { rateLimit } from './plugins/rate-limit';
 import { wsPlugin } from './plugins/ws';
 import { rbac } from './plugins/rbac';
-import { jwtPlugin } from './plugins/jwt';
 
 // Services & Config
 import { AuthError } from './services/auth.service';
 import { DomainError } from './services/errors';
 import { env } from './config/env';
-import { subscribeToChannel } from './config/redis';
-import { broadcast, initWsRedisAdapter } from './plugins/ws';
-
-// Validate required environment variables
-const REQUIRED_ENV = ['JWT_SECRET', 'FRONTEND_URL'] as const;
-for (const envVar of REQUIRED_ENV) {
-  if (!process.env[envVar]) {
-    throw new Error(`Variable de entorno requerida: ${envVar}`);
-  }
-}
+import { initWsRedisAdapter } from './plugins/ws';
 
 const allowedOrigins = new Set([
   env.FRONTEND_URL,
   'http://192.168.100.50:5173',
-  'http://192.168.100.50:4173', // Vite preview server (production)
+  'http://192.168.100.50:4173',
   'http://localhost:5173',
   'http://localhost:5174',
-  'http://localhost:4173', // Vite preview server (production)
+  'http://localhost:4173',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
-  'http://127.0.0.1:4173', // Vite preview server (production)
+  'http://127.0.0.1:4173',
 ].filter(Boolean) as string[]);
 
 const app = new Elysia({ prefix: '/api', aot: false })
@@ -63,8 +53,7 @@ const app = new Elysia({ prefix: '/api', aot: false })
       return origin ? allowedOrigins.has(origin) : false;
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposeHeaders: ['Authorization'],
+    allowedHeaders: ['Content-Type', 'X-Requested-With'],
     credentials: true,
     preflight: true,
     maxAge: 86400
@@ -101,19 +90,9 @@ const app = new Elysia({ prefix: '/api', aot: false })
         { name: 'Materials', description: 'Material requests' },
         { name: 'BOM', description: 'Bill of Materials' },
       ],
-      security: [{ BearerAuth: [] }],
-      components: {
-        securitySchemes: {
-          BearerAuth: {
-            type: 'http',
-            scheme: 'bearer'
-          }
-        }
-      }
     }
   }))
   // Core plugins
-  .use(jwtPlugin)
   .use(authRoutes)
   .use(rbac)
   .use(wsPlugin)
@@ -181,30 +160,10 @@ const serverConfig = {
 
 app.listen(serverConfig);
 
-// Redis Pub/Sub for real-time events
+// Redis Pub/Sub — WebSocket adapter for real-time events
 (async () => {
   try {
-    // Subscribe to update channels
-    const channels = [
-      'updates:products',
-      'updates:work_orders',
-      'updates:invoices',
-    ];
-
-    for (const channel of channels) {
-      await subscribeToChannel(channel, (message) => {
-        try {
-          const parsed = JSON.parse(message);
-          broadcast(channel, parsed);
-        } catch (e) {
-          console.error(`Error parsing message from ${channel}:`, e);
-        }
-      });
-    }
-
-    // Initialize Global WebSocket Redis Adapter
     await initWsRedisAdapter();
-
     console.log('✅ Redis Pub/Sub initialized');
   } catch (error) {
     console.warn('⚠️ Redis Pub/Sub unavailable. Real-time updates may be limited.');

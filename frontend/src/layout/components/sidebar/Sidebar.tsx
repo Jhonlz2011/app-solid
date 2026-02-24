@@ -7,6 +7,7 @@ import { SidebarNav } from './SidebarNav';
 import { SidebarFooter } from './SidebarFooter';
 import { SidebarProvider } from './SidebarContext';
 import { useMediaQuery } from '@shared/hooks/useMediaQuery';
+import { useMobileSidebar } from '@shared/store/layout.store';
 import type { MenuItem } from './types';
 
 export const Sidebar: Component = () => {
@@ -15,15 +16,15 @@ export const Sidebar: Component = () => {
     const auth = useAuth();
     const { modules } = useModules();
 
-    // --- STATE ---
+    const { isOpen: isMobileOpen, close: closeMobile } = useMobileSidebar();
     const [isLoggingOut, setIsLoggingOut] = createSignal(false);
     const [expandedMenus, setExpandedMenus] = createSignal<Set<string>>(new Set());
-    const [isMobileOpen, setIsMobileOpen] = createSignal(false);
     const [activeTooltipId, setActiveTooltipId] = createSignal<string | null>(null);
     const [optimisticPath, setOptimisticPath] = createSignal<string | null>(null);
 
     // --- RESPONSIVENESS ---
-    const isMobileViewport = useMediaQuery('(max-width: 640px)');
+    // Must match Tailwind sm: breakpoint (min-width: 640px) — use 639.9px to avoid overlap
+    const isMobileViewport = useMediaQuery('(max-width: 639.9px)');
 
     // --- COLLAPSE LOGIC ---
     const [isCollapsed, setIsCollapsed] = createSignal(
@@ -38,6 +39,14 @@ export const Sidebar: Component = () => {
         localStorage.setItem('sidebar-collapsed', String(next));
         if (next) setExpandedMenus(() => new Set<string>());
     };
+
+    // When transitioning from desktop to mobile, close mobile sidebar and reset menus
+    createEffect(() => {
+        if (isMobileViewport()) {
+            closeMobile();
+            setActiveTooltipId(null);
+        }
+    });
 
     // --- NAVIGATION LOGIC ---
     const menuItems = createMemo(() => {
@@ -67,21 +76,13 @@ export const Sidebar: Component = () => {
         if (path) {
             setOptimisticPath(path);
             navigate({ to: path });
-            if (isMobileViewport()) setIsMobileOpen(false);
+            if (isMobileViewport()) closeMobile();
         }
     };
 
     // Reset optimistic path
     createEffect(() => {
         if (location().pathname === optimisticPath()) setOptimisticPath(null);
-    });
-
-    // Listen for open-sidebar event (from mobile header)
-    createEffect(() => {
-        if (typeof window === 'undefined') return;
-        const handleOpenSidebar = () => setIsMobileOpen(true);
-        window.addEventListener('open-sidebar', handleOpenSidebar);
-        return () => window.removeEventListener('open-sidebar', handleOpenSidebar);
     });
 
     // --- CONTEXT VALUE ---
@@ -93,7 +94,7 @@ export const Sidebar: Component = () => {
         activeTooltipId,
         optimisticPath,
         setCollapsed: setIsCollapsed,
-        setIsMobileOpen,
+        setIsMobileOpen: closeMobile,
         toggleMenu: (id: string) => {
             setExpandedMenus(prev => {
                 const next = new Set(prev);
@@ -125,8 +126,8 @@ export const Sidebar: Component = () => {
             <Show when={isMobileOpen()}>
                 <div
                     class="fixed inset-0 bg-black/50 z-40 sm:hidden backdrop-blur-sm animate-in fade-in duration-200"
-                    onClick={() => setIsMobileOpen(false)}
-                    onKeyDown={(e) => e.key === 'Escape' && setIsMobileOpen(false)}
+                    onClick={() => closeMobile()}
+                    onKeyDown={(e) => e.key === 'Escape' && closeMobile()}
                     role="button"
                     tabIndex={0}
                     aria-label="Cerrar menú"

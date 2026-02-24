@@ -138,7 +138,7 @@ export const AuthUserResponse = Type.Composite([
 
 export const AuthResponseDto = Type.Object({
     user: AuthUserResponse,
-    accessToken: Type.String(),
+    sessionId: Type.String(),
 });
 
 export type PublicUserType = Static<typeof PublicUser>;

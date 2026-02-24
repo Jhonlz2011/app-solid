@@ -2,7 +2,7 @@ import { Component, Show } from 'solid-js';
 import { UAParser } from 'ua-parser-js';
 
 export interface Session {
-    id: number;
+    id: string;
     user_agent: string | null;
     ip_address: string | null;
     location: string | null;
@@ -12,7 +12,7 @@ export interface Session {
 
 interface SessionItemProps {
     session: Session;
-    onRevoke: (id: number) => void;
+    onRevoke: (id: string) => void;
     isRevoking: boolean;
 }
 

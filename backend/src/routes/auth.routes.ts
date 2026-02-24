@@ -2,7 +2,6 @@ import { Elysia, t } from 'elysia';
 import {
   register,
   login,
-  rotateRefreshToken,
   logout,
   getMe,
   changePassword,
@@ -20,7 +19,6 @@ import { ipPlugin, getIpAndUserAgent } from '../plugins/ip';
 export const authRoutes = new Elysia({ prefix: '/auth' })
   .use(ipPlugin)
   .onError(({ error, code }) => {
-    // Handle AuthError (custom)
     if (error instanceof AuthError) {
       return new Response(JSON.stringify({ error: error.message }), {
         status: error.code,
@@ -28,7 +26,6 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       });
     }
 
-    // Handle Elysia validation errors
     if (code === 'VALIDATION') {
       return new Response(
         JSON.stringify({ error: 'Datos inválidos', details: error.message }),
@@ -66,17 +63,19 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       if (process.env.NODE_ENV !== 'production') {
         console.log('Login attempt:', { email: body.email, userAgent, ipAddress });
       }
-      const { user, accessToken, refreshToken } = await login(body.email, body.password, userAgent, ipAddress);
+      const { user, sessionId: newSessionId, expiresAt } = await login(body.email, body.password, userAgent, ipAddress);
 
       // Reset rate limit on success
       await resetLoginAttempts(request);
 
-      cookie.refresh_token.set({
-        value: refreshToken,
+      // Set session cookie (httpOnly — browser sends automatically)
+      cookie.session.set({
+        value: newSessionId,
         ...COOKIE_OPTIONS,
       });
 
-      return { accessToken, user };
+      // Response: user data + session ID (needed for WS revoke comparison)
+      return { user, sessionId: newSessionId };
     },
     {
       body: AuthLoginDto,
@@ -90,64 +89,29 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       beforeHandle: loginRateLimit as any,
     }
   )
-  .post('/refresh', async ({ cookie, set }) => {
-    const refreshToken = cookie.refresh_token.value as string | undefined;
-
-    if (!refreshToken) {
-      set.status = 401;
-      return { error: 'No se proporcionó el token de refresco' };
-    }
-
-    const result = await rotateRefreshToken(refreshToken);
-
-    // Only set cookie if a new refresh token was issued
-    if (result.refreshToken) {
-      cookie.refresh_token.set({
-        value: result.refreshToken,
-        ...COOKIE_OPTIONS,
-      });
-    }
-
-    return { accessToken: result.accessToken };
-  })
   .post('/logout', async ({ cookie }) => {
+    const sessionId = cookie.session?.value as string | undefined;
     try {
-      const refreshToken = cookie.refresh_token.value as string | undefined;
-
-      if (refreshToken && refreshToken.includes('.')) {
-        const selector = refreshToken.split('.')[0];
-        if (selector.length >= 8) {
-          try {
-            await logout(selector);
-          } catch (error) {
-            console.warn('Error al revocar token:', error);
-          }
-        }
-      }
-
-      cookie.refresh_token.set({
-        ...COOKIE_OPTIONS,
-        value: '',
-        maxAge: 0,
-        expires: new Date(0),
-      });
-
-      return { success: true };
+      if (sessionId) await logout(sessionId);
     } catch (error) {
-      console.error('Error en logout:', error);
-      cookie.refresh_token.set({
+      console.warn('Error al revocar sesión:', error);
+    } finally {
+      cookie.session.set({
         ...COOKIE_OPTIONS,
         value: '',
         maxAge: 0,
         expires: new Date(0),
       });
-      return { success: true };
     }
+    return { success: true };
   })
   // Protected Routes Group
   .group('', (app) => app
     .use(authGuard)
-    .get('/me', ({ currentUserId }) => getMe(currentUserId))
+    .get('/me', async ({ currentUserId, currentSessionId }) => {
+      const user = await getMe(currentUserId);
+      return { ...user, sessionId: currentSessionId };
+    })
     .post(
       '/change-password',
       async ({ body, currentUserId }) => {
@@ -166,16 +130,11 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         body: AuthUpdateProfileDto,
       }
     )
-    .get('/sessions', async ({ currentUserId, cookie }) => {
-      const refreshToken = cookie.refresh_token.value as string | undefined;
-      const currentSelector = refreshToken?.includes('.') ? refreshToken.split('.')[0] : undefined;
-      return getActiveSessions(currentUserId, currentSelector);
+    .get('/sessions', async ({ currentUserId, currentSessionId }) => {
+      return getActiveSessions(currentUserId, currentSessionId);
     })
     .delete('/sessions/:id', async ({ currentUserId, params }) => {
-      const sessionId = parseInt(params.id, 10);
-      if (isNaN(sessionId)) {
-        throw new AuthError('ID de sesión inválido', 400);
-      }
-      return revokeSession(sessionId, currentUserId);
+      // Session IDs are now text (base64url), not numeric
+      return revokeSession(params.id, currentUserId);
     })
   );

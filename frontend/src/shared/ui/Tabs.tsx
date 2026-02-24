@@ -78,7 +78,6 @@ export const TabsContent: Component<Parameters<typeof KTabs.Content>[0] & { clas
             class={`
         hidden data-[selected]:block
         outline-none
-        animate-in fade-in slide-in-from-bottom-2 duration-300
         ${local.class ?? ''}
       `}
         />

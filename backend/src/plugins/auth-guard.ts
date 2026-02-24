@@ -1,49 +1,53 @@
 import { Elysia } from 'elysia';
 import { UnauthorizedError } from '../services/errors';
-import { jwtPlugin } from './jwt';
-import { redis } from '../config/redis';
+import { validateSession } from '../services/auth.service';
+import { getUserRoles, getUserPermissions } from '../services/rbac.service';
+import { COOKIE_OPTIONS } from '../config/auth';
 
 export const authGuard = (app: Elysia) => app
-  .use(jwtPlugin)
   .derive(
-    async ({ request, jwt, set }) => {
-      const authorization = request.headers.get('authorization');
+    async ({ cookie, set }) => {
+      const sessionId = cookie.session?.value as string | undefined;
 
-      if (!authorization?.startsWith('Bearer ')) {
+      if (!sessionId) {
         set.status = 401;
-        throw new UnauthorizedError('Token de acceso requerido');
+        throw new UnauthorizedError('Sesión requerida');
       }
 
-      const token = authorization.replace('Bearer ', '').trim();
-
-      try {
-        const payload = await jwt.verify(token);
-        if (!payload || typeof payload !== 'object' || !('userId' in payload)) {
-          set.status = 401;
-          throw new UnauthorizedError('Token inválido');
-        }
-
-        // Check blacklist
-        if ('sessionId' in payload) {
-          const isRevoked = await redis.get(`blacklist:${payload.sessionId}`);
-          if (isRevoked) {
-            set.status = 401;
-            throw new UnauthorizedError('Sesión revocada');
-          }
-        }
-
-        return {
-          currentUserId: Number(payload.userId),
-          currentRoles: (payload.roles as string[]) ?? [],
-          currentPermissions: (payload.permissions as string[]) ?? [],
-        };
-      } catch (error) {
+      const result = await validateSession(sessionId);
+      if (!result) {
+        // Clear invalid/expired cookie
+        cookie.session.set({
+          ...COOKIE_OPTIONS,
+          value: '',
+          maxAge: 0,
+          expires: new Date(0),
+        });
         set.status = 401;
-        if (error instanceof UnauthorizedError) {
-          throw error;
-        }
-        throw new UnauthorizedError('Token inválido o expirado');
+        throw new UnauthorizedError('Sesión expirada o inválida');
       }
+
+      const { session, shouldRefreshCookie } = result;
+
+      // Rolling session: update cookie expiry if session was extended
+      if (shouldRefreshCookie) {
+        cookie.session.set({
+          value: sessionId,
+          ...COOKIE_OPTIONS,
+        });
+      }
+
+      // Fetch roles/permissions (cached in Redis via rbac.service)
+      const [roles, permissions] = await Promise.all([
+        getUserRoles(session.user_id),
+        getUserPermissions(session.user_id),
+      ]);
+
+      return {
+        currentUserId: session.user_id,
+        currentSessionId: sessionId,
+        currentRoles: roles,
+        currentPermissions: permissions,
+      };
     }
   );
-

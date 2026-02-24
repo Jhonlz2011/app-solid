@@ -1,5 +1,4 @@
 import { text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
 import { pgTableV2 } from '../utils';
 import { entities } from './entities';
 
@@ -15,24 +14,16 @@ export const authUsers = pgTableV2("auth_users", {
     created_at: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const refreshTokens = pgTableV2("refresh_tokens", {
-    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+export const sessions = pgTableV2("sessions", {
+    id: text("id").primaryKey(),                // Random 32-byte token (base64url)
     user_id: integer("user_id").references(() => authUsers.id, { onDelete: 'cascade' }).notNull(),
-    selector: text("selector").notNull().unique(),
-    token_hash: text("token_hash").notNull(),
-    session_chain_id: text("session_chain_id").notNull(), // Persists through rotations to identify logical session
-    created_at: timestamp("created_at").defaultNow().notNull(),
     expires_at: timestamp("expires_at").notNull(),
-    last_activity: timestamp("last_activity").defaultNow().notNull(),
-    revoked: boolean("revoked").default(false),
-    replaced_by: integer("replaced_by"),
+    created_at: timestamp("created_at").defaultNow().notNull(),
     user_agent: text("user_agent"),
     ip_address: text("ip_address"),
 }, (t) => [
-    // Covers: login session lookup, getActiveSessions, session cleanup
-    index("idx_rt_user_active").on(t.user_id, t.revoked),
-    // Covers: expired token cleanup
-    index("idx_rt_expires").on(t.expires_at).where(sql`revoked = false`),
+    index("idx_sessions_user").on(t.user_id),
+    index("idx_sessions_expires").on(t.expires_at),
 ]);
 
 export const authRoles = pgTableV2("auth_roles", {

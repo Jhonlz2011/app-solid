@@ -8,17 +8,14 @@ export interface User {
     roles?: string[];
     permissions?: string[];
     entity?: Entity | null;
+    sessionId?: string;  // Returned by /me for WS revoke comparison
 }
 
 export type LoginRequest = AuthLoginDto;
 
 export interface LoginResponse {
     user: User;
-    accessToken: string;
-}
-
-export interface TokenResponse {
-    accessToken: string;
+    sessionId: string;
 }
 
 export interface ApiError {
@@ -35,7 +32,6 @@ export class AuthError extends Error {
     private static parse(input: unknown, fallback: string): string {
         if (typeof input === 'string') return input;
         if (typeof input === 'object' && input !== null) {
-            // Prioridad: error (custom) -> summary (valibot/elysia) -> message (generic)
             const obj = input as Record<string, unknown>;
             if (typeof obj.error === 'string') return obj.error;
             if (typeof obj.summary === 'string') return obj.summary;
@@ -44,5 +40,3 @@ export class AuthError extends Error {
         return fallback;
     }
 }
-
-

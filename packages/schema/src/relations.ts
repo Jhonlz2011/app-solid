@@ -46,9 +46,17 @@ export const authRolePermissionsRelations = relations(tables.authRolePermissions
 
 export const authUsersRelations = relations(tables.authUsers, ({ one, many }) => ({
     roles: many(tables.authUserRoles),
+    sessions: many(tables.sessions),
     entity: one(tables.entities, {
         fields: [tables.authUsers.entity_id],
         references: [tables.entities.id],
+    }),
+}));
+
+export const sessionsRelations = relations(tables.sessions, ({ one }) => ({
+    user: one(tables.authUsers, {
+        fields: [tables.sessions.user_id],
+        references: [tables.authUsers.id],
     }),
 }));
 

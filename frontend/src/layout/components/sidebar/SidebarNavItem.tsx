@@ -1,4 +1,4 @@
-import { Component, Show, createSignal, createEffect, onCleanup, createMemo, on } from 'solid-js';
+import { Component, Show, For, createSignal, createEffect, onCleanup, on } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { Link, useLocation } from '@tanstack/solid-router';
 import type { MenuItem } from './types';
@@ -68,13 +68,13 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
     };
 
     // --- RENDER LOGIC ---
-    const dataState = createMemo(() => {
+    const dataState = () => {
         if (isActive(props.item.path)) return 'active';
         if (hasChildren() && hasActiveDescendant(props.item)) {
             return collapsed() || !isExpanded() ? 'active' : 'parent-active';
         }
         return 'default';
-    });
+    };
 
     // Toggle submenu for items with children
     const handleToggleSubmenu = () => {
@@ -239,7 +239,8 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                         {/* Tooltip Links - using <a> for right-click support */}
                         <Show when={hasChildren()}>
                             <ul class="space-y-0.5" role="menu">
-                                {props.item.children!.map((child, index) => (
+                                <For each={props.item.children!}>
+                                    {(child) => (
                                     <li role="none">
                                         <Link
                                             to={child.path || '#'}
@@ -250,7 +251,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                                             }}
                                             onKeyDown={(e: KeyboardEvent) => {
                                                 const links = Array.from(tooltipRef?.querySelectorAll('a[role="menuitem"]') || []) as HTMLAnchorElement[];
-                                                const currentIndex = links.indexOf(e.currentTarget);
+                                                const currentIndex = links.indexOf(e.currentTarget! as HTMLAnchorElement);
                                                 const isFirst = currentIndex === 0;
                                                 const isLast = currentIndex === links.length - 1;
 
@@ -287,7 +288,8 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                                             <span class="truncate">{child.label}</span>
                                         </Link>
                                     </li>
-                                ))}
+                                    )}
+                                </For>
                             </ul>
                         </Show>
 

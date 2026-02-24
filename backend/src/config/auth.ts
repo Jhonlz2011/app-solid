@@ -8,11 +8,13 @@ const COOKIE_DOMAIN = (() => {
     }
 })();
 
+export const SESSION_EXPIRE_DAYS = 30;
+
 export const COOKIE_OPTIONS = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? ('strict' as const) : ('lax' as const),
-    path: '/api/auth',
+    path: '/',
     domain: COOKIE_DOMAIN === 'localhost' ? undefined : COOKIE_DOMAIN,
-    maxAge: 60 * 60 * 24 * Number(process.env.REFRESH_TOKEN_EXP_DAYS ?? 14),
+    maxAge: 60 * 60 * 24 * SESSION_EXPIRE_DAYS,
 };

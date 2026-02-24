@@ -1,15 +1,13 @@
 import { Elysia } from 'elysia';
 import { encode, decode } from '@msgpack/msgpack';
-import { jwtVerify } from 'jose';
+import { validateSession } from '../services/auth.service';
 
 // --- TYPES ---
 interface WsClient {
-    ws: any;
+    ws: { send(data: string | ArrayBuffer | ArrayBufferView): void; close(code?: number, reason?: string): void };
     rooms: Set<string>;
     userId: number | null;
 }
-
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || '');
 
 // --- STATE ---
 // Main client storage
@@ -43,7 +41,6 @@ function removeFromRoomIndex(clientId: string, room: string): void {
     const roomClients = roomIndex.get(room);
     if (roomClients) {
         roomClients.delete(clientId);
-        // Clean up empty rooms
         if (roomClients.size === 0) {
             roomIndex.delete(room);
         }
@@ -64,37 +61,41 @@ function removeClientFromAllRooms(clientId: string, rooms: Set<string>): void {
 export const wsPlugin = (app: Elysia) =>
     app.ws('/ws', {
         async open(ws) {
-            // Extract token from the raw request URL
-            // Bun's ServerWebSocket stores the original request in ws.data
-            let token: string | null = null;
+            // Extract session token from cookie header (sent automatically by browser on WS upgrade)
+            let sessionToken: string | null = null;
             try {
-                const rawUrl = (ws as any).data?.request?.url
-                    || (ws as any).data?.url
-                    || '';
-                if (rawUrl) {
-                    const url = new URL(rawUrl, 'http://localhost');
-                    token = url.searchParams.get('token');
+                const request = (ws as any).data?.request;
+                const cookieHeader = request?.headers?.get?.('cookie') || '';
+                const match = cookieHeader.match(/(?:^|;\s*)session=([^;]+)/);
+                if (match) {
+                    sessionToken = match[1];
+                }
+
+                // Fallback: check query param (for cross-origin setups)
+                if (!sessionToken) {
+                    const rawUrl = request?.url || (ws as any).data?.url || '';
+                    if (rawUrl) {
+                        const url = new URL(rawUrl, 'http://localhost');
+                        sessionToken = url.searchParams.get('token');
+                    }
                 }
             } catch {
-                // URL parsing failed, continue without token
+                // Parse failed
             }
 
-            let userId: number | null = null;
-
-            if (token) {
-                try {
-                    const { payload } = await jwtVerify(token, JWT_SECRET, {
-                        algorithms: ['HS256'],
-                    });
-                    userId = Number(payload.userId) || null;
-                } catch {
-                    ws.close(4001, 'Token inválido o expirado');
-                    return;
-                }
-            } else {
-                ws.close(4001, 'Token requerido');
+            if (!sessionToken) {
+                ws.close(4001, 'Session requerida');
                 return;
             }
+
+            // Validate session against DB
+            const result = await validateSession(sessionToken);
+            if (!result) {
+                ws.close(4001, 'Sesión inválida o expirada');
+                return;
+            }
+
+            const userId = result.session.user_id;
 
             const clientId = generateClientId();
             (ws as any).clientId = clientId;
@@ -121,11 +122,13 @@ export const wsPlugin = (app: Elysia) =>
                 let data: any;
 
                 // Decode message (MessagePack or JSON)
+                // Elysia auto-parses JSON messages to objects
                 if (message instanceof ArrayBuffer || message instanceof Uint8Array) {
                     data = decode(message instanceof ArrayBuffer ? new Uint8Array(message) : message);
                 } else if (typeof message === 'string') {
                     data = JSON.parse(message);
                 } else {
+                    // Elysia auto-parsed JSON → already an object
                     data = message;
                 }
 
@@ -139,13 +142,13 @@ export const wsPlugin = (app: Elysia) =>
                         client.rooms.add(data.room);
                         addToRoomIndex(clientId, data.room);
                     }
-                    ws.send(encode({ type: 'subscribed', room: data.room }));
+                    ws.send(JSON.stringify({ type: 'subscribed', room: data.room }));
                 } else if (data.type === 'unsubscribe' && data.room) {
                     if (client.rooms.has(data.room)) {
                         client.rooms.delete(data.room);
                         removeFromRoomIndex(clientId, data.room);
                     }
-                    ws.send(encode({ type: 'unsubscribed', room: data.room }));
+                    ws.send(JSON.stringify({ type: 'unsubscribed', room: data.room }));
                 }
             } catch (e) {
                 console.error('WS message parse error:', e);
@@ -157,7 +160,6 @@ export const wsPlugin = (app: Elysia) =>
             const client = clients.get(clientId);
 
             if (client) {
-                // Clean up room index
                 removeClientFromAllRooms(clientId, client.rooms);
                 clients.delete(clientId);
             }
@@ -173,11 +175,10 @@ export async function initWsRedisAdapter() {
     await subscribeToChannel('ws:events', (message) => {
         try {
             const { event, data, room, format } = JSON.parse(message);
-
-            if (format === 'json') {
-                localBroadcastJSON(event, data, room);
+            if (format === 'msgpack') {
+                broadcastLocalBinary(event, data, room);
             } else {
-                localBroadcast(event, data, room);
+                broadcastLocalJSON(event, data, room);
             }
         } catch (e) {
             console.error('Redis WS message parse error:', e);
@@ -187,26 +188,38 @@ export async function initWsRedisAdapter() {
     console.log('✅ Redis WebSocket Adapter Initialized');
 }
 
-// --- BROADCAST FUNCTIONS ---
+// --- BROADCAST ---
 
 /**
- * Broadcast to all clients or specific room via Redis Pub/Sub
- * This ensures scaling across multiple instances
+ * Broadcast event via Redis Pub/Sub using MessagePack (binary).
+ * Smaller payload, faster parsing on the client.
+ * 
+ * NOTE: Elysia's ws.send() requires Buffer.from() for binary data.
+ * Raw Uint8Array from encode() gets JSON-stringified by Elysia's wrapper.
  */
-export async function broadcast(event: string, data: any, room: string = '*'): Promise<void> {
-    const payload = JSON.stringify({ event, data, room, format: 'msgpack' });
-    await redis.publish('ws:events', payload);
+export async function broadcast(event: string, data: unknown, room: string = '*'): Promise<void> {
+    try {
+        const payload = JSON.stringify({ event, data, room, format: 'msgpack' });
+        await redis.publish('ws:events', payload);
+    } catch (e) {
+        console.error('❌ WS broadcast failed:', e);
+    }
 }
 
 /**
- * Broadcast JSON via Redis Pub/Sub
+ * Broadcast event via Redis Pub/Sub using JSON (text).
+ * Used for session events where simplicity matters over performance.
  */
-export async function broadcastJSON(event: string, data: any, room: string = '*'): Promise<void> {
-    const payload = JSON.stringify({ event, data, room, format: 'json' });
-    await redis.publish('ws:events', payload);
+export async function broadcastJSON(event: string, data: unknown, room: string = '*'): Promise<void> {
+    try {
+        const payload = JSON.stringify({ event, data, room, format: 'json' });
+        await redis.publish('ws:events', payload);
+    } catch (e) {
+        console.error('❌ WS broadcastJSON failed:', e);
+    }
 }
 
-// --- BROADCAST INTERNALS (Shared) ---
+// --- BROADCAST INTERNALS ---
 
 /**
  * Resolve target client IDs for a room (including wildcard subscribers)
@@ -225,7 +238,7 @@ function getTargetClientIds(room: string): string[] {
 /**
  * Send a pre-encoded message to a list of client IDs
  */
-function sendToClients(targetIds: string[], message: ArrayBuffer | string): void {
+function sendToClients(targetIds: string[], message: Buffer | string): void {
     for (const clientId of targetIds) {
         const client = clients.get(clientId);
         if (!client) continue;
@@ -239,18 +252,20 @@ function sendToClients(targetIds: string[], message: ArrayBuffer | string): void
 }
 
 /**
- * INTERNAL: Broadcast MessagePack (binary) to local clients
+ * Broadcast MessagePack binary to local clients.
+ * Uses Buffer.from() because Elysia's ws.send() JSON-stringifies raw Uint8Array.
  */
-function localBroadcast(event: string, data: any, room: string = '*'): void {
+function broadcastLocalBinary(event: string, data: unknown, room: string = '*'): void {
     const encoded = encode({ event, data, timestamp: Date.now() });
-    const message = encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength);
+    // CRITICAL: Buffer.from() required — Elysia treats raw Uint8Array as object and JSON.stringifies it
+    const message = Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength);
     sendToClients(getTargetClientIds(room), message);
 }
 
 /**
- * INTERNAL: Broadcast JSON to local clients
+ * Broadcast JSON to local clients.
  */
-function localBroadcastJSON(event: string, data: any, room: string = '*'): void {
+function broadcastLocalJSON(event: string, data: unknown, room: string = '*'): void {
     const message = JSON.stringify({ event, data, timestamp: Date.now() });
     sendToClients(getTargetClientIds(room), message);
 }

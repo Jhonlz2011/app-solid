@@ -1,20 +1,29 @@
-import { db, type Tx } from '../db';
-import { authUsers as users, refreshTokens } from '@app/schema/tables';
-import { eq, and, gt, sql, or, inArray } from '@app/schema';
-import type { AuthUserSelectType, PublicUserType } from '@app/schema/backend';
-import {
-  genRefreshTokenPair,
-  hashToken,
-  generateAccessToken,
-  verifyTokenHash,
-} from './tokens.service';
+import { db } from '../db';
+import { authUsers as users, sessions } from '@app/schema/tables';
+import { eq, and, gt, inArray, or } from '@app/schema';
+import type { PublicUserType } from '@app/schema/backend';
 import { getUserRoles, getUserPermissions } from './rbac.service';
 import { broadcastJSON } from '../plugins/ws';
-import { redis } from '../config/redis';
+import { SESSION_EXPIRE_DAYS } from '../config/auth';
+import { randomBytes } from 'crypto';
 import geoip from 'geoip-lite';
 
-const REFRESH_EXPIRE_DAYS = Number(process.env.REFRESH_TOKEN_EXP_DAYS ?? 14);
-const ACCESS_TOKEN_EXP_SECONDS = 15 * 60; // 15 minutes
+// --- CONSTANTS ---
+const SESSION_REFRESH_THRESHOLD_DAYS = Math.floor(SESSION_EXPIRE_DAYS / 2);
+const MAX_SESSIONS = 5;
+
+// --- HELPERS ---
+
+function mapEntity(entity: any) {
+    if (!entity) return undefined;
+    return {
+        id: entity.id,
+        businessName: entity.business_name,
+        isClient: entity.is_client ?? false,
+        isSupplier: entity.is_supplier ?? false,
+        isEmployee: entity.is_employee ?? false,
+    };
+}
 
 export class AuthError extends Error {
   constructor(message: string, public code: number = 401) {
@@ -23,10 +32,50 @@ export class AuthError extends Error {
   }
 }
 
+// --- SESSION HELPERS ---
 
+export function generateSessionToken(): string {
+  return randomBytes(32).toString('base64url');
+}
+
+/**
+ * Validate session by ID. Returns session + user data, or null if invalid/expired.
+ * Implements rolling sessions: extends expiry when past the refresh threshold.
+ */
+export async function validateSession(sessionId: string) {
+  const [session] = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.id, sessionId));
+
+  if (!session) return null;
+
+  // Expired — cleanup and reject
+  if (session.expires_at < new Date()) {
+    await db.delete(sessions).where(eq(sessions.id, sessionId));
+    return null;
+  }
+
+  // Rolling session: extend if past the refresh threshold
+  const remainingMs = session.expires_at.getTime() - Date.now();
+  const thresholdMs = SESSION_REFRESH_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+  let shouldRefreshCookie = false;
+
+  if (remainingMs < thresholdMs) {
+    const newExpiry = new Date(Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
+    await db.update(sessions)
+      .set({ expires_at: newExpiry })
+      .where(eq(sessions.id, sessionId));
+    session.expires_at = newExpiry;
+    shouldRefreshCookie = true;
+  }
+
+  return { session, shouldRefreshCookie };
+}
+
+// --- AUTH FUNCTIONS ---
 
 export async function register(email: string, password: string, username?: string): Promise<PublicUserType> {
-  // Validations are handled by TypeBox schema in routes
   try {
     const password_hash = await Bun.password.hash(password);
     const result = await db
@@ -37,7 +86,6 @@ export async function register(email: string, password: string, username?: strin
         username: username || email.split('@')[0],
       })
       .returning();
-    // Return without password_hash
     const { password_hash: _, ...publicUser } = result[0];
     return publicUser;
   } catch (error: any) {
@@ -49,104 +97,64 @@ export async function register(email: string, password: string, username?: strin
 }
 
 export async function login(email: string, password: string, userAgent?: string, ipAddress?: string) {
-  // 1. OPTIMIZACIÓN: Traemos usuario Y entidad en UN SOLO viaje a la DB
+  // 1. Fetch user + entity in one query
   const user = await db.query.authUsers.findFirst({
     where: or(eq(users.email, email), eq(users.username, email)),
-    with: {
-      entity: true // <--- ¡MAGIA DE DRIZZLE! (Requiere definir relaciones)
-    }
+    with: { entity: true },
   });
-  // 2. SEGURIDAD: Protección contra Timing Attacks
-  // Si el usuario no existe, verificamos contra un hash falso precalculado.
-  // Esto hace que la petición SIEMPRE tarde lo mismo (ej. 100ms).
+
+  // 2. Timing attack protection
   const DUMMY_HASH = '$argon2id$v=19$m=65536,t=2,p=1$njOSfwJnFaGrpYbhNmtmmyTeQ3Zr/vK+n+vYhtMpGxw$xEeAHQScZ8hNn2xngO0I8o0jgQX7wfinz+WEIsxiuoE';
   const targetHash = user?.password_hash ?? DUMMY_HASH;
-
-  // Ejecutamos la verificación SIEMPRE, exista o no el usuario
   const validPassword = await Bun.password.verify(password, targetHash);
 
-  // Ahora sí, lanzamos el error genérico si falló algo
   if (!user || !validPassword) {
     throw new AuthError('Credenciales inválidas');
   }
 
   if (!user.is_active) throw new AuthError('Usuario desactivado', 403);
 
-  // 3. Preparar datos de sesión en PARALELO
-  // Ejecutamos IO DB (Roles/Permisos) y Crypto (Tokens) simultáneamente
-  const [refreshPair, roles, permissions] = await Promise.all([
-    genRefreshTokenPair(),
+  // 3. Fetch roles/permissions in parallel
+  const [roles, permissions] = await Promise.all([
     getUserRoles(user.id),
-    getUserPermissions(user.id)
+    getUserPermissions(user.id),
   ]);
 
-  // hashToken is sync (SHA-256) — no need for Promise.all
-  const refreshHash = hashToken(refreshPair.token);
-  const accessToken = await generateAccessToken({
-    userId: user.id,
-    sessionId: refreshPair.selector,
-    roles,
-    permissions,
-  });
+  // 4. Create session
+  const sessionId = generateSessionToken();
+  const expiresAt = new Date(Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
 
-  const expiresAt = new Date(Date.now() + REFRESH_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
+  // Limit active sessions
+  const activeSessions = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(eq(sessions.user_id, user.id))
+    .orderBy(sessions.created_at);
 
-  // 4. TRANSACCIÓN ATÓMICA
-  // Metemos el update de 'last_login' aquí dentro para asegurar consistencia total
-  await db.transaction(async (tx: Tx) => {
-    // A. Actualizar último login
-    await tx.update(users).set({ last_login: new Date() }).where(eq(users.id, user.id));
-
-    // B. Limpieza de sesiones viejas
-    const activeSessions = await tx
-      .select({ id: refreshTokens.id })
-      .from(refreshTokens)
-      .where(and(
-        eq(refreshTokens.user_id, user.id),
-        eq(refreshTokens.revoked, false)
-      ))
-      .orderBy(refreshTokens.created_at);
-
-    const MAX_SESSIONS = 5;
-    if (activeSessions.length >= MAX_SESSIONS) {
-      const sessionsToRevoke = activeSessions.slice(0, activeSessions.length - MAX_SESSIONS + 1);
-      if (sessionsToRevoke.length > 0) {
-        await tx.update(refreshTokens)
-          .set({ revoked: true })
-          .where(inArray(refreshTokens.id, sessionsToRevoke.map(s => s.id)));
-      }
-    }
-
-    // C. Insertar nueva sesión
-    await tx.insert(refreshTokens).values({
-      user_id: user.id,
-      selector: refreshPair.selector,
-      token_hash: refreshHash,
-      session_chain_id: refreshPair.selector,
-      expires_at: expiresAt,
-      last_activity: new Date(),
-      user_agent: userAgent,
-      ip_address: ipAddress,
-    });
-  });
-
-  // Broadcast update to user's room
-  broadcastJSON('sessions:update', { type: 'login' }, `user:${user.id}`);
-
-  // 5. MAPEO DE RESPUESTA (Mucho más limpio gracias al paso 1)
-  let entityInfo;
-  // Drizzle ya trajo 'user.entity', no necesitamos buscarlo
-  if (user.entity) {
-    entityInfo = {
-      id: user.entity.id,
-      businessName: user.entity.business_name,
-      isClient: user.entity.is_client ?? false,
-      isSupplier: user.entity.is_supplier ?? false,
-      isEmployee: user.entity.is_employee ?? false,
-    };
+  const MAX = MAX_SESSIONS;
+  if (activeSessions.length >= MAX) {
+    const toDelete = activeSessions.slice(0, activeSessions.length - MAX + 1);
+    await db.delete(sessions).where(inArray(sessions.id, toDelete.map(s => s.id)));
   }
 
+  // Insert session + update last_login in parallel
+  await Promise.all([
+    db.insert(sessions).values({
+      id: sessionId,
+      user_id: user.id,
+      expires_at: expiresAt,
+      user_agent: userAgent,
+      ip_address: ipAddress,
+    }),
+    db.update(users).set({ last_login: new Date() }).where(eq(users.id, user.id)),
+  ]);
+
+  // Broadcast session update
+  broadcastJSON('sessions:update', { type: 'login' }, `user:${user.id}`);
+
   return {
+    sessionId,
+    expiresAt,
     user: {
       id: user.id,
       email: user.email,
@@ -156,191 +164,45 @@ export async function login(email: string, password: string, userAgent?: string,
       entity_id: user.entity_id,
       roles,
       permissions,
-      entity: entityInfo,
+      entity: mapEntity(user.entity),
     },
-    accessToken,
-    refreshToken: refreshPair.combined,
-    expiresAt,
   };
 }
 
-export async function rotateRefreshToken(oldCombined: string) {
-  const [selector, token] = oldCombined.split('.');
-  if (!selector || !token) {
-    throw new AuthError('Token inválido');
-  }
+export async function logout(sessionId: string) {
+  // Get user_id before deleting for WS broadcast
+  const [session] = await db
+    .select({ user_id: sessions.user_id })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId));
 
-  // Wrap everything in a transaction with row-level locking
-  return await db.transaction(async (tx: Tx) => {
-    // Lock the row with FOR UPDATE to prevent concurrent rotations
-    // This serializes parallel refresh attempts on the same token
-    const result = await tx.execute(sql`
-      SELECT * FROM refresh_tokens 
-      WHERE selector = ${selector} 
-      FOR UPDATE
-    `);
-    const storedToken = (result as unknown as {
-      id: number;
-      user_id: number;
-      selector: string;
-      token_hash: string;
-      session_chain_id: string;
-      expires_at: Date;
-      revoked: boolean;
-      replaced_by: number | null;
-      user_agent: string | null;
-      ip_address: string | null;
-    }[])[0];
-
-    if (!storedToken) throw new AuthError('Token inválido');
-
-    // If already revoked, check if we can reuse the replacement (grace period for concurrent requests)
-    if (storedToken.revoked) {
-      if (storedToken.replaced_by) {
-        const replacement = await tx
-          .select()
-          .from(refreshTokens)
-          .where(eq(refreshTokens.id, storedToken.replaced_by))
-          .then((r: any[]) => r[0]);
-        if (replacement) {
-          const timeSinceReplacement = Date.now() - new Date(replacement.created_at).getTime();
-          // Grace period: within 30 seconds, reuse the same replacement token
-          if (timeSinceReplacement < 30 * 1000) {
-            // Fetch roles/permissions for JWT
-            const [graceRoles, gracePerms] = await Promise.all([
-              getUserRoles(storedToken.user_id),
-              getUserPermissions(storedToken.user_id),
-            ]);
-            const accessToken = await generateAccessToken({
-              userId: storedToken.user_id,
-              sessionId: replacement.selector,
-              roles: graceRoles,
-              permissions: gracePerms,
-            });
-            return {
-              accessToken,
-              refreshToken: '', // Don't issue new refresh token, use existing from other request
-              expiresAt: new Date(Date.now() + 15 * 60 * 1000)
-            };
-          }
-        }
-      }
-      throw new AuthError('Token revocado');
-    }
-
-    if (new Date(storedToken.expires_at) < new Date()) throw new AuthError('Token expirado');
-
-    const valid = verifyTokenHash(token, storedToken.token_hash);
-    if (!valid) throw new AuthError('Token inválido');
-
-    const { user_id } = storedToken;
-    if (!user_id) throw new AuthError('Token inválido');
-
-    const newPair = await genRefreshTokenPair();
-    const newHash = hashToken(newPair.token);
-    const expiresAt = new Date(Date.now() + REFRESH_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
-
-    // Insert new token first to get its ID
-    const [newToken] = await tx
-      .insert(refreshTokens)
-      .values({
-        user_id,
-        selector: newPair.selector,
-        token_hash: newHash,
-        session_chain_id: storedToken.session_chain_id,
-        expires_at: expiresAt,
-        last_activity: new Date(),
-        user_agent: storedToken.user_agent,
-        ip_address: storedToken.ip_address,
-      })
-      .returning();
-
-    // Revoke old + link to new in a single UPDATE
-    await tx
-      .update(refreshTokens)
-      .set({ revoked: true, replaced_by: newToken.id })
-      .where(eq(refreshTokens.id, storedToken.id));
-
-    // Fetch roles/permissions for JWT (cached in Redis, fast)
-    const [roles, permissions] = await Promise.all([
-      getUserRoles(user_id),
-      getUserPermissions(user_id),
-    ]);
-
-    const accessToken = await generateAccessToken({
-      userId: user_id,
-      sessionId: newPair.selector,
-      roles,
-      permissions,
-    });
-
-    return {
-      accessToken,
-      refreshToken: newPair.combined,
-      expiresAt,
-    };
-  });
-}
-
-export async function logout(selector: string) {
-  const session = await db
-    .select({ user_id: refreshTokens.user_id })
-    .from(refreshTokens)
-    .where(eq(refreshTokens.selector, selector))
-    .then((r: any[]) => r[0]);
-
-  await db
-    .update(refreshTokens)
-    .set({ revoked: true })
-    .where(eq(refreshTokens.selector, selector));
+  // Delete session from DB
+  await db.delete(sessions).where(eq(sessions.id, sessionId));
 
   if (session) {
-    // Add to blacklist
-    await redis.set(`blacklist:${selector}`, 'revoked', 'EX', ACCESS_TOKEN_EXP_SECONDS);
-    // Use 'revoke' type so only this specific session logs out, not all sessions
-    broadcastJSON('sessions:update', { type: 'revoke', sessionId: selector }, `user:${session.user_id}`);
+    broadcastJSON('sessions:update', { type: 'revoke', sessionId }, `user:${session.user_id}`);
   }
 }
 
-interface Session {
-  id: number;
-  user_agent: string | null;
-  ip_address: string | null;
-  session_chain_id: string;
-  created_at: Date;
-  last_activity: Date;
-  selector: string;
-}
-
-export async function getActiveSessions(userId: number, currentSelector?: string) {
-  // Sessions inactive for more than 3 hours are considered stale
-  const STALE_THRESHOLD_MS = 3 * 60 * 60 * 1000; // 3 hours
-  const staleThreshold = new Date(Date.now() - STALE_THRESHOLD_MS);
-
-  // Get all non-revoked, non-expired, non-stale tokens
-  // Since rotated tokens are marked as revoked, only the "leaf" (current) token of each chain will be returned
-  const sessions = await db
+export async function getActiveSessions(userId: number, currentSessionId?: string) {
+  const activeSessions = await db
     .select({
-      id: refreshTokens.id,
-      user_agent: refreshTokens.user_agent,
-      ip_address: refreshTokens.ip_address,
-      session_chain_id: refreshTokens.session_chain_id,
-      created_at: refreshTokens.created_at,
-      last_activity: refreshTokens.last_activity,
-      selector: refreshTokens.selector,
+      id: sessions.id,
+      user_agent: sessions.user_agent,
+      ip_address: sessions.ip_address,
+      created_at: sessions.created_at,
+      expires_at: sessions.expires_at,
     })
-    .from(refreshTokens)
+    .from(sessions)
     .where(
       and(
-        eq(refreshTokens.user_id, userId),
-        eq(refreshTokens.revoked, false),
-        gt(refreshTokens.expires_at, new Date()),
-        gt(refreshTokens.last_activity, staleThreshold)
+        eq(sessions.user_id, userId),
+        gt(sessions.expires_at, new Date()),
       )
     )
-    .orderBy(refreshTokens.created_at);
+    .orderBy(sessions.created_at);
 
-  const mapped = sessions.map((s: Session) => {
+  const mapped = activeSessions.map((s) => {
     const geo = s.ip_address ? geoip.lookup(s.ip_address) : null;
     const location = geo ? `${geo.city}, ${geo.country}` : null;
 
@@ -350,11 +212,11 @@ export async function getActiveSessions(userId: number, currentSelector?: string
       ip_address: s.ip_address,
       location,
       created_at: s.created_at,
-      is_current: s.selector === currentSelector,
+      is_current: s.id === currentSessionId,
     };
   });
 
-  // Sort: current session first, then by created_at descending (newest first)
+  // Sort: current session first, then by created_at descending
   return mapped.sort((a, b) => {
     if (a.is_current) return -1;
     if (b.is_current) return 1;
@@ -362,42 +224,20 @@ export async function getActiveSessions(userId: number, currentSelector?: string
   });
 }
 
-export async function revokeSession(sessionId: number, userId: number) {
-  // Use recursive CTE to collect entire chain in a single query
-  const chain = await db.execute(sql`
-    WITH RECURSIVE chain AS (
-      SELECT id, selector, replaced_by, user_id
-      FROM refresh_tokens WHERE id = ${sessionId}
-      UNION ALL
-      SELECT rt.id, rt.selector, rt.replaced_by, rt.user_id
-      FROM refresh_tokens rt JOIN chain c ON rt.id = c.replaced_by
-    )
-    SELECT id, selector FROM chain WHERE user_id = ${userId}
-  `) as unknown as { id: number; selector: string }[];
+export async function revokeSession(sessionId: string, userId: number) {
+  // Verify the session belongs to this user
+  const [session] = await db
+    .select({ user_id: sessions.user_id })
+    .from(sessions)
+    .where(and(eq(sessions.id, sessionId), eq(sessions.user_id, userId)));
 
-  if (!chain.length) throw new AuthError('Sesión no encontrada', 404);
+  if (!session) throw new AuthError('Sesión no encontrada', 404);
 
-  const chainIds = chain.map(r => r.id);
-  const chainSelectors = chain.map(r => r.selector);
+  // Delete the session
+  await db.delete(sessions).where(eq(sessions.id, sessionId));
 
-  // Batch update: revoke all in one query
-  await db
-    .update(refreshTokens)
-    .set({ revoked: true })
-    .where(inArray(refreshTokens.id, chainIds));
-
-  // Batch blacklist in parallel
-  await Promise.all(
-    chainSelectors.map(sel =>
-      redis.set(`blacklist:${sel}`, 'revoked', 'EX', ACCESS_TOKEN_EXP_SECONDS)
-    )
-  );
-
-  // Broadcast ALL selectors so client matches even after rotation
-  broadcastJSON('sessions:update', {
-    type: 'revoke',
-    sessionId: chainSelectors
-  }, `user:${userId}`);
+  // Broadcast revocation via WS
+  broadcastJSON('sessions:update', { type: 'revoke', sessionId }, `user:${userId}`);
 
   return { success: true };
 }
@@ -418,39 +258,28 @@ export async function getMe(userId: number) {
 
   if (!user) throw new AuthError('Usuario no encontrado');
 
-  // Parallelize role/permission fetching
   const [roles, permissions] = await Promise.all([
     getUserRoles(user.id),
     getUserPermissions(user.id),
   ]);
 
-  const entity = user.entity ? {
-    id: user.entity.id,
-    businessName: user.entity.business_name,
-    isClient: user.entity.is_client ?? false,
-    isSupplier: user.entity.is_supplier ?? false,
-    isEmployee: user.entity.is_employee ?? false,
-  } : undefined;
-
   return {
-    ...user,
+    id: user.id,
+    email: user.email,
+    username: user.username,
     entityId: user.entity_id,
     isActive: user.is_active,
     lastLogin: user.last_login,
     roles,
     permissions,
-    entity,
+    entity: mapEntity(user.entity),
   };
 }
 
 export async function changePassword(userId: number, currentPassword: string, newPassword: string) {
-  // Password length validation handled by TypeBox
-
-  const user = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId))
-    .then((r: AuthUserSelectType[]) => r[0]);
+  const user = await db.query.authUsers.findFirst({
+    where: eq(users.id, userId),
+  });
 
   if (!user) throw new AuthError('Usuario no encontrado');
 
@@ -460,10 +289,10 @@ export async function changePassword(userId: number, currentPassword: string, ne
   const newHash = await Bun.password.hash(newPassword);
   await db.update(users).set({ password_hash: newHash }).where(eq(users.id, userId));
 
-  // Revoke all sessions
-  await db.update(refreshTokens).set({ revoked: true }).where(eq(refreshTokens.user_id, userId));
+  // Delete ALL sessions (force re-login everywhere)
+  await db.delete(sessions).where(eq(sessions.user_id, userId));
 
-  // Broadcast logout to all connected clients for this user
+  // Broadcast logout to all connected clients
   broadcastJSON('sessions:update', { type: 'logout' }, `user:${userId}`);
 
   return { success: true };
@@ -473,45 +302,34 @@ export async function updateProfile(
   userId: number,
   data: { username?: string; email?: string }
 ) {
-  const user = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId))
-    .then((r: AuthUserSelectType[]) => r[0]);
+  const user = await db.query.authUsers.findFirst({
+    where: eq(users.id, userId),
+  });
 
   if (!user) throw new AuthError('Usuario no encontrado');
 
   const updateData: { username?: string; email?: string } = {};
 
-  // Validate and prepare username update
   if (data.username && data.username !== user.username) {
-    // Username length validation handled by TypeBox
-    // Check for duplicate
     const existingUser = await db.query.authUsers.findFirst({
       where: eq(users.username, data.username!),
     });
-
     if (existingUser && existingUser.id !== userId) {
       throw new AuthError('El nombre de usuario ya está en uso', 409);
     }
     updateData.username = data.username;
   }
 
-  // Validate and prepare email update
   if (data.email && data.email !== user.email) {
-    // Email validation handled by TypeBox
-    // Check for duplicate
     const existingEmail = await db.query.authUsers.findFirst({
       where: eq(users.email, data.email!),
     });
-
     if (existingEmail && existingEmail.id !== userId) {
       throw new AuthError('El email ya está en uso', 409);
     }
     updateData.email = data.email;
   }
 
-  // Only update if there are changes
   if (Object.keys(updateData).length === 0) {
     return { success: true, message: 'Sin cambios' };
   }

@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
 import { getAllowedModules, getUserPermissions, getUserRoles } from '../services/rbac.service';
+import { DomainError } from '../services/errors';
 import {
     getMenuForUser,
     getFullMenuTree,
@@ -8,6 +9,14 @@ import {
     updateMenuItem,
     reorderMenuItems
 } from '../services/menu.service';
+
+// Shared admin check — replaces 4 inline duplications
+async function requireAdmin(currentUserId: number) {
+    const roles = await getUserRoles(currentUserId);
+    if (!roles.includes('admin') && !roles.includes('superadmin')) {
+        throw new DomainError('Acceso denegado: se requiere rol de administrador', 403);
+    }
+}
 
 export const modulesRoutes = new Elysia({ prefix: '/modules' })
     .use(authGuard)
@@ -65,20 +74,14 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
      * Get full menu tree (admin only, no filtering)
      */
     .get('/tree-full', async ({ currentUserId }) => {
-        const roles = await getUserRoles(currentUserId);
-        if (!roles.includes('admin') && !roles.includes('superadmin')) {
-            throw new Error('Unauthorized: Admin access required');
-        }
+        await requireAdmin(currentUserId);
         return getFullMenuTree();
     })
     /**
      * Get all menu items as flat list (admin only)
      */
     .get('/items', async ({ currentUserId }) => {
-        const roles = await getUserRoles(currentUserId);
-        if (!roles.includes('admin') && !roles.includes('superadmin')) {
-            throw new Error('Unauthorized: Admin access required');
-        }
+        await requireAdmin(currentUserId);
         return getAllMenuItems();
     })
     /**
@@ -87,10 +90,7 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
     .put(
         '/:id',
         async ({ currentUserId, params, body }) => {
-            const roles = await getUserRoles(currentUserId);
-            if (!roles.includes('admin') && !roles.includes('superadmin')) {
-                throw new Error('Unauthorized: Admin access required');
-            }
+            await requireAdmin(currentUserId);
             const [updated] = await updateMenuItem(parseInt(params.id), body);
             return updated;
         },
@@ -109,10 +109,7 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
     .put(
         '/reorder',
         async ({ currentUserId, body }) => {
-            const roles = await getUserRoles(currentUserId);
-            if (!roles.includes('admin') && !roles.includes('superadmin')) {
-                throw new Error('Unauthorized: Admin access required');
-            }
+            await requireAdmin(currentUserId);
             const results = await reorderMenuItems(body.items);
             return { updated: results.length };
         },
