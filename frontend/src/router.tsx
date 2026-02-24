@@ -14,6 +14,7 @@ const UsersRolesPage = lazy(() => import('./modules/users/views/UsersRolesPage')
 const ProductsPage = lazy(() => import('./modules/products/views/Products')) as Component;
 const SuppliersPage = lazy(() => import('./modules/suppliers/views/SuppliersPage')) as Component;
 const ProfilePage = lazy(() => import('./modules/profile/views/ProfilePage')) as Component;
+const NotFound = lazy(() => import('./shared/pages/NotFound')) as Component;
 
 // Suppliers components - Sheet pattern
 const SupplierNewSheet = lazy(() => import('./modules/suppliers/components/SupplierNewSheet')) as Component;
@@ -23,6 +24,7 @@ const SupplierShowPanel = lazy(() => import('./modules/suppliers/components/Supp
 // --- ROOT ---
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
+  notFoundComponent: () => <NotFound />,
 });
 
 // --- AUTH ROUTES (login) ---
