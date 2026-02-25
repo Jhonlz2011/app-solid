@@ -11,7 +11,7 @@ import { queryClient } from './shared/lib/queryClient';
 // --- LAZY COMPONENTS ---
 const Dashboard = lazy(() => import('./modules/dashboard/views/Dashboard')) as Component;
 const UsersRolesPage = lazy(() => import('./modules/users/views/UsersRolesPage')) as Component;
-const ProductsPage = lazy(() => import('./modules/products/views/Products')) as Component;
+
 const SuppliersPage = lazy(() => import('./modules/suppliers/views/SuppliersPage')) as Component;
 const ProfilePage = lazy(() => import('./modules/profile/views/ProfilePage')) as Component;
 const NotFound = lazy(() => import('./shared/pages/NotFound')) as Component;
@@ -70,6 +70,7 @@ const createModuleRoute = (opts: {
   permission: string;
   component: Component;
   parent?: any;
+  loader?: () => Promise<void> | void;
 }) =>
   createRoute({
     getParentRoute: () => opts.parent ?? layoutRoute,
@@ -80,6 +81,7 @@ const createModuleRoute = (opts: {
         throw redirect({ to: '/dashboard' });
       }
     },
+    loader: opts.loader,
     component: () => <opts.component />,
   });
 
@@ -100,6 +102,13 @@ const systemUsersRoute = createModuleRoute({
   path: '/system/users',
   permission: 'users',
   component: UsersRolesPage,
+  loader: async () => {
+    // Parallel Fetching: Start data request while JS chunk is downloading
+    const { usersApi } = await import('./modules/users/data/users.api');
+    const { rbacKeys } = await import('./modules/users/data/users.keys');
+    queryClient.prefetchQuery({ queryKey: rbacKeys.users(), queryFn: () => usersApi.listUsersWithRoles() });
+    queryClient.prefetchQuery({ queryKey: rbacKeys.roles(), queryFn: () => usersApi.listRoles() });
+  }
 });
 
 const settingsGeneralRoute = createRoute({
@@ -118,6 +127,19 @@ const suppliersRoute = createModuleRoute({
   path: 'suppliers',
   permission: 'suppliers',
   component: SuppliersPage,
+  loader: async () => {
+    // Parallel Fetching: Start data request while JS chunk is downloading
+    const { suppliersApi } = await import('./modules/suppliers/data/suppliers.api');
+    const { supplierKeys } = await import('./modules/suppliers/data/suppliers.api');
+    
+    // El módulo de Suppliers usa keyset pagination, con un default de limit: 10 y direction: 'first'
+    const defaultFilters = { limit: 10, direction: 'first' as const };
+    
+    queryClient.prefetchQuery({
+      queryKey: supplierKeys.list(defaultFilters),
+      queryFn: () => suppliersApi.list(defaultFilters),
+    });
+  }
 });
 
 const suppliersIndexRoute = createRoute({
