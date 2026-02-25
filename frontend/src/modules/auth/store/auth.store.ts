@@ -70,13 +70,12 @@ export const actions = {
 
     logout: async (notifyServer = true) => {
         currentSessionId = null;
-        setState({ user: null, status: 'unauthenticated' });
+        // Only change status — route guards read this, NOT the sidebar.
+        // SolidJS fine-grained reactivity: the sidebar reads state.user and modules(),
+        // NOT state.status, so it won't re-render here. Zero visual flash.
+        setState('status', 'unauthenticated');
         setSessionFlag(false);
         disconnect();
-
-        // Clear cached modules (important for different user login)
-        const { actions: moduleActions } = await import('@shared/store/modules.store');
-        moduleActions.clearModules();
 
         // Notify other tabs
         if (authChannel) {
@@ -86,6 +85,16 @@ export const actions = {
         // Notify server (only for voluntary logout)
         if (notifyServer) {
             authApi.logout().catch(() => {});
+        }
+    },
+
+    // Phase 2 cleanup: called from auth route beforeLoad once login page is loading.
+    // At this point the sidebar/layout is already unmounted, so clearing is flash-free.
+    cleanupStaleSession: async () => {
+        if (state.user) {
+            setState('user', null);
+            const { actions: moduleActions } = await import('@shared/store/modules.store');
+            moduleActions.clearModules();
         }
     },
 
@@ -144,7 +153,9 @@ export const actions = {
             if (e.key === SESSION_FLAG_KEY) {
                 const newValue = e.newValue === 'true';
                 if (!newValue) {
-                    setState({ user: null, status: 'unauthenticated' });
+                    // Only set status — don't clear user (causes sidebar flash).
+                    // The full-page reload below will reset all in-memory stores anyway.
+                    setState('status', 'unauthenticated');
                     disconnect();
                     window.location.href = '/login';
                 }
@@ -156,7 +167,9 @@ export const actions = {
             authChannel.onmessage = (e) => {
                 if (e.data.type === 'LOGOUT') {
                     currentSessionId = null;
-                    setState({ user: null, status: 'unauthenticated' });
+                    // Only set status — don't clear user (causes sidebar flash).
+                    // The full-page reload below will reset all in-memory stores anyway.
+                    setState('status', 'unauthenticated');
                     disconnect();
                     // Navigate if still on a protected page
                     if (!window.location.pathname.startsWith('/login')) {

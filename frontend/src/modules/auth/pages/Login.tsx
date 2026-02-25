@@ -1,4 +1,4 @@
-import { Component } from 'solid-js';
+import { Component, onMount } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
@@ -20,6 +20,11 @@ const getFieldError = (errors: unknown[]): string | undefined => {
 const Login: Component = () => {
   const navigate = useNavigate();
   const search = useSearch({ strict: false });
+
+  // Phase 2 of logout: clean up stale user/modules data.
+  // By onMount, the old route's components (sidebar, layout) are fully unmounted,
+  // so clearing user and modules here is guaranteed to be flash-free.
+  onMount(() => actions.cleanupStaleSession());
 
   const form = createForm(() => ({
     defaultValues: {

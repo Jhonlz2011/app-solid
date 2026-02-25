@@ -113,8 +113,11 @@ export const Sidebar: Component = () => {
     const handleLogout = async () => {
         setIsLoggingOut(true);
         try {
-            await authActions.logout();
+            // Navigate FIRST to unmount the sidebar/layout before clearing reactive state.
+            // This prevents the visual flash where module names and username disappear
+            // for a few milliseconds due to SolidJS granular reactivity.
             navigate({ to: '/login', search: { redirect: undefined } });
+        await authActions.logout();
         } finally {
             setIsLoggingOut(false);
         }

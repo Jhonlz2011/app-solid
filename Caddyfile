@@ -14,7 +14,9 @@
     encode zstd gzip
 
     # Serve static files
-    file_server
+    file_server {
+        precompressed br gzip
+    }
 
     # SPA Routing: Redirect all 404s to index.html
     try_files {path} /index.html
