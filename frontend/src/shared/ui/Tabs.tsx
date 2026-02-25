@@ -56,7 +56,7 @@ export const TabsTrigger: Component<Parameters<typeof KTabs.Trigger>[0] & { clas
         
         text-muted 
         hover:text-heading 
-        hover:bg-surface/50
+        hover:bg-surface/40
         data-[selected]:text-heading
        
         focus-visible:ring-2 focus-visible:ring-primary/50
@@ -78,6 +78,7 @@ export const TabsContent: Component<Parameters<typeof KTabs.Content>[0] & { clas
             class={`
         hidden data-[selected]:block
         outline-none
+        
         ${local.class ?? ''}
       `}
         />

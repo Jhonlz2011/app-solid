@@ -10,6 +10,11 @@ export const WsEvents = {
         UPDATED: 'entity:updated',
         DELETED: 'entity:deleted',
     },
+    USER: {
+        PROFILE_UPDATED: 'user:profile_updated',
+        SESSION_REVOKED: 'user:session_revoked',
+        SESSION_CREATED: 'user:session_created',
+    },
     ROOMS: {
         SUPPLIERS: 'suppliers',
         CLIENTS: 'clients',
@@ -30,6 +35,13 @@ export interface EntityEventPayload {
     entity?: Record<string, unknown>;
     id?: number;
     ids?: number[];
+}
+
+// Payload for user profile update (targeted to personal room user:{id})
+export interface UserProfileUpdatedPayload {
+    userId: number;
+    username?: string;
+    email?: string;
 }
 
 export interface WsMessage<T = unknown> {

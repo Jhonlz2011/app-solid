@@ -12,7 +12,7 @@ const VARIANTS = {
 const SIZES = {
   sm: "h-8 px-3 text-xs",
   md: "h-10 px-4 text-sm",
-  lg: "h-12 px-6 text-base",
+  lg: "h-12 px-4 text-base",
   icon: "h-10 w-10 p-0",
   icon_md: "h-8 w-8"
 };

@@ -45,8 +45,8 @@ export const PasswordField: Component<PasswordFieldProps> = (props) => {
                     onClick={() => setShowPassword(!showPassword())}
                     class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-heading transition-colors"
                 >
-                    <Show when={showPassword()} fallback={<EyeIcon class="size-5" />}>
-                        <EyeOffIcon class="size-5" />
+                    <Show when={showPassword()} fallback={<EyeIcon />}>
+                        <EyeOffIcon />
                     </Show>
                 </button>
             </div>

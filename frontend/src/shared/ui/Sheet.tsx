@@ -81,7 +81,7 @@ const Sheet: Component<SheetProps> = (rawProps) => {
                                 onClick={props.onClose}
                                 class="p-2 rounded-lg hover:bg-surface text-muted hover:text-text transition-colors"
                             >
-                                <XIcon />
+                                <XIcon class='size-4' />
                             </button>
                         </div>
 

@@ -115,7 +115,7 @@ const ProfilePage: Component = () => {
                             </TabsList>
 
                             {/* Paneles */}
-                            <div class="mt-6 bg-card border border-border rounded-2xl p-6 shadow-sm">
+                            <div class="mt-6 bg-card border border-border rounded-xl p-6 shadow-sm">
                                 <TabsContent value="account" forceMount>
                                     <AccountSection
                                         profile={profileData()}
@@ -130,7 +130,6 @@ const ProfilePage: Component = () => {
                                         isChanging={changePasswordMutation.isPending}
                                     />
                                 </TabsContent>
-
                                 <TabsContent value="sessions" forceMount>
                                     <SessionsSection />
                                 </TabsContent>

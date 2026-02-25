@@ -6,7 +6,7 @@ import type { Profile } from '../models/profile.types';
 import { UpdateProfileSchema } from '../models/profile.schemas';
 import { TextField } from './fields/TextField';
 import Button from '@shared/ui/Button';
-import { AlertCircleIcon } from '@shared/ui/icons';
+import { AlertCircleIcon, FloppyDiskIcon } from '@shared/ui/icons';
 
 interface AccountSectionProps {
     profile: Profile;
@@ -109,6 +109,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                                 loading={props.isUpdating || state().isSubmitting}
                                 loadingText="Guardando..."
                                 size="lg"
+                                icon={<FloppyDiskIcon/>}
                             >
                                 Guardar cambios
                             </Button>

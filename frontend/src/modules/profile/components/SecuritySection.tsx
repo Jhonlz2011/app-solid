@@ -5,7 +5,7 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { ChangePasswordSchema } from '../models/profile.schemas';
 import { PasswordField } from './fields/PasswordField';
 import Button from '@shared/ui/Button';
-import { AlertCircleIcon, WarningIcon } from '@shared/ui/icons';
+import { AlertCircleIcon, WarningIcon, KeyIcon } from '@shared/ui/icons';
 
 interface SecuritySectionProps {
     onChangePassword: (data: { currentPassword: string; newPassword: string }) => Promise<void>;
@@ -119,6 +119,7 @@ export const SecuritySection: Component<SecuritySectionProps> = (props) => {
                             loading={props.isChanging || state().isSubmitting}
                             loadingText="Cambiando..."
                             size="lg"
+                            icon={<KeyIcon class="size-4" />}
                         >
                             Cambiar contraseña
                         </Button>

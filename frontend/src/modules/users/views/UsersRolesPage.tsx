@@ -193,21 +193,21 @@ const UsersRolesPage: Component = () => {
                         class="p-1.5 rounded-lg hover:bg-blue-500/20 text-muted hover:text-blue-400"
                         title="Gestionar Roles"
                     >
-                        <ShieldIcon />
+                        <ShieldIcon class='size-4' />
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); handleEditUser(info.row.original); }}
                         class="p-1.5 rounded-lg hover:bg-amber-500/20 text-muted hover:text-amber-400"
                         title="Editar Usuario"
                     >
-                        <EditIcon />
+                        <EditIcon class='size-4'/>
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteUser(info.row.original); }}
                         class="p-1.5 rounded-lg hover:bg-red-500/20 text-muted hover:text-red-400"
                         title="Eliminar Usuario"
                     >
-                        <TrashIcon />
+                        <TrashIcon class='size-4' />
                     </button>
                 </div>
             ),
@@ -557,11 +557,11 @@ const RoleCard: Component<{
 
             <div class="flex gap-2">
                 <button onClick={props.onManagePermissions} class="btn btn-ghost text-sm flex-1">
-                    <KeyIcon /> Permisos
+                    <KeyIcon class='size-4' /> Permisos
                 </button>
                 <Show when={props.role.name !== 'superadmin' && props.role.name !== 'admin'}>
                     <button onClick={props.onEdit} class="btn btn-ghost p-2" title="Editar"><EditIcon /></button>
-                    <button onClick={props.onDelete} class="btn btn-ghost p-2 text-error hover:bg-error/10" title="Eliminar"><TrashIcon /></button>
+                    <button onClick={props.onDelete} class="btn btn-ghost p-2 text-error hover:bg-error/10" title="Eliminar"><TrashIcon class='size-4' /></button>
                 </Show>
             </div>
         </div>

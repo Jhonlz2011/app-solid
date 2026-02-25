@@ -3,15 +3,20 @@ import { Component, For, createMemo } from 'solid-js';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
 import type { Profile } from '../models/profile.types';
 import { Badge, RoleBadge } from '@shared/ui/Badge';
+import { useAuth } from '@modules/auth/store/auth.store';
 
 interface ProfileHeaderProps {
     profile: Profile;
 }
 
 export const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
-    // Use accessors/memos for reactivity - these will update when props.profile changes
+    // Read from auth.store — updated in real-time by the WS listener.
+    // This means the header reacts instantly to cross-tab profile changes
+    // without waiting for a TanStack Query refetch.
+    const auth = useAuth();
+
     const displayName = createMemo(() =>
-        props.profile.entity?.business_name || props.profile.username || props.profile.email
+        props.profile.entity?.business_name || auth.user()?.username || props.profile.email
     );
 
     const avatarStyle = createMemo(() => getAvatarGradientStyle(displayName()));
@@ -44,7 +49,7 @@ export const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
                         {displayName()}
                     </h1>
                     <p class="text-muted text-sm sm:text-base mb-3">
-                        @{props.profile.username} · {props.profile.email}
+                        @{auth.user()?.username || props.profile.username} · {props.profile.email}
                     </p>
 
                     {/* Badges */}

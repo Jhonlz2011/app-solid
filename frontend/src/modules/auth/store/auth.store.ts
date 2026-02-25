@@ -162,6 +162,17 @@ export const actions = {
             }
         });
 
+        // WS: real-time profile update from another tab/device
+        // ws.store dispatches CustomEvents for every incoming WS message.
+        // We filter by userId to only update our own user's data.
+        window.addEventListener('user:profile_updated', (e: Event) => {
+            const { userId, username, email } = (e as CustomEvent).detail ?? {};
+            if (!state.user || state.user.id !== userId) return;
+            // Granular update — SolidJS only re-renders components that read these specific fields
+            if (username !== undefined) setState('user', 'username', username);
+            if (email !== undefined) setState('user', 'email', email);
+        });
+
         // Cross-tab sync via BroadcastChannel
         if (authChannel) {
             authChannel.onmessage = (e) => {
@@ -195,28 +206,26 @@ export const actions = {
             };
         }
 
-        // Centralized broadcast store (profile updates from other tabs)
+        // Centralized broadcast store (profile updates from other tabs via BroadcastChannel)
         broadcast.init();
         broadcast.on(BroadcastEvents.PROFILE_UPDATE, (data) => {
-            if (data?.user) setState('user', data.user);
+            if (data?.user && state.user) {
+                // Granular updates only — DO NOT spread/replace the whole user object
+                if (data.user.username !== undefined) setState('user', 'username', data.user.username);
+                if (data.user.email !== undefined) setState('user', 'email', data.user.email);
+            }
         });
 
-        // WS session events (session revocation via WebSocket)
-        window.addEventListener('sessions:update', ((e: CustomEvent) => {
-            const { type, sessionId } = e.detail;
-            if (type === 'logout') {
-                // Global logout (e.g., password change)
+        // WS: session revocation — if MY session is revoked from another tab/browser, log out.
+        // ws.store dispatches this as a CustomEvent when the backend sends user:session_revoked.
+        window.addEventListener('user:session_revoked', ((e: CustomEvent) => {
+            const { sessionId } = e.detail ?? {};
+            if (sessionId && sessionId === currentSessionId) {
+                // MY session was revoked by another device — force logout
                 actions.logout(false);
                 window.location.href = '/login';
-            } else if (type === 'revoke' && sessionId) {
-                // Only logout if MY session was revoked
-                if (sessionId === currentSessionId) {
-                    actions.logout(false);
-                    window.location.href = '/login';
-                }
-                // Otherwise, other tabs/devices will just see the sessions list update
-                // (SessionsSection.tsx already listens for this and invalidates the query)
             }
+            // For other sessions: SessionsSection.tsx handles the list refresh via its own listener
         }) as EventListener);
     }
 };

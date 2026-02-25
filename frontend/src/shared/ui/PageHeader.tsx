@@ -40,7 +40,7 @@ export const PageHeader: Component<PageHeaderProps> = (props) => (
                             </span>
                             {/* Info icon - hidden by default, visible on hover */}
                             <span class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-white">
-                                <InfoIcon class="size-5" />
+                                <InfoIcon />
                             </span>
                         </div>
                     </Tooltip>

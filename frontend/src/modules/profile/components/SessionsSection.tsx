@@ -1,5 +1,5 @@
 // Sessions Section - Embedded Session Management (Optimized for 0ms UX)
-import { Component, createSignal, For, Show, onMount, onCleanup } from 'solid-js';
+import { Component, createSignal, createEffect, For, Show, onCleanup } from 'solid-js';
 import { createQuery, createMutation, useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { api } from '@shared/lib/eden';
@@ -8,6 +8,7 @@ import { useAuth } from '@modules/auth/store/auth.store';
 import { SessionItem, type Session } from './SessionItem';
 import { DeviceIcon, WarningIcon } from '@shared/ui/icons';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
+import { WsEvents } from '@app/schema/ws-events';
 
 // Skeleton loader component for instant perceived loading
 const SessionSkeleton: Component = () => (
@@ -49,36 +50,43 @@ export const SessionsSection: Component = () => {
         refetchOnWindowFocus: false, // Avoid unnecessary refetches
     }));
 
-    // Real-time updates
-    onMount(() => {
+    // Real-time session list updates
+    // Using createEffect so this runs (and re-runs) reactively when auth.user() resolves.
+    // onMount would capture userId once at mount time — if the user wasn't loaded yet,
+    // userId would be undefined and the room subscription would never happen.
+    const [cleanupFns, setCleanupFns] = createSignal<(() => void)[]>([]);
+
+    createEffect(() => {
         const userId = auth.user()?.id;
-        if (userId) {
-            const room = `user:${userId}`;
-            subscribe(room);
+        if (!userId) return;
 
-            // Listen for cross-tab session updates via centralized broadcast
-            const cleanupBroadcast = broadcast.on(BroadcastEvents.SESSIONS_REFRESH, () => {
-                queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
-            });
+        const room = `user:${userId}`;
+        subscribe(room);
 
-            // Listen for WebSocket session events (login/logout/revoke)
-            const handleUpdate = (e: CustomEvent) => {
-                if (e.detail?.type === 'login' || e.detail?.type === 'logout' || e.detail?.type === 'revoke') {
-                    queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
-                    // Notify other tabs to refresh their sessions list
-                    broadcast.emit(BroadcastEvents.SESSIONS_REFRESH);
-                }
-            };
+        // Same-browser sync via BroadcastChannel
+        const cleanupBroadcast = broadcast.on(BroadcastEvents.SESSIONS_REFRESH, () => {
+            queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
+        });
 
-            window.addEventListener('sessions:update', handleUpdate as EventListener);
+        // Cross-browser sync: WS events dispatched by ws.store when backend broadcasts.
+        // Covers both new logins (session_created) and revocations (session_revoked).
+        const handleSessionsChanged = () => {
+            queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
+        };
 
-            onCleanup(() => {
-                unsubscribe(room);
-                cleanupBroadcast();
-                window.removeEventListener('sessions:update', handleUpdate as EventListener);
-            });
-        }
+        window.addEventListener(WsEvents.USER.SESSION_REVOKED, handleSessionsChanged);
+        window.addEventListener(WsEvents.USER.SESSION_CREATED, handleSessionsChanged);
+
+        // Store cleanup for onCleanup
+        setCleanupFns([
+            () => unsubscribe(room),
+            cleanupBroadcast,
+            () => window.removeEventListener(WsEvents.USER.SESSION_REVOKED, handleSessionsChanged),
+            () => window.removeEventListener(WsEvents.USER.SESSION_CREATED, handleSessionsChanged),
+        ]);
     });
+
+    onCleanup(() => cleanupFns().forEach(fn => fn()));
 
     const revokeMutation = createMutation(() => ({
         mutationFn: async (sessionId: string) => {
@@ -88,6 +96,9 @@ export const SessionsSection: Component = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
+            // Notify same-browser tabs immediately (BroadcastChannel is same-browser only).
+            // Cross-browser tabs are handled by the WS user:session_revoked event from the backend.
+            broadcast.emit(BroadcastEvents.SESSIONS_REFRESH);
             toast.success('Sesión cerrada correctamente');
         },
         onError: () => {

@@ -197,7 +197,7 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
                         class="p-1.5 rounded-lg hover:bg-blue-500/20 text-muted hover:text-blue-400"
                         title="Editar"
                     >
-                        <EditIcon />
+                        <EditIcon class="size-4" />
                     </button>
                     <button
                         onClick={(e) => {
@@ -207,7 +207,7 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
                         class="p-1.5 rounded-lg hover:bg-red-500/20 text-muted hover:text-red-400"
                         title="Eliminar"
                     >
-                        <TrashIcon />
+                        <TrashIcon class='size-4' />
                     </button>
                 </div>
             ),
