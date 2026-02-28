@@ -18,10 +18,10 @@ export const ProfilePendingComponent: Component = () => (
     <div class="w-full p-4 sm:p-6 max-w-3xl mx-auto">
         <div class="animate-in fade-in duration-300">
             <ProfileHeaderSkeleton />
-            <div class="mt-6 mb-6 flex gap-6 border-b border-border">
-                <Skeleton class="h-8 w-24 mb-2 rounded" />
-                <Skeleton class="h-8 w-24 mb-2 rounded" />
-                <Skeleton class="h-8 w-24 mb-2 rounded" />
+            <div class="mt-6 mb-6 relative flex w-full gap-1 p-1 rounded-xl bg-card-alt border border-border/50">
+                <Skeleton class="h-9 flex-1 rounded-lg" />
+                <Skeleton class="h-9 flex-1 rounded-lg" />
+                <Skeleton class="h-9 flex-1 rounded-lg" />
             </div>
             <div class="bg-card border border-border rounded-xl p-6 shadow-sm">
                 <Skeleton class="h-6 w-48 mb-2 rounded" />
