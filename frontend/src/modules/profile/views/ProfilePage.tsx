@@ -23,13 +23,13 @@ export const ProfilePendingComponent: Component = () => (
                 <Skeleton class="h-9 flex-1 rounded-lg" />
                 <Skeleton class="h-9 flex-1 rounded-lg" />
             </div>
-            <div class="bg-card border border-border rounded-xl p-6 shadow-sm">
-                <Skeleton class="h-6 w-48 mb-2 rounded" />
-                <Skeleton class="h-4 w-64 mb-6 rounded" />
+            <div class="bg-card border border-border rounded-xl p-6 shadow-sm mt-6">
+                <Skeleton class="h-6 w-1/2 max-w-[12rem] mb-2 rounded" />
+                <Skeleton class="h-4 w-3/4 max-w-[16rem] mb-6 rounded" />
                 <div class="space-y-4">
                     <Skeleton class="h-12 w-full rounded-xl" />
                     <Skeleton class="h-12 w-full rounded-xl" />
-                    <Skeleton class="h-12 w-48 mt-4 rounded-xl" />
+                    <Skeleton class="h-12 w-1/2 max-w-[12rem] mt-4 rounded-xl" />
                 </div>
             </div>
         </div>

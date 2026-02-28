@@ -7,15 +7,15 @@ import { useAuth } from '@modules/auth/store/auth.store';
 import { Skeleton } from '@shared/ui/Skeleton';
 
 export const ProfileHeaderSkeleton: Component = () => (
-    <div class="mb-8 p-6 bg-card border border-border rounded-xl">
+    <div class="mb-8">
         <div class="flex flex-col sm:flex-row items-center gap-5">
             {/* Large Avatar Skeleton */}
             <Skeleton class="size-20 sm:size-24 rounded-2xl shrink-0" />
 
             {/* User Info Skeleton */}
-            <div class="flex-1 flex flex-col items-center sm:items-start text-center sm:text-left space-y-2">
-                <Skeleton class="h-8 w-64 rounded-lg" />
-                <Skeleton class="h-4 w-48 rounded" />
+            <div class="flex-1 flex flex-col w-full items-center sm:items-start text-center sm:text-left space-y-2 overflow-hidden">
+                <Skeleton class="h-8 w-3/4 max-w-[16rem] rounded-lg" />
+                <Skeleton class="h-4 w-full max-w-[12rem] rounded" />
 
                 {/* Badges Skeleton */}
                 <div class="flex flex-wrap justify-center sm:justify-start gap-2 mt-2">
