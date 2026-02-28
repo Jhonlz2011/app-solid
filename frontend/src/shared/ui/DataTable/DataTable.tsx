@@ -28,7 +28,7 @@ import {
 } from '@tanstack/solid-table';
 import { createVirtualizer } from '@tanstack/solid-virtual';
 import { Table as TableRoot, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table';
-import { SkeletonLoader } from '../SkeletonLoader';
+import { Skeleton } from '../Skeleton';
 import { EmptyState } from '../EmptyState';
 import Button from '../Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../Select';
@@ -365,7 +365,24 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
                     >
                         <Show
                             when={!local.isLoading}
-                            fallback={<SkeletonLoader type="table-row" count={8} />}
+                            fallback={
+                                <For each={Array(8).fill(0)}>
+                                    {() => (
+                                        <TableRow class="hover:bg-transparent">
+                                            <For each={table.getVisibleLeafColumns()}>
+                                                {(col) => {
+                                                    const { className: pinClasses, style: pinStyles } = getCommonPinningStyles(col);
+                                                    return (
+                                                        <TableCell class={pinClasses} style={pinStyles}>
+                                                            <Skeleton class="h-5 w-full rounded-md" />
+                                                        </TableCell>
+                                                    );
+                                                }}
+                                            </For>
+                                        </TableRow>
+                                    )}
+                                </For>
+                            }
                         >
                             <Show
                                 when={table.getRowModel().rows.length > 0}

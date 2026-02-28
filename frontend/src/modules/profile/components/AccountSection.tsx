@@ -46,8 +46,8 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
     }));
 
     return (
-        <div>
-            <h2 class="text-lg font-semibold text-heading mb-1">Información de la cuenta</h2>
+            <div>
+                <h2 class="text-lg font-semibold text-heading mb-1">Información de la cuenta</h2>
             <p class="text-sm text-muted mb-6">Actualiza tu nombre de usuario y dirección de email.</p>
 
             <form
@@ -117,6 +117,6 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                     }}
                 </form.Subscribe>
             </form>
-        </div>
+            </div>
     );
 };

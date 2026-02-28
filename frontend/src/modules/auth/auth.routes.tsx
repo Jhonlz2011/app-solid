@@ -1,8 +1,7 @@
-import { lazy, Component } from 'solid-js';
-import { createRoute, redirect } from '@tanstack/solid-router';
+import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import AuthLayout from '@layout/AuthLayout';
 
-const Login = lazy(() => import('./pages/Login')) as Component;
+const Login = lazyRouteComponent(() => import('./pages/Login'));
 
 export const createAuthRoutes = (rootRoute: any) => {
     const authRoute = createRoute({
@@ -11,12 +10,10 @@ export const createAuthRoutes = (rootRoute: any) => {
         beforeLoad: async () => {
             const { actions, useAuth } = await import('./store/auth.store');
             const auth = useAuth();
-
             // Fast path: already authenticated in memory → redirect immediately
             if (auth.isAuthenticated()) {
                 throw redirect({ to: '/dashboard' });
             }
-
             // Fast path: no session flag → show login instantly (zero API calls)
             if (!localStorage.getItem('hasSession')) {
                 return;

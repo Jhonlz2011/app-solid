@@ -294,7 +294,6 @@ const UsersRolesPage: Component = () => {
                     icon={<UsersIcon />}
                     iconBg="linear-gradient(135deg, #10b981, #14b8a6)"
                     title="Usuarios y Roles"
-                    subtitle="Gestión de acceso y permisos del sistema"
                     actions={
                         <>
                             <Show when={activeTab() === 'users'}>
@@ -332,7 +331,7 @@ const UsersRolesPage: Component = () => {
                 {/* Users Tab */}
                 <Show when={activeTab() === 'users'}>
                     <div class="bg-card border border-border rounded-2xl shadow-card-soft h-full overflow-auto relative">
-                        <Show when={!usersQuery.isLoading} fallback={<SkeletonLoader type="table-row" count={5} />}>
+                        <Show when={!(usersQuery.isPending || (usersQuery.isFetching && filteredUsers().length === 0))} fallback={<SkeletonLoader type="table-row" count={5} />}>
                             <Show when={filteredUsers().length > 0} fallback={
                                 <EmptyState message="No hay usuarios" description="Crea un nuevo usuario para comenzar" />
                             }>
@@ -373,7 +372,7 @@ const UsersRolesPage: Component = () => {
 
                 {/* Roles Tab */}
                 <Show when={activeTab() === 'roles'}>
-                    <Show when={!rolesQuery.isLoading} fallback={<SkeletonLoader type="card" count={6} />}>
+                    <Show when={!(rolesQuery.isPending || (rolesQuery.isFetching && filteredRoles().length === 0))} fallback={<SkeletonLoader type="card" count={6} />}>
                         <Show when={filteredRoles().length > 0} fallback={
                             <EmptyState message="No hay roles" description="Crea un nuevo rol para comenzar" />
                         }>

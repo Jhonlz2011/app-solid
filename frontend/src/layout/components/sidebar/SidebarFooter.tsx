@@ -4,7 +4,9 @@ import { Link } from '@tanstack/solid-router';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
 import { useSidebar } from './SidebarContext';
 import { clickOutside } from '@shared/directives/clickOutside';
-import { UserIcon, LogoutIcon } from '@shared/ui/icons';
+import { LogoutIcon } from '@shared/ui/icons';
+import { useLogout } from '@modules/auth/hooks/useLogout';
+import { UserMenuDropdown } from '../UserMenuDropdown';
 
 // Register directive
 false && clickOutside;
@@ -12,55 +14,12 @@ false && clickOutside;
 interface SidebarFooterProps {
     userName: string;
     userRole: string;
-    onLogout: () => void;
-    isLoggingOut: () => boolean;
 }
-
-// --- Extracted: Shared dropdown menu items ---
-const UserMenuItems: Component<{
-    userName: string;
-    userRole: string;
-    onNavClick: () => void;
-    onLogout: () => void;
-    isLoggingOut: () => boolean;
-}> = (props) => (
-    <>
-        <div class="p-3 border-b border-border bg-card-alt/50">
-            <p class="font-semibold text-sm text-heading">{props.userName}</p>
-            <p class="text-xs text-muted">{props.userRole}</p>
-        </div>
-        <div class="p-1">
-            <Link
-                to="/profile"
-                onClick={props.onNavClick}
-                preload="intent"
-                class="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-heading hover:bg-card-alt rounded-lg text-left
-                       focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
-            >
-                <UserIcon class="size-4" />
-                Mi Cuenta
-            </Link>
-
-            <div class="h-px bg-border my-1" />
-
-            <button
-                tabIndex={0}
-                onClick={props.onLogout}
-                disabled={props.isLoggingOut()}
-                class="w-full flex items-center gap-2 px-3 py-2 text-sm font-semibold text-red-500 hover:bg-red-500/10 rounded-lg text-left
-                       focus:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-1 focus-visible:ring-offset-transparent
-                       disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                <LogoutIcon class="size-4" />
-                {props.isLoggingOut() ? 'Cerrando sesión...' : 'Cerrar Sesión'}
-            </button>
-        </div>
-    </>
-);
 
 export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
     const { collapsed, isMobileViewport, setIsMobileOpen } = useSidebar();
     const [showUserMenu, setShowUserMenu] = createSignal(false);
+    const { handleLogout, isLoggingOut } = useLogout();
 
     const handleNavClick = () => {
         setShowUserMenu(false);
@@ -104,12 +63,12 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                                     class="hidden sm:block fixed w-56 bg-surface border border-border rounded-xl shadow-xl z-[100] overflow-hidden animate-in"
                                     style={{ left: '4.6rem', bottom: '1rem' }}
                                 >
-                                    <UserMenuItems
+                                    <UserMenuDropdown
                                         userName={props.userName}
                                         userRole={props.userRole}
                                         onNavClick={handleNavClick}
-                                        onLogout={props.onLogout}
-                                        isLoggingOut={props.isLoggingOut}
+                                        onLogout={handleLogout}
+                                        isLoggingOut={isLoggingOut}
                                     />
                                 </div>
                             </Portal>
@@ -140,11 +99,11 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                     </Link>
 
                     <button
-                        onClick={props.onLogout}
-                        disabled={props.isLoggingOut()}
+                        onClick={handleLogout}
+                        disabled={isLoggingOut()}
                         class="group/logout flex items-center justify-center gap-2 p-2.5 rounded-xl text-red-500/70 hover:bg-red-500/10 hover:text-red-500
                                focus:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
-                        classList={{ 'opacity-50 cursor-not-allowed text-red-500/50': props.isLoggingOut() }}
+                        classList={{ 'opacity-50 cursor-not-allowed text-red-500/50': isLoggingOut() }}
                         title="Cerrar Sesión"
                         aria-label="Cerrar Sesión"
                     >

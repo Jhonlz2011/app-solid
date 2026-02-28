@@ -1,6 +1,6 @@
 import { Component, createSignal, Show, createEffect, createMemo } from 'solid-js';
 import { useNavigate, useLocation } from '@tanstack/solid-router';
-import { useAuth, actions as authActions } from '@modules/auth/store/auth.store';
+import { useAuth } from '@modules/auth/store/auth.store';
 import { useModules } from '@shared/store/modules.store';
 import { SidebarHeader } from './SidebarHeader';
 import { SidebarNav } from './SidebarNav';
@@ -17,7 +17,6 @@ export const Sidebar: Component = () => {
     const { modules } = useModules();
 
     const { isOpen: isMobileOpen, close: closeMobile } = useMobileSidebar();
-    const [isLoggingOut, setIsLoggingOut] = createSignal(false);
     const [expandedMenus, setExpandedMenus] = createSignal<Set<string>>(new Set());
     const [activeTooltipId, setActiveTooltipId] = createSignal<string | null>(null);
     const [optimisticPath, setOptimisticPath] = createSignal<string | null>(null);
@@ -109,20 +108,6 @@ export const Sidebar: Component = () => {
         hasActiveDescendant
     };
 
-    // --- ACTIONS ---
-    const handleLogout = async () => {
-        setIsLoggingOut(true);
-        try {
-            // Navigate FIRST to unmount the sidebar/layout before clearing reactive state.
-            // This prevents the visual flash where module names and username disappear
-            // for a few milliseconds due to SolidJS granular reactivity.
-            navigate({ to: '/login', search: { redirect: undefined } });
-        await authActions.logout();
-        } finally {
-            setIsLoggingOut(false);
-        }
-    };
-
     return (
         <SidebarProvider value={sidebarContext}>
             {/* Mobile Overlay */}
@@ -156,8 +141,6 @@ export const Sidebar: Component = () => {
                 <SidebarFooter
                     userName={auth.user()?.username || 'Usuario'}
                     userRole={auth.user()?.roles?.[0] || 'Usuario'}
-                    onLogout={handleLogout}
-                    isLoggingOut={isLoggingOut}
                 />
             </aside>
         </SidebarProvider>

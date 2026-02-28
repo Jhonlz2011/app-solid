@@ -9,22 +9,7 @@ import { SessionItem, type Session } from './SessionItem';
 import { DeviceIcon, WarningIcon } from '@shared/ui/icons';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 import { WsEvents } from '@app/schema/ws-events';
-
-// Skeleton loader component for instant perceived loading
-const SessionSkeleton: Component = () => (
-    <div class="rounded-xl p-4 border border-border animate-pulse">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div class="flex items-center gap-3 sm:gap-4">
-                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-card-alt shrink-0" />
-                <div class="flex-1 space-y-2">
-                    <div class="h-5 w-32 bg-card-alt rounded" />
-                    <div class="h-4 w-48 bg-card-alt rounded" />
-                    <div class="h-3 w-40 bg-card-alt rounded" />
-                </div>
-            </div>
-        </div>
-    </div>
-);
+import { ListItemSkeleton } from '@shared/ui/SkeletonLoader';
 
 export const SessionsSection: Component = () => {
     const queryClient = useQueryClient();
@@ -141,11 +126,12 @@ export const SessionsSection: Component = () => {
                 </Show>
             </div>
 
-            {/* Initial Loading State - Show Skeletons */}
+            {/* Initial Loading Skeleton */}
             <Show when={isInitialLoading()}>
-                <div class="space-y-3">
-                    <SessionSkeleton />
-                    <SessionSkeleton />
+                <div class="space-y-3 animate-in fade-in duration-300">
+                    <For each={Array.from({ length: 2 }, (_, i) => i)}>
+                        {() => <ListItemSkeleton />}
+                    </For>
                 </div>
             </Show>
 

@@ -43,7 +43,7 @@
   --color-muted: light-dark(#475569, #94a3b8);
   --color-border: light-dark(#e7eff8, #1f2533);
   --color-border-strong: light-dark(#d0d7e5, #222c3c);
-  --color-border-subtle: light-dark(rgba(15, 23, 42, 0.08), rgba(148, 163, 184, 0.25));
+  --color-border-subtle: light-dark(#0f172a14, #94a3b840);
   --color-table-hover: light-dark(#f4f7fc, #0c1222);
   --color-text-muted: light-dark(#475569, #94a3b8);
   --color-dropdown-hover: light-dark(#f4f7fb, #1f2937);
@@ -51,7 +51,7 @@
   /* Primary Colors */
   --color-primary: light-dark(#2563eb, #60a5fa);
   --color-primary-strong: light-dark(#1d4ed8, #93c5fd);
-  --color-primary-soft: light-dark(rgba(37, 99, 235, 0.15), rgba(91, 141, 255, 0.18));
+  --color-primary-soft: light-dark(#2563eb26, #5b8dff2e);
   --color-on-primary: #f8fafc;
 
   /* Table row selected - solid color (primary-soft blended with card background) */
@@ -72,55 +72,57 @@
   --color-price-text: light-dark(#059669, #34d399);
 
   /* Semantic Background Colors */
-  --color-info-bg: light-dark(rgba(37, 99, 235, 0.1), rgba(96, 165, 250, 0.15));
-  --color-success-bg: light-dark(rgba(22, 163, 74, 0.1), rgba(74, 222, 128, 0.15));
-  --color-warning-bg: light-dark(rgba(202, 138, 4, 0.1), rgba(251, 191, 36, 0.15));
-  --color-danger-bg: light-dark(rgba(220, 38, 38, 0.1), rgba(251, 113, 133, 0.15));
+  --color-info-bg: light-dark(#2563eb1a, #60a5fa26);
+  --color-success-bg: light-dark(#16a34a1a, #4ade8026);
+  --color-warning-bg: light-dark(#ca8a041a, #fbbf2426);
+  --color-danger-bg: light-dark(#dc26261a, #fb718526);
 
   /* Semantic Border Colors */
-  --color-info-border: light-dark(rgba(37, 99, 235, 0.25), rgba(96, 165, 250, 0.3));
-  --color-success-border: light-dark(rgba(22, 163, 74, 0.25), rgba(74, 222, 128, 0.3));
-  --color-warning-border: light-dark(rgba(202, 138, 4, 0.25), rgba(251, 191, 36, 0.3));
-  --color-danger-border: light-dark(rgba(220, 38, 38, 0.25), rgba(251, 113, 133, 0.3));
+  --color-info-border: light-dark(#2563eb40, #60a5fa4d);
+  --color-success-border: light-dark(#16a34a40, #4ade804d);
+  --color-warning-border: light-dark(#ca8a0440, #fbbf244d);
+  --color-danger-border: light-dark(#dc262640, #fb71854d);
 
   /* Shadows */
   --shadow-card: light-dark(0 12px 40px rgba(15, 23, 42, 0.08), 0 18px 40px rgba(2, 6, 23, 0.55));
   --shadow-card-soft: light-dark(0 8px 24px rgba(15, 23, 42, 0.05), 0 12px 30px rgba(2, 6, 23, 0.35));
 
   /* Badge Colors */
-  --badge-neutral-bg: light-dark(rgba(71, 85, 105, 0.15), rgba(148, 163, 184, 0.3));
+  --badge-neutral-bg: light-dark(#47556926, #94a3b84d);
   --badge-neutral-text: light-dark(#334155, #f8fafc);
-  --badge-info-bg: light-dark(rgba(14, 165, 233, 0.15), rgba(56, 189, 248, 0.28));
+  --badge-info-bg: light-dark(#0ea5e926, #38bdf847);
   --badge-info-text: light-dark(#0369a1, #d2f2ff);
-  --badge-success-bg: light-dark(rgba(22, 163, 74, 0.15), rgba(34, 197, 94, 0.25));
+  --badge-success-bg: light-dark(#16a34a26, #22c55e40);
   --badge-success-text: light-dark(#15803d, #bbf7d0);
-  --badge-warning-bg: light-dark(rgba(202, 138, 4, 0.15), rgba(250, 204, 21, 0.25));
+  --badge-warning-bg: light-dark(#ca8a0426, #facc1540);
   --badge-warning-text: light-dark(#a16207, #fef9c3);
-  --badge-danger-bg: light-dark(rgba(220, 38, 38, 0.15), rgba(248, 113, 113, 0.25));
+  --badge-danger-bg: light-dark(#dc262626, #f8717140);
   --badge-danger-text: light-dark(#b91c1c, #ffe4e6);
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+/* Solo aplica en dispositivos de escritorio (con puntero preciso y capacidad de hover) */
+@media (hover: hover) and (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
 
-::-webkit-scrollbar-thumb {
-  background-color: #767272a6;
-  border-radius: 1rem;
-}
+  ::-webkit-scrollbar-thumb {
+    background-color: #767272a6;
+    border-radius: 1rem;
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(97, 97, 97);
-  border-radius: 1rem;
-}
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #616161;
+  }
 
-::-webkit-scrollbar-track {
-  background-color: #00000000;
-}
+  ::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
 
-::-webkit-scrollbar-corner {
-  color: #000
+  ::-webkit-scrollbar-corner {
+    background-color: transparent; 
+  }
 }
 
 
@@ -189,4 +191,11 @@ html,
 body,
 #root {
   @apply bg-bg text-text overflow-x-hidden;
+}
+
+/* 2026 Shimmer Sweep Animation for Skeletons */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }

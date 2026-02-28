@@ -1,25 +1,21 @@
-import { lazy, Component, onMount } from 'solid-js';
-import { createRouter, createRootRoute, createRoute, RouterProvider, Outlet, redirect, useParams } from '@tanstack/solid-router';
+import { Component, onMount } from 'solid-js';
+import { createRouter, createRootRoute, createRoute, RouterProvider, Outlet, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 
 import MainLayout from './layout/MainLayout';
 import { createAuthRoutes } from './modules/auth/auth.routes';
+import { createSuppliersRoutes } from './modules/suppliers/suppliers.routes';
+import { createUsersRoutes } from './modules/users/users.routes';
 
 import { connect as connectWs } from './shared/store/ws.store';
-import { actions as moduleActions } from './shared/store/modules.store';
 import { queryClient } from './shared/lib/queryClient';
 
+import GlobalPageLoader from './shared/ui/GlobalPageLoader';
+import { ProfilePendingComponent } from './modules/profile/views/ProfilePage';
+
 // --- LAZY COMPONENTS ---
-const Dashboard = lazy(() => import('./modules/dashboard/views/Dashboard')) as Component;
-const UsersRolesPage = lazy(() => import('./modules/users/views/UsersRolesPage')) as Component;
-
-const SuppliersPage = lazy(() => import('./modules/suppliers/views/SuppliersPage')) as Component;
-const ProfilePage = lazy(() => import('./modules/profile/views/ProfilePage')) as Component;
-const NotFound = lazy(() => import('./shared/pages/NotFound')) as Component;
-
-// Suppliers components - Sheet pattern
-const SupplierNewSheet = lazy(() => import('./modules/suppliers/components/SupplierNewSheet')) as Component;
-const SupplierEditSheet = lazy(() => import('./modules/suppliers/components/SupplierEditSheet')) as Component<{ supplierId: number }>;
-const SupplierShowPanel = lazy(() => import('./modules/suppliers/components/SupplierShowPanel')) as Component<{ supplierId: number }>;
+const Dashboard = lazyRouteComponent(() => import('./modules/dashboard/views/Dashboard'));
+const NotFound = lazyRouteComponent(() => import('./shared/pages/NotFound'));
+const ProfilePage = lazyRouteComponent(() => import('./modules/profile/views/ProfilePage'));
 
 // --- ROOT ---
 const rootRoute = createRootRoute({
@@ -33,7 +29,6 @@ const authRoute = createAuthRoutes(rootRoute);
 // --- PROTECTED LAYOUT ---
 const ProtectedLayout: Component = () => {
   onMount(() => {
-    moduleActions.fetchModules();
     connectWs();
   });
 
@@ -61,29 +56,36 @@ const layoutRoute = createRoute({
 
     throw redirect({ to: '/login', search: { redirect: location.href } });
   },
+  loader: async () => {
+    // Parallel Fetching: the Sidebar items will be downloaded IN PARALLEL 
+    // with any child route (like /profile or /suppliers).
+    // This entirely prevents layout shifting after the page mounts.
+    const { actions } = await import('./shared/store/modules.store');
+    return actions.fetchModules();
+  },
   component: ProtectedLayout,
 });
 
 // --- HELPER: Permission-guarded module route ---
-const createModuleRoute = (opts: {
-  path: string;
-  permission: string;
-  component: Component;
-  parent?: any;
-  loader?: () => Promise<void> | void;
-}) =>
-  createRoute({
-    getParentRoute: () => opts.parent ?? layoutRoute,
-    path: opts.path,
-    beforeLoad: async () => {
-      const { useAuth } = await import('./modules/auth/store/auth.store');
-      if (!useAuth().canRead(opts.permission)) {
-        throw redirect({ to: '/dashboard' });
-      }
-    },
-    loader: opts.loader,
-    component: () => <opts.component />,
-  });
+// const createModuleRoute = (opts: {
+//   path: string;
+//   permission: string;
+//   component: Component;
+//   parent?: any;
+//   loader?: () => Promise<void> | void;
+// }) =>
+//   createRoute({
+//     getParentRoute: () => opts.parent ?? layoutRoute,
+//     path: opts.path,
+//     beforeLoad: async () => {
+//       const { useAuth } = await import('./modules/auth/store/auth.store');
+//       if (!useAuth().canRead(opts.permission)) {
+//         throw redirect({ to: '/dashboard' });
+//       }
+//     },
+//     loader: opts.loader,
+//     component: () => <opts.component />,
+//   });
 
 // --- ROUTES ---
 const indexRoute = createRoute({
@@ -98,18 +100,7 @@ const dashboardRoute = createRoute({
   component: () => <Dashboard />,
 });
 
-const systemUsersRoute = createModuleRoute({
-  path: '/system/users',
-  permission: 'users',
-  component: UsersRolesPage,
-  loader: async () => {
-    // Parallel Fetching: Start data request while JS chunk is downloading
-    const { usersApi } = await import('./modules/users/data/users.api');
-    const { rbacKeys } = await import('./modules/users/data/users.keys');
-    queryClient.prefetchQuery({ queryKey: rbacKeys.users(), queryFn: () => usersApi.listUsersWithRoles() });
-    queryClient.prefetchQuery({ queryKey: rbacKeys.roles(), queryFn: () => usersApi.listRoles() });
-  }
-});
+// Users routes are now managed in users.routes.tsx
 
 const settingsGeneralRoute = createRoute({
   getParentRoute: () => layoutRoute,
@@ -120,63 +111,11 @@ const settingsGeneralRoute = createRoute({
 const profileRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: '/profile',
-  component: () => <ProfilePage />,
+  pendingComponent: ProfilePendingComponent,
+  component: ProfilePage,
 });
 
-const suppliersRoute = createModuleRoute({
-  path: 'suppliers',
-  permission: 'suppliers',
-  component: SuppliersPage,
-  loader: async () => {
-    // Parallel Fetching: Start data request while JS chunk is downloading
-    const { suppliersApi } = await import('./modules/suppliers/data/suppliers.api');
-    const { supplierKeys } = await import('./modules/suppliers/data/suppliers.api');
-    
-    // El módulo de Suppliers usa keyset pagination, con un default de limit: 10 y direction: 'first'
-    const defaultFilters = { limit: 10, direction: 'first' as const };
-    
-    queryClient.prefetchQuery({
-      queryKey: supplierKeys.list(defaultFilters),
-      queryFn: () => suppliersApi.list(defaultFilters),
-    });
-  }
-});
-
-const suppliersIndexRoute = createRoute({
-  getParentRoute: () => suppliersRoute,
-  path: '/',
-  component: () => null,
-});
-
-const supplierNewRoute = createRoute({
-  getParentRoute: () => suppliersRoute,
-  path: 'new',
-  component: () => <SupplierNewSheet />,
-});
-
-const SupplierEditWrapper = () => {
-  const params = useParams({ strict: false });
-  const supplierId = Number(params()?.id) || 0;
-  return <SupplierEditSheet supplierId={supplierId} />;
-};
-
-const SupplierShowWrapper = () => {
-  const params = useParams({ strict: false });
-  const supplierId = Number(params()?.id) || 0;
-  return <SupplierShowPanel supplierId={supplierId} />;
-};
-
-export const supplierEditRoute = createRoute({
-  getParentRoute: () => suppliersRoute,
-  path: 'edit/$id',
-  component: SupplierEditWrapper,
-});
-
-export const supplierShowRoute = createRoute({
-  getParentRoute: () => suppliersRoute,
-  path: 'show/$id',
-  component: SupplierShowWrapper,
-});
+// Suppliers routes are now managed in suppliers.routes.tsx
 
 // --- ROUTE TREE ---
 const routeTree = rootRoute.addChildren([
@@ -184,17 +123,13 @@ const routeTree = rootRoute.addChildren([
   layoutRoute.addChildren([
     indexRoute,
     dashboardRoute,
-    systemUsersRoute,
+    createUsersRoutes(layoutRoute),
     settingsGeneralRoute,
     profileRoute,
-    suppliersRoute.addChildren([
-      suppliersIndexRoute,
-      supplierNewRoute,
-      supplierEditRoute,
-      supplierShowRoute,
-    ]),
+    createSuppliersRoutes(layoutRoute),
   ]),
 ]);
+
 
 // --- ROUTER ---
 const router = createRouter({
@@ -202,6 +137,23 @@ const router = createRouter({
   context: { queryClient },
   defaultPreload: 'intent',
   defaultPreloadDelay: 100,
+  defaultViewTransition: false,
+  defaultPendingComponent: GlobalPageLoader,
+  defaultErrorComponent: ({ error }) => {
+    console.error(error);
+    return (
+      <div class="p-6 text-center text-danger">
+        <h2 class="text-lg font-bold">Algo salió mal</h2>
+        <p class="text-sm">Ha ocurrido un error inesperado al cargar la página.</p>
+        <button 
+          onClick={() => window.location.reload()}
+          class="mt-4 px-4 py-2 bg-danger/10 text-danger rounded-lg text-sm"
+        >
+          Recargar página
+        </button>
+      </div>
+    );
+  }
 });
 
 declare module '@tanstack/solid-router' {

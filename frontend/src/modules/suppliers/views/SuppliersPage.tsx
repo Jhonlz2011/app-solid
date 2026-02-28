@@ -532,7 +532,7 @@ const SuppliersPage: Component = () => {
                     <DataTable
                         data={suppliers()}
                         columns={columns()}
-                        isLoading={suppliersQuery.isPending}
+                        isLoading={suppliersQuery.isPending || (suppliersQuery.isFetching && suppliers().length === 0)}
                         isPlaceholderData={suppliersQuery.isPlaceholderData}
                         // Pagination state (for display)
                         pagination={{ pageIndex: 0, pageSize: pageSize() }}

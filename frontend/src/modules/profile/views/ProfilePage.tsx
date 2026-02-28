@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { actions as authActions } from '@modules/auth/store/auth.store';
 import { useProfile, useUpdateProfile, useChangePassword, profileKeys } from '../data/profile.api';
-import { ProfileHeader } from '../components/ProfileHeader';
+import { ProfileHeader, ProfileHeaderSkeleton } from '../components/ProfileHeader';
 import { AccountSection } from '../components/AccountSection';
 import { SecuritySection } from '../components/SecuritySection';
 import { SessionsSection } from '../components/SessionsSection';
@@ -12,7 +12,29 @@ import { ShieldIcon, UserIcon, DeviceIcon } from '@shared/ui/icons';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
+import { Skeleton } from '@shared/ui/Skeleton';
 
+export const ProfilePendingComponent: Component = () => (
+    <div class="w-full p-4 sm:p-6 max-w-3xl mx-auto">
+        <div class="animate-in fade-in duration-300">
+            <ProfileHeaderSkeleton />
+            <div class="mt-6 mb-6 flex gap-6 border-b border-border">
+                <Skeleton class="h-8 w-24 mb-2 rounded" />
+                <Skeleton class="h-8 w-24 mb-2 rounded" />
+                <Skeleton class="h-8 w-24 mb-2 rounded" />
+            </div>
+            <div class="bg-card border border-border rounded-xl p-6 shadow-sm">
+                <Skeleton class="h-6 w-48 mb-2 rounded" />
+                <Skeleton class="h-4 w-64 mb-6 rounded" />
+                <div class="space-y-4">
+                    <Skeleton class="h-12 w-full rounded-xl" />
+                    <Skeleton class="h-12 w-full rounded-xl" />
+                    <Skeleton class="h-12 w-48 mt-4 rounded-xl" />
+                </div>
+            </div>
+        </div>
+    </div>
+);
 
 const ProfilePage: Component = () => {
     const queryClient = useQueryClient();
@@ -61,10 +83,10 @@ const ProfilePage: Component = () => {
 
     return (
         <div class="w-full p-4 sm:p-6 max-w-3xl mx-auto">
-            {/* Loading State */}
+            {/* Loading State - Graceful fallback if loader was bypassed */}
             <Show when={profileQuery.isLoading && !profile()}>
-                <div class="flex justify-center py-16">
-                    <div class="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
+                <div class="animate-in fade-in duration-300 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6">
+                    <ProfilePendingComponent />
                 </div>
             </Show>
 
@@ -123,7 +145,6 @@ const ProfilePage: Component = () => {
                                         isUpdating={updateProfileMutation.isPending}
                                     />
                                 </TabsContent>
-
                                 <TabsContent value="security" forceMount>
                                     <SecuritySection
                                         onChangePassword={handleChangePassword}
@@ -134,11 +155,10 @@ const ProfilePage: Component = () => {
                                     <SessionsSection />
                                 </TabsContent>
                             </div>
-
                         </Tabs>
                     </>
                 )}
-            </Show>
+             </Show>
         </div>
     );
 };

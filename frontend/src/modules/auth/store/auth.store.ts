@@ -240,15 +240,15 @@ export const useAuth = () => {
         hasPermission: (perm: string) => {
             const u = state.user;
             if (!u?.permissions) return false;
-            if (u.roles?.includes('admin') || u.roles?.includes('superadmin')) return true;
+            if (u.roles?.includes('superadmin')) return true;
             return u.permissions.includes(perm);
         },
-        isAdmin: () => state.user?.roles?.includes('admin') || state.user?.roles?.includes('superadmin') || false,
+        isAdmin: () => state.user?.roles?.includes('superadmin') || false,
         hasRole: (role: string) => state.user?.roles?.includes(role) || false,
         canRead: (module: string) => {
             const u = state.user;
             if (!u) return false;
-            if (u.roles?.includes('admin') || u.roles?.includes('superadmin')) return true;
+            if (u.roles?.includes('superadmin')) return true;
             return u.permissions?.includes(`${module}.read`) || false;
         },
         canAdd: (module: string) => {

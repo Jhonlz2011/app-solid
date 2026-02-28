@@ -11,7 +11,7 @@ const MainLayout: Component = () => {
     const location = useLocation();
 
     return (
-        <div class="flex h-screen bg-background overflow-hidden">
+        <div class="flex h-screen bg-background overflow-hidden relative">
             <MobileHeader />
             <Sidebar />
 
@@ -19,7 +19,7 @@ const MainLayout: Component = () => {
                 use:scrollBar={location().pathname}
                 class="flex-1 relative min-w-0 bg-background"
             >
-                <div class="flex flex-col min-h-full pt-14 sm:pt-0 overflow-hidden">
+                <div class="flex flex-col min-h-full pt-14 sm:pt-0 overflow-hidden relative">
                     <Outlet />
                 </div>
             </main>
