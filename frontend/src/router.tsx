@@ -9,7 +9,7 @@ import { createUsersRoutes } from './modules/users/users.routes';
 import { connect as connectWs } from './shared/store/ws.store';
 import { queryClient } from './shared/lib/queryClient';
 
-import GlobalPageLoader from './shared/ui/GlobalPageLoader';
+import { LayoutSkeleton } from './layout/MainLayout';
 import { ProfilePendingComponent } from './modules/profile/views/ProfilePage';
 
 // --- LAZY COMPONENTS ---
@@ -63,6 +63,7 @@ const layoutRoute = createRoute({
     const { actions } = await import('./shared/store/modules.store');
     return actions.fetchModules();
   },
+  pendingComponent: LayoutSkeleton,
   component: ProtectedLayout,
 });
 
@@ -138,7 +139,6 @@ const router = createRouter({
   defaultPreload: 'intent',
   defaultPreloadDelay: 100,
   defaultViewTransition: false,
-  defaultPendingComponent: GlobalPageLoader,
   defaultErrorComponent: ({ error }) => {
     console.error(error);
     return (

@@ -1,5 +1,6 @@
 import { createRoute, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
+import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
 
 // --- LAZY COMPONENTS ---
 const UsersRolesPage = lazyRouteComponent(() => import('./views/UsersRolesPage'));
@@ -26,6 +27,7 @@ export const createUsersRoutes = (layoutRoute: any) => {
         queryClient.prefetchQuery({ queryKey: rbacKeys.roles(), queryFn: () => usersApi.listRoles() })
       ]);
     },
+    pendingComponent: GlobalPageLoader,
     component: UsersRolesPage,
   });
 

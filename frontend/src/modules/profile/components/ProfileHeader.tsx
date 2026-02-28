@@ -20,7 +20,6 @@ export const ProfileHeaderSkeleton: Component = () => (
                 {/* Badges Skeleton */}
                 <div class="flex flex-wrap justify-center sm:justify-start gap-2 mt-2">
                     <Skeleton class="h-6 w-20 rounded-full" />
-                    <Skeleton class="h-6 w-24 rounded-full" />
                 </div>
             </div>
 

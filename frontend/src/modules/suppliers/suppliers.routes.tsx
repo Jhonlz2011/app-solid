@@ -1,6 +1,7 @@
 import { Component } from 'solid-js';
 import { createRoute, redirect, useParams, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
+import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
 
 // --- LAZY COMPONENTS ---
 const SuppliersPage = lazyRouteComponent(() => import('./views/SuppliersPage'));
@@ -44,6 +45,7 @@ export const createSuppliersRoutes = (layoutRoute: any) => {
         staleTime: 60 * 1000,
       });
     },
+    pendingComponent: GlobalPageLoader,
     component: SuppliersPage,
   });
 

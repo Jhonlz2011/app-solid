@@ -58,7 +58,7 @@ const TableSkeleton: Component<{ rows?: number }> = (props) => (
 // Used by <Suspense> in MainLayout and pendingComponent in router.
 // =============================================================================
 const GlobalPageLoader: Component = () => (
-    <div class="absolute inset-0 w-full h-full flex flex-col bg-background z-50 animate-in fade-in duration-300">
+    <div class="w-full h-full flex flex-col bg-background animate-in fade-in duration-300">
         {/* Header area */}
         <div class="flex-shrink-0 p-6 space-y-5">
             <PageHeaderSkeleton />
