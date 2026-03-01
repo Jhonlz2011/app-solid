@@ -1,4 +1,4 @@
-import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
+import { createRoute, redirect } from '@tanstack/solid-router';
 import AuthLayout from '@layout/AuthLayout';
 import Login from './pages/Login';
 

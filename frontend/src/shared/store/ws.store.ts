@@ -14,6 +14,7 @@ const [isConnected, setIsConnected] = createSignal(false);
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 let reconnectAttempts = 0;
 let shouldReconnect = true;
+let lastConnectTime = 0;
 const pendingSubscriptions = new Set<string>();
 const activeSubscriptions = new Set<string>();
 
@@ -50,7 +51,7 @@ export const connect = () => {
         newWs.onopen = () => {
             console.log('✅ WebSocket Connected');
             setIsConnected(true);
-            reconnectAttempts = 0;
+            lastConnectTime = Date.now();
 
             // Process pending subscriptions
             pendingSubscriptions.forEach(room => subscribe(room));
@@ -78,11 +79,29 @@ export const connect = () => {
             }
         };
 
-        newWs.onclose = () => {
-            console.log('❌ WebSocket Disconnected');
+        newWs.onclose = (event) => {
+            console.log(`❌ WebSocket Disconnected (Code: ${event.code})`, event.reason);
             setSocket(null);
             setIsConnected(false);
-            attemptReconnect();
+            
+            // Elegance: If the connection survived for more than 2 seconds before closing, 
+            // it was a stable connection that eventually dropped (e.g., lost wifi). 
+            // We fully reset the backoff counter to try reconnecting aggressively again.
+            // If it closed immediately (e.g., 401 unauthorized drop), we don't reset, letting 
+            // the exponential backoff delay grow or reach MAX_RECONNECT_ATTEMPTS.
+            if (Date.now() - lastConnectTime > 2000) {
+                reconnectAttempts = 0;
+            }
+            
+            // If the server drops us due to Policy Violation (1008) or Normal Closure (1000)
+            // right after authentication failure, we halt reconnections and trigger global logout.
+            if (event.code === 1008 || event.code === 4001 || event.code === 4003) {
+                console.warn('WS Closed due to Auth Policy Violation. Halting reconnects.');
+                shouldReconnect = false;
+                window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+            } else {
+                attemptReconnect();
+            }
         };
 
         newWs.onerror = (err) => console.error('WS Error', err);
