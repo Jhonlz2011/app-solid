@@ -1,7 +1,6 @@
 import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import AuthLayout from '@layout/AuthLayout';
-
-const Login = lazyRouteComponent(() => import('./pages/Login'));
+import Login from './pages/Login';
 
 export const createAuthRoutes = (rootRoute: any) => {
     const authRoute = createRoute({
