@@ -227,6 +227,16 @@ export const actions = {
             }
             // For other sessions: SessionsSection.tsx handles the list refresh via its own listener
         }) as EventListener);
+
+        // GLOBAL 401 AUTHORIZATION DROP
+        // Triggered by either the WebSocket closing with 4001/1008 or the Eden API fetcher getting a 401.
+        window.addEventListener('auth:unauthorized', () => {
+            console.warn('[Auth] Detected 401 drop. Executing clean auto-logout...');
+            if (window.location.pathname !== '/login') {
+                actions.logout(false);
+                window.location.href = '/login';
+            }
+        });
     }
 };
 
