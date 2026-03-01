@@ -65,33 +65,33 @@ export const suppliersService = {
     /**
      * Create a new supplier
      */
-    async create(payload: EntityPayload) {
+    async create(payload: EntityPayload, clientId?: string) {
         return createEntity('supplier', {
             ...payload,
-        });
+        }, clientId);
     },
 
     /**
      * Update an existing supplier
      */
-    async update(id: number, payload: Partial<EntityPayload>) {
+    async update(id: number, payload: Partial<EntityPayload>, clientId?: string) {
         const current = await this.get(id);
-        return updateEntity(id, 'supplier', payload);
+        return updateEntity(id, 'supplier', payload, clientId);
     },
 
     /**
      * Deactivate a supplier (soft delete)
      */
-    async delete(id: number) {
+    async delete(id: number, clientId?: string) {
         const current = await this.get(id);
-        return deactivateEntity(id, 'supplier');
+        return deactivateEntity(id, 'supplier', clientId);
     },
 
     /**
      * Bulk delete (deactivate) multiple suppliers
      * Uses transaction for atomicity and single broadcast for efficiency
      */
-    async bulkDelete(ids: number[]) {
+    async bulkDelete(ids: number[], clientId?: string) {
         if (ids.length === 0) {
             return { success: true, count: 0 };
         }
@@ -127,7 +127,8 @@ export const suppliersService = {
             // Single WebSocket broadcast for all deleted items
             broadcast(WsEvents.ENTITY.DELETED, {
                 type: 'supplier',
-                ids: existingIds
+                ids: existingIds,
+                clientId: clientId
             }, 'suppliers');
 
             return {

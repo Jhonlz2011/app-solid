@@ -542,7 +542,7 @@ export async function getEntity(id: number) {
 /**
  * Create entity with type flags
  */
-export async function createEntity(type: EntityType, payload: EntityPayload) {
+export async function createEntity(type: EntityType, payload: EntityPayload, clientId?: string) {
     const existing = await db
         .select({ id: entities.id })
         .from(entities)
@@ -586,7 +586,7 @@ export async function createEntity(type: EntityType, payload: EntityPayload) {
 
         // Invalidate list and total caches (awaitable now)
         await cacheService.invalidate(`${type}s:*`);
-        broadcast(WsEvents.ENTITY.CREATED, { type, entity: created }, `${type}s`);
+        broadcast(WsEvents.ENTITY.CREATED, { type, entity: created, clientId }, `${type}s`);
 
         return created;
     });
@@ -599,7 +599,7 @@ export async function createEntity(type: EntityType, payload: EntityPayload) {
 /**
  * Update entity
  */
-export async function updateEntity(id: number, type: EntityType, payload: Partial<EntityPayload>) {
+export async function updateEntity(id: number, type: EntityType, payload: Partial<EntityPayload>, clientId?: string) {
     return db.transaction(async (tx) => {
         const [updated] = await tx
             .update(entities)
@@ -633,8 +633,21 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
         }
 
         await cacheService.invalidate(`entity:${id}`);
-        await cacheService.invalidate(`${type}s:*`);
-        broadcast(WsEvents.ENTITY.UPDATED, { type, entity: updated }, `${type}s`);
+
+        // Granular cache invalidation (Plan implementation step 3)
+        // Only invalidate the full list caches if a sortable or filterable property changed.
+        const requiresListInvalidation = 
+            payload.businessName !== undefined || 
+            payload.taxId !== undefined ||
+            payload.personType !== undefined ||
+            payload.taxIdType !== undefined ||
+            payload.isCarrier !== undefined; // is_active isn't in payload here usually, but if added should trigger as well
+
+        if (requiresListInvalidation) {
+            await cacheService.invalidate(`${type}s:*`);
+        }
+
+        broadcast(WsEvents.ENTITY.UPDATED, { type, entity: updated, clientId }, `${type}s`);
 
         return updated;
     });
@@ -647,7 +660,7 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
 /**
  * Soft delete entity
  */
-export async function deactivateEntity(id: number, type: EntityType) {
+export async function deactivateEntity(id: number, type: EntityType, clientId?: string) {
     const [updated] = await db
         .update(entities)
         .set({ is_active: false })
@@ -658,7 +671,7 @@ export async function deactivateEntity(id: number, type: EntityType) {
 
     await cacheService.invalidate(`entity:${id}`);
     await cacheService.invalidate(`${type}s:*`);
-    broadcast(WsEvents.ENTITY.DELETED, { type, id }, `${type}s`);
+    broadcast(WsEvents.ENTITY.DELETED, { type, id, clientId }, `${type}s`);
 
     return { success: true };
 }

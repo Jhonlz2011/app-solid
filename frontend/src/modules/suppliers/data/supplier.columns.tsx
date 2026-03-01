@@ -9,8 +9,8 @@ import type { ColumnDef } from '@tanstack/solid-table';
 import type { SupplierListItem } from '../data/suppliers.api';
 import Checkbox from '@shared/ui/Checkbox';
 import { Badge, StatusBadge } from '@shared/ui/Badge';
-import { DataTableColumnHeader } from '@shared/ui/DataTableColumnHeader';
-import type { FilterOption } from '@shared/ui/DataTableColumnFilter';
+import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
+import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 import { EditIcon, TrashIcon } from '@shared/ui/icons';
 
 /** Filter configuration for a single column - uses accessors for SolidJS reactivity */

@@ -36,7 +36,7 @@ import { DataTable } from '@shared/ui/DataTable';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { SearchInput } from '@shared/ui/SearchInput';
 import { DropdownMenu } from '@shared/ui/DropdownMenu';
-import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTableSelectionBar';
+import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import Button from '@shared/ui/Button';
 import Switch from '@shared/ui/Switch';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';

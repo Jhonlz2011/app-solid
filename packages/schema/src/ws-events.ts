@@ -29,12 +29,13 @@ export type WsEventType = typeof WsEvents;
 export type EntityEvent = typeof WsEvents.ENTITY[keyof typeof WsEvents.ENTITY];
 export type RoomName = typeof WsEvents.ROOMS[keyof typeof WsEvents.ROOMS];
 
-// Event payload types
+// Payload types
 export interface EntityEventPayload {
     type: 'supplier' | 'client' | 'employee' | 'carrier';
     entity?: Record<string, unknown>;
     id?: number;
     ids?: number[];
+    clientId?: string; // The client that initiated the change (for optimistic UI syncing)
 }
 
 // Payload for user profile update (targeted to personal room user:{id})

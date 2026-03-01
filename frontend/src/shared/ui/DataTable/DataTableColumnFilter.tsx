@@ -8,12 +8,12 @@
  * - Active filter indicator on the trigger icon
  * - "Limpiar filtros" button to reset
  */
-import { Component, For, Show, JSX, createSignal, createMemo, onMount, onCleanup } from 'solid-js';
+import { Component, For, Show, JSX, createSignal, createMemo } from 'solid-js';
 import { createVirtualizer } from '@tanstack/solid-virtual';
-import { Popover } from './Popover';
-import Checkbox from './Checkbox';
-import { FilterIcon, SearchIcon } from './icons';
-import { cn } from '../lib/utils';
+import { Popover } from '../Popover';
+import Checkbox from '../Checkbox';
+import { FilterIcon, SearchIcon } from '../icons';
+import { cn } from '@shared/lib/utils';
 
 // =============================================================================
 // Types

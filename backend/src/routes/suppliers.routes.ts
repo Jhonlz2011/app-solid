@@ -79,8 +79,8 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     )
     .post(
         '/',
-        async ({ body, set }) => {
-            const supplier = await suppliersService.create(body);
+        async ({ body, set, headers }) => {
+            const supplier = await suppliersService.create(body, headers['x-client-id']);
             set.status = 201;
             return supplier;
         },
@@ -88,7 +88,7 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     )
     .put(
         '/:id',
-        ({ params, body }) => suppliersService.update(Number(params.id), body),
+        ({ params, body, headers }) => suppliersService.update(Number(params.id), body, headers['x-client-id']),
         {
             params: t.Object({ id: t.Numeric() }),
             body: SupplierUpdateSchema,
@@ -97,8 +97,8 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     // Bulk delete - must be before /:id to avoid route conflict
     .delete(
         '/bulk',
-        async ({ body }) => {
-            const result = await suppliersService.bulkDelete(body.ids);
+        async ({ body, headers }) => {
+            const result = await suppliersService.bulkDelete(body.ids, headers['x-client-id']);
             return result;
         },
         {
@@ -109,8 +109,8 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     )
     .delete(
         '/:id',
-        async ({ params, set }) => {
-            await suppliersService.delete(Number(params.id));
+        async ({ params, set, headers }) => {
+            await suppliersService.delete(Number(params.id), headers['x-client-id']);
             set.status = 204;
         },
         { params: t.Object({ id: t.Numeric() }) }

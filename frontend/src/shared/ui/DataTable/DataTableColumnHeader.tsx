@@ -1,9 +1,9 @@
 import { Show, JSX } from 'solid-js';
 import type { Column } from '@tanstack/solid-table';
-import { DropdownMenu } from './DropdownMenu';
+import { DropdownMenu } from '../DropdownMenu';
 import { DataTableColumnFilter, type FilterOption } from './DataTableColumnFilter';
-import { ArrowUpIcon, ArrowDownIcon, EyeOffIcon, PinIcon, PinOffIcon, ChevronsUpDownIcon } from './icons';
-import { cn } from '../lib/utils';
+import { ArrowUpIcon, ArrowDownIcon, EyeOffIcon, PinIcon,   PinOffIcon, ChevronsUpDownIcon } from '../icons';
+import { cn } from '@shared/lib/utils';
 
 // ============================================================================
 // DataTableColumnHeader - Advanced column header for TanStack Table

@@ -12,7 +12,8 @@
 import { onMount, onCleanup } from 'solid-js';
 import { useQueryClient } from '@tanstack/solid-query';
 import { subscribe, unsubscribe } from '../store/ws.store';
-import { WsEvents } from '@app/schema/ws-events';
+import { WsEvents, type EntityEventPayload } from '@app/schema/ws-events';
+import { clientId } from '../lib/eden';
 
 const DEFAULT_EVENTS = [
     WsEvents.ENTITY.CREATED,
@@ -44,11 +45,20 @@ export function useDataTableWebSocket(options: UseDataTableWebSocketOptions) {
 
         /**
          * Smart invalidation handler:
+         * - IGNORE: if the event was triggered by our own clientId (handled optimistically by TanStack Query mutations)
          * - CREATED: only invalidates first-page queries (cursor pagination optimization)
-         * - UPDATED/DELETED/other: invalidates all list queries
+         * - UPDATED: localized cache injection without network refetch
+         * - DELETED: localized slice removal without network refetch
          */
-        const createHandler = (eventName: string) => () => {
+        const createHandler = (eventName: string) => (e: Event) => {
+            const customEvent = e as CustomEvent<EntityEventPayload>;
+            const eventData = customEvent.detail;
+
+            // 1) Ignore events triggered by our own client (already handled by optimistic updates)
+            if (eventData?.clientId === clientId) return;
+
             if (eventName === WsEvents.ENTITY.CREATED) {
+                // For new items, we invalidate the first page so it appears at the top
                 queryClient.invalidateQueries({
                     queryKey: options.queryKey,
                     predicate: (query) => {
@@ -58,13 +68,46 @@ export function useDataTableWebSocket(options: UseDataTableWebSocketOptions) {
                         return !filters.cursor || filters.direction === 'first';
                     },
                 });
+            } else if (eventName === WsEvents.ENTITY.UPDATED && eventData?.entity) {
+                // Localized cache update: replace the entity in existing lists
+                queryClient.setQueriesData({ queryKey: options.queryKey }, (old: any) => {
+                    if (!old || !old.data) return old;
+                    return {
+                        ...old,
+                        data: old.data.map((item: any) => 
+                            item.id === eventData.entity!.id ? { ...item, ...eventData.entity } : item
+                        )
+                    };
+                });
+                
+                // Also invalidate the detail query for this specific entity
+                if (options.queryKey.length > 0 && typeof options.queryKey[0] === 'string') {
+                    // e.g. ['suppliers', 'detail', 123]
+                    const rootKey = options.queryKey[0];
+                    queryClient.invalidateQueries({ queryKey: [rootKey, 'detail', eventData.entity.id] });
+                }
+            } else if (eventName === WsEvents.ENTITY.DELETED) {
+                // Localized cache removal: filter out the deleted ID(s)
+                const idsToRemove = eventData?.ids || (eventData?.id ? [eventData.id] : []);
+                if (idsToRemove.length === 0) return;
+                
+                queryClient.setQueriesData({ queryKey: options.queryKey }, (old: any) => {
+                    if (!old || !old.data) return old;
+                    const idSet = new Set(idsToRemove);
+                    return {
+                        ...old,
+                        data: old.data.filter((item: any) => !idSet.has(item.id)),
+                        meta: { ...old.meta, total: Math.max(0, old.meta.total - idsToRemove.length) }
+                    };
+                });
             } else {
+                // Fallback for unknown events (or 'ws:connected' recovery)
                 queryClient.invalidateQueries({ queryKey: options.queryKey });
             }
         };
 
         // Register per-event handlers + the global WS recovery event
-        const handlers = new Map<string, () => void>();
+        const handlers = new Map<string, (e: Event) => void>();
         const allEvents = [...events, 'ws:connected'];
         
         allEvents.forEach(event => {
@@ -97,7 +140,13 @@ export function useRealtimeInvalidation(
     const queryClient = useQueryClient();
 
     onMount(() => {
-        const handleUpdate = () => {
+        const handleUpdate = (e: Event) => {
+            const customEvent = e as CustomEvent<EntityEventPayload>;
+            const eventData = customEvent.detail;
+            
+            // Ignore events triggered by our own client
+            if (eventData?.clientId === clientId) return;
+
             queryClient.invalidateQueries({ queryKey });
         };
 
