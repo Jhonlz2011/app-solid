@@ -21,9 +21,6 @@ export const SecuritySection: Component<SecuritySectionProps> = (props) => {
         },
         validatorAdapter: valibotValidator(),
         validators: {
-            // Validate onBlur for better performance
-            onBlur: ChangePasswordSchema,
-            // Also validate onSubmit as safety net
             onSubmit: ChangePasswordSchema,
         },
         onSubmit: async ({ value }) => {

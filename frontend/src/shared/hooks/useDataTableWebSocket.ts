@@ -63,9 +63,11 @@ export function useDataTableWebSocket(options: UseDataTableWebSocketOptions) {
             }
         };
 
-        // Register per-event handlers
+        // Register per-event handlers + the global WS recovery event
         const handlers = new Map<string, () => void>();
-        events.forEach(event => {
+        const allEvents = [...events, 'ws:connected'];
+        
+        allEvents.forEach(event => {
             const handler = createHandler(event);
             handlers.set(event, handler);
             window.addEventListener(event, handler);
@@ -99,12 +101,14 @@ export function useRealtimeInvalidation(
             queryClient.invalidateQueries({ queryKey });
         };
 
-        events.forEach(event => {
+        const allEvents = [...events, 'ws:connected'];
+
+        allEvents.forEach(event => {
             window.addEventListener(event, handleUpdate);
         });
 
         onCleanup(() => {
-            events.forEach(event => {
+            allEvents.forEach(event => {
                 window.removeEventListener(event, handleUpdate);
             });
         });

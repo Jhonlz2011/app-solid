@@ -52,6 +52,9 @@ export const connect = () => {
             console.log('✅ WebSocket Connected');
             setIsConnected(true);
             lastConnectTime = Date.now();
+            
+            // Broadcast connection recovery to the app (triggers cache invalidation for missed events)
+            window.dispatchEvent(new CustomEvent('ws:connected'));
 
             // Process pending subscriptions
             pendingSubscriptions.forEach(room => subscribe(room));
