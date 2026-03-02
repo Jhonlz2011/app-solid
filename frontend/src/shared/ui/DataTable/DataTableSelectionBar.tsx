@@ -9,7 +9,7 @@
  * - Glassmorphism styling matching the app's design system
  */
 import { Component, Show, JSX, createSignal, createEffect, on } from 'solid-js';
-import { XIcon } from './icons';
+import { XIcon } from '../icons';
 
 // =============================================================================
 // Types

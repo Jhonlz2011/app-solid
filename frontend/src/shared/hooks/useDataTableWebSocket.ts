@@ -148,7 +148,7 @@ export function useRealtimeInvalidation(
             if (eventData?.clientId === clientId) return;
 
             queryClient.invalidateQueries({ queryKey });
-        };
+        }
 
         const allEvents = [...events, 'ws:connected'];
 
