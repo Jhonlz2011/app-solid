@@ -53,7 +53,7 @@ const app = new Elysia({ prefix: '/api', aot: false })
       return origin ? allowedOrigins.has(origin) : false;
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'X-Requested-With', 'x-client-id'],
     credentials: true,
     preflight: true,
     maxAge: 86400
