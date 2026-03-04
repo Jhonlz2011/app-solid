@@ -27,7 +27,7 @@ import {
     type FacetData,
 } from '../data/suppliers.api';
 import { createSupplierColumns } from '../data/supplier.columns';
-import { useDataTableWebSocket } from '@shared/hooks/useDataTableWebSocket';
+import { useDataTableWebSocket, useRealtimeInvalidation } from '@shared/hooks/useDataTableWebSocket';
 import type { SupplierListItem } from '../data/suppliers.api';
 import { taxIdTypeLabels, personTypeLabels, isActiveLabels } from '../models/supplier.types';
 
@@ -91,10 +91,13 @@ const SuppliersPage: Component = () => {
     // ==========================================================================
     // WebSocket Real-time Updates
     // ==========================================================================
+    // Lists invalidation (smart: cursor-aware page targeting)
     useDataTableWebSocket({
         room: 'suppliers',
         queryKey: supplierKeys.lists(),
     });
+    // Facets invalidation (always full-invalidate: counts & options must stay fresh)
+    useRealtimeInvalidation(supplierKeys.facets());
 
     // ==========================================================================
     // Derived: Sort params & pagination mode

@@ -34,12 +34,11 @@ export const inventoryStock = pgTableV2("inventory_stock", {
 
 export const inventoryDimensionalItems = pgTableV2("inventory_dimensional_items", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    warehouse_id: integer("warehouse_id").references(() => warehouses.id),
-    product_id: integer("product_id").references(() => products.id),
+    warehouse_id: integer("warehouse_id").references(() => warehouses.id, { onDelete: 'cascade' }),
+    product_id: integer("product_id").references(() => products.id, { onDelete: 'cascade' }),
     parent_item_id: integer("parent_item_id"), // Scrap came from this sheet
     variant_id: integer("variant_id").references(() => productVariants.id),
     quantity: numeric("quantity", { precision: 12, scale: 4 }).default('1').notNull(),
-
     // IMPROVED: Real dimensions of this item (e.g., scrap 50x50cm)
     length_cm: numeric("length_cm", { precision: 12, scale: 4 }),
     width_cm: numeric("width_cm", { precision: 12, scale: 4 }),
