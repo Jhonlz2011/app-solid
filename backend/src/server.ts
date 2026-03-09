@@ -15,6 +15,7 @@ import { invoiceRoutes } from './routes/invoices.routes';
 import { materialRoutes } from './routes/materials.routes';
 import { bomRoutes } from './routes/bom.routes';
 import { modulesRoutes } from './routes/modules.routes';
+import { sriRoutes } from './routes/sri.routes';
 import { electronicDocumentsRoutes } from './routes/electronic-documents.routes';
 import { remissionGuidesRoutes } from './routes/remission-guides.routes';
 import { technicalVisitsRoutes } from './routes/technical-visits.routes';
@@ -24,14 +25,14 @@ import { rbacRoutes } from './routes/rbac.routes';
 
 // Plugins
 import { rateLimit } from './plugins/rate-limit';
-import { wsPlugin } from './plugins/ws';
+import { ssePlugin } from './plugins/sse';
 import { rbac } from './plugins/rbac';
 
 // Services & Config
 import { AuthError } from './services/auth.service';
 import { DomainError } from './services/errors';
 import { env } from './config/env';
-import { initWsRedisAdapter } from './plugins/ws';
+import { initSSERedisAdapter } from './plugins/sse';
 
 const allowedOrigins = new Set([
   env.FRONTEND_URL,
@@ -95,7 +96,7 @@ const app = new Elysia({ prefix: '/api', aot: false })
   // Core plugins
   .use(authRoutes)
   .use(rbac)
-  .use(wsPlugin)
+  .use(ssePlugin)
   // Rate limiting
   .use(rateLimit({
     max: env.NODE_ENV === 'production' ? 100 : 1000,
@@ -149,7 +150,8 @@ const app = new Elysia({ prefix: '/api', aot: false })
   .use(technicalVisitsRoutes)
   .use(quotationRoutes)
   .use(employeeSchedulesRoutes)
-  .use(rbacRoutes);
+  .use(rbacRoutes)
+  .use(sriRoutes)
 
 // Server configuration with optional Unix Socket support
 const serverConfig = {
@@ -163,7 +165,7 @@ app.listen(serverConfig);
 // Redis Pub/Sub — WebSocket adapter for real-time events
 (async () => {
   try {
-    await initWsRedisAdapter();
+    await initSSERedisAdapter();
     console.log('✅ Redis Pub/Sub initialized');
   } catch (error) {
     console.warn('⚠️ Redis Pub/Sub unavailable. Real-time updates may be limited.');
@@ -178,7 +180,7 @@ console.log(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📍 Address: ${serverAddress}
 📚 Swagger: ${serverAddress}/api/swagger
-🔌 WebSocket: ws://${app.server?.hostname}:${app.server?.port}/api/ws
+🔌 SSE: ${serverAddress}/api/sse
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
 

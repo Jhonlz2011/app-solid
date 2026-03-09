@@ -1,13 +1,18 @@
 import { treaty } from '@elysiajs/eden';
 import type { App } from '@backend/server';
 
-// -----------------------------------------------------------------------------
-// Global Client ID
-// Unique identifier for this browser tab/session instance.
-// Used by the backend to echo back events via WebSocket so we can ignore our own
-// mutations and prevent double-invalidations.
-// -----------------------------------------------------------------------------
-export const clientId = crypto.randomUUID();
+// Generates a unique ID for this tab instance.
+// Falls back to timestamp+random when crypto.randomUUID() is unavailable
+// (e.g. non-secure HTTP contexts like LAN IP access during development).
+
+// export const clientId = crypto.randomUUID();
+export const clientId = (() => {
+    try {
+        return crypto.randomUUID();
+    } catch {
+        return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    }
+})();
 
 export const api = treaty<App>(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
     fetcher: async (url, options) => {

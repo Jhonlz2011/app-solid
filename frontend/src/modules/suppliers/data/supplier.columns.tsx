@@ -7,11 +7,13 @@
 import { Show } from 'solid-js';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { SupplierListItem } from '../data/suppliers.api';
+import { useAuth } from '@/modules/auth/store/auth.store';
 import Checkbox from '@shared/ui/Checkbox';
 import { Badge, StatusBadge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
-import { EditIcon, TrashIcon } from '@shared/ui/icons';
+import { EditIcon, TrashIcon, RotateCcwIcon, MoreVerticalIcon, EyeIcon } from '@shared/ui/icons';
+import DropdownMenu from '@shared/ui/DropdownMenu';
 
 /** Filter configuration for a single column - uses accessors for SolidJS reactivity */
 export interface ColumnFilterConfig {
@@ -24,7 +26,8 @@ export interface ColumnFilterConfig {
 export interface SupplierColumnHandlers {
     onEdit: (supplier: SupplierListItem) => void;
     onDelete: (supplier: SupplierListItem) => void;
-    // Column filter configs (optional per column)
+    onView: (supplier: SupplierListItem) => void;
+    onRestore: (supplier: SupplierListItem) => void;
     filters?: {
         businessName?: ColumnFilterConfig;
         taxIdType?: ColumnFilterConfig;
@@ -38,15 +41,13 @@ export interface SupplierColumnHandlers {
  */
 export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnDef<SupplierListItem>[] {
     return [
-        // Selection column
         {
             id: 'select',
             header: ({ table }) => (
                 <Checkbox
                     indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
                     checked={table.getIsAllPageRowsSelected()}
-                    onChange={(checked) => table.toggleAllPageRowsSelected(checked)}
-                />
+                    onChange={(checked) => table.toggleAllPageRowsSelected(checked)}/>
             ),
             cell: ({ row }) => (
                 <div onClick={(e) => e.stopPropagation()}>
@@ -59,10 +60,9 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             size: 36,
             enableSorting: false,
             enableHiding: false,
-            enablePinning: false,
         },
 
-        // Business Name
+        // Business Name — click navigates to detail view
         {
             accessorKey: 'business_name',
             header: ({ column }) => (
@@ -78,8 +78,14 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             meta: { title: 'Razón Social' },
             size: 210,
             cell: (info) => (
-                <div class="min-w-0">
-                    <div class="font-medium text-text truncate">{info.getValue<string>()}</div>
+                <div
+                    class="min-w-0 cursor-pointer group/cell"
+                    title={info.getValue<string>()}
+                    onClick={(e) => { e.stopPropagation(); handlers.onView(info.row.original); }}
+                >
+                    <div class="font-medium text-text truncate group-hover/cell:text-primary transition-colors duration-150">
+                        {info.getValue<string>()}
+                    </div>
                     <Show when={info.row.original.trade_name}>
                         <div class="text-xs text-muted truncate">{info.row.original.trade_name}</div>
                     </Show>
@@ -87,7 +93,7 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             ),
         },
 
-        // Tax ID
+        // Tax ID — click navigates to detail view
         {
             accessorKey: 'tax_id',
             header: ({ column }) => (
@@ -103,8 +109,13 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             meta: { title: 'Identificación' },
             size: 170,
             cell: (info) => (
-                <div>
-                    <div class="font-mono text-sm font-semibold text-primary">{info.getValue<string>()}</div>
+                <div
+                    class="cursor-pointer group/cell"
+                    onClick={(e) => { e.stopPropagation(); handlers.onView(info.row.original); }}
+                >
+                    <div class="font-mono text-sm font-semibold text-primary group-hover/cell:underline underline-offset-2 transition-all duration-150">
+                        {info.getValue<string>()}
+                    </div>
                     <div class="text-xs text-muted">{info.row.original.tax_id_type}</div>
                 </div>
             ),
@@ -124,18 +135,7 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             ),
         },
 
-        // Address
-        {
-            accessorKey: 'address_fiscal',
-            header: ({ column }) => <DataTableColumnHeader column={column} title="Dirección" />,
-            meta: { title: 'Dirección' },
-            size: 200,
-            cell: (info) => (
-                <span class="text-sm text-muted truncate block max-w-full">
-                    {info.getValue<string>()}
-                </span>
-            ),
-        },
+
 
         // Person Type
         {
@@ -180,37 +180,63 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             cell: (info) => <StatusBadge isActive={info.getValue<boolean>()} />,
         },
 
-        // Actions
+        // Actions — adapts based on is_active state
         {
             id: 'actions',
             header: '',
-            size: 78,
+            size: 50,
             enableHiding: false,
-            enablePinning: false,
-            cell: (info) => (
-                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handlers.onEdit(info.row.original);
-                        }}
-                        class="p-1.5 rounded-lg hover:bg-blue-500/20 text-muted hover:text-blue-400"
-                        title="Editar"
-                    >
-                        <EditIcon class="size-4" />
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handlers.onDelete(info.row.original);
-                        }}
-                        class="p-1.5 rounded-lg hover:bg-red-500/20 text-muted hover:text-red-400"
-                        title="Eliminar"
-                    >
-                        <TrashIcon class='size-4' />
-                    </button>
-                </div>
-            ),
+            cell: (info) => {
+                const auth = useAuth();
+                const supplier = info.row.original;
+                const isActive = () => supplier.is_active;
+                const canDestroy = () => auth.hasPermission('suppliers:destroy');
+                const canRestore = () => auth.hasPermission('suppliers:restore') && !isActive();
+                const canEdit = () => auth.canEdit('suppliers');
+                const canDelete = () => auth.canDelete('suppliers') && isActive();
+               
+
+                return (
+                    <div class="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <DropdownMenu placement="bottom-end">
+                            <DropdownMenu.Trigger variant="ghost" class="size-8 p-0 data-[expanded]:bg-card-alt data-[expanded]:opacity-100" title="Acciones">
+                                <MoreVerticalIcon class="size-4" />
+                            </DropdownMenu.Trigger>
+                            <DropdownMenu.Content class="min-w-[160px]">
+                                <DropdownMenu.Item onSelect={() => handlers.onView(supplier)}>
+                                    <EyeIcon class="size-4 mr-2" />
+                                    <span>Ver detalles</span>
+                                </DropdownMenu.Item>
+                                
+                                <Show when={canEdit()}>
+                                    <DropdownMenu.Item onSelect={() => handlers.onEdit(supplier)}>
+                                        <EditIcon class="size-4 mr-2" />
+                                        <span>Editar</span>
+                                    </DropdownMenu.Item>
+                                </Show>
+
+                                <Show when={canRestore()}>
+                                    <DropdownMenu.Item onSelect={() => handlers.onRestore(supplier)}>
+                                        <RotateCcwIcon class="size-4 mr-2 text-emerald-500" />
+                                        <span class="text-emerald-500">Restaurar</span>
+                                    </DropdownMenu.Item>
+                                </Show>
+
+                                <Show when={canDelete() || canDestroy()}>
+                                    <DropdownMenu.Separator />
+                                    
+                                    <Show when={canDelete() || canDestroy()}>
+                                        <DropdownMenu.Item onSelect={() => handlers.onDelete(supplier)} destructive>
+                                            <TrashIcon class="size-4 mr-2" />
+                                            <span>Eliminar</span>
+                                        </DropdownMenu.Item>
+                                    </Show>
+                                </Show>
+                            </DropdownMenu.Content>
+                        </DropdownMenu>
+                    </div>
+                );
+            },
         },
     ];
 }

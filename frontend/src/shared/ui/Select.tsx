@@ -47,7 +47,7 @@ export const SelectTrigger: Component<Parameters<typeof KSelect.Trigger>[0] & { 
             class={`
         group flex w-full items-center justify-between 
         /* Dimensiones y Bordes */
-        px-4 py-2 rounded-xl border transition-all duration-200
+        px-4 py-1.5 rounded-xl border transition-all duration-200
         
         /* ESTADO NORMAL: */
         bg-card-alt border-border text-text

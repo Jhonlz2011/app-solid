@@ -1,5 +1,5 @@
 {
-  "id": "e83a6e8d-f990-4068-8ffa-352e6dd25ac7",
+  "id": "796ad0b4-b0b6-4de2-9420-657acd2f56a0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -125,19 +125,13 @@
           "name": "email_billing",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "phone": {
           "name": "phone",
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "address_fiscal": {
-          "name": "address_fiscal",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
         },
         "is_client": {
           "name": "is_client",
@@ -167,12 +161,27 @@
           "notNull": false,
           "default": false
         },
-        "sri_contributor_type": {
-          "name": "sri_contributor_type",
-          "type": "sri_contributor_type",
+        "tax_regime_type": {
+          "name": "tax_regime_type",
+          "type": "tax_regime_type",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "default": "'GENERAL'"
+        },
+        "is_retention_agent": {
+          "name": "is_retention_agent",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "is_special_contributor": {
+          "name": "is_special_contributor",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
         },
         "obligado_contabilidad": {
           "name": "obligado_contabilidad",
@@ -187,6 +196,25 @@
           "primaryKey": false,
           "notNull": false,
           "default": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deleted_by": {
+          "name": "deleted_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -367,8 +395,33 @@
           "primaryKey": false,
           "notNull": true
         },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Ecuador'"
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "city": {
           "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parish": {
+          "name": "parish",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "postal_code": {
+          "name": "postal_code",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2834,7 +2887,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "inventory_dimensional_items_product_id_products_id_fk": {
@@ -2847,7 +2900,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "inventory_dimensional_items_variant_id_product_variants_id_fk": {
@@ -6015,7 +6068,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "electronic_documents_work_order_id_work_orders_id_fk": {
@@ -7466,23 +7519,24 @@
         "ECOMMERCE"
       ]
     },
-    "public.sri_contributor_type": {
-      "name": "sri_contributor_type",
-      "schema": "public",
-      "values": [
-        "RIMPE_POPULAR",
-        "RIMPE_EMPRENDEDOR",
-        "GENERAL",
-        "ESP_AGENT"
-      ]
-    },
     "public.tax_id_type": {
       "name": "tax_id_type",
       "schema": "public",
       "values": [
         "RUC",
         "CEDULA",
-        "PASAPORTE"
+        "PASAPORTE",
+        "CONSUMIDOR_FINAL",
+        "EXTERIOR"
+      ]
+    },
+    "public.tax_regime_type": {
+      "name": "tax_regime_type",
+      "schema": "public",
+      "values": [
+        "RIMPE_NEGOCIO_POPULAR",
+        "RIMPE_EMPRENDEDOR",
+        "GENERAL"
       ]
     },
     "public.technical_visit_status": {

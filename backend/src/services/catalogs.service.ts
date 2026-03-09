@@ -3,7 +3,7 @@ import { db } from '../db';
 import { uom, brands, attributeDefinitions, categories, categoryAttributes } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
-import { broadcast } from '../plugins/ws';
+import { broadcast } from '../plugins/sse';
 
 // ====== UOM (Units of Measure) ======
 

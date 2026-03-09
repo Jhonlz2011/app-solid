@@ -13,7 +13,7 @@ const Table: Component<ComponentProps<"table">> = (props) => {
 
 const TableHeader: Component<ComponentProps<"thead">> = (props) => {
     const [local, others] = splitProps(props, ["class"])
-    return <thead class={cn("[&_tr]:border-b [&_tr]:border-border", local.class)} {...others} />
+    return <thead class={cn("border-b border-border", local.class)} {...others} />
 }
 
 const TableBody: Component<ComponentProps<"tbody">> = (props) => {
@@ -42,21 +42,14 @@ const TableFooter: Component<ComponentProps<"tfoot">> = (props) => {
 const TableRow: Component<ComponentProps<"tr">> = (props) => {
     const [local, others] = splitProps(props, ["class"])
     return (
-        <tr
-            class={cn(
-                "group border-b border-border",
-                local.class
-            )}
-            {...others}
-        />
+        <tr class={cn("group border-b border-border", local.class)} {...others} />
     )
 }
 
 const TableHead: Component<ComponentProps<"th">> = (props) => {
     const [local, others] = splitProps(props, ["class"])
     return (
-        <th
-            class={cn(
+        <th class={cn(
                 "h-12 px-2 text-left align-middle font-medium text-muted [&:has([role=checkbox])]:pr-0",
                 local.class
             )}

@@ -3,7 +3,7 @@ import { db } from '../db';
 import { electronicDocuments, remissionGuides, entities } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
-import { broadcast } from '../plugins/ws';
+import { broadcast } from '../plugins/sse';
 import { getNextSequential } from './electronic-documents.service';
 
 interface RemissionGuidePayload {

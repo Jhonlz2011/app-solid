@@ -23,7 +23,7 @@ export const electronicDocuments = pgTableV2("electronic_documents", {
     issue_date: date("issue_date").notNull(),
 
     // Entidad relacionada (Cliente para factura, Transportista para guía, etc)
-    entity_id: integer("entity_id").references(() => entities.id).notNull(),
+    entity_id: integer("entity_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
     work_order_id: integer("work_order_id").references(() => workOrders.id),
 
     status: invoiceStatusEnum("status").default('DRAFT'),

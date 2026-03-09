@@ -12,7 +12,7 @@ import {
 } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
-import { broadcast } from '../plugins/ws';
+import { broadcast } from '../plugins/sse';
 
 type DocumentType = 'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'REMISSION_GUIDE' | 'PURCHASE_LIQUIDATION';
 type DocumentStatus = 'DRAFT' | 'SIGNED' | 'SENDING' | 'AUTHORIZED' | 'ANNULLED' | 'REJECTED';

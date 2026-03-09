@@ -12,7 +12,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
 
     return (
         <header
-            class="border-b border-border relative h-20 shrink-0"
+            class="border-b border-border relative h-18 shrink-0"
             data-collapsed={collapsed()}
         >
             {/* Logo Layer - Always visible */}

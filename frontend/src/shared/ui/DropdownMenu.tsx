@@ -1,6 +1,7 @@
 import { Component, JSX, splitProps } from 'solid-js';
 import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
 import { cn } from '../lib/utils';
+import { BUTTON_VARIANTS, BUTTON_SIZES } from './Button';
 
 // ============================================================================
 // DropdownMenu - Styled wrapper around Kobalte's DropdownMenu
@@ -21,6 +22,8 @@ interface DropdownMenuTriggerProps extends JSX.ButtonHTMLAttributes<HTMLButtonEl
     children: JSX.Element;
     class?: string;
     asChild?: boolean;
+    variant?: keyof typeof BUTTON_VARIANTS;
+    size?: keyof typeof BUTTON_SIZES;
 }
 
 interface DropdownMenuContentProps {
@@ -66,13 +69,19 @@ const Root: Component<DropdownMenuProps> = (props) => {
 
 // Trigger component
 const Trigger: Component<DropdownMenuTriggerProps> = (props) => {
-    const [local, others] = splitProps(props, ['children', 'class', 'asChild']);
+    const [local, others] = splitProps(props, ['children', 'class', 'asChild', 'variant', 'size']);
+    const variant = () => local.variant ?? 'ghost';
+    const size = () => local.size ?? 'none';
     return (
         <KobalteDropdownMenu.Trigger
             class={cn(
-                'inline-flex items-center justify-center gap-1 text-sm font-medium transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2',
-                'disabled:pointer-events-none disabled:opacity-50',
+                // Base — same as Button
+                'inline-flex items-center justify-center gap-2 rounded-xl font-medium cursor-pointer text-sm',
+                'outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+                // Variant + Size tokens shared with Button
+                BUTTON_VARIANTS[variant()],
+                BUTTON_SIZES[size()],
                 local.class
             )}
             {...others}
@@ -123,7 +132,7 @@ const Item: Component<DropdownMenuItemProps> = (props) => {
                 // Disabled state
                 'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
                 // Destructive variant - using danger semantic colors
-                local.destructive && 'text-danger focus:bg-danger-bg data-[highlighted]:bg-danger-bg',
+                local.destructive && 'text-danger font-medium data-[highlighted]:bg-danger/10',
                 local.class
             )}
             onSelect={local.onSelect}

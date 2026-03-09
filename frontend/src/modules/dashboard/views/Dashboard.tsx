@@ -1,12 +1,14 @@
 import { Component } from 'solid-js';
 import { useAuth } from '@modules/auth/store/auth.store';
+import { ScrollArea } from '@/layout/components/ScrollArea';
 
 const Dashboard: Component = () => {
   const auth = useAuth();
 
   return (
-    <div class="p-4 lg:p-6">
-      <div class="max-w-7xl mx-auto space-y-6">
+    <ScrollArea>
+      <div class="p-4 lg:p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
         <div class="bg-card border border-border shadow-card-soft rounded-2xl shadow-lg p-6">
           <h1 class="text-3xl font-bold mb-2">Dashboard ERP</h1>
           <p class="text-muted">Vista ejecutiva de órdenes, inventario y logística.</p>
@@ -92,8 +94,9 @@ const Dashboard: Component = () => {
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </ScrollArea>
   );
 };
 

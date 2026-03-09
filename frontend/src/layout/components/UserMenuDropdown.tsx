@@ -39,7 +39,7 @@ export const UserMenuDropdown: Component<UserMenuDropdownProps> = (props) => {
                         props.onLogout();
                     }}
                     disabled={props.isLoggingOut()}
-                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-semibold text-red-500 hover:bg-red-500/10 rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-1 focus-visible:ring-offset-transparent disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-semibold text-danger hover:bg-danger/10 rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-1 focus-visible:ring-offset-transparent disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                     <LogoutIcon class="size-4" />
                     {props.isLoggingOut() ? 'Cerrando sesión...' : 'Cerrar Sesión'}

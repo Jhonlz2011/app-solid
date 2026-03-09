@@ -82,7 +82,7 @@ const useTextFieldContext = () => {
 // ============================================================================
 const inputBaseStyles = `
     w-full bg-card-alt border border-border text-text 
-    rounded-xl px-4 py-2 outline-none 
+    rounded-xl px-4 py-1.5 outline-none 
     transition-all duration-200
     hover:border-border-strong hover:bg-card
     focus:border-primary/65 focus:ring-2 focus:ring-primary/25
@@ -157,7 +157,7 @@ const Root = (props: TextFieldRootProps) => {
     return (
         <TextFieldContext.Provider value={contextValue}>
             <div
-                class={`flex flex-col gap-1.5 ${local.class ?? ''}`}
+                class={`flex flex-col gap-1 ${local.class ?? ''}`}
                 data-valid={validationState() !== 'invalid'}
                 data-invalid={validationState() === 'invalid'}
             >

@@ -94,12 +94,11 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
             body: SupplierUpdateSchema,
         }
     )
-    // Bulk delete - must be before /:id to avoid route conflict
+    // Bulk deactivate (soft delete) — before /:id to avoid route conflict
     .delete(
         '/bulk',
         async ({ body, headers }) => {
-            const result = await suppliersService.bulkDelete(body.ids, headers['x-client-id']);
-            return result;
+            return suppliersService.bulkDelete(body.ids, headers['x-client-id']);
         },
         {
             body: t.Object({
@@ -107,10 +106,50 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
             })
         }
     )
+    // Bulk restore
+    .patch(
+        '/bulk/restore',
+        async ({ body, headers }) => {
+            return suppliersService.bulkRestore(body.ids, headers['x-client-id']);
+        },
+        {
+            body: t.Object({
+                ids: t.Array(t.Number(), { minItems: 1 })
+            })
+        }
+    )
+    // Pre-flight: check if entity has transactional references before hard delete
+    .get(
+        '/:id/can-delete',
+        ({ params }) => suppliersService.checkReferences(Number(params.id)),
+        { params: t.Object({ id: t.Numeric() }) }
+    )
+    // Soft delete (deactivate) — safe default, reversible
+    .patch(
+        '/:id/deactivate',
+        async ({ params, set, headers }) => {
+            await suppliersService.softDelete(
+                Number(params.id),
+                undefined, // deletedBy: wire to session user id when RBAC is available
+                headers['x-client-id']
+            );
+            set.status = 204;
+        },
+        { params: t.Object({ id: t.Numeric() }) }
+    )
+    // Restore a soft-deleted supplier
+    .patch(
+        '/:id/restore',
+        async ({ params, headers }) => {
+            return suppliersService.restore(Number(params.id), headers['x-client-id']);
+        },
+        { params: t.Object({ id: t.Numeric() }) }
+    )
+    // Hard delete — permanent, guarded by suppliers:destroy permission
     .delete(
         '/:id',
         async ({ params, set, headers }) => {
-            await suppliersService.delete(Number(params.id), headers['x-client-id']);
+            await suppliersService.hardDelete(Number(params.id), headers['x-client-id']);
             set.status = 204;
         },
         { params: t.Object({ id: t.Numeric() }) }

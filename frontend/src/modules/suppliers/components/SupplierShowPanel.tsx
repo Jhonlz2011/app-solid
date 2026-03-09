@@ -5,7 +5,7 @@ import { EditIcon, UserIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Button from '@shared/ui/Button';
 import Sheet from '@shared/ui/Sheet';
-import { personTypeLabels, sriContributorLabels, taxIdTypeLabels } from '../models/supplier.types';
+import { personTypeLabels, taxIdTypeLabels, taxRegimeTypeLabels } from '../models/supplier.types';
 import { StatusBadge } from '@shared/ui/Badge';
 
 interface SupplierShowPanelProps {
@@ -111,16 +111,18 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                     <h4 class="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Contacto</h4>
                                     <InfoRow label="Email Facturación" value={supplier().email_billing} />
                                     <InfoRow label="Teléfono" value={supplier().phone} />
-                                    <InfoRow label="Dirección Fiscal" value={supplier().address_fiscal} />
+                                    <InfoRow label="Dirección Fiscal" value={supplier().addresses?.[0]?.address_line} />
                                 </div>
 
                                 {/* Fiscal Section */}
                                 <div class="bg-surface/50 rounded-xl p-4 space-y-0.5">
                                     <h4 class="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Información Fiscal</h4>
                                     <InfoRow
-                                        label="Tipo Contribuyente"
-                                        value={supplier().sri_contributor_type ? sriContributorLabels[supplier().sri_contributor_type as keyof typeof sriContributorLabels] ?? supplier().sri_contributor_type : undefined}
+                                        label="Régimen Fiscal"
+                                        value={supplier().tax_regime_type ? taxRegimeTypeLabels[supplier().tax_regime_type as keyof typeof taxRegimeTypeLabels] ?? supplier().tax_regime_type : undefined}
                                     />
+                                    <InfoRow label="Agente de Retención" value={supplier().is_retention_agent} />
+                                    <InfoRow label="Contribuyente Especial" value={supplier().is_special_contributor} />
                                     <InfoRow label="Obligado Contabilidad" value={supplier().obligado_contabilidad} />
                                 </div>
 

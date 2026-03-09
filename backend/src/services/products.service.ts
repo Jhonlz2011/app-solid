@@ -4,7 +4,7 @@ import { products, bomHeaders, bomDetails, productDimensions } from '@app/schema
 import { type ProductInsertType } from '@app/schema/typebox';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
-import { broadcast } from '../plugins/ws';
+import { broadcast } from '../plugins/sse';
 
 // Use inferred type from schema for the base payload
 // type ProductInsert = InferInsertModel<typeof products>;

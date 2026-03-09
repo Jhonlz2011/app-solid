@@ -251,3 +251,44 @@ export const DownloadIcon: Component<IconProps> = (props) => (
         <line x1="12" x2="12" y1="15" y2="3" />
     </BaseIcon>
 );
+
+export const CopyIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </BaseIcon>
+);
+
+// Upload icon
+export const UploadIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" x2="12" y1="3" y2="15" />
+    </BaseIcon>
+);
+
+// Restore / undo action icon (counter-clockwise arrow)
+export const RotateCcwIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+    </BaseIcon>
+);
+
+// Warning triangle (used for reference warnings in delete dialogs)
+export const AlertTriangleIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+    </BaseIcon>
+);
+
+export const MoreVerticalIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <circle cx="12" cy="12" r="1" />
+        <circle cx="12" cy="5" r="1" />
+        <circle cx="12" cy="19" r="1" />
+    </BaseIcon>
+);

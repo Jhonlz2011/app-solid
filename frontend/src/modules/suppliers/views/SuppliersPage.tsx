@@ -20,6 +20,8 @@ import {
     useSuppliers,
     useDeleteSupplier,
     useBulkDeleteSupplier,
+    useBulkRestoreSupplier,
+    useRestoreSupplier,
     useSupplierFacets,
     supplierKeys,
     suppliersApi,
@@ -27,7 +29,7 @@ import {
     type FacetData,
 } from '../data/suppliers.api';
 import { createSupplierColumns } from '../data/supplier.columns';
-import { useDataTableWebSocket, useRealtimeInvalidation } from '@shared/hooks/useDataTableWebSocket';
+import { useDataTableSSE, useRealtimeInvalidation } from '@shared/hooks/useDataTableSSE';
 import type { SupplierListItem } from '../data/suppliers.api';
 import { taxIdTypeLabels, personTypeLabels, isActiveLabels } from '../models/supplier.types';
 
@@ -40,6 +42,10 @@ import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from
 import Button from '@shared/ui/Button';
 import Switch from '@shared/ui/Switch';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
+import SupplierDeleteDialog from '../components/SupplierDeleteDialog';
+import { SupplierCardList } from '../components/SupplierCardList';
+import { SupplierFilterSheet } from '../components/SupplierFilterSheet';
+import { useIsMobile } from '@shared/hooks/useIsMobile';
 
 // Icons
 import {
@@ -52,11 +58,18 @@ import {
     EyeOffIcon,
     PinOffIcon,
     DownloadIcon,
+    UploadIcon,
+    FilterIcon,
+    CopyIcon,
+    RotateCcwIcon,
+    ChevronsUpDownIcon,
 } from '@shared/ui/icons';
 
 const SuppliersPage: Component = () => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
+    const isMobile = useIsMobile();
+    const [showFilterSheet, setShowFilterSheet] = createSignal(false);
 
     // ==========================================================================
     // State - Hybrid Pagination (cursor + offset for sorted views)
@@ -92,12 +105,13 @@ const SuppliersPage: Component = () => {
     // WebSocket Real-time Updates
     // ==========================================================================
     // Lists invalidation (smart: cursor-aware page targeting)
-    useDataTableWebSocket({
+    useDataTableSSE({
         room: 'suppliers',
         queryKey: supplierKeys.lists(),
     });
-    // Facets invalidation (always full-invalidate: counts & options must stay fresh)
-    useRealtimeInvalidation(supplierKeys.facets());
+    // Facets invalidation: passes prefix ['suppliers', 'facets'] so ALL facet variants
+    // (regardless of active search/filter params) get invalidated via hierarchical matching.
+    useRealtimeInvalidation([...supplierKeys.all, 'facets']);
 
     // ==========================================================================
     // Derived: Sort params & pagination mode
@@ -142,7 +156,9 @@ const SuppliersPage: Component = () => {
     );
 
     const deleteMutation = useDeleteSupplier();
+    const bulkRestoreMutation = useBulkRestoreSupplier();
     const bulkDeleteMutation = useBulkDeleteSupplier();
+    const restoreMutation = useRestoreSupplier();
 
     // ==========================================================================
     // Derived Data
@@ -152,7 +168,15 @@ const SuppliersPage: Component = () => {
     const totalRows = () => meta()?.total ?? 0;
     const hasNextPage = () => meta()?.hasNextPage ?? false;
     const hasPrevPage = () => meta()?.hasPrevPage ?? false;
+    
+    // Selection state calculation
     const selectedCount = () => Object.keys(rowSelection()).length;
+    const selectedSuppliers = createMemo(() => {
+        const selection = rowSelection();
+        return suppliers().filter(s => selection[String(s.id)]);
+    });
+    const selectedActiveCount = () => selectedSuppliers().filter(s => s.is_active).length;
+    const selectedInactiveCount = () => selectedSuppliers().filter(s => !s.is_active).length;
 
     // Clamp page to valid range when pageCount changes (e.g. after sort change)
     createEffect(() => {
@@ -282,23 +306,59 @@ const SuppliersPage: Component = () => {
         });
     };
 
-    // Delete confirmation state
+    // Delete / Restore confirmation state
     const [deleteTarget, setDeleteTarget] = createSignal<SupplierListItem | null>(null);
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = createSignal(false);
+    const [showBulkRestoreConfirm, setShowBulkRestoreConfirm] = createSignal(false);
+    
+    // Actions
+    const handleCopySelection = async () => {
+        const selected = selectedSuppliers();
+        if (selected.length === 0) return;
+
+        const text = selected.map(s => {
+            const parts = [
+                `Empresa: ${s.business_name} (${s.tax_id})`,
+                s.email_billing ? `Correo: ${s.email_billing}` : null,
+                s.phone ? `Tel: ${s.phone}` : null,
+
+            ].filter(Boolean);
+            return parts.join(' | ');
+        }).join('\n');
+        
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                toast.success(`Copiado ${selected.length} proveedores al portapapeles`);
+            } else {
+                // Fallback for non-secure contexts (http)
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    toast.success(`Copiado ${selected.length} proveedores al portapapeles`);
+                } catch (err) {
+                    toast.error('Error al copiar al portapapeles');
+                }
+                document.body.removeChild(textArea);
+            }
+        } catch (err) {
+            toast.error('Error al copiar al portapapeles');
+        }
+        setRowSelection({});
+    };
 
     const handleDelete = (supplier: SupplierListItem) => {
         setDeleteTarget(supplier);
     };
 
-    const confirmDelete = () => {
-        const target = deleteTarget();
-        if (!target) return;
-        deleteMutation.mutate(target.id, {
-            onSuccess: () => {
-                toast.success('Proveedor eliminado');
-                setDeleteTarget(null);
-            },
-            onError: (err: any) => toast.error(err.message || 'Error al eliminar'),
+    const handleRestore = (supplier: SupplierListItem) => {
+        restoreMutation.mutate(supplier.id, {
+            onSuccess: () => toast.success(`Se ha restaurado '${supplier.business_name}'`),
+            onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
 
@@ -307,7 +367,10 @@ const SuppliersPage: Component = () => {
     };
 
     const confirmBulkDelete = () => {
-        const ids = Object.keys(rowSelection()).map(Number);
+        // Obtenemos solo los proveedores activos seleccionados
+        const ids = selectedSuppliers().filter(s => s.is_active).map(s => s.id);
+        if (ids.length === 0) return;
+        
         bulkDeleteMutation.mutate(ids, {
             onSuccess: () => {
                 toast.success(`${ids.length} proveedores eliminados`);
@@ -315,6 +378,21 @@ const SuppliersPage: Component = () => {
                 setShowBulkDeleteConfirm(false);
             },
             onError: (err: any) => toast.error(err.message || 'Error al eliminar'),
+        });
+    };
+
+    const confirmBulkRestore = () => {
+        // Obtenemos solo los proveedores inactivos seleccionados
+        const ids = selectedSuppliers().filter(s => !s.is_active).map(s => s.id);
+        if (ids.length === 0) return;
+
+        bulkRestoreMutation.mutate(ids, {
+            onSuccess: () => {
+                toast.success(`${ids.length} proveedores restaurados`);
+                setRowSelection({});
+                setShowBulkRestoreConfirm(false);
+            },
+            onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
 
@@ -348,8 +426,10 @@ const SuppliersPage: Component = () => {
     // ==========================================================================
     const columns = createMemo(() =>
         createSupplierColumns({
+            onView: handleView,
             onEdit: handleEdit,
             onDelete: handleDelete,
+            onRestore: handleRestore,
             filters: {
                 businessName: {
                     options: () => buildFilterOptions('business_name'),
@@ -382,7 +462,9 @@ const SuppliersPage: Component = () => {
     const configurableColumns = () => {
         const table = tableInstance();
         if (!table) return [];
-        return table.getAllLeafColumns().filter(col => col.getCanHide() || col.getCanPin());
+        return table.getAllLeafColumns().filter(
+            col => col.id !== 'select' && col.id !== 'actions' && (col.getCanHide() || col.getCanPin())
+        );
     };
 
     const hasCustomPinnedColumns = () => {
@@ -399,7 +481,7 @@ const SuppliersPage: Component = () => {
     return (
         <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
             {/* Header */}
-            <div class="flex-shrink-0 p-5 space-y-5">
+            <div class="flex-shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
                 <PageHeader
                     icon={<UsersIcon />}
                     iconBg="linear-gradient(135deg, #10b981, #059669)"
@@ -407,27 +489,59 @@ const SuppliersPage: Component = () => {
                     count={totalRows()}
                     info="Gestiona los proveedores de tu negocio. Puedes agregar, editar, eliminar y buscar proveedores."
                     actions={
-                        <Button onClick={handleNew} icon={<PlusIcon />}>
-                            Nuevo Proveedor
-                        </Button>
+                        <div class="flex items-center gap-2">
+                            <Button variant="outline" icon={<UploadIcon />} onClick={() => toast.info('Importación próximamente')}>
+                                <span class="hidden sm:inline">Importar</span>
+                            </Button>
+                            <Button onClick={handleNew} icon={<PlusIcon />}>
+                                <span class="hidden sm:inline">Nuevo</span>
+                            </Button>
+                        </div>
                     }
                 />
 
                 {/* Toolbar */}
-                <div class="flex flex-wrap items-center gap-3">
+                <div class="flex flex-wrap items-center gap-2 sm:gap-3">
                     <SearchInput
                         value={search()}
                         onSearch={handleSearchInput}
                         placeholder="Buscar proveedores..."
-                        class="flex-1 min-w-[200px] max-w-md"
+                        class="flex-1 w-full min-w-[150px] max-w-md"
                     />
 
-                    {/* Column Settings */}
-                    <DropdownMenu placement="bottom-end">
-                        <DropdownMenu.Trigger class="btn btn-ghost gap-2">
-                            <ColumnsIcon />
-                            <span class="hidden sm:inline">Columnas</span>
-                        </DropdownMenu.Trigger>
+                    <div class="flex items-center gap-2">
+                            {/* Export — always visible */}
+                            <Button variant="ghost" icon={<DownloadIcon />} onClick={() => toast.info('Exportación próximamente')}>
+                                <span class="hidden sm:inline">Exportar</span>
+                            </Button>
+
+                            {/* Mobile: Filter button (replaces Columns dropdown) */}
+                            <Show when={isMobile()}>
+                                <Button
+                                    variant="ghost"
+                                    class="relative"
+                                    icon={<FilterIcon />}
+                                    onClick={() => setShowFilterSheet(true)}
+                                >
+                                    <span class="hidden sm:inline">Filtros</span>
+                                    <Show when={
+                                        personTypeFilter().length > 0 ||
+                                        taxIdTypeFilter().length > 0 ||
+                                        isActiveFilter().length > 0 ||
+                                        businessNameFilter().length > 0
+                                    }>
+                                        <span class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-primary" />
+                                    </Show>
+                                </Button>
+                            </Show>
+
+                            {/* Desktop: Columns dropdown */}
+                            <Show when={!isMobile()}>
+                                <DropdownMenu placement="bottom-end">
+                            <DropdownMenu.Trigger class="h-9.5 px-4" variant="ghost">
+                                <ColumnsIcon />
+                                <span class="hidden sm:inline">Columnas</span>
+                            </DropdownMenu.Trigger>
                         <DropdownMenu.Content class="min-w-[280px] p-2">
                             <DropdownMenu.Label class="text-xs font-semibold text-muted tracking-wider mb-2">
                                 Visibilidad de columnas
@@ -523,19 +637,32 @@ const SuppliersPage: Component = () => {
                                 </Show>
                             </div>
                         </DropdownMenu.Content>
-                    </DropdownMenu>
-                </div>
+                            </DropdownMenu>
+                            </Show>
+                        </div>
             </div>
-
-
-
-            {/* DataTable */}
-            <div class="flex-1 min-h-0 px-5 pb-5 overflow-hidden">
+            </div>
+            {/* DataTable / Card List — conditional on viewport */}
+            <div class="flex-1 min-h-0 px-3 pb-3 sm:px-4 sm:pb-4 overflow-hidden">
                 <div class="bg-card border border-border rounded-2xl shadow-card-soft h-full overflow-hidden">
-                    <DataTable
+                    <Show
+                        when={!isMobile()}
+                        fallback={
+                            <SupplierCardList
+                                filters={filters}
+                                rowSelection={rowSelection}
+                                onRowSelectionChange={setRowSelection}
+                                onView={handleView}
+                                onEdit={handleEdit}
+                                onDelete={handleDelete}
+                                onRestore={handleRestore}
+                            />
+                        }
+                    >
+                        <DataTable
                         data={suppliers()}
                         columns={columns()}
-                        isLoading={suppliersQuery.isPending || (suppliersQuery.isFetching && suppliers().length === 0)}
+                        isLoading={suppliersQuery.isPending}
                         isPlaceholderData={suppliersQuery.isPlaceholderData}
                         // Pagination state (for display)
                         pagination={{ pageIndex: 0, pageSize: pageSize() }}
@@ -566,8 +693,7 @@ const SuppliersPage: Component = () => {
                         onColumnVisibilityChange={setColumnVisibility}
                         columnPinning={columnPinning()}
                         onColumnPinningChange={setColumnPinning}
-                        // Row interactions
-                        onRowClick={handleView}
+                        // Row interactions — hover prefetches detail, click handled per-cell
                         onRowHover={handlePrefetch}
                         // Virtualization
                         enableVirtualization={false}
@@ -579,6 +705,7 @@ const SuppliersPage: Component = () => {
                         // Table instance ref
                         tableRef={(table) => { setTableInstance(table); }}
                     />
+                    </Show>
                 </div>
             </div>
 
@@ -589,40 +716,116 @@ const SuppliersPage: Component = () => {
                 onClearSelection={() => setRowSelection({})}
             >
                 <SelectionBarAction
-                    icon={<DownloadIcon class="size-4" />}
-                    label="Exportar"
-                    onClick={() => toast.info('Exportación no implementada aún')}
+                    icon={<CopyIcon class="size-4" />}
+                    label="Copiar"
+                    onClick={handleCopySelection}
+                    iconOnMobile
                 />
                 <SelectionBarSeparator />
-                <SelectionBarAction
-                    icon={<TrashIcon class="size-4" />}
-                    label="Eliminar"
-                    variant="danger"
-                    onClick={handleBulkDelete}
-                    loading={bulkDeleteMutation.isPending}
-                    loadingText="Eliminando..."
-                />
+                <Show when={selectedActiveCount() > 0 && selectedInactiveCount() === 0}>
+                    
+                    <SelectionBarAction
+                        icon={<TrashIcon class="size-4" />}
+                        label="Eliminar"
+                        variant="danger"
+                        onClick={handleBulkDelete}
+                        loading={bulkDeleteMutation.isPending}
+                        loadingText="Eliminando..."
+                    />
+                </Show>
+
+                <Show when={selectedInactiveCount() > 0 && selectedActiveCount() === 0}>
+                    <SelectionBarAction
+                        icon={<RotateCcwIcon class="size-4" />}
+                        label="Restaurar"
+                        variant="success"
+                        onClick={() => setShowBulkRestoreConfirm(true)}
+                        loading={bulkRestoreMutation.isPending}
+                        loadingText="Restaurando..."
+                    />
+                </Show>
+
+                <Show when={selectedActiveCount() > 0 && selectedInactiveCount() > 0}>
+                    <DropdownMenu placement="top-start">
+                        <DropdownMenu.Trigger variant="ghost" size="sm" class="h-8 px-2.5 text-sm gap-1.5 focus-visible:ring-0">
+                            <span>Acciones</span>
+                            <ChevronsUpDownIcon class="size-3.5" />
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Content class="min-w-[180px]">
+                            <DropdownMenu.Item onSelect={handleBulkDelete} destructive>
+                                <TrashIcon class="size-4 mr-2" />
+                                <span class="flex-1 font-medium">Eliminar Activos</span>
+                                <span class="bg-danger/20 text-danger font-bold text-xs px-1.5 py-0.5 rounded tabular-nums">{selectedActiveCount()}</span>
+                            </DropdownMenu.Item>
+                            <DropdownMenu.Item onSelect={() => setShowBulkRestoreConfirm(true)}>
+                                <RotateCcwIcon class="size-4 mr-2 text-emerald-500" />
+                                <span class="flex-1 text-emerald-500 font-medium">Restaurar Inactivos</span>
+                                <span class="bg-emerald-500/20 text-emerald-500 font-bold text-xs px-1.5 py-0.5 rounded tabular-nums">{selectedInactiveCount()}</span>
+                            </DropdownMenu.Item>
+                        </DropdownMenu.Content>
+                    </DropdownMenu>
+                </Show>
             </DataTableSelectionBar>
 
-            {/* Delete Confirmation Dialogs */}
-            <ConfirmDialog
-                isOpen={!!deleteTarget()}
+            {/* Mobile Filter Sheet */}
+            <SupplierFilterSheet
+                isOpen={showFilterSheet()}
+                onClose={() => setShowFilterSheet(false)}
+                filters={{
+                    personType: {
+                        options: () => buildFilterOptions('person_type', personTypeLabels),
+                        selected: personTypeFilter,
+                        onChange: handleFilterChange(setPersonTypeFilter),
+                        isLoading: () => facetsQuery.isPending,
+                    },
+                    taxIdType: {
+                        options: () => buildFilterOptions('tax_id_type', taxIdTypeLabels),
+                        selected: taxIdTypeFilter,
+                        onChange: handleFilterChange(setTaxIdTypeFilter),
+                        isLoading: () => facetsQuery.isPending,
+                    },
+                    isActive: {
+                        options: () => buildFilterOptions('is_active', isActiveLabels),
+                        selected: isActiveFilter,
+                        onChange: handleFilterChange(setIsActiveFilter),
+                        isLoading: () => facetsQuery.isPending,
+                    },
+                    businessName: {
+                        options: () => buildFilterOptions('business_name'),
+                        selected: businessNameFilter,
+                        onChange: handleFilterChange(setBusinessNameFilter),
+                        isLoading: () => facetsQuery.isPending,
+                    },
+                }}
+            />
+
+            {/* Delete Dialog — RBAC-aware: simple for non-admins, dual-mode for suppliers:destroy */}
+            <SupplierDeleteDialog
+                supplier={deleteTarget()}
                 onClose={() => setDeleteTarget(null)}
-                onConfirm={confirmDelete}
-                title="¿Eliminar proveedor?"
-                description={`Se desactivará el proveedor "${deleteTarget()?.business_name}". Esta acción se puede revertir.`}
-                confirmLabel="Eliminar"
-                isLoading={deleteMutation.isPending}
+                onSuccess={() => toast.success('Proveedor eliminado')}
             />
 
             <ConfirmDialog
                 isOpen={showBulkDeleteConfirm()}
                 onClose={() => setShowBulkDeleteConfirm(false)}
                 onConfirm={confirmBulkDelete}
-                title={`¿Eliminar ${Object.keys(rowSelection()).length} proveedores?`}
-                description="Se desactivarán los proveedores seleccionados. Esta acción no se puede deshacer."
-                confirmLabel="Eliminar todos"
+                title={`Eliminar ${selectedActiveCount()} proveedores`}
+                description="Los proveedores seleccionados quedarán inactivos. Podrás restaurarlos en cualquier momento."
+                confirmLabel="Eliminar"
+                variant="danger"
                 isLoading={bulkDeleteMutation.isPending}
+            />
+
+            <ConfirmDialog
+                isOpen={showBulkRestoreConfirm()}
+                onClose={() => setShowBulkRestoreConfirm(false)}
+                onConfirm={confirmBulkRestore}
+                title={`Restaurar ${selectedInactiveCount()} proveedores`}
+                description="Los proveedores seleccionados volverán a estar activos."
+                confirmLabel="Restaurar"
+                variant="success"
+                isLoading={bulkRestoreMutation.isPending}
             />
 
             {/* Child routes (Panels) */}

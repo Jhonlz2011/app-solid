@@ -1,6 +1,6 @@
 import { createSignal } from 'solid-js';
 import { decode } from '@msgpack/msgpack';
-import type { WsMessage, EntityEventPayload } from '@app/schema/ws-events';
+import type { WsMessage, EntityEventPayload } from '@app/schema/realtime-events';
 
 // --- CONFIGURACIÓN ---
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/api/ws';

@@ -1,7 +1,7 @@
 import { text, integer, boolean, timestamp, numeric, date, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { pgTableV2 } from '../utils';
-import { taxIdTypeEnum, personTypeEnum, sriContributorTypeEnum } from '../enums';
+import { taxIdTypeEnum, personTypeEnum, taxRegimeTypeEnum } from '../enums';
 
 // --- 1. ENTITIES (CORE) ---
 export const entities = pgTableV2("entities", {
@@ -11,16 +11,24 @@ export const entities = pgTableV2("entities", {
     person_type: personTypeEnum("person_type").default('NATURAL').notNull(),
     business_name: text("business_name").notNull(),
     trade_name: text("trade_name"),
-    email_billing: text("email_billing").notNull(),
+    email_billing: text("email_billing"),
     phone: text("phone"),
-    address_fiscal: text("address_fiscal").notNull(),
     is_client: boolean("is_client").default(false),
     is_supplier: boolean("is_supplier").default(false),
     is_employee: boolean("is_employee").default(false),
     is_carrier: boolean("is_carrier").default(false),
-    sri_contributor_type: sriContributorTypeEnum("sri_contributor_type"),
+    tax_regime_type: taxRegimeTypeEnum("tax_regime_type").default('GENERAL'),
+    is_retention_agent: boolean("is_retention_agent").default(false),
+    is_special_contributor: boolean("is_special_contributor").default(false),
     obligado_contabilidad: boolean("obligado_contabilidad").default(false).notNull(),
     is_active: boolean("is_active").default(true),
+    updated_at: timestamp("updated_at")
+        .defaultNow()
+        .$onUpdate(() => new Date()) // Drizzle actualiza esto automáticamente al hacer un UPDATE
+        .notNull(),
+    // Soft-delete audit trail
+    deleted_at: timestamp("deleted_at"),            // null = active; populated = soft-deleted
+    deleted_by: integer("deleted_by"),              // auth user id who triggered the delete
     created_at: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
     index("idx_entities_tax_id").on(t.tax_id),
@@ -56,6 +64,10 @@ export const entityAddresses = pgTableV2("entity_addresses", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     entity_id: integer("entity_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
     address_line: text("address_line").notNull(),
-    city: text("city"),
+    country: text("country").default('Ecuador').notNull(),
+    state: text("state"), // Provincia (Ecuador) o Estado (Exterior)
+    city: text("city"),   // Cantón (Ecuador) o Ciudad (Exterior)
+    parish: text("parish"), // Parroquia (Ecuador - muy usado para envíos)
+    postal_code: text("postal_code"),
     is_main: boolean("is_main").default(false),
 });

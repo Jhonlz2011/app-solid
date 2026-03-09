@@ -1,18 +1,18 @@
-import { and, desc, eq, ilike, or, sql, lt, gt, asc, inArray, type AnyColumn } from '@app/schema';
+import { and, desc, eq, ilike, or, sql, lt, gt, asc, inArray, count, type AnyColumn } from '@app/schema';
 import { db } from '../db';
-import { entities, entityAddresses, employeeDetails, entityContacts } from '@app/schema/tables';
+import { entities, entityAddresses, employeeDetails, entityContacts, supplierProducts, workOrders, electronicDocuments } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
-import { broadcast } from '../plugins/ws';
-import { WsEvents } from '@app/schema/ws-events';
+import { broadcast } from '../plugins/sse';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 import { createHash } from 'crypto';
-import type { TaxIdType, PersonType, SriContributorType } from '@app/schema/enums';
+import type { TaxIdType, PersonType, TaxRegimeType } from '@app/schema/enums';
 
 // Entity type discriminator
 export type EntityType = 'client' | 'supplier' | 'employee' | 'carrier';
 
 // Re-export imported types for consumers of this service
-export type { TaxIdType, PersonType, SriContributorType };
+export type { TaxIdType, PersonType, TaxRegimeType };
 
 export interface EntityPayload {
     taxId: string;
@@ -20,10 +20,9 @@ export interface EntityPayload {
     personType?: PersonType;
     businessName: string;
     tradeName?: string;
-    emailBilling: string;
+    emailBilling?: string;
     phone?: string;
-    addressFiscal: string;
-    sriContributorType?: SriContributorType;
+    taxRegimeType?: TaxRegimeType;
     obligadoContabilidad?: boolean;
     parteRelacionada?: boolean;
     // Employee specific
@@ -33,6 +32,10 @@ export interface EntityPayload {
     hireDate?: string;
     costPerHour?: number;
     isCarrier?: boolean;
+    // New relations
+    addressLine?: string;
+    isRetentionAgent?: boolean;
+    isSpecialContributor?: boolean;
 }
 
 export interface ContactPayload {
@@ -563,13 +566,14 @@ export async function createEntity(type: EntityType, payload: EntityPayload, cli
                 trade_name: payload.tradeName,
                 email_billing: payload.emailBilling,
                 phone: payload.phone,
-                address_fiscal: payload.addressFiscal,
-                sri_contributor_type: payload.sriContributorType,
+                tax_regime_type: payload.taxRegimeType,
                 obligado_contabilidad: payload.obligadoContabilidad ?? false,
                 is_client: type === 'client',
                 is_supplier: type === 'supplier',
                 is_employee: type === 'employee' || type === 'carrier',
                 is_carrier: type === 'carrier' || payload.isCarrier,
+                is_retention_agent: payload.isRetentionAgent ?? false,
+                is_special_contributor: payload.isSpecialContributor ?? false,
             })
             .returning();
 
@@ -584,9 +588,17 @@ export async function createEntity(type: EntityType, payload: EntityPayload, cli
             });
         }
 
+        if (payload.addressLine) {
+            await tx.insert(entityAddresses).values({
+                entity_id: created.id,
+                address_line: payload.addressLine,
+                is_main: true,
+            });
+        }
+
         // Invalidate list and total caches (awaitable now)
         await cacheService.invalidate(`${type}s:*`);
-        broadcast(WsEvents.ENTITY.CREATED, { type, entity: created, clientId }, `${type}s`);
+        broadcast(RealtimeEvents.ENTITY.CREATED, { type, entity: created, clientId }, `${type}s`);
 
         return created;
     });
@@ -608,8 +620,7 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
                 trade_name: payload.tradeName,
                 email_billing: payload.emailBilling,
                 phone: payload.phone,
-                address_fiscal: payload.addressFiscal,
-                sri_contributor_type: payload.sriContributorType,
+                tax_regime_type: payload.taxRegimeType,
                 obligado_contabilidad: payload.obligadoContabilidad,
                 parte_relacionada: payload.parteRelacionada,
                 is_carrier: payload.isCarrier,
@@ -647,23 +658,42 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
             await cacheService.invalidate(`${type}s:*`);
         }
 
-        broadcast(WsEvents.ENTITY.UPDATED, { type, entity: updated, clientId }, `${type}s`);
+        broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId }, `${type}s`);
 
         return updated;
     });
 }
 
 // =============================================================================
-// Deactivate Entity (Soft Delete)
+// Soft Delete / Restore / Hard Delete
 // =============================================================================
 
+/** Reference counts returned by the pre-flight check */
+export interface EntityReferences {
+    supplierProducts: number;
+    invoices: number;
+    workOrders: number;
+    total: number;
+    canDelete: boolean;
+}
+
 /**
- * Soft delete entity
+ * Soft delete: marks entity inactive with audit timestamps.
+ * This is the SAFE default — entity is hidden from lists but fully recoverable.
  */
-export async function deactivateEntity(id: number, type: EntityType, clientId?: string) {
+export async function deactivateEntity(
+    id: number,
+    type: EntityType,
+    deletedBy?: number,
+    clientId?: string
+) {
     const [updated] = await db
         .update(entities)
-        .set({ is_active: false })
+        .set({
+            is_active: false,
+            deleted_at: new Date(),
+            deleted_by: deletedBy ?? null,
+        })
         .where(eq(entities.id, id))
         .returning();
 
@@ -671,7 +701,109 @@ export async function deactivateEntity(id: number, type: EntityType, clientId?: 
 
     await cacheService.invalidate(`entity:${id}`);
     await cacheService.invalidate(`${type}s:*`);
-    broadcast(WsEvents.ENTITY.DELETED, { type, id, clientId }, `${type}s`);
+    
+    // Broadcast as UPDATED so the frontend knows its new `is_active` state
+    broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId }, `${type}s`);
+
+    return { success: true };
+}
+
+/**
+ * Restore a soft-deleted entity back to active state.
+ */
+export async function restoreEntity(
+    id: number,
+    type: EntityType,
+    clientId?: string
+) {
+    const [updated] = await db
+        .update(entities)
+        .set({
+            is_active: true,
+            deleted_at: null,
+            deleted_by: null,
+        })
+        .where(and(eq(entities.id, id)))
+        .returning();
+
+    if (!updated) throw new DomainError('Entidad no encontrada', 404);
+
+    await cacheService.invalidate(`entity:${id}`);
+    await cacheService.invalidate(`${type}s:*`);
+    broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId }, `${type}s`);
+
+    return { success: true };
+}
+
+/**
+ * Pre-flight check: returns how many transactional records reference this entity.
+ * Used by the frontend to warn the user before offering hard delete.
+ * The server ALWAYS re-validates in hardDeleteEntity — this is for UI feedback only.
+ */
+export async function checkEntityReferences(id: number): Promise<EntityReferences> {
+    const [spCount] = await db
+        .select({ value: count() })
+        .from(supplierProducts)
+        .where(eq(supplierProducts.supplier_id, id));
+
+    const [docCount] = await db
+        .select({ value: count() })
+        .from(electronicDocuments)
+        .where(eq(electronicDocuments.entity_id, id));
+
+    const [woCount] = await db
+        .select({ value: count() })
+        .from(workOrders)
+        .where(eq(workOrders.client_id, id));
+
+    const total =
+        (spCount?.value ?? 0) +
+        (docCount?.value ?? 0) +
+        (woCount?.value ?? 0);
+
+    return {
+        supplierProducts: Number(spCount?.value ?? 0),
+        invoices: Number(docCount?.value ?? 0),
+        workOrders: Number(woCount?.value ?? 0),
+        total: Number(total),
+        canDelete: Number(total) === 0,
+    };
+}
+
+/**
+ * Hard delete: permanently removes entity from the database.
+ * Server-side integrity is ALWAYS re-validated here regardless of client pre-check.
+ * Requires `suppliers:destroy` (or equivalent) permission at route level.
+ */
+export async function hardDeleteEntity(
+    id: number,
+    type: EntityType,
+    clientId?: string
+) {
+    // 1. Integrity guard — server always validates, never trust client pre-check
+    const refs = await checkEntityReferences(id);
+    if (!refs.canDelete) {
+        throw new DomainError(
+            `No se puede eliminar permanentemente: la entidad tiene ${refs.total} registro(s) relacionado(s)`,
+            409
+        );
+    }
+
+    // 2. Confirm entity exists and belongs to expected type
+    const [target] = await db
+        .select({ id: entities.id })
+        .from(entities)
+        .where(eq(entities.id, id));
+
+    if (!target) throw new DomainError('Entidad no encontrada', 404);
+
+    // 3. DELETE — cascades to entityContacts, entityAddresses, employeeDetails
+    await db.delete(entities).where(eq(entities.id, id));
+
+    // 4. Cache cleanup + broadcast
+    await cacheService.invalidate(`entity:${id}`);
+    await cacheService.invalidate(`${type}s:*`);
+    broadcast(RealtimeEvents.ENTITY.DELETED, { type, id, clientId }, `${type}s`);
 
     return { success: true };
 }

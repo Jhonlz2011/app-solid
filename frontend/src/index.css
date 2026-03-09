@@ -149,18 +149,6 @@
   filter: brightness(1.05);
 }
 
-.btn-outline {
-  border: 1px solid var(--color-border-strong);
-  color: var(--color-text);
-  background-color: transparent;
-}
-
-.btn-outline:hover {
-  background-color: var(--color-card-alt);
-  color: var(--color-heading);
-  border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border-strong));
-}
-
 .btn-ghost {
   background-color: transparent;
   color: var(--color-muted);

@@ -140,6 +140,8 @@ const PERMISSIONS = [
     { slug: 'suppliers.add', description: 'Crear proveedores' },
     { slug: 'suppliers.edit', description: 'Editar proveedores' },
     { slug: 'suppliers.delete', description: 'Eliminar proveedores' },
+    { slug: 'suppliers.restore', description: 'Restaurar proveedores' },
+    { slug: 'suppliers.destroy', description: 'Eliminar proveedores permanentemente' },
 
     // Purchase Quotes
     { slug: 'purchase_quotes.read', description: 'Ver cotizaciones de compra' },

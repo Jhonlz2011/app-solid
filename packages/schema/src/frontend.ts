@@ -1,10 +1,10 @@
 import { createSelectSchema, createInsertSchema } from 'drizzle-valibot';
-import { pipe, string, minLength, maxLength, number, minValue, object, email, type InferInput, picklist, undefinedable, boolean } from 'valibot';
+import { pipe, string, minLength, object, email, type InferInput, picklist, undefinedable, boolean, union, literal } from 'valibot';
 import * as tables from './tables';
-import { TAX_ID_TYPES, PERSON_TYPES, SRI_CONTRIBUTOR_TYPES } from './enums';
+import { TAX_ID_TYPES, PERSON_TYPES, TAX_REGIME_TYPES } from './enums';
 
 // Re-export enum types for frontend convenience
-export { type TaxIdType, type PersonType, type SriContributorType } from './enums';
+export { type TaxIdType, type PersonType, type TaxRegimeType } from './enums';
 
 // --- PRODUCTS ---
 export const ProductSelect = createSelectSchema(tables.products);
@@ -24,7 +24,7 @@ export const EntityInsert = createInsertSchema(tables.entities, {
 // Reusable enum schemas - using centralized values
 export const TaxIdTypeSchema = picklist(TAX_ID_TYPES);
 export const PersonTypeSchema = picklist(PERSON_TYPES);
-export const SriContributorTypeSchema = picklist(SRI_CONTRIBUTOR_TYPES);
+export const TaxRegimeTypeSchema = picklist(TAX_REGIME_TYPES);
 
 // Complete supplier form validation schema
 // Note: Using string() for optional text fields because TanStack Form uses empty strings.
@@ -35,11 +35,13 @@ export const SupplierFormSchema = object({
     personType: PersonTypeSchema,
     businessName: pipe(string(), minLength(3, 'Razón social requerida')),
     tradeName: string(),
-    emailBilling: pipe(string(), minLength(1, 'Email requerido')),
+    emailBilling: union([pipe(string(), email('Correo inválido')), literal('')]),
     phone: string(),
-    addressFiscal: pipe(string(), minLength(1, 'Dirección requerida')),
-    sriContributorType: undefinedable(SriContributorTypeSchema), // Required key, optional value
+    addressLine: string(),
+    taxRegimeType: undefinedable(TaxRegimeTypeSchema), // Required key, optional value
     obligadoContabilidad: boolean(),
+    isRetentionAgent: boolean(),
+    isSpecialContributor: boolean(),
 });
 
 export type SupplierFormData = InferInput<typeof SupplierFormSchema>;

@@ -1,6 +1,5 @@
 // Reusable DataTable with TanStack Table + Virtual Scrolling + Pagination
 import {
-    Component,
     For,
     Show,
     JSX,
@@ -8,8 +7,6 @@ import {
     createMemo,
     splitProps,
     onMount,
-    onCleanup,
-    createEffect,
 } from 'solid-js';
 import {
     createSolidTable,
@@ -32,6 +29,7 @@ import { Skeleton } from '../Skeleton';
 import { EmptyState } from '../EmptyState';
 import Button from '../Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../Select';
+import { cn } from '@shared/lib/utils';
 import {
     ChevronLeftIcon,
     ChevronRightIcon,
@@ -45,7 +43,7 @@ import {
 
 type CSSProperties = { [key: string]: string | number };
 
-function getCommonPinningStyles(column: {
+function getHeaderPinningStyles(column: {
     getIsPinned: () => false | 'left' | 'right';
     getStart: (position?: 'left' | 'center' | 'right') => number;
     getAfter: (position?: 'left' | 'center' | 'right') => number;
@@ -55,24 +53,63 @@ function getCommonPinningStyles(column: {
     const colSize = column.getSize();
 
     if (!isPinned) {
-        return {
-            className: '',
-            style: { width: `${colSize}px` }
-        };
+        return { className: '', style: { width: `${colSize}px` } };
     }
 
     const isLeft = isPinned === 'left';
     const position = isLeft ? column.getStart('left') : column.getAfter('right');
 
     return {
-        className: 'sticky z-[20] bg-card',
+        // z-[30]: header pinned cells sit above body pinned cells (z-[10]) and body rows
+        // bg-card: solid opaque bg so content doesn't bleed through on horizontal scroll
+        className: 'sticky z-[30] bg-card',
         style: {
             ...(isLeft ? { left: `${position}px` } : { right: `${position}px` }),
             width: `${colSize}px`,
-            'min-width': `${colSize}px`,
-            'max-width': `${colSize}px`,
+            minWidth: `${colSize}px`,
+            maxWidth: `${colSize}px`,
         }
     };
+}
+
+function getCellPinningStyles(column: {
+    getIsPinned: () => false | 'left' | 'right';
+    getStart: (position?: 'left' | 'center' | 'right') => number;
+    getAfter: (position?: 'left' | 'center' | 'right') => number;
+    getSize: () => number;
+}): { className: string; style: CSSProperties } {
+    const isPinned = column.getIsPinned();
+    const colSize = column.getSize();
+
+    if (!isPinned) {
+        return { className: '', style: { width: `${colSize}px` } };
+    }
+
+    const isLeft = isPinned === 'left';
+    const position = isLeft ? column.getStart('left') : column.getAfter('right');
+
+    return {
+        // z-[10]: lower than header pinned cells (z-[30]), higher than normal content (z-auto)
+        // No bg here — background is applied via group selectors in DataTableRow to inherit
+        // row hover / selected states correctly
+        className: 'sticky z-[10]',
+        style: {
+            ...(isLeft ? { left: `${position}px` } : { right: `${position}px` }),
+            width: `${colSize}px`,
+            minWidth: `${colSize}px`,
+            maxWidth: `${colSize}px`,
+        }
+    };
+}
+
+// Keep legacy export for any external usage
+function getCommonPinningStyles(column: {
+    getIsPinned: () => false | 'left' | 'right';
+    getStart: (position?: 'left' | 'center' | 'right') => number;
+    getAfter: (position?: 'left' | 'center' | 'right') => number;
+    getSize: () => number;
+}): { className: string; style: CSSProperties } {
+    return getCellPinningStyles(column);
 }
 
 // =============================================================================
@@ -324,23 +361,28 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
             {/* Table Container with Virtual Scroll */}
             <div
                 ref={tableContainerRef}
-                class="flex-1 overflow-auto relative transition-opacity duration-150"
-                style={local.enableVirtualization ? { contain: 'strict' } : undefined}
+                class="flex-1 overflow-x-auto overflow-y-auto relative transition-opacity duration-150"
+                style={{
+                    ...(local.enableVirtualization ? { contain: 'strict' } : {}),
+                    'will-change': 'transform',
+                }}
             >
                 <TableRoot>
                     {/* Header */}
-                    <TableHeader class="sticky top-0 z-10 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+                    <TableHeader class="sticky top-0 z-[20] bg-card">
                         <For each={table.getHeaderGroups()}>
                             {(headerGroup) => (
                                 <TableRow>
                                     <For each={headerGroup.headers}>
                                         {(header) => {
-                                            const { className: pinClasses, style: pinStyles } = getCommonPinningStyles(header.column);
-                                            const isPinned = header.column.getIsPinned();
+                                            const { className: pinClasses, style: pinStyles } = getHeaderPinningStyles(header.column);
 
                                             return (
                                                 <TableHead
-                                                    class={`text-xs uppercase tracking-wider text-muted font-semibold ${pinClasses} ${isPinned ? 'z-[30]' : ''}`}
+                                                    class={cn(
+                                                        'text-xs uppercase tracking-wider text-muted font-semibold',
+                                                        pinClasses,
+                                                    )}
                                                     style={pinStyles}
                                                 >
                                                     <Show when={!header.isPlaceholder}>
@@ -371,9 +413,9 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
                                         <TableRow class="hover:bg-transparent">
                                             <For each={table.getVisibleLeafColumns()}>
                                                 {(col) => {
-                                                    const { className: pinClasses, style: pinStyles } = getCommonPinningStyles(col);
+                                                    const { className: pinClasses, style: pinStyles } = getCellPinningStyles(col);
                                                     return (
-                                                        <TableCell class={pinClasses} style={pinStyles}>
+                                                        <TableCell class={cn('bg-card', col.getIsPinned() && pinClasses)} style={pinStyles}>
                                                             <Skeleton class="h-5 w-full rounded-md" />
                                                         </TableCell>
                                                     );
@@ -436,19 +478,8 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
             </div>
 
             {/* Pagination Controls */}
-            <div class="flex-shrink-0 p-4 border-t border-border bg-card">
-                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    {/* <div class="flex-1 text-sm text-muted-foreground order-2 sm:order-1">
-                        <Show
-                            when={local.enableRowSelection && table.getFilteredSelectedRowModel().rows.length > 0}
-                            fallback={<span class="hidden sm:inline">Total: {local.totalRows} registros</span>}
-                        >
-                            <span>
-                                {table.getFilteredSelectedRowModel().rows.length} de {table.getFilteredRowModel().rows.length} fila(s) seleccionada(s).
-                            </span>
-                        </Show>
-                    </div> */}
-
+            <div class="flex-shrink-0 p-3 border-t border-border bg-card">
+                <div class="flex flex-col sm:flex-row items-center justify-end gap-4">
                     <div class="flex items-center gap-4 lg:gap-8 order-1 sm:order-2">
                         {/* Page size selector */}
                         <div class="flex items-center gap-2">
@@ -464,6 +495,7 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
                                     }
                                 }}
                                 options={pageSizes()}
+                                disallowEmptySelection
                                 itemComponent={(itemProps) => (
                                     <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
                                 )}
@@ -568,11 +600,20 @@ function DataTableRow<TData>(props: DataTableRowProps<TData>): JSX.Element {
         >
             <For each={props.row.getVisibleCells()}>
                 {(cell) => {
-                    const { className: pinClasses, style: pinStyles } = getCommonPinningStyles(cell.column);
+                    const { className: pinClasses, style: pinStyles } = getCellPinningStyles(cell.column);
+                    const isPinned = () => cell.column.getIsPinned();
 
                     return (
                         <TableCell
-                            class={`group-[.row-selected]:bg-row-selected group-[&:not(.row-selected)]:group-hover:bg-table-hover group-[.row-selected]:group-hover:bg-row-selected-hover ${pinClasses}`}
+                            class={cn(
+                                // Base backgrounds that respond to row state via group selectors
+                                'bg-card',
+                                'group-[.row-selected]:bg-row-selected',
+                                'group-[.row-selected]:group-hover:bg-row-selected-hover',
+                                'group-[&:not(.row-selected)]:group-hover:bg-table-hover',
+                                // Pinning: sticky + z-[10] (only when pinned)
+                                isPinned() && pinClasses,
+                            )}
                             style={pinStyles}
                             onClick={(e) => cell.column.id === 'select' && e.stopPropagation()}
                         >

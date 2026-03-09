@@ -5,9 +5,9 @@ import { pgEnum } from 'drizzle-orm/pg-core';
 // ============================================================================
 
 // Entity-related enums
-export const TAX_ID_TYPES = ['RUC', 'CEDULA', 'PASAPORTE'] as const;
+export const TAX_ID_TYPES = ['RUC', 'CEDULA', 'PASAPORTE', 'CONSUMIDOR_FINAL', 'EXTERIOR'] as const
 export const PERSON_TYPES = ['NATURAL', 'JURIDICA'] as const;
-export const SRI_CONTRIBUTOR_TYPES = ['RIMPE_POPULAR', 'RIMPE_EMPRENDEDOR', 'GENERAL', 'ESP_AGENT'] as const;
+export const TAX_REGIME_TYPES = ['RIMPE_NEGOCIO_POPULAR', 'RIMPE_EMPRENDEDOR', 'GENERAL'] as const;
 
 // Document enums
 export const QUOTATION_STATUSES = ['DRAFT', 'SENT', 'APPROVED', 'REJECTED', 'CONVERTED_TO_WO'] as const;
@@ -33,7 +33,7 @@ export const RETENTION_TYPES = ['IVA', 'RENTA', 'ISD'] as const;
 
 export type TaxIdType = typeof TAX_ID_TYPES[number];
 export type PersonType = typeof PERSON_TYPES[number];
-export type SriContributorType = typeof SRI_CONTRIBUTOR_TYPES[number];
+export type TaxRegimeType = typeof TAX_REGIME_TYPES[number];
 export type QuotationStatus = typeof QUOTATION_STATUSES[number];
 export type DocumentType = typeof DOCUMENT_TYPES[number];
 export type InvoiceStatus = typeof INVOICE_STATUSES[number];
@@ -51,7 +51,7 @@ export type RetentionType = typeof RETENTION_TYPES[number];
 
 export const taxIdTypeEnum = pgEnum('tax_id_type', TAX_ID_TYPES);
 export const personTypeEnum = pgEnum('person_type', PERSON_TYPES);
-export const sriContributorTypeEnum = pgEnum('sri_contributor_type', SRI_CONTRIBUTOR_TYPES);
+export const taxRegimeTypeEnum = pgEnum('tax_regime_type', TAX_REGIME_TYPES);
 export const quotationStatusEnum = pgEnum('quotation_status', QUOTATION_STATUSES);
 export const documentTypeEnum = pgEnum('document_type', DOCUMENT_TYPES);
 export const invoiceStatusEnum = pgEnum('invoice_status', INVOICE_STATUSES);

@@ -12,7 +12,7 @@ import {
 } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
-import { broadcast } from '../plugins/ws';
+import { broadcast } from '../plugins/sse';
 
 // ====== TYPES ======
 type InvoiceDocType = 'INVOICE' | 'PURCHASE_LIQUIDATION';

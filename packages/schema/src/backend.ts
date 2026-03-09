@@ -13,6 +13,8 @@ export const TaxIdTypeSchema = Type.Union([
     Type.Literal('RUC'),
     Type.Literal('CEDULA'),
     Type.Literal('PASAPORTE'),
+    Type.Literal('CONSUMIDOR_FINAL'),
+    Type.Literal('EXTERIOR'),
 ]);
 
 export const PersonTypeSchema = Type.Union([
@@ -20,11 +22,10 @@ export const PersonTypeSchema = Type.Union([
     Type.Literal('JURIDICA'),
 ]);
 
-export const SriContributorTypeSchema = Type.Union([
-    Type.Literal('RIMPE_POPULAR'),
+export const TaxRegimeTypeSchema = Type.Union([
+    Type.Literal('RIMPE_NEGOCIO_POPULAR'),
     Type.Literal('RIMPE_EMPRENDEDOR'),
     Type.Literal('GENERAL'),
-    Type.Literal('ESP_AGENT'),
 ]);
 
 // ============================================================================
@@ -39,12 +40,13 @@ export const SupplierBodySchema = Type.Object({
     personType: PersonTypeSchema, // Required - form provides default
     businessName: Type.String(),
     tradeName: Type.Optional(Type.String()), // Optional - may be empty string
-    emailBilling: Type.String({ format: 'email' }),
+    emailBilling: Type.Optional(Type.Union([Type.String({ format: 'email' }), Type.Literal('')])),
     phone: Type.Optional(Type.String()), // Optional - may be empty string
-    addressFiscal: Type.String(),
-    sriContributorType: Type.Optional(SriContributorTypeSchema), // Optional enum
+    addressLine: Type.Optional(Type.String()),
+    taxRegimeType: Type.Optional(TaxRegimeTypeSchema), // Optional enum
     obligadoContabilidad: Type.Optional(Type.Boolean()), // Optional - defaults to false in form
-    parteRelacionada: Type.Optional(Type.Boolean()),
+    isRetentionAgent: Type.Optional(Type.Boolean()),
+    isSpecialContributor: Type.Optional(Type.Boolean()),
 });
 
 export const SupplierUpdateSchema = Type.Partial(Type.Omit(SupplierBodySchema, ['taxId', 'taxIdType']));
@@ -144,3 +146,19 @@ export const AuthResponseDto = Type.Object({
 export type PublicUserType = Static<typeof PublicUser>;
 export type AuthUserResponseType = Static<typeof AuthUserResponse>;
 export type AuthResponseDtoType = Static<typeof AuthResponseDto>;
+
+
+// --- SRI MODULE ---
+export const SriSupplierResponseSchema = Type.Object({
+    ruc: Type.String(),
+    razonSocial: Type.String(),
+    nombreComercial: Type.Union([Type.String(), Type.Null()]),
+    isActive: Type.Union([Type.Boolean(), Type.Null()]),
+    isSociedad: Type.Union([Type.Boolean(), Type.Null()]),
+    isRimpe: Type.Union([Type.Boolean(), Type.Null()]),
+    obligadoContabilidad: Type.Union([Type.Boolean(), Type.Null()]),
+    agenteRetencion: Type.Union([Type.Boolean(), Type.Null()]),
+    contribuyenteEspecial: Type.Union([Type.Boolean(), Type.Null()]),
+});
+
+export type SriSupplierResponseType = Static<typeof SriSupplierResponseSchema>;

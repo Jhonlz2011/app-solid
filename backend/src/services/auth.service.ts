@@ -3,9 +3,11 @@ import { authUsers as users, sessions } from '@app/schema/tables';
 import { eq, and, gt, inArray, or } from '@app/schema';
 import type { PublicUserType } from '@app/schema/backend';
 import { getUserRoles, getUserPermissions } from './rbac.service';
-import { broadcastJSON } from '../plugins/ws';
+import { broadcast } from '../plugins/sse';
 import { SESSION_EXPIRE_DAYS } from '../config/auth';
 import { randomBytes } from 'crypto';
+import { cacheService } from './cache.service';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 import geoip from 'geoip-lite';
 
 // --- CONSTANTS ---
@@ -43,16 +45,27 @@ export function generateSessionToken(): string {
  * Implements rolling sessions: extends expiry when past the refresh threshold.
  */
 export async function validateSession(sessionId: string) {
-  const [session] = await db
-    .select()
-    .from(sessions)
-    .where(eq(sessions.id, sessionId));
+  const cacheKey = `session:${sessionId}`;
+
+  // Check cache first
+  let session = await cacheService.getOrSet(cacheKey, async () => {
+    const [s] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, sessionId));
+    return s || null;
+  }, SESSION_EXPIRE_DAYS * 24 * 60 * 60); // Max TTL 
 
   if (!session) return null;
+
+  // Re-hydrate dates
+  if (typeof session.expires_at === 'string') session.expires_at = new Date(session.expires_at);
+  if (typeof session.created_at === 'string') session.created_at = new Date(session.created_at);
 
   // Expired — cleanup and reject
   if (session.expires_at < new Date()) {
     await db.delete(sessions).where(eq(sessions.id, sessionId));
+    cacheService.invalidate(cacheKey);
     return null;
   }
 
@@ -68,6 +81,7 @@ export async function validateSession(sessionId: string) {
       .where(eq(sessions.id, sessionId));
     session.expires_at = newExpiry;
     shouldRefreshCookie = true;
+    cacheService.invalidate(cacheKey); // force cache refresh on next request
   }
 
   return { session, shouldRefreshCookie };
@@ -150,7 +164,7 @@ export async function login(email: string, password: string, userAgent?: string,
   ]);
 
   // Broadcast session update
-  broadcastJSON('sessions:update', { type: 'login' }, `user:${user.id}`);
+  broadcast(RealtimeEvents.USER.SESSION_CREATED, { userId: user.id, sessionId }, `user:${user.id}`);
 
   return {
     sessionId,
@@ -170,17 +184,16 @@ export async function login(email: string, password: string, userAgent?: string,
 }
 
 export async function logout(sessionId: string) {
-  // Get user_id before deleting for WS broadcast
-  const [session] = await db
-    .select({ user_id: sessions.user_id })
-    .from(sessions)
-    .where(eq(sessions.id, sessionId));
+  // Delete session from DB and retrieve user_id in one go
+  const deleted = await db
+    .delete(sessions)
+    .where(eq(sessions.id, sessionId))
+    .returning({ user_id: sessions.user_id });
 
-  // Delete session from DB
-  await db.delete(sessions).where(eq(sessions.id, sessionId));
-
-  if (session) {
-    broadcastJSON('sessions:update', { type: 'revoke', sessionId }, `user:${session.user_id}`);
+  if (deleted.length > 0) {
+    const userId = deleted[0].user_id;
+    broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId, sessionId }, `user:${userId}`);
+    cacheService.invalidate(`session:${sessionId}`);
   }
 }
 
@@ -225,19 +238,17 @@ export async function getActiveSessions(userId: number, currentSessionId?: strin
 }
 
 export async function revokeSession(sessionId: string, userId: number) {
-  // Verify the session belongs to this user
-  const [session] = await db
-    .select({ user_id: sessions.user_id })
-    .from(sessions)
-    .where(and(eq(sessions.id, sessionId), eq(sessions.user_id, userId)));
+  // Verify the session belongs to this user and delete it (1 query instead of 2)
+  const deleted = await db
+    .delete(sessions)
+    .where(and(eq(sessions.id, sessionId), eq(sessions.user_id, userId)))
+    .returning({ id: sessions.id });
 
-  if (!session) throw new AuthError('Sesión no encontrada', 404);
+  if (deleted.length === 0) throw new AuthError('Sesión no encontrada', 404);
 
-  // Delete the session
-  await db.delete(sessions).where(eq(sessions.id, sessionId));
-
-  // Broadcast revocation via WS
-  broadcastJSON('sessions:update', { type: 'revoke', sessionId }, `user:${userId}`);
+  // Broadcast revocation via SSE
+  broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId, sessionId }, `user:${userId}`);
+  cacheService.invalidate(`session:${sessionId}`);
 
   return { success: true };
 }
@@ -290,10 +301,13 @@ export async function changePassword(userId: number, currentPassword: string, ne
   await db.update(users).set({ password_hash: newHash }).where(eq(users.id, userId));
 
   // Delete ALL sessions (force re-login everywhere)
-  await db.delete(sessions).where(eq(sessions.user_id, userId));
+  const deletedSessions = await db.delete(sessions).where(eq(sessions.user_id, userId)).returning({ id: sessions.id });
 
-  // Broadcast logout to all connected clients
-  broadcastJSON('sessions:update', { type: 'logout' }, `user:${userId}`);
+  // Clear cache and broadcast logouts
+  for (const s of deletedSessions) {
+    cacheService.invalidate(`session:${s.id}`);
+    broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId, sessionId: s.id }, `user:${userId}`);
+  }
 
   return { success: true };
 }
@@ -302,43 +316,34 @@ export async function updateProfile(
   userId: number,
   data: { username?: string; email?: string }
 ) {
-  const user = await db.query.authUsers.findFirst({
-    where: eq(users.id, userId),
-  });
-
-  if (!user) throw new AuthError('Usuario no encontrado');
-
   const updateData: { username?: string; email?: string } = {};
 
-  if (data.username && data.username !== user.username) {
-    const existingUser = await db.query.authUsers.findFirst({
-      where: eq(users.username, data.username!),
-    });
-    if (existingUser && existingUser.id !== userId) {
-      throw new AuthError('El nombre de usuario ya está en uso', 409);
-    }
-    updateData.username = data.username;
-  }
-
-  if (data.email && data.email !== user.email) {
-    const existingEmail = await db.query.authUsers.findFirst({
-      where: eq(users.email, data.email!),
-    });
-    if (existingEmail && existingEmail.id !== userId) {
-      throw new AuthError('El email ya está en uso', 409);
-    }
-    updateData.email = data.email;
-  }
+  if (data.username) updateData.username = data.username;
+  if (data.email) updateData.email = data.email;
 
   if (Object.keys(updateData).length === 0) {
     return { success: true, message: 'Sin cambios' };
   }
 
-  const [updated] = await db.update(users).set(updateData).where(eq(users.id, userId)).returning({
-    id: users.id,
-    email: users.email,
-    username: users.username,
-  });
+  try {
+    const [updated] = await db.update(users).set(updateData).where(eq(users.id, userId)).returning({
+      id: users.id,
+      email: users.email,
+      username: users.username,
+    });
 
-  return { success: true, user: updated };
+    if (!updated) throw new AuthError('Usuario no encontrado');
+
+    broadcast(RealtimeEvents.USER.PROFILE_UPDATED, { userId, ...updateData }, `user:${userId}`);
+
+    return { success: true, user: updated };
+  } catch (error: any) {
+    if (error.code === '23505') {
+       const detail = String(error.detail || error.message);
+       if (detail.includes('email')) throw new AuthError('El email ya está en uso', 409);
+       if (detail.includes('username')) throw new AuthError('El nombre de usuario ya está en uso', 409);
+       throw new AuthError('El nombre de usuario o email ya está en uso', 409);
+    }
+    throw error;
+  }
 }

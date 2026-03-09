@@ -14,15 +14,15 @@ interface PageHeaderProps {
 }
 
 export const PageHeader: Component<PageHeaderProps> = (props) => (
-    <div class="flex flex-col sm:flex-row md:items-center justify-between gap-4">
-        <div>
-            <h1 class="text-3xl font-bold flex items-center gap-3">
+    <div class="flex flex-row items-center justify-between gap-3 sm:gap-4">
+        <div class="flex-1 min-w-0">
+            <h1 class="text-xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3 truncate">
                 {/* Icon container with hover info overlay */}
                 <Show
                     when={props.info}
                     fallback={
                         <div
-                            class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                            class="size-8 sm:size-10 rounded-xl flex items-center justify-center shrink-0"
                             style={{ background: props.iconBg ?? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))' }}
                         >
                             {props.icon}
@@ -31,7 +31,7 @@ export const PageHeader: Component<PageHeaderProps> = (props) => (
                 >
                     <Tooltip content={props.info} placement="bottom">
                         <div
-                            class="group relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0 cursor-help"
+                            class="group relative size-8 sm:size-10 rounded-xl flex items-center justify-center shrink-0 cursor-help"
                             style={{ background: props.iconBg ?? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))' }}
                         >
                             {/* Main icon - visible by default, hidden on hover */}

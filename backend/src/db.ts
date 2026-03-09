@@ -2,7 +2,7 @@ import { drizzlePostgres as drizzle } from '@app/schema';
 import postgres from 'postgres';
 import { env } from './config/env';
 import { cacheService } from './services/cache.service';
-import { broadcast } from './plugins/ws';
+import { broadcast } from './plugins/sse';
 
 const queryClient = postgres(env.DATABASE_URL, {
   max: 10,
@@ -10,6 +10,13 @@ const queryClient = postgres(env.DATABASE_URL, {
   connect_timeout: 10,
   ssl: false,
 });
+
+const queryClientSri = postgres(env.SRI_DATABASE_URL, { 
+    max: 10, // Límite estricto para proteger la RAM del Droplet
+    idle_timeout: 20 // Cierra conexiones inactivas rápido
+});
+
+export const sriDb = drizzle(queryClientSri, { logger: env.NODE_ENV === 'development' });
 
 // Cliente dedicado para escuchar notificaciones (LISTEN)
 // Postgres requiere una conexión dedicada para LISTEN/NOTIFY

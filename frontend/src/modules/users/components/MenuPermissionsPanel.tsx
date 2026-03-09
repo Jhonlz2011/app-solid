@@ -143,7 +143,7 @@ export const MenuPermissionsPanel: Component<MenuPermissionsPanelProps> = (props
                     </div>
 
                     {/* Content */}
-                    <div class="flex-1 overflow-y-auto p-6">
+                    <div class="flex-1 overflow-y-auto p-4">
                         <Show when={!menusQuery.isLoading} fallback={<SkeletonLoader type="card" count={5} />}>
                             <Show when={menusQuery.data}>
                                 <MenuTreeView
@@ -169,7 +169,7 @@ export const MenuPermissionsPanel: Component<MenuPermissionsPanelProps> = (props
                         </button>
                         <button
                             onClick={handleSave}
-                            class="btn btn-primary"
+                            class="btn"
                             disabled={props.isPending}
                         >
                             {props.isPending ? 'Guardando...' : 'Guardar Permisos'}

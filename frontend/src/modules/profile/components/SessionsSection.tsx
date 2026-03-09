@@ -3,18 +3,18 @@ import { Component, createSignal, createEffect, For, Show, onCleanup } from 'sol
 import { createQuery, createMutation, useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { api } from '@shared/lib/eden';
-import { useWebSocket } from '@shared/store/ws.store';
+import { useSSE } from '@shared/store/sse.store';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { SessionItem, type Session } from './SessionItem';
 import { DeviceIcon, WarningIcon } from '@shared/ui/icons';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
-import { WsEvents } from '@app/schema/ws-events';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 import { ListItemSkeleton } from '@shared/ui/SkeletonLoader';
 
 export const SessionsSection: Component = () => {
     const queryClient = useQueryClient();
     const auth = useAuth();
-    const { subscribe, unsubscribe } = useWebSocket();
+    const { subscribe, unsubscribe } = useSSE();
     const [revoking, setRevoking] = createSignal<string | null>(null);
 
     const sessionsQuery = createQuery(() => ({
@@ -53,21 +53,21 @@ export const SessionsSection: Component = () => {
             queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
         });
 
-        // Cross-browser sync: WS events dispatched by ws.store when backend broadcasts.
+        // Cross-browser sync: SSE events dispatched by sse.store when backend broadcasts.
         // Covers both new logins (session_created) and revocations (session_revoked).
         const handleSessionsChanged = () => {
             queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
         };
 
-        window.addEventListener(WsEvents.USER.SESSION_REVOKED, handleSessionsChanged);
-        window.addEventListener(WsEvents.USER.SESSION_CREATED, handleSessionsChanged);
+        window.addEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged);
+        window.addEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged);
 
         // Store cleanup for onCleanup
         setCleanupFns([
             () => unsubscribe(room),
             cleanupBroadcast,
-            () => window.removeEventListener(WsEvents.USER.SESSION_REVOKED, handleSessionsChanged),
-            () => window.removeEventListener(WsEvents.USER.SESSION_CREATED, handleSessionsChanged),
+            () => window.removeEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged),
+            () => window.removeEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged),
         ]);
     });
 
@@ -82,7 +82,7 @@ export const SessionsSection: Component = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
             // Notify same-browser tabs immediately (BroadcastChannel is same-browser only).
-            // Cross-browser tabs are handled by the WS user:session_revoked event from the backend.
+            // Cross-browser tabs are handled by the SSE user:session_revoked event from the backend.
             broadcast.emit(BroadcastEvents.SESSIONS_REFRESH);
             toast.success('Sesión cerrada correctamente');
         },

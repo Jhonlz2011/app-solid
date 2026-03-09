@@ -16,8 +16,8 @@ import { authGuard } from '../plugins/auth-guard';
 import { loginRateLimit, resetLoginAttempts } from '../plugins/login-rate-limit';
 import { COOKIE_OPTIONS } from '../config/auth';
 import { ipPlugin, getIpAndUserAgent } from '../plugins/ip';
-import { broadcastJSON } from '../plugins/ws';
-import { WsEvents } from '@app/schema/ws-events';
+import { broadcast } from '../plugins/sse';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 
 export const authRoutes = new Elysia({ prefix: '/auth' })
   .use(ipPlugin)
@@ -77,14 +77,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         ...COOKIE_OPTIONS,
       });
 
-      // Notify all existing sessions of this user that a new session was created,
-      // so they can refresh their sessions list in real-time.
-      broadcastJSON(WsEvents.USER.SESSION_CREATED, {
-        userId: user.id,
-        sessionId: newSessionId,
-      }, `user:${user.id}`);
-
-      // Response: user data + session ID (needed for WS revoke comparison)
+      // Notification is now handled internally by login() service
       return { user, sessionId: newSessionId };
     },
     {
@@ -106,13 +99,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         // Capture userId before session is deleted so we can broadcast
         const session = await validateSession(sessionId);
         await logout(sessionId);
-        // Notify all other tab/browsers of this user that this session ended
-        if (session?.session?.user_id) {
-          broadcastJSON(WsEvents.USER.SESSION_REVOKED, {
-            userId: session.session.user_id,
-            sessionId,
-          }, `user:${session.session.user_id}`);
-        }
+        // Real-time broadcast handled inside logout() service
       }
     } catch (error) {
       console.warn('Error al revocar sesión:', error);
@@ -146,11 +133,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       '/profile',
       async ({ body, currentUserId }) => {
         const result = await updateProfile(currentUserId, body);
-        // Broadcast to the user's personal WS room so other open tabs update in real-time
-        broadcastJSON(WsEvents.USER.PROFILE_UPDATED, {
-          userId: currentUserId,
-          ...body,
-        }, `user:${currentUserId}`);
+        // Broadcast is handled internally by updateProfile() service
         return result;
       },
       {
@@ -163,11 +146,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     .delete('/sessions/:id', async ({ currentUserId, params }) => {
       // Session IDs are now text (base64url), not numeric
       const result = await revokeSession(params.id, currentUserId);
-      // Notify all of the user's connected tabs/browsers to refresh their sessions list
-      broadcastJSON(WsEvents.USER.SESSION_REVOKED, {
-        userId: currentUserId,
-        sessionId: params.id,
-      }, `user:${currentUserId}`);
+      // Real-time broadcast is handled internally by revokeSession() service
       return result;
     })
   );

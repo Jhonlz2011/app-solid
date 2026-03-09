@@ -3,7 +3,7 @@ import { createStore } from "solid-js/store";
 import { batch } from "solid-js";
 import { authApi } from "../api/auth.api";
 import type { LoginRequest, User } from "../types/auth.types";
-import { connect, disconnect, enableReconnect } from "@shared/store/ws.store";
+import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
 
 // --- CONFIGURACIÓN ---
@@ -54,11 +54,11 @@ export const actions = {
 
             // WebSocket
             enableReconnect();
-            connect();
+            connect(currentSessionId);
 
             // Notify other tabs
             if (authChannel) {
-                authChannel.postMessage({ type: 'LOGIN', user: sanitizeUser(data.user) });
+                authChannel.postMessage({ type: 'LOGIN', user: sanitizeUser(data.user), sessionId: currentSessionId });
             }
 
             return data;
@@ -126,7 +126,7 @@ export const actions = {
 
             // WebSocket
             enableReconnect();
-            connect();
+            connect(currentSessionId);
 
             return true;
         } catch {
@@ -163,7 +163,7 @@ export const actions = {
         });
 
         // WS: real-time profile update from another tab/device
-        // ws.store dispatches CustomEvents for every incoming WS message.
+        // sse.store dispatches CustomEvents for every incoming WS message.
         // We filter by userId to only update our own user's data.
         window.addEventListener('user:profile_updated', (e: Event) => {
             const { userId, username, email } = (e as CustomEvent).detail ?? {};
@@ -187,13 +187,14 @@ export const actions = {
                         window.location.href = '/login';
                     }
                 } else if (e.data.type === 'LOGIN' && e.data.user) {
+                    currentSessionId = e.data.sessionId ?? null;
                     batch(() => {
                         setState('user', e.data.user);
                         setState('status', 'authenticated');
                     });
                     setSessionFlag(true);
                     enableReconnect();
-                    connect();
+                    connect(currentSessionId);
                     // Navigate if still on the login page
                     // Preserve redirect param if present (e.g., /login?redirect=/suppliers → /suppliers)
                     if (window.location.pathname.startsWith('/login')) {
@@ -217,7 +218,7 @@ export const actions = {
         });
 
         // WS: session revocation — if MY session is revoked from another tab/browser, log out.
-        // ws.store dispatches this as a CustomEvent when the backend sends user:session_revoked.
+        // sse.store dispatches this as a CustomEvent when the backend sends user:session_revoked.
         window.addEventListener('user:session_revoked', ((e: CustomEvent) => {
             const { sessionId } = e.detail ?? {};
             if (sessionId && sessionId === currentSessionId) {

@@ -15,7 +15,7 @@ export const SidebarNav: Component<SidebarNavProps> = (props) => {
         <nav
             role="navigation"
             aria-label="Navegación principal"
-            class="flex-1 min-h-0 py-4 px-3"
+            class="flex-1 min-h-0 p-3"
             use:scrollBar={true}
             style={{ 'content-visibility': 'auto' }}
         >

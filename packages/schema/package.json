@@ -11,7 +11,8 @@
         "./frontend": "./src/frontend.ts",
         "./types": "./src/types.ts",
         "./enums": "./src/enums.ts",
-        "./ws-events": "./src/ws-events.ts"
+        "./realtime-events": "./src/realtime-events.ts",
+        "./sri": "./src/tables/sri.ts"
     },
     "typesVersions": {
         "*": {
@@ -30,8 +31,11 @@
             "enums": [
                 "./src/enums.ts"
             ],
-            "ws-events": [
-                "./src/ws-events.ts"
+            "realtime-events": [
+                "./src/realtime-events.ts"
+            ],
+            "sri": [
+                "./src/tables/sri.ts"
             ]
         }
     },

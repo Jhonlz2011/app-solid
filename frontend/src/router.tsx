@@ -6,7 +6,7 @@ import { createAuthRoutes } from './modules/auth/auth.routes';
 import { createSuppliersRoutes } from './modules/suppliers/suppliers.routes';
 import { createUsersRoutes } from './modules/users/users.routes';
 
-import { connect as connectWs } from './shared/store/ws.store';
+import { connect as connectWs } from './shared/store/sse.store';
 import { queryClient } from './shared/lib/queryClient';
 
 import { LayoutSkeleton } from './layout/MainLayout';

@@ -28,7 +28,7 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
 
     return (
         <footer
-            class="hidden sm:block relative border-t border-border h-20 shrink-0 mt-auto"
+            class="hidden sm:block relative border-t border-border h-18 shrink-0 mt-auto"
             tabIndex={-1}
             use:clickOutside={() => setShowUserMenu(false)}
         >

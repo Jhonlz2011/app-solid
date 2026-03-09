@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useCreateSupplier } from '../data/suppliers.api';
 import { SupplierForm } from './SupplierForm';
-import type { SupplierPayload } from '../models/supplier.types';
+import type { SupplierFormData } from '@app/schema/frontend';
 import Sheet from '@shared/ui/Sheet';
 
 const SupplierNewSheet: Component = () => {
@@ -14,7 +14,7 @@ const SupplierNewSheet: Component = () => {
         navigate({ to: '/suppliers' });
     };
 
-    const handleSubmit = async (data: SupplierPayload) => {
+    const handleSubmit = async (data: SupplierFormData) => {
         try {
             await createMutation.mutateAsync(data);
             toast.success('Proveedor creado correctamente');

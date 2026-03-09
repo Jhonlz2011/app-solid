@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { actions as authActions } from '@modules/auth/store/auth.store';
 import { useProfile, useUpdateProfile, useChangePassword, profileKeys } from '../data/profile.api';
+import { ScrollArea } from '@/layout/components/ScrollArea';
 import { ProfileHeader, ProfileHeaderSkeleton } from '../components/ProfileHeader';
 import { AccountSection } from '../components/AccountSection';
 import { SecuritySection } from '../components/SecuritySection';
@@ -82,8 +83,9 @@ const ProfilePage: Component = () => {
     };
 
     return (
-        <div class="w-full p-4 sm:p-6 max-w-3xl mx-auto">
-            {/* Loading State - Graceful fallback if loader was bypassed */}
+        <ScrollArea>
+            <div class="w-full p-4 sm:p-6 max-w-3xl mx-auto">
+                {/* Loading State - Graceful fallback if loader was bypassed */}
             <Show when={profileQuery.isLoading && !profile()}>
                 <div class="animate-in fade-in duration-300 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6">
                     <ProfilePendingComponent />
@@ -157,9 +159,10 @@ const ProfilePage: Component = () => {
                             </div>
                         </Tabs>
                     </>
-                )}
+                 )}
              </Show>
-        </div>
+            </div>
+        </ScrollArea>
     );
 };
 
