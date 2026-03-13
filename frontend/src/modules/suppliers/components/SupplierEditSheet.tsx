@@ -40,7 +40,7 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
             onClose={handleClose}
             title="Editar Proveedor"
             description="Modifica los datos del proveedor"
-            size="lg"
+            size="xxxxl"
         >
             <Show
                 when={props.supplierId > 0}

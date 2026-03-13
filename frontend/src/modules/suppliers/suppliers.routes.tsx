@@ -1,4 +1,3 @@
-import { Component } from 'solid-js';
 import { createRoute, redirect, useParams, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
@@ -26,12 +25,11 @@ export const createSuppliersRoutes = (layoutRoute: any) => {
   const suppliersRoute = createRoute({
     getParentRoute: () => layoutRoute,
     path: 'suppliers',
-    beforeLoad: () => {
-      import('@modules/auth/store/auth.store').then(({ useAuth }) => {
-        if (!useAuth().canRead('suppliers')) {
-          throw redirect({ to: '/dashboard' });
-        }
-      });
+    beforeLoad: async () => {
+      const { useAuth } = await import('@modules/auth/store/auth.store');
+      if (!useAuth().canRead('suppliers')) {
+        throw redirect({ to: '/dashboard' });
+      }
     },
     loader: async () => {
       // Parallel Fetching: Block route transition until data is pre-fetched, 

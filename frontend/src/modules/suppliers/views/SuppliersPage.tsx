@@ -32,6 +32,7 @@ import { createSupplierColumns } from '../data/supplier.columns';
 import { useDataTableSSE, useRealtimeInvalidation } from '@shared/hooks/useDataTableSSE';
 import type { SupplierListItem } from '../data/suppliers.api';
 import { taxIdTypeLabels, personTypeLabels, isActiveLabels } from '../models/supplier.types';
+import { useAuth } from '@/modules/auth/store/auth.store';
 
 // UI Components
 import { DataTable } from '@shared/ui/DataTable';
@@ -69,6 +70,7 @@ const SuppliersPage: Component = () => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const isMobile = useIsMobile();
+    const auth = useAuth();
     const [showFilterSheet, setShowFilterSheet] = createSignal(false);
 
     // ==========================================================================
@@ -289,12 +291,10 @@ const SuppliersPage: Component = () => {
     const handleNew = () => navigate({ to: '/suppliers/new' });
 
     const handleEdit = (supplier: SupplierListItem) => {
-        queryClient.setQueryData(supplierKeys.detail(supplier.id), supplier);
         navigate({ to: `/suppliers/edit/${supplier.id}` });
     };
 
     const handleView = (supplier: SupplierListItem) => {
-        queryClient.setQueryData(supplierKeys.detail(supplier.id), supplier);
         navigate({ to: `/suppliers/show/${supplier.id}` });
     };
 
@@ -422,6 +422,14 @@ const SuppliersPage: Component = () => {
     };
 
     // ==========================================================================
+    // Memoized Filter Options
+    // ==========================================================================
+    const businessNameFilterOptions = createMemo(() => buildFilterOptions('business_name'));
+    const taxIdTypeFilterOptions = createMemo(() => buildFilterOptions('tax_id_type', taxIdTypeLabels));
+    const personTypeFilterOptions = createMemo(() => buildFilterOptions('person_type', personTypeLabels));
+    const isActiveFilterOptions = createMemo(() => buildFilterOptions('is_active', isActiveLabels));
+
+    // ==========================================================================
     // Column Definitions
     // ==========================================================================
     const columns = createMemo(() =>
@@ -430,27 +438,28 @@ const SuppliersPage: Component = () => {
             onEdit: handleEdit,
             onDelete: handleDelete,
             onRestore: handleRestore,
+            auth,
             filters: {
                 businessName: {
-                    options: () => buildFilterOptions('business_name'),
+                    options: businessNameFilterOptions,
                     selected: businessNameFilter,
                     onChange: handleFilterChange(setBusinessNameFilter),
                     isLoading: () => facetsQuery.isPending,
                 },
                 taxIdType: {
-                    options: () => buildFilterOptions('tax_id_type', taxIdTypeLabels),
+                    options: taxIdTypeFilterOptions,
                     selected: taxIdTypeFilter,
                     onChange: handleFilterChange(setTaxIdTypeFilter),
                     isLoading: () => facetsQuery.isPending,
                 },
                 personType: {
-                    options: () => buildFilterOptions('person_type', personTypeLabels),
+                    options: personTypeFilterOptions,
                     selected: personTypeFilter,
                     onChange: handleFilterChange(setPersonTypeFilter),
                     isLoading: () => facetsQuery.isPending,
                 },
                 isActive: {
-                    options: () => buildFilterOptions('is_active', isActiveLabels),
+                    options: isActiveFilterOptions,
                     selected: isActiveFilter,
                     onChange: handleFilterChange(setIsActiveFilter),
                     isLoading: () => facetsQuery.isPending,
@@ -773,25 +782,25 @@ const SuppliersPage: Component = () => {
                 onClose={() => setShowFilterSheet(false)}
                 filters={{
                     personType: {
-                        options: () => buildFilterOptions('person_type', personTypeLabels),
+                        options: personTypeFilterOptions,
                         selected: personTypeFilter,
                         onChange: handleFilterChange(setPersonTypeFilter),
                         isLoading: () => facetsQuery.isPending,
                     },
                     taxIdType: {
-                        options: () => buildFilterOptions('tax_id_type', taxIdTypeLabels),
+                        options: taxIdTypeFilterOptions,
                         selected: taxIdTypeFilter,
                         onChange: handleFilterChange(setTaxIdTypeFilter),
                         isLoading: () => facetsQuery.isPending,
                     },
                     isActive: {
-                        options: () => buildFilterOptions('is_active', isActiveLabels),
+                        options: isActiveFilterOptions,
                         selected: isActiveFilter,
                         onChange: handleFilterChange(setIsActiveFilter),
                         isLoading: () => facetsQuery.isPending,
                     },
                     businessName: {
-                        options: () => buildFilterOptions('business_name'),
+                        options: businessNameFilterOptions,
                         selected: businessNameFilter,
                         onChange: handleFilterChange(setBusinessNameFilter),
                         isLoading: () => facetsQuery.isPending,

@@ -68,7 +68,7 @@ export const ComboboxInput = <T,>(
             >
                 <KCombobox.Input
                     placeholder={local.placeholder}
-                    class="flex-1 bg-transparent py-2 outline-none placeholder:text-muted text-text font-medium min-w-0"
+                    class="flex-1 bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0"
                 />
                 <ChevronsUpDownIcon class="ml-2 size-4 text-muted group-hover:text-text-secondary transition-colors" />
             </KCombobox.Trigger>

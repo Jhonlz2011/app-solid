@@ -14,6 +14,23 @@ export type EntityType = 'client' | 'supplier' | 'employee' | 'carrier';
 // Re-export imported types for consumers of this service
 export type { TaxIdType, PersonType, TaxRegimeType };
 
+export interface ContactPayload {
+    name: string;
+    position?: string;
+    email?: string;
+    phone?: string;
+    isPrimary?: boolean;
+}
+
+export interface AddressPayload {
+    addressLine: string;
+    city?: string;
+    country?: string;
+    countryCode?: string;
+    postalCode?: string;
+    isMain?: boolean;
+}
+
 export interface EntityPayload {
     taxId: string;
     taxIdType: TaxIdType;
@@ -33,23 +50,10 @@ export interface EntityPayload {
     costPerHour?: number;
     isCarrier?: boolean;
     // New relations
-    addressLine?: string;
     isRetentionAgent?: boolean;
     isSpecialContributor?: boolean;
-}
-
-export interface ContactPayload {
-    name: string;
-    position?: string;
-    email?: string;
-    phone?: string;
-    isPrimary?: boolean;
-}
-
-export interface AddressPayload {
-    addressLine: string;
-    city?: string;
-    isMain?: boolean;
+    contacts?: ContactPayload[];
+    addresses?: AddressPayload[];
 }
 
 // =============================================================================
@@ -588,12 +592,31 @@ export async function createEntity(type: EntityType, payload: EntityPayload, cli
             });
         }
 
-        if (payload.addressLine) {
-            await tx.insert(entityAddresses).values({
-                entity_id: created.id,
-                address_line: payload.addressLine,
-                is_main: true,
-            });
+        if (payload.addresses && payload.addresses.length > 0) {
+            await tx.insert(entityAddresses).values(
+                payload.addresses.map(addr => ({
+                    entity_id: created.id,
+                    address_line: addr.addressLine,
+                    city: addr.city,
+                    country: addr.country,
+                    country_code: addr.countryCode,
+                    postal_code: addr.postalCode,
+                    is_main: addr.isMain ?? false
+                }))
+            );
+        }
+
+        if (payload.contacts && payload.contacts.length > 0) {
+            await tx.insert(entityContacts).values(
+                payload.contacts.map(contact => ({
+                    entity_id: created.id,
+                    name: contact.name,
+                    position: contact.position,
+                    email: contact.email,
+                    phone: contact.phone,
+                    is_primary: contact.isPrimary ?? false
+                }))
+            );
         }
 
         // Invalidate list and total caches (awaitable now)
@@ -622,7 +645,6 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
                 phone: payload.phone,
                 tax_regime_type: payload.taxRegimeType,
                 obligado_contabilidad: payload.obligadoContabilidad,
-                parte_relacionada: payload.parteRelacionada,
                 is_carrier: payload.isCarrier,
             }))
             .where(eq(entities.id, id))
@@ -634,19 +656,53 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
             (payload.department || payload.jobTitle || payload.salaryBase || payload.costPerHour)) {
             await tx
                 .update(employeeDetails)
-                .set({
+                .set(stripUndefined({
                     department: payload.department,
                     job_title: payload.jobTitle,
                     salary_base: toDecimal(payload.salaryBase),
                     cost_per_hour: toDecimal(payload.costPerHour),
-                })
+                }))
                 .where(eq(employeeDetails.entity_id, id));
+        }
+
+        // Reconcile Addresses (DELETE ALL, INSERT ALL)
+        if (payload.addresses) {
+            await tx.delete(entityAddresses).where(eq(entityAddresses.entity_id, id));
+            if (payload.addresses.length > 0) {
+                await tx.insert(entityAddresses).values(
+                    payload.addresses.map(addr => ({
+                        entity_id: id,
+                        address_line: addr.addressLine,
+                        city: addr.city,
+                        country: addr.country,
+                        country_code: addr.countryCode,
+                        postal_code: addr.postalCode,
+                        is_main: addr.isMain ?? false
+                    }))
+                );
+            }
+        }
+
+        // Reconcile Contacts (DELETE ALL, INSERT ALL)
+        if (payload.contacts) {
+            await tx.delete(entityContacts).where(eq(entityContacts.entity_id, id));
+            if (payload.contacts.length > 0) {
+                await tx.insert(entityContacts).values(
+                    payload.contacts.map(contact => ({
+                        entity_id: id,
+                        name: contact.name,
+                        position: contact.position,
+                        email: contact.email,
+                        phone: contact.phone,
+                        is_primary: contact.isPrimary ?? false
+                    }))
+                );
+            }
         }
 
         await cacheService.invalidate(`entity:${id}`);
 
         // Granular cache invalidation (Plan implementation step 3)
-        // Only invalidate the full list caches if a sortable or filterable property changed.
         const requiresListInvalidation = 
             payload.businessName !== undefined || 
             payload.taxId !== undefined ||
@@ -741,20 +797,11 @@ export async function restoreEntity(
  * The server ALWAYS re-validates in hardDeleteEntity — this is for UI feedback only.
  */
 export async function checkEntityReferences(id: number): Promise<EntityReferences> {
-    const [spCount] = await db
-        .select({ value: count() })
-        .from(supplierProducts)
-        .where(eq(supplierProducts.supplier_id, id));
-
-    const [docCount] = await db
-        .select({ value: count() })
-        .from(electronicDocuments)
-        .where(eq(electronicDocuments.entity_id, id));
-
-    const [woCount] = await db
-        .select({ value: count() })
-        .from(workOrders)
-        .where(eq(workOrders.client_id, id));
+    const [[spCount], [docCount], [woCount]] = await Promise.all([
+        db.select({ value: count() }).from(supplierProducts).where(eq(supplierProducts.supplier_id, id)),
+        db.select({ value: count() }).from(electronicDocuments).where(eq(electronicDocuments.entity_id, id)),
+        db.select({ value: count() }).from(workOrders).where(eq(workOrders.client_id, id)),
+    ]);
 
     const total =
         (spCount?.value ?? 0) +
@@ -813,27 +860,29 @@ export async function hardDeleteEntity(
 // =============================================================================
 
 export async function addContact(entityId: number, payload: ContactPayload) {
-    if (payload.isPrimary) {
-        await db
-            .update(entityContacts)
-            .set({ is_primary: false })
-            .where(eq(entityContacts.entity_id, entityId));
-    }
+    return db.transaction(async (tx) => {
+        if (payload.isPrimary) {
+            await tx
+                .update(entityContacts)
+                .set({ is_primary: false })
+                .where(eq(entityContacts.entity_id, entityId));
+        }
 
-    const [contact] = await db
-        .insert(entityContacts)
-        .values({
-            entity_id: entityId,
-            name: payload.name,
-            position: payload.position,
-            email: payload.email,
-            phone: payload.phone,
-            is_primary: payload.isPrimary ?? false,
-        })
-        .returning();
+        const [contact] = await tx
+            .insert(entityContacts)
+            .values({
+                entity_id: entityId,
+                name: payload.name,
+                position: payload.position,
+                email: payload.email,
+                phone: payload.phone,
+                is_primary: payload.isPrimary ?? false,
+            })
+            .returning();
 
-    cacheService.invalidate(`entity:${entityId}`);
-    return contact;
+        cacheService.invalidate(`entity:${entityId}`);
+        return contact;
+    });
 }
 
 export async function updateContact(contactId: number, payload: Partial<ContactPayload>) {
@@ -853,13 +902,13 @@ export async function updateContact(contactId: number, payload: Partial<ContactP
 
     const [updated] = await db
         .update(entityContacts)
-        .set({
+        .set(stripUndefined({
             name: payload.name,
             position: payload.position,
             email: payload.email,
             phone: payload.phone,
             is_primary: payload.isPrimary,
-        })
+        }))
         .where(eq(entityContacts.id, contactId))
         .returning();
 
@@ -890,25 +939,30 @@ export async function getContacts(entityId: number) {
 // =============================================================================
 
 export async function addAddress(entityId: number, payload: AddressPayload) {
-    if (payload.isMain) {
-        await db
-            .update(entityAddresses)
-            .set({ is_main: false })
-            .where(eq(entityAddresses.entity_id, entityId));
-    }
+    return db.transaction(async (tx) => {
+        if (payload.isMain) {
+            await tx
+                .update(entityAddresses)
+                .set({ is_main: false })
+                .where(eq(entityAddresses.entity_id, entityId));
+        }
 
-    const [address] = await db
-        .insert(entityAddresses)
-        .values({
-            entity_id: entityId,
-            address_line: payload.addressLine,
-            city: payload.city,
-            is_main: payload.isMain ?? false,
-        })
-        .returning();
+        const [address] = await tx
+            .insert(entityAddresses)
+            .values({
+                entity_id: entityId,
+                address_line: payload.addressLine,
+                city: payload.city,
+                country: payload.country,
+                country_code: payload.countryCode,
+                postal_code: payload.postalCode,
+                is_main: payload.isMain ?? false,
+            })
+            .returning();
 
-    cacheService.invalidate(`entity:${entityId}`);
-    return address;
+        cacheService.invalidate(`entity:${entityId}`);
+        return address;
+    });
 }
 
 export async function getAddresses(entityId: number) {

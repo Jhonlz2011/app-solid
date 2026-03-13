@@ -7,7 +7,6 @@
 import { Show } from 'solid-js';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { SupplierListItem } from '../data/suppliers.api';
-import { useAuth } from '@/modules/auth/store/auth.store';
 import Checkbox from '@shared/ui/Checkbox';
 import { Badge, StatusBadge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
@@ -28,6 +27,11 @@ export interface SupplierColumnHandlers {
     onDelete: (supplier: SupplierListItem) => void;
     onView: (supplier: SupplierListItem) => void;
     onRestore: (supplier: SupplierListItem) => void;
+    auth: {
+        hasPermission: (perm: string) => boolean;
+        canEdit: (resource: string) => boolean;
+        canDelete: (resource: string) => boolean;
+    };
     filters?: {
         businessName?: ColumnFilterConfig;
         taxIdType?: ColumnFilterConfig;
@@ -151,13 +155,44 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
                 />
             ),
             meta: { title: 'Tipo' },
-            size: 120,
+            size: 110,
             cell: (info) => {
                 const type = info.getValue<string>();
                 return (
-                    <Badge variant={type === 'JURIDICA' ? 'primary' : 'info'}>
+                    <Badge variant={type === 'JURIDICA' ? 'primary' : 'info'} class="text-[11px] uppercase tracking-wider border-primary/20">
                         {type === 'JURIDICA' ? 'Jurídica' : 'Natural'}
                     </Badge>
+                );
+            },
+        },
+
+        // Fiscal Info
+        {
+            id: 'fiscal',
+            header: ({ column }) => <DataTableColumnHeader column={column} title="Fiscal" />,
+            meta: { title: 'Fiscal' },
+            size: 160,
+            cell: (info) => {
+                const supplier = info.row.original;
+                return (
+                    <div class="flex flex-col gap-1">
+                        <Show when={supplier.tax_regime_type && supplier.tax_regime_type !== 'GENERAL'}>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-surface/50 border border-border/60 text-muted px-1.5 py-0.5 rounded w-max shadow-sm">
+                                {supplier.tax_regime_type}
+                            </span>
+                        </Show>
+                        <div class="flex flex-wrap gap-1">
+                            <Show when={supplier.obligado_contabilidad}>
+                                <span class="text-[9px] font-bold uppercase tracking-wider bg-success/10 text-success border border-success/20 px-1.5 py-0.5 rounded shadow-sm" title="Obligado a llevar contabilidad">Obl. Cont.</span>
+                            </Show>
+                            <Show when={supplier.is_retention_agent}>
+                                <span class="text-[9px] font-bold uppercase tracking-wider bg-info/10 text-info border border-info/20 px-1.5 py-0.5 rounded shadow-sm" title="Agente de Retención">Ag. Ret.</span>
+                            </Show>
+                            <Show when={supplier.is_special_contributor}>
+                                <span class="text-[9px] font-bold uppercase tracking-wider bg-warning/10 text-warning border border-warning/20 px-1.5 py-0.5 rounded shadow-sm" title="Contribuyente Especial">Contr. Esp.</span>
+                            </Show>
+                        </div>
+                    </div>
                 );
             },
         },
@@ -187,13 +222,12 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             size: 50,
             enableHiding: false,
             cell: (info) => {
-                const auth = useAuth();
                 const supplier = info.row.original;
                 const isActive = () => supplier.is_active;
-                const canDestroy = () => auth.hasPermission('suppliers:destroy');
-                const canRestore = () => auth.hasPermission('suppliers:restore') && !isActive();
-                const canEdit = () => auth.canEdit('suppliers');
-                const canDelete = () => auth.canDelete('suppliers') && isActive();
+                const canDestroy = () => handlers.auth.hasPermission('suppliers:destroy');
+                const canRestore = () => handlers.auth.hasPermission('suppliers:restore') && !isActive();
+                const canEdit = () => handlers.auth.canEdit('suppliers');
+                const canDelete = () => handlers.auth.canDelete('suppliers') && isActive();
                
 
                 return (
@@ -224,13 +258,10 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
 
                                 <Show when={canDelete() || canDestroy()}>
                                     <DropdownMenu.Separator />
-                                    
-                                    <Show when={canDelete() || canDestroy()}>
-                                        <DropdownMenu.Item onSelect={() => handlers.onDelete(supplier)} destructive>
-                                            <TrashIcon class="size-4 mr-2" />
-                                            <span>Eliminar</span>
-                                        </DropdownMenu.Item>
-                                    </Show>
+                                    <DropdownMenu.Item onSelect={() => handlers.onDelete(supplier)} destructive>
+                                        <TrashIcon class="size-4 mr-2" />
+                                        <span>Eliminar</span>
+                                    </DropdownMenu.Item>
                                 </Show>
                             </DropdownMenu.Content>
                         </DropdownMenu>

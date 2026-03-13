@@ -16,6 +16,7 @@ import { materialRoutes } from './routes/materials.routes';
 import { bomRoutes } from './routes/bom.routes';
 import { modulesRoutes } from './routes/modules.routes';
 import { sriRoutes } from './routes/sri.routes';
+import { geonamesRoutes } from './routes/geonames.routes';
 import { electronicDocumentsRoutes } from './routes/electronic-documents.routes';
 import { remissionGuidesRoutes } from './routes/remission-guides.routes';
 import { technicalVisitsRoutes } from './routes/technical-visits.routes';
@@ -152,6 +153,7 @@ const app = new Elysia({ prefix: '/api', aot: false })
   .use(employeeSchedulesRoutes)
   .use(rbacRoutes)
   .use(sriRoutes)
+  .use(geonamesRoutes)
 
 // Server configuration with optional Unix Socket support
 const serverConfig = {

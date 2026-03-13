@@ -2,13 +2,13 @@ import { Component, JSX, splitProps } from 'solid-js';
 
 export interface IconProps extends JSX.SvgSVGAttributes<SVGSVGElement> {
     class?: string;
+    strokeWidth?: number; // Nueva propiedad para el grosor
 }
 
 
 const BaseIcon = (props: IconProps & { children: JSX.Element }) => {
     // Separamos 'class' y 'children' para manejarlos manualmente, el resto se pasa directo (...others)
-    const [local, others] = splitProps(props, ['class', 'children']);
-
+const [local, others] = splitProps(props, ['class', 'children', 'strokeWidth']);
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -16,8 +16,7 @@ const BaseIcon = (props: IconProps & { children: JSX.Element }) => {
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
+            stroke-width={local.strokeWidth ?? 2} stroke-linecap="round"
             stroke-linejoin="round"
             {...others}
         >
@@ -150,7 +149,7 @@ export const CheckIcon: Component<IconProps> = (props) => (
 
 export const XIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>
-        <path d="M6 18L18 6M6 6l12 12" />
+        <path d="M4 20L20 4M4 4l16 16" />
     </BaseIcon>
 );
 
@@ -241,6 +240,34 @@ export const InfoIcon: Component<IconProps> = (props) => (
     </BaseIcon>
 );
 
+// Location pin icon
+export const MapPinIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+        <circle cx="12" cy="10" r="3" />
+    </BaseIcon>
+);
+
+// Document/fiscal icon
+export const FileTextIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <polyline points="10 9 9 9 8 9" />
+    </BaseIcon>
+);
+export const ScalesIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        {/* Base central simple */}
+        <path d="M12 21h-3a1 1 0 01-1-1v-1a1 1 0 011-1h3m0 0h3a1 1 0 011 1v1a1 1 0 01-1 1h-3" />
+        {/* Pilar central y haz horizontal superior */}
+        <path d="M12 4v16m0-16c-1.042 0-2 .133-2 .382L9 6.2a1 1 0 01-1 1H7l1 1h8l1-1h-1a1 1 0 01-1-1L14 4.382c0-.249-.958-.382-2-.382zM12 4c1.042 0 2 .133 2 .382z" />
+        {/* Bandejas colgantes idénticas (arcos de sartén semicirculares simples) */}
+        <path d="M5 10c0-3.313 3-4.5 7-4.5s7 1.187 7 4.5M6 10a2 2 0 01-2-2m-2-2a2 2 0 012-2M18 10a2 2 0 002-2m2-2a2 2 0 00-2-2m-8 6a4 4 0 01-4 4h8a4 4 0 01-4-4z" />
+    </BaseIcon>
+);
 
 
 // Download icon

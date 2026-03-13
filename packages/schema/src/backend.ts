@@ -32,6 +32,23 @@ export const TaxRegimeTypeSchema = Type.Union([
 // ENTITY CRUD SCHEMAS
 // ============================================================================
 
+export const ContactPayloadSchema = Type.Object({
+    name: Type.String(),
+    position: Type.Optional(Type.String()),
+    email: Type.Optional(Type.Union([Type.String({ format: 'email' }), Type.Literal('')])),
+    phone: Type.Optional(Type.String()),
+    isPrimary: Type.Optional(Type.Boolean())
+});
+
+export const AddressPayloadSchema = Type.Object({
+    addressLine: Type.String(),
+    city: Type.Optional(Type.String()),
+    country: Type.Optional(Type.String()),
+    countryCode: Type.Optional(Type.String()),
+    postalCode: Type.Optional(Type.String()),
+    isMain: Type.Optional(Type.Boolean())
+});
+
 // Supplier create/update body schema
 // Note: Aligns with frontend SupplierFormSchema in packages/schema/src/frontend.ts
 export const SupplierBodySchema = Type.Object({
@@ -42,11 +59,12 @@ export const SupplierBodySchema = Type.Object({
     tradeName: Type.Optional(Type.String()), // Optional - may be empty string
     emailBilling: Type.Optional(Type.Union([Type.String({ format: 'email' }), Type.Literal('')])),
     phone: Type.Optional(Type.String()), // Optional - may be empty string
-    addressLine: Type.Optional(Type.String()),
     taxRegimeType: Type.Optional(TaxRegimeTypeSchema), // Optional enum
     obligadoContabilidad: Type.Optional(Type.Boolean()), // Optional - defaults to false in form
     isRetentionAgent: Type.Optional(Type.Boolean()),
     isSpecialContributor: Type.Optional(Type.Boolean()),
+    contacts: Type.Optional(Type.Array(ContactPayloadSchema)),
+    addresses: Type.Optional(Type.Array(AddressPayloadSchema)),
 });
 
 export const SupplierUpdateSchema = Type.Partial(Type.Omit(SupplierBodySchema, ['taxId', 'taxIdType']));
@@ -153,6 +171,7 @@ export const SriSupplierResponseSchema = Type.Object({
     ruc: Type.String(),
     razonSocial: Type.String(),
     nombreComercial: Type.Union([Type.String(), Type.Null()]),
+    city: Type.Union([Type.String(), Type.Null()]),
     isActive: Type.Union([Type.Boolean(), Type.Null()]),
     isSociedad: Type.Union([Type.Boolean(), Type.Null()]),
     isRimpe: Type.Union([Type.Boolean(), Type.Null()]),

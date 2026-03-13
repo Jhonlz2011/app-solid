@@ -23,6 +23,17 @@ import {
 // Re-export shared types
 export type { EntityPayload, EntityReferences };
 
+/** Lightweight existence + type check (single query, no joins) */
+async function assertSupplier(id: number) {
+    const [row] = await db
+        .select({ id: entities.id, is_supplier: entities.is_supplier })
+        .from(entities)
+        .where(eq(entities.id, id));
+    if (!row) throw new DomainError('Entidad no encontrada', 404);
+    if (!row.is_supplier) throw new DomainError('Entidad no es un proveedor', 404);
+    return row;
+}
+
 /**
  * Service for managing Supplier entities.
  * Facade pattern over the generic entities.service for domain-specific operations.
@@ -73,7 +84,7 @@ export const suppliersService = {
 
     /** Update an existing supplier */
     async update(id: number, payload: Partial<EntityPayload>, clientId?: string) {
-        await this.get(id); // verify exists + is supplier
+        await assertSupplier(id);
         return updateEntity(id, 'supplier', payload, clientId);
     },
 
@@ -82,7 +93,7 @@ export const suppliersService = {
      * Sets is_active=false, deleted_at=now(), deleted_by for audit trail.
      */
     async softDelete(id: number, deletedBy?: number, clientId?: string) {
-        await this.get(id);
+        await assertSupplier(id);
         return deactivateEntity(id, 'supplier', deletedBy, clientId);
     },
 
@@ -98,7 +109,7 @@ export const suppliersService = {
      * Returns reference counts so the frontend can warn the user before confirming.
      */
     async checkReferences(id: number): Promise<EntityReferences> {
-        await this.get(id);
+        await assertSupplier(id);
         return checkEntityReferences(id);
     },
 
@@ -108,7 +119,7 @@ export const suppliersService = {
      * Route must be guarded with `suppliers:destroy` permission.
      */
     async hardDelete(id: number, clientId?: string) {
-        await this.get(id);
+        await assertSupplier(id);
         return hardDeleteEntity(id, 'supplier', clientId);
     },
 

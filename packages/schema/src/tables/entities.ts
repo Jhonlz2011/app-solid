@@ -49,7 +49,9 @@ export const entityContacts = pgTableV2("entity_contacts", {
     email: text("email"),
     phone: text("phone"),
     is_primary: boolean("is_primary").default(false), // Para saber a quién enviar la factura
-});
+}, (t) => [
+    index("idx_entity_contacts_entity_id").on(t.entity_id),
+]);
 
 export const employeeDetails = pgTableV2("employee_details", {
     entity_id: integer("entity_id").primaryKey().references(() => entities.id, { onDelete: 'cascade' }),
@@ -65,6 +67,7 @@ export const entityAddresses = pgTableV2("entity_addresses", {
     entity_id: integer("entity_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
     address_line: text("address_line").notNull(),
     country: text("country").default('Ecuador').notNull(),
+    country_code: text("country_code").default('EC'),
     state: text("state"), // Provincia (Ecuador) o Estado (Exterior)
     city: text("city"),   // Cantón (Ecuador) o Ciudad (Exterior)
     parish: text("parish"), // Parroquia (Ecuador - muy usado para envíos)

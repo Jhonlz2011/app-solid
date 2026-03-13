@@ -1,5 +1,5 @@
 import { createSelectSchema, createInsertSchema } from 'drizzle-valibot';
-import { pipe, string, minLength, object, email, type InferInput, picklist, undefinedable, boolean, union, literal } from 'valibot';
+import { pipe, string, minLength, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array } from 'valibot';
 import * as tables from './tables';
 import { TAX_ID_TYPES, PERSON_TYPES, TAX_REGIME_TYPES } from './enums';
 
@@ -26,6 +26,23 @@ export const TaxIdTypeSchema = picklist(TAX_ID_TYPES);
 export const PersonTypeSchema = picklist(PERSON_TYPES);
 export const TaxRegimeTypeSchema = picklist(TAX_REGIME_TYPES);
 
+export const ContactFormSchema = object({
+    name: pipe(string(), minLength(1, 'El nombre es requerido')),
+    position: string(),
+    email: union([pipe(string(), email('Correo inválido')), literal('')]),
+    phone: string(),
+    isPrimary: boolean()
+});
+
+export const AddressFormSchema = object({
+    addressLine: pipe(string(), minLength(1, 'La dirección es requerida')),
+    city: string(),
+    country: string(),
+    countryCode: string(),
+    postalCode: string(),
+    isMain: boolean()
+});
+
 // Complete supplier form validation schema
 // Note: Using string() for optional text fields because TanStack Form uses empty strings.
 // Using undefinedable() for enum to keep the key required (matching defaultValues) while allowing undefined.
@@ -37,14 +54,17 @@ export const SupplierFormSchema = object({
     tradeName: string(),
     emailBilling: union([pipe(string(), email('Correo inválido')), literal('')]),
     phone: string(),
-    addressLine: string(),
     taxRegimeType: undefinedable(TaxRegimeTypeSchema), // Required key, optional value
     obligadoContabilidad: boolean(),
     isRetentionAgent: boolean(),
     isSpecialContributor: boolean(),
+    contacts: array(ContactFormSchema),
+    addresses: array(AddressFormSchema),
 });
 
 export type SupplierFormData = InferInput<typeof SupplierFormSchema>;
+export type ContactFormData = InferInput<typeof ContactFormSchema>;
+export type AddressFormData = InferInput<typeof AddressFormSchema>;
 
 // --- WORK ORDERS ---
 export const WorkOrderSelect = createSelectSchema(tables.workOrders);

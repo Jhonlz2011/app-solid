@@ -75,6 +75,7 @@ export const TabsContent: Component<Parameters<typeof KTabs.Content>[0] & { clas
     return (
         <KTabs.Content
             {...others}
+            forceMount
             class={`
         hidden data-[selected]:block
         outline-none

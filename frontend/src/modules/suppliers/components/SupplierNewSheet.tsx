@@ -30,7 +30,7 @@ const SupplierNewSheet: Component = () => {
             onClose={handleClose}
             title="Nuevo Proveedor"
             description="Ingresa los datos del nuevo proveedor"
-            size="lg"
+            size="xxxxl"
         >
             <SupplierForm
                 onSubmit={handleSubmit}

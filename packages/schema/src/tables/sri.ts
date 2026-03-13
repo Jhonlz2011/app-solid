@@ -11,6 +11,7 @@ export const sriProduccion = pgTableV2('sri_produccion', {
     numero_ruc: text("numero_ruc").primaryKey(),
     razon_social: text('razon_social').notNull(),
     nombre_comercial: text('nombre_comercial'),
+    canton: text('canton'),
     
     is_active: boolean('is_active').default(false),
     is_sociedad: boolean('is_sociedad').default(false),

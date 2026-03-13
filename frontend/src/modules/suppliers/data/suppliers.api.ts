@@ -71,26 +71,7 @@ export function useSuppliers(filters: () => SupplierFilters) {
     const queryClient = useQueryClient();
     const query = createQuery(() => ({
         queryKey: supplierKeys.list(filters()),
-        queryFn: async () => {
-            const f = filters();
-            const { data, error } = await api.api.suppliers.get({
-                query: {
-                    cursor: f.cursor,
-                    direction: f.direction,
-                    limit: f.limit,
-                    search: f.search,
-                    sortBy: f.sortBy,
-                    sortOrder: f.sortOrder,
-                    page: f.page,
-                    personType: f.personType?.join(','),
-                    taxIdType: f.taxIdType?.join(','),
-                    isActive: f.isActive?.join(','),
-                    businessName: f.businessName?.join(','),
-                }
-            });
-            if (error) throw new Error(String(error.value));
-            return data!;
-        },
+        queryFn: () => suppliersApi.list(filters()),
         staleTime: 1000 * 60 * 2,       // 2 minutes — aligned with backend 120s TTL
         gcTime: 1000 * 60 * 30,          // 30 minutes — keep in cache
         placeholderData: keepPreviousData,
@@ -316,6 +297,18 @@ export function useUpdateSupplier() {
     }));
 }
 
+// =============================================================================
+// Shared Mutation Invalidation
+// =============================================================================
+
+/** Shared onSettled for all supplier mutations — invalidates list + facet caches */
+function supplierOnSettled(queryClient: ReturnType<typeof useQueryClient>) {
+    return () => {
+        queryClient.invalidateQueries({ queryKey: supplierKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: [...supplierKeys.all, 'facets'], exact: false });
+    };
+}
+
 export function useDeleteSupplier() {
     const queryClient = useQueryClient();
 
@@ -325,10 +318,7 @@ export function useDeleteSupplier() {
              if (error) throw new Error(String(error.value));
             return id;
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: supplierKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: [...supplierKeys.all, 'facets'], exact: false });
-        },
+        onSettled: supplierOnSettled(queryClient),
     }));
 }
 
@@ -341,10 +331,7 @@ export function useBulkDeleteSupplier() {
             if (error) throw new Error(String(error.value));
             return data!;
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: supplierKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: [...supplierKeys.all, 'facets'], exact: false });
-        },
+        onSettled: supplierOnSettled(queryClient),
     }));
 }
 
@@ -357,10 +344,7 @@ export function useBulkRestoreSupplier() {
             if (error) throw new Error(String(error.value));
             return data!;
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: supplierKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: [...supplierKeys.all, 'facets'], exact: false });
-        },
+        onSettled: supplierOnSettled(queryClient),
     }));
 }
 
@@ -377,10 +361,7 @@ export function useRestoreSupplier() {
             if (error) throw new Error(String(error.value));
             return id;
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: supplierKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: [...supplierKeys.all, 'facets'], exact: false });
-        },
+        onSettled: supplierOnSettled(queryClient),
     }));
 }
 
@@ -426,7 +407,6 @@ export function useHardDeleteSupplier() {
 export interface SupplierReferences {
     supplierProducts: number;
     invoices: number;
-    posSales: number;
     workOrders: number;
     total: number;
     canDelete: boolean;
@@ -490,9 +470,11 @@ export type SriSupplierResponse = {
     ruc: string;
     razonSocial: string;
     nombreComercial: string | null;
+    city: string;
     isActive: boolean | null;
     isSociedad: boolean | null;
     isRimpe: boolean | null;
+    
     obligadoContabilidad: boolean | null;
     agenteRetencion: boolean | null;
     contribuyenteEspecial: boolean | null;

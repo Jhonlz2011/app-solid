@@ -1,13 +1,15 @@
 import { Component, For, Show } from 'solid-js';
 import { Skeleton } from './Skeleton';
+import { cn } from '../lib/utils';
 
 interface SkeletonLoaderProps {
     type: 'table-row' | 'card' | 'text' | 'avatar' | 'list-item';
     count?: number;
+    class?: string;
 }
 
-export const TableRowSkeleton = () => (
-    <div class="flex items-center gap-4 px-4 py-3 border-b border-surface/50">
+export const TableRowSkeleton = (props: { class?: string }) => (
+    <div class={cn("flex items-center gap-4 px-4 py-3 border-b border-surface/50", props.class)}>
         <Skeleton class="w-10 h-10 rounded-full" />
         <div class="flex-1 space-y-2">
             <Skeleton class="w-32 h-4 rounded" />
@@ -18,8 +20,8 @@ export const TableRowSkeleton = () => (
     </div>
 );
 
-export const CardSkeleton = () => (
-    <div class="bg-card border border-border shadow-card-soft rounded-xl p-5">
+export const CardSkeleton = (props: { class?: string }) => (
+    <div class={cn("bg-card border border-border shadow-card-soft rounded-xl p-5", props.class)}>
         <div class="flex items-start justify-between mb-3">
             <div class="space-y-2">
                 <Skeleton class="h-6 w-24 rounded" />
@@ -32,19 +34,19 @@ export const CardSkeleton = () => (
     </div>
 );
 
-export const TextSkeleton = () => (
-    <div class="space-y-2">
+export const TextSkeleton = (props: { class?: string }) => (
+    <div class={cn("space-y-2", props.class)}>
         <Skeleton class="h-4 w-full rounded" />
         <Skeleton class="h-4 w-3/4 rounded" />
     </div>
 );
 
-export const AvatarSkeleton = () => (
-    <Skeleton class="w-10 h-10 rounded-full" />
+export const AvatarSkeleton = (props: { class?: string }) => (
+    <Skeleton class={cn("w-10 h-10 rounded-full", props.class)} />
 );
 
-export const ListItemSkeleton = () => (
-    <div class="flex items-center gap-3 p-3 rounded-lg bg-surface/30">
+export const ListItemSkeleton = (props: { class?: string }) => (
+    <div class={cn("flex items-center gap-3 p-3 rounded-lg bg-surface/30", props.class)}>
         <Skeleton class="w-10 h-10 rounded-full" />
         <div class="flex-1 space-y-2">
             <Skeleton class="w-24 h-4 rounded" />
@@ -60,11 +62,11 @@ export const SkeletonLoader: Component<SkeletonLoaderProps> = (props) => {
 
     const LegacySkeleton = () => {
         switch (props.type) {
-            case 'table-row': return <TableRowSkeleton />;
-            case 'card': return <CardSkeleton />;
-            case 'avatar': return <AvatarSkeleton />;
-            case 'list-item': return <ListItemSkeleton />;
-            default: return <TextSkeleton />;
+            case 'table-row': return <TableRowSkeleton class={props.class} />;
+            case 'card': return <CardSkeleton class={props.class} />;
+            case 'avatar': return <AvatarSkeleton class={props.class} />;
+            case 'list-item': return <ListItemSkeleton class={props.class} />;
+            default: return <TextSkeleton class={props.class} />;
         }
     };
 

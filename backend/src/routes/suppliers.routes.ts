@@ -172,6 +172,11 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
             body: t.Object({
                 addressLine: t.String(),
                 city: t.Optional(t.String()),
+                country: t.Optional(t.String()),
+                countryCode: t.Optional(t.String()),
+                state: t.Optional(t.String()),
+                parish: t.Optional(t.String()),
+                postalCode: t.Optional(t.String()),
                 isMain: t.Optional(t.Boolean()),
             }),
         }

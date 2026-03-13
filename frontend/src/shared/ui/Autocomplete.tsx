@@ -9,6 +9,8 @@ export interface AutocompleteProps<T> {
     optionValue: (option: T) => string;
     optionLabel: (option: T) => string;
     optionDescription?: (option: T) => string;
+    itemRenderer?: (option: T) => import('solid-js').JSX.Element;
+    inputPrefix?: import('solid-js').JSX.Element;
     onSelect?: (option: T) => void;
     placeholder?: string;
     disabled?: boolean;
@@ -19,6 +21,10 @@ export interface AutocompleteProps<T> {
 }
 
 export function Autocomplete<T>(props: AutocompleteProps<T>) {
+    // Guard: suppress ALL onInputChange calls for 150ms after a selection.
+    // Kobalte fires onInputChange multiple times (internal sync + blur) after onChange.
+    let _lastSelectionTime = 0;
+
     // Agreamos el valor en crudo (string) a las opciones para que Kobalte 
     // no borre el input al perder el foco y permita escritura libre (free text).
     const dynamicOptions = createMemo(() => {
@@ -50,6 +56,8 @@ export function Autocomplete<T>(props: AutocompleteProps<T>) {
             class={`flex flex-col gap-1.5 ${props.class ?? ''}`}
             options={dynamicOptions()}
             onInputChange={(v) => {
+                // Suppress Kobalte's internal onInputChange calls after selection
+                if (Date.now() - _lastSelectionTime < 150) return;
                 props.onInputChange(v);
             }}
             value={selectedItem()}
@@ -59,15 +67,17 @@ export function Autocomplete<T>(props: AutocompleteProps<T>) {
                 if (typeof selected === 'string') {
                     props.onInputChange(selected);
                 } else {
-                    const textValue = props.optionValue(selected);
-                    props.onInputChange(textValue);
+                    // Set timestamp guard before onSelect
+                    _lastSelectionTime = Date.now();
                     if (props.onSelect) {
                         props.onSelect(selected);
                     }
                 }
             }}
             optionValue={(opt) => typeof opt === 'string' ? opt : props.optionValue(opt)}
-            optionTextValue={(opt) => typeof opt === 'string' ? opt : props.optionLabel(opt)}
+            // IMPORTANT: Escaping double quotes here because Kobalte uses this internally
+            // to query the DOM via `querySelector('[data-key="..."]')`
+            optionTextValue={(opt) => typeof opt === 'string' ? opt.replace(/"/g, "'") : props.optionLabel(opt).replace(/"/g, "'")}
             optionLabel={(opt) => typeof opt === 'string' ? opt : props.optionLabel(opt)}
             defaultFilter={() => true} // DISABLE LOCAL FILTERING SO SERVER RESULTS ALWAYS SHOW
             disabled={props.disabled}
@@ -89,31 +99,31 @@ export function Autocomplete<T>(props: AutocompleteProps<T>) {
                         item={itemProps.item}
                         class="relative flex w-full cursor-pointer select-none items-center justify-between rounded-lg px-3 py-2 text-sm outline-none transition-colors duration-150 text-text-secondary data-[highlighted]:bg-primary-soft data-[highlighted]:text-primary-strong data-[selected]:text-primary data-[selected]:font-medium"
                     >
-                        <div class="flex flex-col">
-                            <span class="font-medium text-text">{props.optionLabel(opt)}</span>
-                            <Show when={props.optionDescription}>
-                                <span class="text-xs text-muted truncate">{props.optionDescription!(opt)}</span>
-                            </Show>
-                        </div>
+                        <Show when={props.itemRenderer} fallback={
+                            <div class="flex flex-col">
+                                <span class="font-medium text-text">{props.optionLabel(opt)}</span>
+                                <Show when={props.optionDescription}>
+                                    <span class="text-xs text-muted truncate">{props.optionDescription!(opt)}</span>
+                                </Show>
+                            </div>
+                        }>
+                            {props.itemRenderer!(opt)}
+                        </Show>
                     </KCombobox.Item>
                 );
             }}
         >
             <KCombobox.Control>
                 <KCombobox.Trigger class="group flex w-full items-center justify-between cursor-pointer px-4 rounded-xl border transition-all duration-200 bg-card-alt border-border text-text hover:bg-card hover:border-border-strong has-[:focus-visible]:border-primary/65 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/25 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50">
+                    <Show when={props.inputPrefix}>
+                        <div class="mr-2 flex-shrink-0">{props.inputPrefix}</div>
+                    </Show>
                     <KCombobox.Input 
                         placeholder={props.placeholder}
-                        class="flex-1 bg-transparent py-2 outline-none placeholder:text-muted text-text font-medium min-w-0"
+                        class="flex-1 bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0"
                         onPointerDown={(e) => {
                             // Detener la propagación para que Kobalte no capture el click como un intento de selección
                             e.stopPropagation();
-                        }}
-                        onBlur={() => {
-                            // If lost focus and we have a valid text, we ensure it's synced
-                            const inputVal = props.value;
-                            if (inputVal) {
-                                props.onInputChange(inputVal);
-                            }
                         }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && props.onSearchAction) {
@@ -121,7 +131,7 @@ export function Autocomplete<T>(props: AutocompleteProps<T>) {
                             }
                         }}
                     />
-                    <div class="ml-2 flex flex-shrink-0 items-center justify-center text-muted group-hover:text-text-secondary transition-colors h-full w-6">
+                    <div class="ml-2 flex flex-shrink-0 items-center justify-center text-muted group-hover:text-text-secondary transition-colors h-full">
                         <Show when={props.isLoading}>
                             <svg class="animate-spin size-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -145,7 +155,7 @@ export function Autocomplete<T>(props: AutocompleteProps<T>) {
                                 </div>
                             }>
                                 <div 
-                                    class="cursor-pointer hover:text-danger p-0.5 rounded-md"
+                                    class="cursor-pointer hover:text-danger rounded-md"
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
@@ -158,7 +168,7 @@ export function Autocomplete<T>(props: AutocompleteProps<T>) {
                                     onPointerDown={(e) => e.stopPropagation()}
                                     title="Limpiar"
                                 >
-                                    <XIcon class="size-4" />
+                                    <XIcon class="size-3.5" strokeWidth={3} />
                                 </div>
                             </Show>
                         </Show>

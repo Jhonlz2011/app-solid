@@ -11,6 +11,7 @@ export type SuppliersResponse = Awaited<ReturnType<typeof suppliersApi.list>>;
 // Re-export for convenience
 export type { SupplierBody as SupplierPayload, SupplierFilters };
 export type { TaxIdType, PersonType, TaxRegimeType };
+export type { ContactFormData, AddressFormData } from '@app/schema/frontend';
 
 // UI Label mappings
 export const taxIdTypeLabels: Record<TaxIdType, string> = {

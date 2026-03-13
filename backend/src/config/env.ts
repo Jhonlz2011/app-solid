@@ -9,4 +9,5 @@ export const env = {
   PORT: process.env.PORT ? parseInt(process.env.PORT) : 3000,
   NODE_ENV: (process.env.NODE_ENV || 'development') as 'development' | 'production' | 'test',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
+  GEONAMES_USERNAME: process.env.GEONAMES_USERNAME || 'Jhonlz2011',
 };

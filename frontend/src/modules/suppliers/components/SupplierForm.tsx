@@ -1,4 +1,4 @@
-import { Component, Show, For, createSignal, createEffect } from 'solid-js';
+import { Component, createSignal, Show, Index, onCleanup, createEffect } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { useQueryClient } from '@tanstack/solid-query';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
@@ -7,14 +7,15 @@ import type { Supplier, SupplierPayload, TaxIdType, PersonType, TaxRegimeType } 
 import { taxIdTypeLabels, personTypeLabels, taxRegimeTypeLabels } from '../models/supplier.types';
 import { useSriSearchByName, type SriSupplierResponse } from '../data/suppliers.api';
 import { api } from '@shared/lib/eden';
+import { useGeoNamesCities, type GeoNameCity } from '@shared/hooks/useGeoNamesCities';
 import Button from '@shared/ui/Button';
 import TextField from '@shared/ui/TextField';
 import Checkbox from '@shared/ui/Checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import { Autocomplete } from '@shared/ui/Autocomplete';
-import { SearchIcon } from '@shared/ui/icons';
-
-
+import { SearchIcon, PlusIcon, TrashIcon, InfoIcon, UsersIcon, MapPinIcon, FileTextIcon, ScalesIcon } from '@shared/ui/icons';
+import { CounterBadge } from '@shared/ui/Badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 // Select option types
 interface SelectOption<T extends string> {
     value: T;
@@ -54,6 +55,157 @@ interface SupplierFormProps {
     onCancel: () => void;
 }
 
+// =============================================================================
+// AddressRow — Sub-component with city Autocomplete + flag
+// =============================================================================
+interface AddressRowProps {
+    form: any;
+    index: number;
+    onRemove: () => void;
+}
+
+const AddressRow: Component<AddressRowProps> = (props) => {
+    const cities = useGeoNamesCities();
+
+    // Local signals for reactive UI
+    const [localCountry, setLocalCountry] = createSignal('');
+    const [localCountryCode, setLocalCountryCode] = createSignal('');
+    const [isSelected, setIsSelected] = createSignal(false);
+    const [inputText, setInputText] = createSignal('');
+
+    // Sync local signals from the form store reactively.
+    // This handles: initial mount, edit-mode rehydration, and tab re-activation (forceMount).
+    createEffect(() => {
+        const addr = props.form.store.state.values.addresses?.[props.index];
+        if (!addr) return;
+        const city = addr.city || '';
+        const country = addr.country || '';
+        const code = addr.countryCode || '';
+
+        // Only sync if local signals are still at their initial empty state
+        // (avoid overwriting user selections)
+        if (!inputText() && city) {
+            setLocalCountry(country);
+            setLocalCountryCode(code);
+            setIsSelected(!!city && !!country);
+            setInputText(city && country ? `${city}, ${country}` : city);
+        }
+    });
+
+    /** When a city is selected from the dropdown */
+    const handleCitySelect = (city: GeoNameCity | null) => {
+        if (!city) return;
+        // Update form fields for submission
+        props.form.setFieldValue(`addresses[${props.index}].city`, city.ciudad);
+        props.form.setFieldValue(`addresses[${props.index}].country`, city.pais);
+        props.form.setFieldValue(`addresses[${props.index}].countryCode`, city.codigo);
+        // Update local signals
+        setLocalCountry(city.pais);
+        setLocalCountryCode(city.codigo);
+        setIsSelected(true);
+        setInputText(`${city.ciudad}, ${city.pais}`);
+    };
+
+    /** When user types freely in the input */
+    const handleInputChange = (val: string) => {
+        setInputText(val);
+        // If user starts editing, exit "selected" mode
+        setIsSelected(false);
+        // Extract city part (before comma if any)
+        const cityPart = val.includes(',') ? val.split(',')[0].trim() : val;
+        props.form.setFieldValue(`addresses[${props.index}].city`, cityPart);
+        cities.setSearch(cityPart);
+    };
+
+    return (
+        <div class="relative grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-card rounded-xl border border-border/50 shadow-sm animate-in slide-in-from-top-2">
+            {/* Dirección */}
+            <div class="col-span-12 md:col-span-5">
+                <props.form.Field name={`addresses[${props.index}].addressLine`}>
+                    {(subField: any) => (
+                        <TextField.Root field={subField()}>
+                            <TextField.Label>Dirección Completa</TextField.Label>
+                            <TextField.Input type="text" placeholder="Av. Principal y Secundaria..." />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
+                    )}
+                </props.form.Field>
+            </div>
+
+            {/* Ciudad — Autocomplete with flag + "City, Country" display */}
+            <div class="col-span-12 sm:col-span-6 md:col-span-4">
+                <props.form.Field name={`addresses[${props.index}].city`}>
+                    {(subField: any) => (
+                        <div class="flex flex-col gap-1">
+                            <label class="text-sm font-medium text-muted ml-1">Ciudad</label>
+                            <Autocomplete<GeoNameCity>
+                                value={inputText()}
+                                onInputChange={handleInputChange}
+                                options={cities.query.data ?? []}
+                                optionValue={(c) => `${c.ciudad}, ${c.pais}`}
+                                optionLabel={(c) => `${c.ciudad}, ${c.pais}`}
+                                onSelect={handleCitySelect}
+                                isLoading={cities.query.isFetching}
+                                placeholder="Buscar ciudad..."
+                                minLength={2}
+                                inputPrefix={
+                                    isSelected() && localCountryCode() ? (
+                                        <img
+                                            src={`https://flagcdn.com/${localCountryCode().toLowerCase()}.svg`}
+                                            alt={localCountryCode()}
+                                            class="size-5 rounded-sm object-cover shadow-sm"
+                                            loading="lazy"
+                                        />
+                                    ) : undefined
+                                }
+                                itemRenderer={(city) => (
+                                    <div class="flex items-center gap-2.5">
+                                        <img
+                                            src={city.bandera}
+                                            alt={city.codigo}
+                                            class="size-5 rounded-sm object-cover shadow-sm flex-shrink-0"
+                                            loading="lazy"
+                                        />
+                                        <div class="flex flex-col min-w-0">
+                                            <span class="font-medium text-text truncate">{city.ciudad}</span>
+                                            <span class="text-xs text-muted truncate">{city.pais}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            />
+                        </div>
+                    )}
+                </props.form.Field>
+            </div>
+
+            {/* Código Postal */}
+            <div class="col-span-12 sm:col-span-6 md:col-span-2">
+                <props.form.Field name={`addresses[${props.index}].postalCode`}>
+                    {(subField: any) => (
+                        <TextField.Root field={subField()}>
+                            <TextField.Label>Código Postal</TextField.Label>
+                            <TextField.Input type="text" placeholder="Ej: 170515" />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
+                    )}
+                </props.form.Field>
+            </div>
+
+            {/* Eliminar */}
+            <div class="col-span-12 md:col-span-1 flex items-center justify-end md:justify-center pt-5">
+                <button
+                    type="button"
+                    onClick={props.onRemove}
+                    class="p-2 text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                    title="Eliminar Dirección"
+                >
+                    <TrashIcon class="size-4" />
+                </button>
+            </div>
+        </div>
+    );
+};
+
 export const SupplierForm: Component<SupplierFormProps> = (props) => {
     const isEdit = () => !!props.supplier;
     
@@ -75,11 +227,16 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
             tradeName: props.supplier?.trade_name ?? '',
             emailBilling: props.supplier?.email_billing ?? '',
             phone: props.supplier?.phone ?? '',
-            addressLine: '', // For creation only in this form version
             taxRegimeType: (props.supplier?.tax_regime_type ?? undefined) as 'RIMPE_NEGOCIO_POPULAR' | 'RIMPE_EMPRENDEDOR' | 'GENERAL' | undefined,
             obligadoContabilidad: props.supplier?.obligado_contabilidad ?? false,
             isRetentionAgent: props.supplier?.is_retention_agent ?? false,
             isSpecialContributor: props.supplier?.is_special_contributor ?? false,
+            contacts: props.supplier?.contacts?.map(c => ({
+                name: c.name, position: c.position ?? '', email: c.email ?? '', phone: c.phone ?? '', isPrimary: c.is_primary ?? false
+            })) ?? [],
+            addresses: props.supplier?.addresses?.map(a => ({
+                addressLine: a.address_line, city: a.city ?? '', country: a.country ?? 'Ecuador', countryCode: a.country_code ?? 'EC', postalCode: a.postal_code ?? '', isMain: a.is_main ?? false
+            })) ?? []
         },
         validatorAdapter: valibotValidator(),
         validators: {
@@ -92,6 +249,7 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
 
     // Debounced input handlers
     let nameDebounce: ReturnType<typeof setTimeout>;
+    onCleanup(() => clearTimeout(nameDebounce));
 
     const triggerRucSearch = async () => {
         const val = form.getFieldValue('taxId');
@@ -122,14 +280,10 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                 setIsSearchingRuc(false);
             }
         } else {
-            setSriError('El RUC debe tener exactamente 13 dígitos para buscar.');
+            setSriError('El RUC debe tener 13 dígitos.');
         }
     };
 
-    const handleRucInput = (value: string) => {
-        setSriError('');
-        form.setFieldValue('taxId', value);
-    };
 
     const handleNameInput = (value: string) => {
         if (form.getFieldValue('businessName') === value) return;
@@ -170,6 +324,21 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
         } else {
             form.setFieldValue('taxRegimeType', 'GENERAL');
         }
+
+        // Auto-fill address from SRI canton (city)
+        if (supplierResult.city) {
+            const addresses = form.getFieldValue('addresses');
+            if (addresses.length === 0) {
+                form.pushFieldValue('addresses', {
+                    addressLine: '',
+                    city: supplierResult.city,
+                    country: 'Ecuador',
+                    countryCode: 'EC',
+                    postalCode: '',
+                    isMain: true,
+                });
+            }
+        }
     };
 
     return (
@@ -179,263 +348,440 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                 e.stopPropagation();
                 form.handleSubmit();
             }}
-            class="space-y-6"
+            class="flex flex-col h-full overflow-hidden"
         >
-            {/* Identificación */}
-            <fieldset class="space-y-4">
-                <legend class="text-sm font-semibold text-muted uppercase tracking-wider mb-3">Identificación</legend>
+            <div class="flex-1 overflow-y-auto w-full">
+                <Tabs defaultValue="general" class="w-full h-full flex flex-col">
+                    {/* Tabs Header Sticky */}
+                    <div class="sticky top-0 z-20 max-w-full pb-4 bg-card pt-1 pl-1">
+                        <TabsList class="flex px-2 py-1.5 overflow-x-auto shadow-sm rounded-xl">
+                            <TabsTrigger value="general"><InfoIcon/> General</TabsTrigger>
+                            <TabsTrigger value="contacts">
+                                <UsersIcon class="size-4"/> Contactos
+                                <CounterBadge count={form.getFieldValue('contacts')?.length || 0} />
+                            </TabsTrigger>
+                            <TabsTrigger value="addresses">
+                                <MapPinIcon class="size-4"/> Direcciones
+                                <CounterBadge count={form.getFieldValue('addresses')?.length || 0} />
+                            </TabsTrigger>
+                            <TabsTrigger value="fiscal"><ScalesIcon class="size-4" /> Datos Fiscales</TabsTrigger>
+                        </TabsList>
+                    </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Tipo ID - Kobalte Select */}
-                    <form.Field name="taxIdType">
-                        {(field) => (
-                            <div class="space-y-1.5">
-                                <FieldLabel>Tipo ID</FieldLabel>
-                                <Select
-                                    value={taxIdTypeOptions.find(o => o.value === field().state.value)}
-                                    onChange={(opt) => opt && field().handleChange(opt.value)}
-                                    options={taxIdTypeOptions}
-                                    optionValue="value"
-                                    optionTextValue="label"
-                                    disabled={isEdit()}
-                                    placeholder="Seleccionar..."
-                                    itemComponent={(itemProps) => (
-                                        <SelectItem item={itemProps.item}>
-                                            {itemProps.item.rawValue.label}
-                                        </SelectItem>
-                                    )}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue<SelectOption<TaxIdType>>>
-                                            {(state) => state.selectedOption()?.label}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent />
-                                </Select>
-                            </div>
-                        )}
-                    </form.Field>
-
-                    {/* Número ID - TextField Búsqueda Manual RUC */}
-                    <form.Field name="taxId">
-                        {(field) => (
-                            <TextField.Root field={field()}>
-                                <TextField.Label>Número ID (RUC)</TextField.Label>
-                                <div class="relative flex items-center w-full">
-                                    <TextField.Input 
-                                        type="text" 
-                                        placeholder="Ingrese RUC (13 dígitos)" 
-                                        maxLength={13} 
-                                        disabled={isEdit()}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                triggerRucSearch();
-                                            }
-                                        }}
-                                        class="pr-10" // Leave room for lookup icon
-                                    />
-                                    <Show when={!isEdit()}>
-                                        <button 
-                                            type="button"
-                                            onClick={triggerRucSearch}
-                                            disabled={isSearchingRuc() || field().state.value.length !== 13}
-                                            class="absolute right-2 p-1.5 text-muted hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                            title="Buscar RUC en el SRI"
-                                        >
-                                            <Show when={isSearchingRuc()} fallback={<SearchIcon class="size-4" />}>
-                                                <svg class="animate-spin size-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                            </Show>
-                                        </button>
-                                    </Show>
+                    <div class="px-1 pb-4">
+                        {/* 1. General Tab */}
+                        <TabsContent value="general" class="w-full space-y-6 animate-in fade-in duration-300">
+                            {/* Identificación */}
+                            <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
+                                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Identificación Principal</h3>
                                 </div>
-                                <TextField.ErrorMessage />
-                                <Show when={field().state.meta.errors.length > 0}>
-                                     <FormError errors={field().state.meta.errors} />
-                                </Show>
-                                <Show when={sriError()}>
-                                    <span class="text-sm font-medium text-danger mt-1.5 block">{sriError()}</span>
-                                </Show>
-                            </TextField.Root>
-                        )}
-                    </form.Field>
-                </div>
 
-                {/* Tipo Persona - Kobalte Select */}
-                <form.Field name="personType">
-                    {(field) => (
-                        <div class="space-y-1.5">
-                            <FieldLabel>Tipo Persona</FieldLabel>
-                            <Select
-                                value={personTypeOptions.find(o => o.value === field().state.value)}
-                                onChange={(opt) => opt && field().handleChange(opt.value)}
-                                options={personTypeOptions}
-                                optionValue="value"
-                                optionTextValue="label"
-                                disabled={isEdit()}
-                                placeholder="Seleccionar..."
-                                itemComponent={(itemProps) => (
-                                    <SelectItem item={itemProps.item}>
-                                        {itemProps.item.rawValue.label}
-                                    </SelectItem>
-                                )}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue<SelectOption<PersonType>>>
-                                        {(state) => state.selectedOption()?.label}
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent />
-                            </Select>
-                        </div>
-                    )}
-                </form.Field>
-            </fieldset>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                    <form.Field name="taxIdType">
+                                        {(field) => (
+                                            <div class="space-y-1.5">
+                                                <FieldLabel>Tipo ID</FieldLabel>
+                                                <Select
+                                                    value={taxIdTypeOptions.find(o => o.value === field().state.value)}
+                                                    onChange={(opt) => opt && field().handleChange(opt.value)}
+                                                    options={taxIdTypeOptions}
+                                                    optionValue="value"
+                                                    optionTextValue="label"
+                                                    disabled={isEdit()}
+                                                    placeholder="Seleccionar..."
+                                                    itemComponent={(itemProps) => (
+                                                        <SelectItem item={itemProps.item}>
+                                                            {itemProps.item.rawValue.label}
+                                                        </SelectItem>
+                                                    )}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue<SelectOption<TaxIdType>>>
+                                                            {(state) => state.selectedOption()?.label}
+                                                        </SelectValue>
+                                                    </SelectTrigger>
+                                                    <SelectContent />
+                                                </Select>
+                                            </div>
+                                        )}
+                                    </form.Field>
 
-            {/* Información General */}
-            <fieldset class="space-y-4">
-                <legend class="text-sm font-semibold text-muted uppercase tracking-wider mb-3">Información General</legend>
+                                    <form.Field name="taxId">
+                                        {(field) => (
+                                            <TextField.Root field={field()}>
+                                                <TextField.Label>Número ID (RUC)</TextField.Label>
+                                                <div class="relative flex items-center w-full">
+                                                    <TextField.Input 
+                                                        type="text" 
+                                                        placeholder="Ingrese RUC (13 dígitos)" 
+                                                        maxLength={13} 
+                                                        disabled={isEdit()}
+                                                        onKeyDown={(e) => {
+                                                            setSriError('');
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                triggerRucSearch();
+                                                            }
+                                                        }}
+                                                        class="pr-10"
+                                                    />
+                                                    <Show when={!isEdit()}>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={triggerRucSearch}
+                                                            disabled={isSearchingRuc() || field().state.value.length !== 13}
+                                                            class="absolute right-2 p-1.5 text-muted hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            title="Buscar RUC en el SRI"
+                                                        >
+                                                            <Show when={isSearchingRuc()} fallback={<SearchIcon class="size-4" />}>
+                                                                <svg class="animate-spin size-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg>
+                                                            </Show>
+                                                        </button>
+                                                    </Show>
+                                                </div>
+                                                <TextField.ErrorMessage />
+                                                <Show when={field().state.meta.errors.length > 0}>
+                                                    <FormError errors={field().state.meta.errors} />
+                                                </Show>
+                                                <Show when={sriError()}>
+                                                    <small class="text-xs font-medium text-danger ml-0.5 block">{sriError()}</small>
+                                                </Show>
+                                            </TextField.Root>
+                                        )}
+                                    </form.Field>
+                                </div>
 
-                <form.Field name="businessName">
-                        {(field) => (
-                            <div class="space-y-1.5 flex flex-col">
-                                <FieldLabel>Razón Social (Búsqueda SRI)</FieldLabel>
-                                <Autocomplete<SriSupplierResponse>
-                                    value={field().state.value}
-                                    onInputChange={handleNameInput}
-                                    options={field().state.value.length >= 3 ? (nameSearch.data ?? []) : []}
-                                    optionValue={(opt) => opt.razonSocial}
-                                    optionLabel={(opt) => opt.razonSocial}
-                                    optionDescription={(opt) => `RUC: ${opt.ruc}`}
-                                    onSelect={handleSriSelect('NAME')}
-                                    isLoading={nameSearch.isFetching}
-                                    disabled={isEdit()}
-                                    placeholder="Ej: Empresa S.A."
-                                />
-                                <FormError errors={field().state.meta.errors} />
-                            </div>
-                        )}
-                </form.Field>
-
-                <form.Field name="tradeName">
-                    {(field) => (
-                        <TextField.Root field={field()}>
-                            <TextField.Label>Nombre Comercial</TextField.Label>
-                            <TextField.Input type="text" placeholder="Marca comercial (opcional)" />
-                            <TextField.ErrorMessage />
-                            <TextField.Description>Opcional - Nombre comercial o marca</TextField.Description>
-                        </TextField.Root>
-                    )}
-                </form.Field>
-
-                <form.Field name="addressLine">
-                    {(field) => (
-                        <TextField.Root field={field()}>
-                            <TextField.Label>Dirección Fiscal</TextField.Label>
-                            <TextField.Input type="text" placeholder="Dirección principal (opcional)" disabled={isEdit()} />
-                            <TextField.ErrorMessage />
-                        </TextField.Root>
-                    )}
-                </form.Field>
-            </fieldset>
-
-            {/* Contacto */}
-            <fieldset class="space-y-4">
-                <legend class="text-sm font-semibold text-muted uppercase tracking-wider mb-3">Contacto</legend>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <form.Field name="emailBilling">
-                        {(field) => (
-                            <TextField.Root field={field()}>
-                                <TextField.Label>Email Facturación</TextField.Label>
-                                <TextField.Input type="email" placeholder="facturacion@empresa.com" />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                        )}
-                    </form.Field>
-
-                    <form.Field name="phone">
-                        {(field) => (
-                            <TextField.Root field={field()}>
-                                <TextField.Label>Teléfono</TextField.Label>
-                                <TextField.Input type="tel" placeholder="099 999 9999" />
-                            </TextField.Root>
-                        )}
-                    </form.Field>
-                </div>
-            </fieldset>
-
-            {/* Fiscal */}
-            <fieldset class="space-y-4">
-                <legend class="text-sm font-semibold text-muted uppercase tracking-wider mb-3">Información Fiscal</legend>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Tipo Contribuyente - Kobalte Select */}
-                    <form.Field name="taxRegimeType">
-                        {(field) => (
-                            <div class="space-y-1.5">
-                                <FieldLabel>Tipo Contribuyente</FieldLabel>
-                                <Select
-                                    value={taxRegimeTypeOptions.find(o => o.value === field().state.value)}
-                                    onChange={(opt) => field().handleChange(opt?.value)}
-                                    options={taxRegimeTypeOptions}
-                                    optionValue="value"
-                                    optionTextValue="label"
-                                    placeholder="Seleccionar..."
-                                    itemComponent={(itemProps) => (
-                                        <SelectItem item={itemProps.item}>
-                                            {itemProps.item.rawValue.label}
-                                        </SelectItem>
+                                <form.Field name="personType">
+                                    {(field) => (
+                                        <div class="space-y-1.5 w-full sm:w-1/2 pr-2.5">
+                                            <FieldLabel>Tipo Persona</FieldLabel>
+                                            <Select
+                                                value={personTypeOptions.find(o => o.value === field().state.value)}
+                                                onChange={(opt) => opt && field().handleChange(opt.value)}
+                                                options={personTypeOptions}
+                                                optionValue="value"
+                                                optionTextValue="label"
+                                                disabled={isEdit()}
+                                                placeholder="Seleccionar..."
+                                                itemComponent={(itemProps) => (
+                                                    <SelectItem item={itemProps.item}>
+                                                        {itemProps.item.rawValue.label}
+                                                    </SelectItem>
+                                                )}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue<SelectOption<PersonType>>>
+                                                        {(state) => state.selectedOption()?.label}
+                                                    </SelectValue>
+                                                </SelectTrigger>
+                                                <SelectContent />
+                                            </Select>
+                                        </div>
                                     )}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue<SelectOption<TaxRegimeType>>>
-                                            {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent />
-                                </Select>
-                            </div>
-                        )}
-                    </form.Field>
+                                </form.Field>
+                            </fieldset>
 
-                    {/* Checkboxes with field prop */}
-                    <form.Field name="obligadoContabilidad">
-                        {(field) => (
-                            <div class="flex items-center h-full pt-6">
-                                <Checkbox field={field()}>
-                                    Obligado a llevar contabilidad
-                                </Checkbox>
-                            </div>
-                        )}
-                    </form.Field>
+                            <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-1.5 h-4 bg-success rounded-full"></div>
+                                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Empresa / Titular</h3>
+                                </div>
 
-                    <form.Field name="isRetentionAgent">
-                        {(field) => (
-                            <div class="flex items-center h-full pt-6">
-                                <Checkbox field={field()}>
-                                    Agente de Retención
-                                </Checkbox>
-                            </div>
-                        )}
-                    </form.Field>
+                                <form.Field name="businessName">
+                                    {(field) => (
+                                        <div class="space-y-1.5 flex flex-col">
+                                            <FieldLabel>Razón Social (Búsqueda Autónoma SRI)</FieldLabel>
+                                            <Autocomplete<SriSupplierResponse>
+                                                value={field().state.value}
+                                                onInputChange={handleNameInput}
+                                                options={field().state.value.length >= 3 ? (nameSearch.data ?? []) : []}
+                                                optionValue={(opt) => opt.razonSocial}
+                                                optionLabel={(opt) => opt.razonSocial}
+                                                itemRenderer={(opt) => (
+                                                    <div class="flex flex-col w-full gap-1">
+                                                        <div class="flex w-full items-center justify-between">
+                                                            <span class="font-medium text-text truncate max-w-[70%]">{opt.razonSocial}</span>
+                                                            <span class={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${opt.isActive ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'}`}>
+                                                                {opt.isActive ? 'Activo' : 'Suspendido'}
+                                                            </span>
+                                                        </div>
+                                                        <div class="flex w-full items-center gap-2 text-xs text-muted">
+                                                            <span class="font-mono bg-surface-alt px-1.5 py-0.5 rounded border border-border">{opt.ruc}</span>
+                                                            <Show when={opt.nombreComercial && opt.nombreComercial !== opt.razonSocial}>
+                                                                <span class="truncate">({opt.nombreComercial})</span>
+                                                            </Show>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                onSelect={handleSriSelect('NAME')}
+                                                isLoading={nameSearch.isFetching}
+                                                disabled={isEdit()}
+                                                placeholder="Ej: Ingrese 3 letras o más para Autocompletar SRI"
+                                            />
+                                            <FormError errors={field().state.meta.errors} />
+                                        </div>
+                                    )}
+                                </form.Field>
 
-                    <form.Field name="isSpecialContributor">
-                        {(field) => (
-                            <div class="flex items-center h-full pt-6">
-                                <Checkbox field={field()}>
-                                    Contribuyente Especial
-                                </Checkbox>
-                            </div>
-                        )}
-                    </form.Field>
-                </div>
-            </fieldset>
+                                <form.Field name="tradeName">
+                                    {(field) => (
+                                        <TextField.Root field={field()}>
+                                            <TextField.Label>Nombre Comercial</TextField.Label>
+                                            <TextField.Input type="text" placeholder="Marca (opcional)" />
+                                            <TextField.ErrorMessage />
+                                            <TextField.Description>Nombre con el que es conocida comúnmente en el mercado</TextField.Description>
+                                        </TextField.Root>
+                                    )}
+                                </form.Field>
+                            </fieldset>
 
-            {/* Actions */}
-            <div class="flex justify-end gap-3 pt-4 border-t border-border/50">
+                            <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-1.5 h-4 bg-info rounded-full"></div>
+                                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Contacto Predeterminado (Para Facturación/Comprobantes)</h3>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <form.Field name="emailBilling">
+                                        {(field) => (
+                                            <TextField.Root field={field()}>
+                                                <TextField.Label>Email Facturación</TextField.Label>
+                                                <TextField.Input type="email" placeholder="facturacion@empresa.com" />
+                                                <TextField.ErrorMessage />
+                                            </TextField.Root>
+                                        )}
+                                    </form.Field>
+
+                                    <form.Field name="phone">
+                                        {(field) => (
+                                            <TextField.Root field={field()}>
+                                                <TextField.Label>Teléfono Principal</TextField.Label>
+                                                <TextField.Input type="tel" placeholder="(02) 299 9999" />
+                                            </TextField.Root>
+                                        )}
+                                    </form.Field>
+                                </div>
+                            </fieldset>
+                        </TabsContent>
+
+                        {/* 2. Contacts Tab */}
+                        <TabsContent value="contacts" class="w-full max-w-5xl animate-in fade-in duration-300">
+                            <div class="bg-surface/30 p-5 rounded-2xl border border-border/40">
+                                <div class="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-1.5 h-4 bg-primary rounded-full"></div>
+                                        <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Lista de Contactos (Opcional)</h3>
+                                    </div>
+                                    <form.Field name="contacts" mode="array">
+                                        {(field) => (
+                                            <Button 
+                                                size="sm" 
+                                                variant="outline"
+                                                class="gap-1.5"
+                                                onClick={() => field().pushValue({ name: '', position: '', email: '', phone: '', isPrimary: false })}
+                                            >
+                                                <PlusIcon class="size-4" /> Añadir Contacto
+                                            </Button>
+                                        )}
+                                    </form.Field>
+                                </div>
+
+                                <form.Field name="contacts" mode="array">
+                                    {(field) => (
+                                        <div class="space-y-4">
+                                            <Show when={field().state.value.length === 0}>
+                                                <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">
+                                                    No hay contactos adicionales configurados.<br/> Click en "Añadir Contacto" para empezar.
+                                                </div>
+                                            </Show>
+                                            <Index each={field().state.value}>
+                                                {(_, i) => (
+                                                    <div class="relative grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-card rounded-xl border border-border/50 shadow-sm animate-in slide-in-from-top-2">
+                                                        <div class="col-span-12 md:col-span-3">
+                                                            <form.Field name={`contacts[${i}].name`}>
+                                                            {(subField) => (
+                                                                <TextField.Root field={subField()}>
+                                                                        <TextField.Label>Nombre Completo</TextField.Label>
+                                                                        <TextField.Input type="text" placeholder="Ej: Juan Pérez" />
+                                                                        <TextField.ErrorMessage />
+                                                                    </TextField.Root>
+                                                            )}
+                                                            </form.Field>
+                                                        </div>
+                                                        <div class="col-span-12 md:col-span-3">
+                                                            <form.Field name={`contacts[${i}].position`}>
+                                                            {(subField) => (
+                                                                <TextField.Root field={subField()}>
+                                                                        <TextField.Label>Cargo/Área</TextField.Label>
+                                                                        <TextField.Input type="text" placeholder="Ej: Ventas" />
+                                                                        <TextField.ErrorMessage />
+                                                                    </TextField.Root>
+                                                            )}
+                                                            </form.Field>
+                                                        </div>
+                                                        <div class="col-span-12 md:col-span-3">
+                                                            <form.Field name={`contacts[${i}].email`}>
+                                                            {(subField) => (
+                                                                <TextField.Root field={subField()}>
+                                                                        <TextField.Label>Email</TextField.Label>
+                                                                        <TextField.Input type="email" placeholder="@" />
+                                                                        <TextField.ErrorMessage />
+                                                                    </TextField.Root>
+                                                            )}
+                                                            </form.Field>
+                                                        </div>
+                                                        <div class="col-span-12 md:col-span-2">
+                                                            <form.Field name={`contacts[${i}].phone`}>
+                                                            {(subField) => (
+                                                                <TextField.Root field={subField()}>
+                                                                        <TextField.Label>Teléfono</TextField.Label>
+                                                                        <TextField.Input type="text" placeholder="099..." />
+                                                                        <TextField.ErrorMessage />
+                                                                    </TextField.Root>
+                                                            )}
+                                                            </form.Field>
+                                                        </div>
+                                                        <div class="col-span-12 md:col-span-1 flex items-center justify-end md:justify-center pt-5">
+                                                            <button 
+                                                                type="button" 
+                                                                onClick={() => field().removeValue(i)}
+                                                                class="p-2 text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                                                                title="Eliminar Contacto"
+                                                            >
+                                                                <TrashIcon class="size-4" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </Index>
+                                        </div>
+                                    )}
+                                </form.Field>
+                            </div>
+                        </TabsContent>
+
+                        {/* 3. Addresses Tab */}
+                        <TabsContent value="addresses" class="w-full max-w-5xl animate-in fade-in duration-300">
+                            <div class="bg-surface/30 p-5 rounded-2xl border border-border/40">
+                                <div class="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-1.5 h-4 bg-primary rounded-full"></div>
+                                        <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Direcciones & Sucursales</h3>
+                                    </div>
+                                    <form.Field name="addresses" mode="array">
+                                        {(field) => (
+                                            <Button 
+                                                size="sm" 
+                                                variant="outline"
+                                                class="gap-1.5"
+                                                onClick={() => field().pushValue({ addressLine: '', city: '', country: 'Ecuador', countryCode: 'EC', postalCode: '', isMain: field().state.value.length === 0 })}
+                                            >
+                                                <PlusIcon class="size-4" /> Añadir Ubicación
+                                            </Button>
+                                        )}
+                                    </form.Field>
+                                </div>
+
+                                <form.Field name="addresses" mode="array">
+                                    {(field) => (
+                                        <div class="space-y-4">
+                                            <Show when={field().state.value.length === 0}>
+                                                <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">
+                                                    No hay direcciones asignadas. Click en "Añadir Ubicación" para empezar.
+                                                </div>
+                                            </Show>
+                                            <Index each={field().state.value}>
+                                                {(_, i) => (
+                                                    <AddressRow form={form} index={i} onRemove={() => field().removeValue(i)} />
+                                                )}
+                                            </Index>
+                                        </div>
+                                    )}
+                                </form.Field>
+                            </div>
+                        </TabsContent>
+
+                        {/* 4. Fiscal Tab */}
+                        <TabsContent value="fiscal" class="w-full max-w-3xl animate-in fade-in duration-300">
+                            <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-1.5 h-4 bg-info rounded-full"></div>
+                                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Clasificación SRI</h3>
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 place-items-start">
+                                    <form.Field name="taxRegimeType">
+                                        {(field) => (
+                                            <div class="space-y-1.5 w-full">
+                                                <FieldLabel>Régimen Fiscal (Asignado SRI)</FieldLabel>
+                                                <Select
+                                                    value={taxRegimeTypeOptions.find(o => o.value === field().state.value)}
+                                                    onChange={(opt) => field().handleChange(opt?.value)}
+                                                    options={taxRegimeTypeOptions}
+                                                    optionValue="value"
+                                                    optionTextValue="label"
+                                                    placeholder="Seleccionar..."
+                                                    itemComponent={(itemProps) => (
+                                                        <SelectItem item={itemProps.item}>
+                                                            {itemProps.item.rawValue.label}
+                                                        </SelectItem>
+                                                    )}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue<SelectOption<TaxRegimeType>>>
+                                                            {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
+                                                        </SelectValue>
+                                                    </SelectTrigger>
+                                                    <SelectContent />
+                                                </Select>
+                                            </div>
+                                        )}
+                                    </form.Field>
+
+                                    <div class="flex flex-col gap-3 pt-6 h-full justify-center pl-2">
+                                        <form.Field name="obligadoContabilidad">
+                                            {(field) => (
+                                                <div class="flex items-start">
+                                                    <Checkbox field={field()} class="font-medium">
+                                                        Obligado a llevar contabilidad
+                                                    </Checkbox>
+                                                </div>
+                                            )}
+                                        </form.Field>
+
+                                        <form.Field name="isRetentionAgent">
+                                            {(field) => (
+                                                <div class="flex items-start">
+                                                    <Checkbox field={field()} class="font-medium">
+                                                        Agente de Retención
+                                                    </Checkbox>
+                                                </div>
+                                            )}
+                                        </form.Field>
+
+                                        <form.Field name="isSpecialContributor">
+                                            {(field) => (
+                                                <div class="flex items-start">
+                                                    <Checkbox field={field()} class="font-medium text-danger">
+                                                        Contribuyente Especial
+                                                    </Checkbox>
+                                                </div>
+                                            )}
+                                        </form.Field>
+                                    </div>
+                                </div>
+                            </fieldset>
+                        </TabsContent>
+                    </div>
+                </Tabs>
+            </div>
+
+            {/* Sticky Actions Footer */}
+            <div class="flex-none p-4 mt-2 bg-card border-t border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex justify-end gap-3 z-30">
                 <Button variant="outline" type="button" onClick={props.onCancel} disabled={props.isSubmitting}>
                     Cancelar
                 </Button>
@@ -445,8 +791,9 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                             type="submit"
                             disabled={!state().canSubmit || props.isSubmitting}
                             loading={props.isSubmitting}
+                            class="min-w-[200px]"
                         >
-                            {isEdit() ? 'Actualizar' : 'Crear'} Proveedor
+                            {isEdit() ? 'Guardar Cambios' : 'Registrar Proveedor'}
                         </Button>
                     )}
                 </form.Subscribe>

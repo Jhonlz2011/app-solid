@@ -48,6 +48,9 @@ export function useDataTableSSE(options: UseDataTableSSEOptions) {
             const customEvent = e as CustomEvent<EntityEventPayload>;
             const eventData = customEvent.detail;
 
+            // Skip own mutations — already handled by optimistic update + onSettled
+            if (eventData?.clientId === clientId) return;
+
             if (eventName === RealtimeEvents.ENTITY.CREATED) {
                 queryClient.invalidateQueries({
                     queryKey: options.queryKey,

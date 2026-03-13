@@ -1,7 +1,8 @@
 import { Component, JSX, Show, createEffect, onCleanup, mergeProps } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { XIcon } from '@shared/ui/icons';
-
+import { ScrollArea } from '@/layout/components/ScrollArea';
+// Register directive — prevents tree-shaking
 interface SheetProps {
     isOpen: boolean;
     onClose: () => void;
@@ -9,7 +10,7 @@ interface SheetProps {
     description?: string;
     children: JSX.Element;
     side?: 'left' | 'right';
-    size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+    size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'xxxl' | 'xxxxl' | 'full';
 }
 
 const Sheet: Component<SheetProps> = (rawProps) => {
@@ -20,6 +21,9 @@ const Sheet: Component<SheetProps> = (rawProps) => {
         md: 'max-w-md',
         lg: 'max-w-lg',
         xl: 'max-w-xl',
+        xxl: 'max-w-2xl',
+        xxxl: 'max-w-3xl',
+        xxxxl: 'max-w-4xl',
         full: 'max-w-full',
     };
 
@@ -86,9 +90,9 @@ const Sheet: Component<SheetProps> = (rawProps) => {
                         </div>
 
                         {/* Content */}
-                        <div class="flex-1 overflow-y-auto p-4">
+                        <ScrollArea class="flex-1  p-4">
                             {props.children}
-                        </div>
+                        </ScrollArea>
                     </div>
                 </div>
             </Portal>
