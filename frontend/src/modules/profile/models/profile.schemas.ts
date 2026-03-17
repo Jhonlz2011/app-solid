@@ -20,7 +20,7 @@ export const UpdateProfileSchema = object({
         string(),
         trim(),
         minLength(3, 'El nombre de usuario debe tener al menos 3 caracteres'),
-        maxLength(50, 'El nombre de usuario no puede exceder 50 caracteres')
+        maxLength(25, 'El nombre de usuario no puede exceder 50 caracteres')
     ),
     email: pipe(
         string(),

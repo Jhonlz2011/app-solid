@@ -2,7 +2,8 @@ import { createQuery, createInfiniteQuery, createMutation, useQueryClient, keepP
 import { createEffect } from 'solid-js';
 import { api } from '@shared/lib/eden';
 import type { SupplierFormData } from '@app/schema/frontend';
-import { addOptimisticItem, removeCacheItems } from '@shared/utils/query.utils';
+import { addOptimisticItem, removeCacheItems, updateCacheItem, type CacheShape } from '@shared/utils/query.utils';
+import { throwApiError } from '@shared/utils/api-errors';
 
 // =============================================================================
 // Type Utilities - Extract types from Eden
@@ -77,45 +78,24 @@ export function useSuppliers(filters: () => SupplierFilters) {
         placeholderData: keepPreviousData,
     }));
 
-    // Auto-prefetch NEXT page when current data arrives
+    // Auto-prefetch NEXT and PREVIOUS pages in a single reactive effect
     createEffect(() => {
         const data = query.data;
         const currentFilters = filters();
+        if (!data) return;
 
-        if (data?.meta.nextCursor && data.meta.hasNextPage) {
+        if (data.meta.nextCursor && data.meta.hasNextPage) {
             queryClient.prefetchQuery({
-                queryKey: supplierKeys.list({
-                    ...currentFilters,
-                    cursor: data.meta.nextCursor,
-                    direction: 'next'
-                }),
-                queryFn: () => suppliersApi.list({
-                    ...currentFilters,
-                    cursor: data.meta.nextCursor!,
-                    direction: 'next'
-                }),
+                queryKey: supplierKeys.list({ ...currentFilters, cursor: data.meta.nextCursor, direction: 'next' }),
+                queryFn: () => suppliersApi.list({ ...currentFilters, cursor: data.meta.nextCursor!, direction: 'next' }),
                 staleTime: 1000 * 60 * 2,
             });
         }
-    });
 
-    // Auto-prefetch PREVIOUS page when current data arrives
-    createEffect(() => {
-        const data = query.data;
-        const currentFilters = filters();
-
-        if (data?.meta.prevCursor && data.meta.hasPrevPage) {
+        if (data.meta.prevCursor && data.meta.hasPrevPage) {
             queryClient.prefetchQuery({
-                queryKey: supplierKeys.list({
-                    ...currentFilters,
-                    cursor: data.meta.prevCursor,
-                    direction: 'prev'
-                }),
-                queryFn: () => suppliersApi.list({
-                    ...currentFilters,
-                    cursor: data.meta.prevCursor!,
-                    direction: 'prev'
-                }),
+                queryKey: supplierKeys.list({ ...currentFilters, cursor: data.meta.prevCursor, direction: 'prev' }),
+                queryFn: () => suppliersApi.list({ ...currentFilters, cursor: data.meta.prevCursor!, direction: 'prev' }),
                 staleTime: 1000 * 60 * 2,
             });
         }
@@ -221,7 +201,7 @@ export function useCreateSupplier() {
     return createMutation(() => ({
         mutationFn: async (body: SupplierBody) => {
             const { data, error } = await api.api.suppliers.post(body);
-            if (error) throw new Error(String(error.value));
+            if (error) throwApiError(error);
             return data!;
         },
         onMutate: async (newSupplier) => {
@@ -232,7 +212,8 @@ export function useCreateSupplier() {
             const previousLists = queryClient.getQueriesData({ queryKey: supplierKeys.lists() });
 
             // Optimistically add to all list caches
-            queryClient.setQueriesData({ queryKey: supplierKeys.lists() }, (old: any) => {
+            queryClient.setQueriesData<CacheShape<SupplierListItem>>({ queryKey: supplierKeys.lists() }, (old) => {
+                if (!old) return old;
                 const optimisticSupplier = {
                     id: -Date.now(), // Negative temp ID
                     business_name: newSupplier.businessName,
@@ -240,7 +221,7 @@ export function useCreateSupplier() {
                     tax_id: newSupplier.taxId,
                     is_active: true,
                     _optimistic: true, // Mark as optimistic
-                };
+                } as unknown as SupplierListItem;
 
                 return addOptimisticItem(old, optimisticSupplier);
             });
@@ -267,7 +248,7 @@ export function useUpdateSupplier() {
     return createMutation(() => ({
         mutationFn: async ({ id, data: body }: { id: number; data: Partial<SupplierBody> }) => {
             const { data, error } = await api.api.suppliers({ id }).put(body);
-            if (error) throw new Error(String(error.value));
+            if (error) throwApiError(error);
             return data!;
         },
         onMutate: async ({ id, data: updates }) => {
@@ -275,10 +256,10 @@ export function useUpdateSupplier() {
             const previousSupplier = queryClient.getQueryData(supplierKeys.detail(id));
 
             if (previousSupplier) {
-                queryClient.setQueryData(supplierKeys.detail(id), (old: any) => ({
-                    ...old,
-                    ...updates,
-                }));
+                queryClient.setQueryData(supplierKeys.detail(id), (old: unknown) => {
+                    if (!old || typeof old !== 'object') return old;
+                    return { ...old as object, ...updates };
+                });
             }
 
             return { previousSupplier };
@@ -309,14 +290,39 @@ function supplierOnSettled(queryClient: ReturnType<typeof useQueryClient>) {
     };
 }
 
+/**
+ * Applies `is_active` patch for multiple IDs via sequential updateCacheItem calls.
+ */
+function applyIsActiveToCache(
+    queryClient: ReturnType<typeof useQueryClient>,
+    ids: number[],
+    isActive: boolean
+) {
+    queryClient.setQueriesData<CacheShape<SupplierListItem>>({ queryKey: supplierKeys.lists() }, (old) => {
+        if (!old) return old;
+        return ids.reduce<CacheShape<SupplierListItem>>(
+            (acc, id) => updateCacheItem(acc, { id, is_active: isActive } as unknown as SupplierListItem) ?? acc,
+            old
+        );
+    });
+}
+
 export function useDeleteSupplier() {
     const queryClient = useQueryClient();
-
     return createMutation(() => ({
         mutationFn: async (id: number) => {
             const { error } = await (api.api.suppliers as any)({ id }).deactivate.patch();
-             if (error) throw new Error(String(error.value));
+            if (error) throw new Error(String(error.value));
             return id;
+        },
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: supplierKeys.lists() });
+            const previousLists = queryClient.getQueriesData({ queryKey: supplierKeys.lists() });
+            applyIsActiveToCache(queryClient, [id], false);
+            return { previousLists };
+        },
+        onError: (_err, _id, context) => {
+            context?.previousLists?.forEach(([key, data]) => queryClient.setQueryData(key, data));
         },
         onSettled: supplierOnSettled(queryClient),
     }));
@@ -331,6 +337,15 @@ export function useBulkDeleteSupplier() {
             if (error) throw new Error(String(error.value));
             return data!;
         },
+        onMutate: async (ids) => {
+            await queryClient.cancelQueries({ queryKey: supplierKeys.lists() });
+            const previousLists = queryClient.getQueriesData({ queryKey: supplierKeys.lists() });
+            applyIsActiveToCache(queryClient, ids, false);
+            return { previousLists };
+        },
+        onError: (_err, _ids, context) => {
+            context?.previousLists?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+        },
         onSettled: supplierOnSettled(queryClient),
     }));
 }
@@ -343,6 +358,15 @@ export function useBulkRestoreSupplier() {
             const { data, error } = await (api.api.suppliers.bulk.restore as any).patch({ ids });
             if (error) throw new Error(String(error.value));
             return data!;
+        },
+        onMutate: async (ids) => {
+            await queryClient.cancelQueries({ queryKey: supplierKeys.lists() });
+            const previousLists = queryClient.getQueriesData({ queryKey: supplierKeys.lists() });
+            applyIsActiveToCache(queryClient, ids, true);
+            return { previousLists };
+        },
+        onError: (_err, _ids, context) => {
+            context?.previousLists?.forEach(([key, data]) => queryClient.setQueryData(key, data));
         },
         onSettled: supplierOnSettled(queryClient),
     }));
@@ -360,6 +384,15 @@ export function useRestoreSupplier() {
             const { error } = await (api.api.suppliers as any)({ id }).restore.patch();
             if (error) throw new Error(String(error.value));
             return id;
+        },
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: supplierKeys.lists() });
+            const previousLists = queryClient.getQueriesData({ queryKey: supplierKeys.lists() });
+            applyIsActiveToCache(queryClient, [id], true);
+            return { previousLists };
+        },
+        onError: (_err, _id, context) => {
+            context?.previousLists?.forEach(([key, data]) => queryClient.setQueryData(key, data));
         },
         onSettled: supplierOnSettled(queryClient),
     }));
@@ -382,7 +415,8 @@ export function useHardDeleteSupplier() {
             await queryClient.cancelQueries({ queryKey: supplierKeys.lists() });
             const previousLists = queryClient.getQueriesData({ queryKey: supplierKeys.lists() });
 
-            queryClient.setQueriesData({ queryKey: supplierKeys.lists() }, (old: any) => {
+            queryClient.setQueriesData<CacheShape<SupplierListItem>>({ queryKey: supplierKeys.lists() }, (old) => {
+                if (!old) return old;
                 return removeCacheItems(old, [id]);
             });
 

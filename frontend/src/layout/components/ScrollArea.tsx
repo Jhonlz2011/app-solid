@@ -26,7 +26,7 @@ export const ScrollArea: Component<ScrollAreaProps> = (props) => {
         By wrapping the children in this steady <div>, SimpleBar wraps this div
         instead of the individual Solid nodes, preserving the reactivity tree.
       */}
-      <div class="h-max">
+      <div class="min-h-full">
         {props.children}
       </div>
     </div>

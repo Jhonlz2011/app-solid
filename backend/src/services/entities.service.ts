@@ -550,16 +550,8 @@ export async function getEntity(id: number) {
  * Create entity with type flags
  */
 export async function createEntity(type: EntityType, payload: EntityPayload, clientId?: string) {
-    const existing = await db
-        .select({ id: entities.id })
-        .from(entities)
-        .where(eq(entities.tax_id, payload.taxId));
-
-    if (existing.length) {
-        throw new DomainError('El número de identificación ya está registrado', 409);
-    }
-
-    return db.transaction(async (tx) => {
+    try {
+        return await db.transaction(async (tx) => {
         const [created] = await tx
             .insert(entities)
             .values({
@@ -624,7 +616,21 @@ export async function createEntity(type: EntityType, payload: EntityPayload, cli
         broadcast(RealtimeEvents.ENTITY.CREATED, { type, entity: created, clientId }, `${type}s`);
 
         return created;
-    });
+        });
+    } catch (err: any) {
+        // PostgreSQL unique constraint violation on tax_id
+        if (err?.code === '23505') {
+            throw new DomainError(
+                'El número de identificación ya está registrado',
+                409,
+                {
+                    code: 'DUPLICATE_ENTRY',
+                    fieldErrors: [{ field: 'taxId', message: 'Ya existe una entidad con este RUC/Cédula' }],
+                }
+            );
+        }
+        throw err; // Re-throw other errors for global handler
+    }
 }
 
 // =============================================================================
@@ -643,8 +649,11 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
                 trade_name: payload.tradeName,
                 email_billing: payload.emailBilling,
                 phone: payload.phone,
+                person_type: payload.personType,
                 tax_regime_type: payload.taxRegimeType,
                 obligado_contabilidad: payload.obligadoContabilidad,
+                is_retention_agent: payload.isRetentionAgent,
+                is_special_contributor: payload.isSpecialContributor,
                 is_carrier: payload.isCarrier,
             }))
             .where(eq(entities.id, id))
@@ -702,13 +711,15 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
 
         await cacheService.invalidate(`entity:${id}`);
 
-        // Granular cache invalidation (Plan implementation step 3)
-        const requiresListInvalidation = 
-            payload.businessName !== undefined || 
+        // Granular cache invalidation
+        const requiresListInvalidation =
+            payload.businessName !== undefined ||
             payload.taxId !== undefined ||
             payload.personType !== undefined ||
             payload.taxIdType !== undefined ||
-            payload.isCarrier !== undefined; // is_active isn't in payload here usually, but if added should trigger as well
+            payload.isRetentionAgent !== undefined ||
+            payload.isSpecialContributor !== undefined ||
+            payload.isCarrier !== undefined;
 
         if (requiresListInvalidation) {
             await cacheService.invalidate(`${type}s:*`);

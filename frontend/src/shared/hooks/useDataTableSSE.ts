@@ -14,7 +14,10 @@ import { useQueryClient } from '@tanstack/solid-query';
 import { subscribe, unsubscribe } from '../store/sse.store';
 import { RealtimeEvents, type EntityEventPayload } from '@app/schema/realtime-events';
 import { clientId } from '../lib/eden';
-import { removeCacheItems, updateCacheItem, cacheContainsItem } from '../utils/query.utils';
+import { removeCacheItems, updateCacheItem, cacheContainsItem, type CacheShape } from '../utils/query.utils';
+
+/** Minimal entity shape known at the SSE layer */
+type SseEntity = { id: string | number; [key: string]: unknown };
 
 const DEFAULT_EVENTS = [
     RealtimeEvents.ENTITY.CREATED,
@@ -64,10 +67,11 @@ export function useDataTableSSE(options: UseDataTableSSEOptions) {
             } else if (eventName === RealtimeEvents.ENTITY.UPDATED && eventData?.entity) {
                 const matchingQueries = queryClient.getQueriesData({ queryKey: options.queryKey });
                 
-                matchingQueries.forEach(([queryKey, oldData]: [any, any]) => {
-                    if (!oldData || (!oldData.data && !oldData.pages)) return;
+                matchingQueries.forEach(([queryKey, oldData]) => {
+                    const typedOldData = oldData as CacheShape<SseEntity> | undefined;
+                    if (!typedOldData || (!('data' in typedOldData) && !('pages' in typedOldData))) return;
                     
-                    const filters = queryKey[2] as Record<string, unknown> | undefined;
+                    const filters = (queryKey as unknown[])[2] as Record<string, unknown> | undefined;
                     const isActiveArr = filters?.isActive as string[] | undefined;
                     
                     const isStrictlyActive = (!isActiveArr || isActiveArr.length === 0) || 
@@ -76,8 +80,8 @@ export function useDataTableSSE(options: UseDataTableSSEOptions) {
                     const isStrictlyInactive = isActiveArr?.length === 1 && isActiveArr[0] === 'false';
                     const entityIsActive = Boolean(eventData.entity!.is_active);
                     
-                    queryClient.setQueryData(queryKey, (old: any) => {
-                        if (!old || (!old.data && !old.pages)) return old;
+                    queryClient.setQueryData<CacheShape<SseEntity>>(queryKey as readonly unknown[], (old) => {
+                        if (!old) return old;
 
                         if (isStrictlyActive && !entityIsActive) {
                             return removeCacheItems(old, [eventData.entity!.id as number]);
@@ -90,11 +94,11 @@ export function useDataTableSSE(options: UseDataTableSSEOptions) {
                         const exists = cacheContainsItem(old, eventData.entity!.id as number);
                         
                         if (exists) {
-                            return updateCacheItem(old, eventData.entity as any);
+                            return updateCacheItem(old, eventData.entity as SseEntity);
                         }
 
                         if ((isStrictlyInactive && !entityIsActive) || (isStrictlyActive && entityIsActive)) {
-                            setTimeout(() => queryClient.invalidateQueries({ queryKey }), 0);
+                            queueMicrotask(() => queryClient.invalidateQueries({ queryKey: queryKey as readonly unknown[] }));
                         }
 
                         return old;
@@ -109,7 +113,8 @@ export function useDataTableSSE(options: UseDataTableSSEOptions) {
                 const idsToRemove = eventData?.ids || (eventData?.id ? [eventData.id] : []);
                 if (idsToRemove.length === 0) return;
                 
-                queryClient.setQueriesData({ queryKey: options.queryKey }, (old: any) => {
+                queryClient.setQueriesData<CacheShape<SseEntity>>({ queryKey: options.queryKey }, (old) => {
+                    if (!old) return old;
                     return removeCacheItems(old, idsToRemove);
                 });
             } else {

@@ -48,6 +48,11 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
             title="Detalles del Proveedor"
             description="Información completa del proveedor"
             size="xxxxl"
+            footer={
+                <Button variant="outline" onClick={handleClose}>
+                    Cerrar Panel
+                </Button>
+            }
         >
             <Show
                 when={props.supplierId > 0}
@@ -87,7 +92,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                         }
                     >
                         {(supplier) => (
-                            <div class="flex flex-col h-full overflow-hidden">
+                            <div class="flex flex-col">
                                 {/* Header info */}
                                 <div class="flex items-start justify-between flex-shrink-0 pb-4">
                                     <div class="flex gap-4 items-center">
@@ -111,7 +116,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                     </Button>
                                 </div>
 
-                                <div class="flex-1 overflow-y-auto pt-2 pr-1 pb-4">
+                                <div class="flex-1 pt-2 pr-1 pb-4">
                                     <Tabs defaultValue="general" class="w-full flex flex-col h-full">
                                         <div class="sticky top-0 z-20 bg-card/95 backdrop-blur pt-1 pb-4">
                                             <TabsList class="flex px-2 py-1.5 overflow-x-auto shadow-sm rounded-xl">
@@ -123,7 +128,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                             </TabsList>
                                         </div>
 
-                                        <TabsContent value="general" class="space-y-4 animate-in fade-in duration-300 fill-mode-both">
+                                        <TabsContent value="general" class="space-y-4 fill-mode-both">
                                             <div class="bg-surface/30 rounded-2xl border border-border/40 overflow-hidden shadow-sm">
                                                  <div class="bg-surface/50 px-5 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
                                                      <div class="size-1.5 rounded-full bg-primary"></div>
@@ -275,13 +280,6 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                             </div>
                                         </TabsContent>
                                     </Tabs>
-                                </div>
-
-                                {/* Actions Footer */}
-                                <div class="flex-none pt-4 flex justify-end">
-                                    <Button variant="outline" onClick={handleClose}>
-                                        Cerrar Panel
-                                    </Button>
                                 </div>
                             </div>
                         )}

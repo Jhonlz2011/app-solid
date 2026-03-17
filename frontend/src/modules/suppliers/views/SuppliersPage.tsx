@@ -196,12 +196,7 @@ const SuppliersPage: Component = () => {
             setSearch(value);
             setCursor(undefined);
             setDirection('first');
-            setPage(1);
-            // Reset column filters on search change
-            setPersonTypeFilter([]);
-            setTaxIdTypeFilter([]);
-            setIsActiveFilter([]);
-            setBusinessNameFilter([]);
+            setPage(1);          
         });
     };
 
@@ -318,7 +313,7 @@ const SuppliersPage: Component = () => {
 
         const text = selected.map(s => {
             const parts = [
-                `Empresa: ${s.business_name} (${s.tax_id})`,
+                `Nombre: ${s.business_name} (${s.tax_id})`,
                 s.email_billing ? `Correo: ${s.email_billing}` : null,
                 s.phone ? `Tel: ${s.phone}` : null,
 
@@ -579,7 +574,9 @@ const SuppliersPage: Component = () => {
                                                                 ? 'bg-primary text-white'
                                                                 : 'text-muted hover:text-text hover:bg-surface-2'
                                                                 }`}
+                                                            
                                                             title={isPinned() === 'left' ? 'Desfijar' : 'Fijar izquierda'}
+                                                            aria-label={isPinned() === 'left' ? `Desfijar` : `Fijar columna a la izquierda`}
                                                         >
                                                             <PinIcon class="size-3.5 rotate-45" />
                                                         </button>
@@ -590,6 +587,7 @@ const SuppliersPage: Component = () => {
                                                                 : 'text-muted hover:text-text hover:bg-surface-2'
                                                                 }`}
                                                             title={isPinned() === 'right' ? 'Desfijar' : 'Fijar derecha'}
+                                                            aria-label={isPinned() === 'right' ? `Desfijar` : `Fijar columna a la derecha`}
                                                         >
                                                             <PinIcon class="size-3.5 -rotate-45" />
                                                         </button>

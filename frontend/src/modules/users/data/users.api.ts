@@ -1,4 +1,3 @@
-// users/data/users.api.ts
 // Pure API functions using Eden treaty client - Types inferred from backend
 import { api } from '@shared/lib/eden';
 

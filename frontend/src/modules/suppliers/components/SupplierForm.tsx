@@ -3,6 +3,8 @@ import { createForm } from '@tanstack/solid-form';
 import { useQueryClient } from '@tanstack/solid-query';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { SupplierFormSchema, type SupplierFormData } from '@app/schema/frontend';
+import { ApiError } from '@shared/utils/api-errors';
+
 import type { Supplier, SupplierPayload, TaxIdType, PersonType, TaxRegimeType } from '../models/supplier.types';
 import { taxIdTypeLabels, personTypeLabels, taxRegimeTypeLabels } from '../models/supplier.types';
 import { useSriSearchByName, type SriSupplierResponse } from '../data/suppliers.api';
@@ -50,9 +52,8 @@ const FormError = (props: { errors: any[] }) => (
 
 interface SupplierFormProps {
     supplier?: Supplier;
-    onSubmit: (data: SupplierFormData) => void;
+    onSubmit: (data: SupplierFormData) => Promise<void>;
     isSubmitting: boolean;
-    onCancel: () => void;
 }
 
 // =============================================================================
@@ -70,8 +71,10 @@ const AddressRow: Component<AddressRowProps> = (props) => {
     // Local signals for reactive UI
     const [localCountry, setLocalCountry] = createSignal('');
     const [localCountryCode, setLocalCountryCode] = createSignal('');
-    const [isSelected, setIsSelected] = createSignal(false);
     const [inputText, setInputText] = createSignal('');
+
+    // Track whether initial hydration has occurred to avoid overwriting user edits.
+    const [hydrated, setHydrated] = createSignal(false);
 
     // Sync local signals from the form store reactively.
     // This handles: initial mount, edit-mode rehydration, and tab re-activation (forceMount).
@@ -82,12 +85,12 @@ const AddressRow: Component<AddressRowProps> = (props) => {
         const country = addr.country || '';
         const code = addr.countryCode || '';
 
-        // Only sync if local signals are still at their initial empty state
-        // (avoid overwriting user selections)
-        if (!inputText() && city) {
+        // Only hydrate once from the form store (on mount / rehydration).
+        // After the first sync, user interactions drive the local signals.
+        if (!hydrated() && city) {
+            setHydrated(true);
             setLocalCountry(country);
             setLocalCountryCode(code);
-            setIsSelected(!!city && !!country);
             setInputText(city && country ? `${city}, ${country}` : city);
         }
     });
@@ -102,15 +105,17 @@ const AddressRow: Component<AddressRowProps> = (props) => {
         // Update local signals
         setLocalCountry(city.pais);
         setLocalCountryCode(city.codigo);
-        setIsSelected(true);
         setInputText(`${city.ciudad}, ${city.pais}`);
     };
 
     /** When user types freely in the input */
     const handleInputChange = (val: string) => {
+        // Guard: skip if Kobalte is re-syncing the same value (prevents clearing countryCode)
+        if (val === inputText()) return;
         setInputText(val);
-        // If user starts editing, exit "selected" mode
-        setIsSelected(false);
+        // User is typing freely → clear the country selection so the flag hides
+        setLocalCountryCode('');
+        setLocalCountry('');
         // Extract city part (before comma if any)
         const cityPart = val.includes(',') ? val.split(',')[0].trim() : val;
         props.form.setFieldValue(`addresses[${props.index}].city`, cityPart);
@@ -149,7 +154,7 @@ const AddressRow: Component<AddressRowProps> = (props) => {
                                 placeholder="Buscar ciudad..."
                                 minLength={2}
                                 inputPrefix={
-                                    isSelected() && localCountryCode() ? (
+                                    localCountryCode() ? (
                                         <img
                                             src={`https://flagcdn.com/${localCountryCode().toLowerCase()}.svg`}
                                             alt={localCountryCode()}
@@ -218,6 +223,9 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
     const nameSearch = useSriSearchByName(sriNameQuery);
     const queryClient = useQueryClient();
 
+    // Server error signal for form-level errors (non-field)
+    const [serverError, setServerError] = createSignal('');
+
     const form = createForm(() => ({
         defaultValues: {
             taxId: props.supplier?.tax_id ?? '',
@@ -240,10 +248,35 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
         },
         validatorAdapter: valibotValidator(),
         validators: {
+            onChange: SupplierFormSchema,
             onSubmit: SupplierFormSchema,
         },
         onSubmit: async ({ value }) => {
-            props.onSubmit(value as SupplierFormData);
+            setServerError('');
+            try {
+                await props.onSubmit(value as SupplierFormData);
+            } catch (err) {
+                // Map server field errors to form fields
+                if (err instanceof ApiError && err.errors?.length) {
+                    for (const fieldErr of err.errors) {
+                        try {
+                            form.setFieldMeta(fieldErr.field as any, (prev) => ({
+                                ...prev,
+                                errorMap: {
+                                    ...prev.errorMap,
+                                    onSubmit: fieldErr.message,
+                                },
+                            }));
+                        } catch {
+                            // Field not found in form — show as form-level error
+                            setServerError(prev => prev ? `${prev}. ${fieldErr.message}` : fieldErr.message);
+                        }
+                    }
+                }
+                // Set form-level error for non-field errors
+                const msg = err instanceof ApiError ? err.message : (err instanceof Error ? err.message : 'Error del servidor');
+                if (!serverError()) setServerError(msg);
+            }
         },
     }));
 
@@ -343,36 +376,45 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
 
     return (
         <form
+            id="supplier-form"
             onSubmit={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 form.handleSubmit();
             }}
-            class="flex flex-col h-full overflow-hidden"
+            class="flex flex-col"
         >
-            <div class="flex-1 overflow-y-auto w-full">
-                <Tabs defaultValue="general" class="w-full h-full flex flex-col">
+                {/* Server error banner */}
+                <Show when={serverError()}>
+                    <div class="mx-1 mb-3 px-4 py-3 bg-danger/10 border border-danger/30 rounded-xl text-sm text-danger font-medium flex items-start gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <svg class="size-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                        </svg>
+                        <span>{serverError()}</span>
+                    </div>
+                </Show>
+                <Tabs defaultValue="general" class="w-full h-full flex flex-col ">
                     {/* Tabs Header Sticky */}
-                    <div class="sticky top-0 z-20 max-w-full pb-4 bg-card pt-1 pl-1">
-                        <TabsList class="flex px-2 py-1.5 overflow-x-auto shadow-sm rounded-xl">
+                    <div class="sticky top-0 z-20 max-w-full bg-card pt-3">
+                        <TabsList class="flex overflow-x-auto shadow-sm rounded-xl ">
                             <TabsTrigger value="general"><InfoIcon/> General</TabsTrigger>
                             <TabsTrigger value="contacts">
                                 <UsersIcon class="size-4"/> Contactos
-                                <CounterBadge count={form.getFieldValue('contacts')?.length || 0} />
+                                <CounterBadge class="px-2 py-0" count={form.getFieldValue('contacts')?.length || 0} />
                             </TabsTrigger>
                             <TabsTrigger value="addresses">
                                 <MapPinIcon class="size-4"/> Direcciones
-                                <CounterBadge count={form.getFieldValue('addresses')?.length || 0} />
+                                <CounterBadge class="px-2 py-0" count={form.getFieldValue('addresses')?.length || 0} />
                             </TabsTrigger>
-                            <TabsTrigger value="fiscal"><ScalesIcon class="size-4" /> Datos Fiscales</TabsTrigger>
+                            {/* <TabsTrigger value="fiscal"><ScalesIcon class="size-4" /> Datos Fiscales</TabsTrigger> */}
                         </TabsList>
                     </div>
 
-                    <div class="px-1 pb-4">
+                    <div class="pt-3">
                         {/* 1. General Tab */}
-                        <TabsContent value="general" class="w-full space-y-6 animate-in fade-in duration-300">
+                        <TabsContent value="general" class="w-full space-y-6">
                             {/* Identificación */}
-                            <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
+                            <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
                                 <div class="flex items-center gap-2 mb-2">
                                     <div class="w-1.5 h-4 bg-primary rounded-full"></div>
                                     <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Identificación Principal</h3>
@@ -445,9 +487,9 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                                                     </Show>
                                                 </div>
                                                 <TextField.ErrorMessage />
-                                                <Show when={field().state.meta.errors.length > 0}>
+                                                {/* <Show when={field().state.meta.errors.length > 0}>
                                                     <FormError errors={field().state.meta.errors} />
-                                                </Show>
+                                                </Show> */}
                                                 <Show when={sriError()}>
                                                     <small class="text-xs font-medium text-danger ml-0.5 block">{sriError()}</small>
                                                 </Show>
@@ -486,7 +528,7 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                                 </form.Field>
                             </fieldset>
 
-                            <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
+                            <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
                                 <div class="flex items-center gap-2 mb-2">
                                     <div class="w-1.5 h-4 bg-success rounded-full"></div>
                                     <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Empresa / Titular</h3>
@@ -540,10 +582,10 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                                 </form.Field>
                             </fieldset>
 
-                            <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
+                            <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
                                 <div class="flex items-center gap-2 mb-2">
                                     <div class="w-1.5 h-4 bg-info rounded-full"></div>
-                                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Contacto Predeterminado (Para Facturación/Comprobantes)</h3>
+                                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Contacto Predeterminado</h3>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <form.Field name="emailBilling">
@@ -566,148 +608,213 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                                     </form.Field>
                                 </div>
                             </fieldset>
+
+                             <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-1.5 h-4 bg-info rounded-full"></div>
+                                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Clasificación SRI</h3>
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-0 sm:gap-4 place-items-start">
+                                    <form.Field name="taxRegimeType">
+                                        {(field) => (
+                                            <div class="space-y-1.5 w-full">
+                                                <FieldLabel>Régimen Fiscal (Asignado SRI)</FieldLabel>
+                                                <Select
+                                                    value={taxRegimeTypeOptions.find(o => o.value === field().state.value)}
+                                                    onChange={(opt) => field().handleChange(opt?.value)}
+                                                    options={taxRegimeTypeOptions}
+                                                    optionValue="value"
+                                                    optionTextValue="label"
+                                                    placeholder="Seleccionar..."
+                                                    itemComponent={(itemProps) => (
+                                                        <SelectItem item={itemProps.item}>
+                                                            {itemProps.item.rawValue.label}
+                                                        </SelectItem>
+                                                    )}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue<SelectOption<TaxRegimeType>>>
+                                                            {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
+                                                        </SelectValue>
+                                                    </SelectTrigger>
+                                                    <SelectContent />
+                                                </Select>
+                                            </div>
+                                        )}
+                                    </form.Field>
+
+                                    <div class="flex flex-col gap-3 pt-6 h-full justify-center pl-2">
+                                        <form.Field name="obligadoContabilidad">
+                                            {(field) => (
+                                                <div class="flex items-start">
+                                                    <Checkbox field={field()} class="font-medium">
+                                                        Obligado a llevar contabilidad
+                                                    </Checkbox>
+                                                </div>
+                                            )}
+                                        </form.Field>
+
+                                        <form.Field name="isRetentionAgent">
+                                            {(field) => (
+                                                <div class="flex items-start">
+                                                    <Checkbox field={field()} class="font-medium">
+                                                        Agente de Retención
+                                                    </Checkbox>
+                                                </div>
+                                            )}
+                                        </form.Field>
+
+                                        <form.Field name="isSpecialContributor">
+                                            {(field) => (
+                                                <div class="flex items-start">
+                                                    <Checkbox field={field()} class="font-medium text-danger">
+                                                        Contribuyente Especial
+                                                    </Checkbox>
+                                                </div>
+                                            )}
+                                        </form.Field>
+                                    </div>
+                                </div>
+                            </fieldset>
                         </TabsContent>
 
                         {/* 2. Contacts Tab */}
-                        <TabsContent value="contacts" class="w-full max-w-5xl animate-in fade-in duration-300">
-                            <div class="bg-surface/30 p-5 rounded-2xl border border-border/40">
-                                <div class="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                                        <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Lista de Contactos (Opcional)</h3>
-                                    </div>
-                                    <form.Field name="contacts" mode="array">
-                                        {(field) => (
-                                            <Button 
-                                                size="sm" 
-                                                variant="outline"
-                                                class="gap-1.5"
-                                                onClick={() => field().pushValue({ name: '', position: '', email: '', phone: '', isPrimary: false })}
-                                            >
-                                                <PlusIcon class="size-4" /> Añadir Contacto
-                                            </Button>
-                                        )}
-                                    </form.Field>
+                        <TabsContent value="contacts" class="w-full max-w-5xl">
+                            <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
+                                <div class="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
+                                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
+                                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Lista de Contactos (Opcional)</h3>
                                 </div>
 
                                 <form.Field name="contacts" mode="array">
                                     {(field) => (
-                                        <div class="space-y-4">
-                                            <Show when={field().state.value.length === 0}>
-                                                <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">
-                                                    No hay contactos adicionales configurados.<br/> Click en "Añadir Contacto" para empezar.
-                                                </div>
-                                            </Show>
-                                            <Index each={field().state.value}>
-                                                {(_, i) => (
-                                                    <div class="relative grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-card rounded-xl border border-border/50 shadow-sm animate-in slide-in-from-top-2">
-                                                        <div class="col-span-12 md:col-span-3">
-                                                            <form.Field name={`contacts[${i}].name`}>
-                                                            {(subField) => (
-                                                                <TextField.Root field={subField()}>
-                                                                        <TextField.Label>Nombre Completo</TextField.Label>
-                                                                        <TextField.Input type="text" placeholder="Ej: Juan Pérez" />
-                                                                        <TextField.ErrorMessage />
-                                                                    </TextField.Root>
-                                                            )}
-                                                            </form.Field>
-                                                        </div>
-                                                        <div class="col-span-12 md:col-span-3">
-                                                            <form.Field name={`contacts[${i}].position`}>
-                                                            {(subField) => (
-                                                                <TextField.Root field={subField()}>
-                                                                        <TextField.Label>Cargo/Área</TextField.Label>
-                                                                        <TextField.Input type="text" placeholder="Ej: Ventas" />
-                                                                        <TextField.ErrorMessage />
-                                                                    </TextField.Root>
-                                                            )}
-                                                            </form.Field>
-                                                        </div>
-                                                        <div class="col-span-12 md:col-span-3">
-                                                            <form.Field name={`contacts[${i}].email`}>
-                                                            {(subField) => (
-                                                                <TextField.Root field={subField()}>
-                                                                        <TextField.Label>Email</TextField.Label>
-                                                                        <TextField.Input type="email" placeholder="@" />
-                                                                        <TextField.ErrorMessage />
-                                                                    </TextField.Root>
-                                                            )}
-                                                            </form.Field>
-                                                        </div>
-                                                        <div class="col-span-12 md:col-span-2">
-                                                            <form.Field name={`contacts[${i}].phone`}>
-                                                            {(subField) => (
-                                                                <TextField.Root field={subField()}>
-                                                                        <TextField.Label>Teléfono</TextField.Label>
-                                                                        <TextField.Input type="text" placeholder="099..." />
-                                                                        <TextField.ErrorMessage />
-                                                                    </TextField.Root>
-                                                            )}
-                                                            </form.Field>
-                                                        </div>
-                                                        <div class="col-span-12 md:col-span-1 flex items-center justify-end md:justify-center pt-5">
-                                                            <button 
-                                                                type="button" 
-                                                                onClick={() => field().removeValue(i)}
-                                                                class="p-2 text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
-                                                                title="Eliminar Contacto"
-                                                            >
-                                                                <TrashIcon class="size-4" />
-                                                            </button>
-                                                        </div>
+                                        <>
+                                            <div class="flex justify-end mb-4">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    class="gap-1.5"
+                                                    onClick={() => field().pushValue({ name: '', position: '', email: '', phone: '', isPrimary: false })}
+                                                >
+                                                    <PlusIcon class="size-4" /> Añadir Contacto
+                                                </Button>
+                                            </div>
+                                            <div class="space-y-4">
+                                                <Show when={field().state.value.length === 0}>
+                                                    <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">
+                                                        No hay contactos adicionales configurados.<br/> Click en "Añadir Contacto" para empezar.
                                                     </div>
-                                                )}
-                                            </Index>
-                                        </div>
+                                                </Show>
+                                                <Index each={field().state.value}>
+                                                    {(_, i) => (
+                                                        <div class="relative grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-card rounded-xl border border-border/50 shadow-sm animate-in slide-in-from-top-2">
+                                                            <div class="col-span-12 md:col-span-3">
+                                                                <form.Field name={`contacts[${i}].name`}>
+                                                                {(subField) => (
+                                                                    <TextField.Root field={subField()}>
+                                                                            <TextField.Label>Nombre Completo</TextField.Label>
+                                                                            <TextField.Input type="text" placeholder="Ej: Juan Pérez" />
+                                                                            <TextField.ErrorMessage />
+                                                                        </TextField.Root>
+                                                                )}
+                                                                </form.Field>
+                                                            </div>
+                                                            <div class="col-span-12 md:col-span-3">
+                                                                <form.Field name={`contacts[${i}].position`}>
+                                                                {(subField) => (
+                                                                    <TextField.Root field={subField()}>
+                                                                            <TextField.Label>Cargo/Área</TextField.Label>
+                                                                            <TextField.Input type="text" placeholder="Ej: Ventas" />
+                                                                            <TextField.ErrorMessage />
+                                                                        </TextField.Root>
+                                                                )}
+                                                                </form.Field>
+                                                            </div>
+                                                            <div class="col-span-12 md:col-span-3">
+                                                                <form.Field name={`contacts[${i}].email`}>
+                                                                {(subField) => (
+                                                                    <TextField.Root field={subField()}>
+                                                                            <TextField.Label>Email</TextField.Label>
+                                                                            <TextField.Input type="email" placeholder="@" />
+                                                                            <TextField.ErrorMessage />
+                                                                        </TextField.Root>
+                                                                )}
+                                                                </form.Field>
+                                                            </div>
+                                                            <div class="col-span-12 md:col-span-2">
+                                                                <form.Field name={`contacts[${i}].phone`}>
+                                                                {(subField) => (
+                                                                    <TextField.Root field={subField()}>
+                                                                            <TextField.Label>Teléfono</TextField.Label>
+                                                                            <TextField.Input type="text" placeholder="099..." />
+                                                                            <TextField.ErrorMessage />
+                                                                        </TextField.Root>
+                                                                )}
+                                                                </form.Field>
+                                                            </div>
+                                                            <div class="col-span-12 md:col-span-1 flex items-center justify-end md:justify-center pt-5">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => field().removeValue(i)}
+                                                                    class="p-2 text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                                                                    title="Eliminar Contacto"
+                                                                >
+                                                                    <TrashIcon class="size-4" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </Index>
+                                            </div>
+                                        </>
                                     )}
                                 </form.Field>
                             </div>
                         </TabsContent>
 
                         {/* 3. Addresses Tab */}
-                        <TabsContent value="addresses" class="w-full max-w-5xl animate-in fade-in duration-300">
-                            <div class="bg-surface/30 p-5 rounded-2xl border border-border/40">
-                                <div class="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                                        <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Direcciones & Sucursales</h3>
-                                    </div>
-                                    <form.Field name="addresses" mode="array">
-                                        {(field) => (
-                                            <Button 
-                                                size="sm" 
-                                                variant="outline"
-                                                class="gap-1.5"
-                                                onClick={() => field().pushValue({ addressLine: '', city: '', country: 'Ecuador', countryCode: 'EC', postalCode: '', isMain: field().state.value.length === 0 })}
-                                            >
-                                                <PlusIcon class="size-4" /> Añadir Ubicación
-                                            </Button>
-                                        )}
-                                    </form.Field>
+                        <TabsContent value="addresses" class="w-full max-w-5xl">
+                            <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
+                                <div class="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
+                                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
+                                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Direcciones &amp; Sucursales</h3>
                                 </div>
 
                                 <form.Field name="addresses" mode="array">
                                     {(field) => (
-                                        <div class="space-y-4">
-                                            <Show when={field().state.value.length === 0}>
-                                                <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">
-                                                    No hay direcciones asignadas. Click en "Añadir Ubicación" para empezar.
-                                                </div>
-                                            </Show>
-                                            <Index each={field().state.value}>
-                                                {(_, i) => (
-                                                    <AddressRow form={form} index={i} onRemove={() => field().removeValue(i)} />
-                                                )}
-                                            </Index>
-                                        </div>
+                                        <>
+                                            <div class="flex justify-end mb-4">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    class="gap-1.5"
+                                                    onClick={() => field().pushValue({ addressLine: '', city: '', country: 'Ecuador', countryCode: 'EC', postalCode: '', isMain: field().state.value.length === 0 })}
+                                                >
+                                                    <PlusIcon class="size-4" /> Añadir Ubicación
+                                                </Button>
+                                            </div>
+                                            <div class="space-y-4">
+                                                <Show when={field().state.value.length === 0}>
+                                                    <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">
+                                                        No hay direcciones asignadas. Click en "Añadir Ubicación" para empezar.
+                                                    </div>
+                                                </Show>
+                                                <Index each={field().state.value}>
+                                                    {(_, i) => (
+                                                        <AddressRow form={form} index={i} onRemove={() => field().removeValue(i)} />
+                                                    )}
+                                                </Index>
+                                            </div>
+                                        </>
                                     )}
                                 </form.Field>
                             </div>
                         </TabsContent>
 
                         {/* 4. Fiscal Tab */}
-                        <TabsContent value="fiscal" class="w-full max-w-3xl animate-in fade-in duration-300">
-                            <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
+                        {/* <TabsContent value="fiscal" class="w-full max-w-3xl ">
+                            <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
                                 <div class="flex items-center gap-2 mb-2">
                                     <div class="w-1.5 h-4 bg-info rounded-full"></div>
                                     <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Clasificación SRI</h3>
@@ -775,29 +882,9 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                                     </div>
                                 </div>
                             </fieldset>
-                        </TabsContent>
+                        </TabsContent> */}
                     </div>
                 </Tabs>
-            </div>
-
-            {/* Sticky Actions Footer */}
-            <div class="flex-none p-4 mt-2 bg-card border-t border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex justify-end gap-3 z-30">
-                <Button variant="outline" type="button" onClick={props.onCancel} disabled={props.isSubmitting}>
-                    Cancelar
-                </Button>
-                <form.Subscribe selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}>
-                    {(state) => (
-                        <Button
-                            type="submit"
-                            disabled={!state().canSubmit || props.isSubmitting}
-                            loading={props.isSubmitting}
-                            class="min-w-[200px]"
-                        >
-                            {isEdit() ? 'Guardar Cambios' : 'Registrar Proveedor'}
-                        </Button>
-                    )}
-                </form.Subscribe>
-            </div>
         </form>
     );
 };

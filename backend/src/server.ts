@@ -47,6 +47,24 @@ const allowedOrigins = new Set([
   'http://127.0.0.1:4173',
 ].filter(Boolean) as string[]);
 
+// PG column name → camelCase form field mapping
+const PG_COLUMN_TO_FIELD: Record<string, string> = {
+  tax_id: 'taxId',
+  business_name: 'businessName',
+  email_billing: 'emailBilling',
+  trade_name: 'tradeName',
+  tax_id_type: 'taxIdType',
+  person_type: 'personType',
+};
+
+/** Extract field name from PG constraint detail string: "Key (tax_id)=(xxx) already exists" */
+function extractConstraintField(detail?: string): string | null {
+  if (!detail) return null;
+  const match = detail.match(/Key \((\w+)\)/);
+  if (!match) return null;
+  return PG_COLUMN_TO_FIELD[match[1]] || match[1];
+}
+
 const app = new Elysia({ prefix: '/api', aot: false })
   // CORS Configuration - dynamic origin validation
   .use(cors({
@@ -105,34 +123,94 @@ const app = new Elysia({ prefix: '/api', aot: false })
     message: 'Demasiadas peticiones, intenta más tarde',
     skipIf: (request: Request) => request.url.includes('/swagger')
   }))
-  // Global error handler
+  // Global error handler — returns structured ApiErrorResponse
   .onError(({ code, error, set }) => {
+    // 1. Auth errors (AuthError from auth.service)
     if (error instanceof AuthError) {
       set.status = error.code;
-      return { message: error.message };
+      return { code: 'UNAUTHORIZED', message: error.message };
     }
 
+    // 2. Domain errors (DomainError with code + optional fieldErrors)
     if (error instanceof DomainError) {
       set.status = error.status;
-      return { message: error.message };
+      return {
+        code: error.code,
+        message: error.message,
+        ...(error.fieldErrors.length > 0 ? { errors: error.fieldErrors } : {}),
+      };
     }
 
+    // 3. Route not found
     if (code === 'NOT_FOUND') {
       set.status = 404;
-      return { message: 'Ruta no encontrada' };
+      return { code: 'NOT_FOUND', message: 'Ruta no encontrada' };
     }
 
+    // 4. Elysia TypeBox validation errors — parse into per-field errors
     if (code === 'VALIDATION') {
       set.status = 400;
+      const fieldErrors: { field: string; message: string }[] = [];
+
+      try {
+        // Elysia wraps validation errors; try parsing the message as JSON
+        const parsed = JSON.parse(error.message);
+        if (parsed?.type === 'validation') {
+          const details = Array.isArray(parsed.errors) ? parsed.errors : [parsed];
+          for (const detail of details) {
+            const path = detail.path?.replace(/^\//, '').replace(/\//g, '.') || 'unknown';
+            const msg = detail.message || detail.summary || 'Valor inválido';
+            fieldErrors.push({ field: path, message: msg });
+          }
+        }
+      } catch {
+        // As fallback, parse the raw error message to extract field info
+        // Elysia v1 format: "Expected ... at 'field'" or similar
+        const rawMsg = error.message || 'Datos inválidos';
+        fieldErrors.push({ field: 'form', message: rawMsg });
+      }
+
       return {
+        code: 'VALIDATION_ERROR',
         message: 'Datos inválidos',
-        details: error.message
+        ...(fieldErrors.length > 0 ? { errors: fieldErrors } : {}),
+      };
+    }
+
+    // 5. PostgreSQL / Drizzle DB errors (fallback — services should catch these first)
+    const pgError = error as any;
+    if (pgError?.code === '23505') {
+      // Unique constraint violation
+      set.status = 409;
+      const field = extractConstraintField(pgError.detail);
+      return {
+        code: 'DUPLICATE_ENTRY',
+        message: 'Ya existe un registro con estos datos',
+        errors: field ? [{ field, message: 'Este valor ya está registrado' }] : [],
+      };
+    }
+    if (pgError?.code === '23503') {
+      // Foreign key violation
+      set.status = 409;
+      return {
+        code: 'CONFLICT',
+        message: 'No se puede completar la operación: existen registros relacionados',
+      };
+    }
+    if (pgError?.code === '23502') {
+      // Not-null violation
+      set.status = 400;
+      const column = pgError.column || 'unknown';
+      return {
+        code: 'VALIDATION_ERROR',
+        message: `El campo '${column}' es obligatorio`,
+        errors: [{ field: column, message: 'Este campo es obligatorio' }],
       };
     }
 
     console.error('Unhandled error:', error);
     set.status = 500;
-    return { message: 'Error interno del servidor' };
+    return { code: 'INTERNAL_ERROR', message: 'Error interno del servidor' };
   })
   // Domain routes
   .use(clientRoutes)

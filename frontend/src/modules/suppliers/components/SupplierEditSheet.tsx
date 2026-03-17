@@ -4,8 +4,11 @@ import { toast } from 'solid-sonner';
 import { useSupplier, useUpdateSupplier } from '../data/suppliers.api';
 import { SupplierForm } from './SupplierForm';
 import type { SupplierPayload } from '../models/supplier.types';
+import { ApiError } from '@shared/utils/api-errors';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Sheet from '@shared/ui/Sheet';
+import Button from '@shared/ui/Button';
+import { FloppyDiskIcon } from '@shared/ui/icons';
 
 interface SupplierEditSheetProps {
     supplierId: number;
@@ -30,7 +33,11 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
             toast.success('Proveedor actualizado correctamente');
             handleClose();
         } catch (error: any) {
-            toast.error(error.message || 'Error al actualizar proveedor');
+            const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
+            if (!hasFieldErrors) {
+                toast.error(error?.message || 'Error al editar proveedor');
+            }
+            throw error; // Re-throw so SupplierForm can map field errors
         }
     };
 
@@ -41,6 +48,23 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
             title="Editar Proveedor"
             description="Modifica los datos del proveedor"
             size="xxxxl"
+            footer={
+                <>
+                    <Button variant="outline" type="button" onClick={handleClose} disabled={updateMutation.isPending}>
+                        Cancelar
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="supplier-form"
+                        loading={updateMutation.isPending}
+                        loadingText="Guardando..."
+                        class="min-w-[200px]"
+                        icon={<FloppyDiskIcon/>}
+                    >
+                        Guardar Cambios
+                    </Button>
+                </>
+            }
         >
             <Show
                 when={props.supplierId > 0}
@@ -75,7 +99,6 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
                             supplier={supplierQuery.data}
                             onSubmit={handleSubmit}
                             isSubmitting={updateMutation.isPending}
-                            onCancel={handleClose}
                         />
                     </Show>
                 </Show>

@@ -103,14 +103,14 @@ function getCellPinningStyles(column: {
 }
 
 // Keep legacy export for any external usage
-function getCommonPinningStyles(column: {
-    getIsPinned: () => false | 'left' | 'right';
-    getStart: (position?: 'left' | 'center' | 'right') => number;
-    getAfter: (position?: 'left' | 'center' | 'right') => number;
-    getSize: () => number;
-}): { className: string; style: CSSProperties } {
-    return getCellPinningStyles(column);
-}
+// function getCommonPinningStyles(column: {
+//     getIsPinned: () => false | 'left' | 'right';
+//     getStart: (position?: 'left' | 'center' | 'right') => number;
+//     getAfter: (position?: 'left' | 'center' | 'right') => number;
+//     getSize: () => number;
+// }): { className: string; style: CSSProperties } {
+//     return getCellPinningStyles(column);
+// }
 
 // =============================================================================
 // DataTable Types
@@ -255,7 +255,7 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
     // Create table instance
     const table = createSolidTable({
         get data() { return local.data; },
-        columns: local.columns,
+        get columns() { return local.columns; },
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getRowId: local.getRowId ?? ((row: any) => String(row.id)),
@@ -340,19 +340,6 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
         });
     });
 
-    // Get visible rows (virtualized or all)
-    const visibleRows = createMemo(() => {
-        const allRows = table.getRowModel().rows;
-        const virtualizer = rowVirtualizer();
-
-        if (!virtualizer) return allRows;
-
-        return virtualizer.getVirtualItems().map((virtualRow) => ({
-            virtualRow,
-            row: allRows[virtualRow.index],
-        }));
-    });
-
     // Pagination options
     const pageSizes = () => local.pageSizeOptions ?? [10, 20, 30, 50];
 
@@ -364,7 +351,7 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
                 class="flex-1 overflow-x-auto overflow-y-auto relative transition-opacity duration-150"
                 style={{
                     ...(local.enableVirtualization ? { contain: 'strict' } : {}),
-                    'will-change': 'transform',
+                    'will-change': local.enableVirtualization ? 'transform' : 'auto',
                 }}
             >
                 <TableRoot>
@@ -580,7 +567,7 @@ function DataTableRow<TData>(props: DataTableRowProps<TData>): JSX.Element {
         <TableRow
             ref={(el) => props.measureElement?.(el)}
             data-index={props.virtualRow?.index}
-            class={`cursor-pointer group ${isSelected()
+            class={`group ${isSelected()
                 ? 'row-selected bg-row-selected hover:bg-row-selected-hover'
                 : 'hover:bg-table-hover'
                 }`}
@@ -630,5 +617,5 @@ function DataTableRow<TData>(props: DataTableRowProps<TData>): JSX.Element {
 // Exports
 // =============================================================================
 
-export { getCommonPinningStyles };
+// export { getCommonPinningStyles };
 export type { DataTableRowProps };

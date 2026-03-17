@@ -244,13 +244,13 @@ const ErrorMessage = (props: TextFieldErrorMessageProps) => {
 
     return (
         <Show when={context.validationState() === 'invalid' && message()}>
-            <span
-                class={`text-xs text-red-400 mt-1 ${local.class ?? ''}`}
+            <small
+                class={`text-xs text-danger font-medium ml-0.5 ${local.class ?? ''}`}
                 role="alert"
                 {...others}
             >
                 {message()}
-            </span>
+            </small>
         </Show>
     );
 };
