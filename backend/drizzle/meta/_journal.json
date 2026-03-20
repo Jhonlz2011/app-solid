@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1773029249356,
-      "tag": "0000_certain_sentry",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1773123337327,
-      "tag": "0001_mute_black_bird",
+      "when": 1773803661720,
+      "tag": "0000_cheerful_inertia",
       "breakpoints": true
     }
   ]

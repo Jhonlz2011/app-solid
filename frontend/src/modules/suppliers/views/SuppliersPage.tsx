@@ -26,7 +26,6 @@ import {
     supplierKeys,
     suppliersApi,
     type SupplierFilters,
-    type FacetData,
 } from '../data/suppliers.api';
 import { createSupplierColumns } from '../data/supplier.columns';
 import { useDataTableSSE, useRealtimeInvalidation } from '@shared/hooks/useDataTableSSE';
@@ -651,7 +650,7 @@ const SuppliersPage: Component = () => {
             </div>
             {/* DataTable / Card List — conditional on viewport */}
             <div class="flex-1 min-h-0 px-3 pb-3 sm:px-4 sm:pb-4 overflow-hidden">
-                <div class="bg-card border border-border rounded-2xl shadow-card-soft h-full overflow-hidden">
+                <div class="bg-card border border-border rounded-2xl shadow-card-soft h-full overflow-auto relative">
                     <Show
                         when={!isMobile()}
                         fallback={

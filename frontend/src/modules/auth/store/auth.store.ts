@@ -3,6 +3,7 @@ import { createStore } from "solid-js/store";
 import { batch } from "solid-js";
 import { authApi } from "../api/auth.api";
 import type { LoginRequest, User } from "../types/auth.types";
+import type { RbacModule, PermissionSlug } from '@app/schema/enums';
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
 
@@ -248,7 +249,7 @@ export const useAuth = () => {
         user: () => state.user,
         isAuthenticated: () => state.status === 'authenticated',
         isLoading: () => state.status === 'loading',
-        hasPermission: (perm: string) => {
+        hasPermission: (perm: PermissionSlug) => {
             const u = state.user;
             if (!u?.permissions) return false;
             if (u.roles?.includes('superadmin')) return true;
@@ -256,28 +257,28 @@ export const useAuth = () => {
         },
         isAdmin: () => state.user?.roles?.includes('superadmin') || false,
         hasRole: (role: string) => state.user?.roles?.includes(role) || false,
-        canRead: (module: string) => {
+        canRead: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
             if (u.roles?.includes('superadmin')) return true;
             return u.permissions?.includes(`${module}.read`) || false;
         },
-        canAdd: (module: string) => {
+        canAdd: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
-            if (u.roles?.includes('admin') || u.roles?.includes('superadmin')) return true;
-            return u.permissions?.includes(`${module}.add`) || false;
+            if (u.roles?.includes('superadmin')) return true;
+            return u.permissions?.includes(`${module}.create`) || false;
         },
-        canEdit: (module: string) => {
+        canEdit: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
-            if (u.roles?.includes('admin') || u.roles?.includes('superadmin')) return true;
-            return u.permissions?.includes(`${module}.edit`) || false;
+            if (u.roles?.includes('superadmin')) return true;
+            return u.permissions?.includes(`${module}.update`) || false;
         },
-        canDelete: (module: string) => {
+        canDelete: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
-            if (u.roles?.includes('admin') || u.roles?.includes('superadmin')) return true;
+            if (u.roles?.includes('superadmin')) return true;
             return u.permissions?.includes(`${module}.delete`) || false;
         },
     };

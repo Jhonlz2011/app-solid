@@ -367,7 +367,7 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
                                             return (
                                                 <TableHead
                                                     class={cn(
-                                                        'text-xs uppercase tracking-wider text-muted font-semibold',
+                                                        'text-xs tracking-wider text-muted font-semibold',
                                                         pinClasses,
                                                     )}
                                                     style={pinStyles}
@@ -417,7 +417,7 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
                                 when={table.getRowModel().rows.length > 0}
                                 fallback={
                                     <TableRow>
-                                        <TableCell colSpan={local.columns.length} class="h-96">
+                                        <TableCell colSpan={local.columns.length} class="h-full">
                                             <EmptyState
                                                 icon={local.emptyIcon}
                                                 message={local.emptyMessage ?? 'No hay datos'}

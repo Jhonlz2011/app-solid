@@ -398,13 +398,11 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                     <div class="sticky top-0 z-20 max-w-full bg-card pt-3">
                         <TabsList class="flex overflow-x-auto shadow-sm rounded-xl ">
                             <TabsTrigger value="general"><InfoIcon/> General</TabsTrigger>
-                            <TabsTrigger value="contacts">
+                            <TabsTrigger value="contacts" count={form.state.values.contacts?.length || 0}>
                                 <UsersIcon class="size-4"/> Contactos
-                                <CounterBadge class="px-2 py-0" count={form.getFieldValue('contacts')?.length || 0} />
                             </TabsTrigger>
-                            <TabsTrigger value="addresses">
+                            <TabsTrigger value="addresses" count={form.state.values.addresses?.length || 0}>
                                 <MapPinIcon class="size-4"/> Direcciones
-                                <CounterBadge class="px-2 py-0" count={form.getFieldValue('addresses')?.length || 0} />
                             </TabsTrigger>
                             {/* <TabsTrigger value="fiscal"><ScalesIcon class="size-4" /> Datos Fiscales</TabsTrigger> */}
                         </TabsList>

@@ -1,15 +1,17 @@
 import { JSX, splitProps, Show, mergeProps } from 'solid-js';
+import { cn } from '../lib/utils';
 
 // 1. Definimos las variantes fuera del componente para evitar recrearlas en cada render
 // Usamos Tailwind v4 con variables semánticas (asegúrate de tenerlas en tu @theme)
 export const BUTTON_VARIANTS = {
-  primary: "bg-primary text-on-primary hover:bg-primary/90 active:scale-[0.98] border border-transparent shadow-lg shadow-primary/15",
-  outline: "bg-transparent border border-border text-text hover:bg-surface-2 hover:border-border-strong active:bg-surface-3",
-  ghost: "bg-transparent text-muted hover:text-heading hover:bg-card-alt active:bg-surface-3 border border-transparent",
-  danger: "bg-red-600 text-white hover:bg-red-700 active:scale-[0.98] border border-transparent shadow-lg shadow-red-500/20",
-  destructive: "bg-red-500 text-white hover:bg-red-600 active:scale-[0.98] border border-transparent shadow-lg shadow-red-500/20",
-  warning: "bg-amber-500 text-white hover:bg-amber-600 active:scale-[0.98] border border-transparent shadow-lg shadow-amber-500/20",
-  success: "bg-green-500 text-white hover:bg-green-600 active:scale-[0.98] border border-transparent shadow-lg shadow-green-500/20",
+  primary: "bg-primary text-on-primary hover:bg-primary/90 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-primary/20",
+  secondary: "bg-secondary text-on-secondary hover:bg-secondary/90 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-secondary/20",
+  outline: "bg-transparent border border-border text-text hover:bg-surface hover:border-border-strong active:bg-surface-3 transition-all duration-200",
+  ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 border border-transparent transition-colors duration-200",
+  danger: "bg-danger text-white hover:bg-danger/85 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-danger/20",
+  destructive: "bg-destructive text-white hover:bg-destructive/85 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-destructive/30",
+  warning: "bg-warning text-white hover:bg-warning/85 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-warning/20",
+  success: "bg-success text-white hover:bg-success/85 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-success/20",
 };
 
 /** @deprecated Use BUTTON_VARIANTS */
@@ -43,7 +45,7 @@ interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
   radius?: ButtonRadius;
   fullWidth?: boolean;
   loading?: boolean;
-  loadingText?: string;
+  loadingText?: JSX.Element;
   icon?: JSX.Element; // Slot opcional para iconos
 }
 
@@ -69,17 +71,16 @@ export default function Button(props: ButtonProps) {
     <button
       {...others}
       disabled={local.disabled || local.loading}
-      // 4. Clase Base Estática (Renderizado instantáneo)
-      class={`
-        inline-flex items-center justify-center gap-2 font-medium 
-        cursor-pointer
-        outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1
-        disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
-        ${BUTTON_VARIANTS[local.variant]} 
-        ${BUTTON_SIZES[local.size]} 
-        ${BUTTON_RADII[local.radius]}
-        ${local.class || ''}
-      `}
+      // 4. Clase Base Estática combinada mediante cn()
+      class={cn(
+        "inline-flex items-center justify-center gap-2 font-medium cursor-pointer",
+        "outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
+        "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
+        BUTTON_VARIANTS[local.variant],
+        BUTTON_SIZES[local.size],
+        BUTTON_RADII[local.radius],
+        local.class
+      )}
       // 5. classList para estados booleanos (Optimización de SolidJS)
       classList={{
         'w-full': local.fullWidth,
@@ -87,7 +88,6 @@ export default function Button(props: ButtonProps) {
       }}
     >
       {/* 6. Manejo de Loading inteligente (Overlay absoluto para no mover el layout) */}
-      {/* 6. Manejo de Loading inteligente */}
       <Show
         when={local.loading}
         fallback={
@@ -119,7 +119,9 @@ export default function Button(props: ButtonProps) {
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span>{local.loadingText}</span>
+            <Show when={typeof local.loadingText === 'string'} fallback={local.loadingText}>
+              <span>{local.loadingText}</span>
+            </Show>
           </div>
         </Show>
       </Show>

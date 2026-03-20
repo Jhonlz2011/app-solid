@@ -9,11 +9,12 @@ import { ProfileHeader, ProfileHeaderSkeleton } from '../components/ProfileHeade
 import { AccountSection } from '../components/AccountSection';
 import { SecuritySection } from '../components/SecuritySection';
 import { SessionsSection } from '../components/SessionsSection';
-import { ShieldIcon, UserIcon, DeviceIcon } from '@shared/ui/icons';
+import { ShieldIcon, UserIcon, DeviceIcon, WarningIcon } from '@shared/ui/icons';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { Skeleton } from '@shared/ui/Skeleton';
+import ErrorState from '@shared/ui/ErrorState';
 
 export const ProfilePendingComponent: Component = () => (
     <div class="w-full p-4 sm:p-6 max-w-3xl mx-auto">
@@ -94,20 +95,10 @@ const ProfilePage: Component = () => {
 
             {/* Error State */}
             <Show when={profileQuery.isError && !profile()}>
-                <div class="text-center py-16">
-                    <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-danger/10 flex items-center justify-center">
-                        <svg class="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                    </div>
-                    <p class="text-danger mb-4">Error al cargar el perfil</p>
-                    <button
-                        onClick={() => profileQuery.refetch()}
-                        class="px-4 py-2 bg-surface-alt hover:bg-border rounded-lg text-sm transition-colors"
-                    >
-                        Reintentar
-                    </button>
-                </div>
+                <ErrorState 
+                    description="Error al cargar el perfil" 
+                    onRetry={() => profileQuery.refetch()} 
+                />
             </Show>
 
             {/* Content - Use profile() memo instead of keyed Show */}

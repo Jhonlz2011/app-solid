@@ -7,6 +7,7 @@ import { clickOutside } from '@shared/directives/clickOutside';
 import { LogoutIcon } from '@shared/ui/icons';
 import { useLogout } from '@modules/auth/hooks/useLogout';
 import { UserMenuDropdown } from '../UserMenuDropdown';
+import Button from '@shared/ui/Button';
 
 // Register directive
 false && clickOutside;
@@ -98,17 +99,20 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                         </div>
                     </Link>
 
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={handleLogout}
                         disabled={isLoggingOut()}
-                        class="group/logout flex items-center justify-center gap-2 p-2.5 rounded-xl text-red-500/70 hover:bg-red-500/10 hover:text-red-500
-                               focus:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
-                        classList={{ 'opacity-50 cursor-not-allowed text-red-500/50': isLoggingOut() }}
+                        loading={isLoggingOut()}
+                        class="text-danger hover:text-danger hover:bg-danger/10 focus-visible:ring-danger/55 focus-visible:ring-2 focus-visible:ring-offset-transparent"
                         title="Cerrar Sesión"
                         aria-label="Cerrar Sesión"
                     >
-                        <LogoutIcon class="size-5" />
-                    </button>
+                        <Show when={!isLoggingOut()}>
+                            <LogoutIcon class="size-5" />
+                        </Show>
+                    </Button>
                 </div>
             </Show>
         </footer>

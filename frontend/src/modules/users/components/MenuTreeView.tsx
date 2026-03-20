@@ -16,7 +16,7 @@ interface MenuItemData {
 interface Permission {
     id: number;
     slug: string;
-    description?: string;
+    description?: string | null;
 }
 
 interface MenuTreeViewProps {
@@ -28,13 +28,25 @@ interface MenuTreeViewProps {
     search?: string;
 }
 
-// Permission action labels
-const PERMISSION_ACTIONS = [
-    { key: 'read', label: 'Ver', shortLabel: 'V' },
-    { key: 'add', label: 'Crear', shortLabel: 'C' },
-    { key: 'edit', label: 'Editar', shortLabel: 'E' },
-    { key: 'delete', label: 'Eliminar', shortLabel: 'D' },
-];
+// Action label catalog — extend here to add new action types
+const ACTION_CATALOG: Record<string, { label: string; shortLabel: string }> = {
+    read:    { label: 'Ver',        shortLabel: 'V' },
+    create:  { label: 'Crear',     shortLabel: 'C' },
+    update:  { label: 'Editar',    shortLabel: 'E' },
+    delete:  { label: 'Eliminar',  shortLabel: 'D' },
+    restore: { label: 'Restaurar', shortLabel: 'R' },
+    destroy: { label: 'Destruir',  shortLabel: 'X' },
+    export:  { label: 'Exportar',  shortLabel: 'Ex' },
+    import:  { label: 'Importar',  shortLabel: 'Im' },
+    approve: { label: 'Aprobar',   shortLabel: 'A' },
+    assign:  { label: 'Asignar',   shortLabel: 'As' },
+    audit:   { label: 'Auditar',   shortLabel: 'Au' },
+};
+
+/** Get display info for any action key */
+function getActionInfo(key: string) {
+    return ACTION_CATALOG[key] ?? { label: key.charAt(0).toUpperCase() + key.slice(1), shortLabel: key.slice(0, 2).toUpperCase() };
+}
 
 /**
  * MenuTreeView - Modern tree view for permission assignment
@@ -101,7 +113,7 @@ export const MenuTreeView: Component<MenuTreeViewProps> = (props) => {
     };
 
     const collapseAll = () => {
-        setExpandedIds(new Set());
+        setExpandedIds(new Set<number>());
     };
 
     return (
@@ -123,9 +135,10 @@ export const MenuTreeView: Component<MenuTreeViewProps> = (props) => {
                     </button>
                 </div>
                 <div class="flex items-center gap-1 text-xs text-muted">
-                    <For each={PERMISSION_ACTIONS}>
+                    {/* Header labels are dynamic — derived from all unique actions */}
+                    <For each={Array.from(new Set(props.allPermissions.map(p => p.slug.split('.')[1]))).filter(Boolean)}>
                         {(action) => (
-                            <span class="w-8 text-center font-medium">{action.shortLabel}</span>
+                            <span class="w-8 text-center font-medium">{getActionInfo(action).shortLabel}</span>
                         )}
                     </For>
                 </div>
@@ -262,26 +275,25 @@ const TreeNode: Component<TreeNodeProps> = (props) => {
                     </button>
                 </Show>
 
-                {/* Permission Toggles */}
+                {/* Permission Toggles — dynamic per-menu actions */}
                 <div class="flex items-center gap-1">
-                    <For each={PERMISSION_ACTIONS}>
-                        {(action) => {
-                            const perm = getPermissionByAction(action.key);
-                            const isSelected = () => perm ? props.selectedIds.has(perm.id) : false;
+                    <For each={menuPermissions()}>
+                        {(perm) => {
+                            const action = perm.slug.split('.').pop()!;
+                            const info = getActionInfo(action);
+                            const isSelected = () => props.selectedIds.has(perm.id);
 
                             return (
-                                <Show when={perm} fallback={<div class="w-8" />}>
-                                    <button
-                                        onClick={() => perm && props.onPermissionToggle(perm.id)}
-                                        class={`w-8 h-7 rounded-md text-xs font-medium transition-all duration-200 ${isSelected()
-                                            ? 'bg-primary/20 text-primary ring-1 ring-primary/30'
-                                            : 'bg-surface/50 text-muted hover:bg-surface hover:text-primary/60'
-                                            }`}
-                                        title={perm?.description || `${action.label} ${props.menu.label}`}
-                                    >
-                                        {action.shortLabel}
-                                    </button>
-                                </Show>
+                                <button
+                                    onClick={() => props.onPermissionToggle(perm.id)}
+                                    class={`w-8 h-7 rounded-md text-xs font-medium transition-all duration-200 ${isSelected()
+                                        ? 'bg-primary/20 text-primary ring-1 ring-primary/30'
+                                        : 'bg-surface/50 text-muted hover:bg-surface hover:text-primary/60'
+                                        }`}
+                                    title={perm.description || `${info.label} ${props.menu.label}`}
+                                >
+                                    {info.shortLabel}
+                                </button>
                             );
                         }}
                     </For>
@@ -316,27 +328,24 @@ const TreeNode: Component<TreeNodeProps> = (props) => {
 // ============================================
 
 function filterMenuTree(menus: MenuItemData[], search: string): MenuItemData[] {
-    return menus
-        .map(menu => {
-            const matchesLabel = menu.label.toLowerCase().includes(search);
-            const matchesKey = menu.key.toLowerCase().includes(search);
-            const matchesPrefix = menu.permission_prefix?.toLowerCase().includes(search);
+    const result: MenuItemData[] = [];
+    for (const menu of menus) {
+        const matchesLabel = menu.label.toLowerCase().includes(search);
+        const matchesKey = menu.key.toLowerCase().includes(search);
+        const matchesPrefix = menu.permission_prefix?.toLowerCase().includes(search);
 
-            // Recursively filter children
-            const filteredChildren = menu.children
-                ? filterMenuTree(menu.children, search)
-                : [];
+        const filteredChildren = menu.children
+            ? filterMenuTree(menu.children, search)
+            : [];
 
-            // Include if matches OR has matching children
-            if (matchesLabel || matchesKey || matchesPrefix || filteredChildren.length > 0) {
-                return {
-                    ...menu,
-                    children: filteredChildren.length > 0 ? filteredChildren : menu.children,
-                };
-            }
-            return null;
-        })
-        .filter((m): m is MenuItemData => m !== null);
+        if (matchesLabel || matchesKey || matchesPrefix || filteredChildren.length > 0) {
+            result.push({
+                ...menu,
+                children: filteredChildren.length > 0 ? filteredChildren : menu.children,
+            });
+        }
+    }
+    return result;
 }
 
 export default MenuTreeView;

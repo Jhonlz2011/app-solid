@@ -5,6 +5,20 @@ export interface IconProps extends JSX.SvgSVGAttributes<SVGSVGElement> {
     strokeWidth?: number; // Nueva propiedad para el grosor
 }
 
+// export const UserHistoryIcon: Component<IconProps> = (props) => (
+//     <BaseIcon {...props}>
+       
+//         <path d="M11 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z M3 20v-1a4 4 0 0 1 4-4h2 M22 15a5 5 0 1 1-10 0 5 5 0 0 1 10 0z M17 12.5v2.5l1.5 1.5" />
+//     </BaseIcon>
+// );
+
+export const UserHistoryIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        {/* Cabeza del usuario, Cuerpo recortado, Reloj, Manecillas */}
+        <path d="M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z M2 21v-2a4 4 0 0 1 4-4h3.5 M22 16a5 5 0 1 1-10 0 5 5 0 0 1 10 0z M17 13.5v2.5l1.5 1.5" />
+    </BaseIcon>
+);
+
 
 const BaseIcon = (props: IconProps & { children: JSX.Element }) => {
     // Separamos 'class' y 'children' para manejarlos manualmente, el resto se pasa directo (...others)
@@ -176,6 +190,32 @@ export const SidebarCollapseIcon: Component<IconProps> = (props) => (
 export const AlertCircleIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>
         <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </BaseIcon>
+);
+
+// export const IdCardIcon: Component<IconProps> = (props) => (
+//   <BaseIcon {...props}>
+//         <path d="M8 8H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-3 M9.5 7.5V5a2.5 2.5 0 0 1 5 0v2.5L12 10z M11 5h2 M8 15a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M4.5 20a3.5 3.5 0 0 1 7 0 M14 14.5h4 M14 18.5h1.5 M17 18.5h1" />
+//     </BaseIcon>
+// );
+export const IdCardIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M13.5 8h-3"/><path d="m15 2-1 2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3"/><path d="M16.899 22A5 5 0 0 0 7.1 22"/><path d="m9 2 3 6"/><circle cx="12" cy="15" r="3"/>
+    </BaseIcon>
+);
+
+export const UsersKeysIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M8.5 7a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z M2 18v-1a3 3 0 0 1 3-3h2a3 3 0 0 1 3 3v1 M13 4a2 2 0 1 1-4 0 2 2 0 0 1 4 0z M9 11a2.5 2.5 0 0 1 2-1h2a2.5 2.5 0 0 1 2.5 2.5v1.5 M22 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0z M20 8v12 M20 16h2 M20 19h2" />
+    </BaseIcon>
+);
+
+export const UserKeyIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        {/* User matching the exact style and thickness of UsersIcon */}
+        <path d="M13 7a4 4 0 11-8 0 4 4 0 018 0z M15 21H3v-1a6 6 0 0112 0v1z" />
+        {/* Key with consistent weight, solid stem and outline head (no inner circle overlapping stroke) */}
+        <path d="M22 8a3 3 0 11-6 0 3 3 0 016 0z M19 11v10 M19 17h3 M19 21h3" />
     </BaseIcon>
 );
 

@@ -1,6 +1,7 @@
 export * from './entities';
 export * from './config';
 export * from './auth';
+export * from './auth_audit';
 export * from './products';
 export * from './pricing';
 export * from './suppliers';

@@ -181,3 +181,50 @@ export const SriSupplierResponseSchema = Type.Object({
 });
 
 export type SriSupplierResponseType = Static<typeof SriSupplierResponseSchema>;
+
+// --- RBAC Permission Schemas ---
+// Uses explicit literals to avoid Eden inference collapse (same pattern as TaxIdTypeSchema)
+import { RBAC_MODULES, RBAC_ACTIONS } from './enums';
+
+export const PermissionSlugSchema = Type.Union(
+    RBAC_MODULES.flatMap(m =>
+        RBAC_ACTIONS.map(a => Type.Literal(`${m}.${a}` as const))
+    )
+);
+
+// --- AUDIT LOG Response Schemas ---
+export const AuditLogEntrySchema = Type.Object({
+    id: Type.Number(),
+    action: Type.String(),
+    targetType: Type.String(),
+    targetId: Type.Union([Type.Number(), Type.Null()]),
+    details: Type.Union([Type.String(), Type.Null()]),
+    ipAddress: Type.Union([Type.String(), Type.Null()]),
+    createdAt: Type.Date(),
+    performedBy: Type.Number(),
+    performedByUsername: Type.Union([Type.String(), Type.Null()]),
+});
+
+export const AuditLogResponseSchema = Type.Object({
+    data: Type.Array(AuditLogEntrySchema),
+    meta: Type.Object({
+        total: Type.Number(),
+        page: Type.Number(),
+        pageCount: Type.Number(),
+        hasNextPage: Type.Boolean(),
+        hasPrevPage: Type.Boolean(),
+    }),
+});
+
+export type AuditLogEntryType = Static<typeof AuditLogEntrySchema>;
+export type AuditLogResponseType = Static<typeof AuditLogResponseSchema>;
+
+// --- ENTITY PICKER Response Schema ---
+export const EntityPickerItemSchema = Type.Object({
+    id: Type.Number(),
+    businessName: Type.String(),
+    taxId: Type.String(),
+});
+
+export type EntityPickerItemType = Static<typeof EntityPickerItemSchema>;
+

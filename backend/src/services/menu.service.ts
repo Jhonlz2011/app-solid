@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { authMenuItems } from '@app/schema/tables';
-import { eq, asc } from '@app/schema';
+import { eq, asc, sql } from '@app/schema';
 import { getUserPermissions, getUserRoles } from './rbac.service';
 
 // Keep backward-compatible interface
@@ -29,28 +29,20 @@ interface DbMenuItem {
  * Get menu tree for a specific user, filtered by their permissions
  */
 export async function getMenuForUser(userId: number): Promise<ModuleConfig[]> {
-    const roles = await getUserRoles(userId);
+    // Parallel: Redis + DB at the same time — eliminates serial waterfall
+    const [roles, permissions, allMenus] = await Promise.all([
+        getUserRoles(userId),
+        getUserPermissions(userId),
+        db.select()
+            .from(authMenuItems)
+            .where(eq(authMenuItems.is_active, true))
+            .orderBy(asc(authMenuItems.sort_order)),
+    ]);
+
     const isAdmin = roles.includes('admin') || roles.includes('superadmin');
+    if (isAdmin) return buildMenuTree(allMenus);
 
-    // Fetch all active menu items from DB
-    const allMenus = await db
-        .select()
-        .from(authMenuItems)
-        .where(eq(authMenuItems.is_active, true))
-        .orderBy(asc(authMenuItems.sort_order));
-
-    // For admins, return full tree
-    if (isAdmin) {
-        return buildMenuTree(allMenus);
-    }
-
-    // Get user permissions
-    const permissions = await getUserPermissions(userId);
-
-    // Filter menus based on permissions
-    const filteredMenus = filterByPermissions(allMenus, permissions);
-
-    return buildMenuTree(filteredMenus);
+    return buildMenuTree(filterByPermissions(allMenus, permissions));
 }
 
 /**
@@ -96,17 +88,20 @@ export async function updateMenuItem(
 export async function reorderMenuItems(items: { id: number; sort_order: number }[]) {
     if (items.length === 0) return [];
 
-    // Batch update all items in parallel
-    const results = await Promise.all(
-        items.map(item =>
-            db.update(authMenuItems)
-                .set({ sort_order: item.sort_order, updated_at: new Date() })
-                .where(eq(authMenuItems.id, item.id))
-                .returning()
-                .then(r => r[0])
-        )
-    );
-    return results;
+    // Single query with CASE WHEN instead of N individual updates
+    const cases = items.map(i => sql`WHEN ${i.id} THEN ${i.sort_order}`);
+    const ids = items.map(i => i.id);
+
+    await db.execute(sql`
+        UPDATE auth_menu_items SET
+            sort_order = CASE id
+                ${sql.join(cases, sql` `)}
+            END,
+            updated_at = NOW()
+        WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+    `);
+
+    return items;
 }
 
 // ============================================

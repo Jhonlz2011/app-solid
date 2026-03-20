@@ -6,8 +6,9 @@ import { createAuthRoutes } from './modules/auth/auth.routes';
 import { createSuppliersRoutes } from './modules/suppliers/suppliers.routes';
 import { createUsersRoutes } from './modules/users/users.routes';
 
-import { connect as connectWs } from './shared/store/sse.store';
+import { connect as connectSSE } from './shared/store/sse.store';
 import { queryClient } from './shared/lib/queryClient';
+import ErrorState from './shared/ui/ErrorState';
 
 import { LayoutSkeleton } from './layout/MainLayout';
 import { ProfilePendingComponent } from './modules/profile/views/ProfilePage';
@@ -29,7 +30,7 @@ const authRoute = createAuthRoutes(rootRoute);
 // --- PROTECTED LAYOUT ---
 const ProtectedLayout: Component = () => {
   onMount(() => {
-    connectWs();
+    connectSSE();
   });
 
   return <MainLayout />;
@@ -142,16 +143,13 @@ const router = createRouter({
   defaultErrorComponent: ({ error }) => {
     console.error(error);
     return (
-      <div class="p-6 text-center text-danger">
-        <h2 class="text-lg font-bold">Algo salió mal</h2>
-        <p class="text-sm">Ha ocurrido un error inesperado al cargar la página.</p>
-        <button 
-          onClick={() => window.location.reload()}
-          class="mt-4 px-4 py-2 bg-danger/10 text-danger rounded-lg text-sm"
-        >
-          Recargar página
-        </button>
-      </div>
+      <ErrorState 
+        title="Algo salió mal"
+        description="Ha ocurrido un error inesperado al cargar la página."
+        onRetry={() => window.location.reload()}
+        retryLabel="Recargar página"
+        class="p-6"
+      />
     );
   }
 });

@@ -979,3 +979,40 @@ export async function addAddress(entityId: number, payload: AddressPayload) {
 export async function getAddresses(entityId: number) {
     return db.select().from(entityAddresses).where(eq(entityAddresses.entity_id, entityId));
 }
+
+// =============================================================================
+// Entity Picker (lightweight listing for autocomplete)
+// =============================================================================
+
+/**
+ * Lightweight entity listing for picker/autocomplete components.
+ * Returns minimal fields: id, businessName, taxId.
+ * Supports optional search by business_name or tax_id.
+ */
+export async function listForPicker(search?: string, limit: number = 200) {
+    const conditions = [eq(entities.is_active, true)];
+
+    if (search && search.length >= 1) {
+        const term = `%${search}%`;
+        conditions.push(
+            or(
+                ilike(entities.business_name, term),
+                ilike(entities.tax_id, term),
+            )!,
+        );
+    }
+
+    const rows = await db
+        .select({
+            id: entities.id,
+            businessName: entities.business_name,
+            taxId: entities.tax_id,
+        })
+        .from(entities)
+        .where(and(...conditions))
+        .orderBy(asc(entities.business_name))
+        .limit(Math.min(limit, 500));
+
+    return rows;
+}
+

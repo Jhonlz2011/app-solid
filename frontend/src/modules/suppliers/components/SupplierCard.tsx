@@ -11,6 +11,7 @@ import { StatusBadge, Badge } from '@shared/ui/Badge';
 import { EditIcon, TrashIcon, RotateCcwIcon} from '@shared/ui/icons';
 import Checkbox from '@shared/ui/Checkbox';
 import { cn } from '@shared/lib/utils';
+import Button from '@shared/ui/Button';
 
 export interface SupplierCardProps {
     supplier: SupplierListItem;
@@ -24,7 +25,7 @@ export interface SupplierCardProps {
 
 export const SupplierCard: Component<SupplierCardProps> = (props) => {
     const auth = useAuth();
-    const canDestroy = () => auth.hasPermission('suppliers:destroy');
+    const canDestroy = () => auth.hasPermission('suppliers.destroy');
 
     return (
         <div
@@ -99,43 +100,48 @@ export const SupplierCard: Component<SupplierCardProps> = (props) => {
                     when={props.supplier.is_active}
                     fallback={
                         <>
-                            <button
-                                type="button"
-                                class="p-2 rounded-lg text-muted hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                class="h-8 w-8 text-muted hover:text-emerald-400 hover:bg-emerald-500/10"
                                 title="Restaurar"
+                                
                                 onClick={() => props.onRestore(props.supplier)}
                             >
                                 <RotateCcwIcon class="size-4" />
-                            </button>
+                            </Button>
                             <Show when={canDestroy()}>
-                                <button
-                                    type="button"
-                                    class="p-2 rounded-lg text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="size-8 text-muted hover:text-danger hover:bg-danger/10 shadow-none" 
                                     title="Eliminar permanentemente"
                                     onClick={() => props.onDelete(props.supplier)}
                                 >
                                     <TrashIcon class="size-4" />
-                                </button>
+                                </Button>
                             </Show>
                         </>
                     }
                 >
-                    <button
-                        type="button"
-                        class="p-2 rounded-lg text-muted hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-muted hover:text-info hover:bg-info/10"
                         title="Editar"
                         onClick={() => props.onEdit(props.supplier)}
                     >
                         <EditIcon class="size-4" />
-                    </button>
-                    <button
-                        type="button"
-                        class="p-2 rounded-lg text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-muted hover:text-danger hover:bg-danger/10"
                         title="Eliminar"
                         onClick={() => props.onDelete(props.supplier)}
                     >
                         <TrashIcon class="size-4" />
-                    </button>
+                    </Button>
                 </Show>
             </div>
         </div>

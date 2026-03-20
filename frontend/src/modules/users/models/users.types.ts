@@ -1,9 +1,18 @@
-// Users/RBAC types inferred from Eden
-import { usersApi } from '../data/users.api';
+// Re-export all types from the unified data layer for backward compatibility
+export type {
+    Role,
+    RoleListItem,
+    UserWithRoles,
+    UserListItem,
+    Permission,
+    PermissionsResponse,
+    RoleUsers,
+    UsersMeta,
+    UsersFilters,
+    RoleBody,
+} from '../data/users.api';
 
-// Infer types from Eden API responses
-export type Role = Awaited<ReturnType<typeof usersApi.listRoles>>[number];
-export type Permission = Awaited<ReturnType<typeof usersApi.listPermissions>>['all'][number];
-export type PermissionsResponse = Awaited<ReturnType<typeof usersApi.listPermissions>>;
-export type UserWithRoles = Awaited<ReturnType<typeof usersApi.listUsersWithRoles>>[number];
-export type RoleUsers = Awaited<ReturnType<typeof usersApi.getRoleUsers>>;
+export const isActiveLabels: Record<string, string> = {
+    'true': 'Activo',
+    'false': 'Inactivo',
+};

@@ -83,3 +83,34 @@ export const saleOriginEnum = pgEnum('sale_origin', ['POS', 'PROJECT', 'ECOMMERC
 
 // NEW: POS session status
 export const posSessionStatusEnum = pgEnum('pos_session_status', ['OPEN', 'CLOSED', 'RECONCILED']);
+
+// ============================================================================
+// RBAC ENUMS — Single Source of Truth for permissions
+// ============================================================================
+
+/** All business modules that can have permissions */
+export const RBAC_MODULES = [
+    'dashboard', 'users', 'roles', 'permissions',
+    'suppliers', 'products', 'inventory', 'invoices',
+    'work_orders', 'manufacturing', 'pos', 'menu',
+] as const;
+
+/** Standard CRUD actions */
+export const RBAC_ACTIONS = ['read', 'create', 'update', 'delete', 'restore', 'destroy', 'export', 'import', 'assign', 'unassign'] as const;
+
+export type RbacModule = typeof RBAC_MODULES[number];
+export type RbacAction = typeof RBAC_ACTIONS[number];
+
+/** Compile-time permission slug: 'suppliers.create' | 'invoices.read' | ... */
+export type PermissionSlug = `${RbacModule}.${RbacAction}`;
+
+/** Audit log action types */
+export const AUDIT_ACTIONS = [
+    'role.created', 'role.updated', 'role.deleted',
+    'permission.updated',
+    'user.created', 'user.updated', 'user.deactivated', 'user.restored', 'user.destroyed',
+    'user.roles_assigned', 'user.role_removed',
+    'hierarchy.added', 'hierarchy.removed',
+] as const;
+
+export type AuditAction = typeof AUDIT_ACTIONS[number];

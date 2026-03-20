@@ -23,6 +23,7 @@ import { technicalVisitsRoutes } from './routes/technical-visits.routes';
 import { quotationRoutes } from './routes/quotations.routes';
 import { employeeSchedulesRoutes } from './routes/employee-schedules.routes';
 import { rbacRoutes } from './routes/rbac.routes';
+import { entityRoutes } from './routes/entities.routes';
 
 // Plugins
 import { rateLimit } from './plugins/rate-limit';
@@ -230,6 +231,7 @@ const app = new Elysia({ prefix: '/api', aot: false })
   .use(quotationRoutes)
   .use(employeeSchedulesRoutes)
   .use(rbacRoutes)
+  .use(entityRoutes)
   .use(sriRoutes)
   .use(geonamesRoutes)
 

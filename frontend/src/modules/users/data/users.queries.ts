@@ -1,9 +1,9 @@
 // users/data/users.queries.ts
 // TanStack Query hooks for users/RBAC module
 import { createQuery, createMutation, useQueryClient, keepPreviousData } from '@tanstack/solid-query';
-import { usersApi, type RoleUser } from './users.api';
+import { usersApi } from './users.api';
 import { rbacKeys } from './users.keys';
-import type { Role, UserWithRoles } from '../models/users.types';
+import type { Role, UserWithRoles, RoleUsers, UsersFilters } from '../models/users.types';
 
 // ============================================
 // QUERY HOOKS
@@ -14,7 +14,18 @@ export function useRoles() {
         queryKey: rbacKeys.roles(),
         queryFn: () => usersApi.listRoles(),
         staleTime: 1000 * 60 * 5, // 5 minutes
+        gcTime: 1000 * 60 * 30,
         placeholderData: keepPreviousData,
+    }));
+}
+
+export function useRole(id: () => number | null) {
+    return createQuery(() => ({
+        queryKey: rbacKeys.role(id()!),
+        queryFn: () => usersApi.getRole(id()!),
+        enabled: id() !== null && id()! > 0,
+        staleTime: 1000 * 60 * 5,
+        gcTime: 1000 * 60 * 30,
     }));
 }
 
@@ -22,17 +33,31 @@ export function usePermissions() {
     return createQuery(() => ({
         queryKey: rbacKeys.permissions(),
         queryFn: () => usersApi.listPermissions(),
-        staleTime: 1000 * 60 * 10, // 10 minutes
+        staleTime: 1000 * 60 * 10, // 10 minutes — permissions rarely change
+        gcTime: 1000 * 60 * 60,
         placeholderData: keepPreviousData,
     }));
 }
 
-export function useUsersWithRoles() {
+/** Paginated users list — mirrors useSuppliers() pattern */
+export function useUsersWithRoles(filters: () => UsersFilters) {
     return createQuery(() => ({
-        queryKey: rbacKeys.users(),
-        queryFn: () => usersApi.listUsersWithRoles(),
-        staleTime: 1000 * 60 * 2, // 2 minutes
+        queryKey: rbacKeys.list(filters()),
+        queryFn: () => usersApi.listUsersWithRoles(filters()),
+        staleTime: 1000 * 60 * 2,
+        gcTime: 1000 * 60 * 30,
         placeholderData: keepPreviousData,
+    }));
+}
+
+/** Single user detail — for Sheet view/edit panels */
+export function useUser(id: () => number | null) {
+    return createQuery(() => ({
+        queryKey: rbacKeys.user(id()!),
+        queryFn: () => usersApi.getUser(id()!),
+        enabled: id() !== null && id()! > 0,
+        staleTime: 1000 * 60 * 5,
+        gcTime: 1000 * 60 * 30,
     }));
 }
 
@@ -70,7 +95,7 @@ export function useCreateRole() {
             const previous = queryClient.getQueryData<Role[]>(rbacKeys.roles());
             queryClient.setQueryData<Role[]>(rbacKeys.roles(), (old) => [
                 ...(old ?? []),
-                { id: -1, name: newRole.name, description: newRole.description ?? null, userCount: 0 }
+                { id: -1, name: newRole.name, description: newRole.description ?? null, userCount: 0, is_system: false } as Role
             ]);
             return { previous };
         },
@@ -100,8 +125,9 @@ export function useUpdateRole() {
         onError: (_err, _vars, context) => {
             if (context?.previous) queryClient.setQueryData(rbacKeys.roles(), context.previous);
         },
-        onSettled: () => {
+        onSettled: (_data, _err, { id }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.role(id) });
         },
     }));
 }
@@ -147,27 +173,8 @@ export function useAssignUserRoles() {
     return createMutation(() => ({
         mutationFn: ({ userId, roleIds }: { userId: number; roleIds: number[] }) =>
             usersApi.assignUserRoles(userId, roleIds),
-        onMutate: async ({ userId, roleIds }) => {
-            await queryClient.cancelQueries({ queryKey: rbacKeys.users() });
-            const previous = queryClient.getQueryData<UserWithRoles[]>(rbacKeys.users());
-            const roles = queryClient.getQueryData<Role[]>(rbacKeys.roles()) ?? [];
-
-            queryClient.setQueryData<UserWithRoles[]>(rbacKeys.users(), (old) =>
-                old?.map(u => u.id === userId ? {
-                    ...u,
-                    roles: roleIds.map(id => {
-                        const role = roles.find(r => r.id === id);
-                        return { id, name: role?.name ?? '' };
-                    })
-                } : u) ?? []
-            );
-            return { previous };
-        },
-        onError: (_err, _vars, context) => {
-            if (context?.previous) queryClient.setQueryData(rbacKeys.users(), context.previous);
-        },
         onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: rbacKeys.users() });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
         },
     }));
@@ -179,32 +186,8 @@ export function useCreateUser() {
     return createMutation(() => ({
         mutationFn: (data: { username: string; email: string; password: string; roleIds?: number[] }) =>
             usersApi.createUser(data),
-        onMutate: async (newUser) => {
-            await queryClient.cancelQueries({ queryKey: rbacKeys.users() });
-            const previous = queryClient.getQueryData<UserWithRoles[]>(rbacKeys.users());
-            const roles = queryClient.getQueryData<Role[]>(rbacKeys.roles()) ?? [];
-
-            queryClient.setQueryData<UserWithRoles[]>(rbacKeys.users(), (old) => [
-                ...(old ?? []),
-                {
-                    id: -1,
-                    username: newUser.username,
-                    email: newUser.email,
-                    isActive: true,
-                    lastLogin: null,
-                    roles: (newUser.roleIds ?? []).map(id => {
-                        const role = roles.find(r => r.id === id);
-                        return { id, name: role?.name ?? '' };
-                    }),
-                }
-            ]);
-            return { previous };
-        },
-        onError: (_err, _vars, context) => {
-            if (context?.previous) queryClient.setQueryData(rbacKeys.users(), context.previous);
-        },
         onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: rbacKeys.users() });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
         },
     }));
@@ -218,8 +201,8 @@ export function useRemoveUserFromRole() {
             usersApi.removeUserFromRole(roleId, userId),
         onMutate: async ({ roleId, userId }) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.roleUsers(roleId) });
-            const previous = queryClient.getQueryData<RoleUser[]>(rbacKeys.roleUsers(roleId));
-            queryClient.setQueryData<RoleUser[]>(rbacKeys.roleUsers(roleId), (old) =>
+            const previous = queryClient.getQueryData<RoleUsers[]>(rbacKeys.roleUsers(roleId));
+            queryClient.setQueryData<RoleUsers[]>(rbacKeys.roleUsers(roleId), (old) =>
                 old?.filter(u => u.id !== userId) ?? []
             );
             return { previous, roleId };
@@ -231,7 +214,7 @@ export function useRemoveUserFromRole() {
         },
         onSettled: (_data, _err, { roleId }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.roleUsers(roleId) });
-            queryClient.invalidateQueries({ queryKey: rbacKeys.users() });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
         },
     }));
@@ -243,24 +226,9 @@ export function useUpdateUser() {
     return createMutation(() => ({
         mutationFn: ({ id, ...data }: { id: number; username?: string; email?: string; isActive?: boolean }) =>
             usersApi.updateUser(id, data),
-        onMutate: async ({ id, username, email, isActive }) => {
-            await queryClient.cancelQueries({ queryKey: rbacKeys.users() });
-            const previous = queryClient.getQueryData<UserWithRoles[]>(rbacKeys.users());
-            queryClient.setQueryData<UserWithRoles[]>(rbacKeys.users(), (old) =>
-                old?.map(u => u.id === id ? {
-                    ...u,
-                    username: username ?? u.username,
-                    email: email ?? u.email,
-                    isActive: isActive ?? u.isActive,
-                } : u) ?? []
-            );
-            return { previous };
-        },
-        onError: (_err, _vars, context) => {
-            if (context?.previous) queryClient.setQueryData(rbacKeys.users(), context.previous);
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: rbacKeys.users() });
+        onSettled: (_data, _err, { id }) => {
+            queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.user(id) });
         },
     }));
 }
@@ -270,19 +238,42 @@ export function useDeleteUser() {
 
     return createMutation(() => ({
         mutationFn: (id: number) => usersApi.deleteUser(id),
-        onMutate: async (id) => {
-            await queryClient.cancelQueries({ queryKey: rbacKeys.users() });
-            const previous = queryClient.getQueryData<UserWithRoles[]>(rbacKeys.users());
-            queryClient.setQueryData<UserWithRoles[]>(rbacKeys.users(), (old) =>
-                old?.filter(u => u.id !== id) ?? []
-            );
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
+        },
+    }));
+}
+
+export function useBatchDeleteUsers() {
+    const queryClient = useQueryClient();
+
+    return createMutation(() => ({
+        mutationFn: (userIds: number[]) => usersApi.batchDeleteUsers(userIds),
+        onMutate: async (userIds) => {
+            await queryClient.cancelQueries({ queryKey: rbacKeys.lists() });
+            const previous = queryClient.getQueriesData({ queryKey: rbacKeys.lists() });
+            // Optimistically remove users from all list caches
+            queryClient.setQueriesData({ queryKey: rbacKeys.lists() }, (old: any) => {
+                if (!old?.data) return old;
+                return {
+                    ...old,
+                    data: old.data.filter((u: any) => !userIds.includes(u.id)),
+                    meta: old.meta ? { ...old.meta, total: Math.max(0, (old.meta.total ?? 0) - userIds.length) } : old.meta,
+                };
+            });
             return { previous };
         },
-        onError: (_err, _vars, context) => {
-            if (context?.previous) queryClient.setQueryData(rbacKeys.users(), context.previous);
+        onError: (_err: any, _vars: any, context: any) => {
+            // Rollback on error
+            if (context?.previous) {
+                for (const [key, data] of context.previous) {
+                    queryClient.setQueryData(key, data);
+                }
+            }
         },
         onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: rbacKeys.users() });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
         },
     }));

@@ -11,7 +11,6 @@
   --color-muted: var(--color-muted);
   --color-border: var(--color-border);
   --color-border-strong: var(--color-border-strong);
-  --color-border-subtle: var(--color-border-subtle);
   --color-table-hover: var(--color-table-hover);
   --color-dropdown-hover: var(--color-dropdown-hover);
 
@@ -19,6 +18,11 @@
   --color-primary-strong: var(--color-primary-strong);
   --color-primary-soft: var(--color-primary-soft);
   --color-on-primary: var(--color-on-primary);
+
+  --color-secondary: var(--color-secondary);
+  --color-secondary-strong: var(--color-secondary-strong);
+  --color-secondary-soft: var(--color-secondary-soft);
+  --color-on-secondary: var(--color-on-secondary);
   --color-row-selected: var(--color-row-selected);
   --color-row-selected-hover: var(--color-row-selected-hover);
 
@@ -26,7 +30,8 @@
   --color-success: var(--color-success);
   --color-warning: var(--color-warning);
   --color-danger: var(--color-danger);
-
+  --color-destructive: var(--color-destructive);
+  
   --shadow-card: var(--shadow-card);
   --shadow-card-soft: var(--shadow-card-soft);
 }
@@ -43,7 +48,6 @@
   --color-muted: light-dark(#475569, #94a3b8);
   --color-border: light-dark(#e7eff8, #1f2533);
   --color-border-strong: light-dark(#d0d7e5, #222c3c);
-  --color-border-subtle: light-dark(#0f172a14, #94a3b840);
   --color-table-hover: light-dark(#f4f7fc, #0c1222);
   --color-text-muted: light-dark(#475569, #94a3b8);
   --color-dropdown-hover: light-dark(#f4f7fb, #1f2937);
@@ -52,7 +56,13 @@
   --color-primary: light-dark(#2563eb, #60a5fa);
   --color-primary-strong: light-dark(#1d4ed8, #93c5fd);
   --color-primary-soft: light-dark(#2563eb26, #5b8dff2e);
-  --color-on-primary: #f8fafc;
+  --color-on-primary: light-dark(#f8fafc, #FFF);
+
+  /* Secondary Colors */
+  --color-secondary: light-dark(#64748b, #94a3b8);
+  --color-secondary-strong: light-dark(#475569, #e2e8f0);
+  --color-secondary-soft: light-dark(#64748b26, #94a3b82e);
+  --color-on-secondary: light-dark(#f8fafc, #0f172a);
 
   /* Table row selected - solid color (primary-soft blended with card background) */
   --color-row-selected: light-dark(#e0e9fc, #1a2744);
@@ -61,43 +71,14 @@
   /* Semantic Colors */
   --color-info: light-dark(#0ea5e9, #38bdf8);
   --color-success: light-dark(#16a34a, #22c55e);
-  --color-warning: light-dark(#ca8a04, #facc15);
-  --color-danger: light-dark(#dc2626, #f87171);
+  --color-warning: light-dark(#ca8a04, #cca712);
+  --color-danger: light-dark(#dc2626, #da5252); /* Soft Red */
+  --color-destructive: light-dark(#9f1239, #9b0022); /* Strong Rose / Crimson */
 
-  /* Semantic Text Colors */
-  --color-info-text: light-dark(#1d4ed8, #60a5fa);
-  --color-success-text: light-dark(#15803d, #4ade80);
-  --color-warning-text: light-dark(#a16207, #fbbf24);
-  --color-danger-text: light-dark(#b91c1c, #fb7185);
-  --color-price-text: light-dark(#059669, #34d399);
-
-  /* Semantic Background Colors */
-  --color-info-bg: light-dark(#2563eb1a, #60a5fa26);
-  --color-success-bg: light-dark(#16a34a1a, #4ade8026);
-  --color-warning-bg: light-dark(#ca8a041a, #fbbf2426);
-  --color-danger-bg: light-dark(#dc26261a, #fb718526);
-
-  /* Semantic Border Colors */
-  --color-info-border: light-dark(#2563eb40, #60a5fa4d);
-  --color-success-border: light-dark(#16a34a40, #4ade804d);
-  --color-warning-border: light-dark(#ca8a0440, #fbbf244d);
-  --color-danger-border: light-dark(#dc262640, #fb71854d);
 
   /* Shadows */
   --shadow-card: light-dark(0 12px 40px rgba(15, 23, 42, 0.08), 0 18px 40px rgba(2, 6, 23, 0.55));
   --shadow-card-soft: light-dark(0 8px 24px rgba(15, 23, 42, 0.05), 0 12px 30px rgba(2, 6, 23, 0.35));
-
-  /* Badge Colors */
-  --badge-neutral-bg: light-dark(#47556926, #94a3b84d);
-  --badge-neutral-text: light-dark(#334155, #f8fafc);
-  --badge-info-bg: light-dark(#0ea5e926, #38bdf847);
-  --badge-info-text: light-dark(#0369a1, #d2f2ff);
-  --badge-success-bg: light-dark(#16a34a26, #22c55e40);
-  --badge-success-text: light-dark(#15803d, #bbf7d0);
-  --badge-warning-bg: light-dark(#ca8a0426, #facc1540);
-  --badge-warning-text: light-dark(#a16207, #fef9c3);
-  --badge-danger-bg: light-dark(#dc262626, #f8717140);
-  --badge-danger-text: light-dark(#b91c1c, #ffe4e6);
 }
 
 /* Solo aplica en dispositivos de escritorio (con puntero preciso y capacidad de hover) */
@@ -123,55 +104,6 @@
   ::-webkit-scrollbar-corner {
     background-color: transparent; 
   }
-}
-
-
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  border-radius: 0.9rem;
-  padding: 0.65rem 1.3rem;
-  font-weight: 600;
-}
-
-.btn-primary {
-  background: linear-gradient(120deg, var(--color-primary-strong), var(--color-primary));
-  color: var(--color-on-primary);
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-primary) 35%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-primary) 65%, transparent);
-}
-
-.btn-primary:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
-}
-
-.btn-ghost {
-  background-color: transparent;
-  color: var(--color-muted);
-}
-
-.btn-ghost:hover {
-  color: var(--color-heading);
-  background-color: var(--color-card-alt);
-}
-
-.filter-pill {
-  @apply font-semibold rounded-full border border-border-strong px-[1.15rem] py-[0.45rem] text-[0.9rem] text-muted bg-white/1;
-}
-
-.filter-pill:hover {
-  border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border-strong));
-  @apply text-heading bg-card-alt;
-}
-
-.filter-pill--active {
-  @apply bg-primary-soft text-primary-strong;
-  border-color: color-mix(in srgb, var(--color-primary) 70%, transparent);
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
 
 /* Prevenir flash blanco durante transiciones */

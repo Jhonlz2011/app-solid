@@ -1,4 +1,4 @@
-import { text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { pgTableV2 } from '../utils';
 import { entities } from './entities';
 
@@ -30,23 +30,51 @@ export const authRoles = pgTableV2("auth_roles", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     name: text("name").unique().notNull(),
     description: text("description"),
+    is_system: boolean("is_system").default(false),     // superadmin, admin = non-deletable
+    priority: smallint("priority").default(0),           // For conflict resolution in hierarchies
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const authPermissions = pgTableV2("auth_permissions", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    slug: text("slug").unique().notNull(),
+    module: text("module").notNull(),                   // 'suppliers', 'invoices'
+    action: text("action").notNull(),                   // 'read', 'create', 'update', 'delete', etc.
+    slug: text("slug").unique().notNull(),               // 'suppliers.read' (module.action)
     description: text("description"),
-});
+    is_system: boolean("is_system").default(false),     // System permissions cannot be edited
+    created_at: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+    uniqueIndex("idx_perm_module_action").on(t.module, t.action),
+    index("idx_perm_module").on(t.module),
+]);
 
 export const authRolePermissions = pgTableV2("auth_role_permissions", {
     role_id: integer("role_id").references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
     permission_id: integer("permission_id").references(() => authPermissions.id, { onDelete: 'cascade' }).notNull(),
-}, (t) => [primaryKey({ columns: [t.role_id, t.permission_id] })]);
+}, (t) => [
+    primaryKey({ columns: [t.role_id, t.permission_id] }),
+    index("idx_role_perms_by_perm").on(t.permission_id),
+]);
 
 export const authUserRoles = pgTableV2("auth_user_roles", {
     user_id: integer("user_id").references(() => authUsers.id, { onDelete: 'cascade' }).notNull(),
     role_id: integer("role_id").references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
-}, (t) => [primaryKey({ columns: [t.user_id, t.role_id] })]);
+}, (t) => [
+    primaryKey({ columns: [t.user_id, t.role_id] }),
+    index("idx_user_roles_by_role").on(t.role_id),
+]);
+
+// --- 8b. ROLE HIERARCHY (preparation for future hierarchical RBAC) ---
+export const authRoleHierarchy = pgTableV2("auth_role_hierarchy", {
+    parent_role_id: integer("parent_role_id")
+        .references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
+    child_role_id: integer("child_role_id")
+        .references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.parent_role_id, t.child_role_id] }),
+    index("idx_role_hierarchy_child").on(t.child_role_id),
+]);
 
 // --- 9. MENU SYSTEM (Dynamic Menus) ---
 export const authMenuItems = pgTableV2("auth_menu_items", {
@@ -57,7 +85,7 @@ export const authMenuItems = pgTableV2("auth_menu_items", {
     path: text("path"),                                // '/products' (null for parent categories)
     parent_id: smallint("parent_id"),                   // Self-reference for tree hierarchy
     sort_order: smallint("sort_order").default(0),      // For custom ordering
-    permission_prefix: text("permission_prefix"),      // 'products' -> products.read/.add/.edit/.delete
+    permission_prefix: text("permission_prefix"),      // 'products' -> maps to authPermissions.module
     is_active: boolean("is_active").default(true),
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().notNull(),

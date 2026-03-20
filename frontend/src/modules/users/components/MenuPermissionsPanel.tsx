@@ -1,15 +1,22 @@
-import { Component, createSignal, createEffect, createMemo, Show } from 'solid-js';
-import { Portal } from 'solid-js/web';
+import { Component, createSignal, createEffect, on, createMemo, Show } from 'solid-js';
 import { createQuery } from '@tanstack/solid-query';
 import { MenuTreeView } from './MenuTreeView';
+import { FormDialog } from '@shared/ui/FormDialog';
 import { SearchInput } from '@shared/ui/SearchInput';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import Button from '@shared/ui/Button';
 import { api } from '@shared/lib/eden';
+import type { Role } from '../models/users.types';
 
-interface Permission {
+// ============================================
+// TYPES
+// ============================================
+
+// Permission type — matches backend response where description can be null
+interface PermissionItem {
     id: number;
     slug: string;
-    description?: string;
+    description: string | null;
 }
 
 interface MenuItem {
@@ -23,24 +30,18 @@ interface MenuItem {
     permission_prefix?: string;
 }
 
-interface Role {
-    id: number;
-    name: string;
-    description?: string;
-}
-
 interface MenuPermissionsPanelProps {
     role: Role;
     currentPermissionIds: number[];
-    allPermissions: Permission[];
+    allPermissions: PermissionItem[];
     onClose: () => void;
     onSave: (permissionIds: number[]) => void;
     isPending: boolean;
 }
 
 /**
- * MenuPermissionsPanel - Modal for assigning permissions to a role
- * Uses the new MenuTreeView to display permissions organized by menu
+ * MenuPermissionsPanel - FormDialog for assigning permissions to a role.
+ * Uses MenuTreeView to display permissions organized by menu hierarchy.
  */
 export const MenuPermissionsPanel: Component<MenuPermissionsPanelProps> = (props) => {
     const [selectedIds, setSelectedIds] = createSignal<Set<number>>(new Set(props.currentPermissionIds));
@@ -50,17 +51,18 @@ export const MenuPermissionsPanel: Component<MenuPermissionsPanelProps> = (props
     const menusQuery = createQuery(() => ({
         queryKey: ['admin', 'menus'],
         queryFn: async () => {
-            const { data, error } = await api.api.modules.admin.items.get();
+            const { data, error } = await api.api.modules.items.get();
             if (error) throw new Error(String(error.value));
-            return buildMenuTree(data!);
+            return buildMenuTree(data as unknown as MenuItem[]);
         },
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: 1000 * 60 * 5,
     }));
 
-    // Reset selection when role changes
-    createEffect(() => {
-        setSelectedIds(new Set(props.currentPermissionIds));
-    });
+    // Reset selection when role changes — explicit dependency with on() guard
+    createEffect(on(
+        () => props.currentPermissionIds,
+        (ids) => setSelectedIds(new Set(ids))
+    ));
 
     // Count selected permissions
     const selectedCount = createMemo(() => selectedIds().size);
@@ -95,89 +97,63 @@ export const MenuPermissionsPanel: Component<MenuPermissionsPanelProps> = (props
     // Select/deselect all
     const toggleAll = () => {
         if (selectedIds().size === props.allPermissions.length) {
-            setSelectedIds(new Set());
+            setSelectedIds(new Set<number>());
         } else {
-            setSelectedIds(new Set(props.allPermissions.map(p => p.id)));
+            setSelectedIds(new Set<number>(props.allPermissions.map(p => p.id)));
         }
     };
 
-    const handleSave = () => {
+    const handleSubmit = (e: Event) => {
+        e.preventDefault();
         props.onSave(Array.from(selectedIds()));
     };
 
     return (
-        <Portal>
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-                {/* Backdrop */}
-                <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={props.onClose} />
-
-                {/* Modal */}
-                <div class="relative bg-card border border-border shadow-card-soft rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
-                    {/* Header */}
-                    <div class="flex-shrink-0 p-6 pb-4 border-b border-border">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <h2 class="text-xl font-bold">
-                                    Permisos para:{' '}
-                                    <span class="text-primary">{props.role.name}</span>
-                                </h2>
-                                <p class="text-sm text-muted mt-1">
-                                    {selectedCount()} de {totalCount()} permisos seleccionados
-                                </p>
-                            </div>
-                            <button
-                                onClick={toggleAll}
-                                class="text-sm px-3 py-1.5 rounded-lg bg-surface hover:bg-surface/80 text-muted transition-colors"
-                            >
-                                {selectedIds().size === props.allPermissions.length ? 'Quitar todos' : 'Seleccionar todos'}
-                            </button>
-                        </div>
-
-                        {/* Search */}
-                        <SearchInput
-                            value={search()}
-                            onSearch={setSearch}
-                            placeholder="Buscar menús o permisos..."
-                            class="w-full"
-                        />
-                    </div>
-
-                    {/* Content */}
-                    <div class="flex-1 overflow-y-auto p-4">
-                        <Show when={!menusQuery.isLoading} fallback={<SkeletonLoader type="card" count={5} />}>
-                            <Show when={menusQuery.data}>
-                                <MenuTreeView
-                                    menus={menusQuery.data!}
-                                    allPermissions={props.allPermissions}
-                                    selectedPermissionIds={selectedIds()}
-                                    onPermissionToggle={handlePermissionToggle}
-                                    onModuleToggle={handleModuleToggle}
-                                    search={search()}
-                                />
-                            </Show>
-                        </Show>
-                    </div>
-
-                    {/* Footer */}
-                    <div class="flex-shrink-0 p-6 pt-4 border-t border-border flex items-center justify-end gap-3">
-                        <button
-                            onClick={props.onClose}
-                            class="btn btn-ghost"
-                            disabled={props.isPending}
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            class="btn"
-                            disabled={props.isPending}
-                        >
-                            {props.isPending ? 'Guardando...' : 'Guardar Permisos'}
-                        </button>
-                    </div>
-                </div>
+        <FormDialog
+            isOpen={true}
+            onClose={props.onClose}
+            title={`Permisos para: ${props.role.name}`}
+            onSubmit={handleSubmit}
+            submitLabel={props.isPending ? 'Guardando...' : 'Guardar Permisos'}
+            isLoading={props.isPending}
+            maxWidth="4xl"
+        >
+            {/* Toolbar */}
+            <div class="flex items-center justify-between gap-3">
+                <p class="text-sm text-muted">
+                    {selectedCount()} de {totalCount()} permisos seleccionados
+                </p>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleAll}
+                >
+                    {selectedIds().size === props.allPermissions.length ? 'Quitar todos' : 'Seleccionar todos'}
+                </Button>
             </div>
-        </Portal>
+
+            {/* Search */}
+            <SearchInput
+                value={search()}
+                onSearch={setSearch}
+                placeholder="Buscar menús o permisos..."
+                class="w-full"
+            />
+
+            {/* Content */}
+            <Show when={!menusQuery.isLoading} fallback={<SkeletonLoader type="card" count={5} />}>
+                <Show when={menusQuery.data}>
+                    <MenuTreeView
+                        menus={menusQuery.data!}
+                        allPermissions={props.allPermissions}
+                        selectedPermissionIds={selectedIds()}
+                        onPermissionToggle={handlePermissionToggle}
+                        onModuleToggle={handleModuleToggle}
+                        search={search()}
+                    />
+                </Show>
+            </Show>
+        </FormDialog>
     );
 };
 

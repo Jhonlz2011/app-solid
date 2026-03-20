@@ -10,6 +10,7 @@ import { DeviceIcon, WarningIcon } from '@shared/ui/icons';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { ListItemSkeleton } from '@shared/ui/SkeletonLoader';
+import ErrorState from '@shared/ui/ErrorState';
 
 export const SessionsSection: Component = () => {
     const queryClient = useQueryClient();
@@ -137,18 +138,11 @@ export const SessionsSection: Component = () => {
 
             {/* Error State */}
             <Show when={sessionsQuery.isError && !hasCachedData()}>
-                <div class="text-center py-8">
-                    <div class="size-12 mx-auto mb-3 rounded-full bg-danger/10 flex items-center justify-center">
-                        <WarningIcon class="size-6 text-danger" />
-                    </div>
-                    <p class="text-danger text-sm mb-3">Error al cargar las sesiones</p>
-                    <button
-                        onClick={() => sessionsQuery.refetch()}
-                        class="px-4 py-2 bg-card-alt hover:bg-border rounded-lg text-sm transition-colors"
-                    >
-                        Reintentar
-                    </button>
-                </div>
+                <ErrorState 
+                    size="sm"
+                    description="Error al cargar las sesiones" 
+                    onRetry={() => sessionsQuery.refetch()} 
+                />
             </Show>
 
             {/* Empty State */}

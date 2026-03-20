@@ -10,6 +10,7 @@ import Checkbox from '@shared/ui/Checkbox';
 import { SearchIcon, FilterIcon } from '@shared/ui/icons';
 import { cn } from '@shared/lib/utils';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
+import Button from '@shared/ui/Button';
 
 // ============================================================================
 // Inline filter group (used inside the Sheet — not a popover)
@@ -58,13 +59,14 @@ const FilterGroup: Component<FilterGroupProps> = (props) => {
                     </Show>
                 </span>
                 <Show when={activeCount() > 0}>
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={clearAll}
-                        class="text-xs text-muted hover:text-primary transition-colors cursor-pointer"
+                        class="h-auto p-0 px-2 text-xs text-muted hover:text-primary bg-transparent text-primary hover:bg-primary/5"
                     >
                         Limpiar
-                    </button>
+                    </Button>
                 </Show>
             </div>
 
@@ -175,14 +177,14 @@ export const SupplierFilterSheet: Component<SupplierFilterSheetProps> = (props) 
         >
             {/* Clear all */}
             <Show when={totalActive() > 0}>
-                <button
-                    type="button"
+                <Button
+                    variant="ghost"
                     onClick={clearAll}
-                    class="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 mb-5 cursor-pointer transition-colors"
+                    class="h-auto p-2 justify-start w-auto flex items-center gap-2 text-sm text-danger hover:text-danger hover:bg-danger/10 mb-5 bg-transparent border-transparent"
                 >
                     <FilterIcon class="size-3.5" />
                     Limpiar todos los filtros
-                </button>
+                </Button>
             </Show>
 
             {/* Filter groups */}

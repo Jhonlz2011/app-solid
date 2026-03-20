@@ -1,15 +1,10 @@
 import type { AuthLoginDto } from '@app/schema/frontend';
-import type { Entity } from '@app/schema/types';
+import type { AuthUserResponseType } from '@app/schema/backend';
 
-export interface User {
-    id: number;
-    email: string;
-    username?: string;
-    roles?: string[];
-    permissions?: string[];
-    entity?: Entity | null;
+// Inferred from shared schema — stays in sync with backend automatically
+export type User = AuthUserResponseType & {
     sessionId?: string;  // Returned by /me for WS revoke comparison
-}
+};
 
 export type LoginRequest = AuthLoginDto;
 

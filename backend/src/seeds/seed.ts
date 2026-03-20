@@ -8,259 +8,299 @@ import { sql } from '@app/schema';
 // RBAC SEED DATA FOR ERP SYSTEM
 // ============================================
 
+/** Helper: derive module and action from slug */
+function parsePerm(slug: string, description: string) {
+    const [module, action] = slug.split('.');
+    return { slug, module, action, description };
+}
+
 const PERMISSIONS = [
     // Dashboard
-    { slug: 'dashboard.read', description: 'Ver panel de control' },
-    { slug: 'dashboard.add', description: 'Crear elementos en dashboard' },
-    { slug: 'dashboard.edit', description: 'Editar elementos en dashboard' },
-    { slug: 'dashboard.delete', description: 'Eliminar elementos en dashboard' },
+    parsePerm('dashboard.read', 'Ver panel de control'),
+    parsePerm('dashboard.create', 'Crear elementos en dashboard'),
+    parsePerm('dashboard.update', 'Editar elementos en dashboard'),
+    parsePerm('dashboard.delete', 'Eliminar elementos en dashboard'),
 
     // CRM
-    { slug: 'crm.read', description: 'Ver módulo CRM' },
-    { slug: 'crm.add', description: 'Crear en CRM' },
-    { slug: 'crm.edit', description: 'Editar en CRM' },
-    { slug: 'crm.delete', description: 'Eliminar en CRM' },
+    parsePerm('crm.read', 'Ver módulo CRM'),
+    parsePerm('crm.create', 'Crear en CRM'),
+    parsePerm('crm.update', 'Editar en CRM'),
+    parsePerm('crm.delete', 'Eliminar en CRM'),
 
     // Clients
-    { slug: 'clients.read', description: 'Ver clientes' },
-    { slug: 'clients.add', description: 'Crear clientes' },
-    { slug: 'clients.edit', description: 'Editar clientes' },
-    { slug: 'clients.delete', description: 'Eliminar clientes' },
+    parsePerm('clients.read', 'Ver clientes'),
+    parsePerm('clients.create', 'Crear clientes'),
+    parsePerm('clients.update', 'Editar clientes'),
+    parsePerm('clients.delete', 'Eliminar clientes'),
 
     // Technical Visits
-    { slug: 'visits.read', description: 'Ver visitas técnicas' },
-    { slug: 'visits.add', description: 'Crear visitas técnicas' },
-    { slug: 'visits.edit', description: 'Editar visitas técnicas' },
-    { slug: 'visits.delete', description: 'Eliminar visitas técnicas' },
+    parsePerm('visits.read', 'Ver visitas técnicas'),
+    parsePerm('visits.create', 'Crear visitas técnicas'),
+    parsePerm('visits.update', 'Editar visitas técnicas'),
+    parsePerm('visits.delete', 'Eliminar visitas técnicas'),
 
     // Budgets/Quotations
-    { slug: 'budgets.read', description: 'Ver presupuestos' },
-    { slug: 'budgets.add', description: 'Crear presupuestos' },
-    { slug: 'budgets.edit', description: 'Editar presupuestos' },
-    { slug: 'budgets.delete', description: 'Eliminar presupuestos' },
+    parsePerm('budgets.read', 'Ver presupuestos'),
+    parsePerm('budgets.create', 'Crear presupuestos'),
+    parsePerm('budgets.update', 'Editar presupuestos'),
+    parsePerm('budgets.delete', 'Eliminar presupuestos'),
 
     // Invoices
-    { slug: 'invoices.read', description: 'Ver facturas' },
-    { slug: 'invoices.add', description: 'Crear facturas' },
-    { slug: 'invoices.edit', description: 'Editar facturas' },
-    { slug: 'invoices.delete', description: 'Anular facturas' },
+    parsePerm('invoices.read', 'Ver facturas'),
+    parsePerm('invoices.create', 'Crear facturas'),
+    parsePerm('invoices.update', 'Editar facturas'),
+    parsePerm('invoices.delete', 'Anular facturas'),
 
     // Operations
-    { slug: 'operations.read', description: 'Ver operaciones' },
-    { slug: 'operations.add', description: 'Crear operaciones' },
-    { slug: 'operations.edit', description: 'Editar operaciones' },
-    { slug: 'operations.delete', description: 'Eliminar operaciones' },
+    parsePerm('operations.read', 'Ver operaciones'),
+    parsePerm('operations.create', 'Crear operaciones'),
+    parsePerm('operations.update', 'Editar operaciones'),
+    parsePerm('operations.delete', 'Eliminar operaciones'),
 
     // Work Orders
-    { slug: 'work_orders.read', description: 'Ver órdenes de trabajo' },
-    { slug: 'work_orders.add', description: 'Crear órdenes de trabajo' },
-    { slug: 'work_orders.edit', description: 'Editar órdenes de trabajo' },
-    { slug: 'work_orders.delete', description: 'Eliminar órdenes de trabajo' },
+    parsePerm('work_orders.read', 'Ver órdenes de trabajo'),
+    parsePerm('work_orders.create', 'Crear órdenes de trabajo'),
+    parsePerm('work_orders.update', 'Editar órdenes de trabajo'),
+    parsePerm('work_orders.delete', 'Eliminar órdenes de trabajo'),
 
     // Schedule
-    { slug: 'schedule.read', description: 'Ver cronograma' },
-    { slug: 'schedule.add', description: 'Crear eventos en cronograma' },
-    { slug: 'schedule.edit', description: 'Editar eventos en cronograma' },
-    { slug: 'schedule.delete', description: 'Eliminar eventos en cronograma' },
+    parsePerm('schedule.read', 'Ver cronograma'),
+    parsePerm('schedule.create', 'Crear eventos en cronograma'),
+    parsePerm('schedule.update', 'Editar eventos en cronograma'),
+    parsePerm('schedule.delete', 'Eliminar eventos en cronograma'),
 
     // Projects
-    { slug: 'projects.read', description: 'Ver historial de proyectos' },
-    { slug: 'projects.add', description: 'Crear proyectos' },
-    { slug: 'projects.edit', description: 'Editar proyectos' },
-    { slug: 'projects.delete', description: 'Eliminar proyectos' },
+    parsePerm('projects.read', 'Ver historial de proyectos'),
+    parsePerm('projects.create', 'Crear proyectos'),
+    parsePerm('projects.update', 'Editar proyectos'),
+    parsePerm('projects.delete', 'Eliminar proyectos'),
 
     // Production
-    { slug: 'production.read', description: 'Ver producción' },
-    { slug: 'production.add', description: 'Crear producción' },
-    { slug: 'production.edit', description: 'Editar producción' },
-    { slug: 'production.delete', description: 'Eliminar producción' },
+    parsePerm('production.read', 'Ver producción'),
+    parsePerm('production.create', 'Crear producción'),
+    parsePerm('production.update', 'Editar producción'),
+    parsePerm('production.delete', 'Eliminar producción'),
 
     // Planning
-    { slug: 'planning.read', description: 'Ver planificación' },
-    { slug: 'planning.add', description: 'Crear planificación' },
-    { slug: 'planning.edit', description: 'Editar planificación' },
-    { slug: 'planning.delete', description: 'Eliminar planificación' },
+    parsePerm('planning.read', 'Ver planificación'),
+    parsePerm('planning.create', 'Crear planificación'),
+    parsePerm('planning.update', 'Editar planificación'),
+    parsePerm('planning.delete', 'Eliminar planificación'),
 
     // Materials
-    { slug: 'materials.read', description: 'Ver solicitudes de materiales' },
-    { slug: 'materials.add', description: 'Crear solicitudes de materiales' },
-    { slug: 'materials.edit', description: 'Editar solicitudes de materiales' },
-    { slug: 'materials.delete', description: 'Eliminar solicitudes de materiales' },
+    parsePerm('materials.read', 'Ver solicitudes de materiales'),
+    parsePerm('materials.create', 'Crear solicitudes de materiales'),
+    parsePerm('materials.update', 'Editar solicitudes de materiales'),
+    parsePerm('materials.delete', 'Eliminar solicitudes de materiales'),
 
     // Quality Control
-    { slug: 'quality.read', description: 'Ver control de calidad' },
-    { slug: 'quality.add', description: 'Crear control de calidad' },
-    { slug: 'quality.edit', description: 'Editar control de calidad' },
-    { slug: 'quality.delete', description: 'Eliminar control de calidad' },
+    parsePerm('quality.read', 'Ver control de calidad'),
+    parsePerm('quality.create', 'Crear control de calidad'),
+    parsePerm('quality.update', 'Editar control de calidad'),
+    parsePerm('quality.delete', 'Eliminar control de calidad'),
 
     // Inventory
-    { slug: 'inventory.read', description: 'Ver inventario' },
-    { slug: 'inventory.add', description: 'Crear inventario' },
-    { slug: 'inventory.edit', description: 'Editar inventario' },
-    { slug: 'inventory.delete', description: 'Eliminar inventario' },
+    parsePerm('inventory.read', 'Ver inventario'),
+    parsePerm('inventory.create', 'Crear inventario'),
+    parsePerm('inventory.update', 'Editar inventario'),
+    parsePerm('inventory.delete', 'Eliminar inventario'),
 
     // Products
-    { slug: 'products.read', description: 'Ver productos' },
-    { slug: 'products.add', description: 'Crear productos' },
-    { slug: 'products.edit', description: 'Editar productos' },
-    { slug: 'products.delete', description: 'Eliminar productos' },
+    parsePerm('products.read', 'Ver productos'),
+    parsePerm('products.create', 'Crear productos'),
+    parsePerm('products.update', 'Editar productos'),
+    parsePerm('products.delete', 'Eliminar productos'),
 
     // Movements
-    { slug: 'movements.read', description: 'Ver movimientos' },
-    { slug: 'movements.add', description: 'Crear movimientos' },
-    { slug: 'movements.edit', description: 'Editar movimientos' },
-    { slug: 'movements.delete', description: 'Eliminar movimientos' },
+    parsePerm('movements.read', 'Ver movimientos'),
+    parsePerm('movements.create', 'Crear movimientos'),
+    parsePerm('movements.update', 'Editar movimientos'),
+    parsePerm('movements.delete', 'Eliminar movimientos'),
 
     // Orders
-    { slug: 'orders.read', description: 'Ver pedidos de material' },
-    { slug: 'orders.add', description: 'Crear pedidos de material' },
-    { slug: 'orders.edit', description: 'Editar pedidos de material' },
-    { slug: 'orders.delete', description: 'Eliminar pedidos de material' },
+    parsePerm('orders.read', 'Ver pedidos de material'),
+    parsePerm('orders.create', 'Crear pedidos de material'),
+    parsePerm('orders.update', 'Editar pedidos de material'),
+    parsePerm('orders.delete', 'Eliminar pedidos de material'),
 
     // Stock Taking
-    { slug: 'stock_taking.read', description: 'Ver toma física' },
-    { slug: 'stock_taking.add', description: 'Crear toma física' },
-    { slug: 'stock_taking.edit', description: 'Editar toma física' },
-    { slug: 'stock_taking.delete', description: 'Eliminar toma física' },
+    parsePerm('stock_taking.read', 'Ver toma física'),
+    parsePerm('stock_taking.create', 'Crear toma física'),
+    parsePerm('stock_taking.update', 'Editar toma física'),
+    parsePerm('stock_taking.delete', 'Eliminar toma física'),
 
     // Remission Guides
-    { slug: 'remission_guides.read', description: 'Ver guías de remisión' },
-    { slug: 'remission_guides.add', description: 'Crear guías de remisión' },
-    { slug: 'remission_guides.edit', description: 'Editar guías de remisión' },
-    { slug: 'remission_guides.delete', description: 'Eliminar guías de remisión' },
+    parsePerm('remission_guides.read', 'Ver guías de remisión'),
+    parsePerm('remission_guides.create', 'Crear guías de remisión'),
+    parsePerm('remission_guides.update', 'Editar guías de remisión'),
+    parsePerm('remission_guides.delete', 'Eliminar guías de remisión'),
 
     // Purchases
-    { slug: 'purchases.read', description: 'Ver compras' },
-    { slug: 'purchases.add', description: 'Crear compras' },
-    { slug: 'purchases.edit', description: 'Editar compras' },
-    { slug: 'purchases.delete', description: 'Eliminar compras' },
+    parsePerm('purchases.read', 'Ver compras'),
+    parsePerm('purchases.create', 'Crear compras'),
+    parsePerm('purchases.update', 'Editar compras'),
+    parsePerm('purchases.delete', 'Eliminar compras'),
+    parsePerm('purchases.restore', 'Restaurar compras'),
+    parsePerm('purchases.destroy', 'Eliminar compras permanentemente'),
 
     // Suppliers
-    { slug: 'suppliers.read', description: 'Ver proveedores' },
-    { slug: 'suppliers.add', description: 'Crear proveedores' },
-    { slug: 'suppliers.edit', description: 'Editar proveedores' },
-    { slug: 'suppliers.delete', description: 'Eliminar proveedores' },
-    { slug: 'suppliers.restore', description: 'Restaurar proveedores' },
-    { slug: 'suppliers.destroy', description: 'Eliminar proveedores permanentemente' },
+    parsePerm('suppliers.read', 'Ver proveedores'),
+    parsePerm('suppliers.create', 'Crear proveedores'),
+    parsePerm('suppliers.update', 'Editar proveedores'),
+    parsePerm('suppliers.delete', 'Eliminar proveedores'),
+    parsePerm('suppliers.restore', 'Restaurar proveedores'),
+    parsePerm('suppliers.destroy', 'Eliminar proveedores permanentemente'),
 
     // Purchase Quotes
-    { slug: 'purchase_quotes.read', description: 'Ver cotizaciones de compra' },
-    { slug: 'purchase_quotes.add', description: 'Crear cotizaciones de compra' },
-    { slug: 'purchase_quotes.edit', description: 'Editar cotizaciones de compra' },
-    { slug: 'purchase_quotes.delete', description: 'Eliminar cotizaciones de compra' },
+    parsePerm('purchase_quotes.read', 'Ver cotizaciones de compra'),
+    parsePerm('purchase_quotes.create', 'Crear cotizaciones de compra'),
+    parsePerm('purchase_quotes.update', 'Editar cotizaciones de compra'),
+    parsePerm('purchase_quotes.delete', 'Eliminar cotizaciones de compra'),
+    parsePerm('purchase_quotes.restore', 'Restaurar cotizaciones de compra'),
+    parsePerm('purchase_quotes.destroy', 'Eliminar cotizaciones de compra permanentemente'),
 
     // Purchase Orders
-    { slug: 'purchase_orders.read', description: 'Ver órdenes de compra' },
-    { slug: 'purchase_orders.add', description: 'Crear órdenes de compra' },
-    { slug: 'purchase_orders.edit', description: 'Editar órdenes de compra' },
-    { slug: 'purchase_orders.delete', description: 'Eliminar órdenes de compra' },
+    parsePerm('purchase_orders.read', 'Ver órdenes de compra'),
+    parsePerm('purchase_orders.create', 'Crear órdenes de compra'),
+    parsePerm('purchase_orders.update', 'Editar órdenes de compra'),
+    parsePerm('purchase_orders.delete', 'Eliminar órdenes de compra'),
+    parsePerm('purchase_orders.restore', 'Restaurar órdenes de compra'),
+    parsePerm('purchase_orders.destroy', 'Eliminar órdenes de compra permanentemente'),
 
     // Purchase Invoices
-    { slug: 'purchase_invoices.read', description: 'Ver recepción de facturas' },
-    { slug: 'purchase_invoices.add', description: 'Registrar facturas de compra' },
-    { slug: 'purchase_invoices.edit', description: 'Editar facturas de compra' },
-    { slug: 'purchase_invoices.delete', description: 'Eliminar facturas de compra' },
+    parsePerm('purchase_invoices.read', 'Ver recepción de facturas'),
+    parsePerm('purchase_invoices.create', 'Registrar facturas de compra'),
+    parsePerm('purchase_invoices.update', 'Editar facturas de compra'),
+    parsePerm('purchase_invoices.delete', 'Eliminar facturas de compra'),
+    parsePerm('purchase_invoices.restore', 'Restaurar facturas de compra'),
+    parsePerm('purchase_invoices.destroy', 'Eliminar facturas de compra permanentemente'),
 
     // Finance
-    { slug: 'finance.read', description: 'Ver finanzas' },
-    { slug: 'finance.add', description: 'Crear en finanzas' },
-    { slug: 'finance.edit', description: 'Editar en finanzas' },
-    { slug: 'finance.delete', description: 'Eliminar en finanzas' },
+    parsePerm('finance.read', 'Ver finanzas'),
+    parsePerm('finance.create', 'Crear en finanzas'),
+    parsePerm('finance.update', 'Editar en finanzas'),
+    parsePerm('finance.delete', 'Eliminar en finanzas'),
+    parsePerm('finance.restore', 'Restaurar finanzas'),
+    parsePerm('finance.destroy', 'Eliminar finanzas permanentemente'),
 
     // Documents
-    { slug: 'documents.read', description: 'Ver documentos electrónicos' },
-    { slug: 'documents.add', description: 'Crear documentos electrónicos' },
-    { slug: 'documents.edit', description: 'Editar documentos electrónicos' },
-    { slug: 'documents.delete', description: 'Eliminar documentos electrónicos' },
+    parsePerm('documents.read', 'Ver documentos electrónicos'),
+    parsePerm('documents.create', 'Crear documentos electrónicos'),
+    parsePerm('documents.update', 'Editar documentos electrónicos'),
+    parsePerm('documents.delete', 'Eliminar documentos electrónicos'),
+    parsePerm('documents.restore', 'Restaurar documentos electrónicos'),
+    parsePerm('documents.destroy', 'Eliminar documentos electrónicos permanentemente'),
 
     // Retentions
-    { slug: 'retentions.read', description: 'Ver retenciones' },
-    { slug: 'retentions.add', description: 'Crear retenciones' },
-    { slug: 'retentions.edit', description: 'Editar retenciones' },
-    { slug: 'retentions.delete', description: 'Eliminar retenciones' },
+    parsePerm('retentions.read', 'Ver retenciones'),
+    parsePerm('retentions.create', 'Crear retenciones'),
+    parsePerm('retentions.update', 'Editar retenciones'),
+    parsePerm('retentions.delete', 'Eliminar retenciones'),
+    parsePerm('retentions.restore', 'Restaurar retenciones'),
+    parsePerm('retentions.destroy', 'Eliminar retenciones permanentemente'),
 
     // Accounts Receivable
-    { slug: 'receivable.read', description: 'Ver cuentas por cobrar' },
-    { slug: 'receivable.add', description: 'Crear cuentas por cobrar' },
-    { slug: 'receivable.edit', description: 'Editar cuentas por cobrar' },
-    { slug: 'receivable.delete', description: 'Eliminar cuentas por cobrar' },
+    parsePerm('receivable.read', 'Ver cuentas por cobrar'),
+    parsePerm('receivable.create', 'Crear cuentas por cobrar'),
+    parsePerm('receivable.update', 'Editar cuentas por cobrar'),
+    parsePerm('receivable.delete', 'Eliminar cuentas por cobrar'),
+    parsePerm('receivable.restore', 'Restaurar cuentas por cobrar'),
+    parsePerm('receivable.destroy', 'Eliminar cuentas por cobrar permanentemente'),
 
     // Accounts Payable
-    { slug: 'payable.read', description: 'Ver cuentas por pagar' },
-    { slug: 'payable.add', description: 'Crear cuentas por pagar' },
-    { slug: 'payable.edit', description: 'Editar cuentas por pagar' },
-    { slug: 'payable.delete', description: 'Eliminar cuentas por pagar' },
+    parsePerm('payable.read', 'Ver cuentas por pagar'),
+    parsePerm('payable.create', 'Crear cuentas por pagar'),
+    parsePerm('payable.update', 'Editar cuentas por pagar'),
+    parsePerm('payable.delete', 'Eliminar cuentas por pagar'),
+    parsePerm('payable.restore', 'Restaurar cuentas por pagar'),
+    parsePerm('payable.destroy', 'Eliminar cuentas por pagar permanentemente'),
 
     // Petty Cash
-    { slug: 'petty_cash.read', description: 'Ver caja chica' },
-    { slug: 'petty_cash.add', description: 'Crear movimientos caja chica' },
-    { slug: 'petty_cash.edit', description: 'Editar movimientos caja chica' },
-    { slug: 'petty_cash.delete', description: 'Eliminar movimientos caja chica' },
+    parsePerm('petty_cash.read', 'Ver caja chica'),
+    parsePerm('petty_cash.create', 'Crear movimientos caja chica'),
+    parsePerm('petty_cash.update', 'Editar movimientos caja chica'),
+    parsePerm('petty_cash.delete', 'Eliminar movimientos caja chica'),
+    parsePerm('petty_cash.restore', 'Restaurar movimientos caja chica'),
+    parsePerm('petty_cash.destroy', 'Eliminar movimientos caja chica permanentemente'),
 
     // HR
-    { slug: 'hr.read', description: 'Ver talento humano' },
-    { slug: 'hr.add', description: 'Crear en talento humano' },
-    { slug: 'hr.edit', description: 'Editar en talento humano' },
-    { slug: 'hr.delete', description: 'Eliminar en talento humano' },
+    parsePerm('hr.read', 'Ver talento humano'),
+    parsePerm('hr.create', 'Crear en talento humano'),
+    parsePerm('hr.update', 'Editar en talento humano'),
+    parsePerm('hr.delete', 'Eliminar en talento humano'),
+    parsePerm('hr.restore', 'Restaurar talento humano'),
+    parsePerm('hr.destroy', 'Eliminar talento humano permanentemente'),
 
     // Payroll
-    { slug: 'payroll.read', description: 'Ver nómina' },
-    { slug: 'payroll.add', description: 'Crear nómina' },
-    { slug: 'payroll.edit', description: 'Editar nómina' },
-    { slug: 'payroll.delete', description: 'Eliminar nómina' },
+    parsePerm('payroll.read', 'Ver nómina'),
+    parsePerm('payroll.create', 'Crear nómina'),
+    parsePerm('payroll.update', 'Editar nómina'),
+    parsePerm('payroll.delete', 'Eliminar nómina'),
+    parsePerm('payroll.restore', 'Restaurar nómina'),
+    parsePerm('payroll.destroy', 'Eliminar nómina permanentemente'),
 
     // Schedules
-    { slug: 'schedules.read', description: 'Ver control de horarios' },
-    { slug: 'schedules.add', description: 'Crear horarios' },
-    { slug: 'schedules.edit', description: 'Editar horarios' },
-    { slug: 'schedules.delete', description: 'Eliminar horarios' },
+    parsePerm('schedules.read', 'Ver control de horarios'),
+    parsePerm('schedules.create', 'Crear horarios'),
+    parsePerm('schedules.update', 'Editar horarios'),
+    parsePerm('schedules.delete', 'Eliminar horarios'),
+    parsePerm('schedules.restore', 'Restaurar horarios'),
+    parsePerm('schedules.destroy', 'Eliminar horarios permanentemente'),
 
     // Hours Report
-    { slug: 'hours.read', description: 'Ver reporte de horas' },
-    { slug: 'hours.add', description: 'Crear reporte de horas' },
-    { slug: 'hours.edit', description: 'Editar reporte de horas' },
-    { slug: 'hours.delete', description: 'Eliminar reporte de horas' },
+    parsePerm('hours.read', 'Ver reporte de horas'),
+    parsePerm('hours.create', 'Crear reporte de horas'),
+    parsePerm('hours.update', 'Editar reporte de horas'),
+    parsePerm('hours.delete', 'Eliminar reporte de horas'),
+    parsePerm('hours.restore', 'Restaurar reporte de horas'),
+    parsePerm('hours.destroy', 'Eliminar reporte de horas permanentemente'),
 
     // System
-    { slug: 'system.read', description: 'Ver sistema' },
-    { slug: 'system.add', description: 'Crear en sistema' },
-    { slug: 'system.edit', description: 'Editar en sistema' },
-    { slug: 'system.delete', description: 'Eliminar en sistema' },
+    parsePerm('system.read', 'Ver sistema'),
+    parsePerm('system.create', 'Crear en sistema'),
+    parsePerm('system.update', 'Editar en sistema'),
+    parsePerm('system.delete', 'Eliminar en sistema'),
 
     // Config
-    { slug: 'config.read', description: 'Ver configuración' },
-    { slug: 'config.add', description: 'Crear configuración' },
-    { slug: 'config.edit', description: 'Editar configuración' },
-    { slug: 'config.delete', description: 'Eliminar configuración' },
+    parsePerm('config.read', 'Ver configuración'),
+    parsePerm('config.create', 'Crear configuración'),
+    parsePerm('config.update', 'Editar configuración'),
+    parsePerm('config.delete', 'Eliminar configuración'),
 
     // Users
-    { slug: 'users.read', description: 'Ver usuarios' },
-    { slug: 'users.add', description: 'Crear usuarios' },
-    { slug: 'users.edit', description: 'Editar usuarios' },
-    { slug: 'users.delete', description: 'Eliminar usuarios' },
+    parsePerm('users.read', 'Ver usuarios'),
+    parsePerm('users.create', 'Crear usuarios'),
+    parsePerm('users.update', 'Editar usuarios'),
+    parsePerm('users.delete', 'Eliminar usuarios'),
+    parsePerm('users.restore', 'Restaurar usuarios'),
+    parsePerm('users.destroy', 'Eliminar usuarios permanentemente'),
 
     // Audit
-    { slug: 'audit.read', description: 'Ver auditoría' },
-    { slug: 'audit.add', description: 'Crear auditoría' },
-    { slug: 'audit.edit', description: 'Editar auditoría' },
-    { slug: 'audit.delete', description: 'Eliminar auditoría' },
+    parsePerm('audit.read', 'Ver auditoría'),
+    parsePerm('audit.create', 'Crear auditoría'),
+    parsePerm('audit.update', 'Editar auditoría'),
+    parsePerm('audit.delete', 'Eliminar auditoría'),
+    parsePerm('audit.restore', 'Restaurar auditoría'),
+    parsePerm('audit.destroy', 'Eliminar auditoría permanentemente'),
 
     // Roles Management
-    { slug: 'roles.read', description: 'Ver roles' },
-    { slug: 'roles.add', description: 'Crear roles' },
-    { slug: 'roles.edit', description: 'Editar roles' },
-    { slug: 'roles.delete', description: 'Eliminar roles' },
+    parsePerm('roles.read', 'Ver roles'),
+    parsePerm('roles.create', 'Crear roles'),
+    parsePerm('roles.update', 'Editar roles'),
+    parsePerm('roles.delete', 'Eliminar roles'),
+    parsePerm('roles.restore', 'Restaurar roles'),
+    parsePerm('roles.destroy', 'Eliminar roles permanentemente'),
 
     // Permissions Management
-    { slug: 'permissions.read', description: 'Ver permisos' },
-    { slug: 'permissions.add', description: 'Asignar permisos' },
-    { slug: 'permissions.edit', description: 'Modificar asignación de permisos' },
-    { slug: 'permissions.delete', description: 'Revocar permisos' },
+    parsePerm('permissions.read', 'Ver permisos'),
+    parsePerm('permissions.create', 'Asignar permisos'),
+    parsePerm('permissions.update', 'Modificar asignación de permisos'),
+    parsePerm('permissions.delete', 'Revocar permisos'),
 ];
 
 const ROLES = [
-    { name: 'superadmin', description: 'Super Administrador con acceso total al sistema' },
-    { name: 'admin', description: 'Administrador del sistema' },
+    { name: 'superadmin', description: 'Super Administrador con acceso total al sistema', is_system: true },
+    { name: 'admin', description: 'Administrador del sistema', is_system: true },
     { name: 'gerente', description: 'Gerente con acceso a reportes y aprobaciones' },
     { name: 'ventas', description: 'Equipo de ventas y CRM' },
     { name: 'produccion', description: 'Equipo de producción y manufactura' },

@@ -5,6 +5,7 @@ import { TAX_ID_TYPES, PERSON_TYPES, TAX_REGIME_TYPES } from './enums';
 
 // Re-export enum types for frontend convenience
 export { type TaxIdType, type PersonType, type TaxRegimeType } from './enums';
+export { type RbacModule, type RbacAction, type PermissionSlug } from './enums';
 
 // --- PRODUCTS ---
 export const ProductSelect = createSelectSchema(tables.products);

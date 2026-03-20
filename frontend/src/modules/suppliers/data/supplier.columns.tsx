@@ -7,6 +7,7 @@
 import { Show } from 'solid-js';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { SupplierListItem } from '../data/suppliers.api';
+import { useAuth } from '@/modules/auth/store/auth.store';
 import Checkbox from '@shared/ui/Checkbox';
 import { Badge, StatusBadge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
@@ -27,11 +28,7 @@ export interface SupplierColumnHandlers {
     onDelete: (supplier: SupplierListItem) => void;
     onView: (supplier: SupplierListItem) => void;
     onRestore: (supplier: SupplierListItem) => void;
-    auth: {
-        hasPermission: (perm: string) => boolean;
-        canEdit: (resource: string) => boolean;
-        canDelete: (resource: string) => boolean;
-    };
+    auth: ReturnType<typeof useAuth>;
     filters?: {
         businessName?: ColumnFilterConfig;
         taxIdType?: ColumnFilterConfig;
@@ -224,12 +221,10 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             cell: (info) => {
                 const supplier = info.row.original;
                 const isActive = () => supplier.is_active;
-                const canDestroy = () => handlers.auth.hasPermission('suppliers:destroy');
-                const canRestore = () => handlers.auth.hasPermission('suppliers:restore') && !isActive();
+                const canDestroy = () => handlers.auth.hasPermission('suppliers.destroy');
+                const canRestore = () => handlers.auth.hasPermission('suppliers.restore') && !isActive();
                 const canEdit = () => handlers.auth.canEdit('suppliers');
                 const canDelete = () => handlers.auth.canDelete('suppliers') && isActive();
-               
-
                 return (
                     <div class="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         <DropdownMenu placement="bottom-end">

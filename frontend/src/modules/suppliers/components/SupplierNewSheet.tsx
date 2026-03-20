@@ -5,6 +5,7 @@ import { useCreateSupplier } from '../data/suppliers.api';
 import { SupplierForm } from './SupplierForm';
 import type { SupplierFormData } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
+import { FloppyDiskIcon } from '@shared/ui/icons';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 
@@ -47,10 +48,12 @@ const SupplierNewSheet: Component = () => {
                         type="submit"
                         form="supplier-form"
                         loading={createMutation.isPending}
-                        loadingText="Registrando..."
+                        loadingText="Creando..."
                         class="min-w-[200px]"
+                        icon={<FloppyDiskIcon />}
+                        
                     >
-                        Registrar Proveedor
+                        Crear Proveedor
                     </Button>
                 </>
             }

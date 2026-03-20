@@ -29,7 +29,7 @@
       ], // Acceso directo a hooks/ui compartidos
       "@config/*": [
         "./src/config/*"
-      ], // Acceso a env/menu
+      ], // Acceso a env/
       "@layout/*": [
         "./src/layout/*"
       ], // Acceso a layouts
