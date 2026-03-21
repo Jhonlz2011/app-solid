@@ -1,16 +1,63 @@
-// Re-export all types from the unified data layer for backward compatibility
-export type {
-    Role,
-    RoleListItem,
-    UserWithRoles,
-    UserListItem,
-    Permission,
-    PermissionsResponse,
-    RoleUsers,
-    UsersMeta,
-    UsersFilters,
-    RoleBody,
-} from '../data/users.api';
+/**
+ * users.types.ts — Centralized Types for Users module
+ */
+import { api } from '@shared/lib/eden';
+import type { usersApi } from '../data/users.api';
+
+// Derived from Eden
+export type UsersListResponse = Awaited<ReturnType<typeof api.api.rbac.users.get>>['data'];
+export type UserListItem = NonNullable<UsersListResponse>['data'][number];
+export type RoleBase = Awaited<ReturnType<typeof api.api.rbac.roles.get>>['data'];
+export type RoleListItem = NonNullable<RoleBase>[number] & { is_system?: boolean; permissionCount?: number };
+export type RoleBody = Parameters<typeof api.api.rbac.roles.post>[0];
+
+export type UserWithRoles = UserListItem;
+export type Role = RoleListItem;
+export type Permission = Awaited<ReturnType<typeof usersApi.listPermissions>>['all'][number];
+export type PermissionsResponse = Awaited<ReturnType<typeof usersApi.listPermissions>>;
+export type RoleUsers = Awaited<ReturnType<typeof usersApi.getRoleUsers>>[number];
+
+export interface UsersMeta {
+    total: number;
+    page: number;
+    pageCount: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+}
+
+export interface UsersFilters {
+    search?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    isActive?: string[];
+    roles?: string[];
+}
+
+export interface UserSession {
+    id: string;
+    user_agent: string | null;
+    ip_address: string | null;
+    location: string | null;
+    created_at: string;
+    is_current: boolean;
+}
+
+export interface EntityPickerItem {
+    id: number;
+    businessName: string;
+    taxId: string;
+}
+
+export type FacetData = Record<string, { value: string; count: number }[]>;
+
+export interface UserReferences {
+    roles: number;
+    activeSessions: number;
+    total: number;
+    canDelete: boolean;
+}
 
 export const isActiveLabels: Record<string, string> = {
     'true': 'Activo',

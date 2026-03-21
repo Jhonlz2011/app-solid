@@ -88,11 +88,22 @@ export const posSessionStatusEnum = pgEnum('pos_session_status', ['OPEN', 'CLOSE
 // RBAC ENUMS — Single Source of Truth for permissions
 // ============================================================================
 
+export const SYSTEM_ROLES = {
+    SUPERADMIN: 'superadmin',
+    ADMIN: 'admin',
+} as const;
+
 /** All business modules that can have permissions */
 export const RBAC_MODULES = [
-    'dashboard', 'users', 'roles', 'permissions',
-    'suppliers', 'products', 'inventory', 'invoices',
-    'work_orders', 'manufacturing', 'pos', 'menu',
+    'dashboard', 'crm', 'clients', 'visits', 'budgets', 'invoices',
+    'operations', 'work_orders', 'schedule', 'projects',
+    'production', 'planning', 'materials', 'quality',
+    'inventory', 'products', 'movements', 'orders', 'stock_taking', 'remission_guides',
+    'purchases', 'suppliers', 'purchase_quotes', 'purchase_orders', 'purchase_invoices',
+    'finance', 'documents', 'retentions', 'receivable', 'payable', 'petty_cash',
+    'hr', 'payroll', 'schedules', 'hours',
+    'system', 'config', 'users', 'audit', 'roles', 'permissions',
+    'manufacturing', 'pos', 'menu',
 ] as const;
 
 /** Standard CRUD actions */

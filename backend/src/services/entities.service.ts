@@ -550,8 +550,7 @@ export async function getEntity(id: number) {
  * Create entity with type flags
  */
 export async function createEntity(type: EntityType, payload: EntityPayload, clientId?: string) {
-    try {
-        return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx) => {
         const [created] = await tx
             .insert(entities)
             .values({
@@ -616,21 +615,7 @@ export async function createEntity(type: EntityType, payload: EntityPayload, cli
         broadcast(RealtimeEvents.ENTITY.CREATED, { type, entity: created, clientId }, `${type}s`);
 
         return created;
-        });
-    } catch (err: any) {
-        // PostgreSQL unique constraint violation on tax_id
-        if (err?.code === '23505') {
-            throw new DomainError(
-                'El número de identificación ya está registrado',
-                409,
-                {
-                    code: 'DUPLICATE_ENTRY',
-                    fieldErrors: [{ field: 'taxId', message: 'Ya existe una entidad con este RUC/Cédula' }],
-                }
-            );
-        }
-        throw err; // Re-throw other errors for global handler
-    }
+    });
 }
 
 // =============================================================================

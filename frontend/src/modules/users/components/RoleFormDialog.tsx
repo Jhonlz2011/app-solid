@@ -5,9 +5,10 @@ import { TextField } from '@shared/ui/TextField';
 import { PermissionMatrix } from '@shared/ui/PermissionMatrix';
 import {
     useRole, useRolePermissions, usePermissions,
-    useCreateRole, useUpdateRole, useUpdateRolePermissions,
-    type Role,
-} from '../data/users.api';
+    useCreateRole, useUpdateRole, useUpdateRolePermissions
+} from '../data/users.queries';
+
+import type { Role } from '../models/users.types';
 
 // =============================================================================
 // Types

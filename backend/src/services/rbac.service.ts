@@ -1,12 +1,12 @@
 import { db } from '../db';
-import { authUserRoles, authRoles, authRolePermissions, authPermissions, authUsers, authRoleHierarchy, authAuditLog, sessions, entities } from '@app/schema/tables';
+import { authUserRoles, authRoles, authRolePermissions, authPermissions, authUsers, auditLogs, sessions, entities } from '@app/schema/tables';
 import { eq, sql, count, and, inArray, ilike, or, asc, desc } from '@app/schema';
 import { redis } from '../config/redis';
 import { cacheService } from './cache.service';
 import { DomainError } from './errors';
 import { broadcast } from '../plugins/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
-import type { AuditAction } from '@app/schema/enums';
+import { type AuditAction, SYSTEM_ROLES } from '@app/schema/enums';
 
 // ============================================
 // USER PERMISSION QUERIES (CACHED)
@@ -37,21 +37,12 @@ export async function getUserPermissions(userId: number): Promise<string[]> {
     const cacheKey = `rbac:permissions:${userId}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
-        // Recursive CTE: resolves permissions from direct roles + inherited via hierarchy
         const result = await db.execute(sql`
-            WITH RECURSIVE role_tree AS (
-                -- Direct roles assigned to user
-                SELECT role_id FROM auth_user_roles WHERE user_id = ${userId}
-                UNION
-                -- Inherited roles via hierarchy (child inherits parent permissions)
-                SELECT rh.parent_role_id
-                FROM auth_role_hierarchy rh
-                JOIN role_tree rt ON rh.child_role_id = rt.role_id
-            )
             SELECT DISTINCT ap.slug
-            FROM role_tree rt
-            JOIN auth_role_permissions rp ON rt.role_id = rp.role_id
+            FROM auth_user_roles ur
+            JOIN auth_role_permissions rp ON ur.role_id = rp.role_id
             JOIN auth_permissions ap ON rp.permission_id = ap.id
+            WHERE ur.user_id = ${userId}
         `);
 
         return (result as unknown as { slug: string }[]).map(r => r.slug);
@@ -64,7 +55,7 @@ export async function getUserPermissions(userId: number): Promise<string[]> {
 export async function hasPermission(userId: number, requiredPermission: string): Promise<boolean> {
     const roles = await getUserRoles(userId);
     // Only superadmin bypasses all checks
-    if (roles.includes('superadmin')) {
+    if (roles.includes(SYSTEM_ROLES.SUPERADMIN)) {
         return true;
     }
     const perms = await getUserPermissions(userId);
@@ -86,7 +77,7 @@ export async function getAllowedModules(userId: number): Promise<string[]> {
     const permissions = await getUserPermissions(userId);
     const roles = await getUserRoles(userId);
 
-    if (roles.includes('superadmin')) {
+    if (roles.includes(SYSTEM_ROLES.SUPERADMIN)) {
         return ['*'];
     }
 
@@ -109,6 +100,13 @@ export async function getAllowedModules(userId: number): Promise<string[]> {
 export async function invalidateUserRbacCache(userId: number): Promise<void> {
     try {
         await redis.del(`rbac:roles:${userId}`, `rbac:permissions:${userId}`);
+
+        // Also invalidate all active sessions for this user so their new RBAC is reflected immediately
+        const activeSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.user_id, userId));
+        if (activeSessions.length > 0) {
+            const sessionKeys = activeSessions.map(s => `session:${s.id}`);
+            await redis.del(...sessionKeys);
+        }
     } catch (error) {
         console.error('RBAC cache invalidation error:', error);
     }
@@ -573,7 +571,7 @@ export async function assignUserRoles(userId: number, roleIds: number[], current
     // SEC-BE-02: Only superadmin can assign system roles
     if (roleIds.length > 0) {
         const currentRoles = await getUserRoles(currentUserId);
-        if (!currentRoles.includes('superadmin')) {
+        if (!currentRoles.includes(SYSTEM_ROLES.SUPERADMIN)) {
             const systemRoles = await db.select({ id: authRoles.id })
                 .from(authRoles)
                 .where(and(
@@ -746,14 +744,14 @@ export async function deactivateUser(userId: number, currentUserId: number) {
     }
 
     const userRoles = await getUserRoles(userId);
-    if (userRoles.includes('superadmin')) {
+    if (userRoles.includes(SYSTEM_ROLES.SUPERADMIN)) {
         const superadminCount = await db
             .select({ count: count() })
             .from(authUserRoles)
             .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
             .innerJoin(authUsers, eq(authUserRoles.user_id, authUsers.id))
             .where(and(
-                eq(authRoles.name, 'superadmin'),
+                eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN),
                 eq(authUsers.is_active, true)
             ));
         if (Number(superadminCount[0].count) <= 1) {
@@ -869,16 +867,16 @@ export async function checkUserReferences(userId: number) {
     const user = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userId) });
     if (!user) throw new DomainError('Usuario no encontrado', 404);
 
-    const [rolesResult, sessionsResult, auditResult] = await Promise.all([
+    const [rolesResult, sessionsResult] = await Promise.all([
         db.select({ count: count() }).from(authUserRoles).where(eq(authUserRoles.user_id, userId)),
         db.select({ count: count() }).from(sessions).where(eq(sessions.user_id, userId)),
-        db.select({ count: count() }).from(authAuditLog).where(eq(authAuditLog.user_id, userId)),
+        // db.select({ count: count() }).from(auditLogs).where(eq(auditLogs.user_id, userId)),
     ]);
 
     const roles = Number(rolesResult[0]?.count ?? 0);
     const activeSessions = Number(sessionsResult[0]?.count ?? 0);
-    const auditLogs = Number(auditResult[0]?.count ?? 0);
-    const total = roles + activeSessions + auditLogs;
+    // const auditLogs = Number(auditResult[0]?.count ?? 0);
+    const total = roles + activeSessions;
 
     return { roles, activeSessions, auditLogs, total, canDelete: true };
 }
@@ -890,76 +888,76 @@ export async function checkUserReferences(userId: number) {
 /**
  * Log an RBAC mutation for audit trail
  */
-export async function logAudit(
-    userId: number,
-    action: AuditAction,
-    targetType: string,
-    targetId?: number,
-    details?: Record<string, unknown>,
-    ipAddress?: string,
-): Promise<void> {
-    try {
-        await db.insert(authAuditLog).values({
-            user_id: userId,
-            action,
-            target_type: targetType,
-            target_id: targetId ?? null,
-            details: details ? JSON.stringify(details) : null,
-            ip_address: ipAddress ?? null,
-        });
-    } catch (error) {
-        console.error('Audit log error:', error);
-    }
-}
+// export async function logAudit(
+//     userId: number,
+//     action: AuditAction,
+//     targetType: string,
+//     targetId?: number,
+//     details?: Record<string, unknown>,
+//     ipAddress?: string,
+// ): Promise<void> {
+//     try {
+//         await db.insert(auditLogs).values({
+//             user_id: userId,
+//             action,
+//             target_type: targetType,
+//             target_id: targetId ?? null,
+//             details: details ? JSON.stringify(details) : null,
+//             ip_address: ipAddress ?? null,
+//         });
+//     } catch (error) {
+//         console.error('Audit log error:', error);
+//     }
+// }
 
 /**
  * Get paginated audit log for a specific user.
  * Returns entries where the user performed the action OR was the target.
  */
-export async function getUserAuditLog(userId: number, page: number = 1, limit: number = 20) {
-    const offset = (page - 1) * limit;
+// export async function getUserAuditLog(userId: number, page: number = 1, limit: number = 20) {
+//     const offset = (page - 1) * limit;
 
-    const [totalResult, entries] = await Promise.all([
-        db.select({ count: sql<number>`count(*)`.mapWith(Number) })
-            .from(authAuditLog)
-            .where(or(
-                eq(authAuditLog.user_id, userId),
-                and(eq(authAuditLog.target_type, 'user'), eq(authAuditLog.target_id, userId))
-            )),
-        db.select({
-            id: authAuditLog.id,
-            action: authAuditLog.action,
-            targetType: authAuditLog.target_type,
-            targetId: authAuditLog.target_id,
-            details: authAuditLog.details,
-            ipAddress: authAuditLog.ip_address,
-            createdAt: authAuditLog.created_at,
-            performedBy: authAuditLog.user_id,
-            performedByUsername: authUsers.username,
-        })
-            .from(authAuditLog)
-            .leftJoin(authUsers, eq(authAuditLog.user_id, authUsers.id))
-            .where(or(
-                eq(authAuditLog.user_id, userId),
-                and(eq(authAuditLog.target_type, 'user'), eq(authAuditLog.target_id, userId))
-            ))
-            .orderBy(desc(authAuditLog.created_at))
-            .limit(limit)
-            .offset(offset),
-    ]);
+//     const [totalResult, entries] = await Promise.all([
+//         db.select({ count: sql<number>`count(*)`.mapWith(Number) })
+//             .from(auditLogs)
+//             .where(or(
+//                 eq(auditLogs.userId, userId),
+//                 and(eq(auditLogs.target_type, 'user'), eq(auditLogs.target_id, userId))
+//             )),
+//         db.select({
+//             id: auditLogs.id,
+//             action: auditLogs.action,
+//             targetType: auditLogs.target_type,
+//             targetId: auditLogs.target_id,
+//             details: auditLogs.details,
+//             ipAddress: auditLogs.ip_address,
+//             createdAt: auditLogs.created_at,
+//             performedBy: auditLogs.user_id,
+//             performedByUsername: authUsers.username,
+//         })
+//             .from(auditLogs)
+//             .leftJoin(authUsers, eq(auditLogs.user_id, authUsers.id))
+//             .where(or(
+//                 eq(auditLogs.user_id, userId),
+//                 and(eq(auditLogs.target_type, 'user'), eq(auditLogs.target_id, userId))
+//             ))
+//             .orderBy(desc(auditLogs.created_at))
+//             .limit(limit)
+//             .offset(offset),
+//     ]);
 
-    const total = totalResult[0]?.count ?? 0;
-    return {
-        data: entries,
-        meta: {
-            total,
-            page,
-            pageCount: Math.ceil(total / limit),
-            hasNextPage: page * limit < total,
-            hasPrevPage: page > 1,
-        },
-    };
-}
+//     const total = totalResult[0]?.count ?? 0;
+//     return {
+//         data: entries,
+//         meta: {
+//             total,
+//             page,
+//             pageCount: Math.ceil(total / limit),
+//             hasNextPage: page * limit < total,
+//             hasPrevPage: page > 1,
+//         },
+//     };
+// }
 
 /**
  * Admin password reset — sets password without requiring old one.
@@ -1000,10 +998,10 @@ export async function adminResetPassword(
         }
     }
 
-    await logAudit(adminUserId, 'user.updated', 'user', targetUserId, {
-        field: 'password',
-        action: 'admin_reset',
-    });
+    // await logAudit(adminUserId, 'user.updated', 'user', targetUserId, {
+    //     field: 'password',
+    //     action: 'admin_reset',
+    // });
 
     return { success: true };
 }
@@ -1032,117 +1030,15 @@ export async function setUserEntity(
 
     if (!updated) throw new DomainError('Usuario no encontrado', 404);
 
-    await logAudit(adminUserId, 'user.updated', 'user', userId, {
-        field: 'entity_id',
-        entityId,
-    });
+    // await logAudit(adminUserId, 'user.updated', 'user', userId, {
+    //     field: 'entity_id',
+    //     entityId,
+    // });
 
     return updated;
 }
 
-// ============================================
-// ROLE HIERARCHY (Recursive RBAC)
-// ============================================
 
-/**
- * Get the full hierarchy tree for display
- */
-export async function getRoleHierarchy() {
-    return db
-        .select({
-            parentRoleId: authRoleHierarchy.parent_role_id,
-            parentRoleName: sql<string>`p.name`,
-            childRoleId: authRoleHierarchy.child_role_id,
-            childRoleName: sql<string>`c.name`,
-        })
-        .from(authRoleHierarchy)
-        .innerJoin(sql`auth_roles p`, sql`p.id = ${authRoleHierarchy.parent_role_id}`)
-        .innerJoin(sql`auth_roles c`, sql`c.id = ${authRoleHierarchy.child_role_id}`);
-}
-
-/**
- * Add a parent→child hierarchy link with cycle detection
- */
-export async function addRoleHierarchy(
-    parentRoleId: number,
-    childRoleId: number,
-    currentUserId: number,
-) {
-    // Self-reference guard
-    if (parentRoleId === childRoleId) {
-        throw new DomainError('Un rol no puede ser su propio padre', 400);
-    }
-
-    // Cycle detection: check if childRoleId is already an ancestor of parentRoleId
-    const cycleCheck = await db.execute(sql`
-        WITH RECURSIVE ancestors AS (
-            SELECT parent_role_id FROM auth_role_hierarchy WHERE child_role_id = ${parentRoleId}
-            UNION
-            SELECT rh.parent_role_id
-            FROM auth_role_hierarchy rh
-            JOIN ancestors a ON rh.child_role_id = a.parent_role_id
-        )
-        SELECT 1 FROM ancestors WHERE parent_role_id = ${childRoleId} LIMIT 1
-    `);
-
-    if ((cycleCheck as unknown as any[]).length > 0) {
-        throw new DomainError('Esta asignación crearía un ciclo en la jerarquía', 400);
-    }
-
-    await db.insert(authRoleHierarchy).values({
-        parent_role_id: parentRoleId,
-        child_role_id: childRoleId,
-    });
-
-    // Invalidate permissions cache for all users with the child role
-    const affectedUsers = await db
-        .select({ userId: authUserRoles.user_id })
-        .from(authUserRoles)
-        .where(eq(authUserRoles.role_id, childRoleId));
-
-    await Promise.all(affectedUsers.map(({ userId }) => invalidateUserRbacCache(userId)));
-
-    await logAudit(currentUserId, 'hierarchy.added', 'hierarchy', undefined, {
-        parentRoleId, childRoleId,
-    });
-
-    return { success: true };
-}
-
-/**
- * Remove a parent→child hierarchy link
- */
-export async function removeRoleHierarchy(
-    parentRoleId: number,
-    childRoleId: number,
-    currentUserId: number,
-) {
-    const deleted = await db
-        .delete(authRoleHierarchy)
-        .where(and(
-            eq(authRoleHierarchy.parent_role_id, parentRoleId),
-            eq(authRoleHierarchy.child_role_id, childRoleId),
-        ))
-        .returning();
-
-    if (deleted.length === 0) {
-        throw new DomainError('Relación de jerarquía no encontrada', 404);
-    }
-
-    // Invalidate cache for affected users
-    const affectedUsers = await db
-        .select({ userId: authUserRoles.user_id })
-        .from(authUserRoles)
-        .where(eq(authUserRoles.role_id, childRoleId));
-
-    await Promise.all(affectedUsers.map(({ userId }) => invalidateUserRbacCache(userId)));
-
-    await logAudit(currentUserId, 'hierarchy.removed', 'hierarchy', undefined, {
-        parentRoleId, childRoleId,
-    });
-
-    return { success: true };
-}
 
 // ============================================
 // BATCH OPERATIONS

@@ -9,10 +9,13 @@
  * - Optimistic mutations for instant feedback
  * - Flash-free page transitions with keepPreviousData
  */
-import { Component, Show, createSignal, createMemo, batch, For, createEffect } from 'solid-js';
+import { Component, Show, createSignal, createMemo, batch, For, createEffect, lazy } from 'solid-js';
 import type { Table, RowSelectionState, ColumnPinningState, VisibilityState, SortingState, Updater } from '@tanstack/solid-table';
 import { toast } from 'solid-sonner';
-import { useNavigate, Outlet } from '@tanstack/solid-router';
+import { useNavigate, Outlet, useSearch } from '@tanstack/solid-router';
+
+// Lazy Components
+const LazyUserNewSheet = lazy(() => import('../../users/components/UserNewSheet'));
 import { useQueryClient } from '@tanstack/solid-query';
 
 // Data & Hooks
@@ -71,6 +74,11 @@ const SuppliersPage: Component = () => {
     const isMobile = useIsMobile();
     const auth = useAuth();
     const [showFilterSheet, setShowFilterSheet] = createSignal(false);
+    
+    // Cross-Module Modals
+    const searchParams = useSearch({ strict: false }) as () => { modal?: string; [key: string]: any };
+    const openUserModal = () => navigate({ to: '/suppliers', search: (prev: any) => ({ ...prev, modal: 'newUser' }) });
+    const closeAllModals = () => navigate({ to: '/suppliers', search: (prev: any) => ({ ...prev, modal: undefined }) });
 
     // ==========================================================================
     // State - Hybrid Pagination (cursor + offset for sorted views)
@@ -496,7 +504,19 @@ const SuppliersPage: Component = () => {
                             <Button variant="outline" icon={<UploadIcon />} onClick={() => toast.info('Importación próximamente')}>
                                 <span class="hidden sm:inline">Importar</span>
                             </Button>
-                            <Button onClick={handleNew} icon={<PlusIcon />}>
+                            <Button 
+                                variant="outline" 
+                                icon={<UsersIcon />}
+                                onMouseEnter={() => import('../../users/components/UserNewSheet')}
+                                onClick={openUserModal}
+                            >
+                                <span class="hidden sm:inline">Nuevo Usuario</span>
+                            </Button>
+                            <Button 
+                                onClick={handleNew} 
+                                onMouseEnter={() => import('../components/SupplierNewSheet')}
+                                icon={<PlusIcon />}
+                            >
                                 <span class="hidden sm:inline">Nuevo</span>
                             </Button>
                         </div>
@@ -836,6 +856,11 @@ const SuppliersPage: Component = () => {
 
             {/* Child routes (Panels) */}
             <Outlet />
+
+            {/* Cross-Module Modals */}
+            <Show when={searchParams().modal === 'newUser'}>
+                <LazyUserNewSheet onClose={closeAllModals} />
+            </Show>
         </div>
     );
 };

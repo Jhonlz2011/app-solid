@@ -129,7 +129,7 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
                                         e.stopPropagation();
                                         handlers.onRoleBadgeClick?.(role);
                                     }}
-                                    class="cursor-pointer rounded-md transition-all hover:ring-2 hover:ring-primary/30 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                    class="cursor-pointer rounded-md hover:opacity focus:outline-none focus:ring-2 focus:ring-primary/40"
                                     title={`Ver permisos de ${role.name}`}
                                 >
                                     <RoleBadge name={role.name} />

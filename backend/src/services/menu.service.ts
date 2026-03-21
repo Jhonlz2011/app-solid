@@ -2,6 +2,7 @@ import { db } from '../db';
 import { authMenuItems } from '@app/schema/tables';
 import { eq, asc, sql } from '@app/schema';
 import { getUserPermissions, getUserRoles } from './rbac.service';
+import { cacheService } from './cache.service';
 
 // Keep backward-compatible interface
 export interface ModuleConfig {
@@ -33,13 +34,15 @@ export async function getMenuForUser(userId: number): Promise<ModuleConfig[]> {
     const [roles, permissions, allMenus] = await Promise.all([
         getUserRoles(userId),
         getUserPermissions(userId),
-        db.select()
-            .from(authMenuItems)
-            .where(eq(authMenuItems.is_active, true))
-            .orderBy(asc(authMenuItems.sort_order)),
+        cacheService.getOrSet('menus:all', async () => {
+            return db.select()
+                .from(authMenuItems)
+                .where(eq(authMenuItems.is_active, true))
+                .orderBy(asc(authMenuItems.sort_order));
+        }, 86400),
     ]);
 
-    const isAdmin = roles.includes('admin') || roles.includes('superadmin');
+    const isAdmin = roles.includes('superadmin');
     if (isAdmin) return buildMenuTree(allMenus);
 
     return buildMenuTree(filterByPermissions(allMenus, permissions));
@@ -49,11 +52,12 @@ export async function getMenuForUser(userId: number): Promise<ModuleConfig[]> {
  * Get full menu tree for admin panel (no permission filtering)
  */
 export async function getFullMenuTree(): Promise<ModuleConfig[]> {
-    const allMenus = await db
-        .select()
-        .from(authMenuItems)
-        .where(eq(authMenuItems.is_active, true))
-        .orderBy(asc(authMenuItems.sort_order));
+    const allMenus = await cacheService.getOrSet('menus:all', async () => {
+        return db.select()
+            .from(authMenuItems)
+            .where(eq(authMenuItems.is_active, true))
+            .orderBy(asc(authMenuItems.sort_order));
+    }, 86400);
 
     return buildMenuTree(allMenus);
 }
@@ -75,11 +79,14 @@ export async function updateMenuItem(
     id: number,
     data: { label?: string; icon?: string; sort_order?: number }
 ) {
-    return db
+    const result = await db
         .update(authMenuItems)
-        .set({ ...data, updated_at: new Date() })
+        .set({ ...data})
         .where(eq(authMenuItems.id, id))
         .returning();
+        
+    cacheService.invalidate('menus:all');
+    return result;
 }
 
 /**
@@ -97,10 +104,10 @@ export async function reorderMenuItems(items: { id: number; sort_order: number }
             sort_order = CASE id
                 ${sql.join(cases, sql` `)}
             END,
-            updated_at = NOW()
         WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
     `);
 
+    cacheService.invalidate('menus:all');
     return items;
 }
 

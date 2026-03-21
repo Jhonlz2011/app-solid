@@ -10,10 +10,15 @@ import {
     useRoles, useUsersWithRoles, useDeleteRole,
     useDeactivateUser, useRestoreUser,
     useBulkDeactivateUsers, useBulkRestoreUsers,
-    useUserFacets,
-    usersApi, rbacKeys,
-    type UserWithRoles, type Role, type UsersFilters, type UsersMeta,
-} from '../data/users.api';
+    useUserFacets
+} from '../data/users.queries';
+import { rbacKeys } from '../data/users.keys';
+import { usersApi } from '../data/users.api';
+
+import { type UserWithRoles, type Role, type UsersFilters, type UsersMeta } from '../models/users.types';
+
+
+
 import { createUserColumns } from '../data/user.columns';
 import { useDataTableSSE } from '@shared/hooks/useDataTableSSE';
 import { useAuth } from '@modules/auth/store/auth.store';
@@ -396,7 +401,11 @@ const UsersRolesPage: Component = () => {
                     actions={
                         <div class="flex items-center gap-2">
                             <Show when={activeTab() === 'users' && auth.canAdd('users')}>
-                                <Button onClick={handleNewUser} icon={<PlusIcon />}>
+                                <Button 
+                                    onClick={handleNewUser} 
+                                    onMouseEnter={() => import('../components/UserNewSheet')}
+                                    icon={<PlusIcon />}
+                                >
                                     <span class="hidden sm:inline">Nuevo Usuario</span>
                                 </Button>
                             </Show>

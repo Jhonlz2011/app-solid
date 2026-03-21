@@ -21,33 +21,6 @@ import { RealtimeEvents } from '@app/schema/realtime-events';
 
 export const authRoutes = new Elysia({ prefix: '/auth' })
   .use(ipPlugin)
-  .onError(({ error, code }) => {
-    if (error instanceof AuthError) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: error.code,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (code === 'VALIDATION') {
-      return new Response(
-        JSON.stringify({ error: 'Datos inválidos', details: error.message }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    console.error('Auth error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Error interno del servidor' }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-  })
   .post(
     '/register',
     async ({ body, set }) => {

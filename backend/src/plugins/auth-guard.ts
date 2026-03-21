@@ -1,7 +1,6 @@
 import { Elysia } from 'elysia';
 import { UnauthorizedError } from '../services/errors';
 import { validateSession } from '../services/auth.service';
-import { getUserRoles, getUserPermissions } from '../services/rbac.service';
 import { COOKIE_OPTIONS } from '../config/auth';
 
 export const authGuard = (app: Elysia) => app
@@ -27,7 +26,7 @@ export const authGuard = (app: Elysia) => app
         throw new UnauthorizedError('Sesión expirada o inválida');
       }
 
-      const { session, shouldRefreshCookie } = result;
+      const { session, roles, permissions, shouldRefreshCookie } = result;
 
       // Rolling session: update cookie expiry if session was extended
       if (shouldRefreshCookie) {
@@ -36,12 +35,6 @@ export const authGuard = (app: Elysia) => app
           ...COOKIE_OPTIONS,
         });
       }
-
-      // Fetch roles/permissions (cached in Redis via rbac.service)
-      const [roles, permissions] = await Promise.all([
-        getUserRoles(session.user_id),
-        getUserPermissions(session.user_id),
-      ]);
 
       return {
         currentUserId: session.user_id,

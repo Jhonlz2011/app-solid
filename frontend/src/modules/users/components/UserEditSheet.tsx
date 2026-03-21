@@ -8,12 +8,13 @@ import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import {
     useUser, useUpdateUser, useAssignUserRoles, useRoles,
     useSetUserEntity, useEntitiesList, useAdminResetPassword,
-} from '../data/users.api';
+} from '../data/users.queries';
 import UserForm from './UserForm';
 import type { EntityOption } from './UserForm';
 
 interface UserEditSheetProps {
     userId: number;
+    onClose?: () => void;
 }
 
 const UserEditSheet: Component<UserEditSheetProps> = (props) => {
@@ -26,7 +27,10 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
     const setEntityMutation = useSetUserEntity();
     const resetPwMutation = useAdminResetPassword();
 
-    const handleClose = () => navigate({ to: '/users' });
+    const handleClose = () => {
+        if (props.onClose) props.onClose();
+        else navigate({ to: '/users' });
+    };
 
     const entityOptions = createMemo((): EntityOption[] => {
         const raw = entitiesQuery.data;

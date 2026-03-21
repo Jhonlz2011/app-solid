@@ -1,6 +1,6 @@
-// users/data/users.keys.ts
-// Query key factory for TanStack Query cache management
-
+/**
+ * users.keys.ts — Centralized query keys for Users/RBAC module
+ */
 export const rbacKeys = {
     // Base key
     all: ['rbac'] as const,
@@ -10,6 +10,7 @@ export const rbacKeys = {
     lists: () => [...rbacKeys.users(), 'list'] as const,
     list: (filters: object) => [...rbacKeys.lists(), filters] as const,
     user: (id: number) => [...rbacKeys.users(), 'detail', id] as const,
+    userSessions: (id: number) => [...rbacKeys.users(), 'sessions', id] as const,
 
     // Roles
     roles: () => [...rbacKeys.all, 'roles'] as const,
@@ -19,4 +20,8 @@ export const rbacKeys = {
 
     // Permissions
     permissions: () => [...rbacKeys.all, 'permissions'] as const,
+
+    // Facets
+    facets: (search?: string, filters?: Record<string, string[] | undefined>) =>
+        [...rbacKeys.all, 'facets', { search, ...filters }] as const,
 };

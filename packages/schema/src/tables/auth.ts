@@ -1,6 +1,12 @@
-import { text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { customType, text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
 import { pgTableV2 } from '../utils';
 import { entities } from './entities';
+
+
+// 2. Custom Type para INET: Validación nativa de IPs en Postgres
+const inet = customType<{ data: string }>({
+  dataType() { return 'inet'; },
+});
 
 // --- 8. AUTH ---
 export const authUsers = pgTableV2("auth_users", {
@@ -10,17 +16,19 @@ export const authUsers = pgTableV2("auth_users", {
     email: text("email").unique().notNull(),
     password_hash: text("password_hash").notNull(),
     is_active: boolean("is_active").default(true),
-    last_login: timestamp("last_login"),
-    created_at: timestamp("created_at").defaultNow().notNull(),
+    last_login: timestamp("last_login", { withTimezone: true, mode: "date" }),
+    created_at: timestamp("created_at", { withTimezone: true, mode: "date" })
+        .defaultNow()
+        .notNull(),
 });
 
 export const sessions = pgTableV2("sessions", {
-    id: text("id").primaryKey(),                // Random 32-byte token (base64url)
+    id: varchar("id", { length: 64 }).primaryKey(),               // Random 32-byte token (base64url)
     user_id: integer("user_id").references(() => authUsers.id, { onDelete: 'cascade' }).notNull(),
-    expires_at: timestamp("expires_at").notNull(),
-    created_at: timestamp("created_at").defaultNow().notNull(),
     user_agent: text("user_agent"),
-    ip_address: text("ip_address"),
+    ip_address: inet("ip_address"),
+    expires_at: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    created_at: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 }, (t) => [
     index("idx_sessions_user").on(t.user_id),
     index("idx_sessions_expires").on(t.expires_at),
@@ -32,8 +40,7 @@ export const authRoles = pgTableV2("auth_roles", {
     description: text("description"),
     is_system: boolean("is_system").default(false),     // superadmin, admin = non-deletable
     priority: smallint("priority").default(0),           // For conflict resolution in hierarchies
-    created_at: timestamp("created_at").defaultNow().notNull(),
-    updated_at: timestamp("updated_at").defaultNow().notNull(),
+    created_at: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });
 
 export const authPermissions = pgTableV2("auth_permissions", {
@@ -42,8 +49,6 @@ export const authPermissions = pgTableV2("auth_permissions", {
     action: text("action").notNull(),                   // 'read', 'create', 'update', 'delete', etc.
     slug: text("slug").unique().notNull(),               // 'suppliers.read' (module.action)
     description: text("description"),
-    is_system: boolean("is_system").default(false),     // System permissions cannot be edited
-    created_at: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
     uniqueIndex("idx_perm_module_action").on(t.module, t.action),
     index("idx_perm_module").on(t.module),
@@ -65,16 +70,6 @@ export const authUserRoles = pgTableV2("auth_user_roles", {
     index("idx_user_roles_by_role").on(t.role_id),
 ]);
 
-// --- 8b. ROLE HIERARCHY (preparation for future hierarchical RBAC) ---
-export const authRoleHierarchy = pgTableV2("auth_role_hierarchy", {
-    parent_role_id: integer("parent_role_id")
-        .references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
-    child_role_id: integer("child_role_id")
-        .references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
-}, (t) => [
-    primaryKey({ columns: [t.parent_role_id, t.child_role_id] }),
-    index("idx_role_hierarchy_child").on(t.child_role_id),
-]);
 
 // --- 9. MENU SYSTEM (Dynamic Menus) ---
 export const authMenuItems = pgTableV2("auth_menu_items", {
@@ -87,8 +82,6 @@ export const authMenuItems = pgTableV2("auth_menu_items", {
     sort_order: smallint("sort_order").default(0),      // For custom ordering
     permission_prefix: text("permission_prefix"),      // 'products' -> maps to authPermissions.module
     is_active: boolean("is_active").default(true),
-    created_at: timestamp("created_at").defaultNow().notNull(),
-    updated_at: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [
     foreignKey({ columns: [t.parent_id], foreignColumns: [t.id] }),
     index("idx_menu_parent").on(t.parent_id),

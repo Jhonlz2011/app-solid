@@ -75,13 +75,13 @@ export const TabsTrigger: Component<TabsTriggerProps> = (props) => {
 };
 
 // 4. CONTENT
-export const TabsContent: Component<Parameters<typeof KTabs.Content>[0] & { class?: string }> = (props) => {
-    const [local, others] = splitProps(props, ['class']);
+export const TabsContent: Component<Parameters<typeof KTabs.Content>[0] & { class?: string; forceMount?: boolean }> = (props) => {
+    const [local, others] = splitProps(props, ['class', 'forceMount']);
     return (
         <KTabs.Content
             {...others}
-            forceMount
-            class={cn("hidden data-[selected]:block outline-none", local.class)}
+            forceMount={local.forceMount}
+            class={cn(!local.forceMount && "data-[selected]:block outline-none", local.forceMount && "hidden data-[selected]:block outline-none", local.class)}
         />
     );
 };

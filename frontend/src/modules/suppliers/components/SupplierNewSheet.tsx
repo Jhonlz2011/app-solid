@@ -1,4 +1,4 @@
-import { Component } from 'solid-js';
+import { Component, createSignal, onMount, Show } from 'solid-js';
 import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useCreateSupplier } from '../data/suppliers.api';
@@ -12,7 +12,6 @@ import Button from '@shared/ui/Button';
 const SupplierNewSheet: Component = () => {
     const navigate = useNavigate();
     const createMutation = useCreateSupplier();
-
     const handleClose = () => {
         navigate({ to: '/suppliers' });
     };
@@ -23,12 +22,9 @@ const SupplierNewSheet: Component = () => {
             toast.success('Proveedor creado correctamente');
             handleClose();
         } catch (error: any) {
-            // Show toast only for non-field errors; field errors are mapped by SupplierForm
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
-            if (!hasFieldErrors) {
-                toast.error(error?.message || 'Error al crear proveedor');
-            }
-            throw error; // Re-throw so SupplierForm can map field errors
+            if (!hasFieldErrors) toast.error(error?.message || 'Error al crear proveedor');
+            throw error;
         }
     };
 
@@ -51,17 +47,16 @@ const SupplierNewSheet: Component = () => {
                         loadingText="Creando..."
                         class="min-w-[200px]"
                         icon={<FloppyDiskIcon />}
-                        
                     >
                         Crear Proveedor
                     </Button>
                 </>
             }
         >
-            <SupplierForm
-                onSubmit={handleSubmit}
-                isSubmitting={createMutation.isPending}
-            />
+                <SupplierForm
+                    onSubmit={handleSubmit}
+                    isSubmitting={createMutation.isPending}
+                />
         </Sheet>
     );
 };

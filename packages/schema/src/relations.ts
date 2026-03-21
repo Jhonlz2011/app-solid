@@ -33,22 +33,8 @@ export const authUserRolesRelations = relations(tables.authUserRoles, ({ one }) 
 export const authRolesRelations = relations(tables.authRoles, ({ many }) => ({
     permissions: many(tables.authRolePermissions),
     users: many(tables.authUserRoles),
-    parentRoles: many(tables.authRoleHierarchy, { relationName: 'roleHierarchyChild' }),
-    childRoles: many(tables.authRoleHierarchy, { relationName: 'roleHierarchyParent' }),
 }));
 
-export const authRoleHierarchyRelations = relations(tables.authRoleHierarchy, ({ one }) => ({
-    parent: one(tables.authRoles, {
-        fields: [tables.authRoleHierarchy.parent_role_id],
-        references: [tables.authRoles.id],
-        relationName: 'roleHierarchyParent',
-    }),
-    child: one(tables.authRoles, {
-        fields: [tables.authRoleHierarchy.child_role_id],
-        references: [tables.authRoles.id],
-        relationName: 'roleHierarchyChild',
-    }),
-}));
 
 export const authPermissionsRelations = relations(tables.authPermissions, ({ many }) => ({
     roles: many(tables.authRolePermissions),
@@ -75,9 +61,9 @@ export const sessionsRelations = relations(tables.sessions, ({ one }) => ({
     }),
 }));
 
-export const authAuditLogRelations = relations(tables.authAuditLog, ({ one }) => ({
+export const auditLogsRelations = relations(tables.auditLogs, ({ one }) => ({
     user: one(tables.authUsers, {
-        fields: [tables.authAuditLog.user_id],
+        fields: [tables.auditLogs.userId],
         references: [tables.authUsers.id],
     }),
 }));

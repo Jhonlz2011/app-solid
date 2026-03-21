@@ -15,7 +15,7 @@ export const electronicDocuments = pgTableV2("electronic_documents", {
     type: documentTypeEnum("type").notNull(),
     // Datos SRI
     sri_access_key: text("sri_access_key").unique(),
-    sri_authorization_date: timestamp("sri_authorization_date"),
+    sri_authorization_date: timestamp("sri_authorization_date", { withTimezone: true, mode: "date" }),
     establishment: text("establishment").notNull(),
     emission_point: text("emission_point").notNull(),
     sequential: integer("sequential").notNull(),

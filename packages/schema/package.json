@@ -47,12 +47,14 @@
         "drizzle-orm": "^0.44.7",
         "drizzle-typebox": "^0.3.3",
         "postgres": "^3.4.7",
+        "uuid": "^13.0.0",
         "valibot": "^1.2.0"
     },
     "peerDependencies": {
         "@sinclair/typebox": "^0.34.48"
     },
     "devDependencies": {
+        "@types/uuid": "^11.0.0",
         "drizzle-valibot": "^0.4.2",
         "typescript": "^5.7.2"
     }

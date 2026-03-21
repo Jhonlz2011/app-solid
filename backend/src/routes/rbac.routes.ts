@@ -23,13 +23,10 @@ import {
     checkUserReferences,
     batchDeleteUsers,
     batchRestoreUsers,
-    getRoleHierarchy,
-    addRoleHierarchy,
-    removeRoleHierarchy,
     getUserById,
     getRoleById,
     getUserFacets,
-    getUserAuditLog,
+    // getUserAuditLog,
     adminResetPassword,
     setUserEntity,
 } from '../services/rbac.service';
@@ -216,19 +213,19 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     }, { permission: 'users.update' })
 
     // Paginated audit log for a user
-    .get('/users/:id/audit-log', async ({ params, query }) => {
-        return await getUserAuditLog(
-            Number(params.id),
-            query.page ? Number(query.page) : 1,
-            query.limit ? Number(query.limit) : 20,
-        );
-    }, {
-        permission: 'users.read',
-        query: t.Object({
-            page: t.Optional(t.Numeric()),
-            limit: t.Optional(t.Numeric()),
-        }),
-    })
+    // .get('/users/:id/audit-log', async ({ params, query }) => {
+    //     return await getUserAuditLog(
+    //         Number(params.id),
+    //         query.page ? Number(query.page) : 1,
+    //         query.limit ? Number(query.limit) : 20,
+    //     );
+    // }, {
+    //     permission: 'users.read',
+    //     query: t.Object({
+    //         page: t.Optional(t.Numeric()),
+    //         limit: t.Optional(t.Numeric()),
+    //     }),
+    // })
 
     // Admin password reset (no current password required)
     .post('/users/:id/reset-password', async ({ params, body, currentUserId }) => {
@@ -253,15 +250,6 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     // =========================================================================
     // Batch Operations
     // =========================================================================
-    .post('/users/batch_delete', async ({ body, currentUserId }) => {
-        return await batchDeleteUsers(body.userIds, currentUserId);
-    }, {
-        permission: 'users.delete',
-        body: t.Object({
-            userIds: t.Array(t.Number()),
-        }),
-    })
-
     // Bulk soft-delete (deactivate)
     .post('/users/bulk/delete', async ({ body, currentUserId }) => {
         return await batchDeleteUsers(body.ids, currentUserId);
@@ -282,30 +270,5 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         }),
     })
 
-    // =========================================================================
-    // Role Hierarchy
-    // =========================================================================
-    .get('/roles/hierarchy', async () => {
-        return await getRoleHierarchy();
-    }, { permission: 'roles.read' })
 
-    .post('/roles/hierarchy', async ({ body, currentUserId }) => {
-        return await addRoleHierarchy(body.parentRoleId, body.childRoleId, currentUserId);
-    }, {
-        permission: 'roles.update',
-        body: t.Object({
-            parentRoleId: t.Number(),
-            childRoleId: t.Number(),
-        }),
-    })
-
-    .delete('/roles/hierarchy', async ({ body, currentUserId }) => {
-        return await removeRoleHierarchy(body.parentRoleId, body.childRoleId, currentUserId);
-    }, {
-        permission: 'roles.update',
-        body: t.Object({
-            parentRoleId: t.Number(),
-            childRoleId: t.Number(),
-        }),
-    });
 

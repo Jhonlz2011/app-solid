@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia';
 import { ForbiddenError, UnauthorizedError } from '../services/errors';
-import type { PermissionSlug } from '@app/schema/enums';
+import { type PermissionSlug, SYSTEM_ROLES } from '@app/schema/enums';
 
 /**
  * RBAC macro plugin — uses currentRoles & currentPermissions
@@ -21,7 +21,7 @@ export const rbac = (app: Elysia) => app
                     throw new UnauthorizedError('Usuario no autenticado');
                 }
                 // Only superadmin bypasses — admin requires explicit permissions
-                if (currentRoles?.includes('superadmin')) {
+                if (currentRoles?.includes(SYSTEM_ROLES.SUPERADMIN)) {
                     return;
                 }
                 if (!currentPermissions?.includes(permission)) {

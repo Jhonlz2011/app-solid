@@ -5,10 +5,10 @@ import type { PublicUserType } from '@app/schema/backend';
 import { getUserRoles, getUserPermissions } from './rbac.service';
 import { broadcast } from '../plugins/sse';
 import { SESSION_EXPIRE_DAYS } from '../config/auth';
-import { randomBytes } from 'crypto';
 import { cacheService } from './cache.service';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import geoip from 'geoip-lite';
+import { DomainError } from './errors';
 
 // --- CONSTANTS ---
 const SESSION_REFRESH_THRESHOLD_DAYS = Math.floor(SESSION_EXPIRE_DAYS / 2);
@@ -27,17 +27,23 @@ function mapEntity(entity: any) {
     };
 }
 
-export class AuthError extends Error {
-  constructor(message: string, public code: number = 401) {
-    super(message);
+export class AuthError extends DomainError {
+  constructor(message: string, status: number = 401) {
+    super(message, status, { code: 'UNAUTHORIZED' });
     this.name = 'AuthError';
   }
 }
 
 // --- SESSION HELPERS ---
 
+// export function generateSessionToken(): string {
+//   return randomBytes(32).toString('base64url');
+// }
+
 export function generateSessionToken(): string {
-  return randomBytes(32).toString('base64url');
+  const bytes = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(bytes);
+  return Buffer.from(bytes).toString('base64url');
 }
 
 /**
@@ -48,15 +54,25 @@ export async function validateSession(sessionId: string) {
   const cacheKey = `session:${sessionId}`;
 
   // Check cache first
-  let session = await cacheService.getOrSet(cacheKey, async () => {
+  let cachedData = await cacheService.getOrSet(cacheKey, async () => {
     const [s] = await db
       .select()
       .from(sessions)
       .where(eq(sessions.id, sessionId));
-    return s || null;
+    if (!s) return null;
+    
+    // Also fetch roles and permissions here to cache them together
+    const [roles, permissions] = await Promise.all([
+      getUserRoles(s.user_id),
+      getUserPermissions(s.user_id)
+    ]);
+    
+    return { session: s, roles, permissions };
   }, SESSION_EXPIRE_DAYS * 24 * 60 * 60); // Max TTL 
 
-  if (!session) return null;
+  if (!cachedData) return null;
+  
+  let { session, roles, permissions } = cachedData;
 
   // Re-hydrate dates
   if (typeof session.expires_at === 'string') session.expires_at = new Date(session.expires_at);
@@ -84,30 +100,30 @@ export async function validateSession(sessionId: string) {
     cacheService.invalidate(cacheKey); // force cache refresh on next request
   }
 
-  return { session, shouldRefreshCookie };
+  return { session, roles, permissions, shouldRefreshCookie };
 }
 
 // --- AUTH FUNCTIONS ---
 
 export async function register(email: string, password: string, username?: string): Promise<PublicUserType> {
-  try {
-    const password_hash = await Bun.password.hash(password);
-    const result = await db
+  const password_hash = await Bun.password.hash(password);
+  const result = await db
       .insert(users)
       .values({
         email,
         password_hash,
         username: username || email.split('@')[0],
       })
-      .returning();
-    const { password_hash: _, ...publicUser } = result[0];
-    return publicUser;
-  } catch (error: any) {
-    if (error.code === '23505') {
-      throw new AuthError('El email o usuario ya está registrado', 409);
-    }
-    throw error;
-  }
+      .returning({
+        id: users.id,
+        entity_id: users.entity_id,
+        username: users.username,
+        email: users.email,
+        is_active: users.is_active,
+        last_login: users.last_login,
+        created_at: users.created_at,
+      });
+  return result[0];
 }
 
 export async function login(email: string, password: string, userAgent?: string, ipAddress?: string) {
@@ -325,9 +341,8 @@ export async function updateProfile(
     return { success: true, message: 'Sin cambios' };
   }
 
-  try {
-    const [updated] = await db.update(users).set(updateData).where(eq(users.id, userId)).returning({
-      id: users.id,
+  const [updated] = await db.update(users).set(updateData).where(eq(users.id, userId)).returning({
+    id: users.id,
       email: users.email,
       username: users.username,
     });
@@ -336,14 +351,5 @@ export async function updateProfile(
 
     broadcast(RealtimeEvents.USER.PROFILE_UPDATED, { userId, ...updateData }, `user:${userId}`);
 
-    return { success: true, user: updated };
-  } catch (error: any) {
-    if (error.code === '23505') {
-       const detail = String(error.detail || error.message);
-       if (detail.includes('email')) throw new AuthError('El email ya está en uso', 409);
-       if (detail.includes('username')) throw new AuthError('El nombre de usuario ya está en uso', 409);
-       throw new AuthError('El nombre de usuario o email ya está en uso', 409);
-    }
-    throw error;
-  }
+  return { success: true, user: updated };
 }

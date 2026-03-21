@@ -11,17 +11,14 @@ import { StatusBadge, RoleBadge } from '@shared/ui/Badge';
 import { TextField } from '@shared/ui/TextField';
 import ErrorState from '@shared/ui/ErrorState';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
-import { EditIcon, KeyIcon, InfoIcon, DeviceIcon, LogoutIcon, UserHistoryIcon, EyeIcon, EyeOffIcon, CopyIcon } from '@shared/ui/icons';
+import { EditIcon, KeyIcon, InfoIcon, DeviceIcon, LogoutIcon, EyeIcon, EyeOffIcon, CopyIcon } from '@shared/ui/icons';
 import { useAuth } from '@modules/auth/store/auth.store';
 import {
     useUser,
     useUserSessions,
     useRevokeUserSession,
-    useUserAuditLog,
     useAdminResetPassword,
-    type UserSession,
-    type AuditLogEntry,
-} from '../data/users.api';
+} from '../data/users.queries';
 
 interface UserShowPanelProps {
     userId: number;
@@ -65,21 +62,6 @@ const formatRelative = (dateStr: string): string => {
     return formatDate(dateStr);
 };
 
-const AUDIT_ACTION_LABELS: Record<string, { label: string; color: string }> = {
-    'user.created': { label: 'Creado', color: 'bg-emerald-500/15 text-emerald-600' },
-    'user.updated': { label: 'Actualizado', color: 'bg-blue-500/15 text-blue-600' },
-    'user.deactivated': { label: 'Desactivado', color: 'bg-amber-500/15 text-amber-600' },
-    'user.restored': { label: 'Restaurado', color: 'bg-emerald-500/15 text-emerald-600' },
-    'user.destroyed': { label: 'Eliminado', color: 'bg-red-500/15 text-red-600' },
-    'user.roles_assigned': { label: 'Roles asignados', color: 'bg-violet-500/15 text-violet-600' },
-    'user.role_removed': { label: 'Rol removido', color: 'bg-amber-500/15 text-amber-600' },
-    'role.created': { label: 'Rol creado', color: 'bg-emerald-500/15 text-emerald-600' },
-    'role.updated': { label: 'Rol actualizado', color: 'bg-blue-500/15 text-blue-600' },
-    'role.deleted': { label: 'Rol eliminado', color: 'bg-red-500/15 text-red-600' },
-    'permission.updated': { label: 'Permisos', color: 'bg-violet-500/15 text-violet-600' },
-    'hierarchy.added': { label: 'Jerarquía añadida', color: 'bg-blue-500/15 text-blue-600' },
-    'hierarchy.removed': { label: 'Jerarquía removida', color: 'bg-amber-500/15 text-amber-600' },
-};
 
 const generatePassword = (length = 16): string => {
     const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
@@ -172,7 +154,6 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                     <TabsList class="flex px-2 py-1.5 overflow-x-auto shadow-sm rounded-xl">
                                         <TabsTrigger value="general"><InfoIcon class="size-4" /> General</TabsTrigger>
                                         <TabsTrigger value="sessions"><DeviceIcon class="size-4" /> Sesiones</TabsTrigger>
-                                        <TabsTrigger value="activity"><UserHistoryIcon class="size-4" /> Actividad</TabsTrigger>
                                     </TabsList>
                                 </div>
 
@@ -284,10 +265,9 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                     <UserSessionsTab userId={props.userId} />
                                 </TabsContent>
 
-                                {/* ═══ Activity Tab ═══ */}
-                                <TabsContent value="activity" class="animate-in fade-in duration-200">
+                                {/* <TabsContent value="activity" class="animate-in fade-in duration-200">
                                     <UserActivityTab userId={props.userId} />
-                                </TabsContent>
+                                </TabsContent> */}
                             </Tabs>
                         </div>
                     )}
@@ -438,128 +418,128 @@ const UserSessionsTab: Component<{ userId: number }> = (props) => {
 
 // ─── Activity Sub-Component ──────────────────────────────────────────────────
 
-const UserActivityTab: Component<{ userId: number }> = (props) => {
-    const [page, setPage] = createSignal(1);
-    const auditQuery = useUserAuditLog(() => props.userId, page);
+// const UserActivityTab: Component<{ userId: number }> = (props) => {
+//     const [page, setPage] = createSignal(1);
+//     const auditQuery = useUserAuditLog(() => props.userId, page);
 
-    const entries = () => auditQuery.data?.data ?? [];
-    const meta = () => auditQuery.data?.meta;
-    const isLoading = () => auditQuery.isLoading;
+//     const entries = () => auditQuery.data?.data ?? [];
+//     const meta = () => auditQuery.data?.meta;
+//     const isLoading = () => auditQuery.isLoading;
 
-    return (
-        <div>
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h3 class="text-sm font-semibold text-text">Registro de actividad</h3>
-                    <p class="text-xs text-muted mt-0.5">Acciones realizadas por o sobre este usuario</p>
-                </div>
-                <Show when={meta()}>
-                    <span class="text-xs text-muted">
-                        {meta()!.total} entradas
-                    </span>
-                </Show>
-            </div>
+//     return (
+//         <div>
+//             <div class="flex items-center justify-between mb-4">
+//                 <div>
+//                     <h3 class="text-sm font-semibold text-text">Registro de actividad</h3>
+//                     <p class="text-xs text-muted mt-0.5">Acciones realizadas por o sobre este usuario</p>
+//                 </div>
+//                 <Show when={meta()}>
+//                     <span class="text-xs text-muted">
+//                         {meta()!.total} entradas
+//                     </span>
+//                 </Show>
+//             </div>
 
-            <Show when={isLoading() && entries().length === 0}>
-                <div class="space-y-3">
-                    <For each={[0, 1, 2]}>{() => <ListItemSkeleton />}</For>
-                </div>
-            </Show>
+//             <Show when={isLoading() && entries().length === 0}>
+//                 <div class="space-y-3">
+//                     <For each={[0, 1, 2]}>{() => <ListItemSkeleton />}</For>
+//                 </div>
+//             </Show>
 
-            <Show when={auditQuery.isError && entries().length === 0}>
-                <ErrorState size="sm" description="Error al cargar el historial" onRetry={() => auditQuery.refetch()} />
-            </Show>
+//             <Show when={auditQuery.isError && entries().length === 0}>
+//                 <ErrorState size="sm" description="Error al cargar el historial" onRetry={() => auditQuery.refetch()} />
+//             </Show>
 
-            <Show when={!isLoading() && entries().length === 0 && !auditQuery.isError}>
-                <div class="text-center py-10 bg-surface/30 rounded-2xl border border-dashed border-border/60">
-                    <UserHistoryIcon class="size-8 mx-auto mb-3 opacity-20" />
-                    <p class="text-muted text-sm">Sin actividad registrada</p>
-                </div>
-            </Show>
+//             <Show when={!isLoading() && entries().length === 0 && !auditQuery.isError}>
+//                 <div class="text-center py-10 bg-surface/30 rounded-2xl border border-dashed border-border/60">
+//                     <UserHistoryIcon class="size-8 mx-auto mb-3 opacity-20" />
+//                     <p class="text-muted text-sm">Sin actividad registrada</p>
+//                 </div>
+//             </Show>
 
-            <Show when={entries().length > 0}>
-                {/* Timeline */}
-                <div class="relative">
-                    {/* Vertical line */}
-                    <div class="absolute left-[19px] top-2 bottom-2 w-px bg-border/40" />
+//             <Show when={entries().length > 0}>
+//                 {/* Timeline */}
+//                 <div class="relative">
+//                     {/* Vertical line */}
+//                     <div class="absolute left-[19px] top-2 bottom-2 w-px bg-border/40" />
 
-                    <div class="space-y-1">
-                        <For each={entries()}>
-                            {(entry) => {
-                                const actionInfo = () => AUDIT_ACTION_LABELS[entry.action] ?? {
-                                    label: entry.action,
-                                    color: 'bg-gray-500/15 text-gray-600',
-                                };
-                                const details = createMemo(() => {
-                                    if (!entry.details) return null;
-                                    try { return JSON.parse(entry.details); }
-                                    catch { return null; }
-                                });
+//                     <div class="space-y-1">
+//                         <For each={entries()}>
+//                             {(entry) => {
+//                                 const actionInfo = () => AUDIT_ACTION_LABELS[entry.action] ?? {
+//                                     label: entry.action,
+//                                     color: 'bg-gray-500/15 text-gray-600',
+//                                 };
+//                                 const details = createMemo(() => {
+//                                     if (!entry.details) return null;
+//                                     try { return JSON.parse(entry.details); }
+//                                     catch { return null; }
+//                                 });
 
-                                return (
-                                    <div class="relative flex items-start gap-3 py-2.5 pl-1">
-                                        {/* Dot */}
-                                        <div class="size-[10px] rounded-full bg-card border-2 border-border/60 mt-1.5 shrink-0 z-10" />
+//                                 return (
+//                                     <div class="relative flex items-start gap-3 py-2.5 pl-1">
+//                                         {/* Dot */}
+//                                         <div class="size-[10px] rounded-full bg-card border-2 border-border/60 mt-1.5 shrink-0 z-10" />
 
-                                        {/* Content */}
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-center gap-2 flex-wrap">
-                                                <span class={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${actionInfo().color}`}>
-                                                    {actionInfo().label}
-                                                </span>
-                                                <span class="text-[11px] text-muted/60" title={formatDate(entry.createdAt)}>
-                                                    {formatRelative(entry.createdAt)}
-                                                </span>
-                                            </div>
-                                            <Show when={entry.performedByUsername}>
-                                                <p class="text-xs text-muted mt-0.5">
-                                                    por <span class="font-medium text-text/80">{entry.performedByUsername}</span>
-                                                </p>
-                                            </Show>
-                                            <Show when={details()}>
-                                                <div class="mt-1 text-[11px] text-muted/70 bg-surface/40 rounded-lg px-2.5 py-1.5 font-mono break-all">
-                                                    {JSON.stringify(details(), null, 0)}
-                                                </div>
-                                            </Show>
-                                            <Show when={entry.ipAddress}>
-                                                <p class="text-[11px] text-muted/50 mt-0.5">IP: {entry.ipAddress}</p>
-                                            </Show>
-                                        </div>
-                                    </div>
-                                );
-                            }}
-                        </For>
-                    </div>
-                </div>
+//                                         {/* Content */}
+//                                         <div class="flex-1 min-w-0">
+//                                             <div class="flex items-center gap-2 flex-wrap">
+//                                                 <span class={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${actionInfo().color}`}>
+//                                                     {actionInfo().label}
+//                                                 </span>
+//                                                 <span class="text-[11px] text-muted/60" title={formatDate(entry.createdAt)}>
+//                                                     {formatRelative(entry.createdAt)}
+//                                                 </span>
+//                                             </div>
+//                                             <Show when={entry.performedByUsername}>
+//                                                 <p class="text-xs text-muted mt-0.5">
+//                                                     por <span class="font-medium text-text/80">{entry.performedByUsername}</span>
+//                                                 </p>
+//                                             </Show>
+//                                             <Show when={details()}>
+//                                                 <div class="mt-1 text-[11px] text-muted/70 bg-surface/40 rounded-lg px-2.5 py-1.5 font-mono break-all">
+//                                                     {JSON.stringify(details(), null, 0)}
+//                                                 </div>
+//                                             </Show>
+//                                             <Show when={entry.ipAddress}>
+//                                                 <p class="text-[11px] text-muted/50 mt-0.5">IP: {entry.ipAddress}</p>
+//                                             </Show>
+//                                         </div>
+//                                     </div>
+//                                 );
+//                             }}
+//                         </For>
+//                     </div>
+//                 </div>
 
-                {/* Pagination */}
-                <Show when={meta() && meta()!.pageCount > 1}>
-                    <div class="flex items-center justify-between mt-4 pt-4 border-t border-border/40">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={!meta()!.hasPrevPage || auditQuery.isFetching}
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                        >
-                            Anterior
-                        </Button>
-                        <span class="text-xs text-muted">
-                            Página {meta()!.page} de {meta()!.pageCount}
-                        </span>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={!meta()!.hasNextPage || auditQuery.isFetching}
-                            onClick={() => setPage(p => p + 1)}
-                        >
-                            Siguiente
-                        </Button>
-                    </div>
-                </Show>
-            </Show>
-        </div>
-    );
-};
+//                 {/* Pagination */}
+//                 <Show when={meta() && meta()!.pageCount > 1}>
+//                     <div class="flex items-center justify-between mt-4 pt-4 border-t border-border/40">
+//                         <Button
+//                             variant="outline"
+//                             size="sm"
+//                             disabled={!meta()!.hasPrevPage || auditQuery.isFetching}
+//                             onClick={() => setPage(p => Math.max(1, p - 1))}
+//                         >
+//                             Anterior
+//                         </Button>
+//                         <span class="text-xs text-muted">
+//                             Página {meta()!.page} de {meta()!.pageCount}
+//                         </span>
+//                         <Button
+//                             variant="outline"
+//                             size="sm"
+//                             disabled={!meta()!.hasNextPage || auditQuery.isFetching}
+//                             onClick={() => setPage(p => p + 1)}
+//                         >
+//                             Siguiente
+//                         </Button>
+//                     </div>
+//                 </Show>
+//             </Show>
+//         </div>
+//     );
+// };
 
 // ─── Password Reset Sub-Component ────────────────────────────────────────────
 

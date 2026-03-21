@@ -4,18 +4,25 @@ import { toast } from 'solid-sonner';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 import { FloppyDiskIcon } from '@shared/ui/icons';
-import { useCreateUser, useRoles, useEntitiesList, useSetUserEntity } from '../data/users.api';
+import { useCreateUser, useRoles, useEntitiesList, useSetUserEntity } from '../data/users.queries';
 import UserForm from './UserForm';
 import type { EntityOption } from './UserForm';
 
-const UserNewSheet: Component = () => {
+interface UserNewSheetProps {
+    onClose?: () => void;
+}
+
+const UserNewSheet: Component<UserNewSheetProps> = (props) => {
     const navigate = useNavigate();
     const createMutation = useCreateUser();
     const rolesQuery = useRoles();
     const entitiesQuery = useEntitiesList();
     const setEntityMutation = useSetUserEntity();
 
-    const handleClose = () => navigate({ to: '/users' });
+    const handleClose = () => {
+        if (props.onClose) props.onClose();
+        else navigate({ to: '/users' });
+    };
 
     const entityOptions = createMemo((): EntityOption[] => {
         const raw = entitiesQuery.data;

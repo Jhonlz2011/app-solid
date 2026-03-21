@@ -678,7 +678,7 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                         </TabsContent>
 
                         {/* 2. Contacts Tab */}
-                        <TabsContent value="contacts" class="w-full max-w-5xl">
+                        <TabsContent value="contacts" forceMount={false} class="w-full max-w-5xl">
                             <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
                                 <div class="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
                                     <div class="w-1.5 h-4 bg-primary rounded-full"></div>
@@ -772,7 +772,7 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                         </TabsContent>
 
                         {/* 3. Addresses Tab */}
-                        <TabsContent value="addresses" class="w-full max-w-5xl">
+                        <TabsContent value="addresses" forceMount={false} class="w-full max-w-5xl">
                             <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
                                 <div class="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
                                     <div class="w-1.5 h-4 bg-primary rounded-full"></div>

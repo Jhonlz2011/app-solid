@@ -159,7 +159,6 @@ async function seedMenuItems() {
                         path: item.path || null,
                         sort_order: item.sort_order,
                         permission_prefix: item.permission_prefix || null,
-                        updated_at: new Date(),
                     }
                 })
                 .returning({ id: authMenuItems.id });
@@ -197,7 +196,6 @@ async function seedMenuItems() {
                             parent_id: parentId,
                             sort_order: child.sort_order,
                             permission_prefix: child.permission_prefix || null,
-                            updated_at: new Date(),
                         }
                     })
                     .returning({ id: authMenuItems.id });

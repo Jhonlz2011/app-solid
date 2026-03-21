@@ -8,7 +8,6 @@ import { listForPicker } from '../services/entities.service';
  */
 export const entityRoutes = new Elysia({ prefix: '/entities' })
     .use(authGuard)
-    // List entities for picker (minimal fields)
     .get(
         '/',
         ({ query }) => {

@@ -4,9 +4,10 @@ import {
     useDeactivateUser,
     useHardDeleteUser,
     useCheckUserReferences,
-    type UserListItem,
-    type UserReferences,
-} from '../data/users.api';
+} from '../data/users.queries';
+
+import type { UserListItem, UserReferences } from '../models/users.types';
+
 import DeleteDialog from '@shared/ui/DeleteDialog';
 
 export interface UserDeleteDialogProps {
@@ -50,7 +51,6 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
         const lines: string[] = [];
         if (data.roles > 0) lines.push(`${data.roles} rol(es) asignado(s)`);
         if (data.activeSessions > 0) lines.push(`${data.activeSessions} sesión(es) activa(s)`);
-        if (data.auditLogs > 0) lines.push(`${data.auditLogs} registro(s) de auditoría`);
         return lines;
     };
 

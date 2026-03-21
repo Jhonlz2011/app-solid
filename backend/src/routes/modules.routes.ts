@@ -1,7 +1,8 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { ForbiddenError } from '../services/errors';
 import { getAllowedModules, getUserPermissions, getUserRoles } from '../services/rbac.service';
-import { DomainError } from '../services/errors';
+import { SYSTEM_ROLES } from '@app/schema/enums';
 import {
     getMenuForUser,
     getFullMenuTree,
@@ -13,8 +14,8 @@ import {
 // Shared admin check — replaces 4 inline duplications
 async function requireAdmin(currentUserId: number) {
     const roles = await getUserRoles(currentUserId);
-    if (!roles.includes('admin') && !roles.includes('superadmin')) {
-        throw new DomainError('Acceso denegado: se requiere rol de administrador', 403);
+    if (!roles.includes(SYSTEM_ROLES.SUPERADMIN)) {
+        throw new ForbiddenError('Acceso denegado: se requiere rol de administrador');
     }
 }
 
@@ -40,7 +41,7 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
     .get('/permissions', async ({ currentUserId }) => {
         const roles = await getUserRoles(currentUserId);
         // Admin gets wildcard
-        if (roles.includes('admin') || roles.includes('superadmin')) {
+        if (roles.includes(SYSTEM_ROLES.SUPERADMIN)) {
             return ['*'];
         }
         const permissions = await getUserPermissions(currentUserId);
