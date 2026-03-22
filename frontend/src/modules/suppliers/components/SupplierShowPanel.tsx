@@ -92,42 +92,52 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                         }
                     >
                         {(supplier) => (
-                            <div class="flex flex-col">
-                                {/* Header info */}
-                                <div class="flex items-start justify-between flex-shrink-0 pb-4">
-                                    <div class="flex gap-4 items-center">
-                                        <div class="size-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl shadow-inner border border-primary/20">
-                                            {supplier().business_name.substring(0, 2).toUpperCase()}
-                                        </div>
-                                        <div class="flex flex-col gap-1">
-                                            <h3 class="text-xl font-bold text-text leading-tight">{supplier().business_name}</h3>
-                                            <Show when={supplier().trade_name}>
-                                                <p class="text-sm text-muted font-medium">{supplier().trade_name}</p>
-                                            </Show>
-                                            <div class="flex gap-2 items-center mt-1">
-                                                <span class="text-xs font-mono bg-surface/50 px-2 py-0.5 rounded-md border border-border/50 text-text/80 shadow-sm">{supplier().tax_id}</span>
-                                                <StatusBadge isActive={supplier().is_active} />
+                            <Tabs defaultValue="general" class="w-full flex flex-col h-full">
+                                {/* 
+                                    ESTRATEGIA TAILWIND V4 PARA STICKY HEADERS:
+                                    En lugar de tener múltiples elementos sticky compitiendo con `top-0` y `top-19`,
+                                    agrupamos TODO el encabezado (Info + TabsList) en un ÚNICO contenedor `sticky top-0`.
+                                    El navegador calculará dinámicamente la altura total y el contenido siempre hará scroll 
+                                    perfectamente por debajo, sin importar si el nombre de la empresa hace salto de línea.
+                                */}
+                                <div class="sticky top-0 z-20 bg-card/95 backdrop-blur-md pt-5 pb-3 border-b border-border/40 flex flex-col gap-5">
+                                    {/* Header info */}
+                                    <div class="flex items-start justify-between flex-shrink-0">
+                                        <div class="flex gap-4 items-center">
+                                            <div class="size-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl shadow-inner border border-primary/20">
+                                                {supplier().business_name.substring(0, 2).toUpperCase()}
+                                            </div>
+                                            <div class="flex flex-col gap-1">
+                                                <h3 class="text-xl font-bold text-text leading-tight">{supplier().business_name}</h3>
+                                                <Show when={supplier().trade_name}>
+                                                    <p class="text-sm text-muted font-medium">{supplier().trade_name}</p>
+                                                </Show>
+                                                <div class="flex gap-2 items-center mt-1">
+                                                    <span class="text-xs font-mono bg-surface/50 px-2 py-0.5 rounded-md border border-border/50 text-text/80 shadow-sm">{supplier().tax_id}</span>
+                                                    <StatusBadge isActive={supplier().is_active} />
+                                                </div>
                                             </div>
                                         </div>
+                                        <Button variant="outline" size="sm" onClick={handleEdit} class="gap-2 shrink-0 bg-surface/50 hover:bg-surface">
+                                            <EditIcon class="size-4 text-muted" />
+                                            Editar
+                                        </Button>
                                     </div>
-                                    <Button variant="outline" size="sm" onClick={handleEdit} class="gap-2 shrink-0 bg-surface/50 hover:bg-surface">
-                                        <EditIcon class="size-4 text-muted" />
-                                        Editar
-                                    </Button>
+
+                                    {/* TabsList */}
+                                    <div>
+                                        <TabsList class="flex py-1.5 overflow-x-auto shadow-sm rounded-xl">
+                                            <TabsTrigger value="general"><InfoIcon /> Información General</TabsTrigger>
+                                            <TabsTrigger value="contacts" count={supplier().contacts?.length || 0}><UserIcon class="size-4" /> Contactos</TabsTrigger>
+                                            <TabsTrigger value="addresses" count={supplier().addresses?.length || 0}><MapPinIcon class="size-4" /> Direcciones</TabsTrigger>
+                                        </TabsList>
+                                    </div>
                                 </div>
 
-                                <div class="flex-1 pt-2 pr-1 pb-4">
-                                    <Tabs defaultValue="general" class="w-full flex flex-col h-full">
-                                        <div class="sticky top-0 z-20 bg-card/95 backdrop-blur pt-1 pb-4">
-                                            <TabsList class="flex px-2 py-1.5 overflow-x-auto shadow-sm rounded-xl">
-                                                <TabsTrigger value="general"><InfoIcon /> Información General</TabsTrigger>
-                                                <TabsTrigger value="contacts" count={supplier().contacts?.length || 0}><UserIcon class="size-4" /> Contactos</TabsTrigger>
-                                                <TabsTrigger value="addresses" count={supplier().addresses?.length || 0}><MapPinIcon class="size-4" /> Direcciones</TabsTrigger>
-                                                {/* <TabsTrigger value="fiscal"><ScalesIcon class="size-4" /> Datos Fiscales</TabsTrigger> */}
-                                            </TabsList>
-                                        </div>
+                                {/* Scrolled Content */}
+                                <div class="flex-1 pr-1 pb-6 pt-4">
 
-                                        <TabsContent value="general" class="space-y-4 fill-mode-both">
+                                        <TabsContent value="general" class="space-y-4 fill-mode-both pt-4">
                                             <div class="bg-surface/30 rounded-2xl border border-border/40 overflow-hidden shadow-sm">
                                                 <div class="bg-surface/50 px-5 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
                                                     <div class="size-1.5 rounded-full bg-primary"></div>
@@ -196,7 +206,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                             </div>
                                         </TabsContent>
 
-                                        <TabsContent value="contacts" class="animate-in fade-in duration-300 fill-mode-both">
+                                        <TabsContent value="contacts" class="fill-mode-both pt-4">
                                             <Show when={(supplier().contacts?.length ?? 0) > 0} fallback={
                                                 <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
                                                     <UserIcon class="size-8 opacity-20 mb-3" />
@@ -230,7 +240,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                             </Show>
                                         </TabsContent>
 
-                                        <TabsContent value="addresses" class="animate-in fade-in duration-300 fill-mode-both">
+                                        <TabsContent value="addresses" class="fill-mode-both pt-4">
                                             <Show when={(supplier().addresses?.length ?? 0) > 0} fallback={
                                                 <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
                                                     <div class="text-2xl opacity-30 mb-2">📍</div>
@@ -280,9 +290,8 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                         {/* <TabsContent value="fiscal" class="animate-in fade-in duration-300 fill-mode-both">
                                         
                                         </TabsContent> */}
-                                    </Tabs>
                                 </div>
-                            </div>
+                            </Tabs>
                         )}
                     </Show>
                 </Show>

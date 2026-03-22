@@ -7,6 +7,7 @@ import { broadcast } from '../plugins/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { createHash } from 'crypto';
 import type { TaxIdType, PersonType, TaxRegimeType } from '@app/schema/enums';
+import { withAuditTransaction, type AuditContext } from './audit.service';
 
 // Entity type discriminator
 export type EntityType = 'client' | 'supplier' | 'employee' | 'carrier';
@@ -549,8 +550,8 @@ export async function getEntity(id: number) {
 /**
  * Create entity with type flags
  */
-export async function createEntity(type: EntityType, payload: EntityPayload, clientId?: string) {
-    return await db.transaction(async (tx) => {
+export async function createEntity(type: EntityType, payload: EntityPayload, audit?: AuditContext) {
+    return await withAuditTransaction(audit, async (tx) => {
         const [created] = await tx
             .insert(entities)
             .values({
@@ -612,7 +613,7 @@ export async function createEntity(type: EntityType, payload: EntityPayload, cli
 
         // Invalidate list and total caches (awaitable now)
         await cacheService.invalidate(`${type}s:*`);
-        broadcast(RealtimeEvents.ENTITY.CREATED, { type, entity: created, clientId }, `${type}s`);
+        broadcast(RealtimeEvents.ENTITY.CREATED, { type, entity: created, clientId: audit?.clientId }, `${type}s`);
 
         return created;
     });
@@ -625,8 +626,8 @@ export async function createEntity(type: EntityType, payload: EntityPayload, cli
 /**
  * Update entity
  */
-export async function updateEntity(id: number, type: EntityType, payload: Partial<EntityPayload>, clientId?: string) {
-    return db.transaction(async (tx) => {
+export async function updateEntity(id: number, type: EntityType, payload: Partial<EntityPayload>, audit?: AuditContext) {
+    return withAuditTransaction(audit, async (tx) => {
         const [updated] = await tx
             .update(entities)
             .set(stripUndefined({
@@ -710,7 +711,7 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
             await cacheService.invalidate(`${type}s:*`);
         }
 
-        broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId }, `${type}s`);
+        broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
 
         return updated;
     });
@@ -737,27 +738,29 @@ export async function deactivateEntity(
     id: number,
     type: EntityType,
     deletedBy?: number,
-    clientId?: string
+    audit?: AuditContext
 ) {
-    const [updated] = await db
-        .update(entities)
-        .set({
-            is_active: false,
-            deleted_at: new Date(),
-            deleted_by: deletedBy ?? null,
-        })
-        .where(eq(entities.id, id))
-        .returning();
+    return withAuditTransaction(audit, async (tx) => {
+        const [updated] = await tx
+            .update(entities)
+            .set({
+                is_active: false,
+                deleted_at: new Date(),
+                deleted_by: deletedBy ?? null,
+            })
+            .where(eq(entities.id, id))
+            .returning();
 
-    if (!updated) throw new DomainError('Entidad no encontrada', 404);
+        if (!updated) throw new DomainError('Entidad no encontrada', 404);
 
-    await cacheService.invalidate(`entity:${id}`);
-    await cacheService.invalidate(`${type}s:*`);
-    
-    // Broadcast as UPDATED so the frontend knows its new `is_active` state
-    broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId }, `${type}s`);
+        await cacheService.invalidate(`entity:${id}`);
+        await cacheService.invalidate(`${type}s:*`);
+        
+        // Broadcast as UPDATED so the frontend knows its new `is_active` state
+        broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
 
-    return { success: true };
+        return { success: true };
+    });
 }
 
 /**
@@ -766,25 +769,27 @@ export async function deactivateEntity(
 export async function restoreEntity(
     id: number,
     type: EntityType,
-    clientId?: string
+    audit?: AuditContext
 ) {
-    const [updated] = await db
-        .update(entities)
-        .set({
-            is_active: true,
-            deleted_at: null,
-            deleted_by: null,
-        })
-        .where(and(eq(entities.id, id)))
-        .returning();
+    return withAuditTransaction(audit, async (tx) => {
+        const [updated] = await tx
+            .update(entities)
+            .set({
+                is_active: true,
+                deleted_at: null,
+                deleted_by: null,
+            })
+            .where(and(eq(entities.id, id)))
+            .returning();
 
-    if (!updated) throw new DomainError('Entidad no encontrada', 404);
+        if (!updated) throw new DomainError('Entidad no encontrada', 404);
 
-    await cacheService.invalidate(`entity:${id}`);
-    await cacheService.invalidate(`${type}s:*`);
-    broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId }, `${type}s`);
+        await cacheService.invalidate(`entity:${id}`);
+        await cacheService.invalidate(`${type}s:*`);
+        broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
 
-    return { success: true };
+        return { success: true };
+    });
 }
 
 /**
@@ -821,7 +826,7 @@ export async function checkEntityReferences(id: number): Promise<EntityReference
 export async function hardDeleteEntity(
     id: number,
     type: EntityType,
-    clientId?: string
+    audit?: AuditContext
 ) {
     // 1. Integrity guard — server always validates, never trust client pre-check
     const refs = await checkEntityReferences(id);
@@ -832,23 +837,25 @@ export async function hardDeleteEntity(
         );
     }
 
-    // 2. Confirm entity exists and belongs to expected type
-    const [target] = await db
-        .select({ id: entities.id })
-        .from(entities)
-        .where(eq(entities.id, id));
+    return withAuditTransaction(audit, async (tx) => {
+        // 2. Confirm entity exists and belongs to expected type
+        const [target] = await tx
+            .select({ id: entities.id })
+            .from(entities)
+            .where(eq(entities.id, id));
 
-    if (!target) throw new DomainError('Entidad no encontrada', 404);
+        if (!target) throw new DomainError('Entidad no encontrada', 404);
 
-    // 3. DELETE — cascades to entityContacts, entityAddresses, employeeDetails
-    await db.delete(entities).where(eq(entities.id, id));
+        // 3. DELETE — cascades to entityContacts, entityAddresses, employeeDetails
+        await tx.delete(entities).where(eq(entities.id, id));
 
-    // 4. Cache cleanup + broadcast
-    await cacheService.invalidate(`entity:${id}`);
-    await cacheService.invalidate(`${type}s:*`);
-    broadcast(RealtimeEvents.ENTITY.DELETED, { type, id, clientId }, `${type}s`);
+        // 4. Cache cleanup + broadcast
+        await cacheService.invalidate(`entity:${id}`);
+        await cacheService.invalidate(`${type}s:*`);
+        broadcast(RealtimeEvents.ENTITY.DELETED, { type, id, clientId: audit?.clientId }, `${type}s`);
 
-    return { success: true };
+        return { success: true };
+    });
 }
 
 // =============================================================================

@@ -32,10 +32,10 @@ import { rbac } from './plugins/rbac';
 import { errorHandlerPlugin } from './plugins/error-handler';
 
 // Services & Config
-import { AuthError } from './services/auth.service';
-import { DomainError } from './services/errors';
+
 import { env } from './config/env';
 import { initSSERedisAdapter } from './plugins/sse';
+import { startAuditWorker } from './services/audit.service';
 
 const allowedOrigins = new Set([
   env.FRONTEND_URL,
@@ -139,6 +139,9 @@ const serverConfig = {
 
 
 app.listen(serverConfig);
+
+// Start Audit Worker in the background
+startAuditWorker();
 
 // Redis Pub/Sub — WebSocket adapter for real-time events
 (async () => {

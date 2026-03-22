@@ -50,7 +50,7 @@ export const AddressPayloadSchema = Type.Object({
 });
 
 // Supplier create/update body schema
-// Note: Aligns with frontend SupplierFormSchema in packages/schema/src/frontend.ts
+// Note: Aligns with frontend EntityFormSchema in packages/schema/src/frontend.ts
 export const SupplierBodySchema = Type.Object({
     taxId: Type.String(),
     taxIdType: TaxIdTypeSchema,
@@ -59,13 +59,30 @@ export const SupplierBodySchema = Type.Object({
     tradeName: Type.Optional(Type.String()), // Optional - may be empty string
     emailBilling: Type.Optional(Type.Union([Type.String({ format: 'email' }), Type.Literal('')])),
     phone: Type.Optional(Type.String()), // Optional - may be empty string
+    // Role flags
+    isClient: Type.Optional(Type.Boolean()),
+    isSupplier: Type.Optional(Type.Boolean()),
+    isEmployee: Type.Optional(Type.Boolean()),
+    isCarrier: Type.Optional(Type.Boolean()),
+    // Tax (SRI)
     taxRegimeType: Type.Optional(TaxRegimeTypeSchema), // Optional enum
     obligadoContabilidad: Type.Optional(Type.Boolean()), // Optional - defaults to false in form
     isRetentionAgent: Type.Optional(Type.Boolean()),
     isSpecialContributor: Type.Optional(Type.Boolean()),
+    // Employee Details (optional sub-object)
+    employeeDetails: Type.Optional(Type.Object({
+        department: Type.Optional(Type.String()),
+        jobTitle: Type.Optional(Type.String()),
+        salaryBase: Type.Optional(Type.Number()),
+        hireDate: Type.Optional(Type.String()),
+        costPerHour: Type.Optional(Type.Number()),
+    })),
     contacts: Type.Optional(Type.Array(ContactPayloadSchema)),
     addresses: Type.Optional(Type.Array(AddressPayloadSchema)),
 });
+
+/** Alias for backward compatibility */
+export const EntityBodySchema = SupplierBodySchema;
 
 export const SupplierUpdateSchema = Type.Partial(Type.Omit(SupplierBodySchema, ['taxId', 'taxIdType']));
 

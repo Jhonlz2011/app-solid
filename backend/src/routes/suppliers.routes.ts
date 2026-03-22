@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { getIpAndUserAgent } from '../plugins/ip';
 import { suppliersService } from '../services/suppliers.service';
 import {
     addAddress,
@@ -79,8 +80,9 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     )
     .post(
         '/',
-        async ({ body, set, headers }) => {
-            const supplier = await suppliersService.create(body, headers['x-client-id']);
+        async ({ body, set, headers, currentUserId, request }) => {
+            const { ipAddress } = getIpAndUserAgent(request);
+            const supplier = await suppliersService.create(body, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
             set.status = 201;
             return supplier;
         },
@@ -88,7 +90,10 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     )
     .put(
         '/:id',
-        ({ params, body, headers }) => suppliersService.update(Number(params.id), body, headers['x-client-id']),
+        ({ params, body, headers, currentUserId, request }) => {
+            const { ipAddress } = getIpAndUserAgent(request);
+            return suppliersService.update(Number(params.id), body, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
+        },
         {
             params: t.Object({ id: t.Numeric() }),
             body: SupplierUpdateSchema,
@@ -97,8 +102,9 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     // Bulk deactivate (soft delete) — before /:id to avoid route conflict
     .delete(
         '/bulk',
-        async ({ body, headers }) => {
-            return suppliersService.bulkDelete(body.ids, headers['x-client-id']);
+        async ({ body, headers, currentUserId, request }) => {
+            const { ipAddress } = getIpAndUserAgent(request);
+            return suppliersService.bulkDelete(body.ids, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
         },
         {
             body: t.Object({
@@ -109,8 +115,9 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     // Bulk restore
     .patch(
         '/bulk/restore',
-        async ({ body, headers }) => {
-            return suppliersService.bulkRestore(body.ids, headers['x-client-id']);
+        async ({ body, headers, currentUserId, request }) => {
+            const { ipAddress } = getIpAndUserAgent(request);
+            return suppliersService.bulkRestore(body.ids, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
         },
         {
             body: t.Object({
@@ -127,11 +134,12 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     // Soft delete (deactivate) — safe default, reversible
     .patch(
         '/:id/deactivate',
-        async ({ params, set, headers }) => {
+        async ({ params, set, headers, currentUserId, request }) => {
+            const { ipAddress } = getIpAndUserAgent(request);
             await suppliersService.softDelete(
                 Number(params.id),
                 undefined, // deletedBy: wire to session user id when RBAC is available
-                headers['x-client-id']
+                { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
             );
             set.status = 204;
         },
@@ -140,16 +148,18 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     // Restore a soft-deleted supplier
     .patch(
         '/:id/restore',
-        async ({ params, headers }) => {
-            return suppliersService.restore(Number(params.id), headers['x-client-id']);
+        async ({ params, headers, currentUserId, request }) => {
+            const { ipAddress } = getIpAndUserAgent(request);
+            return suppliersService.restore(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
         },
         { params: t.Object({ id: t.Numeric() }) }
     )
     // Hard delete — permanent, guarded by suppliers:destroy permission
     .delete(
         '/:id',
-        async ({ params, set, headers }) => {
-            await suppliersService.hardDelete(Number(params.id), headers['x-client-id']);
+        async ({ params, set, headers, currentUserId, request }) => {
+            const { ipAddress } = getIpAndUserAgent(request);
+            await suppliersService.hardDelete(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
             set.status = 204;
         },
         { params: t.Object({ id: t.Numeric() }) }

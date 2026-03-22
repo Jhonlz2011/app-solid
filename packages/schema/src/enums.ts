@@ -5,7 +5,10 @@ import { pgEnum } from 'drizzle-orm/pg-core';
 // ============================================================================
 
 // Entity-related enums
-export const TAX_ID_TYPES = ['RUC', 'CEDULA', 'PASAPORTE', 'CONSUMIDOR_FINAL', 'EXTERIOR'] as const
+export const TAX_ID_TYPES = ['RUC', 'CEDULA', 'PASAPORTE', 'CONSUMIDOR_FINAL', 'EXTERIOR'] as const;
+/** Form-only subset: excludes CONSUMIDOR_FINAL (seed-only DB record) */
+export const TAX_ID_TYPES_FORM = ['RUC', 'CEDULA', 'PASAPORTE', 'EXTERIOR'] as const;
+export type TaxIdTypeForm = typeof TAX_ID_TYPES_FORM[number];
 export const PERSON_TYPES = ['NATURAL', 'JURIDICA'] as const;
 export const TAX_REGIME_TYPES = ['RIMPE_NEGOCIO_POPULAR', 'RIMPE_EMPRENDEDOR', 'GENERAL'] as const;
 

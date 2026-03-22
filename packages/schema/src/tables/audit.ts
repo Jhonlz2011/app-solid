@@ -1,25 +1,5 @@
-// import { text, integer, timestamp, index } from 'drizzle-orm/pg-core';
-// import { pgTableV2 } from '../utils';
-// import { authUsers } from './auth';
-
-// // --- AUDIT LOG (RBAC change tracking) ---
-// export const auditLogs = pgTableV2("audit_logs", {
-//     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-//     user_id: integer("user_id").references(() => authUsers.id).notNull(),
-//     action: text("action").notNull(),          // 'role.created', 'permission.updated', etc.
-//     target_type: text("target_type").notNull(), // 'role', 'user', 'permission', 'hierarchy'
-//     target_id: integer("target_id"),           // ID of the affected entity
-//     details: text("details"),                   // JSON stringified diff/context
-//     ip_address: text("ip_address"),
-//     created_at: timestamp("created_at").defaultNow().notNull(),
-// }, (t) => [
-//     index("idx_audit_user").on(t.user_id),
-//     index("idx_audit_target").on(t.target_type, t.target_id),
-//     index("idx_audit_created").on(t.created_at),
-// ]);
-
 import { 
-  pgTable, timestamp, jsonb, index, varchar, uuid, pgEnum, customType, integer
+  pgTable, timestamp, jsonb, index, varchar, uuid, pgEnum, customType, integer, text, primaryKey
 } from 'drizzle-orm/pg-core';
 import { v7 as uuidv7 } from 'uuid'; // Generación de UUIDv7 en Bun
 import { authUsers } from './auth';
@@ -34,8 +14,7 @@ const inet = customType<{ data: string }>({
 
 export const auditLogs = pgTable("audit_logs", {
     // Generación descentralizada cronológica. Rápida y sin fragmentar el índice.
-    id: uuid("id").primaryKey().$defaultFn(() => uuidv7()), 
-    // Identificadores Polimórficos
+    id: uuid("id").$defaultFn(() => uuidv7()).notNull(),    // Identificadores Polimórficos
     tableName: varchar("table_name", { length: 64 }).notNull(),
     recordId: varchar("record_id", { length: 128 }).notNull(),
     action: actionEnum("action").notNull(),
@@ -51,6 +30,8 @@ export const auditLogs = pgTable("audit_logs", {
         .defaultNow()
         .notNull(),
 }, (t) => [
+
+    primaryKey({ columns: [t.id, t.createdAt] }),
     // EL ÍNDICE MÁS IMPORTANTE: Compuesto por Tabla + ID del Registro
     index("idx_audit_target").on(t.tableName, t.recordId),
     
@@ -58,5 +39,17 @@ export const auditLogs = pgTable("audit_logs", {
     index("idx_audit_user").on(t.userId),
     
     // Índice para filtrar por rangos de fecha rápidos
-    index("idx_audit_date").on(t.createdAt),
 ]);
+
+// Esta es la tabla temporal ultraligera
+export const auditQueue = pgTable("_audit_queue", {
+    id: integer("id").generatedAlwaysAsIdentity({ cycle:true }).primaryKey(),
+    tableName: text("table_name").notNull(),
+    recordId: text("record_id").notNull(),
+    action: text("action").notNull(),
+    oldData: jsonb("old_data"),
+    newData: jsonb("new_data"),
+    userId: text("user_id"),
+    ipAddress: text("ip_address"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+});

@@ -64,12 +64,24 @@ export const createUsersRoutes = (layoutRoute: any) => {
     const userNewRoute = createRoute({
         getParentRoute: () => usersRoute,
         path: 'new',
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canAdd('users')) {
+                throw redirect({ to: '/users' });
+            }
+        },
         component: () => <UserNewSheet />,
     });
 
     const userEditRoute = createRoute({
         getParentRoute: () => usersRoute,
         path: 'edit/$id',
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('users')) {
+                throw redirect({ to: '/users' });
+            }
+        },
         component: UserEditWrapper,
         loader: async ({ params }) => {
             const id = Number(params.id);

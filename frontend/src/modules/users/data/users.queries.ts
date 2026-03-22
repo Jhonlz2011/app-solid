@@ -533,3 +533,14 @@ export function useSetUserEntity() {
         },
     }));
 }
+
+export function useUserAuditLog(userId: () => number, page: () => number) {
+    return createQuery(() => ({
+        queryKey: rbacKeys.userAuditLog(userId(), page()),
+        queryFn: () => usersApi.getUserAuditLog(userId(), page()),
+        enabled: userId() > 0,
+        staleTime: 1000 * 60 * 2,
+        gcTime: 1000 * 60 * 10,
+        placeholderData: keepPreviousData,
+    }));
+}

@@ -13,12 +13,11 @@ export type { SupplierBody as SupplierPayload, SupplierFilters };
 export type { TaxIdType, PersonType, TaxRegimeType };
 export type { ContactFormData, AddressFormData } from '@app/schema/frontend';
 
-// UI Label mappings
-export const taxIdTypeLabels: Record<TaxIdType, string> = {
+// UI Label mappings (We omit CONSUMIDOR_FINAL intentionally for the Form UI)
+export const taxIdTypeLabels: Partial<Record<TaxIdType, string>> = {
     RUC: 'RUC',
     CEDULA: 'Cédula',
     PASAPORTE: 'Pasaporte',
-    CONSUMIDOR_FINAL: 'Consumidor Final',
     EXTERIOR: 'Exterior',
 };
 

@@ -18,6 +18,13 @@ import { Autocomplete } from '@shared/ui/Autocomplete';
 import { SearchIcon, PlusIcon, TrashIcon, InfoIcon, UsersIcon, MapPinIcon, FileTextIcon, ScalesIcon } from '@shared/ui/icons';
 import { CounterBadge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
+import { 
+  SegmentedControl, 
+  SegmentedControlIndicator, 
+  SegmentedControlItem, 
+  SegmentedControlItemInput, 
+  SegmentedControlItemLabel 
+} from '@shared/ui/SegmentedControl';
 // Select option types
 interface SelectOption<T extends string> {
     value: T;
@@ -224,7 +231,6 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
     const queryClient = useQueryClient();
 
     // Server error signal for form-level errors (non-field)
-    const [serverError, setServerError] = createSignal('');
 
     const form = createForm(() => ({
         defaultValues: {
@@ -252,7 +258,6 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
             onSubmit: SupplierFormSchema,
         },
         onSubmit: async ({ value }) => {
-            setServerError('');
             try {
                 await props.onSubmit(value as SupplierFormData);
             } catch (err) {
@@ -269,13 +274,12 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                             }));
                         } catch {
                             // Field not found in form — show as form-level error
-                            setServerError(prev => prev ? `${prev}. ${fieldErr.message}` : fieldErr.message);
+                           
                         }
                     }
                 }
                 // Set form-level error for non-field errors
                 const msg = err instanceof ApiError ? err.message : (err instanceof Error ? err.message : 'Error del servidor');
-                if (!serverError()) setServerError(msg);
             }
         },
     }));
@@ -384,26 +388,25 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
             }}
             class="flex flex-col"
         >
-                {/* Server error banner */}
-                <Show when={serverError()}>
-                    <div class="mx-1 mb-3 px-4 py-3 bg-danger/10 border border-danger/30 rounded-xl text-sm text-danger font-medium flex items-start gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <svg class="size-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                        </svg>
-                        <span>{serverError()}</span>
-                    </div>
-                </Show>
                 <Tabs defaultValue="general" class="w-full h-full flex flex-col ">
                     {/* Tabs Header Sticky */}
-                    <div class="sticky top-0 z-20 max-w-full bg-card pt-3">
+                    <div class="sticky top-0 z-20 max-w-full bg-card pt-4">
                         <TabsList class="flex overflow-x-auto shadow-sm rounded-xl ">
                             <TabsTrigger value="general"><InfoIcon/> General</TabsTrigger>
-                            <TabsTrigger value="contacts" count={form.state.values.contacts?.length || 0}>
-                                <UsersIcon class="size-4"/> Contactos
-                            </TabsTrigger>
-                            <TabsTrigger value="addresses" count={form.state.values.addresses?.length || 0}>
-                                <MapPinIcon class="size-4"/> Direcciones
-                            </TabsTrigger>
+                            <form.Subscribe selector={(state) => state.values.contacts?.length || 0}>
+                                {(count) => (
+                                    <TabsTrigger value="contacts" count={count()}>
+                                        <UsersIcon class="size-4"/> Contactos
+                                    </TabsTrigger>
+                                )}
+                            </form.Subscribe>
+                            <form.Subscribe selector={(state) => state.values.addresses?.length || 0}>
+                                {(count) => (
+                                    <TabsTrigger value="addresses" count={count()}>
+                                        <MapPinIcon class="size-4"/> Direcciones
+                                    </TabsTrigger>
+                                )}
+                            </form.Subscribe>
                             {/* <TabsTrigger value="fiscal"><ScalesIcon class="size-4" /> Datos Fiscales</TabsTrigger> */}
                         </TabsList>
                     </div>
@@ -500,27 +503,22 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                                     {(field) => (
                                         <div class="space-y-1.5 w-full sm:w-1/2 pr-2.5">
                                             <FieldLabel>Tipo Persona</FieldLabel>
-                                            <Select
-                                                value={personTypeOptions.find(o => o.value === field().state.value)}
-                                                onChange={(opt) => opt && field().handleChange(opt.value)}
-                                                options={personTypeOptions}
-                                                optionValue="value"
-                                                optionTextValue="label"
+                                            <SegmentedControl 
+                                                value={field().state.value} 
+                                                onChange={(val) => field().handleChange(val as 'NATURAL' | 'JURIDICA')} 
                                                 disabled={isEdit()}
-                                                placeholder="Seleccionar..."
-                                                itemComponent={(itemProps) => (
-                                                    <SelectItem item={itemProps.item}>
-                                                        {itemProps.item.rawValue.label}
-                                                    </SelectItem>
-                                                )}
                                             >
-                                                <SelectTrigger>
-                                                    <SelectValue<SelectOption<PersonType>>>
-                                                        {(state) => state.selectedOption()?.label}
-                                                    </SelectValue>
-                                                </SelectTrigger>
-                                                <SelectContent />
-                                            </Select>
+                                                <SegmentedControlIndicator />
+                                                <Index each={personTypeOptions}>
+                                                    {(opt) => (
+                                                        <SegmentedControlItem value={opt().value}>
+                                                            <SegmentedControlItemInput />
+                                                            <SegmentedControlItemLabel>{opt().label}</SegmentedControlItemLabel>
+                                                        </SegmentedControlItem>
+                                                    )}
+                                                </Index>
+                                            </SegmentedControl>
+                                            <FormError errors={field().state.meta.errors} />
                                         </div>
                                     )}
                                 </form.Field>
@@ -679,31 +677,30 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
 
                         {/* 2. Contacts Tab */}
                         <TabsContent value="contacts" forceMount={false} class="w-full max-w-5xl">
-                            <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
-                                <div class="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
-                                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Lista de Contactos (Opcional)</h3>
-                                </div>
-
-                                <form.Field name="contacts" mode="array">
-                                    {(field) => (
-                                        <>
-                                            <div class="flex justify-end mb-4">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    class="gap-1.5"
-                                                    onClick={() => field().pushValue({ name: '', position: '', email: '', phone: '', isPrimary: false })}
-                                                >
-                                                    <PlusIcon class="size-4" /> Añadir Contacto
-                                                </Button>
+                            <form.Field name="contacts" mode="array">
+                                {(field) => (
+                                    <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
+                                        <div class="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-border/50">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-1.5 h-4 bg-primary rounded-full"></div>
+                                                <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Lista de Contactos (Opcional)</h3>
                                             </div>
-                                            <div class="space-y-4">
-                                                <Show when={field().state.value.length === 0}>
-                                                    <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">
-                                                        No hay contactos adicionales configurados.<br/> Click en "Añadir Contacto" para empezar.
-                                                    </div>
-                                                </Show>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                class="gap-1.5"
+                                                onClick={() => field().pushValue({ name: '', position: '', email: '', phone: '', isPrimary: false })}
+                                            >
+                                                <PlusIcon class="size-4" /> Añadir Contacto
+                                            </Button>
+                                        </div>
+
+                                        <div class="space-y-4">
+                                            <Show when={field().state.value.length === 0}>
+                                                <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">
+                                                    No hay contactos adicionales configurados.<br/> Click en "Añadir Contacto" para empezar.
+                                                </div>
+                                            </Show>
                                                 <Index each={field().state.value}>
                                                     {(_, i) => (
                                                         <div class="relative grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-card rounded-xl border border-border/50 shadow-sm animate-in slide-in-from-top-2">
@@ -765,49 +762,46 @@ export const SupplierForm: Component<SupplierFormProps> = (props) => {
                                                     )}
                                                 </Index>
                                             </div>
-                                        </>
-                                    )}
-                                </form.Field>
-                            </div>
+                                    </div>
+                                )}
+                            </form.Field>
                         </TabsContent>
 
                         {/* 3. Addresses Tab */}
                         <TabsContent value="addresses" forceMount={false} class="w-full max-w-5xl">
-                            <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
-                                <div class="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
-                                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Direcciones &amp; Sucursales</h3>
-                                </div>
-
-                                <form.Field name="addresses" mode="array">
-                                    {(field) => (
-                                        <>
-                                            <div class="flex justify-end mb-4">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    class="gap-1.5"
-                                                    onClick={() => field().pushValue({ addressLine: '', city: '', country: 'Ecuador', countryCode: 'EC', postalCode: '', isMain: field().state.value.length === 0 })}
-                                                >
-                                                    <PlusIcon class="size-4" /> Añadir Ubicación
-                                                </Button>
+                            <form.Field name="addresses" mode="array">
+                                {(field) => (
+                                    <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
+                                        <div class="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-border/50">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-1.5 h-4 bg-primary rounded-full"></div>
+                                                <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Direcciones &amp; Sucursales</h3>
                                             </div>
-                                            <div class="space-y-4">
-                                                <Show when={field().state.value.length === 0}>
-                                                    <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">
-                                                        No hay direcciones asignadas. Click en "Añadir Ubicación" para empezar.
-                                                    </div>
-                                                </Show>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                class="gap-1.5"
+                                                onClick={() => field().pushValue({ addressLine: '', city: '', country: 'Ecuador', countryCode: 'EC', postalCode: '', isMain: field().state.value.length === 0 })}
+                                            >
+                                                <PlusIcon class="size-4" /> Añadir Ubicación
+                                            </Button>
+                                        </div>
+
+                                        <div class="space-y-4">
+                                            <Show when={field().state.value.length === 0}>
+                                                <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">
+                                                    No hay direcciones asignadas. Click en "Añadir Ubicación" para empezar.
+                                                </div>
+                                            </Show>
                                                 <Index each={field().state.value}>
                                                     {(_, i) => (
                                                         <AddressRow form={form} index={i} onRemove={() => field().removeValue(i)} />
                                                     )}
                                                 </Index>
                                             </div>
-                                        </>
-                                    )}
-                                </form.Field>
-                            </div>
+                                    </div>
+                                )}
+                            </form.Field>
                         </TabsContent>
 
                         {/* 4. Fiscal Tab */}

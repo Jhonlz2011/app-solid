@@ -1,9 +1,9 @@
-import { Component, createSignal, onMount, Show } from 'solid-js';
+import { Component } from 'solid-js';
 import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useCreateSupplier } from '../data/suppliers.api';
-import { SupplierForm } from './SupplierForm';
-import type { SupplierFormData } from '@app/schema/frontend';
+import { EntityForm } from '@shared/forms/entity';
+import type { EntityFormData } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import Sheet from '@shared/ui/Sheet';
@@ -16,7 +16,7 @@ const SupplierNewSheet: Component = () => {
         navigate({ to: '/suppliers' });
     };
 
-    const handleSubmit = async (data: SupplierFormData) => {
+    const handleSubmit = async (data: EntityFormData) => {
         try {
             await createMutation.mutateAsync(data);
             toast.success('Proveedor creado correctamente');
@@ -42,7 +42,7 @@ const SupplierNewSheet: Component = () => {
                     </Button>
                     <Button
                         type="submit"
-                        form="supplier-form"
+                        form="entity-form"
                         loading={createMutation.isPending}
                         loadingText="Creando..."
                         class="min-w-[200px]"
@@ -53,12 +53,14 @@ const SupplierNewSheet: Component = () => {
                 </>
             }
         >
-                <SupplierForm
-                    onSubmit={handleSubmit}
-                    isSubmitting={createMutation.isPending}
-                />
+            <EntityForm
+                onSubmit={handleSubmit}
+                isSubmitting={createMutation.isPending}
+                lockedRoles={{ isSupplier: true }}
+            />
         </Sheet>
     );
 };
 
 export default SupplierNewSheet;
+

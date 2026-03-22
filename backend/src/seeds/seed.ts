@@ -1,7 +1,7 @@
 // src/seeds/seed.ts
 // Run with: bun run db:seed
 import { db } from '../db';
-import { authPermissions, authRoles, authRolePermissions, authUserRoles, authUsers, uom } from '@app/schema/tables';
+import { authPermissions, authRoles, authRolePermissions, authUserRoles, authUsers, uom, entities } from '@app/schema/tables';
 import { sql } from '@app/schema';
 
 // ============================================
@@ -464,7 +464,27 @@ async function seed() {
             console.log(`   ✅ ${roleName}: ${permissionsForRole.length} permissions`);
         }
 
-        // 5. Create Default Users
+        // 5. Create Consumidor Final Client
+        console.log('🏢 Creating default CONSUMIDOR FINAL client...');
+        const [consumidorFinal] = await db
+            .insert(entities)
+            .values({
+                tax_id: '9999999999999',
+                tax_id_type: 'CONSUMIDOR_FINAL',
+                person_type: 'NATURAL',
+                business_name: 'CONSUMIDOR FINAL',
+                is_client: true,
+                is_active: true,
+                obligado_contabilidad: false,
+            })
+            .onConflictDoUpdate({
+                target: entities.tax_id,
+                set: { business_name: 'CONSUMIDOR FINAL' }
+            })
+            .returning();
+        console.log(`   ✅ Entity created/verified: ${consumidorFinal.business_name}`);
+
+        // 6. Create Default Users
         console.log('👤 Creating default users...');
 
         const defaultPassword = 'password123';

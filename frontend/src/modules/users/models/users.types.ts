@@ -63,3 +63,21 @@ export const isActiveLabels: Record<string, string> = {
     'true': 'Activo',
     'false': 'Inactivo',
 };
+
+export interface AuditLogEntry {
+    id: string;
+    tableName: string;
+    recordId: string;
+    action: string;
+    oldData: unknown;
+    newData: unknown;
+    ipAddress: string | null;
+    createdAt: string;
+    userId: number | null;
+    performedByUsername: string | null;
+}
+
+export interface AuditLogResponse {
+    data: AuditLogEntry[];
+    meta: UsersMeta;
+}

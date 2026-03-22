@@ -20,7 +20,7 @@ export const sriDb = drizzle(queryClientSri, { logger: env.NODE_ENV === 'develop
 
 // Cliente dedicado para escuchar notificaciones (LISTEN)
 // Postgres requiere una conexión dedicada para LISTEN/NOTIFY
-const listener = postgres(env.DATABASE_URL, {
+export const listener = postgres(env.DATABASE_URL, {
   max: 1,
   idle_timeout: 0, // Mantener conexión viva
   ssl: false,

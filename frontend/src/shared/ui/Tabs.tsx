@@ -81,7 +81,7 @@ export const TabsContent: Component<Parameters<typeof KTabs.Content>[0] & { clas
         <KTabs.Content
             {...others}
             forceMount={local.forceMount}
-            class={cn(!local.forceMount && "data-[selected]:block outline-none", local.forceMount && "hidden data-[selected]:block outline-none", local.class)}
+            class={cn("hidden data-[selected]:block outline-none", local.class)}
         />
     );
 };

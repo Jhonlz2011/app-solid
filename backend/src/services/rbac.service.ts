@@ -912,52 +912,49 @@ export async function checkUserReferences(userId: number) {
 
 /**
  * Get paginated audit log for a specific user.
- * Returns entries where the user performed the action OR was the target.
+ * Returns entries where the user performed the action.
+ * Partition-aware: audit_logs is partitioned by createdAt (composite PK [id, createdAt]).
  */
-// export async function getUserAuditLog(userId: number, page: number = 1, limit: number = 20) {
-//     const offset = (page - 1) * limit;
+export async function getUserAuditLog(userId: number, page: number = 1, limit: number = 20) {
+    const offset = (page - 1) * limit;
+    const condition = eq(auditLogs.userId, userId);
 
-//     const [totalResult, entries] = await Promise.all([
-//         db.select({ count: sql<number>`count(*)`.mapWith(Number) })
-//             .from(auditLogs)
-//             .where(or(
-//                 eq(auditLogs.userId, userId),
-//                 and(eq(auditLogs.target_type, 'user'), eq(auditLogs.target_id, userId))
-//             )),
-//         db.select({
-//             id: auditLogs.id,
-//             action: auditLogs.action,
-//             targetType: auditLogs.target_type,
-//             targetId: auditLogs.target_id,
-//             details: auditLogs.details,
-//             ipAddress: auditLogs.ip_address,
-//             createdAt: auditLogs.created_at,
-//             performedBy: auditLogs.user_id,
-//             performedByUsername: authUsers.username,
-//         })
-//             .from(auditLogs)
-//             .leftJoin(authUsers, eq(auditLogs.user_id, authUsers.id))
-//             .where(or(
-//                 eq(auditLogs.user_id, userId),
-//                 and(eq(auditLogs.target_type, 'user'), eq(auditLogs.target_id, userId))
-//             ))
-//             .orderBy(desc(auditLogs.created_at))
-//             .limit(limit)
-//             .offset(offset),
-//     ]);
+    const [totalResult, entries] = await Promise.all([
+        db.select({ count: sql<number>`count(*)`.mapWith(Number) })
+            .from(auditLogs)
+            .where(condition),
+        db.select({
+            id: auditLogs.id,
+            tableName: auditLogs.tableName,
+            recordId: auditLogs.recordId,
+            action: auditLogs.action,
+            oldData: auditLogs.oldData,
+            newData: auditLogs.newData,
+            ipAddress: auditLogs.ipAddress,
+            createdAt: auditLogs.createdAt,
+            userId: auditLogs.userId,
+            performedByUsername: authUsers.username,
+        })
+            .from(auditLogs)
+            .leftJoin(authUsers, eq(auditLogs.userId, authUsers.id))
+            .where(condition)
+            .orderBy(desc(auditLogs.createdAt))
+            .limit(limit)
+            .offset(offset),
+    ]);
 
-//     const total = totalResult[0]?.count ?? 0;
-//     return {
-//         data: entries,
-//         meta: {
-//             total,
-//             page,
-//             pageCount: Math.ceil(total / limit),
-//             hasNextPage: page * limit < total,
-//             hasPrevPage: page > 1,
-//         },
-//     };
-// }
+    const total = totalResult[0]?.count ?? 0;
+    return {
+        data: entries,
+        meta: {
+            total,
+            page,
+            pageCount: Math.ceil(total / limit),
+            hasNextPage: page * limit < total,
+            hasPrevPage: page > 1,
+        },
+    };
+}
 
 /**
  * Admin password reset — sets password without requiring old one.

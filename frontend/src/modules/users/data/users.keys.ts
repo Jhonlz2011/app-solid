@@ -11,6 +11,7 @@ export const rbacKeys = {
     list: (filters: object) => [...rbacKeys.lists(), filters] as const,
     user: (id: number) => [...rbacKeys.users(), 'detail', id] as const,
     userSessions: (id: number) => [...rbacKeys.users(), 'sessions', id] as const,
+    userAuditLog: (id: number, page: number) => [...rbacKeys.users(), 'audit-log', id, page] as const,
 
     // Roles
     roles: () => [...rbacKeys.all, 'roles'] as const,

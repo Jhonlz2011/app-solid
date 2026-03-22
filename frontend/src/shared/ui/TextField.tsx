@@ -8,8 +8,8 @@ import { hasFieldError, getFieldError } from './form/form.types';
 type ValidationState = 'valid' | 'invalid';
 
 interface TextFieldRootProps {
-    /** TanStack Form field - when provided, controls value/onChange/validation automatically */
-    field?: FieldLike<string>;
+    /** TanStack Form field - accepts any field type (string, number, undefined variants) */
+    field?: FieldLike<any>;
     /** Current value (controlled) - ignored if field is provided */
     value?: string;
     /** Default value (uncontrolled) */
@@ -115,9 +115,12 @@ const Root = (props: TextFieldRootProps) => {
     // Determine if controlled by TanStack Form field
     const hasField = () => !!local.field;
 
-    // Reactive value: from field or props
+    // Reactive value: from field or props — coerce to string for display
     const value = createMemo(() => {
-        if (hasField()) return local.field!.state.value;
+        if (hasField()) {
+            const v = local.field!.state.value;
+            return v == null ? '' : String(v);
+        }
         return local.value ?? internalValue;
     });
 
@@ -138,7 +141,7 @@ const Root = (props: TextFieldRootProps) => {
         value,
         onChange: (newValue: string) => {
             if (hasField()) {
-                local.field!.handleChange(newValue);
+                local.field!.handleChange(newValue as any);
             } else {
                 internalValue = newValue;
                 local.onChange?.(newValue);

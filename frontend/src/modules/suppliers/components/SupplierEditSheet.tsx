@@ -1,9 +1,9 @@
 import { Component, Show } from 'solid-js';
-import { useNavigate } from '@tanstack/solid-router';
+import { useNavigate, useParams } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useSupplier, useUpdateSupplier } from '../data/suppliers.api';
-import { SupplierForm } from './SupplierForm';
-import type { SupplierPayload } from '../models/supplier.types';
+import { EntityForm } from '@shared/forms/entity';
+import type { EntityFormData } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Sheet from '@shared/ui/Sheet';
@@ -14,22 +14,26 @@ interface SupplierEditSheetProps {
     supplierId: number;
 }
 
-const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
+const SupplierEditSheet: Component = () => {
     const navigate = useNavigate();
 
-    // Use TanStack Query hook with the passed supplierId
-    const supplierQuery = useSupplier(() => props.supplierId);
+    const params = useParams({ strict: false });
+    const supplierId = () => Number(params()?.id) || 0;
+
+    const supplierQuery = useSupplier(supplierId);
     const updateMutation = useUpdateSupplier();
 
     const handleClose = () => {
         navigate({ to: '/suppliers' });
     };
 
-    const handleSubmit = async (data: SupplierPayload) => {
-        if (!props.supplierId) return;
+    const handleSubmit = async (data: EntityFormData) => {
+        if (supplierId() === 0) return;
 
         try {
-            await updateMutation.mutateAsync({ id: props.supplierId, data });
+            // Remove taxId and taxIdType as they are not allowed by SupplierUpdateSchema in backend
+            const { taxId, taxIdType, ...updateData } = data;
+            await updateMutation.mutateAsync({ id: supplierId(), data: updateData });
             toast.success('Proveedor actualizado correctamente');
             handleClose();
         } catch (error: any) {
@@ -37,7 +41,7 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
             if (!hasFieldErrors) {
                 toast.error(error?.message || 'Error al editar proveedor');
             }
-            throw error; // Re-throw so SupplierForm can map field errors
+            throw error;
         }
     };
 
@@ -55,7 +59,7 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
                     </Button>
                     <Button
                         type="submit"
-                        form="supplier-form"
+                        form="entity-form"
                         loading={updateMutation.isPending}
                         loadingText="Guardando..."
                         class="min-w-[200px]"
@@ -67,7 +71,7 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
             }
         >
             <Show
-                when={props.supplierId > 0}
+                when={supplierId() > 0}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center">
                         <div class="text-4xl mb-4">🔍</div>
@@ -95,10 +99,11 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
                             </div>
                         }
                     >
-                        <SupplierForm
-                            supplier={supplierQuery.data}
+                        <EntityForm
+                            entity={supplierQuery.data}
                             onSubmit={handleSubmit}
                             isSubmitting={updateMutation.isPending}
+                            lockedRoles={{ isSupplier: true }}
                         />
                     </Show>
                 </Show>

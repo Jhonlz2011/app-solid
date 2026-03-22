@@ -1,11 +1,12 @@
 import { createSelectSchema, createInsertSchema } from 'drizzle-valibot';
-import { pipe, string, minLength, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array } from 'valibot';
+import { pipe, string, minLength, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array, number, optional } from 'valibot';
 import * as tables from './tables';
-import { TAX_ID_TYPES, PERSON_TYPES, TAX_REGIME_TYPES } from './enums';
+import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES } from './enums';
 
 // Re-export enum types for frontend convenience
-export { type TaxIdType, type PersonType, type TaxRegimeType } from './enums';
+export { type TaxIdType, type TaxIdTypeForm, type PersonType, type TaxRegimeType } from './enums';
 export { type RbacModule, type RbacAction, type PermissionSlug } from './enums';
+export { TAX_ID_TYPES_FORM } from './enums';
 
 // --- PRODUCTS ---
 export const ProductSelect = createSelectSchema(tables.products);
@@ -21,9 +22,13 @@ export const EntityInsert = createInsertSchema(tables.entities, {
     business_name: pipe(string(), minLength(3, 'Razón social requerida')),
 });
 
-// --- SUPPLIER FORM SCHEMAS ---
-// Reusable enum schemas - using centralized values
+// =============================================================================
+// ENTITY FORM SCHEMAS (Valibot) — Unified for all entity types
+// =============================================================================
+
+// Reusable enum schemas
 export const TaxIdTypeSchema = picklist(TAX_ID_TYPES);
+export const TaxIdTypeFormSchema = picklist(TAX_ID_TYPES_FORM);
 export const PersonTypeSchema = picklist(PERSON_TYPES);
 export const TaxRegimeTypeSchema = picklist(TAX_REGIME_TYPES);
 
@@ -44,26 +49,54 @@ export const AddressFormSchema = object({
     isMain: boolean()
 });
 
-// Complete supplier form validation schema
-// Note: Using string() for optional text fields because TanStack Form uses empty strings.
-// Using undefinedable() for enum to keep the key required (matching defaultValues) while allowing undefined.
-export const SupplierFormSchema = object({
-    taxId: pipe(string(), minLength(10, 'RUC/Cédula debe tener al menos 10 caracteres')),
-    taxIdType: TaxIdTypeSchema,
+// Employee Details sub-schema
+export const EmployeeDetailsFormSchema = object({
+    department: string(),
+    jobTitle: string(),
+    salaryBase: optional(number()),
+    hireDate: string(),
+    costPerHour: optional(number()),
+});
+
+// Complete Entity form validation schema
+// Cross-field validation (taxId length by taxIdType, forced personType, etc.)
+// is handled reactively in the UI via createEffect — not in this schema.
+// This schema validates field shapes only.
+export const EntityFormSchema = object({
+    // Identification
+    taxId: pipe(string(), minLength(1, 'La identificación es requerida')),
+    taxIdType: TaxIdTypeFormSchema,
     personType: PersonTypeSchema,
+    // Business
     businessName: pipe(string(), minLength(3, 'Razón social requerida')),
     tradeName: string(),
+    // Contact
     emailBilling: union([pipe(string(), email('Correo inválido')), literal('')]),
     phone: string(),
-    taxRegimeType: undefinedable(TaxRegimeTypeSchema), // Required key, optional value
+    // Roles
+    isClient: boolean(),
+    isSupplier: boolean(),
+    isEmployee: boolean(),
+    isCarrier: boolean(),
+    // Tax (SRI)
+    taxRegimeType: undefinedable(TaxRegimeTypeSchema),
     obligadoContabilidad: boolean(),
     isRetentionAgent: boolean(),
     isSpecialContributor: boolean(),
+    // Employee Details (optional sub-object)
+    employeeDetails: optional(EmployeeDetailsFormSchema),
+    // Relations
     contacts: array(ContactFormSchema),
     addresses: array(AddressFormSchema),
 });
 
-export type SupplierFormData = InferInput<typeof SupplierFormSchema>;
+/** @deprecated Use EntityFormSchema — kept for backward compatibility */
+export const SupplierFormSchema = EntityFormSchema;
+
+export type EntityFormData = InferInput<typeof EntityFormSchema>;
+export type EmployeeDetailsFormData = InferInput<typeof EmployeeDetailsFormSchema>;
+/** @deprecated Use EntityFormData */
+export type SupplierFormData = EntityFormData;
 export type ContactFormData = InferInput<typeof ContactFormSchema>;
 export type AddressFormData = InferInput<typeof AddressFormSchema>;
 

@@ -9,7 +9,8 @@ import type {
     RoleBody, 
     UsersFilters, 
     UserSession, 
-    EntityPickerItem 
+    EntityPickerItem,
+    AuditLogResponse,
 } from '../models/users.types';
 
 export const usersApi = {
@@ -174,5 +175,13 @@ export const usersApi = {
         });
         if (error) throwApiError(error);
         return (data ?? []) as EntityPickerItem[];
+    },
+
+    // ─── User Audit Log ──────────────────────────────────────────
+    getUserAuditLog: async (userId: number, page = 1, limit = 20): Promise<AuditLogResponse> => {
+        const userPath = api.api.rbac.users({ id: userId }) as any;
+        const { data, error } = await userPath['audit-log'].get({ query: { page, limit } });
+        if (error) throwApiError(error);
+        return data as AuditLogResponse;
     },
 };

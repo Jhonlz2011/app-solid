@@ -10,6 +10,7 @@ export interface FieldState<TValue = string> {
     value: TValue;
     meta: {
         errors: readonly unknown[];
+        errorMap?: Record<string, unknown>;
         isTouched: boolean;
         isValidating: boolean;
     };
@@ -46,7 +47,13 @@ export const extractErrorMessage = (err: unknown): string => {
  * Check if field has validation errors and has been touched
  */
 export const hasFieldError = <T>(field: FieldLike<T>): boolean => {
-    return field.state.meta.errors.length > 0 && field.state.meta.isTouched;
+    // Show error if touched, or if the form validation/submissions added an error 
+    // to the errorMap directly from server regardless of touched state
+    if (field.state.meta.errors.length === 0) return false;
+    
+    // Check if there is an explicit onSubmit error (from API)
+    const hasSubmitError = field.state.meta.errorMap?.onSubmit !== undefined;
+    return field.state.meta.isTouched || hasSubmitError;
 };
 
 /**

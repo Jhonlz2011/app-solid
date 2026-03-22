@@ -9,11 +9,11 @@ const SupplierEditSheet = lazyRouteComponent(() => import('./components/Supplier
 const SupplierShowPanel = lazyRouteComponent(() => import('./components/SupplierShowPanel'));
 
 // --- WRAPPERS ---
-const SupplierEditWrapper = () => {
-  const params = useParams({ strict: false });
-  const supplierId = Number(params()?.id) || 0;
-  return <SupplierEditSheet supplierId={supplierId} />;
-};
+// const SupplierEditWrapper = () => {
+//   const params = useParams({ strict: false });
+//   const supplierId = Number(params()?.id) || 0;
+//   return <SupplierEditSheet supplierId={supplierId} />;
+// };
 
 const SupplierShowWrapper = () => {
   const params = useParams({ strict: false });
@@ -56,13 +56,28 @@ export const createSuppliersRoutes = (layoutRoute: any) => {
   const supplierNewRoute = createRoute({
     getParentRoute: () => suppliersRoute,
     path: 'new',
+    beforeLoad: async () => {
+      const { useAuth } = await import('@modules/auth/store/auth.store');
+      if (!useAuth().canAdd('suppliers')) {
+        throw redirect({ to: '/suppliers' });
+      }
+    },
     component: () => <SupplierNewSheet />,
   });
 
   const supplierEditRoute = createRoute({
     getParentRoute: () => suppliersRoute,
     path: 'edit/$id',
-    component: SupplierEditWrapper,
+    parseParams: (params) => ({
+      id: Number(params.id),
+    }),
+    beforeLoad: async () => {
+      const { useAuth } = await import('@modules/auth/store/auth.store');
+      if (!useAuth().canEdit('suppliers')) {
+        throw redirect({ to: '/suppliers' });
+      }
+    },
+    component: lazyRouteComponent(() => import('./components/SupplierEditSheet'))
   });
 
   const supplierShowRoute = createRoute({

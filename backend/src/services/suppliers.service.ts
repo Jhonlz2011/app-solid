@@ -19,6 +19,7 @@ import {
     getEntityFacets,
     type EntityReferences,
 } from './entities.service';
+import { withAuditTransaction, type AuditContext } from './audit.service';
 
 // Re-export shared types
 export type { EntityPayload, EntityReferences };
@@ -78,30 +79,30 @@ export const suppliersService = {
     },
 
     /** Create a new supplier */
-    async create(payload: EntityPayload, clientId?: string) {
-        return createEntity('supplier', payload, clientId);
+    async create(payload: EntityPayload, audit?: AuditContext) {
+        return createEntity('supplier', payload, audit);
     },
 
     /** Update an existing supplier */
-    async update(id: number, payload: Partial<EntityPayload>, clientId?: string) {
+    async update(id: number, payload: Partial<EntityPayload>, audit?: AuditContext) {
         await assertSupplier(id);
-        return updateEntity(id, 'supplier', payload, clientId);
+        return updateEntity(id, 'supplier', payload, audit);
     },
 
     /**
      * Soft delete (deactivate) — safe default.
      * Sets is_active=false, deleted_at=now(), deleted_by for audit trail.
      */
-    async softDelete(id: number, deletedBy?: number, clientId?: string) {
+    async softDelete(id: number, deletedBy?: number, audit?: AuditContext) {
         await assertSupplier(id);
-        return deactivateEntity(id, 'supplier', deletedBy, clientId);
+        return deactivateEntity(id, 'supplier', deletedBy, audit);
     },
 
     /**
      * Restore a soft-deleted supplier back to active.
      */
-    async restore(id: number, clientId?: string) {
-        return restoreEntity(id, 'supplier', clientId);
+    async restore(id: number, audit?: AuditContext) {
+        return restoreEntity(id, 'supplier', audit);
     },
 
     /**
@@ -118,19 +119,19 @@ export const suppliersService = {
      * Server always re-validates integrity regardless of client pre-check.
      * Route must be guarded with `suppliers:destroy` permission.
      */
-    async hardDelete(id: number, clientId?: string) {
+    async hardDelete(id: number, audit?: AuditContext) {
         await assertSupplier(id);
-        return hardDeleteEntity(id, 'supplier', clientId);
+        return hardDeleteEntity(id, 'supplier', audit);
     },
 
     /**
      * Bulk soft-delete (deactivate) multiple suppliers atomically.
      * Single broadcast for all ids for WS efficiency.
      */
-    async bulkDelete(ids: number[], clientId?: string) {
+    async bulkDelete(ids: number[], audit?: AuditContext) {
         if (ids.length === 0) return { success: true, count: 0 };
 
-        return db.transaction(async (tx) => {
+        return withAuditTransaction(audit, async (tx) => {
             const existing = await tx
                 .select({ id: entities.id })
                 .from(entities)
@@ -160,7 +161,7 @@ export const suppliersService = {
                 broadcast(RealtimeEvents.ENTITY.UPDATED, {
                     type: 'supplier',
                     entity,
-                    clientId,
+                    clientId: audit?.clientId,
                 }, 'suppliers');
             }
 
@@ -171,10 +172,10 @@ export const suppliersService = {
     /**
      * Bulk restore multiple soft-deleted suppliers atomically.
      */
-    async bulkRestore(ids: number[], clientId?: string) {
+    async bulkRestore(ids: number[], audit?: AuditContext) {
         if (ids.length === 0) return { success: true, count: 0 };
 
-        return db.transaction(async (tx) => {
+        return withAuditTransaction(audit, async (tx) => {
             const existing = await tx
                 .select({ id: entities.id })
                 .from(entities)
@@ -204,7 +205,7 @@ export const suppliersService = {
                 broadcast(RealtimeEvents.ENTITY.UPDATED, {
                     type: 'supplier',
                     entity,
-                    clientId,
+                    clientId: audit?.clientId,
                 }, 'suppliers');
             }
 

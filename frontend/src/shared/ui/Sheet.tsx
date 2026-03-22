@@ -74,7 +74,7 @@ const Sheet: Component<SheetProps> = (rawProps) => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header — flex-none, always visible */}
-                        <div class="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/10 flex-none">
+                        <div class="flex items-center justify-between px-4 py-4 border-b border-border bg-muted/10 flex-none">
                             <div class="space-y-1">
                                 <Show when={props.title}>
                                     <h2 class="text-lg font-semibold text-text">{props.title}</h2>
@@ -85,20 +85,20 @@ const Sheet: Component<SheetProps> = (rawProps) => {
                             </div>
                             <button
                                 onClick={props.onClose}
-                                class="p-2 rounded-lg hover:bg-surface text-muted hover:text-text transition-colors"
+                                class="p-2.5 rounded-lg hover:bg-surface text-muted hover:text-text transition-colors"
                             >
                                 <XIcon class='size-4' />
                             </button>
                         </div>
 
                         {/* Content — ScrollArea is the single scroll context */}
-                        <ScrollArea class="flex-1 min-h-0 px-3">
+                        <ScrollArea class="flex-1 min-h-0 px-4">
                             {props.children}
                         </ScrollArea>
 
                         {/* Footer — flex-none, always visible at bottom */}
                         <Show when={props.footer}>
-                            <div class="flex-none px-6 py-4 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                            <div class="flex-none px-4 py-4 border-t border-border bg-card shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                                 <div class="flex items-center justify-end gap-3">
                                     {props.footer}
                                 </div>

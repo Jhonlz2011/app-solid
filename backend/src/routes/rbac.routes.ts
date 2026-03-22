@@ -26,7 +26,7 @@ import {
     getUserById,
     getRoleById,
     getUserFacets,
-    // getUserAuditLog,
+    getUserAuditLog,
     adminResetPassword,
     setUserEntity,
 } from '../services/rbac.service';
@@ -213,19 +213,19 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     }, { permission: 'users.update' })
 
     // Paginated audit log for a user
-    // .get('/users/:id/audit-log', async ({ params, query }) => {
-    //     return await getUserAuditLog(
-    //         Number(params.id),
-    //         query.page ? Number(query.page) : 1,
-    //         query.limit ? Number(query.limit) : 20,
-    //     );
-    // }, {
-    //     permission: 'users.read',
-    //     query: t.Object({
-    //         page: t.Optional(t.Numeric()),
-    //         limit: t.Optional(t.Numeric()),
-    //     }),
-    // })
+    .get('/users/:id/audit-log', async ({ params, query }) => {
+        return await getUserAuditLog(
+            Number(params.id),
+            query.page ? Number(query.page) : 1,
+            query.limit ? Number(query.limit) : 20,
+        );
+    }, {
+        permission: 'users.read',
+        query: t.Object({
+            page: t.Optional(t.Numeric()),
+            limit: t.Optional(t.Numeric()),
+        }),
+    })
 
     // Admin password reset (no current password required)
     .post('/users/:id/reset-password', async ({ params, body, currentUserId }) => {

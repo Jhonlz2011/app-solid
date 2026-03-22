@@ -14,7 +14,11 @@ interface TextFieldProps {
 }
 
 export const TextField: Component<TextFieldProps> = (props) => {
-    const hasError = () => props.field.state.meta.errors.length > 0 && props.field.state.meta.isTouched;
+    const hasError = () => {
+        if (props.field.state.meta.errors.length === 0) return false;
+        const hasSubmitError = (props.field.state.meta as any).errorMap?.onSubmit !== undefined;
+        return props.field.state.meta.isTouched || hasSubmitError;
+    };
     const errorMessage = () => extractErrorMessage(props.field.state.meta.errors[0]);
 
     return (

@@ -74,9 +74,9 @@ const SuppliersPage: Component = () => {
     const isMobile = useIsMobile();
     const auth = useAuth();
     const [showFilterSheet, setShowFilterSheet] = createSignal(false);
-    
+
     // Cross-Module Modals
-    const searchParams = useSearch({ strict: false }) as () => { modal?: string; [key: string]: any };
+    const searchParams = useSearch({ strict: false }) as () => { modal?: string;[key: string]: any };
     const openUserModal = () => navigate({ to: '/suppliers', search: (prev: any) => ({ ...prev, modal: 'newUser' }) });
     const closeAllModals = () => navigate({ to: '/suppliers', search: (prev: any) => ({ ...prev, modal: undefined }) });
 
@@ -177,7 +177,7 @@ const SuppliersPage: Component = () => {
     const totalRows = () => meta()?.total ?? 0;
     const hasNextPage = () => meta()?.hasNextPage ?? false;
     const hasPrevPage = () => meta()?.hasPrevPage ?? false;
-    
+
     // Selection state calculation
     const selectedCount = () => Object.keys(rowSelection()).length;
     const selectedSuppliers = createMemo(() => {
@@ -203,7 +203,7 @@ const SuppliersPage: Component = () => {
             setSearch(value);
             setCursor(undefined);
             setDirection('first');
-            setPage(1);          
+            setPage(1);
         });
     };
 
@@ -312,7 +312,7 @@ const SuppliersPage: Component = () => {
     const [deleteTarget, setDeleteTarget] = createSignal<SupplierListItem | null>(null);
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = createSignal(false);
     const [showBulkRestoreConfirm, setShowBulkRestoreConfirm] = createSignal(false);
-    
+
     // Actions
     const handleCopySelection = async () => {
         const selected = selectedSuppliers();
@@ -327,7 +327,7 @@ const SuppliersPage: Component = () => {
             ].filter(Boolean);
             return parts.join(' | ');
         }).join('\n');
-        
+
         try {
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 await navigator.clipboard.writeText(text);
@@ -372,7 +372,7 @@ const SuppliersPage: Component = () => {
         // Obtenemos solo los proveedores activos seleccionados
         const ids = selectedSuppliers().filter(s => s.is_active).map(s => s.id);
         if (ids.length === 0) return;
-        
+
         bulkDeleteMutation.mutate(ids, {
             onSuccess: () => {
                 toast.success(`${ids.length} proveedores eliminados`);
@@ -504,21 +504,24 @@ const SuppliersPage: Component = () => {
                             <Button variant="outline" icon={<UploadIcon />} onClick={() => toast.info('Importación próximamente')}>
                                 <span class="hidden sm:inline">Importar</span>
                             </Button>
-                            <Button 
-                                variant="outline" 
+                            <Button
+                                variant="outline"
                                 icon={<UsersIcon />}
                                 onMouseEnter={() => import('../../users/components/UserNewSheet')}
                                 onClick={openUserModal}
                             >
                                 <span class="hidden sm:inline">Nuevo Usuario</span>
                             </Button>
-                            <Button 
-                                onClick={handleNew} 
-                                onMouseEnter={() => import('../components/SupplierNewSheet')}
-                                icon={<PlusIcon />}
-                            >
-                                <span class="hidden sm:inline">Nuevo</span>
-                            </Button>
+                            <Show when={auth.canAdd('suppliers')}>
+                                <Button
+                                    onClick={handleNew}
+                                    onMouseEnter={() => import('../components/SupplierNewSheet')}
+                                    icon={<PlusIcon />}
+                                >
+                                    <span class="hidden sm:inline">Nuevo</span>
+                                </Button>
+                            </Show>
+
                         </div>
                     }
                 />
@@ -533,140 +536,140 @@ const SuppliersPage: Component = () => {
                     />
 
                     <div class="flex items-center gap-2">
-                            {/* Export — always visible */}
-                            <Button variant="ghost" icon={<DownloadIcon />} onClick={() => toast.info('Exportación próximamente')}>
-                                <span class="hidden sm:inline">Exportar</span>
-                            </Button>
+                        {/* Export — always visible */}
+                        <Button variant="ghost" icon={<DownloadIcon />} onClick={() => toast.info('Exportación próximamente')}>
+                            <span class="hidden sm:inline">Exportar</span>
+                        </Button>
 
-                            {/* Mobile: Filter button (replaces Columns dropdown) */}
-                            <Show when={isMobile()}>
-                                <Button
-                                    variant="ghost"
-                                    class="relative"
-                                    icon={<FilterIcon />}
-                                    onClick={() => setShowFilterSheet(true)}
-                                >
-                                    <span class="hidden sm:inline">Filtros</span>
-                                    <Show when={
-                                        personTypeFilter().length > 0 ||
-                                        taxIdTypeFilter().length > 0 ||
-                                        isActiveFilter().length > 0 ||
-                                        businessNameFilter().length > 0
-                                    }>
-                                        <span class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-primary" />
-                                    </Show>
-                                </Button>
-                            </Show>
-
-                            {/* Desktop: Columns dropdown */}
-                            <Show when={!isMobile()}>
-                                <DropdownMenu placement="bottom-end">
-                            <DropdownMenu.Trigger class="h-9.5 px-4" variant="ghost">
-                                <ColumnsIcon />
-                                <span class="hidden sm:inline">Columnas</span>
-                            </DropdownMenu.Trigger>
-                        <DropdownMenu.Content class="min-w-[280px] p-2">
-                            <DropdownMenu.Label class="text-xs font-semibold text-muted tracking-wider mb-2">
-                                Visibilidad de columnas
-                            </DropdownMenu.Label>
-
-                            <div class="max-h-[320px] overflow-y-auto">
-                                <For each={configurableColumns()}>
-                                    {(column) => {
-                                        const isPinned = () => column.getIsPinned();
-                                        const canPin = () => column.getCanPin();
-                                        const canHide = () => column.getCanHide();
-                                        const isVisible = () => column.getIsVisible();
-                                        const title = () => (column.columnDef.meta as { title?: string })?.title ?? column.id;
-
-                                        return (
-                                            <div class="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-surface-2 transition-colors">
-                                                <span class="flex-1 text-sm text-text truncate" title={title()}>
-                                                    {title()}
-                                                </span>
-
-                                                <Show when={canPin()}>
-                                                    <div class="flex items-center gap-0.5 bg-surface rounded-md p-0.5">
-                                                        <button
-                                                            onClick={() => column.pin(isPinned() === 'left' ? false : 'left')}
-                                                            class={`p-1 rounded transition-colors ${isPinned() === 'left'
-                                                                ? 'bg-primary text-white'
-                                                                : 'text-muted hover:text-text hover:bg-surface-2'
-                                                                }`}
-                                                            
-                                                            title={isPinned() === 'left' ? 'Desfijar' : 'Fijar izquierda'}
-                                                            aria-label={isPinned() === 'left' ? `Desfijar` : `Fijar columna a la izquierda`}
-                                                        >
-                                                            <PinIcon class="size-3.5 rotate-45" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => column.pin(isPinned() === 'right' ? false : 'right')}
-                                                            class={`p-1 rounded transition-colors ${isPinned() === 'right'
-                                                                ? 'bg-primary text-white'
-                                                                : 'text-muted hover:text-text hover:bg-surface-2'
-                                                                }`}
-                                                            title={isPinned() === 'right' ? 'Desfijar' : 'Fijar derecha'}
-                                                            aria-label={isPinned() === 'right' ? `Desfijar` : `Fijar columna a la derecha`}
-                                                        >
-                                                            <PinIcon class="size-3.5 -rotate-45" />
-                                                        </button>
-                                                    </div>
-                                                </Show>
-
-                                                <Show when={canHide()}>
-                                                    <Switch
-                                                        checked={isVisible()}
-                                                        onChange={column.toggleVisibility}
-                                                        aria-label={`Mostrar/ocultar ${title()}`}
-                                                    />
-                                                </Show>
-                                            </div>
-                                        );
-                                    }}
-                                </For>
-                            </div>
-
-                            <DropdownMenu.Separator class="my-2" />
-                            <div class="flex flex-col gap-2 p-1">
-                                <div class="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        class="flex-1 text-xs h-8 px-2"
-                                        onClick={() => tableInstance()?.getAllLeafColumns().forEach(col => col.getCanHide() && col.toggleVisibility(true))}
-                                        icon={<EyeIcon class="size-3.5" />}
-                                    >
-                                        Mostrar todo
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        class="flex-1 text-xs h-8 px-2"
-                                        onClick={() => tableInstance()?.getAllLeafColumns().forEach(col => col.getCanHide() && col.toggleVisibility(false))}
-                                        icon={<EyeOffIcon class="size-3.5" />}
-                                    >
-                                        Ocultar todo
-                                    </Button>
-                                </div>
-                                <Show when={hasCustomPinnedColumns()}>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        class="w-full justify-start text-xs h-8 font-normal text-muted hover:text-primary px-2"
-                                        onClick={() => tableInstance()?.getAllLeafColumns().forEach(col => {
-                                            if (col.id !== 'select' && col.id !== 'actions') col.pin(false);
-                                        })}
-                                        icon={<PinOffIcon class="size-3.5" />}
-                                    >
-                                        Restablecer fijado
-                                    </Button>
+                        {/* Mobile: Filter button (replaces Columns dropdown) */}
+                        <Show when={isMobile()}>
+                            <Button
+                                variant="ghost"
+                                class="relative"
+                                icon={<FilterIcon />}
+                                onClick={() => setShowFilterSheet(true)}
+                            >
+                                <span class="hidden sm:inline">Filtros</span>
+                                <Show when={
+                                    personTypeFilter().length > 0 ||
+                                    taxIdTypeFilter().length > 0 ||
+                                    isActiveFilter().length > 0 ||
+                                    businessNameFilter().length > 0
+                                }>
+                                    <span class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-primary" />
                                 </Show>
-                            </div>
-                        </DropdownMenu.Content>
+                            </Button>
+                        </Show>
+
+                        {/* Desktop: Columns dropdown */}
+                        <Show when={!isMobile()}>
+                            <DropdownMenu placement="bottom-end">
+                                <DropdownMenu.Trigger class="h-9.5 px-4" variant="ghost">
+                                    <ColumnsIcon />
+                                    <span class="hidden sm:inline">Columnas</span>
+                                </DropdownMenu.Trigger>
+                                <DropdownMenu.Content class="min-w-[280px] p-2">
+                                    <DropdownMenu.Label class="text-xs font-semibold text-muted tracking-wider mb-2">
+                                        Visibilidad de columnas
+                                    </DropdownMenu.Label>
+
+                                    <div class="max-h-[320px] overflow-y-auto">
+                                        <For each={configurableColumns()}>
+                                            {(column) => {
+                                                const isPinned = () => column.getIsPinned();
+                                                const canPin = () => column.getCanPin();
+                                                const canHide = () => column.getCanHide();
+                                                const isVisible = () => column.getIsVisible();
+                                                const title = () => (column.columnDef.meta as { title?: string })?.title ?? column.id;
+
+                                                return (
+                                                    <div class="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-surface-2 transition-colors">
+                                                        <span class="flex-1 text-sm text-text truncate" title={title()}>
+                                                            {title()}
+                                                        </span>
+
+                                                        <Show when={canPin()}>
+                                                            <div class="flex items-center gap-0.5 bg-surface rounded-md p-0.5">
+                                                                <button
+                                                                    onClick={() => column.pin(isPinned() === 'left' ? false : 'left')}
+                                                                    class={`p-1 rounded transition-colors ${isPinned() === 'left'
+                                                                        ? 'bg-primary text-white'
+                                                                        : 'text-muted hover:text-text hover:bg-surface-2'
+                                                                        }`}
+
+                                                                    title={isPinned() === 'left' ? 'Desfijar' : 'Fijar izquierda'}
+                                                                    aria-label={isPinned() === 'left' ? `Desfijar` : `Fijar columna a la izquierda`}
+                                                                >
+                                                                    <PinIcon class="size-3.5 rotate-45" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => column.pin(isPinned() === 'right' ? false : 'right')}
+                                                                    class={`p-1 rounded transition-colors ${isPinned() === 'right'
+                                                                        ? 'bg-primary text-white'
+                                                                        : 'text-muted hover:text-text hover:bg-surface-2'
+                                                                        }`}
+                                                                    title={isPinned() === 'right' ? 'Desfijar' : 'Fijar derecha'}
+                                                                    aria-label={isPinned() === 'right' ? `Desfijar` : `Fijar columna a la derecha`}
+                                                                >
+                                                                    <PinIcon class="size-3.5 -rotate-45" />
+                                                                </button>
+                                                            </div>
+                                                        </Show>
+
+                                                        <Show when={canHide()}>
+                                                            <Switch
+                                                                checked={isVisible()}
+                                                                onChange={column.toggleVisibility}
+                                                                aria-label={`Mostrar/ocultar ${title()}`}
+                                                            />
+                                                        </Show>
+                                                    </div>
+                                                );
+                                            }}
+                                        </For>
+                                    </div>
+
+                                    <DropdownMenu.Separator class="my-2" />
+                                    <div class="flex flex-col gap-2 p-1">
+                                        <div class="flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                class="flex-1 text-xs h-8 px-2"
+                                                onClick={() => tableInstance()?.getAllLeafColumns().forEach(col => col.getCanHide() && col.toggleVisibility(true))}
+                                                icon={<EyeIcon class="size-3.5" />}
+                                            >
+                                                Mostrar todo
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                class="flex-1 text-xs h-8 px-2"
+                                                onClick={() => tableInstance()?.getAllLeafColumns().forEach(col => col.getCanHide() && col.toggleVisibility(false))}
+                                                icon={<EyeOffIcon class="size-3.5" />}
+                                            >
+                                                Ocultar todo
+                                            </Button>
+                                        </div>
+                                        <Show when={hasCustomPinnedColumns()}>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                class="w-full justify-start text-xs h-8 font-normal text-muted hover:text-primary px-2"
+                                                onClick={() => tableInstance()?.getAllLeafColumns().forEach(col => {
+                                                    if (col.id !== 'select' && col.id !== 'actions') col.pin(false);
+                                                })}
+                                                icon={<PinOffIcon class="size-3.5" />}
+                                            >
+                                                Restablecer fijado
+                                            </Button>
+                                        </Show>
+                                    </div>
+                                </DropdownMenu.Content>
                             </DropdownMenu>
-                            </Show>
-                        </div>
-            </div>
+                        </Show>
+                    </div>
+                </div>
             </div>
             {/* DataTable / Card List — conditional on viewport */}
             <div class="flex-1 min-h-0 px-3 pb-3 sm:px-4 sm:pb-4 overflow-hidden">
@@ -686,51 +689,51 @@ const SuppliersPage: Component = () => {
                         }
                     >
                         <DataTable
-                        data={suppliers()}
-                        columns={columns()}
-                        isLoading={suppliersQuery.isPending}
-                        isPlaceholderData={suppliersQuery.isPlaceholderData}
-                        // Pagination state (for display)
-                        pagination={{ pageIndex: 0, pageSize: pageSize() }}
-                        onPaginationChange={() => { }}
-                        pageCount={1}
-                        totalRows={totalRows()}
-                        // Cursor Pagination handlers with edges support
-                        cursorPagination={{
-                            hasNextPage: hasNextPage(),
-                            hasPrevPage: hasPrevPage(),
-                            onNextPage: handleNextPage,
-                            onPrevPage: handlePrevPage,
-                            onFirstPage: handleFirstPage,
-                            onLastPage: handleLastPage,
-                            onPageSizeChange: handlePageSizeChange,
-                        }}
-                        // Server-side sorting
-                        sorting={sorting()}
-                        onSortingChange={handleSortingChange}
-                        // Selection
-                        enableRowSelection={true}
-                        rowSelection={rowSelection()}
-                        onRowSelectionChange={setRowSelection}
-                        getRowId={(row) => String(row.id)}
-                        // Column configuration
-                        enableColumnPinning={true}
-                        columnVisibility={columnVisibility()}
-                        onColumnVisibilityChange={setColumnVisibility}
-                        columnPinning={columnPinning()}
-                        onColumnPinningChange={setColumnPinning}
-                        // Row interactions — hover prefetches detail, click handled per-cell
-                        onRowHover={handlePrefetch}
-                        // Virtualization
-                        enableVirtualization={false}
-                        estimatedRowHeight={56}
-                        // Empty state
-                        emptyIcon={<UsersIcon />}
-                        emptyMessage="No hay proveedores"
-                        emptyDescription="Crea uno nuevo para comenzar"
-                        // Table instance ref
-                        tableRef={(table) => { setTableInstance(table); }}
-                    />
+                            data={suppliers()}
+                            columns={columns()}
+                            isLoading={suppliersQuery.isPending}
+                            isPlaceholderData={suppliersQuery.isPlaceholderData}
+                            // Pagination state (for display)
+                            pagination={{ pageIndex: 0, pageSize: pageSize() }}
+                            onPaginationChange={() => { }}
+                            pageCount={1}
+                            totalRows={totalRows()}
+                            // Cursor Pagination handlers with edges support
+                            cursorPagination={{
+                                hasNextPage: hasNextPage(),
+                                hasPrevPage: hasPrevPage(),
+                                onNextPage: handleNextPage,
+                                onPrevPage: handlePrevPage,
+                                onFirstPage: handleFirstPage,
+                                onLastPage: handleLastPage,
+                                onPageSizeChange: handlePageSizeChange,
+                            }}
+                            // Server-side sorting
+                            sorting={sorting()}
+                            onSortingChange={handleSortingChange}
+                            // Selection
+                            enableRowSelection={true}
+                            rowSelection={rowSelection()}
+                            onRowSelectionChange={setRowSelection}
+                            getRowId={(row) => String(row.id)}
+                            // Column configuration
+                            enableColumnPinning={true}
+                            columnVisibility={columnVisibility()}
+                            onColumnVisibilityChange={setColumnVisibility}
+                            columnPinning={columnPinning()}
+                            onColumnPinningChange={setColumnPinning}
+                            // Row interactions — hover prefetches detail, click handled per-cell
+                            onRowHover={handlePrefetch}
+                            // Virtualization
+                            enableVirtualization={false}
+                            estimatedRowHeight={56}
+                            // Empty state
+                            emptyIcon={<UsersIcon />}
+                            emptyMessage="No hay proveedores"
+                            emptyDescription="Crea uno nuevo para comenzar"
+                            // Table instance ref
+                            tableRef={(table) => { setTableInstance(table); }}
+                        />
                     </Show>
                 </div>
             </div>
@@ -749,7 +752,7 @@ const SuppliersPage: Component = () => {
                 />
                 <SelectionBarSeparator />
                 <Show when={selectedActiveCount() > 0 && selectedInactiveCount() === 0}>
-                    
+
                     <SelectionBarAction
                         icon={<TrashIcon class="size-4" />}
                         label="Eliminar"

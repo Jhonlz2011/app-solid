@@ -103,7 +103,7 @@ const Checkbox: Component<CheckboxProps> = (props) => {
             </KCheckbox.Control>
 
             <Show when={local.children}>
-                <KCheckbox.Label class="text-sm font-medium text-text transition-colors group-hover:text-heading">
+                <KCheckbox.Label class="text-sm font-medium text-text transition-colors group-hover:text-heading cursor-pointer">
                     {local.children}
                 </KCheckbox.Label>
             </Show>
