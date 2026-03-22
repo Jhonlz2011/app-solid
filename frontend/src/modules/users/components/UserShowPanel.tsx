@@ -275,6 +275,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                 <TabsContent value="activity" class="animate-in fade-in duration-200">
                                     <UserActivityTab userId={props.userId} />
                                 </TabsContent>
+                                </div>
                             </Tabs>
                         )}
                 </Show>
