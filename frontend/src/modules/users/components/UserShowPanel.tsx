@@ -132,34 +132,38 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                     }
                 >
                     {(user) => (
-                        <div class="flex flex-col gap-4 py-4">
-                            {/* Header */}
-                            <div class="flex items-start justify-between">
-                                <div class="flex items-center gap-4">
-                                    <Avatar name={user().username} size="lg" />
-                                    <div>
-                                        <h3 class="text-lg font-bold text-text">{user().username}</h3>
-                                        <p class="text-sm text-muted">{user().email}</p>
-                                        <div class="mt-1.5">
-                                            <StatusBadge isActive={user().isActive ?? true} />
+                        <Tabs defaultValue="general" class="w-full flex flex-col h-full">
+                            <div class="sticky top-0 z-20 bg-card/95 backdrop-blur-md pt-5 pb-3 border-b border-border/40 flex flex-col gap-5 px-1 -mx-1">
+                                {/* Header */}
+                                <div class="flex items-start justify-between flex-shrink-0">
+                                    <div class="flex items-center gap-4">
+                                        <Avatar name={user().username} size="lg" />
+                                        <div class="flex flex-col gap-1">
+                                            <h3 class="text-xl font-bold text-text leading-tight">{user().username}</h3>
+                                            <p class="text-sm text-muted font-medium">{user().email}</p>
+                                            <div class="mt-1.5 flex items-center gap-2">
+                                                <StatusBadge isActive={user().isActive ?? true} />
+                                            </div>
                                         </div>
                                     </div>
+                                    <Button variant="outline" size="sm" onClick={handleEdit} class="gap-2 shrink-0 bg-surface/50 hover:bg-surface">
+                                        <EditIcon class="size-4 text-muted" />
+                                        Editar
+                                    </Button>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={handleEdit} icon={<EditIcon class="size-4" />}>
-                                    Editar
-                                </Button>
-                            </div>
 
-                            {/* Tabs */}
-                            <Tabs defaultValue="general" class="w-full">
-                                <div class="sticky top-0 z-20 bg-card/95 backdrop-blur pt-1 pb-3">
-                                    <TabsList class="flex px-2 py-1.5 overflow-x-auto shadow-sm rounded-xl">
+                                {/* TabsList */}
+                                <div>
+                                    <TabsList class="flex py-1.5 overflow-x-auto shadow-sm rounded-xl">
                                         <TabsTrigger value="general"><InfoIcon class="size-4" /> General</TabsTrigger>
                                         <TabsTrigger value="sessions"><DeviceIcon class="size-4" /> Sesiones</TabsTrigger>
                                         <TabsTrigger value="activity"><UserHistoryIcon class="size-4" /> Actividad</TabsTrigger>
                                     </TabsList>
                                 </div>
+                            </div>
 
+                            {/* Scrollable Content Area */}
+                            <div class="flex-1 px-1 pb-6 pt-5">
                                 {/* ═══ General Tab ═══ */}
                                 <TabsContent value="general" class="space-y-4 animate-in fade-in duration-200">
                                     {/* Account Info */}
@@ -272,8 +276,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                     <UserActivityTab userId={props.userId} />
                                 </TabsContent>
                             </Tabs>
-                        </div>
-                    )}
+                        )}
                 </Show>
             </Show>
         </Sheet>

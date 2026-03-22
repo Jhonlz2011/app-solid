@@ -1,5 +1,5 @@
 {
-  "id": "e999c067-cf3f-4cdb-ad63-c28c5452e4dc",
+  "id": "d403f435-86b4-417d-b287-70241943c6c7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1723,7 +1723,15 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "audit_logs_id_created_at_pk": {
+          "name": "audit_logs_id_created_at_pk",
+          "columns": [
+            "id",
+            "created_at"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -1747,7 +1755,7 @@
             "minValue": "1",
             "maxValue": "2147483647",
             "cache": "1",
-            "cycle": false
+            "cycle": true
           }
         },
         "table_name": {

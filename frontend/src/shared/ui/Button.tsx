@@ -6,7 +6,7 @@ import { cn } from '../lib/utils';
 export const BUTTON_VARIANTS = {
   primary: "bg-primary text-on-primary hover:bg-primary/90 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-primary/20",
   secondary: "bg-secondary text-on-secondary hover:bg-secondary/90 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-secondary/20",
-  outline: "bg-transparent border border-border text-text hover:bg-surface hover:border-border-strong active:bg-surface-3 transition-all duration-200",
+  outline: "bg-transparent border border-border text-text hover:bg-surface hover:border-border-strong active:bg-surface-3",
   ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 border border-transparent transition-colors duration-200",
   danger: "bg-danger text-white hover:bg-danger/85 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-danger/20",
   destructive: "bg-destructive text-white hover:bg-destructive/85 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-destructive/30",
