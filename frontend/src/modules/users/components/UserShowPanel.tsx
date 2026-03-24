@@ -349,7 +349,7 @@ const UserSessionsTab: Component<{ userId: number }> = (props) => {
                                     classList={{
                                         'rounded-xl p-4 border transition-colors': true,
                                         'border-primary/30 bg-primary/5 ring-1 ring-primary/20': session.is_current,
-                                        'border-border/40 bg-surface/30 hover:border-border': !session.is_current,
+                                        'border-border/50 bg-surface/30 hover:border-border': !session.is_current,
                                     }}
                                 >
                                     <div class="flex items-center justify-between gap-3">
@@ -498,7 +498,7 @@ const UserActivityTab: Component<{ userId: number }> = (props) => {
                                 return (
                                     <div class="relative flex items-start gap-3 py-2.5 pl-1">
                                         {/* Dot */}
-                                        <div class="size-[10px] rounded-full bg-card border-2 border-border/60 mt-1.5 shrink-0 z-10" />
+                                        <div class="size-[10px] rounded-full bg-card border-2 border-border/80 mt-1.5 shrink-0 z-10" />
 
                                         {/* Content */}
                                         <div class="flex-1 min-w-0">

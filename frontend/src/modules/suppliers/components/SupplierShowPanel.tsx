@@ -100,7 +100,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                     El navegador calculará dinámicamente la altura total y el contenido siempre hará scroll 
                                     perfectamente por debajo, sin importar si el nombre de la empresa hace salto de línea.
                                 */}
-                                <div class="sticky top-0 z-20 bg-card/95 backdrop-blur-md pt-5 pb-3 border-b border-border/40 flex flex-col gap-5">
+                                <div class="sticky top-0 z-20 bg-card/95 backdrop-blur-md pt-5 flex flex-col gap-5">
                                     {/* Header info */}
                                     <div class="flex items-start justify-between flex-shrink-0">
                                         <div class="flex gap-4 items-center">
@@ -137,7 +137,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                 {/* Scrolled Content */}
                                 <div class="flex-1 pr-1 pb-6 pt-4">
 
-                                        <TabsContent value="general" class="space-y-4 fill-mode-both pt-4">
+                                        <TabsContent value="general" class="space-y-4 fill-mode-both">
                                             <div class="bg-surface/30 rounded-2xl border border-border/40 overflow-hidden shadow-sm">
                                                 <div class="bg-surface/50 px-5 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
                                                     <div class="size-1.5 rounded-full bg-primary"></div>
@@ -206,7 +206,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                             </div>
                                         </TabsContent>
 
-                                        <TabsContent value="contacts" class="fill-mode-both pt-4">
+                                        <TabsContent value="contacts" class="fill-mode-both">
                                             <Show when={(supplier().contacts?.length ?? 0) > 0} fallback={
                                                 <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
                                                     <UserIcon class="size-8 opacity-20 mb-3" />
@@ -240,7 +240,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                             </Show>
                                         </TabsContent>
 
-                                        <TabsContent value="addresses" class="fill-mode-both pt-4">
+                                        <TabsContent value="addresses" class="fill-mode-both">
                                             <Show when={(supplier().addresses?.length ?? 0) > 0} fallback={
                                                 <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
                                                     <div class="text-2xl opacity-30 mb-2">📍</div>

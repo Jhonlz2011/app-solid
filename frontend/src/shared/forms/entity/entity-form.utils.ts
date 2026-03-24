@@ -123,9 +123,9 @@ export function shouldShowContacts(values: EntityFormData): boolean {
     return values.isEmployee || values.isSupplier || values.isClient;
 }
 
-/** PersonType is locked (forced to NATURAL) when: CEDULA or isEmployee */
+/** PersonType is locked (forced to NATURAL) when: CEDULA, PASAPORTE or isEmployee */
 export function isPersonTypeLocked(values: EntityFormData): boolean {
-    return values.taxIdType === 'CEDULA' || values.isEmployee;
+    return values.taxIdType === 'CEDULA' || values.taxIdType === 'PASAPORTE' || values.isEmployee;
 }
 
 /** TaxIdType disabled keys for JURIDICA — CEDULA and PASAPORTE are invalid */
@@ -142,6 +142,7 @@ export function getTaxIdConfig(taxIdType: TaxIdTypeForm): { maxLength: number | 
         case 'RUC':
             return { maxLength: 13, placeholder: 'RUC de 13 dígitos' };
         case 'PASAPORTE':
+            return { maxLength: 20, placeholder: 'Pasaporte alfanumérico' };
         case 'EXTERIOR':
             return { maxLength: undefined, placeholder: 'Número de identificación' };
     }

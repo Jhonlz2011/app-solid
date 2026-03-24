@@ -12,7 +12,7 @@ export const Tooltip: Component<TooltipProps> = (props) => {
     const [local, others] = splitProps(props, ['children', 'content', 'placement', 'delay']);
 
     return (
-        <KobalteTooltip placement={local.placement ?? 'top'} openDelay={local.delay ?? 300} gutter={8}>
+        <KobalteTooltip placement={local.placement ?? 'top'} openDelay={local.delay ?? 100} gutter={8}>
             <KobalteTooltip.Trigger as="span" class="inline-flex cursor-default">
                 {local.children}
             </KobalteTooltip.Trigger>

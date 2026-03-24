@@ -18,6 +18,7 @@ export interface AutocompleteProps<T> {
     class?: string;
     onSearchAction?: () => void;
     minLength?: number;
+    inputId?: string;
 }
 
 export function Autocomplete<T>(props: AutocompleteProps<T>) {
@@ -119,6 +120,7 @@ export function Autocomplete<T>(props: AutocompleteProps<T>) {
                         <div class="mr-2 flex-shrink-0">{props.inputPrefix}</div>
                     </Show>
                     <KCombobox.Input 
+                        id={props.inputId}
                         placeholder={props.placeholder}
                         class="flex-1 bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0"
                         onPointerDown={(e) => {

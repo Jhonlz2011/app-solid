@@ -1,5 +1,5 @@
 import { createSelectSchema, createInsertSchema } from 'drizzle-valibot';
-import { pipe, string, minLength, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array, number, optional } from 'valibot';
+import { pipe, string, minLength, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array, number, optional, forward, check } from 'valibot';
 import * as tables from './tables';
 import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES } from './enums';
 
@@ -62,33 +62,56 @@ export const EmployeeDetailsFormSchema = object({
 // Cross-field validation (taxId length by taxIdType, forced personType, etc.)
 // is handled reactively in the UI via createEffect — not in this schema.
 // This schema validates field shapes only.
-export const EntityFormSchema = object({
-    // Identification
-    taxId: pipe(string(), minLength(1, 'La identificación es requerida')),
-    taxIdType: TaxIdTypeFormSchema,
-    personType: PersonTypeSchema,
-    // Business
-    businessName: pipe(string(), minLength(3, 'Razón social requerida')),
-    tradeName: string(),
-    // Contact
-    emailBilling: union([pipe(string(), email('Correo inválido')), literal('')]),
-    phone: string(),
-    // Roles
-    isClient: boolean(),
-    isSupplier: boolean(),
-    isEmployee: boolean(),
-    isCarrier: boolean(),
-    // Tax (SRI)
-    taxRegimeType: undefinedable(TaxRegimeTypeSchema),
-    obligadoContabilidad: boolean(),
-    isRetentionAgent: boolean(),
-    isSpecialContributor: boolean(),
-    // Employee Details (optional sub-object)
-    employeeDetails: optional(EmployeeDetailsFormSchema),
-    // Relations
-    contacts: array(ContactFormSchema),
-    addresses: array(AddressFormSchema),
-});
+export const EntityFormSchema = pipe(
+    object({
+        // Identification
+        taxId: pipe(string(), minLength(1, 'La identificación es requerida')),
+        taxIdType: TaxIdTypeFormSchema,
+        personType: PersonTypeSchema,
+        // Business
+        businessName: pipe(string(), minLength(3, 'Razón social requerida')),
+        tradeName: string(),
+        // Contact
+        emailBilling: union([pipe(string(), email('Correo inválido')), literal('')]),
+        phone: string(),
+        // Roles
+        isClient: boolean(),
+        isSupplier: boolean(),
+        isEmployee: boolean(),
+        isCarrier: boolean(),
+        // Tax (SRI)
+        taxRegimeType: undefinedable(TaxRegimeTypeSchema),
+        obligadoContabilidad: boolean(),
+        isRetentionAgent: boolean(),
+        isSpecialContributor: boolean(),
+        // Employee Details (optional sub-object)
+        employeeDetails: optional(EmployeeDetailsFormSchema),
+        // Relations
+        contacts: array(ContactFormSchema),
+        addresses: array(AddressFormSchema),
+    }),
+    forward(
+        check((input) => {
+            if (input.taxIdType === 'CEDULA') return /^\d{10}$/.test(input.taxId);
+            return true;
+        }, 'La Cédula debe tener 10 dígitos numéricos'),
+        ['taxId']
+    ),
+    forward(
+        check((input) => {
+            if (input.taxIdType === 'RUC') return /^\d{13}$/.test(input.taxId);
+            return true;
+        }, 'El RUC debe tener 13 dígitos numéricos'),
+        ['taxId']
+    ),
+    forward(
+        check((input) => {
+            if (input.taxIdType === 'PASAPORTE') return /^[A-Za-z0-9]+$/.test(input.taxId);
+            return true;
+        }, 'El Pasaporte debe ser alfanumérico'),
+        ['taxId']
+    )
+);
 
 /** @deprecated Use EntityFormSchema — kept for backward compatibility */
 export const SupplierFormSchema = EntityFormSchema;

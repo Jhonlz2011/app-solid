@@ -1,10 +1,12 @@
 import { Component, createSignal, Show, Index, onCleanup, createEffect, on, batch, createMemo } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { useQueryClient } from '@tanstack/solid-query';
+import { toast } from 'solid-sonner';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { EntityFormSchema, type EntityFormData, type TaxIdTypeForm, type PersonType, type TaxRegimeType } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
 import { api } from '@shared/lib/eden';
+import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 
 import {
     taxIdTypeOptions,
@@ -29,6 +31,7 @@ import Checkbox from '@shared/ui/Checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import { Autocomplete } from '@shared/ui/Autocomplete';
 import { SearchIcon, PlusIcon, TrashIcon, InfoIcon, UsersIcon, MapPinIcon, BriefcaseIcon } from '@shared/ui/icons';
+import Tooltip from '@shared/ui/Tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import {
     SegmentedControl,
@@ -46,10 +49,10 @@ const FieldLabel = (props: { children: string }) => (
     <label class="text-sm font-medium text-muted mb-1 ml-1 block">{props.children}</label>
 );
 
-const FormError = (props: { errors: any[] }) => (
-    <Show when={props.errors.length > 0}>
+const FormError = (props: { field: any }) => (
+    <Show when={hasFieldError(props.field)}>
         <span class="text-sm font-medium text-danger mt-1.5 block">
-            {props.errors.map(err => typeof err === 'string' ? err : err?.message || 'Error de validación').join(', ')}
+            {getFieldError(props.field) || 'Error de validación'}
         </span>
     </Show>
 );
@@ -297,9 +300,9 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
     // infinite recursion (setFieldValue triggers store update → effects re-run)
     // =========================================================================
 
-    // 1. taxIdType CEDULA → force personType to NATURAL
+    // 1. taxIdType CEDULA / PASAPORTE → force personType to NATURAL
     createEffect(on(taxIdType, (type) => {
-        if (type === 'CEDULA' && personType() !== 'NATURAL') {
+        if ((type === 'CEDULA' || type === 'PASAPORTE') && personType() !== 'NATURAL') {
             form.setFieldValue('personType', 'NATURAL');
         }
     }, { defer: true }));
@@ -378,16 +381,35 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                 });
                 if (data && data.length > 0) {
                     handleSriSelect('RUC')(data[0]);
+                    toast.success('Datos del SRI obtenidos correctamente');
                 } else {
                     setSriError('No se encontró información para este RUC en el SRI.');
+                    toast.error('RUC no encontrado. Ingrese los detalles manualmente.');
+                    batch(() => {
+                        form.setFieldValue('businessName', '');
+                        form.setFieldValue('tradeName', '');
+                        form.setFieldValue('taxRegimeType', undefined);
+                        form.setFieldValue('obligadoContabilidad', false);
+                        form.setFieldValue('isSpecialContributor', false);
+                        form.setFieldValue('isRetentionAgent', false);
+                    });
+                    setTimeout(() => {
+                        const input = document.getElementById('businessName-input') as HTMLInputElement | null;
+                        if (input) {
+                            input.focus();
+                            input.select();
+                        }
+                    }, 50);
                 }
             } catch {
-                setSriError('Error consultando al SRI. Intente más tarde.');
+                // setSriError('Error consultando al SRI. Intente más tarde.');
+                toast.error('Error de conexión con el SRI.');
             } finally {
                 setIsSearchingRuc(false);
             }
         } else {
-            setSriError('El RUC debe tener 13 dígitos.');
+            setSriError('');
+            toast.error('El RUC debe tener 13 dígitos.');
         }
     };
 
@@ -505,7 +527,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                 <form.Field name="taxIdType">
                                     {(field) => (
                                         <div class="space-y-1.5">
-                                            <FieldLabel>Tipo ID</FieldLabel>
+                                            <FieldLabel>Tipo de Identificación</FieldLabel>
                                             <Select
                                                 value={computedTaxIdTypeOptions().find(o => o.value === field().state.value)}
                                                 onChange={(opt) => opt && field().handleChange(opt.value)}
@@ -539,9 +561,21 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                             <div class="relative flex items-center w-full">
                                                 <TextField.Input
                                                     type="text"
+                                                    inputMode={(taxIdType() === 'CEDULA' || taxIdType() === 'RUC') ? 'numeric' : 'text'}
                                                     placeholder={taxIdConfig().placeholder}
                                                     maxLength={taxIdConfig().maxLength}
                                                     disabled={isEdit()}
+                                                    onInput={(e) => {
+                                                        let val = e.currentTarget.value;
+                                                        if (taxIdType() === 'CEDULA' || taxIdType() === 'RUC') {
+                                                            const numeric = val.replace(/\D/g, '');
+                                                            if (val !== numeric) {
+                                                                val = numeric;
+                                                                e.currentTarget.value = val;
+                                                            }
+                                                        }
+                                                        field().handleChange(val as any);
+                                                    }}
                                                     onKeyDown={(e) => {
                                                         setSriError('');
                                                         if (e.key === 'Enter') {
@@ -580,7 +614,22 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                             <form.Field name="personType">
                                 {(field) => (
                                     <div class="space-y-1.5 w-full sm:w-1/2 pr-2.5">
-                                        <FieldLabel>Tipo Persona</FieldLabel>
+                                        <div class="flex items-center gap-1.5 mb-1 ml-1">
+                                            <FieldLabel>Tipo Persona</FieldLabel>
+                                            <Show when={personTypeLocked() && !isEdit()}>
+                                                <Tooltip
+                                                    content={
+                                                        taxIdType() === 'CEDULA' || taxIdType() === 'PASAPORTE'
+                                                            ? `${taxIdType() === 'CEDULA' ? 'Cédula' : 'Pasaporte'} solo aplica a Persona Natural`
+                                                            : 'Un empleado debe registrarse obligatoriamente como Persona Natural'
+                                                    }
+                                                    placement="top"
+                                                    delay={0}
+                                                >
+                                                    <InfoIcon class="size-4 text-info hover:text-info/80 cursor-help transition-colors" />
+                                                </Tooltip>
+                                            </Show>
+                                        </div>
                                         <SegmentedControl
                                             value={field().state.value}
                                             onChange={(val) => field().handleChange(val as PersonType)}
@@ -596,14 +645,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                                 )}
                                             </Index>
                                         </SegmentedControl>
-                                        <Show when={personTypeLocked() && !isEdit()}>
-                                            <small class="text-xs text-muted ml-1">
-                                                {taxIdType() === 'CEDULA'
-                                                    ? 'Cédula solo aplica a Persona Natural'
-                                                    : 'Empleado siempre es Persona Natural'}
-                                            </small>
-                                        </Show>
-                                        <FormError errors={field().state.meta.errors} />
+                                        <FormError field={field()} />
                                     </div>
                                 )}
                             </form.Field>
@@ -621,6 +663,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                     <div class="space-y-1.5 flex flex-col">
                                         <FieldLabel>Razón Social (Búsqueda Autónoma SRI)</FieldLabel>
                                         <Autocomplete<SriSupplierResponse>
+                                            inputId="businessName-input"
                                             value={field().state.value}
                                             onInputChange={handleNameInput}
                                             options={field().state.value.length >= 3 ? (nameSearch.data ?? []) : []}
@@ -647,7 +690,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                             disabled={isEdit()}
                                             placeholder="Ej: Ingrese 3 letras o más para Autocompletar SRI"
                                         />
-                                        <FormError errors={field().state.meta.errors} />
+                                        <FormError field={field()} />
                                     </div>
                                 )}
                             </form.Field>
