@@ -203,8 +203,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     // =========================================================================
 
     // Admin: view sessions for a specific user
-    .get('/users/:id/sessions', async ({ params }) => {
-        return await getActiveSessions(Number(params.id));
+    .get('/users/:id/sessions', async ({ params, currentSessionId }) => {
+        return await getActiveSessions(Number(params.id), currentSessionId);
     }, { permission: 'users.read' })
 
     // Admin: revoke a specific session for a user

@@ -1,6 +1,7 @@
-import { splitProps, Show, JSX, createUniqueId, createMemo } from 'solid-js';
+import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal } from 'solid-js';
 import type { FieldLike } from './form/form.types';
-import { hasFieldError, getFieldError } from './form/form.types';
+import { hasFieldError, getFieldError, FormSubmissionContext } from './form/form.types';
+import { EyeIcon, EyeOffIcon } from './icons';
 
 // ============================================================================
 // TYPES
@@ -39,6 +40,10 @@ interface TextFieldInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElem
 }
 
 interface TextFieldTextAreaProps extends Omit<JSX.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange' | 'value'> {
+    class?: string;
+}
+
+interface TextFieldPasswordInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type'> {
     class?: string;
 }
 
@@ -111,6 +116,9 @@ const Root = (props: TextFieldRootProps) => {
 
     const id = createUniqueId();
     let internalValue = local.defaultValue ?? '';
+    
+    // Track form submission state explicitly
+    const isFormSubmitted = useContext(FormSubmissionContext);
 
     // Determine if controlled by TanStack Form field
     const hasField = () => !!local.field;
@@ -126,7 +134,7 @@ const Root = (props: TextFieldRootProps) => {
 
     // Validation state: from field or props
     const validationState = createMemo((): ValidationState => {
-        if (hasField() && hasFieldError(local.field!)) return 'invalid';
+        if (hasField() && hasFieldError(local.field!, isFormSubmitted())) return 'invalid';
         return local.validationState ?? 'valid';
     });
 
@@ -161,7 +169,7 @@ const Root = (props: TextFieldRootProps) => {
     return (
         <TextFieldContext.Provider value={contextValue}>
             <div
-                class={`flex flex-col gap-1 ${local.class ?? ''}`}
+                class={`relative flex flex-col gap-1 ${local.class ?? ''}`}
                 data-valid={validationState() !== 'invalid'}
                 data-invalid={validationState() === 'invalid'}
             >
@@ -207,6 +215,41 @@ const Input = (props: TextFieldInputProps) => {
     );
 };
 
+/** Text password input with toggle */
+const PasswordInput = (props: TextFieldPasswordInputProps) => {
+    const context = useTextFieldContext();
+    const [local, others] = splitProps(props, ['class']);
+    const [showPassword, setShowPassword] = createSignal(false);
+
+    return (
+        <div class="relative w-full">
+            <input
+                id={context.id}
+                type={showPassword() ? 'text' : 'password'}
+                value={context.value()}
+                onInput={(e) => context.onChange(e.currentTarget.value)}
+                onBlur={() => context.onBlur()}
+                disabled={context.disabled()}
+                readOnly={context.readOnly()}
+                data-invalid={context.validationState() === 'invalid'}
+                class={`${inputBaseStyles} pr-12 ${local.class ?? ''}`}
+                {...others}
+            />
+            <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword())}
+                disabled={context.disabled()}
+                class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-heading transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                tabIndex={-1}
+            >
+                <Show when={showPassword()} fallback={<EyeIcon class="size-5" />}>
+                    <EyeOffIcon class="size-5" />
+                </Show>
+            </button>
+        </div>
+    );
+};
+
 /** Textarea for multi-line input */
 const TextArea = (props: TextFieldTextAreaProps) => {
     const context = useTextFieldContext();
@@ -248,7 +291,7 @@ const ErrorMessage = (props: TextFieldErrorMessageProps) => {
     return (
         <Show when={context.validationState() === 'invalid' && message()}>
             <small
-                class={`text-xs text-danger font-medium ml-0.5 ${local.class ?? ''}`}
+                class={`absolute -bottom-3.5 left-1 text-xs leading-none text-danger font-medium animate-in fade-in slide-in-from-top-1 ${local.class ?? ''}`}
                 role="alert"
                 {...others}
             >
@@ -279,6 +322,7 @@ export const TextField = {
     Root,
     Label,
     Input,
+    PasswordInput,
     TextArea,
     ErrorMessage,
     Description,

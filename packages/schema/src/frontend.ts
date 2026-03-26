@@ -1,5 +1,5 @@
 import { createSelectSchema, createInsertSchema } from 'drizzle-valibot';
-import { pipe, string, minLength, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array, number, optional, forward, check } from 'valibot';
+import { pipe, string, minLength, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array, number, optional, nullable, forward, check } from 'valibot';
 import * as tables from './tables';
 import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES } from './enums';
 
@@ -138,3 +138,16 @@ export const AuthLoginSchema = object({
 });
 
 export type AuthLoginDto = InferInput<typeof AuthLoginSchema>;
+
+// --- USER FORM (Admin CRUD) ---
+export const UserFormSchema = object({
+    username: pipe(string(), minLength(3, 'El usuario debe tener al menos 3 caracteres')),
+    email: pipe(string(), email('Correo electrónico inválido')),
+    /** Optional — required only in create mode (validated at form level) */
+    password: optional(string()),
+    isActive: optional(boolean()),
+    roleIds: array(number()),
+    entityId: optional(nullable(number())),
+});
+
+export type UserFormData = InferInput<typeof UserFormSchema>;

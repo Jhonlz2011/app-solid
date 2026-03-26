@@ -1,8 +1,14 @@
-import { Component, For, Show, createSignal } from 'solid-js';
+import { Component, For, Show, createSignal, onMount, onCleanup } from 'solid-js';
 import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
-import { UAParser } from 'ua-parser-js';
+import { useQueryClient } from '@tanstack/solid-query';
 import type { AuditLogEntry } from '../models/users.types';
+import { copyToClipboard } from '@shared/utils/clipboard';
+import { formatSessionDate } from '@shared/utils/session.utils';
+import { SessionItem } from '@modules/profile/components/SessionItem';
+import { useSSE } from '@shared/store/sse.store';
+import { RealtimeEvents } from '@app/schema/realtime-events';
+import { rbacKeys } from '../data/users.keys';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
@@ -12,7 +18,7 @@ import { StatusBadge, RoleBadge } from '@shared/ui/Badge';
 import { TextField } from '@shared/ui/TextField';
 import ErrorState from '@shared/ui/ErrorState';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
-import { EditIcon, KeyIcon, InfoIcon, DeviceIcon, LogoutIcon, EyeIcon, EyeOffIcon, CopyIcon, UserHistoryIcon } from '@shared/ui/icons';
+import { EditIcon, KeyIcon, InfoIcon, DeviceIcon, EyeIcon, EyeOffIcon, CopyIcon, UserHistoryIcon } from '@shared/ui/icons';
 import { useAuth } from '@modules/auth/store/auth.store';
 import {
     useUser,
@@ -27,42 +33,8 @@ interface UserShowPanelProps {
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
-
-const parseUserAgent = (ua: string | null): { browser: string; os: string; icon: string } => {
-    if (!ua) return { browser: 'Desconocido', os: 'Desconocido', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' };
-    const parser = new UAParser(ua);
-    const result = parser.getResult();
-    let osName = result.os.name || 'Desconocido';
-    const vendor = result.device.vendor;
-    const model = result.device.model;
-    let displayName = osName;
-    if (vendor && model) displayName = `${vendor} ${model}`;
-    else if (model && model.length > 2) displayName = model;
-    let icon = 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z';
-    if (result.device.type === 'mobile' || result.device.type === 'tablet' || osName === 'Android' || osName === 'iOS') {
-        icon = 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z';
-    }
-    return { browser: result.browser.name || 'Navegador', os: displayName, icon };
-};
-
-const formatDate = (dateStr: string): string => {
-    return new Date(dateStr).toLocaleDateString('es-EC', {
-        day: 'numeric', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-    });
-};
-
-// const formatRelative = (dateStr: string): string => {
-//     const diff = Date.now() - new Date(dateStr).getTime();
-//     const mins = Math.floor(diff / 60000);
-//     if (mins < 1) return 'Ahora';
-//     if (mins < 60) return `hace ${mins}m`;
-//     const hours = Math.floor(mins / 60);
-//     if (hours < 24) return `hace ${hours}h`;
-//     const days = Math.floor(hours / 24);
-//     if (days < 30) return `hace ${days}d`;
-//     return formatDate(dateStr);
-// };
+// parseUserAgent & formatSessionDate → @shared/utils/session.utils.ts
+// SessionItem → @modules/profile/components/SessionItem
 
 
 const generatePassword = (length = 16): string => {
@@ -133,7 +105,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                 >
                     {(user) => (
                         <Tabs defaultValue="general" class="w-full flex flex-col h-full">
-                            <div class="sticky top-0 z-20 bg-card/95 backdrop-blur-md pt-5 pb-3 border-b border-border/40 flex flex-col gap-5 px-1 -mx-1">
+                            <div class="sticky top-0 z-20 bg-card pt-5 flex flex-col gap-5 px-1 -mx-1">
                                 {/* Header */}
                                 <div class="flex items-start justify-between flex-shrink-0">
                                     <div class="flex items-center gap-4">
@@ -168,7 +140,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                 <TabsContent value="general" class="space-y-4 animate-in fade-in duration-200">
                                     {/* Account Info */}
                                     <div class="bg-surface/30 rounded-2xl border border-border/40 overflow-hidden">
-                                        <div class="bg-surface/50 px-5 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
+                                        <div class="bg-surface/50 px-4 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
                                             <div class="size-1.5 rounded-full bg-primary" />
                                             Datos de la cuenta
                                         </div>
@@ -191,7 +163,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                     <Show when={user().entity}>
                                         {(entity) => (
                                             <div class="bg-surface/30 rounded-2xl border border-border/40 overflow-hidden">
-                                                <div class="bg-surface/50 px-5 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
+                                                <div class="bg-surface/50 px-4 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
                                                     <div class="size-1.5 rounded-full bg-info" />
                                                     Persona vinculada
                                                 </div>
@@ -223,7 +195,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
 
                                     {/* Roles */}
                                     <div class="bg-surface/30 rounded-2xl border border-border/40 overflow-hidden">
-                                        <div class="bg-surface/50 px-5 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
+                                        <div class="bg-surface/50 px-4 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
                                             <div class="size-1.5 rounded-full bg-violet-500" />
                                             Roles asignados
                                             <Show when={(user().roles?.length ?? 0) > 0}>
@@ -287,6 +259,8 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
 // ─── Sessions Sub-Component ──────────────────────────────────────────────────
 
 const UserSessionsTab: Component<{ userId: number }> = (props) => {
+    const queryClient = useQueryClient();
+    const { subscribe, unsubscribe } = useSSE();
     const sessionsQuery = useUserSessions(() => props.userId);
     const revokeMutation = useRevokeUserSession();
     const [revoking, setRevoking] = createSignal<string | null>(null);
@@ -294,6 +268,27 @@ const UserSessionsTab: Component<{ userId: number }> = (props) => {
 
     const sessions = () => sessionsQuery.data ?? [];
     const isLoading = () => sessionsQuery.isLoading;
+
+    // ── SSE: Real-time session updates ──
+    onMount(() => {
+        const room = `user:${props.userId}`;
+        subscribe(room);
+
+        const handleSessionChange = () => {
+            queryClient.invalidateQueries({
+                queryKey: rbacKeys.userSessions(props.userId),
+            });
+        };
+
+        window.addEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionChange);
+        window.addEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionChange);
+
+        onCleanup(() => {
+            unsubscribe(room);
+            window.removeEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionChange);
+            window.removeEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionChange);
+        });
+    });
 
     const handleRevoke = async (sessionId: string) => {
         setRevoking(sessionId);
@@ -342,68 +337,14 @@ const UserSessionsTab: Component<{ userId: number }> = (props) => {
             <Show when={sessions().length > 0}>
                 <div class="space-y-2.5">
                     <For each={sessions()}>
-                        {(session) => {
-                            const { browser, os, icon } = parseUserAgent(session.user_agent);
-                            return (
-                                <div
-                                    classList={{
-                                        'rounded-xl p-4 border transition-colors': true,
-                                        'border-primary/30 bg-primary/5 ring-1 ring-primary/20': session.is_current,
-                                        'border-border/50 bg-surface/30 hover:border-border': !session.is_current,
-                                    }}
-                                >
-                                    <div class="flex items-center justify-between gap-3">
-                                        <div class="flex items-center gap-3 min-w-0 flex-1">
-                                            <div classList={{
-                                                'size-10 rounded-xl flex items-center justify-center shrink-0 transition-colors': true,
-                                                'bg-primary text-white shadow-lg shadow-primary/20': session.is_current,
-                                                'bg-surface-alt text-muted': !session.is_current,
-                                            }}>
-                                                <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={icon} />
-                                                </svg>
-                                            </div>
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="font-semibold text-text text-sm truncate">{os}</span>
-                                                    <Show when={session.is_current}>
-                                                        <span class="text-[10px] uppercase tracking-wider bg-primary text-white px-2 py-0.5 rounded-full font-bold shrink-0">
-                                                            Actual
-                                                        </span>
-                                                    </Show>
-                                                </div>
-                                                <div class="text-xs text-muted mt-0.5 flex items-center gap-1.5">
-                                                    <span>{browser}</span>
-                                                    <span class="size-1 rounded-full bg-border" />
-                                                    <span class="truncate">
-                                                        {session.location ? `${session.location} · ` : ''}
-                                                        {session.ip_address || 'IP desconocida'}
-                                                    </span>
-                                                </div>
-                                                <div class="text-[11px] text-muted/60 mt-0.5">
-                                                    Iniciada {formatDate(session.created_at)}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <Show when={!session.is_current}>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setConfirmRevoke(session.id)}
-                                                disabled={revoking() === session.id}
-                                                loading={revoking() === session.id}
-                                                class="text-danger hover:text-danger hover:bg-danger/10 shrink-0"
-                                                title="Revocar sesión"
-                                            >
-                                                <Show when={revoking() !== session.id}>
-                                                    <LogoutIcon class="size-4" />
-                                                </Show>
-                                            </Button>
-                                        </Show>
-                                    </div>
-                                </div>
-                            );
-                        }}
+                        {(session) => (
+                            <SessionItem
+                                session={session}
+                                onRevoke={(id) => setConfirmRevoke(id)}
+                                isRevoking={revoking() === session.id}
+                                compact
+                            />
+                        )}
                     </For>
                 </div>
             </Show>
@@ -412,12 +353,12 @@ const UserSessionsTab: Component<{ userId: number }> = (props) => {
                 isOpen={!!confirmRevoke()}
                 onClose={() => setConfirmRevoke(null)}
                 onConfirm={() => confirmRevoke() && handleRevoke(confirmRevoke()!)}
-                title="¿Revocar sesión?"
+                title="¿Cerrar sesión?"
                 description="El usuario será desconectado de este dispositivo inmediatamente."
-                confirmLabel="Revocar"
-                variant="warning"
+                confirmLabel="Cerrar sesión"
+                variant="danger"
                 isLoading={!!revoking()}
-                loadingText="Revocando..."
+                loadingText="Cerrando sesión..."
             />
         </div>
     );
@@ -427,7 +368,7 @@ const UserSessionsTab: Component<{ userId: number }> = (props) => {
 
 const AUDIT_ACTION_LABELS: Record<string, { label: string; color: string }> = {
     INSERT: { label: 'Creado', color: 'bg-emerald-500/15 text-emerald-600' },
-    UPDATE: { label: 'Actualizado', color: 'bg-blue-500/15 text-blue-600' },
+    UPDATE: { label: 'Editado', color: 'bg-blue-500/15 text-blue-600' },
     DELETE: { label: 'Eliminado', color: 'bg-red-500/15 text-red-600' },
     LOGIN: { label: 'Inicio de sesión', color: 'bg-violet-500/15 text-violet-600' },
     EXPORT: { label: 'Exportado', color: 'bg-amber-500/15 text-amber-600' },
@@ -498,11 +439,11 @@ const UserActivityTab: Component<{ userId: number }> = (props) => {
                                 return (
                                     <div class="relative flex items-start gap-3 py-2.5 pl-1">
                                         {/* Dot */}
-                                        <div class="size-[10px] rounded-full bg-card border-2 border-border/80 mt-1.5 shrink-0 z-10" />
+                                        <div class="size-[10px] rounded-full bg-card border-2 border-border mt-1.5 shrink-0 z-10" />
 
                                         {/* Content */}
                                         <div class="flex-1 min-w-0">
-                                            <div class="flex items-center gap-2 flex-wrap">
+                                           <div class="flex items-center gap-2 flex-wrap">
                                                 <span class={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${actionInfo().color}`}>
                                                     {actionInfo().label}
                                                 </span>
@@ -512,8 +453,8 @@ const UserActivityTab: Component<{ userId: number }> = (props) => {
                                                 <span class="text-[11px] text-muted/50 font-mono">
                                                     #{entry.recordId}
                                                 </span>
-                                                <span class="text-[11px] text-muted/60" title={formatDate(entry.createdAt)}>
-                                                    {formatDate(entry.createdAt)}
+                                                <span class="text-[11px] text-muted/60" title={formatSessionDate(entry.createdAt)}>
+                                                    {formatSessionDate(entry.createdAt)}
                                                 </span>
                                             </div>
                                             <Show when={entry.performedByUsername}>
@@ -565,19 +506,18 @@ const UserActivityTab: Component<{ userId: number }> = (props) => {
 
 const PasswordResetSection: Component<{ userId: number; username: string }> = (props) => {
     const [newPassword, setNewPassword] = createSignal('');
-    const [showPassword, setShowPassword] = createSignal(false);
     const [showConfirm, setShowConfirm] = createSignal(false);
     const resetMutation = useAdminResetPassword();
 
     const handleGenerate = () => {
         const pw = generatePassword();
         setNewPassword(pw);
-        setShowPassword(true);
     };
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(newPassword());
-        toast.success('Contraseña copiada al portapapeles');
+    const handleCopy = async () => {
+        const ok = await copyToClipboard(newPassword());
+        if (ok) toast.success('Contraseña copiada al portapapeles');
+        else toast.error('Error al copiar al portapapeles');
     };
 
     const handleReset = async () => {
@@ -586,7 +526,6 @@ const PasswordResetSection: Component<{ userId: number; username: string }> = (p
             await resetMutation.mutateAsync({ userId: props.userId, newPassword: newPassword() });
             toast.success(`Contraseña de "${props.username}" actualizada. Todas sus sesiones fueron cerradas.`);
             setNewPassword('');
-            setShowPassword(false);
         } catch (err: any) {
             toast.error(err?.message || 'Error al restablecer la contraseña');
         }
@@ -608,21 +547,11 @@ const PasswordResetSection: Component<{ userId: number; username: string }> = (p
                     <div class="flex gap-2">
                         <div class="flex-1 relative">
                             <TextField.Root value={newPassword()} onChange={setNewPassword}>
-                                <TextField.Input
-                                    type={showPassword() ? 'text' : 'password'}
+                                <TextField.PasswordInput
                                     placeholder="Nueva contraseña (mín. 8 caracteres)"
-                                    class="pr-10 font-mono text-sm"
+                                    class="font-mono text-sm"
                                 />
                             </TextField.Root>
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(v => !v)}
-                                class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-text transition-colors cursor-pointer"
-                            >
-                                <Show when={showPassword()} fallback={<EyeIcon class="size-4" />}>
-                                    <EyeOffIcon class="size-4" />
-                                </Show>
-                            </button>
                         </div>
                         <Button variant="outline" size="sm" onClick={handleGenerate} title="Generar contraseña">
                             Generar

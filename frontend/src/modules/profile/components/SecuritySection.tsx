@@ -3,7 +3,7 @@ import { Component, Show } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { ChangePasswordSchema } from '../models/profile.schemas';
-import { PasswordField } from './fields/PasswordField';
+import { TextField } from '@shared/ui/TextField';
 import Button from '@shared/ui/Button';
 import { AlertCircleIcon, WarningIcon, KeyIcon } from '@shared/ui/icons';
 
@@ -50,55 +50,43 @@ export const SecuritySection: Component<SecuritySectionProps> = (props) => {
                         e.stopPropagation();
                         form.handleSubmit();
                     }}
-                    class="space-y-1"
+                    class="space-y-5"
                 >
                     {/* Current Password - Atomic component */}
                     <form.Field name="currentPassword">
                         {(field) => (
-                            <PasswordField
-                                field={field()}
-                                label="Contraseña actual"
-                                id="current-password"
-                                placeholder="••••••••"
-                            />
+                            <TextField.Root field={field()} disabled={props.isChanging}>
+                                <TextField.Label>Contraseña actual</TextField.Label>
+                                <TextField.PasswordInput placeholder="••••••••" />
+                                <TextField.ErrorMessage />
+                            </TextField.Root>
                         )}
                     </form.Field>
 
                     {/* New Password - Atomic component */}
                     <form.Field name="newPassword">
                         {(field) => (
-                            <PasswordField
-                                field={field()}
-                                label="Nueva contraseña"
-                                id="new-password"
-                                placeholder="Mínimo 8 caracteres"
-                                hint="Usa al menos 8 caracteres con letras y números."
-                            />
+                            <TextField.Root field={field()} disabled={props.isChanging}>
+                                <TextField.Label>Nueva contraseña</TextField.Label>
+                                <TextField.PasswordInput placeholder="Mínimo 8 caracteres" />
+                                <TextField.ErrorMessage />
+                            </TextField.Root>
                         )}
                     </form.Field>
 
                     {/* Confirm Password - Atomic component */}
                     <form.Field name="confirmPassword">
                         {(field) => (
-                            <PasswordField
-                                field={field()}
-                                label="Confirmar contraseña"
-                                id="confirm-password"
-                                placeholder="Repite la nueva contraseña"
-                            />
+                            <TextField.Root field={field()} disabled={props.isChanging}>
+                                <TextField.Label>Confirmar contraseña</TextField.Label>
+                                <TextField.PasswordInput placeholder="Repite la nueva contraseña" />
+                                <TextField.ErrorMessage />
+                            </TextField.Root>
                         )}
                     </form.Field>
 
-                    {/* Form-level Error Message */}
-                    <Show when={form.state.submissionAttempts > 0 && !form.state.canSubmit}>
-                        <div class="flex items-center gap-2 p-3 bg-danger/10 border border-danger/20 rounded-lg text-sm text-danger">
-                            <AlertCircleIcon class="size-4 shrink-0" />
-                            Por favor corrige los errores antes de continuar
-                        </div>
-                    </Show>
-
                     {/* Warning */}
-                    <div class="flex items-center gap-3 p-3 bg-warning/10 border border-warning/20 rounded-xl text-sm mt-2 mb-6">
+                    <div class="flex items-center gap-3 p-3 bg-warning/10 border border-warning/20 rounded-xl text-sm my-6">
                         <WarningIcon class="size-5 text-warning shrink-0" />
                         <p class="text-muted">
                             Al cambiar tu contraseña, todas tus sesiones activas serán cerradas y deberás iniciar sesión nuevamente.

@@ -3,9 +3,9 @@
 // Provides consistent layout, label, error handling for any input type
 // ============================================================================
 
-import { Show, JSX, splitProps } from 'solid-js';
+import { Show, JSX, splitProps, useContext } from 'solid-js';
 import type { FieldLike } from './form.types';
-import { hasFieldError, getFieldError } from './form.types';
+import { hasFieldError, getFieldError, FormSubmissionContext } from './form.types';
 
 export interface FormFieldProps<TValue = string> {
     /** TanStack Form field object */
@@ -46,7 +46,8 @@ export function FormField<TValue = string>(props: FormFieldProps<TValue>) {
         'children',
     ]);
 
-    const showError = () => hasFieldError(local.field);
+    const isFormSubmitted = useContext(FormSubmissionContext);
+    const showError = () => hasFieldError(local.field, isFormSubmitted());
     const errorMessage = () => getFieldError(local.field);
 
     return (

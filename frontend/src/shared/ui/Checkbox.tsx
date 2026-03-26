@@ -56,7 +56,7 @@ const Checkbox: Component<CheckboxProps> = (props) => {
             indeterminate={local.indeterminate}
             class={`
                 group inline-flex items-center gap-2 align-top cursor-pointer select-none 
-                disabled:cursor-not-allowed disabled:opacity-50
+                data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60
                 ${local.class ?? ''}
             `}
         >
@@ -71,6 +71,8 @@ const Checkbox: Component<CheckboxProps> = (props) => {
                     /* Hover */
                     hover:border-primary 
                     hover:bg-primary-soft
+                    group-data-[disabled]:hover:border-border-strong
+                    group-data-[disabled]:hover:bg-surface
                     /* Focus */
                     peer-focus-visible:outline-none 
                     peer-focus-visible:ring-2 peer-focus-visible:ring-primary-soft
@@ -103,7 +105,7 @@ const Checkbox: Component<CheckboxProps> = (props) => {
             </KCheckbox.Control>
 
             <Show when={local.children}>
-                <KCheckbox.Label class="text-sm font-medium text-text transition-colors group-hover:text-heading cursor-pointer">
+                <KCheckbox.Label class="text-sm font-medium text-text transition-colors group-data-[disabled]:cursor-not-allowed group-hover:text-heading cursor-pointer">
                     {local.children}
                 </KCheckbox.Label>
             </Show>

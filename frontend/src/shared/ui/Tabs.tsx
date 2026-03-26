@@ -49,10 +49,11 @@ type TabsTriggerProps = Parameters<typeof KTabs.Trigger>[0] & {
     variant?: TabsVariant;
     count?: number;
     countVariant?: CounterVariant;
+    hasError?: boolean;
 };
 
 export const TabsTrigger: Component<TabsTriggerProps> = (props) => {
-    const [local, others] = splitProps(props, ['class', 'children', 'variant', 'count', 'countVariant']);
+    const [local, others] = splitProps(props, ['class', 'children', 'variant', 'count', 'countVariant', 'hasError']);
     const isPills = () => local.variant === 'pills';
 
     return (
@@ -63,12 +64,26 @@ export const TabsTrigger: Component<TabsTriggerProps> = (props) => {
                 isPills()
                     ? "font-semibold rounded-full border border-border-strong px-[1.15rem] py-[0.45rem] text-[0.9rem] text-muted hover:border-primary/50 hover:bg-card-alt hover:text-heading data-[selected]:border-transparent data-[selected]:text-primary-strong"
                     : "flex-1 py-2 px-3 text-sm font-medium rounded-lg text-muted hover:text-heading hover:bg-surface/40 data-[selected]:text-heading focus-visible:ring-2 focus-visible:ring-primary/50",
+                local.hasError && "[&:not([data-selected])]:text-danger [&:not([data-selected])]:border-danger/50 hover:[&:not([data-selected])]:text-danger-strong hover:[&:not([data-selected])]:bg-danger/10 hover:[&:not([data-selected])]:border-danger/60",
                 local.class
             )}
         >
             {local.children}
             <Show when={local.count !== undefined}>
-                <CounterBadge count={local.count} variant={local.countVariant ?? (isPills() ? "tab-pill" : "tab")} class={isPills() ? "ml-0.5" : "px-1.5 py-0.5"} />
+                <CounterBadge 
+                    count={local.count!} 
+                    variant={local.countVariant ?? (isPills() ? "tab-pill" : "tab")} 
+                    class={cn(
+                        isPills() ? "ml-0.5" : "px-1.5 py-0.5",
+                        local.hasError && "group-[&:not([data-selected])]:animate-pulse group-[&:not([data-selected])]:!bg-danger/15 group-[&:not([data-selected])]:!text-danger group-[&:not([data-selected])]:!border-danger/30"
+                    )} 
+                />
+            </Show>
+            <Show when={local.hasError && local.count === undefined}>
+                <span class="absolute top-0 right-0 -mr-1 -mt-1 h-3 w-3 flex group-data-[selected]:hidden">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-danger border border-surface"></span>
+                </span>
             </Show>
         </KTabs.Trigger>
     );

@@ -6,7 +6,7 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { EntityFormSchema, type EntityFormData, type TaxIdTypeForm, type PersonType, type TaxRegimeType } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
 import { api } from '@shared/lib/eden';
-import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
+import { hasFieldError, getFieldError, FormSubmissionContext } from '@shared/ui/form/form.types';
 
 import {
     taxIdTypeOptions,
@@ -30,7 +30,8 @@ import TextField from '@shared/ui/TextField';
 import Checkbox from '@shared/ui/Checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import { Autocomplete } from '@shared/ui/Autocomplete';
-import { SearchIcon, PlusIcon, TrashIcon, InfoIcon, UsersIcon, MapPinIcon, BriefcaseIcon } from '@shared/ui/icons';
+import { CheckIcon, ChevronsUpDownIcon, EyeIcon, InfoIcon, MapPinIcon, PlusIcon, SearchIcon, TrashIcon, UsersIcon, BriefcaseIcon } from '@shared/ui/icons';
+import { useAuth } from '@modules/auth/store/auth.store';
 import Tooltip from '@shared/ui/Tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import {
@@ -123,9 +124,9 @@ const AddressRow: Component<AddressRowProps> = (props) => {
             <div class="col-span-12 sm:col-span-6 md:col-span-4">
                 <props.form.Field name={`addresses[${props.index}].city`}>
                     {(subField: any) => (
-                        <div class="flex flex-col gap-1">
-                            <label class="text-sm font-medium text-muted ml-1">Ciudad</label>
-                            <Autocomplete<GeoNameCity>
+                        <Autocomplete.Root field={subField()}>
+                            <Autocomplete.Label>Ciudad</Autocomplete.Label>
+                            <Autocomplete.Input<GeoNameCity>
                                 value={inputText()}
                                 onInputChange={handleInputChange}
                                 options={cities.query.data ?? []}
@@ -146,21 +147,22 @@ const AddressRow: Component<AddressRowProps> = (props) => {
                                     ) : undefined
                                 }
                                 itemRenderer={(city) => (
-                                    <div class="flex items-center gap-2.5">
+                                    <div class="flex items-center gap-2.5 w-full min-w-0">
                                         <img
                                             src={city.bandera}
                                             alt={city.codigo}
                                             class="size-5 rounded-sm object-cover shadow-sm flex-shrink-0"
                                             loading="lazy"
                                         />
-                                        <div class="flex flex-col min-w-0">
-                                            <span class="font-medium text-text truncate">{city.ciudad}</span>
-                                            <span class="text-xs text-muted truncate">{city.pais}</span>
+                                        <div class="flex flex-col min-w-0 flex-1">
+                                            <span class="font-medium text-text truncate w-full" title={city.ciudad}>{city.ciudad}</span>
+                                            <span class="text-xs text-muted truncate w-full" title={city.pais}>{city.pais}</span>
                                         </div>
                                     </div>
                                 )}
                             />
-                        </div>
+                            <Autocomplete.ErrorMessage />
+                        </Autocomplete.Root>
                     )}
                 </props.form.Field>
             </div>
@@ -209,8 +211,10 @@ export interface EntityFormProps {
 // =============================================================================
 
 export const EntityForm: Component<EntityFormProps> = (props) => {
+    const auth = useAuth();
     const isEdit = () => !!props.entity;
     const queryClient = useQueryClient();
+    const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
 
     // SRI search signals
     const [isSearchingRuc, setIsSearchingRuc] = createSignal(false);
@@ -364,6 +368,8 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
     let nameDebounce: ReturnType<typeof setTimeout>;
     onCleanup(() => clearTimeout(nameDebounce));
 
+    const [isPristineEdit, setIsPristineEdit] = createSignal(isEdit());
+
     const triggerRucSearch = async () => {
         const val = form.getFieldValue('taxId');
         if (val.length === 13) {
@@ -414,6 +420,10 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
     };
 
     const handleNameInput = (value: string) => {
+        if (isPristineEdit()) {
+            if (value === form.getFieldValue('businessName')) return;
+            setIsPristineEdit(false);
+        }
         if (form.getFieldValue('businessName') === value) return;
         form.setFieldValue('businessName', value);
         clearTimeout(nameDebounce);
@@ -451,42 +461,83 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
         }
     };
 
+    let lastToastedQuery = '';
+    createEffect(() => {
+        if (isPristineEdit()) return;
+        if (!nameSearch.isFetching && nameSearch.isSuccess && nameSearch.data && nameSearch.data.length === 0 && sriNameQuery().length >= 3) {
+            if (lastToastedQuery !== sriNameQuery()) {
+                toast.error(`No se encontraron resultados en el SRI para "${sriNameQuery()}".`);
+                lastToastedQuery = sriNameQuery();
+            }
+        }
+    });
+
     // =========================================================================
     // Render
     // =========================================================================
 
     return (
-        <form
-            id="entity-form"
-            onSubmit={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                form.handleSubmit();
-            }}
-            class="flex flex-col"
-        >
-            <Tabs defaultValue="general" class="w-full h-full flex flex-col">
+        <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
+            <form
+                id="entity-form"
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setHasAttemptedSubmit(true);
+                    form.handleSubmit();
+                }}
+                class="flex flex-col"
+            >
+                <Tabs defaultValue="general" class="w-full h-full flex flex-col">
                 {/* Tabs Header Sticky */}
-                <div class="sticky top-0 z-20 max-w-full bg-card pt-4">
-                    <TabsList class="flex overflow-x-auto shadow-sm rounded-xl">
-                        <TabsTrigger value="general"><InfoIcon /> General</TabsTrigger>
-                        <Show when={showContacts()}>
-                            <form.Subscribe selector={(state) => state.values.contacts?.length || 0}>
-                                {(count) => (
-                                    <TabsTrigger value="contacts" count={count()}>
-                                        <UsersIcon class="size-4" /> Contactos
-                                    </TabsTrigger>
-                                )}
-                            </form.Subscribe>
-                        </Show>
-                        <form.Subscribe selector={(state) => state.values.addresses?.length || 0}>
-                            {(count) => (
-                                <TabsTrigger value="addresses" count={count()}>
-                                    <MapPinIcon class="size-4" /> Direcciones
-                                </TabsTrigger>
-                            )}
-                        </form.Subscribe>
-                    </TabsList>
+                <div class="sticky top-0 z-20 max-w-full bg-card pt-4 pb-2">
+                    <form.Subscribe 
+                        selector={(state) => {
+                            const meta = (state.fieldMeta || {}) as Record<string, any>;
+                            const keys = Object.keys(meta);
+                            const isAttempted = state.isSubmitted || hasAttemptedSubmit();
+                            
+                            const isErrVisible = (k: string) => {
+                                const f = meta[k];
+                                if (!f?.errors || f.errors.length === 0) return false;
+                                const hasSubmitError = f.errorMap?.onSubmit !== undefined;
+                                return f.isTouched || isAttempted || hasSubmitError;
+                            };
+
+                            return {
+                                general: keys.some(k => !k.startsWith('contacts') && !k.startsWith('addresses') && isErrVisible(k)),
+                                contacts: keys.some(k => k.startsWith('contacts') && isErrVisible(k)),
+                                addresses: keys.some(k => k.startsWith('addresses') && isErrVisible(k)),
+                            };
+                        }}
+                    >
+                        {(flagsAccessor) => {
+                            // Convert to getter to preserve exact SolidJS reactivity bounds inside JSX
+                            const getFlags = () => (typeof flagsAccessor === 'function' ? flagsAccessor() : flagsAccessor) || { general: false, contacts: false, addresses: false };
+                            
+                            return (
+                                <TabsList class="flex overflow-x-auto shadow-sm rounded-xl">
+                                    <TabsTrigger value="general" hasError={getFlags().general}><InfoIcon /> General</TabsTrigger>
+                                    <Show when={showContacts()}>
+                                        <form.Subscribe selector={(state) => state.values.contacts?.length || 0}>
+                                            {(count) => (
+                                                <TabsTrigger value="contacts" count={typeof count === 'function' ? count() : count as number} hasError={getFlags().contacts}>
+                                                    <UsersIcon class="size-4" /> Contactos
+                                                </TabsTrigger>
+                                            )}
+                                        </form.Subscribe>
+                                    </Show>
+                                    <form.Subscribe selector={(state) => state.values.addresses?.length || 0}>
+                                        {(count) => (
+                                            <TabsTrigger value="addresses" count={typeof count === 'function' ? count() : count as number} hasError={getFlags().addresses}>
+                                                <MapPinIcon class="size-4" /> Direcciones
+                                            </TabsTrigger>
+                                        )}
+                                    </form.Subscribe>
+                                </TabsList>
+                            );
+                        }}
+                    </form.Subscribe>
                 </div>
 
                 <div class="pt-3">
@@ -502,15 +553,36 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                             <div class="flex flex-wrap gap-x-6 gap-y-3">
                                 {(Object.entries(roleLabels) as [keyof typeof roleLabels, string][]).map(([key, label]) => (
                                     <form.Field name={key}>
-                                        {(field) => (
-                                            <Checkbox
-                                                field={field()}
-                                                class="font-medium"
-                                                disabled={!!props.lockedRoles?.[key]}
-                                            >
-                                                {label}
-                                            </Checkbox>
-                                        )}
+                                        {(field) => {
+                                            // Validate RBAC permissions based on seed.ts models
+                                            const isRoleDisabledByAuth = (roleKey: string) => {
+                                                if (auth?.isAdmin && auth.isAdmin()) return false;
+                                                const canManage = (module: any) => {
+                                                    if (!auth) return false;
+                                                    return isEdit() ? (auth.canEdit && auth.canEdit(module)) : (auth.canAdd && auth.canAdd(module));
+                                                };
+                                                switch(roleKey) {
+                                                    case 'isClient': return !canManage('clients');
+                                                    case 'isSupplier': return !canManage('suppliers');
+                                                    case 'isEmployee': return !canManage('hr');
+                                                    case 'isCarrier': return false; // Siempre habilitado
+                                                    default: return false;
+                                                }
+                                            };
+                                            
+                                            // Explicitly locked roles via props take precedence, otherwise check RBAC
+                                            const isDisabled = !!props.lockedRoles?.[key as keyof typeof roleLabels] || isRoleDisabledByAuth(key);
+
+                                            return (
+                                                <Checkbox
+                                                    field={field()}
+                                                    class="font-medium"
+                                                    disabled={isDisabled}
+                                                >
+                                                    {label}
+                                                </Checkbox>
+                                            )
+                                        }}
                                     </form.Field>
                                 ))}
                             </div>
@@ -660,9 +732,9 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
 
                             <form.Field name="businessName">
                                 {(field) => (
-                                    <div class="space-y-1.5 flex flex-col">
-                                        <FieldLabel>Razón Social (Búsqueda Autónoma SRI)</FieldLabel>
-                                        <Autocomplete<SriSupplierResponse>
+                                    <Autocomplete.Root field={field()}>
+                                        <Autocomplete.Label>Razón Social (Búsqueda Autónoma SRI)</Autocomplete.Label>
+                                        <Autocomplete.Input<SriSupplierResponse>
                                             inputId="businessName-input"
                                             value={field().state.value}
                                             onInputChange={handleNameInput}
@@ -670,28 +742,28 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                             optionValue={(opt) => opt.razonSocial}
                                             optionLabel={(opt) => opt.razonSocial}
                                             itemRenderer={(opt) => (
-                                                <div class="flex flex-col w-full gap-1">
-                                                    <div class="flex w-full items-center justify-between">
-                                                        <span class="font-medium text-text truncate max-w-[70%]">{opt.razonSocial}</span>
-                                                        <span class={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${opt.isActive ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'}`}>
+                                                <div class="flex flex-col w-full gap-1 min-w-0">
+                                                    <div class="flex w-full items-center justify-between gap-1 min-w-0">
+                                                        <span class="font-medium text-text truncate max-w-[70%] flex-1 min-w-0">{opt.razonSocial}</span>
+                                                        <span class={`flex-shrink-0 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${opt.isActive ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'}`}>
                                                             {opt.isActive ? 'Activo' : 'Suspendido'}
                                                         </span>
                                                     </div>
-                                                    <div class="flex w-full items-center gap-2 text-xs text-muted">
-                                                        <span class="font-mono bg-surface-alt px-1.5 py-0.5 rounded border border-border">{opt.ruc}</span>
+                                                    <div class="flex w-full items-center gap-2 text-xs text-muted min-w-0">
+                                                        <span class="font-mono bg-surface-alt px-1.5 py-0.5 rounded border border-border flex-shrink-0">{opt.ruc}</span>
                                                         <Show when={opt.nombreComercial && opt.nombreComercial !== opt.razonSocial}>
-                                                            <span class="truncate">({opt.nombreComercial})</span>
+                                                            <span class="truncate flex-1 min-w-0">({opt.nombreComercial})</span>
                                                         </Show>
                                                     </div>
                                                 </div>
                                             )}
                                             onSelect={handleSriSelect('NAME')}
                                             isLoading={nameSearch.isFetching}
-                                            disabled={isEdit()}
+                                            hideEmptyState={true}
                                             placeholder="Ej: Ingrese 3 letras o más para Autocompletar SRI"
                                         />
-                                        <FormError field={field()} />
-                                    </div>
+                                        <Autocomplete.ErrorMessage />
+                                    </Autocomplete.Root>
                                 )}
                             </form.Field>
 
@@ -972,13 +1044,13 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                             class="gap-1.5"
                                             onClick={() => field().pushValue({ addressLine: '', city: '', country: 'Ecuador', countryCode: 'EC', postalCode: '', isMain: field().state.value.length === 0 })}
                                         >
-                                            <PlusIcon class="size-4" /> Añadir Ubicación
+                                            <PlusIcon class="size-4" /> Añadir Dirección
                                         </Button>
                                     </div>
                                     <div class="space-y-4">
                                         <Show when={field().state.value.length === 0}>
                                             <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">
-                                                No hay direcciones asignadas. Click en "Añadir Ubicación" para empezar.
+                                                No hay direcciones asignadas. Click en "Añadir Dirección" para empezar.
                                             </div>
                                         </Show>
                                         <Index each={field().state.value}>
@@ -994,5 +1066,6 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                 </div>
             </Tabs>
         </form>
+        </FormSubmissionContext.Provider>
     );
 };

@@ -43,17 +43,23 @@ export const extractErrorMessage = (err: unknown): string => {
     return String(err);
 };
 
+// Global context to track explicit submission attempts directly from `onSubmit` event traps natively
+import { createContext } from 'solid-js';
+export const FormSubmissionContext = createContext<() => boolean>(() => false);
+
 /**
- * Check if field has validation errors and has been touched
+ * Check if field has validation errors
  */
-export const hasFieldError = <T>(field: FieldLike<T>): boolean => {
-    // Show error if touched, or if the form validation/submissions added an error 
-    // to the errorMap directly from server regardless of touched state
+export const hasFieldError = <T>(field: FieldLike<T>, forceVisible: boolean = false): boolean => {
     if (field.state.meta.errors.length === 0) return false;
-    
-    // Check if there is an explicit onSubmit error (from API)
+
     const hasSubmitError = field.state.meta.errorMap?.onSubmit !== undefined;
-    return field.state.meta.isTouched || hasSubmitError;
+
+    // Best Practice UX: 
+    // - Hide errors on completely untouched fields while the user is filling the form initially.
+    // - Reveal ALL active errors instantly once the user attempts to submit the form once (tracked via forceVisible).
+    // - Always show dedicated server-side errors mapped to onSubmit.
+    return field.state.meta.isTouched || forceVisible || hasSubmitError;
 };
 
 /**

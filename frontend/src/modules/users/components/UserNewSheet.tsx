@@ -1,6 +1,7 @@
 import { Component, createMemo } from 'solid-js';
 import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
+import type { UserFormData } from '@app/schema/frontend';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 import { FloppyDiskIcon } from '@shared/ui/icons';
@@ -34,13 +35,7 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
         }));
     });
 
-    const handleSubmit = async (values: {
-        username: string;
-        email: string;
-        password?: string;
-        roleIds: number[];
-        entityId?: number | null;
-    }) => {
+    const handleSubmit = async (values: UserFormData & { newPassword?: string }) => {
         if (!values.password) return;
         try {
             const created = await createMutation.mutateAsync({

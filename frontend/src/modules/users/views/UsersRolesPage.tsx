@@ -3,6 +3,7 @@ import { Component, For, Show, createMemo, createSignal, batch } from 'solid-js'
 import { useNavigate, Outlet, useSearch } from '@tanstack/solid-router';
 import { useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
+import { copyToClipboard } from '@shared/utils/clipboard';
 import type { Table, RowSelectionState, ColumnPinningState, VisibilityState, SortingState, Updater } from '@tanstack/solid-table';
 import { isActiveLabels } from '../models/users.types';
 // Data & hooks
@@ -285,20 +286,9 @@ const UsersRolesPage: Component = () => {
             ].filter(Boolean);
             return parts.join(' | ');
         }).join('\n');
-        try {
-            if (navigator.clipboard?.writeText) {
-                await navigator.clipboard.writeText(text);
-                toast.success(`Copiado ${selected.length} usuarios al portapapeles`);
-            } else {
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.focus(); textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                toast.success(`Copiado ${selected.length} usuarios al portapapeles`);
-            }
-        } catch { toast.error('Error al copiar al portapapeles'); }
+        const ok = await copyToClipboard(text);
+        if (ok) toast.success(`Copiado ${selected.length} usuarios al portapapeles`);
+        else toast.error('Error al copiar al portapapeles');
         setRowSelection({});
     };
 

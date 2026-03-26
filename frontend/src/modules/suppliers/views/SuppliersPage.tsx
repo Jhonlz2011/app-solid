@@ -12,6 +12,7 @@
 import { Component, Show, createSignal, createMemo, batch, For, createEffect, lazy } from 'solid-js';
 import type { Table, RowSelectionState, ColumnPinningState, VisibilityState, SortingState, Updater } from '@tanstack/solid-table';
 import { toast } from 'solid-sonner';
+import { copyToClipboard } from '@shared/utils/clipboard';
 import { useNavigate, Outlet, useSearch } from '@tanstack/solid-router';
 
 // Lazy Components
@@ -328,28 +329,9 @@ const SuppliersPage: Component = () => {
             return parts.join(' | ');
         }).join('\n');
 
-        try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(text);
-                toast.success(`Copiado ${selected.length} proveedores al portapapeles`);
-            } else {
-                // Fallback for non-secure contexts (http)
-                const textArea = document.createElement("textarea");
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    toast.success(`Copiado ${selected.length} proveedores al portapapeles`);
-                } catch (err) {
-                    toast.error('Error al copiar al portapapeles');
-                }
-                document.body.removeChild(textArea);
-            }
-        } catch (err) {
-            toast.error('Error al copiar al portapapeles');
-        }
+        const ok = await copyToClipboard(text);
+        if (ok) toast.success(`Copiado ${selected.length} proveedores al portapapeles`);
+        else toast.error('Error al copiar al portapapeles');
         setRowSelection({});
     };
 

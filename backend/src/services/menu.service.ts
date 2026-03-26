@@ -116,42 +116,48 @@ export async function reorderMenuItems(items: { id: number; sort_order: number }
 // ============================================
 
 /**
- * Filter menus based on user permissions using permission_prefix
- * If user has ANY permission starting with {prefix}., they can see the menu
+ * Filter menus based on user permissions using permission_prefix.
+ * User must explicitly have the specific {prefix}.read permission to see a leaf menu,
+ * and we must include all parent menus of accessible children to preserve the tree structure.
  */
 function filterByPermissions(menus: DbMenuItem[], permissions: string[]): DbMenuItem[] {
-    const parentIds = new Set<number>();
+    const permissionSet = new Set(permissions);
+    const accessibleMenuIds = new Set<number>();
 
-    // First pass: find all menus user has access to
-    const accessibleMenus = menus.filter(menu => {
-        // No permission required
-        if (!menu.permission_prefix) return true;
-
-        // Check if user has any permission for this module
-        const hasPermission = permissions.some(p =>
-            p.startsWith(menu.permission_prefix + '.')
-        );
-
-        if (hasPermission && menu.parent_id) {
-            parentIds.add(menu.parent_id);
+    // Step 1: Identify explicitly accessible menus
+    for (const menu of menus) {
+        if (!menu.permission_prefix) {
+            // Leaf menus without permission prefixes are accessible if they have a path
+            if (menu.path) {
+                accessibleMenuIds.add(menu.id);
+            }
+        } else {
+            // Strict .read check for explicit access
+            if (permissionSet.has(`${menu.permission_prefix}.read`)) {
+                accessibleMenuIds.add(menu.id);
+            }
         }
+    }
 
-        return hasPermission;
-    });
+    // Step 2: Ensure all ancestors (parents) of accessible menus are also included
+    const menuMap = new Map(menus.map(m => [m.id, m]));
+    const finalMenuIds = new Set<number>(accessibleMenuIds);
 
-    // Second pass: include parents that have accessible children
-    const result = menus.filter(menu => {
-        // Already included
-        if (accessibleMenus.includes(menu)) return true;
-        // Is a parent of an accessible menu
-        if (parentIds.has(menu.id)) return true;
-        return false;
-    });
+    for (const id of accessibleMenuIds) {
+        let currentParentId = menuMap.get(id)?.parent_id;
+        while (currentParentId) {
+            finalMenuIds.add(currentParentId);
+            currentParentId = menuMap.get(currentParentId)?.parent_id;
+        }
+    }
 
-    // Final filter: remove parents with no accessible children and no path
+    // Step 3: Filter the original list
+    const result = menus.filter(menu => finalMenuIds.has(menu.id));
+
+    // Step 4: Final cleanup — remove any parent menus that ended up with no accessible children and have no path
     return result.filter(menu => {
         if (menu.path) return true;
-        // Check if this parent has any children in result
+        // Check if this menu acts as a parent to any other menu in the final result
         return result.some(m => m.parent_id === menu.id);
     });
 }

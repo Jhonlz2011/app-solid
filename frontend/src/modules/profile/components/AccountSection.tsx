@@ -4,7 +4,7 @@ import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import type { Profile } from '../models/profile.types';
 import { UpdateProfileSchema } from '../models/profile.schemas';
-import { TextField } from './fields/TextField';
+import { TextField } from '@shared/ui/TextField';
 import Button from '@shared/ui/Button';
 import { AlertCircleIcon, FloppyDiskIcon } from '@shared/ui/icons';
 
@@ -56,31 +56,30 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                     e.stopPropagation();
                     form.handleSubmit();
                 }}
-                class="space-y-1"
+                class="space-y-5"
             >
                 {/* Username Field */}
                 <form.Field name="username">
                     {(field) => (
-                        <TextField
-                            field={field()}
-                            label="Nombre de usuario"
-                            id="username"
-                            placeholder="nombredeusuario"
-                            prefix="@"
-                        />
+                        <TextField.Root field={field()} disabled={props.isUpdating}>
+                            <TextField.Label>Nombre de usuario</TextField.Label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-muted z-10">@</span>
+                                <TextField.Input placeholder="nombredeusuario" class="pl-9" />
+                            </div>
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
                     )}
                 </form.Field>
 
                 {/* Email Field */}
                 <form.Field name="email">
                     {(field) => (
-                        <TextField
-                            field={field()}
-                            label="Correo electrónico"
-                            id="email"
-                            type="email"
-                            placeholder="tu@email.com"
-                        />
+                        <TextField.Root field={field()} disabled={props.isUpdating}>
+                            <TextField.Label>Correo electrónico</TextField.Label>
+                            <TextField.Input type="email" placeholder="tu@email.com" />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
                     )}
                 </form.Field>
 
