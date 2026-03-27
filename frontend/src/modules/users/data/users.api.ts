@@ -139,22 +139,22 @@ export const usersApi = {
 
     // ─── User Sessions (Admin) ───────────────────────────────────
     getUserSessions: async (userId: number): Promise<UserSession[]> => {
-        const userPath = api.api.rbac.users({ id: userId }) as any;
+        const userPath = api.api.rbac.users({ id: userId });
         const { data, error } = await userPath.sessions.get();
         if (error) throwApiError(error);
-        return data as UserSession[];
+        return data as unknown as UserSession[];
     },
 
     revokeUserSession: async (userId: number, sessionId: string) => {
-        const userPath = api.api.rbac.users({ id: userId }) as any;
-        const { data, error } = await userPath.sessions({ id: sessionId }).delete();
+        const userPath = api.api.rbac.users({ id: userId });
+        const { data, error } = await userPath.sessions({ sessionId }).delete();
         if (error) throwApiError(error);
         return data!;
     },
 
     // ─── Admin Password Reset ────────────────────────────────────
     adminResetPassword: async (userId: number, newPassword: string) => {
-        const userPath = api.api.rbac.users({ id: userId }) as any;
+        const userPath = api.api.rbac.users({ id: userId });
         const { data, error } = await userPath['reset-password'].post({ newPassword });
         if (error) throwApiError(error);
         return data!;
@@ -162,7 +162,7 @@ export const usersApi = {
 
     // ─── User Entity Assignment ──────────────────────────────────
     setUserEntity: async (userId: number, entityId: number | null) => {
-        const userPath = api.api.rbac.users({ id: userId }) as any;
+        const userPath = api.api.rbac.users({ id: userId });
         const { data, error } = await userPath.entity.patch({ entityId });
         if (error) throwApiError(error);
         return data!;
@@ -170,7 +170,7 @@ export const usersApi = {
 
     // ─── Entities (for picker) ───────────────────────────────────
     listEntities: async (search?: string): Promise<EntityPickerItem[]> => {
-        const { data, error } = await (api.api as any).entities.get({
+        const { data, error } = await api.api.entities.get({
             query: { limit: 200, search },
         });
         if (error) throwApiError(error);
@@ -179,9 +179,9 @@ export const usersApi = {
 
     // ─── User Audit Log ──────────────────────────────────────────
     getUserAuditLog: async (userId: number, page = 1, limit = 20): Promise<AuditLogResponse> => {
-        const userPath = api.api.rbac.users({ id: userId }) as any;
+        const userPath = api.api.rbac.users({ id: userId });
         const { data, error } = await userPath['audit-log'].get({ query: { page, limit } });
         if (error) throwApiError(error);
-        return data as AuditLogResponse;
+        return data as unknown as AuditLogResponse;
     },
 };

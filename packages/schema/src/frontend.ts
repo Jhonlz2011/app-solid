@@ -140,14 +140,26 @@ export const AuthLoginSchema = object({
 export type AuthLoginDto = InferInput<typeof AuthLoginSchema>;
 
 // --- USER FORM (Admin CRUD) ---
+/** Base schema — password optional (edit mode) */
 export const UserFormSchema = object({
     username: pipe(string(), minLength(3, 'El usuario debe tener al menos 3 caracteres')),
     email: pipe(string(), email('Correo electrónico inválido')),
-    /** Optional — required only in create mode (validated at form level) */
+    /** Optional — only validated in create mode via UserCreateSchema */
     password: optional(string()),
     isActive: optional(boolean()),
     roleIds: array(number()),
     entityId: optional(nullable(number())),
 });
 
+/** Create variant — password required with min length */
+export const UserCreateSchema = object({
+    username: pipe(string(), minLength(3, 'El usuario debe tener al menos 3 caracteres')),
+    email: pipe(string(), email('Correo electrónico inválido')),
+    password: pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres')),
+    isActive: optional(boolean()),
+    roleIds: array(number()),
+    entityId: optional(nullable(number())),
+});
+
 export type UserFormData = InferInput<typeof UserFormSchema>;
+export type UserCreateData = InferInput<typeof UserCreateSchema>;

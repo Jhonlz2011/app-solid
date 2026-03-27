@@ -17,7 +17,6 @@ import {
     removeUserFromRole,
     updateUser,
     deactivateUser,
-    deleteUser,
     hardDeleteUser,
     restoreUser,
     checkUserReferences,
@@ -39,8 +38,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await getAllRoles();
     }, { permission: 'roles.read' })
 
-    .post('/roles', async ({ body }) => {
-        return await createRole(body.name, body.description);
+    .post('/roles', async ({ body, currentUserId }) => {
+        return await createRole(body.name, body.description, currentUserId);
     }, {
         permission: 'roles.create',
         body: t.Object({
@@ -49,8 +48,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         }),
     })
 
-    .put('/roles/:id', async ({ params, body }) => {
-        return await updateRole(Number(params.id), body.name, body.description);
+    .put('/roles/:id', async ({ params, body, currentUserId }) => {
+        return await updateRole(Number(params.id), body.name, body.description, currentUserId);
     }, {
         permission: 'roles.update',
         body: t.Object({
@@ -59,8 +58,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         }),
     })
 
-    .delete('/roles/:id', async ({ params }) => {
-        return await deleteRole(Number(params.id));
+    .delete('/roles/:id', async ({ params, currentUserId }) => {
+        return await deleteRole(Number(params.id), currentUserId);
     }, { permission: 'roles.delete' })
 
     // Single role by ID (with is_system, permissionCount, userCount)
@@ -72,8 +71,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await getRolePermissions(Number(params.id));
     }, { permission: 'roles.read' })
 
-    .put('/roles/:id/permissions', async ({ params, body }) => {
-        return await updateRolePermissions(Number(params.id), body.permissionIds);
+    .put('/roles/:id/permissions', async ({ params, body, currentUserId }) => {
+        return await updateRolePermissions(Number(params.id), body.permissionIds, currentUserId);
     }, {
         permission: 'permissions.update',
         body: t.Object({
@@ -142,8 +141,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await getUserById(Number(params.id));
     }, { permission: 'users.read' })
 
-    .post('/users', async ({ body }) => {
-        return await createUser(body);
+    .post('/users', async ({ body, currentUserId }) => {
+        return await createUser(body, currentUserId);
     }, {
         permission: 'users.create',
         body: t.Object({
@@ -154,8 +153,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         }),
     })
 
-    .put('/users/:id', async ({ params, body }) => {
-        return await updateUser(Number(params.id), body);
+    .put('/users/:id', async ({ params, body, currentUserId }) => {
+        return await updateUser(Number(params.id), body, currentUserId);
     }, {
         permission: 'users.update',
         body: t.Object({

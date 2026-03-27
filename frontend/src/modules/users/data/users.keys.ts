@@ -25,4 +25,6 @@ export const rbacKeys = {
     // Facets
     facets: (search?: string, filters?: Record<string, string[] | undefined>) =>
         [...rbacKeys.all, 'facets', { search, ...filters }] as const,
+
+    canDelete: (id: number) => [...rbacKeys.users(), 'can-delete', id] as const,
 };

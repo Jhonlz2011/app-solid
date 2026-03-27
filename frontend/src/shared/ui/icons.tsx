@@ -19,6 +19,14 @@ export const UserHistoryIcon: Component<IconProps> = (props) => (
     </BaseIcon>
 );
 
+export const UserMinusIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <line x1="22" x2="16" y1="11" y2="11" />
+    </BaseIcon>
+);
+
 export const BriefcaseIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>
         <rect x="2" y="7" width="20" height="14" rx="3" ry="3" />
@@ -361,6 +369,7 @@ export const AlertTriangleIcon: Component<IconProps> = (props) => (
         <line x1="12" y1="17" x2="12.01" y2="17" />
     </BaseIcon>
 );
+
 
 export const MoreVerticalIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>

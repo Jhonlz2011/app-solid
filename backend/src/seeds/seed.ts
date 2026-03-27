@@ -300,7 +300,7 @@ const PERMISSIONS = [
 
 const ROLES = [
     { name: 'superadmin', description: 'Super Administrador con acceso total al sistema', is_system: true },
-    { name: 'admin', description: 'Administrador del sistema', is_system: true },
+    { name: 'admin', description: 'Administrador del sistema'},
     { name: 'gerente', description: 'Gerente con acceso a reportes y aprobaciones' },
     { name: 'ventas', description: 'Equipo de ventas y CRM' },
     { name: 'produccion', description: 'Equipo de producción y manufactura' },

@@ -195,6 +195,19 @@ const Label = (props: TextFieldLabelProps) => {
     );
 };
 
+/** Standalone label for non-TextField contexts (Select, SegmentedControl, etc.) */
+export const FieldLabel = (props: { class?: string; children: JSX.Element }) => {
+    const [local, others] = splitProps(props, ['class', 'children']);
+    return (
+        <label
+            class={`text-sm font-medium text-muted ml-1 block ${local.class ?? ''}`}
+            {...others}
+        >
+            {local.children}
+        </label>
+    );
+};
+
 /** Text input */
 const Input = (props: TextFieldInputProps) => {
     const context = useTextFieldContext();
@@ -255,16 +268,6 @@ const TextArea = (props: TextFieldTextAreaProps) => {
     const context = useTextFieldContext();
     const [local, others] = splitProps(props, ['class']);
 
-    const textAreaStyles = `
-        w-full bg-card-alt border border-border text-text 
-        rounded-xl px-4 py-3 outline-none resize-y
-        transition-all duration-200
-        hover:border-border-strong hover:bg-card
-        focus:border-primary/65 focus:ring-2 focus:ring-primary/25
-        disabled:cursor-not-allowed disabled:opacity-50
-        data-[invalid=true]:border-red-500/50 data-[invalid=true]:focus:ring-red-500/25
-    `;
-
     return (
         <textarea
             id={context.id}
@@ -274,7 +277,7 @@ const TextArea = (props: TextFieldTextAreaProps) => {
             disabled={context.disabled()}
             readOnly={context.readOnly()}
             data-invalid={context.validationState() === 'invalid'}
-            class={`${textAreaStyles} ${local.class ?? ''}`}
+            class={`${inputBaseStyles} resize-y py-3 ${local.class ?? ''}`}
             {...others}
         />
     );

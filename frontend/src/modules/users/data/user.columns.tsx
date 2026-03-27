@@ -142,6 +142,59 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
         },
 
         // -------------------------------------------------------------------
+        // Entidad vinculada
+        // -------------------------------------------------------------------
+        {
+            id: 'entity',
+            accessorFn: (row) => row.entityName,
+            enableSorting: false,
+            meta: { title: 'Entidad' },
+            header: ({ column }) => (
+                <DataTableColumnHeader
+                    column={column}
+                    title="Entidad"
+                />
+            ),
+            cell: (info) => {
+                const user = info.row.original;
+                const name = user.entityName;
+                if (!name) {
+                    return <span class="text-muted text-sm italic">Sin entidad</span>;
+                }
+                return (
+                    <div class="flex flex-col gap-0.5 min-w-0">
+                        <Show when={user.entityIsSupplier && user.entityId}
+                            fallback={<span class="text-sm text-text truncate font-medium" title={name}>{name}</span>}
+                        >
+                            <a
+                                href={`/suppliers/show/${user.entityId}`}
+                                class="text-sm text-primary hover:underline truncate font-medium"
+                                title={`Ver proveedor: ${name}`}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {name}
+                            </a>
+                        </Show>
+                        <Show when={user.entityTaxId}>
+                            <span class="text-[11px] text-muted/70 font-mono truncate">{user.entityTaxId}</span>
+                        </Show>
+                        <div class="flex gap-1 mt-0.5">
+                            <Show when={user.entityIsClient}>
+                                <span class="text-[9px] px-1.5 py-px rounded bg-emerald-500/10 text-emerald-600 font-semibold">Cli</span>
+                            </Show>
+                            <Show when={user.entityIsSupplier}>
+                                <span class="text-[9px] px-1.5 py-px rounded bg-amber-500/10 text-amber-600 font-semibold">Prov</span>
+                            </Show>
+                            <Show when={user.entityIsEmployee}>
+                                <span class="text-[9px] px-1.5 py-px rounded bg-primary/10 text-primary font-semibold">Emp</span>
+                            </Show>
+                        </div>
+                    </div>
+                );
+            },
+        },
+
+        // -------------------------------------------------------------------
         // Estado
         // -------------------------------------------------------------------
         {

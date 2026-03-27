@@ -1,7 +1,7 @@
 import { Component, For, Show, createSignal, createMemo } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
-import { UserFormSchema, type UserFormData } from '@app/schema/frontend';
+import { UserFormSchema, UserCreateSchema, type UserFormData } from '@app/schema/frontend';
 import type { Role } from '../models/users.types';
 import { TextField } from '@shared/ui/TextField';
 import { Autocomplete } from '@shared/ui/Autocomplete';
@@ -10,7 +10,7 @@ import Switch from '@shared/ui/Switch';
 import Button from '@shared/ui/Button';
 import { RoleBadge } from '@shared/ui/Badge';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import { CloseIcon, EyeIcon, EyeOffIcon, CopyIcon, KeyIcon } from '@shared/ui/icons';
+import { CloseIcon, CopyIcon, KeyIcon } from '@shared/ui/icons';
 import { copyToClipboard } from '@shared/utils/clipboard';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { toast } from 'solid-sonner';
@@ -46,12 +46,7 @@ export interface UserFormProps {
     isSubmitting?: boolean;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const generatePassword = (length = 16): string => {
-    const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
-    return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-};
+import { generatePassword } from '@shared/utils/password.utils';
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -59,7 +54,11 @@ const UserForm: Component<UserFormProps> = (props) => {
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
 
     // Entity selection (managed outside TanStack Form since it uses Autocomplete)
-    const [entitySearchText, setEntitySearchText] = createSignal('');
+    const [entitySearchText, setEntitySearchText] = createSignal(
+        props.defaultValues?.entityId
+            ? props.entities?.find(e => e.id === props.defaultValues?.entityId)?.businessName ?? ''
+            : ''
+    );
 
     // Password change section (edit mode)
     const [showPwSection, setShowPwSection] = createSignal(false);
@@ -78,42 +77,35 @@ const UserForm: Component<UserFormProps> = (props) => {
 
     // ── Form ─────────────────────────────────────────────────────────────────
 
-    const form = createForm(() => ({
-        defaultValues: {
-            username: props.defaultValues?.username ?? '',
-            email: props.defaultValues?.email ?? '',
-            password: '',
-            isActive: props.defaultValues?.isActive ?? true,
-            roleIds: props.defaultValues?.roleIds ?? [],
-            entityId: props.defaultValues?.entityId ?? null,
-        } as UserFormData,
-        validatorAdapter: valibotValidator(),
-        validators: {
-            onChange: UserFormSchema,
-            onSubmit: UserFormSchema,
-        },
-        onSubmit: async ({ value }) => {
-            // In create mode, password is required
-            if (props.showPassword && (!value.password || value.password.length < 8)) {
-                form.setFieldMeta('password', (prev) => ({
-                    ...prev,
-                    errors: ['La contraseña debe tener al menos 8 caracteres'],
-                    errorMap: { ...prev.errorMap, onSubmit: 'La contraseña debe tener al menos 8 caracteres' },
-                }));
-                return;
-            }
-
-            await props.onSubmit({
-                username: value.username,
-                email: value.email,
-                password: props.showPassword ? value.password : undefined,
-                newPassword: props.showPasswordChange && newPassword().length >= 8 ? newPassword() : undefined,
-                isActive: props.showIsActive ? value.isActive : undefined,
-                roleIds: value.roleIds,
-                entityId: props.showEntityPicker ? value.entityId : undefined,
-            } as UserFormData & { newPassword?: string });
-        },
-    }));
+    const form = createForm(() => {
+        const schema = props.showPassword ? UserCreateSchema : UserFormSchema;
+        return {
+            defaultValues: {
+                username: props.defaultValues?.username ?? '',
+                email: props.defaultValues?.email ?? '',
+                password: '',
+                isActive: props.defaultValues?.isActive ?? true,
+                roleIds: props.defaultValues?.roleIds ?? [],
+                entityId: props.defaultValues?.entityId ?? null,
+            } as UserFormData,
+            validatorAdapter: valibotValidator(),
+            validators: {
+                onChange: schema,
+                onSubmit: schema,
+            },
+            onSubmit: async ({ value }) => {
+                await props.onSubmit({
+                    username: value.username,
+                    email: value.email,
+                    password: props.showPassword ? value.password : undefined,
+                    newPassword: props.showPasswordChange && newPassword().length >= 8 ? newPassword() : undefined,
+                    isActive: props.showIsActive ? value.isActive : undefined,
+                    roleIds: value.roleIds,
+                    entityId: props.showEntityPicker ? value.entityId : undefined,
+                } as UserFormData & { newPassword?: string });
+            },
+        };
+    });
 
     // ── Reactive selectors ───────────────────────────────────────────────────
 
@@ -210,7 +202,7 @@ const UserForm: Component<UserFormProps> = (props) => {
                     <div class="space-y-3">
                         <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                             <div class="size-1.5 rounded-full bg-emerald-500" />
-                            Persona vinculada
+                            Entidad vinculada
                         </div>
 
                         {/* Selected entity card */}
@@ -367,21 +359,25 @@ const UserForm: Component<UserFormProps> = (props) => {
                                 <For each={props.roles}>
                                     {(role) => {
                                         const isChecked = () => selectedRoleIds()?.includes(role.id) ?? false;
+                                        const isSystemRole = () => role.is_system ?? false;
                                         return (
-                                            <label class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface/50 cursor-pointer transition-colors border border-transparent hover:border-border/40 group">
+                                            <label
+                                                class="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors border border-transparent group"
+                                                classList={{
+                                                    'hover:bg-surface/50 hover:border-border/40': !isSystemRole(),
+                                                    'opacity-60 cursor-not-allowed': isSystemRole(),
+                                                }}
+                                            >
                                                 <Checkbox
                                                     name="roleIds"
                                                     value={String(role.id)}
                                                     checked={isChecked()}
-                                                    onChange={() => toggleRole(role.id)}
-                                                    disabled={props.isSubmitting}
+                                                    onChange={() => !isSystemRole() && toggleRole(role.id)}
+                                                    disabled={props.isSubmitting || isSystemRole()}
                                                 />
                                                 <div class="flex-1 min-w-0">
                                                     <div class="flex items-center gap-2">
                                                         <RoleBadge name={role.name} />
-                                                        <Show when={role.is_system}>
-                                                            <span class="text-[10px] text-muted bg-surface px-1.5 py-0.5 rounded border border-border/60">Sistema</span>
-                                                        </Show>
                                                     </div>
                                                     <Show when={role.description}>
                                                         <p class="text-xs text-muted mt-0.5 truncate">{role.description}</p>

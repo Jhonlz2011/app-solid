@@ -4,11 +4,18 @@
 import { api } from '@shared/lib/eden';
 import type { usersApi } from '../data/users.api';
 
-// Derived from Eden
+// Derived from Eden — extended with fields from backend JOINs that Eden can't infer
 export type UsersListResponse = Awaited<ReturnType<typeof api.api.rbac.users.get>>['data'];
-export type UserListItem = NonNullable<UsersListResponse>['data'][number];
+export type UserListItem = NonNullable<UsersListResponse>['data'][number] & {
+    entityName?: string | null;
+    entityId?: number | null;
+    entityTaxId?: string | null;
+    entityIsClient?: boolean | null;
+    entityIsSupplier?: boolean | null;
+    entityIsEmployee?: boolean | null;
+};
 export type RoleBase = Awaited<ReturnType<typeof api.api.rbac.roles.get>>['data'];
-export type RoleListItem = NonNullable<RoleBase>[number] & { is_system?: boolean; permissionCount?: number };
+export type RoleListItem = NonNullable<RoleBase>[number] & { is_system?: boolean | null; permissionCount?: number };
 export type RoleBody = Parameters<typeof api.api.rbac.roles.post>[0];
 
 export type UserWithRoles = UserListItem;

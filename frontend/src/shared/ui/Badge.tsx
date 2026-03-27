@@ -117,26 +117,46 @@ export const StatusBadge: Component<{ isActive: boolean | null }> = (props) => (
     </Badge>
 );
 
-// Pre-configured action badge (read, add, edit, delete)
+// Localized labels for permission action slugs
+const ACTION_LABELS: Record<string, string> = {
+    read:    'Ver',
+    create:  'Crear',
+    add:     'Agregar',
+    update:  'Editar',
+    edit:    'Editar',
+    delete:  'Eliminar',
+    restore: 'Restaurar',
+    destroy: 'Destruir',
+    export:  'Exportar',
+    import:  'Importar',
+    approve: 'Aprobar',
+    assign:  'Asignar',
+    audit:   'Auditar',
+};
+
+// Pre-configured action badge (read, create, update, delete…)
 export const ActionBadge: Component<{ action: string }> = (props) => {
     const variant = (): BadgeVariant => {
         switch (props.action) {
-            case 'read': return 'info';
-            case 'create': case 'add': return 'success';
-            case 'update': case 'edit': return 'warning';
-            case 'delete': return 'danger';
-            case 'restore': return 'primary';
-            case 'destroy': return 'danger';
-            case 'export': return 'info';
-            case 'import': return 'success';
-            case 'approve': return 'warning';
-            case 'assign': return 'primary';
-            case 'audit': return 'default';
-            default: return 'default';
+            case 'read':                   return 'info';
+            case 'create': case 'add':     return 'success';
+            case 'update': case 'edit':    return 'warning';
+            case 'delete':                 return 'danger';
+            case 'restore':                return 'primary';
+            case 'destroy':                return 'danger';
+            case 'export':                 return 'info';
+            case 'import':                 return 'success';
+            case 'approve':                return 'warning';
+            case 'assign':                 return 'primary';
+            case 'audit':                  return 'default';
+            default:                       return 'default';
         }
     };
 
-    return <Badge variant={variant()}>{props.action}</Badge>;
+    const label = () =>
+        ACTION_LABELS[props.action] ?? (props.action.charAt(0).toUpperCase() + props.action.slice(1));
+
+    return <Badge variant={variant()}>{label()}</Badge>;
 };
 
 export default Badge;

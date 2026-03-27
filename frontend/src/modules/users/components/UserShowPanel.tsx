@@ -18,7 +18,7 @@ import { StatusBadge, RoleBadge } from '@shared/ui/Badge';
 import { TextField } from '@shared/ui/TextField';
 import ErrorState from '@shared/ui/ErrorState';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
-import { EditIcon, KeyIcon, InfoIcon, DeviceIcon, EyeIcon, EyeOffIcon, CopyIcon, UserHistoryIcon } from '@shared/ui/icons';
+import { EditIcon, KeyIcon, InfoIcon, DeviceIcon, CopyIcon, UserHistoryIcon } from '@shared/ui/icons';
 import { useAuth } from '@modules/auth/store/auth.store';
 import {
     useUser,
@@ -32,17 +32,27 @@ interface UserShowPanelProps {
     userId: number;
 }
 
+import { generatePassword } from '@shared/utils/password.utils';
+
 // ─── Utilities ───────────────────────────────────────────────────────────────
 // parseUserAgent & formatSessionDate → @shared/utils/session.utils.ts
 // SessionItem → @modules/profile/components/SessionItem
 
+// ─── Reusable Sub-Components ─────────────────────────────────────────────────
 
-const generatePassword = (length = 16): string => {
-    const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
-    return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+const InfoRow = (props: { label: string; value?: string | number | boolean | null }) => {
+    const displayValue = () => {
+        if (props.value === null || props.value === undefined || props.value === '') return '—';
+        if (typeof props.value === 'boolean') return props.value ? 'Sí' : 'No';
+        return String(props.value);
+    };
+    return (
+        <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-muted uppercase tracking-wider">{props.label}</span>
+            <span class="text-sm text-text font-medium">{displayValue()}</span>
+        </div>
+    );
 };
-
-// ─── Main Component ──────────────────────────────────────────────────────────
 
 const UserShowPanel: Component<UserShowPanelProps> = (props) => {
     const navigate = useNavigate();
@@ -54,19 +64,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
 
     const canUpdate = () => auth.canEdit?.('users') ?? false;
 
-    const InfoRow = (rowProps: { label: string; value?: string | number | boolean | null }) => {
-        const displayValue = () => {
-            if (rowProps.value === null || rowProps.value === undefined || rowProps.value === '') return '—';
-            if (typeof rowProps.value === 'boolean') return rowProps.value ? 'Sí' : 'No';
-            return String(rowProps.value);
-        };
-        return (
-            <div class="flex flex-col gap-1">
-                <span class="text-xs font-medium text-muted uppercase tracking-wider">{rowProps.label}</span>
-                <span class="text-sm text-text font-medium">{displayValue()}</span>
-            </div>
-        );
-    };
+
 
     return (
         <Sheet
@@ -137,7 +135,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                             {/* Scrollable Content Area */}
                             <div class="flex-1 px-1 pb-6 pt-5">
                                 {/* ═══ General Tab ═══ */}
-                                <TabsContent value="general" class="space-y-4 animate-in fade-in duration-200">
+                                <TabsContent value="general" class="space-y-4">
                                     {/* Account Info */}
                                     <div class="bg-surface/30 rounded-2xl border border-border/40 overflow-hidden">
                                         <div class="bg-surface/50 px-4 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
@@ -240,11 +238,11 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                 </TabsContent>
 
                                 {/* ═══ Sessions Tab ═══ */}
-                                <TabsContent value="sessions" class="animate-in fade-in duration-200">
+                                <TabsContent value="sessions">
                                     <UserSessionsTab userId={props.userId} />
                                 </TabsContent>
 
-                                <TabsContent value="activity" class="animate-in fade-in duration-200">
+                                <TabsContent value="activity">
                                     <UserActivityTab userId={props.userId} />
                                 </TabsContent>
                                 </div>
@@ -377,18 +375,123 @@ const AUDIT_ACTION_LABELS: Record<string, { label: string; color: string }> = {
 const TABLE_NAME_LABELS: Record<string, string> = {
     entities: 'Entidad',
     auth_users: 'Usuario',
+    auth_roles: 'Rol',
+    auth_user_roles: 'Roles de usuario',
+    auth_role_permissions: 'Permisos de rol',
     products: 'Producto',
     invoices: 'Factura',
     work_orders: 'Orden de trabajo',
 };
 
+const FIELD_LABELS: Record<string, string> = {
+    username: 'Usuario', email: 'Correo', is_active: 'Estado',
+    password_hash: 'Contraseña', entity_id: 'Entidad',
+    roleIds: 'Roles', permissionIds: 'Permisos', name: 'Nombre',
+    description: 'Descripción', isActive: 'Estado',
+};
+
+const REDACTED_FIELDS = new Set(['password_hash']);
+
+/** Format a diff value for display */
+const formatDiffValue = (key: string, value: unknown): string => {
+    if (REDACTED_FIELDS.has(key)) return '●●●●●●';
+    if (value === null || value === undefined) return '—';
+    if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+    if (Array.isArray(value)) return value.length > 0 ? value.join(', ') : '(vacío)';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+};
+
+/** Compute changed fields between old and new data */
+const computeDiff = (oldData?: Record<string, unknown> | null, newData?: Record<string, unknown> | null) => {
+    const changes: { key: string; label: string; oldVal: string; newVal: string }[] = [];
+    const allKeys = new Set([
+        ...Object.keys(oldData ?? {}),
+        ...Object.keys(newData ?? {}),
+    ]);
+
+    for (const key of allKeys) {
+        const oldVal = oldData?.[key];
+        const newVal = newData?.[key];
+        // Skip if values are the same (deep compare for arrays)
+        if (JSON.stringify(oldVal) === JSON.stringify(newVal)) continue;
+        changes.push({
+            key,
+            label: FIELD_LABELS[key] ?? key,
+            oldVal: formatDiffValue(key, oldVal),
+            newVal: formatDiffValue(key, newVal),
+        });
+    }
+    return changes;
+};
+
+/** Inline diff table for a single audit entry */
+const AuditDiffView: Component<{ entry: AuditLogEntry }> = (props) => {
+    const action = () => props.entry.action;
+    const oldData = () => props.entry.oldData as Record<string, unknown> | null | undefined;
+    const newData = () => props.entry.newData as Record<string, unknown> | null | undefined;
+
+    const changes = () => computeDiff(oldData(), newData());
+    const hasData = () => oldData() || newData();
+
+    return (
+        <Show when={hasData() && changes().length > 0}>
+            <div class="mt-2 rounded-lg border border-border/40 overflow-hidden text-[11px]">
+                {/* Header row */}
+                <div class="grid grid-cols-3 bg-surface/50 px-3 py-1.5 font-semibold text-muted/80 border-b border-border/30">
+                    <span>Campo</span>
+                    <Show when={action() === 'UPDATE'} fallback={<span class="col-span-2">Valor</span>}>
+                        <span>Antes</span>
+                        <span>Después</span>
+                    </Show>
+                </div>
+
+                {/* Rows */}
+                <For each={changes()}>
+                    {(change) => (
+                        <div class="grid grid-cols-3 px-3 py-1.5 border-b border-border/20 last:border-b-0 hover:bg-surface/20 transition-colors">
+                            <span class="font-medium text-text/70 truncate" title={change.key}>
+                                {change.label}
+                            </span>
+
+                            <Show when={action() === 'UPDATE'} fallback={
+                                <span class={`col-span-2 font-mono truncate ${action() === 'INSERT' ? 'text-emerald-600' : 'text-red-500'}`} title={action() === 'INSERT' ? change.newVal : change.oldVal}>
+                                    {action() === 'INSERT' ? change.newVal : change.oldVal}
+                                </span>
+                            }>
+                                <span class="font-mono text-red-500/80 truncate line-through" title={change.oldVal}>
+                                    {change.oldVal}
+                                </span>
+                                <span class="font-mono text-emerald-600 truncate" title={change.newVal}>
+                                    {change.newVal}
+                                </span>
+                            </Show>
+                        </div>
+                    )}
+                </For>
+            </div>
+        </Show>
+    );
+};
+
 const UserActivityTab: Component<{ userId: number }> = (props) => {
     const [page, setPage] = createSignal(1);
+    const [expandedIds, setExpandedIds] = createSignal<Set<string>>(new Set());
     const auditQuery = useUserAuditLog(() => props.userId, page);
 
     const entries = () => auditQuery.data?.data ?? [];
     const meta = () => auditQuery.data?.meta;
     const isLoading = () => auditQuery.isLoading;
+
+    const toggleExpand = (id: string) => {
+        const next = new Set(expandedIds());
+        if (next.has(id)) next.delete(id); else next.add(id);
+        setExpandedIds(next);
+    };
+
+    const hasDiffData = (entry: AuditLogEntry) => {
+        return entry.oldData || entry.newData;
+    };
 
     return (
         <div>
@@ -435,6 +538,8 @@ const UserActivityTab: Component<{ userId: number }> = (props) => {
                                     color: 'bg-gray-500/15 text-gray-600',
                                 };
                                 const tableName = () => TABLE_NAME_LABELS[entry.tableName] ?? entry.tableName;
+                                const entryId = () => `${entry.id}-${entry.createdAt}`;
+                                const isExpanded = () => expandedIds().has(entryId());
 
                                 return (
                                     <div class="relative flex items-start gap-3 py-2.5 pl-1">
@@ -456,6 +561,17 @@ const UserActivityTab: Component<{ userId: number }> = (props) => {
                                                 <span class="text-[11px] text-muted/60" title={formatSessionDate(entry.createdAt)}>
                                                     {formatSessionDate(entry.createdAt)}
                                                 </span>
+
+                                                {/* Expand/collapse button for diff */}
+                                                <Show when={hasDiffData(entry)}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleExpand(entryId())}
+                                                        class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-surface/50 hover:bg-surface text-muted hover:text-text transition-colors cursor-pointer"
+                                                    >
+                                                        {isExpanded() ? '▲ Ocultar' : '▼ Ver cambios'}
+                                                    </button>
+                                                </Show>
                                             </div>
                                             <Show when={entry.performedByUsername}>
                                                 <p class="text-xs text-muted mt-0.5">
@@ -464,6 +580,11 @@ const UserActivityTab: Component<{ userId: number }> = (props) => {
                                             </Show>
                                             <Show when={entry.ipAddress}>
                                                 <p class="text-[11px] text-muted/50 mt-0.5">IP: {entry.ipAddress}</p>
+                                            </Show>
+
+                                            {/* Expandable diff view */}
+                                            <Show when={isExpanded()}>
+                                                <AuditDiffView entry={entry} />
                                             </Show>
                                         </div>
                                     </div>

@@ -26,7 +26,7 @@ import { useSriSearchByName } from '@modules/suppliers/data/suppliers.api';
 
 import { useGeoNamesCities, type GeoNameCity } from '@shared/hooks/useGeoNamesCities';
 import Button from '@shared/ui/Button';
-import TextField from '@shared/ui/TextField';
+import TextField, { FieldLabel } from '@shared/ui/TextField';
 import Checkbox from '@shared/ui/Checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import { Autocomplete } from '@shared/ui/Autocomplete';
@@ -46,17 +46,6 @@ import {
 // Sub-components
 // =============================================================================
 
-const FieldLabel = (props: { children: string }) => (
-    <label class="text-sm font-medium text-muted mb-1 ml-1 block">{props.children}</label>
-);
-
-const FormError = (props: { field: any }) => (
-    <Show when={hasFieldError(props.field)}>
-        <span class="text-sm font-medium text-danger mt-1.5 block">
-            {getFieldError(props.field) || 'Error de validación'}
-        </span>
-    </Show>
-);
 
 // =============================================================================
 // AddressRow — Sub-component with city Autocomplete + flag
@@ -521,7 +510,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                     <Show when={showContacts()}>
                                         <form.Subscribe selector={(state) => state.values.contacts?.length || 0}>
                                             {(count) => (
-                                                <TabsTrigger value="contacts" count={typeof count === 'function' ? count() : count as number} hasError={getFlags().contacts}>
+                                            <TabsTrigger value="contacts" count={count()} hasError={getFlags().contacts}>
                                                     <UsersIcon class="size-4" /> Contactos
                                                 </TabsTrigger>
                                             )}
@@ -529,7 +518,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                     </Show>
                                     <form.Subscribe selector={(state) => state.values.addresses?.length || 0}>
                                         {(count) => (
-                                            <TabsTrigger value="addresses" count={typeof count === 'function' ? count() : count as number} hasError={getFlags().addresses}>
+                                            <TabsTrigger value="addresses" count={count()} hasError={getFlags().addresses}>
                                                 <MapPinIcon class="size-4" /> Direcciones
                                             </TabsTrigger>
                                         )}
@@ -717,7 +706,11 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                                 )}
                                             </Index>
                                         </SegmentedControl>
-                                        <FormError field={field()} />
+                                        <Show when={hasFieldError(field())}>
+                                            <span class="text-xs font-medium text-danger mt-1 block">
+                                                {getFieldError(field()) || 'Error de validación'}
+                                            </span>
+                                        </Show>
                                     </div>
                                 )}
                             </form.Field>

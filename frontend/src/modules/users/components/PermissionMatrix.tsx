@@ -1,7 +1,28 @@
 import { Component, For, Show, createSignal, createMemo, createEffect } from 'solid-js';
-import { ActionBadge } from './Badge';
-import Checkbox from './Checkbox';
-import { SearchInput } from './SearchInput';
+import { ActionBadge } from '@shared/ui/Badge';
+import Checkbox from '@shared/ui/Checkbox';
+import { SearchInput } from '@shared/ui/SearchInput';
+import Button from '@shared/ui/Button';
+
+// ============================================
+// ACTION CATALOG — localized labels for permission actions
+// ============================================
+
+const ACTION_CATALOG: Record<string, { label: string; shortLabel: string }> = {
+    read:     { label: 'Ver',        shortLabel: 'V'  },
+    create:   { label: 'Crear',      shortLabel: 'C'  },
+    update:   { label: 'Editar',     shortLabel: 'E'  },
+    delete:   { label: 'Eliminar',   shortLabel: 'D'  },
+    restore:  { label: 'Restaurar',  shortLabel: 'R'  },
+    destroy:  { label: 'Destruir',   shortLabel: 'X'  },
+    export:   { label: 'Exportar',   shortLabel: 'Ex' },
+    import:   { label: 'Importar',   shortLabel: 'Im' },
+    assign:   { label: 'Asignar',    shortLabel: 'As' },
+    unassign: { label: 'Quitar',     shortLabel: 'Q'  },
+};
+
+const getActionLabel = (action: string) =>
+    ACTION_CATALOG[action]?.label ?? action.charAt(0).toUpperCase() + action.slice(1);
 
 // ============================================
 // TYPES
@@ -77,6 +98,8 @@ export const PermissionMatrix: Component<PermissionMatrixProps> = (props) => {
     createEffect(() => {
         if (search().length > 0) {
             setExpandedModules(new Set<string>(filteredModules().map(([m]) => m)));
+        } else {
+            setExpandedModules(new Set<string>());
         }
     });
 
@@ -87,7 +110,7 @@ export const PermissionMatrix: Component<PermissionMatrixProps> = (props) => {
     };
 
     const expandAll = () => setExpandedModules(new Set(Array.from(grouped().keys())));
-    const collapseAll = () => setExpandedModules(new Set());
+    const collapseAll = () => setExpandedModules(new Set<string>());
 
     const moduleState = (perms: PermissionItem[]) => {
         let selected = 0;
@@ -112,20 +135,22 @@ export const PermissionMatrix: Component<PermissionMatrixProps> = (props) => {
                     />
                 </Show>
                 <div class="flex items-center gap-1 shrink-0">
-                    <button
+                    <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={expandAll}
-                        class="text-xs px-2 py-1 rounded-md bg-surface hover:bg-surface/80 text-muted transition-colors"
                     >
                         Expandir
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={collapseAll}
-                        class="text-xs px-2 py-1 rounded-md bg-surface hover:bg-surface/80 text-muted transition-colors"
                     >
                         Colapsar
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -184,7 +209,9 @@ export const PermissionMatrix: Component<PermissionMatrixProps> = (props) => {
                                                             onClick={(e: MouseEvent) => e.stopPropagation()}
                                                         />
                                                         <ActionBadge action={action} />
-                                                        <span class="text-sm text-muted truncate">{perm.description}</span>
+                                                        <span class="text-sm text-muted truncate">
+                                                            {perm.description || getActionLabel(action)}
+                                                        </span>
                                                     </label>
                                                 );
                                             }}

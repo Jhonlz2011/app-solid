@@ -8,7 +8,7 @@ import type { Table, RowSelectionState, ColumnPinningState, VisibilityState, Sor
 import { isActiveLabels } from '../models/users.types';
 // Data & hooks
 import {
-    useRoles, useUsersWithRoles, useDeleteRole,
+    useRoles, useUsers, useDeleteRole,
     useDeactivateUser, useRestoreUser,
     useBulkDeactivateUsers, useBulkRestoreUsers,
     useUserFacets
@@ -24,6 +24,7 @@ import { createUserColumns } from '../data/user.columns';
 import { useDataTableSSE } from '@shared/hooks/useDataTableSSE';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 
 // Shared UI
 import { DataTable } from '@shared/ui/DataTable';
@@ -41,6 +42,7 @@ import Switch from '@shared/ui/Switch';
 // Feature components
 import RoleCard from '../components/RoleCard';
 import RoleFormDialog from '../components/RoleFormDialog';
+import RoleUsersDialog from '../components/RoleUsersDialog';
 
 // Icons
 import {
@@ -53,7 +55,7 @@ type TabKey = 'users' | 'roles';
 
 // ─── Role dialog state ──────────────────────────────────────────────────────
 interface RoleDialogState {
-    mode: 'create' | 'edit';
+    mode: 'create' | 'edit' | 'permissions';
     roleId?: number;
 }
 
@@ -71,7 +73,7 @@ const UsersRolesPage: Component = () => {
     };
 
     const handleTabChange = (tab: string) => {
-        navigate({ search: ((prev: any) => ({ ...prev, tab })) as any, replace: true });
+        navigate({ search: ((prev: any) => ({ ...prev, tab, rolesSearch: undefined })) as any, replace: true });
     };
 
     // ─── Users tab state ────────────────────────────────────────
@@ -91,8 +93,11 @@ const UsersRolesPage: Component = () => {
     const [tableInstance, setTableInstance] = createSignal<Table<UserWithRoles>>();
 
     // ─── Roles tab state ─────────────────────────────────────────
-    const [rolesSearch, setRolesSearch] = createSignal('');
+    const [rolesSearch, setRolesSearch] = createSignal(
+        ((search() as any)?.rolesSearch as string) ?? ''
+    );
     const [roleDialog, setRoleDialog] = createSignal<RoleDialogState | null>(null);
+    const [usersDialog, setUsersDialog] = createSignal<{ roleId: number; roleName: string } | null>(null);
 
     // ─── Confirm dialogs ─────────────────────────────────────────
     const [deleteTarget, setDeleteTarget] = createSignal<UserWithRoles | null>(null);
@@ -124,7 +129,7 @@ const UsersRolesPage: Component = () => {
 
     // ─── Queries & Mutations ────────────────────────────────────
     const facetsQuery = useUserFacets(userSearch, columnFiltersMap);
-    const usersQuery = useUsersWithRoles(usersFilters);
+    const usersQuery = useUsers(usersFilters);
     const rolesQuery = useRoles();
     const deactivateMutation = useDeactivateUser();
     const restoreMutation = useRestoreUser();
@@ -136,6 +141,7 @@ const UsersRolesPage: Component = () => {
     useDataTableSSE({
         room: 'users',
         queryKey: rbacKeys.lists(),
+        events: [RealtimeEvents.USER.CREATED, RealtimeEvents.USER.UPDATED, RealtimeEvents.USER.DELETED],
     });
 
     // ─── Derived data ────────────────────────────────────────────
@@ -229,6 +235,19 @@ const UsersRolesPage: Component = () => {
     const handleNewRole = () => setRoleDialog({ mode: 'create' });
     const handleEditRole = (r: Role) => setRoleDialog({ mode: 'edit', roleId: r.id });
     const handleCloseRoleDialog = () => setRoleDialog(null);
+
+    const handlePrefetchRole = (r: Role) => {
+        queryClient.prefetchQuery({
+            queryKey: rbacKeys.role(r.id),
+            queryFn: () => usersApi.getRole(r.id),
+            staleTime: 1000 * 60 * 5,
+        });
+        queryClient.prefetchQuery({
+            queryKey: rbacKeys.rolePermissions(r.id),
+            queryFn: () => usersApi.getRolePermissions(r.id),
+            staleTime: 1000 * 60 * 5,
+        });
+    };
 
     // ─── Delete handlers ────────────────────────────────────────
     const handleDeleteUser = (u: UserWithRoles) =>
@@ -345,7 +364,7 @@ const UsersRolesPage: Component = () => {
             onEdit: handleEditUser,
             onDelete: handleDeleteUser,
             onRestore: handleRestore,
-            onRoleBadgeClick: (role) => setRoleDialog({ mode: 'edit', roleId: role.id }),
+            onRoleBadgeClick: (role) => setRoleDialog({ mode: 'permissions', roleId: role.id }),
             auth,
             filters: {
                 isActive: {
@@ -389,36 +408,39 @@ const UsersRolesPage: Component = () => {
                     count={activeTab() === 'users' ? totalUsers() : roles().length}
                     info="Gestiona usuarios, roles y permisos de acceso al sistema."
                     actions={
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-3">
+                            {/* Inline Tabs */}
+                            <Tabs value={activeTab()} onChange={handleTabChange}>
+                                <TabsList class="p-0.5" indicatorClass="inset-y-0.5">
+                                    <TabsTrigger value="users">
+                                        <UsersIcon class="size-4" />
+                                        <span class="hidden @xl:inline">Usuarios</span>
+                                    </TabsTrigger>
+                                    <TabsTrigger value="roles">
+                                        <UserKeyIcon class="size-4" />
+                                        <span class="hidden @xl:inline">Roles</span>
+                                    </TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+
+                            {/* CTA Button */}
                             <Show when={activeTab() === 'users' && auth.canAdd('users')}>
-                                <Button 
-                                    onClick={handleNewUser} 
+                                <Button
+                                    onClick={handleNewUser}
                                     onMouseEnter={() => import('../components/UserNewSheet')}
                                     icon={<PlusIcon />}
                                 >
-                                    <span class="hidden sm:inline">Nuevo Usuario</span>
+                                    <span class="hidden @md:inline">Nuevo</span>
                                 </Button>
                             </Show>
                             <Show when={activeTab() === 'roles' && auth.canAdd('roles')}>
                                 <Button onClick={handleNewRole} icon={<PlusIcon />}>
-                                    <span class="hidden sm:inline">Nuevo Rol</span>
+                                    <span class="hidden @md:inline">Nuevo </span>
                                 </Button>
                             </Show>
                         </div>
                     }
                 />
-
-                {/* Tabs */}
-                <Tabs value={activeTab()} onChange={handleTabChange}>
-                    <TabsList variant="pills">
-                        <TabsTrigger value="users" variant="pills" count={totalUsers()}>
-                            <UsersIcon class="size-4" /> Usuarios
-                        </TabsTrigger>
-                        <TabsTrigger value="roles" variant="pills" count={roles().length}>
-                            <UserKeyIcon class="size-4" /> Roles
-                        </TabsTrigger>
-                    </TabsList>
-                </Tabs>
 
                 {/* Toolbar — Users */}
                 <Show when={activeTab() === 'users'}>
@@ -431,7 +453,6 @@ const UsersRolesPage: Component = () => {
                         />
 
                         {/* Columns dropdown (desktop) */}
-                        <Show when={!isMobile()}>
                             <DropdownMenu placement="bottom-end">
                                 <DropdownMenu.Trigger class="h-9.5 px-4" variant="ghost">
                                     <ColumnsIcon />
@@ -524,7 +545,6 @@ const UsersRolesPage: Component = () => {
                                     </div>
                                 </DropdownMenu.Content>
                             </DropdownMenu>
-                        </Show>
                     </div>
                 </Show>
 
@@ -532,7 +552,10 @@ const UsersRolesPage: Component = () => {
                 <Show when={activeTab() === 'roles'}>
                     <SearchInput
                         value={rolesSearch()}
-                        onSearch={setRolesSearch}
+                        onSearch={(val) => {
+                            setRolesSearch(val);
+                            navigate({ search: ((prev: any) => ({ ...prev, rolesSearch: val || undefined })) as any, replace: true });
+                        }}
                         placeholder="Buscar roles..."
                         class="max-w-md"
                     />
@@ -541,10 +564,9 @@ const UsersRolesPage: Component = () => {
 
             {/* Content */}
             <div class="flex-1 min-h-0 px-3 pb-3 sm:px-4 sm:pb-4 overflow-hidden">
-                <div class="bg-card border border-border rounded-2xl shadow-card-soft h-full overflow-auto relative">
-
-                    {/* Users tab — DataTable */}
-                    <Show when={activeTab() === 'users'}>
+                {/* Users tab — DataTable */}
+                <Show when={activeTab() === 'users'}>
+                    <div class="bg-card border border-border rounded-2xl shadow-card-soft h-full overflow-auto relative">
                         <DataTable
                             data={users()}
                             columns={columns()}
@@ -584,50 +606,51 @@ const UsersRolesPage: Component = () => {
                             emptyDescription="Crea uno nuevo para comenzar"
                             tableRef={(table) => setTableInstance(table)}
                         />
-                    </Show>
+                    </div>
+                </Show>
 
-                    {/* Roles tab — Card Grid */}
-                    <Show when={activeTab() === 'roles'}>
-                        <div class="p-4">
+                {/* Roles tab — Card Grid */}
+                <Show when={activeTab() === 'roles'}>
+                        <Show
+                            when={!rolesQuery.isPending}
+                            fallback={
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    <For each={Array(6)}>
+                                        {() => (
+                                            <div class="bg-card border border-border rounded-2xl p-5 h-36 animate-pulse" />
+                                        )}
+                                    </For>
+                                </div>
+                            }
+                        >
                             <Show
-                                when={!rolesQuery.isPending}
+                                when={filteredRoles().length > 0}
                                 fallback={
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                        <For each={Array(6)}>
-                                            {() => (
-                                                <div class="bg-card border border-border rounded-2xl p-5 h-36 animate-pulse" />
-                                            )}
-                                        </For>
+                                    <div class="flex flex-col items-center justify-center py-20 text-center">
+                                        <IdCardIcon class="size-10 opacity-20 mb-4" />
+                                        <p class="text-muted">
+                                            {rolesSearch() ? 'Sin resultados para la búsqueda' : 'No hay roles definidos'}
+                                        </p>
                                     </div>
                                 }
                             >
-                                <Show
-                                    when={filteredRoles().length > 0}
-                                    fallback={
-                                        <div class="flex flex-col items-center justify-center py-20 text-center">
-                                            <IdCardIcon class="size-10 opacity-20 mb-4" />
-                                            <p class="text-muted">
-                                                {rolesSearch() ? 'Sin resultados para la búsqueda' : 'No hay roles definidos'}
-                                            </p>
-                                        </div>
-                                    }
-                                >
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                        <For each={filteredRoles()}>
-                                            {(role) => (
-                                                <RoleCard
-                                                    role={role}
-                                                    onEdit={() => handleEditRole(role)}
-                                                    onDelete={() => handleDeleteRole(role)}
-                                                />
-                                            )}
-                                        </For>
-                                    </div>
-                                </Show>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    <For each={filteredRoles()}>
+                                        {(role) => (
+                                            <RoleCard
+                                                role={role}
+                                                onEdit={() => handleEditRole(role)}
+                                                onDelete={() => handleDeleteRole(role)}
+                                                onUsersClick={() => setUsersDialog({ roleId: role.id, roleName: role.name })}
+                                                onPermissionsClick={() => setRoleDialog({ mode: 'permissions', roleId: role.id })}
+                                                onMouseEnter={() => handlePrefetchRole(role)}
+                                            />
+                                        )}
+                                    </For>
+                                </div>
                             </Show>
-                        </div>
-                    </Show>
-                </div>
+                        </Show>
+                </Show>
             </div>
 
             {/* Bulk selection bar — mirrors SuppliersPage */}
@@ -728,6 +751,16 @@ const UsersRolesPage: Component = () => {
                 title={`Eliminar rol`}
                 description={`¿Eliminar "${confirmDeleteRole()?.name}"? Esta acción no se puede deshacer.`}
                 variant="danger"
+            />
+
+
+
+            {/* Role Users Dialog */}
+            <RoleUsersDialog
+                roleId={usersDialog()?.roleId ?? null}
+                roleName={usersDialog()?.roleName ?? ''}
+                isOpen={usersDialog() !== null}
+                onClose={() => setUsersDialog(null)}
             />
         </div>
     );

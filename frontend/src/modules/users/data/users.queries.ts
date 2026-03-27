@@ -59,19 +59,18 @@ export function useUserFacets(
     }));
 }
 
-export function useUsers(filters: () => UsersFilters) {
+export function useUsers(filters: () => UsersFilters, enabled?: () => boolean) {
     return createQuery(() => ({
         queryKey: rbacKeys.list(filters()),
         queryFn: () => usersApi.listUsersWithRoles(filters()),
         staleTime: 1000 * 60 * 2,
         gcTime: 1000 * 60 * 30,
         placeholderData: keepPreviousData,
+        enabled: enabled ? enabled() : true,
     }));
 }
 
-export function useUsersWithRoles(filters: () => UsersFilters) {
-    return useUsers(filters);
-}
+// useUsersWithRoles alias removed (F-11) — use useUsers directly
 
 export function useUser(id: () => number | null) {
     return createQuery(() => ({
@@ -80,6 +79,7 @@ export function useUser(id: () => number | null) {
         enabled: id() !== null && id()! > 0,
         staleTime: 1000 * 60 * 5,
         gcTime: 1000 * 60 * 30,
+        placeholderData: keepPreviousData,
     }));
 }
 
@@ -100,6 +100,7 @@ export function useRole(id: () => number | null) {
         enabled: id() !== null && id()! > 0,
         staleTime: 1000 * 60 * 5,
         gcTime: 1000 * 60 * 30,
+        placeholderData: keepPreviousData,
     }));
 }
 
@@ -149,7 +150,7 @@ export function useUserSessions(userId: () => number) {
 
 export function useCheckUserReferences(id: () => number | null, enabled: () => boolean) {
     return createQuery(() => ({
-        queryKey: [...rbacKeys.all, 'can-delete', id()],
+        queryKey: rbacKeys.canDelete(id()!),
         queryFn: async (): Promise<UserReferences> => {
             const { data, error } = await (api.api.rbac.users as any)({ id: id() })['can-delete'].get();
             if (error) throw new Error(String(error.value));
@@ -280,6 +281,24 @@ export function useAssignUserRoles() {
     return createMutation(() => ({
         mutationFn: ({ userId, roleIds }: { userId: number; roleIds: number[] }) =>
             usersApi.assignUserRoles(userId, roleIds),
+        onMutate: async ({ userId, roleIds }) => {
+            await queryClient.cancelQueries({ queryKey: rbacKeys.lists() });
+            const previousLists = queryClient.getQueriesData({ queryKey: rbacKeys.lists() });
+
+            queryClient.setQueriesData<CacheShape<UserListItem>>({ queryKey: rbacKeys.lists() }, (old) => {
+                if (!old) return old;
+                return updateCacheItem(old, { id: userId, roleIds } as unknown as UserListItem);
+            });
+
+            return { previousLists };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousLists) {
+                for (const [key, data] of context.previousLists) {
+                    queryClient.setQueryData(key, data);
+                }
+            }
+        },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
@@ -378,9 +397,7 @@ export function useDeactivateUser() {
     }));
 }
 
-export function useDeleteUser() {
-    return useDeactivateUser();
-}
+// useDeleteUser alias removed (F-11) — use useDeactivateUser directly
 
 export function useRestoreUser() {
     const queryClient = useQueryClient();

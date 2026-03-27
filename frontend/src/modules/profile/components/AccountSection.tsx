@@ -56,7 +56,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                     e.stopPropagation();
                     form.handleSubmit();
                 }}
-                class="space-y-5"
+                class="space-y-4"
             >
                 {/* Username Field */}
                 <form.Field name="username">

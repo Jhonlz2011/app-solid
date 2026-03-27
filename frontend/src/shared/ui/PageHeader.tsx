@@ -14,9 +14,9 @@ interface PageHeaderProps {
 }
 
 export const PageHeader: Component<PageHeaderProps> = (props) => (
-    <div class="flex flex-row items-center justify-between gap-3 sm:gap-4">
+    <div class="@container flex flex-row items-center justify-between gap-3 sm:gap-4">
         <div class="flex-1 min-w-0">
-            <h1 class="text-xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3 truncate">
+            <h1 class="text-xl @md:text-3xl font-bold flex items-center gap-2 @md:gap-3 truncate">
                 {/* Icon container with hover info overlay */}
                 <Show
                     when={props.info}

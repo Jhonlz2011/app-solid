@@ -50,7 +50,7 @@ export const SecuritySection: Component<SecuritySectionProps> = (props) => {
                         e.stopPropagation();
                         form.handleSubmit();
                     }}
-                    class="space-y-5"
+                    class="space-y-4"
                 >
                     {/* Current Password - Atomic component */}
                     <form.Field name="currentPassword">
