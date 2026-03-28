@@ -1,10 +1,42 @@
-import { Component, Show } from 'solid-js';
+import { Component, JSX, Show } from 'solid-js';
 import type { Role } from '../models/users.types';
 import { RoleBadge } from '@shared/ui/Badge';
 import { EditIcon, TrashIcon, KeyIcon, UsersIcon, MoreVerticalIcon, ShieldIcon, EyeIcon } from '@shared/ui/icons';
 import Button from '@shared/ui/Button';
 import { Tooltip } from '@shared/ui/Tooltip';
 import { DropdownMenu } from '@shared/ui/DropdownMenu';
+
+// ── Reusable stat display (interactive or static) ──
+const StatButton = (p: { icon: JSX.Element; count: number; label: string; onClick?: () => void; tooltip?: string }) => {
+    const text = () => `${p.label}${p.count !== 1 ? 's' : ''}`;
+
+    return (
+        <Show
+            when={p.onClick}
+            fallback={
+                <span class="flex items-center gap-1.5 text-xs text-muted">
+                    {p.icon}
+                    <span class="tabular-nums font-medium">{p.count}</span>
+                    <span>{text()}</span>
+                </span>
+            }
+        >
+            <Tooltip content={p.tooltip!}>
+                <Button
+                    variant="ghost"
+                    size="none"
+                    radius="lg"
+                    class="flex items-center gap-1.5 text-xs text-muted px-2 py-1 hover:bg-info/10 hover:text-info"
+                    onClick={(e) => { e.stopPropagation(); p.onClick!(); }}
+                >
+                    {p.icon}
+                    <span class="tabular-nums font-medium">{p.count}</span>
+                    <span>{text()}</span>
+                </Button>
+            </Tooltip>
+        </Show>
+    );
+};
 
 // ── Badge-to-accent color map (mirrors roleVariants in Badge.tsx) ──
 const ROLE_ACCENT_COLORS: Record<string, string> = {
@@ -37,7 +69,7 @@ const RoleCard: Component<RoleCardProps> = (props) => {
             <div class={`h-1 w-full bg-gradient-to-r ${accentColor()} to-transparent`} />
 
             {/* Content */}
-            <div class="p-5 flex flex-col gap-3">
+            <div class="px-5 pt-4 pb-3 flex flex-col gap-3">
                 {/* Header row */}
                 <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
@@ -97,57 +129,20 @@ const RoleCard: Component<RoleCardProps> = (props) => {
 
                 {/* Stats footer — justify-between */}
                 <div class="flex items-center justify-between pt-2.5 border-t border-border/40">
-                    {/* Users stat */}
-                    <Show
-                        when={!isSystem()}
-                        fallback={
-                            <span class="flex items-center gap-1.5 text-xs text-muted">
-                                <UsersIcon class="size-3.5" />
-                                <span class="tabular-nums font-medium">{userCount()}</span>
-                                <span>usuario{userCount() !== 1 ? 's' : ''}</span>
-                            </span>
-                        }
-                    >
-                        <Tooltip content="Ver usuarios del rol">
-                            <Button
-                                variant="ghost"
-                                size="none"
-                                radius="lg"
-                                class="flex items-center gap-1.5 text-xs text-muted px-2 py-1 hover:bg-info/10 hover:text-info"
-                                onClick={(e) => { e.stopPropagation(); props.onUsersClick(); }}
-                            >
-                                <UsersIcon class="size-3.5" />
-                                <span class="tabular-nums font-medium">{userCount()}</span>
-                                <span>usuario{userCount() !== 1 ? 's' : ''}</span>
-                            </Button>
-                        </Tooltip>
-                    </Show>
-
-                    {/* Permissions stat */}
-                    <Show
-                        when={!isSystem()}
-                        fallback={
-                            <span class="flex items-center gap-1.5 text-xs text-muted">
-                                <KeyIcon class="size-3.5" />
-                                <span class="tabular-nums font-medium">{permCount()}</span>
-                                <span>permiso{permCount() !== 1 ? 's' : ''}</span>
-                            </span>
-                        }
-                    >
-                        <Tooltip content="Editar permisos">
-                            <Button
-                                variant="ghost"
-                                size="none"
-                                radius="lg"
-                                class="flex items-center gap-1.5 text-xs text-muted px-2 py-1 hover:bg-info/10 hover:text-info"
-                                onClick={(e) => { e.stopPropagation(); props.onPermissionsClick(); }}
-                            >
-                                <KeyIcon class="size-3.5" />
-                                <span class="tabular-nums font-medium">{permCount()}</span>
-                                <span>permiso{permCount() !== 1 ? 's' : ''}</span>
-                            </Button>
-                        </Tooltip>
-                    </Show>
+                    <StatButton
+                        icon={<UsersIcon class="size-3.5" />}
+                        count={userCount()}
+                        label="usuario"
+                        onClick={!isSystem() ? props.onUsersClick : undefined}
+                        tooltip={!isSystem() ? 'Ver usuarios del rol' : undefined}
+                    />
+                    <StatButton
+                        icon={<KeyIcon class="size-3.5" />}
+                        count={permCount()}
+                        label="permiso"
+                        onClick={!isSystem() ? props.onPermissionsClick : undefined}
+                        tooltip={!isSystem() ? 'Editar permisos' : undefined}
+                    />
                 </div>
             </div>
         </div>

@@ -152,9 +152,7 @@ export function useCheckUserReferences(id: () => number | null, enabled: () => b
     return createQuery(() => ({
         queryKey: rbacKeys.canDelete(id()!),
         queryFn: async (): Promise<UserReferences> => {
-            const { data, error } = await (api.api.rbac.users as any)({ id: id() })['can-delete'].get();
-            if (error) throw new Error(String(error.value));
-            return data as UserReferences;
+            return await usersApi.canDeleteUser(id()!) as UserReferences;
         },
         enabled: enabled() && id() !== null,
         staleTime: 10_000,
@@ -380,8 +378,7 @@ export function useDeactivateUser() {
 
     return createMutation(() => ({
         mutationFn: async (id: number) => {
-            const { error } = await (api.api.rbac.users as any)({ id }).deactivate.patch();
-            if (error) throw new Error(String(error.value));
+            await usersApi.deactivateUser(id);
             return id;
         },
         onMutate: async (id) => {
@@ -404,8 +401,7 @@ export function useRestoreUser() {
 
     return createMutation(() => ({
         mutationFn: async (id: number) => {
-            const { error } = await (api.api.rbac.users as any)({ id }).restore.patch();
-            if (error) throw new Error(String(error.value));
+            await usersApi.restoreUser(id);
             return id;
         },
         onMutate: async (id) => {
@@ -426,8 +422,7 @@ export function useHardDeleteUser() {
 
     return createMutation(() => ({
         mutationFn: async (id: number) => {
-            const { error } = await (api.api.rbac.users as any)({ id }).delete();
-            if (error) throw new Error(String(error.value));
+            await usersApi.hardDeleteUser(id);
             return id;
         },
         onMutate: async (id) => {
@@ -453,9 +448,7 @@ export function useBulkDeactivateUsers() {
 
     return createMutation(() => ({
         mutationFn: async (ids: number[]) => {
-            const { data, error } = await (api.api.rbac.users.bulk.delete as any).post({ ids });
-            if (error) throw new Error(String(error.value));
-            return data!;
+            return await usersApi.bulkDeactivateUsers(ids);
         },
         onMutate: async (ids) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.lists() });
@@ -475,9 +468,7 @@ export function useBulkRestoreUsers() {
 
     return createMutation(() => ({
         mutationFn: async (ids: number[]) => {
-            const { data, error } = await (api.api.rbac.users.bulk.restore as any).patch({ ids });
-            if (error) throw new Error(String(error.value));
-            return data!;
+            return await usersApi.bulkRestoreUsers(ids);
         },
         onMutate: async (ids) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.lists() });

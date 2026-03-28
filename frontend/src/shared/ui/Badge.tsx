@@ -1,11 +1,12 @@
 import { Component, JSX, splitProps, Show } from 'solid-js';
 import { cn } from '../lib/utils';
+
 export type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'default' | 'primary' | 'secondary' | 'purple' | 'pink' | 'orange' | 'teal' | 'cyan' | 'indigo';
 
-interface BadgeProps {
+// 1. OPTIMIZACIÓN: Extender atributos HTML nativos para mayor flexibilidad
+interface BadgeProps extends JSX.HTMLAttributes<HTMLSpanElement> {
     variant?: BadgeVariant;
     children: JSX.Element | string;
-    onClick?: () => void;
     class?: string;
 }
 
@@ -27,22 +28,24 @@ const variantStyles: Record<BadgeVariant, string> = {
 
 export const Badge: Component<BadgeProps> = (props) => {
     const [local, rest] = splitProps(props, ['variant', 'children', 'onClick', 'class']);
-    const styleClass = () => variantStyles[local.variant ?? 'default'];
+
+    // 2. OPTIMIZACIÓN: Manejador de eventos más limpio
+    const handleClick: JSX.EventHandlerUnion<HTMLSpanElement, MouseEvent> = (e) => {
+        if (local.onClick) {
+            e.stopPropagation();
+            if (typeof local.onClick === 'function') local.onClick(e);
+        }
+    };
 
     return (
         <span
             class={cn(
                 "px-2 py-0.5 text-xs font-medium rounded-full border inline-flex items-center gap-1",
-                styleClass(),
+                variantStyles[local.variant ?? 'default'], // Reactivo automáticamente dentro del JSX
                 local.onClick && "cursor-pointer hover:opacity-80 transition-opacity",
                 local.class
             )}
-            onClick={(e) => { 
-                if (local.onClick) { 
-                    e.stopPropagation(); 
-                    local.onClick(); 
-                } 
-            }}
+            onClick={local.onClick ? handleClick : undefined}
             {...rest}
         >
             {local.children}
@@ -50,15 +53,14 @@ export const Badge: Component<BadgeProps> = (props) => {
     );
 };
 
-// 2. NUEVO: Counter Badge Integrado
-interface CounterBadgeProps {
+// ── Counter Badge ──
+export type CounterVariant = 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'default' | 'purple' | 'pink' | 'orange' | 'teal' | 'cyan' | 'indigo' | 'tab' | 'tab-pill';
+
+interface CounterBadgeProps extends JSX.HTMLAttributes<HTMLSpanElement> {
     count?: number;
     variant?: CounterVariant;
     class?: string;
 }
-
-export type CounterVariant = 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'default' | 'purple' | 'pink' | 'orange' | 'teal' | 'cyan' | 'indigo' | 'tab' | 'tab-pill';
-
 
 const counterVariants: Record<CounterVariant, string> = {
     primary: "bg-primary/15 text-primary",
@@ -78,85 +80,82 @@ const counterVariants: Record<CounterVariant, string> = {
 };
 
 export const CounterBadge: Component<CounterBadgeProps> = (props) => {
+    const [local, rest] = splitProps(props, ['count', 'variant', 'class']);
+    
     return (
-        <Show when={props.count !== undefined}>
-            <span class={cn(
-                // Clases base que comparten todos los contadores
-                "px-1.5 py-0.5 text-xs font-semibold rounded-full", 
-                // Aplicamos la variante (por defecto será 'primary' si no se especifica)
-                counterVariants[props.variant ?? 'default'],
-                // Clases extra que le pases al componente
-                props.class
-            )}>
-                {props.count?.toLocaleString()}
+        <Show when={local.count !== undefined}>
+            <span 
+                class={cn(
+                    "px-1.5 py-0.5 text-xs font-semibold rounded-full", 
+                    counterVariants[local.variant ?? 'default'],
+                    local.class
+                )}
+                {...rest}
+            >
+                {local.count?.toLocaleString()}
             </span>
         </Show>
     );
 };
 
-
-// 3. Diccionarios en lugar de Switch statements para mayor limpieza
+// ── Role & Status Badges ──
 const roleVariants: Record<string, BadgeVariant> = {
     superadmin: 'danger',
     admin: 'warning',
 };
-// Pre-configured role badge
+
 export const RoleBadge: Component<{ name: string; onClick?: () => void }> = (props) => (
-    <Badge
-        variant={roleVariants[props.name] || 'info'}
-        onClick={props.onClick}
-    >
+    <Badge variant={roleVariants[props.name] || 'info'} onClick={props.onClick}>
         {props.name}
     </Badge>
 );
 
-// Pre-configured status badge
 export const StatusBadge: Component<{ isActive: boolean | null }> = (props) => (
     <Badge variant={props.isActive ? 'success' : 'danger'}>
         {props.isActive ? 'Activo' : 'Inactivo'}
     </Badge>
 );
 
-// Localized labels for permission action slugs
+// ── Action Badge ──
 const ACTION_LABELS: Record<string, string> = {
-    read:    'Ver',
-    create:  'Crear',
-    add:     'Agregar',
-    update:  'Editar',
-    edit:    'Editar',
-    delete:  'Eliminar',
-    restore: 'Restaurar',
-    destroy: 'Destruir',
-    export:  'Exportar',
-    import:  'Importar',
-    approve: 'Aprobar',
-    assign:  'Asignar',
-    audit:   'Auditar',
+    read: 'Ver', create: 'Crear', add: 'Agregar', update: 'Editar',
+    edit: 'Editar', delete: 'Eliminar', restore: 'Restaurar',
+    destroy: 'Destruir', export: 'Exportar', import: 'Importar',
+    approve: 'Aprobar', assign: 'Asignar', audit: 'Auditar',
 };
 
-// Pre-configured action badge (read, create, update, delete…)
-export const ActionBadge: Component<{ action: string }> = (props) => {
-    const variant = (): BadgeVariant => {
-        switch (props.action) {
-            case 'read':                   return 'info';
-            case 'create': case 'add':     return 'success';
-            case 'update': case 'edit':    return 'warning';
-            case 'delete':                 return 'danger';
-            case 'restore':                return 'primary';
-            case 'destroy':                return 'danger';
-            case 'export':                 return 'info';
-            case 'import':                 return 'success';
-            case 'approve':                return 'warning';
-            case 'assign':                 return 'primary';
-            case 'audit':                  return 'default';
-            default:                       return 'default';
-        }
-    };
+// 3. OPTIMIZACIÓN: Se reemplazó el Switch por un diccionario constante
+const ACTION_VARIANTS: Record<string, BadgeVariant> = {
+    read: 'info', create: 'success', add: 'success',
+    update: 'warning', edit: 'warning', approve: 'warning',
+    delete: 'danger', destroy: 'danger', restore: 'primary',
+    assign: 'primary', export: 'info', import: 'success',
+};
 
-    const label = () =>
-        ACTION_LABELS[props.action] ?? (props.action.charAt(0).toUpperCase() + props.action.slice(1));
+export const ActionBadge: Component<{ action: string }> = (props) => {
+    const variant = () => ACTION_VARIANTS[props.action] ?? 'default';
+    const label = () => ACTION_LABELS[props.action] ?? (props.action.charAt(0).toUpperCase() + props.action.slice(1));
 
     return <Badge variant={variant()}>{label()}</Badge>;
+};
+
+// ── Entity Type Badge ──
+export type EntityType = 'employee' | 'client' | 'supplier' | 'carrier';
+
+const ENTITY_TYPE_CONFIG: Record<EntityType, { label: string; colors: string }> = {
+    employee: { label: 'Empleado', colors: 'bg-primary/10 text-primary' },
+    client: { label: 'Cliente', colors: 'bg-emerald-500/10 text-emerald-600' },
+    supplier: { label: 'Proveedor', colors: 'bg-amber-500/10 text-amber-600' },
+    carrier: { label: 'Transportista', colors: 'bg-sky-500/10 text-sky-600' },
+};
+
+export const EntityTypeBadge: Component<{ type: EntityType; class?: string }> = (props) => {
+    const cfg = () => ENTITY_TYPE_CONFIG[props.type];
+    return (
+        <span class={cn('text-[10px] px-1.5 py-0.5 rounded font-medium', cfg().colors, props.class)}>
+            {cfg().label}
+        </span>
+    );
 };
 
 export default Badge;

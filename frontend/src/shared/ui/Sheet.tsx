@@ -1,11 +1,13 @@
 import { Component, JSX, Show, createEffect, onCleanup, mergeProps } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { XIcon } from '@shared/ui/icons';
+import { XIcon, ChevronLeftIcon } from '@shared/ui/icons';
 import { ScrollArea } from '@/layout/components/ScrollArea';
 
 interface SheetProps {
     isOpen: boolean;
     onClose: () => void;
+    /** Optional back handler — shows a back arrow button in the header */
+    onBack?: () => void;
     title?: string;
     description?: string;
     children: JSX.Element;
@@ -41,9 +43,14 @@ const Sheet: Component<SheetProps> = (rawProps) => {
         document.body.style.overflow = '';
     });
 
+    const handleDismiss = () => {
+        if (props.onBack) props.onBack();
+        else props.onClose();
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
-            props.onClose();
+            handleDismiss();
         }
     };
 
@@ -61,7 +68,7 @@ const Sheet: Component<SheetProps> = (rawProps) => {
                     {/* Overlay */}
                     <div
                         class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-300"
-                        onClick={props.onClose}
+                        onClick={handleDismiss}
                     />
                     {/* Sheet Panel */}
                     <div
@@ -75,16 +82,27 @@ const Sheet: Component<SheetProps> = (rawProps) => {
                     >
                         {/* Header — flex-none, always visible */}
                         <div class="flex items-center justify-between px-4 py-4 border-b border-border bg-muted/10 flex-none">
-                            <div class="space-y-1">
-                                <Show when={props.title}>
-                                    <h2 class="text-lg font-semibold text-text">{props.title}</h2>
+                            <div class="flex items-center gap-3">
+                                <Show when={props.onBack}>
+                                    <button
+                                        onClick={props.onBack}
+                                        class="p-2 rounded-lg hover:bg-surface text-muted hover:text-text transition-colors cursor-pointer -ml-1"
+                                        aria-label="Volver"
+                                    >
+                                        <ChevronLeftIcon class="size-4" />
+                                    </button>
                                 </Show>
-                                <Show when={props.description}>
-                                    <p class="text-sm text-muted">{props.description}</p>
-                                </Show>
+                                <div class="space-y-1">
+                                    <Show when={props.title}>
+                                        <h2 class="text-lg font-semibold text-text">{props.title}</h2>
+                                    </Show>
+                                    <Show when={props.description}>
+                                        <p class="text-sm text-muted">{props.description}</p>
+                                    </Show>
+                                </div>
                             </div>
                             <button
-                                onClick={props.onClose}
+                                onClick={handleDismiss}
                                 class="p-2.5 rounded-lg hover:bg-surface text-muted hover:text-text transition-colors cursor-pointer"
                             >
                                 <XIcon class='size-4' />

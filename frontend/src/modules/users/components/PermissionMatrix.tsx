@@ -3,6 +3,7 @@ import { ActionBadge } from '@shared/ui/Badge';
 import Checkbox from '@shared/ui/Checkbox';
 import { SearchInput } from '@shared/ui/SearchInput';
 import Button from '@shared/ui/Button';
+import { ChevronRightIcon } from '@shared/ui/icons';
 
 // ============================================
 // ACTION CATALOG — localized labels for permission actions
@@ -171,12 +172,7 @@ export const PermissionMatrix: Component<PermissionMatrixProps> = (props) => {
                                     class="w-full flex items-center gap-3 px-4 py-3 bg-surface/30 hover:bg-surface/50 transition-colors text-left"
                                 >
                                     {/* Chevron */}
-                                    <svg
-                                        class={`w-4 h-4 text-muted transition-transform duration-200 ${isExpanded() ? 'rotate-90' : ''}`}
-                                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                    >
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                    </svg>
+                                    <ChevronRightIcon class={`size-4 text-muted transition-transform duration-200 ${isExpanded() ? 'rotate-90' : ''}`} />
 
                                     {/* Module checkbox (select/deselect all) */}
                                     <Checkbox

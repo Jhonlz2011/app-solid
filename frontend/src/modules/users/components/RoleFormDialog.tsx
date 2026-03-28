@@ -1,4 +1,4 @@
-import { Component, Show, createSignal, createEffect, on } from 'solid-js';
+import { Component, Show, createSignal, createEffect, createMemo, on } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { FormDialog } from '@shared/ui/FormDialog';
 import { TextField } from '@shared/ui/TextField';
@@ -88,6 +88,7 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
     ));
 
     // ── Derived ──────────────────────────────────────────────────────────────
+    const selectedSet = createMemo(() => new Set(selectedPermIds()));
     const roleData = () => roleQuery.data as Role | undefined;
     const isSystem = () => isEdit() && (roleData()?.is_system ?? false);
     const isPending = () =>
@@ -246,7 +247,7 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
                     </Show>
                     <PermissionMatrix
                         allPermissions={allPermsQuery.data?.all ?? []}
-                        selectedIds={new Set(selectedPermIds())}
+                        selectedIds={selectedSet()}
                         onToggle={handleToggle}
                         onModuleToggle={handleModuleToggle}
                     />

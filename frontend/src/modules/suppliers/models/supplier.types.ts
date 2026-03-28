@@ -32,7 +32,5 @@ export const taxRegimeTypeLabels: Record<TaxRegimeType, string> = {
     GENERAL: 'Régimen General',
 };
 
-export const isActiveLabels: Record<string, string> = {
-    'true': 'Activo',
-    'false': 'Inactivo',
-};
+// Re-export shared labels for backward compatibility
+export { isActiveLabels } from '@shared/constants/labels';

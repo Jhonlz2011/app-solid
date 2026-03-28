@@ -57,6 +57,7 @@ const layoutRoute = createRoute({
 
     throw redirect({ to: '/login', search: { redirect: location.href } });
   },
+  loaderDeps: () => ({}),
   loader: async () => {
     // Parallel Fetching: the Sidebar items will be downloaded IN PARALLEL 
     // with any child route (like /profile or /suppliers).

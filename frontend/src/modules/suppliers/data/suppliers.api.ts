@@ -1,9 +1,62 @@
 import { createQuery, createInfiniteQuery, createMutation, useQueryClient, keepPreviousData } from '@tanstack/solid-query';
 import { createEffect } from 'solid-js';
 import { api } from '@shared/lib/eden';
-import type { SupplierFormData } from '@app/schema/frontend';
+import type { EntityFormData } from '@app/schema/frontend';
 import { addOptimisticItem, removeCacheItems, updateCacheItem, type CacheShape } from '@shared/utils/query.utils';
 import { throwApiError } from '@shared/utils/api-errors';
+
+// =============================================================================
+// Typed API Wrappers (isolate Eden dynamic route type quirks)
+// =============================================================================
+
+export const suppliersApi = {
+    list: async (params: SupplierFilters) => {
+        const { data, error } = await api.api.suppliers.get({
+            query: {
+                cursor: params.cursor,
+                direction: params.direction,
+                limit: params.limit,
+                search: params.search,
+                sortBy: params.sortBy,
+                sortOrder: params.sortOrder,
+                page: params.page,
+                personType: params.personType?.join(','),
+                taxIdType: params.taxIdType?.join(','),
+                isActive: params.isActive?.join(','),
+                businessName: params.businessName?.join(','),
+            },
+        });
+        if (error) throw new Error(String(error.value));
+        return data!;
+    },
+    get: async (id: number) => {
+        const { data, error } = await api.api.suppliers({ id }).get();
+        if (error) throw new Error(String(error.value));
+        return data!;
+    },
+    deactivate: async (id: number) => {
+        const { error } = await (api.api.suppliers as any)({ id }).deactivate.patch();
+        if (error) throw new Error(String(error.value));
+    },
+    restore: async (id: number) => {
+        const { error } = await (api.api.suppliers as any)({ id }).restore.patch();
+        if (error) throw new Error(String(error.value));
+    },
+    hardDelete: async (id: number) => {
+        const { error } = await (api.api.suppliers as any)({ id }).delete();
+        if (error) throw new Error(String(error.value));
+    },
+    bulkRestore: async (ids: number[]) => {
+        const { data, error } = await (api.api.suppliers.bulk.restore as any).patch({ ids });
+        if (error) throw new Error(String(error.value));
+        return data!;
+    },
+    canDelete: async (id: number): Promise<SupplierReferences> => {
+        const { data, error } = await (api.api.suppliers as any)({ id })['can-delete'].get();
+        if (error) throw new Error(String(error.value));
+        return data as SupplierReferences;
+    },
+};
 
 // =============================================================================
 // Type Utilities - Extract types from Eden
@@ -11,7 +64,7 @@ import { throwApiError } from '@shared/utils/api-errors';
 
 type SuppliersListResponse = Awaited<ReturnType<typeof api.api.suppliers.get>>['data'];
 export type SupplierListItem = NonNullable<SuppliersListResponse>['data'][number];
-export type SupplierBody = SupplierFormData;
+export type SupplierBody = EntityFormData;
 
 // Cursor-based pagination filters
 export interface SupplierFilters {
@@ -269,9 +322,9 @@ export function useUpdateSupplier() {
                 queryClient.setQueryData(supplierKeys.detail(id), context.previousSupplier);
             }
         },
-        onSettled: (data) => {
+        onSettled: (_data, _err, { id }) => {
             queryClient.invalidateQueries({ queryKey: supplierKeys.lists() });
-            if (data?.id) queryClient.invalidateQueries({ queryKey: supplierKeys.detail(data.id) });
+            queryClient.invalidateQueries({ queryKey: supplierKeys.detail(id) });
             // Also refresh filter options/counts
             queryClient.invalidateQueries({ queryKey: [...supplierKeys.all, 'facets'], exact: false });
         },
@@ -311,8 +364,7 @@ export function useDeleteSupplier() {
     const queryClient = useQueryClient();
     return createMutation(() => ({
         mutationFn: async (id: number) => {
-            const { error } = await (api.api.suppliers as any)({ id }).deactivate.patch();
-            if (error) throw new Error(String(error.value));
+            await suppliersApi.deactivate(id);
             return id;
         },
         onMutate: async (id) => {
@@ -355,9 +407,7 @@ export function useBulkRestoreSupplier() {
 
     return createMutation(() => ({
         mutationFn: async (ids: number[]) => {
-            const { data, error } = await (api.api.suppliers.bulk.restore as any).patch({ ids });
-            if (error) throw new Error(String(error.value));
-            return data!;
+            return await suppliersApi.bulkRestore(ids);
         },
         onMutate: async (ids) => {
             await queryClient.cancelQueries({ queryKey: supplierKeys.lists() });
@@ -381,8 +431,7 @@ export function useRestoreSupplier() {
 
     return createMutation(() => ({
         mutationFn: async (id: number) => {
-            const { error } = await (api.api.suppliers as any)({ id }).restore.patch();
-            if (error) throw new Error(String(error.value));
+            await suppliersApi.restore(id);
             return id;
         },
         onMutate: async (id) => {
@@ -407,8 +456,7 @@ export function useHardDeleteSupplier() {
 
     return createMutation(() => ({
         mutationFn: async (id: number) => {
-            const { error } = await (api.api.suppliers as any)({ id }).delete();
-            if (error) throw new Error(String(error.value));
+            await suppliersApi.hardDelete(id);
             return id;
         },
         onMutate: async (id) => {
@@ -454,9 +502,7 @@ export function useCheckSupplierReferences(id: () => number | null, enabled: () 
     return createQuery(() => ({
         queryKey: [...supplierKeys.all, 'can-delete', id()],
         queryFn: async (): Promise<SupplierReferences> => {
-            const { data, error } = await (api.api.suppliers as any)({ id: id() })['can-delete'].get();
-            if (error) throw new Error(String(error.value));
-            return data as SupplierReferences;
+            return await suppliersApi.canDelete(id()!);
         },
         enabled: enabled() && id() !== null,
         staleTime: 10_000, // 10s — fresh enough for a dialog interaction
@@ -469,32 +515,32 @@ export function useCheckSupplierReferences(id: () => number | null, enabled: () 
 // Direct API (for prefetching and non-hook usage)
 // =============================================================================
 
-export const suppliersApi = {
-    list: async (filters: SupplierFilters) => {
-        const { data, error } = await api.api.suppliers.get({
-            query: {
-                cursor: filters.cursor,
-                direction: filters.direction,
-                limit: filters.limit,
-                search: filters.search,
-                sortBy: filters.sortBy,
-                sortOrder: filters.sortOrder,
-                page: filters.page,
-                personType: filters.personType?.join(','),
-                taxIdType: filters.taxIdType?.join(','),
-                isActive: filters.isActive?.join(','),
-                businessName: filters.businessName?.join(','),
-            }
-        });
-        if (error) throw new Error(String(error.value));
-        return data!;
-    },
-    get: async (id: number) => {
-        const { data, error } = await api.api.suppliers({ id }).get();
-        if (error) throw new Error(String(error.value));
-        return data!;
-    },
-};
+// export const suppliersApi = {
+//     list: async (filters: SupplierFilters) => {
+//         const { data, error } = await api.api.suppliers.get({
+//             query: {
+//                 cursor: filters.cursor,
+//                 direction: filters.direction,
+//                 limit: filters.limit,
+//                 search: filters.search,
+//                 sortBy: filters.sortBy,
+//                 sortOrder: filters.sortOrder,
+//                 page: filters.page,
+//                 personType: filters.personType?.join(','),
+//                 taxIdType: filters.taxIdType?.join(','),
+//                 isActive: filters.isActive?.join(','),
+//                 businessName: filters.businessName?.join(','),
+//             }
+//         });
+//         if (error) throw new Error(String(error.value));
+//         return data!;
+//     },
+//     get: async (id: number) => {
+//         const { data, error } = await api.api.suppliers({ id }).get();
+//         if (error) throw new Error(String(error.value));
+//         return data!;
+//     },
+// };
 
 // =============================================================================
 // SRI Integration Hooks

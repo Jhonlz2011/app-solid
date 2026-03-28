@@ -1,5 +1,4 @@
 import { Component, createMemo } from 'solid-js';
-import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import type { UserFormData } from '@app/schema/frontend';
 import Sheet from '@shared/ui/Sheet';
@@ -10,20 +9,16 @@ import UserForm from './UserForm';
 import type { EntityOption } from './UserForm';
 
 interface UserNewSheetProps {
-    onClose?: () => void;
+    onClose: () => void;
 }
 
 const UserNewSheet: Component<UserNewSheetProps> = (props) => {
-    const navigate = useNavigate();
     const createMutation = useCreateUser();
     const rolesQuery = useRoles();
     const entitiesQuery = useEntitiesList();
     const setEntityMutation = useSetUserEntity();
 
-    const handleClose = () => {
-        if (props.onClose) props.onClose();
-        else navigate({ to: '/users' });
-    };
+    const handleClose = () => props.onClose();
 
     const entityOptions = createMemo((): EntityOption[] => {
         const raw = entitiesQuery.data;

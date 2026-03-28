@@ -112,6 +112,38 @@ export async function invalidateUserRbacCache(userId: number): Promise<void> {
     }
 }
 
+/**
+ * Revoke ALL sessions for a user — deletes from DB + Redis, broadcasts SSE.
+ * Extracted helper: used by adminResetPassword, hardDeleteUser.
+ */
+async function revokeAllUserSessions(userId: number): Promise<void> {
+    const activeSessions = await db.select({ id: sessions.id })
+        .from(sessions).where(eq(sessions.user_id, userId));
+    if (!activeSessions.length) return;
+    await db.delete(sessions).where(eq(sessions.user_id, userId));
+    await redis.del(...activeSessions.map(s => `session:${s.id}`));
+    for (const s of activeSessions) {
+        broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId, sessionId: s.id }, `user:${userId}`);
+    }
+}
+
+/**
+ * Guard: throws if userId is the last active superadmin.
+ * Extracted helper: used by deactivateUser, hardDeleteUser, batchDeleteUsers.
+ */
+async function ensureNotLastSuperadmin(userId: number): Promise<void> {
+    const roles = await getUserRoles(userId);
+    if (!roles.includes(SYSTEM_ROLES.SUPERADMIN)) return;
+    const [result] = await db.select({ count: count() })
+        .from(authUserRoles)
+        .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
+        .innerJoin(authUsers, eq(authUserRoles.user_id, authUsers.id))
+        .where(and(eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN), eq(authUsers.is_active, true)));
+    if (Number(result.count) <= 1) {
+        throw new DomainError('No se puede modificar al último superadmin activo', 403);
+    }
+}
+
 // ============================================
 // ADMIN CRUD OPERATIONS
 // ============================================
@@ -459,7 +491,7 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
             .groupBy(authUsers.is_active)
             .orderBy(desc(count()));
             
-        results['is_active'] = activeRows.filter(r => r.value !== null).map(r => ({ value: r.value, count: Number(r.count) }));
+        results['isActive'] = activeRows.filter(r => r.value !== null).map(r => ({ value: r.value, count: Number(r.count) }));
 
         // 2. roles facet (exclude roles filter)
         let rolesConditions = [];
@@ -581,9 +613,6 @@ export async function getUserRolesById(userId: number) {
  */
 export async function assignUserRoles(userId: number, roleIds: number[], currentUserId: number) {
     // SEC-BE-02: Prevent self-modification of roles
-    if (userId === currentUserId) {
-        throw new DomainError('No puedes modificar tus propios roles', 403);
-    }
 
     const user = await db.query.authUsers.findFirst({
         where: eq(authUsers.id, userId),
@@ -723,6 +752,7 @@ export async function removeUserFromRole(userId: number, roleId: number) {
 
     // Invalidate cache
     await invalidateUserRbacCache(userId);
+    broadcast(RealtimeEvents.USER.UPDATED, { userId }, RealtimeEvents.ROOMS.USERS);
 
     return { success: true };
 }
@@ -789,21 +819,7 @@ export async function deactivateUser(userId: number, currentUserId: number) {
         throw new DomainError('No puedes desactivar tu propia cuenta', 403);
     }
 
-    const userRoles = await getUserRoles(userId);
-    if (userRoles.includes(SYSTEM_ROLES.SUPERADMIN)) {
-        const superadminCount = await db
-            .select({ count: count() })
-            .from(authUserRoles)
-            .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-            .innerJoin(authUsers, eq(authUserRoles.user_id, authUsers.id))
-            .where(and(
-                eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN),
-                eq(authUsers.is_active, true)
-            ));
-        if (Number(superadminCount[0].count) <= 1) {
-            throw new DomainError('No se puede desactivar al último superadmin activo', 403);
-        }
-    }
+    await ensureNotLastSuperadmin(userId);
 
     const [updated] = await db
         .update(authUsers)
@@ -861,40 +877,13 @@ export async function hardDeleteUser(userId: number, currentUserId: number) {
         throw new DomainError('No puedes destruir tu propia cuenta', 403);
     }
 
-    const userRoles = await getUserRoles(userId);
-    if (userRoles.includes(SYSTEM_ROLES.SUPERADMIN)) {
-        const superadminCount = await db
-            .select({ count: count() })
-            .from(authUserRoles)
-            .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-            .innerJoin(authUsers, eq(authUserRoles.user_id, authUsers.id))
-            .where(and(
-                eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN),
-                eq(authUsers.is_active, true)
-            ));
-        if (Number(superadminCount[0].count) <= 1) {
-            throw new DomainError('No se puede destruir al último superadmin', 403);
-        }
-    }
+    await ensureNotLastSuperadmin(userId);
 
     // Remove roles
     await db.delete(authUserRoles).where(eq(authUserRoles.user_id, userId));
 
     // Kill active sessions
-    const activeSessions = await db
-        .select({ id: sessions.id })
-        .from(sessions)
-        .where(eq(sessions.user_id, userId));
-
-    if (activeSessions.length > 0) {
-        await db.delete(sessions).where(eq(sessions.user_id, userId));
-        // F-06: Use redis.del() directly instead of SCAN-based cacheService.invalidate
-        const sessionKeys = activeSessions.map(s => `session:${s.id}`);
-        await redis.del(...sessionKeys);
-        for (const s of activeSessions) {
-            broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId, sessionId: s.id }, `user:${userId}`);
-        }
-    }
+    await revokeAllUserSessions(userId);
 
     // Permanently delete the user
     const deleted = await db.delete(authUsers).where(eq(authUsers.id, userId)).returning({
@@ -1026,26 +1015,10 @@ export async function adminResetPassword(
         .set({ password_hash: newHash })
         .where(eq(authUsers.id, targetUserId));
 
-    // Invalidate all sessions for the target user
-    const activeSessions = await db
-        .select({ id: sessions.id })
-        .from(sessions)
-        .where(eq(sessions.user_id, targetUserId));
+    // Revoke all sessions for the target user
+    await revokeAllUserSessions(targetUserId);
 
-    if (activeSessions.length > 0) {
-        await db.delete(sessions).where(eq(sessions.user_id, targetUserId));
-        // F-06: Use redis.del() directly instead of SCAN-based cacheService.invalidate
-        const sessionKeys = activeSessions.map(s => `session:${s.id}`);
-        await redis.del(...sessionKeys);
-        for (const s of activeSessions) {
-            broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId: targetUserId, sessionId: s.id }, `user:${targetUserId}`);
-        }
-    }
-
-    // await logAudit(adminUserId, 'user.updated', 'user', targetUserId, {
-    //     field: 'password',
-    //     action: 'admin_reset',
-    // });
+    logAudit(adminUserId, 'UPDATE', 'auth_users', targetUserId, { field: 'password', action: 'admin_reset' });
 
     return { success: true };
 }
@@ -1056,7 +1029,7 @@ export async function adminResetPassword(
 export async function setUserEntity(
     userId: number,
     entityId: number | null,
-    adminUserId: number,
+    currentUserId?: number,
 ) {
     // Validate entity exists if assigning
     if (entityId !== null) {
@@ -1066,6 +1039,12 @@ export async function setUserEntity(
         if (!entity) throw new DomainError('Entidad no encontrada', 404);
     }
 
+    // Capture old value for audit trail
+    const oldUser = await db.query.authUsers.findFirst({
+        where: eq(authUsers.id, userId),
+        columns: { entity_id: true },
+    });
+
     const [updated] = await db
         .update(authUsers)
         .set({ entity_id: entityId })
@@ -1074,6 +1053,7 @@ export async function setUserEntity(
 
     if (!updated) throw new DomainError('Usuario no encontrado', 404);
 
+    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_users', userId, { entity_id: entityId }, { entity_id: oldUser?.entity_id ?? null });
     broadcast(RealtimeEvents.USER.UPDATED, { userId }, RealtimeEvents.ROOMS.USERS);
 
     return updated;
@@ -1100,22 +1080,7 @@ export async function batchDeleteUsers(userIds: number[], currentUserId: number)
 
     for (const userId of userIds) {
         try {
-            const roles = await getUserRoles(userId);
-            if (roles.includes(SYSTEM_ROLES.SUPERADMIN)) {
-                const superadminCount = await db
-                    .select({ count: count() })
-                    .from(authUserRoles)
-                    .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-                    .innerJoin(authUsers, eq(authUserRoles.user_id, authUsers.id))
-                    .where(and(
-                        eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN),
-                        eq(authUsers.is_active, true)
-                    ));
-                if (Number(superadminCount[0].count) <= 1) {
-                    errors.push({ userId, success: false, error: 'No se puede desactivar al último superadmin activo' });
-                    continue;
-                }
-            }
+            await ensureNotLastSuperadmin(userId);
             safeIds.push(userId);
         } catch (error: any) {
             errors.push({ userId, success: false, error: error.message });
@@ -1133,6 +1098,9 @@ export async function batchDeleteUsers(userIds: number[], currentUserId: number)
 
         // Single broadcast for all changes
         broadcast(RealtimeEvents.USER.UPDATED, { userIds: safeIds }, RealtimeEvents.ROOMS.USERS);
+
+        // Audit each deactivation
+        for (const id of safeIds) logAudit(currentUserId, 'UPDATE', 'auth_users', id, { is_active: false }, { is_active: true });
     }
 
     return [
@@ -1162,6 +1130,9 @@ export async function batchRestoreUsers(userIds: number[], currentUserId: number
         await Promise.all(safeIds.map(id => invalidateUserRbacCache(id)));
 
         broadcast(RealtimeEvents.USER.UPDATED, { userIds: safeIds }, RealtimeEvents.ROOMS.USERS);
+
+        // Audit each restoration
+        for (const id of safeIds) logAudit(currentUserId, 'UPDATE', 'auth_users', id, { is_active: true }, { is_active: false });
     }
 
     return [

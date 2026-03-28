@@ -105,6 +105,27 @@ export const usersApi = {
         return data!;
     },
 
+    deactivateUser: async (id: number) => {
+        const { error } = await (api.api.rbac.users as any)({ id }).deactivate.patch();
+        if (error) throw new Error(String(error.value));
+    },
+
+    restoreUser: async (id: number) => {
+        const { error } = await (api.api.rbac.users as any)({ id }).restore.patch();
+        if (error) throw new Error(String(error.value));
+    },
+
+    hardDeleteUser: async (id: number) => {
+        const { error } = await (api.api.rbac.users as any)({ id }).delete();
+        if (error) throw new Error(String(error.value));
+    },
+
+    canDeleteUser: async (id: number) => {
+        const { data, error } = await (api.api.rbac.users as any)({ id })['can-delete'].get();
+        if (error) throw new Error(String(error.value));
+        return data;
+    },
+
     // ─── User Roles ──────────────────────────────────────────────
     assignUserRoles: async (userId: number, roleIds: number[]) => {
         const { data, error } = await api.api.rbac.users({ id: userId }).roles.put({ roleIds });

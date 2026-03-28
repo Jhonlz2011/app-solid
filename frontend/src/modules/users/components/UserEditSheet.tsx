@@ -1,5 +1,4 @@
 import { Component, Show, createMemo } from 'solid-js';
-import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import type { UserFormData } from '@app/schema/frontend';
 import Sheet from '@shared/ui/Sheet';
@@ -15,11 +14,11 @@ import type { EntityOption } from './UserForm';
 
 interface UserEditSheetProps {
     userId: number;
-    onClose?: () => void;
+    onClose: () => void;
+    onBack?: () => void;
 }
 
 const UserEditSheet: Component<UserEditSheetProps> = (props) => {
-    const navigate = useNavigate();
     const userQuery = useUser(() => props.userId);
     const rolesQuery = useRoles();
     const entitiesQuery = useEntitiesList();
@@ -29,8 +28,8 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
     const resetPwMutation = useAdminResetPassword();
 
     const handleClose = () => {
-        if (props.onClose) props.onClose();
-        else navigate({ to: '/users' });
+        if (props.onBack) props.onBack();
+        else props.onClose();
     };
 
     const entityOptions = createMemo((): EntityOption[] => {
@@ -98,6 +97,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
         <Sheet
             isOpen={true}
             onClose={handleClose}
+            onBack={props.onBack}
             title="Editar Usuario"
             description="Modifica los datos de la cuenta"
             size="lg"

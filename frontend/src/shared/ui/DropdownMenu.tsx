@@ -1,5 +1,6 @@
 import { Component, JSX, splitProps } from 'solid-js';
 import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
+import { Link, type LinkProps } from '@tanstack/solid-router';
 import { cn } from '../lib/utils';
 import { BUTTON_VARIANTS, BUTTON_SIZES } from './Button';
 
@@ -31,12 +32,14 @@ interface DropdownMenuContentProps {
     class?: string;
 }
 
-interface DropdownMenuItemProps {
+interface DropdownMenuItemProps extends Partial<Omit<LinkProps, 'search' | 'to'>> {
     children: JSX.Element;
     class?: string;
     onSelect?: () => void;
     disabled?: boolean;
     destructive?: boolean;
+    search?: any;
+    to?: any;
 }
 
 interface DropdownMenuSeparatorProps {
@@ -120,8 +123,11 @@ const Content: Component<DropdownMenuContentProps> = (props) => {
 // Item component
 const Item: Component<DropdownMenuItemProps> = (props) => {
     const [local, others] = splitProps(props, ['children', 'class', 'onSelect', 'disabled', 'destructive']);
+    const isLink = () => others.to !== undefined || others.search !== undefined;
+
     return (
         <KobalteDropdownMenu.Item
+            as={(isLink() ? Link : "div") as any}
             class={cn(
                 // Base styles
                 'relative flex cursor-pointer select-none items-center gap-2 rounded-lg px-2 py-1.5 text-sm outline-none transition-colors',

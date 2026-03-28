@@ -1,5 +1,4 @@
 import { Component, Show } from 'solid-js';
-import { useNavigate, useParams } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useSupplier, useUpdateSupplier } from '../data/suppliers.api';
 import { EntityForm } from '@shared/forms/entity';
@@ -12,19 +11,19 @@ import { FloppyDiskIcon } from '@shared/ui/icons';
 
 interface SupplierEditSheetProps {
     supplierId: number;
+    onClose: () => void;
+    onBack?: () => void;
 }
 
-const SupplierEditSheet: Component = () => {
-    const navigate = useNavigate();
-
-    const params = useParams({ strict: false });
-    const supplierId = () => Number(params()?.id) || 0;
+const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
+    const supplierId = () => props.supplierId;
 
     const supplierQuery = useSupplier(supplierId);
     const updateMutation = useUpdateSupplier();
 
     const handleClose = () => {
-        navigate({ to: '/suppliers' });
+        if (props.onBack) props.onBack();
+        else props.onClose();
     };
 
     const handleSubmit = async (data: EntityFormData) => {
@@ -49,6 +48,7 @@ const SupplierEditSheet: Component = () => {
         <Sheet
             isOpen={true}
             onClose={handleClose}
+            onBack={props.onBack}
             title="Editar Proveedor"
             description="Modifica los datos del proveedor"
             size="xxxxl"

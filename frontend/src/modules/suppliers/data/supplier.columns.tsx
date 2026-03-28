@@ -5,6 +5,7 @@
  * Creates column definitions with proper handlers.
  */
 import { Show } from 'solid-js';
+import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { SupplierListItem } from '../data/suppliers.api';
 import { useAuth } from '@/modules/auth/store/auth.store';
@@ -79,10 +80,13 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             meta: { title: 'Razón Social' },
             size: 210,
             cell: (info) => (
-                <div
-                    class="min-w-0 cursor-pointer group/cell"
+                <Link
+                    to="."
+                    search={(prev: any) => ({ ...prev, panel: 'show', id: info.row.original.id })}
+                    preload="intent"
+                    class="min-w-0 block cursor-pointer group/cell"
                     title={info.getValue<string>()}
-                    onClick={(e) => { e.stopPropagation(); handlers.onView(info.row.original); }}
+                    onClick={(e) => e.stopPropagation()}
                 >
                     <div class="font-medium text-text truncate group-hover/cell:text-primary transition-colors duration-150">
                         {info.getValue<string>()}
@@ -90,7 +94,7 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
                     <Show when={info.row.original.trade_name}>
                         <div class="text-xs text-muted truncate">{info.row.original.trade_name}</div>
                     </Show>
-                </div>
+                </Link>
             ),
         },
 
@@ -110,15 +114,18 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             meta: { title: 'Identificación' },
             size: 170,
             cell: (info) => (
-                <div
-                    class="cursor-pointer group/cell"
-                    onClick={(e) => { e.stopPropagation(); handlers.onView(info.row.original); }}
+                <Link
+                    to="."
+                    search={(prev: any) => ({ ...prev, panel: 'show', id: info.row.original.id })}
+                    preload="intent"
+                    class="block cursor-pointer group/cell"
+                    onClick={(e) => e.stopPropagation()}
                 >
                     <div class="font-mono text-sm font-semibold text-primary group-hover/cell:underline underline-offset-2 transition-all duration-150">
                         {info.getValue<string>()}
                     </div>
                     <div class="text-xs text-muted">{info.row.original.tax_id_type}</div>
-                </div>
+                </Link>
             ),
         },
 
@@ -232,13 +239,21 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
                                 <MoreVerticalIcon class="size-4" />
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content class="min-w-[160px]">
-                                <DropdownMenu.Item onSelect={() => handlers.onView(supplier)}>
+                                <DropdownMenu.Item
+                                    to="."
+                                    search={(prev: any) => ({ ...prev, panel: 'show', id: supplier.id })}
+                                    preload="intent"
+                                >
                                     <EyeIcon class="size-4 mr-2" />
                                     <span>Ver detalles</span>
                                 </DropdownMenu.Item>
                                 
                                 <Show when={canEdit()}>
-                                    <DropdownMenu.Item onSelect={() => handlers.onEdit(supplier)}>
+                                    <DropdownMenu.Item
+                                        to="."
+                                        search={(prev: any) => ({ ...prev, panel: 'edit', id: supplier.id, from: 'show' })}
+                                        preload="intent"
+                                    >
                                         <EditIcon class="size-4 mr-2" />
                                         <span>Editar</span>
                                     </DropdownMenu.Item>

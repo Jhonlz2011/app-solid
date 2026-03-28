@@ -1,5 +1,4 @@
 import { Component } from 'solid-js';
-import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useCreateSupplier } from '../data/suppliers.api';
 import { EntityForm } from '@shared/forms/entity';
@@ -9,12 +8,13 @@ import { FloppyDiskIcon } from '@shared/ui/icons';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 
-const SupplierNewSheet: Component = () => {
-    const navigate = useNavigate();
+interface SupplierNewSheetProps {
+    onClose: () => void;
+}
+
+const SupplierNewSheet: Component<SupplierNewSheetProps> = (props) => {
     const createMutation = useCreateSupplier();
-    const handleClose = () => {
-        navigate({ to: '/suppliers' });
-    };
+    const handleClose = () => props.onClose();
 
     const handleSubmit = async (data: EntityFormData) => {
         try {

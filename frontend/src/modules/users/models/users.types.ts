@@ -66,10 +66,8 @@ export interface UserReferences {
     canDelete: boolean;
 }
 
-export const isActiveLabels: Record<string, string> = {
-    'true': 'Activo',
-    'false': 'Inactivo',
-};
+// Re-export shared labels for backward compatibility
+export { isActiveLabels } from '@shared/constants/labels';
 
 export interface AuditLogEntry {
     id: string;

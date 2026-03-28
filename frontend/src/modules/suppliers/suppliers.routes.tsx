@@ -1,95 +1,38 @@
-import { createRoute, redirect, useParams, lazyRouteComponent } from '@tanstack/solid-router';
+import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
+import { validatePanelSearch } from '@shared/types/search-params.types';
 
-// --- LAZY COMPONENTS ---
+// --- LAZY PAGE ---
 const SuppliersPage = lazyRouteComponent(() => import('./views/SuppliersPage'));
-const SupplierNewSheet = lazyRouteComponent(() => import('./components/SupplierNewSheet'));
-const SupplierEditSheet = lazyRouteComponent(() => import('./components/SupplierEditSheet'));
-const SupplierShowPanel = lazyRouteComponent(() => import('./components/SupplierShowPanel'));
 
-// --- WRAPPERS ---
-// const SupplierEditWrapper = () => {
-//   const params = useParams({ strict: false });
-//   const supplierId = Number(params()?.id) || 0;
-//   return <SupplierEditSheet supplierId={supplierId} />;
-// };
-
-const SupplierShowWrapper = () => {
-  const params = useParams({ strict: false });
-  const supplierId = Number(params()?.id) || 0;
-  return <SupplierShowPanel supplierId={supplierId} />;
-};
-
+// ─── Route factory ──────────────────────────────────────────────────────────
 export const createSuppliersRoutes = (layoutRoute: any) => {
-  const suppliersRoute = createRoute({
-    getParentRoute: () => layoutRoute,
-    path: 'suppliers',
-    beforeLoad: async () => {
-      const { useAuth } = await import('@modules/auth/store/auth.store');
-      if (!useAuth().canRead('suppliers')) {
-        throw redirect({ to: '/dashboard' });
-      }
-    },
-    loader: async () => {
-      // Parallel Fetching: Block route transition until data is pre-fetched, 
-      // explicitly triggering the pendingComponent skeleton.
-      const { suppliersApi, supplierKeys } = await import('./data/suppliers.api');
-      const defaultFilters = { limit: 10, direction: 'first' as const };
-      
-      return await queryClient.prefetchQuery({
-        queryKey: supplierKeys.list(defaultFilters),
-        queryFn: () => suppliersApi.list(defaultFilters),
-        staleTime: 60 * 1000,
-      });
-    },
-    pendingComponent: GlobalPageLoader,
-    component: SuppliersPage,
-  });
+    const suppliersRoute = createRoute({
+        getParentRoute: () => layoutRoute,
+        path: 'suppliers',
+        validateSearch: validatePanelSearch,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canRead('suppliers')) {
+                throw redirect({ to: '/dashboard' });
+            }
+        },
+        loaderDeps: () => ({}),
+        loader: async () => {
+            // Parallel Fetching: Block route transition until data is pre-fetched
+            const { suppliersApi, supplierKeys } = await import('./data/suppliers.api');
+            const defaultFilters = { limit: 10, direction: 'first' as const };
 
-  const suppliersIndexRoute = createRoute({
-    getParentRoute: () => suppliersRoute,
-    path: '/',
-    component: () => null,
-  });
+            return await queryClient.prefetchQuery({
+                queryKey: supplierKeys.list(defaultFilters),
+                queryFn: () => suppliersApi.list(defaultFilters),
+                staleTime: 60 * 1000,
+            });
+        },
+        pendingComponent: GlobalPageLoader,
+        component: SuppliersPage,
+    });
 
-  const supplierNewRoute = createRoute({
-    getParentRoute: () => suppliersRoute,
-    path: 'new',
-    beforeLoad: async () => {
-      const { useAuth } = await import('@modules/auth/store/auth.store');
-      if (!useAuth().canAdd('suppliers')) {
-        throw redirect({ to: '/suppliers' });
-      }
-    },
-    component: () => <SupplierNewSheet />,
-  });
-
-  const supplierEditRoute = createRoute({
-    getParentRoute: () => suppliersRoute,
-    path: 'edit/$id',
-    parseParams: (params) => ({
-      id: Number(params.id),
-    }),
-    beforeLoad: async () => {
-      const { useAuth } = await import('@modules/auth/store/auth.store');
-      if (!useAuth().canEdit('suppliers')) {
-        throw redirect({ to: '/suppliers' });
-      }
-    },
-    component: lazyRouteComponent(() => import('./components/SupplierEditSheet'))
-  });
-
-  const supplierShowRoute = createRoute({
-    getParentRoute: () => suppliersRoute,
-    path: 'show/$id',
-    component: SupplierShowWrapper,
-  });
-
-  return suppliersRoute.addChildren([
-    suppliersIndexRoute,
-    supplierNewRoute,
-    supplierEditRoute,
-    supplierShowRoute,
-  ]);
+    return suppliersRoute;
 };

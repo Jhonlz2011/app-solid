@@ -1,13 +1,13 @@
-import { Component, For, Show, createSignal, createMemo, createEffect, on } from 'solid-js';
+import { Component, For, Show, createSignal, createMemo, createEffect, on, onCleanup } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useQueryClient } from '@tanstack/solid-query';
-import { Dialog } from '@kobalte/core';
-import { CloseIcon, UsersIcon, UserMinusIcon, PlusIcon } from '@shared/ui/icons';
+import { FormDialog } from '@shared/ui/FormDialog';
 import { Avatar } from '@shared/ui/Avatar';
 import { RoleBadge } from '@shared/ui/Badge';
 import { SearchInput } from '@shared/ui/SearchInput';
 import Button from '@shared/ui/Button';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
+import { UserMinusIcon, PlusIcon, UsersIcon } from '@shared/ui/icons';
 import { rbacKeys } from '../data/users.keys';
 import {
     useRoleUsers,
@@ -57,7 +57,7 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
     // Debounce addSearch — 300ms
     createEffect(on(addSearch, (val) => {
         const timer = setTimeout(() => setDebouncedAddSearch(val), 300);
-        return () => clearTimeout(timer);
+        onCleanup(() => clearTimeout(timer));
     }));
 
     // ── All users query (for add panel) — only fetches when panel is open ──
@@ -132,143 +132,130 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
 
     return (
         <>
-            <Dialog.Root open={props.isOpen} onOpenChange={(open) => !open && props.onClose()}>
-                <Dialog.Portal>
-                    <Dialog.Overlay class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
-                    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <Dialog.Content class="bg-card border border-border shadow-card-soft rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
-                            {/* Header */}
-                            <div class="flex items-center justify-between px-6 py-4 border-b border-surface shrink-0">
-                                <div class="flex items-center gap-3">
-                                    <Dialog.Title class="text-lg font-semibold">
-                                        Usuarios del rol
-                                    </Dialog.Title>
-                                    <RoleBadge name={props.roleName} />
-                                </div>
-                                <Dialog.CloseButton class="p-2 rounded-lg hover:bg-surface text-muted transition-colors">
-                                    <CloseIcon />
-                                </Dialog.CloseButton>
+            <FormDialog
+                isOpen={props.isOpen}
+                onClose={props.onClose}
+                title="Usuarios del rol"
+                titleExtra={<RoleBadge name={props.roleName} />}
+                maxWidth="lg"
+                hideFooter
+                onSubmit={(e) => e.preventDefault()}
+            >
+                <div class="space-y-4 py-4">
+                    {/* Search + Add button */}
+                    <div class="flex items-center gap-2">
+                        <SearchInput
+                            value={search()}
+                            onSearch={setSearch}
+                            placeholder="Buscar usuarios..."
+                            class="flex-1"
+                        />
+                        <Button
+                            variant={showAddPanel() ? 'outline' : 'primary'}
+                            size="sm"
+                            icon={<PlusIcon />}
+                            onClick={() => setShowAddPanel(!showAddPanel())}
+                        >
+                            <span class="hidden sm:inline">{showAddPanel() ? 'Cerrar' : 'Agregar'}</span>
+                        </Button>
+                    </div>
+
+                    {/* Add user panel */}
+                    <Show when={showAddPanel()}>
+                        <div class="border border-primary/20 bg-primary/5 rounded-xl p-4 space-y-3">
+                            <div class="text-xs font-semibold text-primary uppercase tracking-wider">
+                                Agregar usuario al rol
                             </div>
-
-                            {/* Content — scrollable */}
-                            <div class="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
-                                {/* Search + Add button */}
-                                <div class="flex items-center gap-2">
-                                    <SearchInput
-                                        value={search()}
-                                        onSearch={setSearch}
-                                        placeholder="Buscar usuarios..."
-                                        class="flex-1"
-                                    />
-                                    <Button
-                                        variant={showAddPanel() ? 'outline' : 'primary'}
-                                        size="sm"
-                                        icon={<PlusIcon />}
-                                        onClick={() => setShowAddPanel(!showAddPanel())}
-                                    >
-                                        <span class="hidden sm:inline">{showAddPanel() ? 'Cerrar' : 'Agregar'}</span>
-                                    </Button>
-                                </div>
-
-                                {/* Add user panel */}
-                                <Show when={showAddPanel()}>
-                                    <div class="border border-primary/20 bg-primary/5 rounded-xl p-4 space-y-3">
-                                        <div class="text-xs font-semibold text-primary uppercase tracking-wider">
-                                            Agregar usuario al rol
-                                        </div>
-                                        <SearchInput
-                                            value={addSearch()}
-                                            onSearch={setAddSearch}
-                                            placeholder="Buscar usuario para agregar..."
-                                            class="w-full"
-                                        />
-                                        <div class="max-h-48 overflow-y-auto space-y-1">
-                                            <Show
-                                                when={availableUsers().length > 0}
-                                                fallback={
-                                                    <p class="text-xs text-muted text-center py-3">
-                                                        {addSearch() ? 'Sin resultados' : 'Todos los usuarios ya están asignados'}
-                                                    </p>
-                                                }
-                                            >
-                                                <For each={availableUsers()}>
-                                                    {(user) => (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="none"
-                                                            class="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-surface text-left"
-                                                            onClick={() => handleAssign(user.id, user.username)}
-                                                            disabled={assignMutation.isPending}
-                                                        >
-                                                            <Avatar name={user.username} size="sm" />
-                                                            <div class="flex-1 min-w-0">
-                                                                <div class="text-sm font-medium text-text truncate">{user.username}</div>
-                                                                <div class="text-xs text-muted truncate">{user.email}</div>
-                                                            </div>
-                                                            <PlusIcon class="size-4 text-primary shrink-0" />
-                                                        </Button>
-                                                    )}
-                                                </For>
-                                            </Show>
-                                        </div>
-                                    </div>
-                                </Show>
-
-                                {/* Current users list */}
+                            <SearchInput
+                                value={addSearch()}
+                                onSearch={setAddSearch}
+                                placeholder="Buscar usuario para agregar..."
+                                class="w-full"
+                            />
+                            <div class="max-h-48 overflow-y-auto space-y-1">
                                 <Show
-                                    when={!roleUsersQuery.isPending}
+                                    when={availableUsers().length > 0}
                                     fallback={
-                                        <div class="space-y-2">
-                                            <For each={Array(3)}>
-                                                {() => <div class="h-14 bg-surface rounded-xl animate-pulse" />}
-                                            </For>
-                                        </div>
+                                        <p class="text-xs text-muted text-center py-3">
+                                            {addSearch() ? 'Sin resultados' : 'Todos los usuarios ya están asignados'}
+                                        </p>
                                     }
                                 >
-                                    <Show
-                                        when={filteredRoleUsers().length > 0}
-                                        fallback={
-                                            <div class="flex flex-col items-center justify-center py-10 text-center">
-                                                <UsersIcon class="size-8 opacity-20 mb-3" />
-                                                <p class="text-sm text-muted">
-                                                    {search() ? 'Sin resultados' : 'No hay usuarios asignados a este rol'}
-                                                </p>
-                                            </div>
-                                        }
-                                    >
-                                        <div class="space-y-1">
-                                            <For each={filteredRoleUsers()}>
-                                                {(user: any) => (
-                                                    <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface/50 transition-colors group/item">
-                                                        <Avatar name={user.username} size="sm" />
-                                                        <div class="flex-1 min-w-0">
-                                                            <div class="text-sm font-medium text-text truncate">{user.username}</div>
-                                                            <div class="text-xs text-muted truncate">{user.email}</div>
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon_md"
-                                                            class="text-muted hover:text-danger hover:bg-danger/10 opacity-0 group-hover/item:opacity-100 transition-opacity"
-                                                            onClick={() => setConfirmRemove({ userId: user.id, username: user.username })}
-                                                        >
-                                                            <UserMinusIcon class="size-4" />
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </For>
-                                        </div>
-                                    </Show>
+                                    <For each={availableUsers()}>
+                                        {(user) => (
+                                            <Button
+                                                variant="ghost"
+                                                size="none"
+                                                class="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-surface text-left"
+                                                onClick={() => handleAssign(user.id, user.username)}
+                                                disabled={assignMutation.isPending}
+                                            >
+                                                <Avatar name={user.username} size="sm" />
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="text-sm font-medium text-text truncate">{user.username}</div>
+                                                    <div class="text-xs text-muted truncate">{user.email}</div>
+                                                </div>
+                                                <PlusIcon class="size-4 text-primary shrink-0" />
+                                            </Button>
+                                        )}
+                                    </For>
                                 </Show>
                             </div>
+                        </div>
+                    </Show>
 
-                            {/* Sticky footer */}
-                            <div class="text-xs text-muted text-center px-6 py-3 border-t border-border/40 shrink-0">
-                                {roleUsers().length} usuario{roleUsers().length !== 1 ? 's' : ''} asignado{roleUsers().length !== 1 ? 's' : ''}
+                    {/* Current users list */}
+                    <Show
+                        when={!roleUsersQuery.isPending}
+                        fallback={
+                            <div class="space-y-2">
+                                <For each={Array(3)}>
+                                    {() => <div class="h-14 bg-surface rounded-xl animate-pulse" />}
+                                </For>
                             </div>
-                        </Dialog.Content>
+                        }
+                    >
+                        <Show
+                            when={filteredRoleUsers().length > 0}
+                            fallback={
+                                <div class="flex flex-col items-center justify-center py-10 text-center">
+                                    <UsersIcon class="size-8 opacity-20 mb-3" />
+                                    <p class="text-sm text-muted">
+                                        {search() ? 'Sin resultados' : 'No hay usuarios asignados a este rol'}
+                                    </p>
+                                </div>
+                            }
+                        >
+                            <div class="space-y-1">
+                                <For each={filteredRoleUsers()}>
+                                    {(user: any) => (
+                                        <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface/50 transition-colors group/item">
+                                            <Avatar name={user.username} size="sm" />
+                                            <div class="flex-1 min-w-0">
+                                                <div class="text-sm font-medium text-text truncate">{user.username}</div>
+                                                <div class="text-xs text-muted truncate">{user.email}</div>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon_md"
+                                                class="text-muted hover:text-danger hover:bg-danger/10 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                                                onClick={() => setConfirmRemove({ userId: user.id, username: user.username })}
+                                            >
+                                                <UserMinusIcon class="size-4" />
+                                            </Button>
+                                        </div>
+                                    )}
+                                </For>
+                            </div>
+                        </Show>
+                    </Show>
+
+                    {/* Footer count */}
+                    <div class="text-xs text-muted text-center pt-2 border-t border-border/40">
+                        {roleUsers().length} usuario{roleUsers().length !== 1 ? 's' : ''} asignado{roleUsers().length !== 1 ? 's' : ''}
                     </div>
-                </Dialog.Portal>
-            </Dialog.Root>
+                </div>
+            </FormDialog>
 
             {/* Confirm remove */}
             <ConfirmDialog

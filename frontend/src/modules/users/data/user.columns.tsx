@@ -6,6 +6,7 @@
  */
 import { Show } from 'solid-js';
 import { For } from 'solid-js';
+import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { UserWithRoles } from '../models/users.types';
 import { useAuth } from '@modules/auth/store/auth.store';
@@ -86,16 +87,19 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
                 />
             ),
             cell: (info) => (
-                <div
+                <Link
+                    to="."
+                    search={(prev: any) => ({ ...prev, panel: 'show', id: info.row.original.id })}
+                    preload="intent"
                     class="flex items-center gap-3 min-w-0 pl-2 cursor-pointer group/cell"
-                    onClick={(e) => { e.stopPropagation(); handlers.onView(info.row.original); }}
+                    onClick={(e) => e.stopPropagation()}
                 >
                     <Avatar name={info.row.original.username} size="sm" />
                     <div class="min-w-0">
                         <div class="font-medium text-text truncate group-hover/cell:text-primary transition-colors duration-150">{info.row.original.username}</div>
                         <div class="text-xs text-muted truncate">{info.row.original.email}</div>
                     </div>
-                </div>
+                </Link>
             ),
         },
 
@@ -161,19 +165,26 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
                 if (!name) {
                     return <span class="text-muted text-sm italic">Sin entidad</span>;
                 }
+                const modalName = user.entityIsSupplier ? 'showSupplier'
+                    : user.entityIsClient ? 'showClient'
+                    : user.entityIsEmployee ? 'showEmployee'
+                    : undefined;
+
                 return (
                     <div class="flex flex-col gap-0.5 min-w-0">
-                        <Show when={user.entityIsSupplier && user.entityId}
+                        <Show when={modalName && user.entityId}
                             fallback={<span class="text-sm text-text truncate font-medium" title={name}>{name}</span>}
                         >
-                            <a
-                                href={`/suppliers/show/${user.entityId}`}
-                                class="text-sm text-primary hover:underline truncate font-medium"
-                                title={`Ver proveedor: ${name}`}
+                            <Link
+                                to="."
+                                search={(prev: any) => ({ ...prev, modal: modalName, modalId: user.entityId })}
+                                preload="intent"
+                                class="text-sm text-text hover:text-primary hover:underline truncate font-medium"
+                                title={`Ver detalles de ${name}`}
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 {name}
-                            </a>
+                            </Link>
                         </Show>
                         <Show when={user.entityTaxId}>
                             <span class="text-[11px] text-muted/70 font-mono truncate">{user.entityTaxId}</span>
@@ -265,13 +276,21 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
                                 <MoreVerticalIcon class="size-4" />
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content class="min-w-[160px]">
-                                <DropdownMenu.Item onSelect={() => handlers.onView(user)}>
+                                <DropdownMenu.Item
+                                    to="."
+                                    search={(prev: any) => ({ ...prev, panel: 'show', id: user.id })}
+                                    preload="intent"
+                                >
                                     <EyeIcon class="size-4 mr-2" />
                                     <span>Ver detalles</span>
                                 </DropdownMenu.Item>
                                 
                                 <Show when={canEdit()}>
-                                    <DropdownMenu.Item onSelect={() => handlers.onEdit(user)}>
+                                    <DropdownMenu.Item
+                                        to="."
+                                        search={(prev: any) => ({ ...prev, panel: 'edit', id: user.id, from: 'show' })}
+                                        preload="intent"
+                                    >
                                         <EditIcon class="size-4 mr-2" />
                                         <span>Editar</span>
                                     </DropdownMenu.Item>
