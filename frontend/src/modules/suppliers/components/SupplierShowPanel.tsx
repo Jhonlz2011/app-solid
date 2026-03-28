@@ -22,7 +22,12 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
     // Use TanStack Query hook with the passed supplierId
     const supplierQuery = useSupplier(() => props.supplierId);
 
-    const handleClose = () => props.onClose();
+    let dismissSheet: () => void;
+
+    const handleClose = () => {
+        if (dismissSheet) dismissSheet();
+        else props.onClose();
+    };
 
     const handleEdit = () => {
         if (props.supplierId) navigate({ search: (prev: any) => ({ ...prev, panel: 'edit', id: props.supplierId, from: 'show' }) } as any);
@@ -30,8 +35,9 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
 
     return (
         <Sheet
+            bindDismiss={(fn) => dismissSheet = fn}
             isOpen={true}
-            onClose={handleClose}
+            onClose={props.onClose}
             title="Detalles del Proveedor"
             description="Información completa del proveedor"
             size="xxxxl"

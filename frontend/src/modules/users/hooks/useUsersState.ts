@@ -4,13 +4,14 @@
  * Extracts ~300 lines of logic from the God Component so the page only renders.
  */
 import { createSignal, createMemo, batch } from 'solid-js';
-import type { RowSelectionState, ColumnPinningState, VisibilityState, SortingState, Updater, Table } from '@tanstack/solid-table';
+import type { Updater, SortingState } from '@tanstack/solid-table';
 import { useQueryClient } from '@tanstack/solid-query';
 import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { copyToClipboard } from '@shared/utils/clipboard';
 import { buildFilterOptions } from '@shared/utils/facets.utils';
 import { isActiveLabels } from '@shared/constants/labels';
+import { useDataTable } from '@shared/hooks/useDataTable';
 import { useDataTableSSE } from '@shared/hooks/useDataTableSSE';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { RealtimeEvents } from '@app/schema/realtime-events';
@@ -52,19 +53,17 @@ export function useUsersState() {
     };
 
     // ─── Users tab state ────────────────────────────────────────
-    const [userSearch, setUserSearch] = createSignal('');
-    const [page, setPage] = createSignal(1);
-    const [pageSize, setPageSize] = createSignal(10);
-    const [sorting, setSorting] = createSignal<SortingState>([]);
-    const [rowSelection, setRowSelection] = createSignal<RowSelectionState>({});
-    const [columnVisibility, setColumnVisibility] = createSignal<VisibilityState>({});
-    const [columnPinning, setColumnPinning] = createSignal<ColumnPinningState>({
-        left: ['select'],
-        right: ['actions'],
+    let getQueryData = () => [] as UserWithRoles[];
+    let getQueryMeta = () => undefined as any;
+
+    const tableState = useDataTable<UserWithRoles>({
+        data: () => getQueryData(),
+        meta: () => getQueryMeta(),
+        isCursorBased: false
     });
+
     const [isActiveFilter, setIsActiveFilter] = createSignal<string[]>([]);
     const [rolesFilter, setRolesFilter] = createSignal<string[]>([]);
-    const [tableInstance, setTableInstance] = createSignal<Table<UserWithRoles>>();
 
     // ─── Roles tab state ────────────────────────────────────────
     const [rolesSearch, setRolesSearch] = createSignal(
@@ -80,15 +79,12 @@ export function useUsersState() {
     const [showBulkRestoreConfirm, setShowBulkRestoreConfirm] = createSignal(false);
 
     // ─── Derived: filters ───────────────────────────────────────
-    const sortBy = () => sorting().length > 0 ? sorting()[0].id : undefined;
-    const sortOrder = () => sorting().length > 0 ? (sorting()[0].desc ? 'desc' as const : 'asc' as const) : undefined;
-
     const usersFilters = (): UsersFilters => ({
-        search: userSearch() || undefined,
-        page: page(),
-        limit: pageSize(),
-        sortBy: sortBy(),
-        sortOrder: sortOrder(),
+        search: tableState.search() || undefined,
+        page: tableState.page(),
+        limit: tableState.pageSize(),
+        sortBy: tableState.sortBy(),
+        sortOrder: tableState.sortOrder(),
         isActive: isActiveFilter(),
         roles: rolesFilter(),
     });
@@ -99,8 +95,10 @@ export function useUsersState() {
     });
 
     // ─── Queries & Mutations ────────────────────────────────────
-    const facetsQuery = useUserFacets(userSearch, columnFiltersMap);
+    const facetsQuery = useUserFacets(tableState.search, columnFiltersMap);
     const usersQuery = useUsers(usersFilters);
+    getQueryData = () => usersQuery.data?.data ?? [];
+    getQueryMeta = () => usersQuery.data?.meta;
     const rolesQuery = useRoles();
     const deactivateMutation = useDeactivateUser();
     const restoreMutation = useRestoreUser();
@@ -129,38 +127,12 @@ export function useUsersState() {
         );
     });
 
-    const selectedCount = () => Object.keys(rowSelection()).length;
-    const selectedUsers = createMemo(() => {
-        const selection = rowSelection();
-        return users().filter((u: UserWithRoles) => selection[String(u.id)]);
-    });
-    const selectedActiveCount = () => selectedUsers().filter(u => u.isActive).length;
-    const selectedInactiveCount = () => selectedUsers().filter(u => !u.isActive).length;
-
-    // ─── Pagination handlers ────────────────────────────────────
-    const hasNextPage = () => usersMeta()?.hasNextPage ?? false;
-    const hasPrevPage = () => usersMeta()?.hasPrevPage ?? false;
-
-    const handleFirstPage = () => batch(() => { setPage(1); setRowSelection({}); });
-    const handleLastPage = () => batch(() => { setPage(usersMeta()?.pageCount ?? 1); setRowSelection({}); });
-    const handleNextPage = () => batch(() => { setPage(p => p + 1); setRowSelection({}); });
-    const handlePrevPage = () => batch(() => { setPage(p => Math.max(1, p - 1)); setRowSelection({}); });
-    const handlePageSizeChange = (size: number) => batch(() => { setPageSize(size); setPage(1); });
-
-    const handleSearchInput = (value: string) => {
-        batch(() => { setUserSearch(value); setPage(1); setRowSelection({}); });
-    };
-
-    const handleSortChange = (updater: Updater<SortingState>) => {
-        batch(() => {
-            setSorting(typeof updater === 'function' ? updater(sorting()) : updater);
-            setPage(1);
-        });
-    };
+    const selectedActiveCount = () => tableState.selectedItems().filter(u => u.isActive).length;
+    const selectedInactiveCount = () => tableState.selectedItems().filter(u => !u.isActive).length;
 
     const handleFilterChange = (setter: (updater: (prev: string[]) => string[]) => void) => {
         return (values: string[]) => {
-            batch(() => { setter(() => values); setPage(1); });
+            batch(() => { setter(() => values); tableState.setPage(1); });
         };
     };
 
@@ -215,25 +187,25 @@ export function useUsersState() {
     const handleBulkDelete = () => setShowBulkDeleteConfirm(true);
 
     const confirmBulkDelete = () => {
-        const ids = selectedUsers().filter(u => u.isActive).map(u => u.id);
+        const ids = tableState.selectedItems().filter(u => u.isActive).map(u => u.id);
         if (ids.length === 0) return;
         bulkDeleteMutation.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} usuarios desactivados`); setRowSelection({}); setShowBulkDeleteConfirm(false); },
+            onSuccess: () => { toast.success(`${ids.length} usuarios desactivados`); tableState.setRowSelection({}); setShowBulkDeleteConfirm(false); },
             onError: (err: any) => toast.error(err.message || 'Error al eliminar'),
         });
     };
 
     const confirmBulkRestore = () => {
-        const ids = selectedUsers().filter(u => !u.isActive).map(u => u.id);
+        const ids = tableState.selectedItems().filter(u => !u.isActive).map(u => u.id);
         if (ids.length === 0) return;
         bulkRestoreMutation.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} usuarios restaurados`); setRowSelection({}); setShowBulkRestoreConfirm(false); },
+            onSuccess: () => { toast.success(`${ids.length} usuarios restaurados`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },
             onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
 
     const handleCopySelection = async () => {
-        const selected = selectedUsers();
+        const selected = tableState.selectedItems();
         if (selected.length === 0) return;
         const text = selected.map(u => {
             const parts = [
@@ -245,7 +217,7 @@ export function useUsersState() {
         const ok = await copyToClipboard(text);
         if (ok) toast.success(`Copiado ${selected.length} usuarios al portapapeles`);
         else toast.error('Error al copiar al portapapeles');
-        setRowSelection({});
+        tableState.setRowSelection({});
     };
 
     // ─── Filter options ─────────────────────────────────────────
@@ -282,25 +254,25 @@ export function useUsersState() {
     };
 
     return {
+        // ...Spread all base table state/handlers (provides sorting, pagination, selection, search, etc.)
+        ...tableState,
+        // Match existing expected property name for the UI bindings
+        userSearch: tableState.search,
+        handleSortChange: tableState.handleSortingChange, // UI expects handleSortChange instead of handleSortingChange in this older version
+
         // Tab
         activeTab, handleTabChange, auth,
 
         // Panel (searchParams-driven sheets)
         panelSearch, handleClosePanel, handleCloseModal,
 
-        // Users state
-        userSearch, sorting, page, pageSize, rowSelection, setRowSelection,
-        columnVisibility, setColumnVisibility, columnPinning, setColumnPinning,
-        tableInstance, setTableInstance,
-
         // Users data
-        usersQuery, users, usersMeta, totalUsers, selectedCount, selectedActiveCount, selectedInactiveCount,
+        usersQuery, users, usersMeta, totalUsers, selectedActiveCount, selectedInactiveCount,
 
         // Users handlers
-        handleSearchInput, handleFirstPage, handleLastPage, handleNextPage, handlePrevPage,
-        handlePageSizeChange, handleSortChange, handleNewUser, handleViewUser, handleEditUser,
+        handleNewUser, handleViewUser, handleEditUser,
         handlePrefetchUser, handleDeleteUser, handleRestore, handleCopySelection,
-        handleBulkDelete, confirmBulkDelete, confirmBulkRestore, hasNextPage, hasPrevPage,
+        handleBulkDelete, confirmBulkDelete, confirmBulkRestore, 
 
         // Roles state & data
         rolesSearch, handleRolesSearch, rolesQuery, roles, filteredRoles,

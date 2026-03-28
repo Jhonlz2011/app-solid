@@ -4,20 +4,6 @@
  */
 
 // Predefined gradient pairs that look good together
-// const GRADIENT_PAIRS = [
-//     { from: '#8B5CF6', to: '#EC4899' }, // Purple to Pink
-//     { from: '#06B6D4', to: '#3B82F6' }, // Cyan to Blue
-//     { from: '#10B981', to: '#14B8A6' }, // Emerald to Teal
-//     { from: '#F59E0B', to: '#EF4444' }, // Amber to Red
-//     { from: '#6366F1', to: '#8B5CF6' }, // Indigo to Purple
-//     { from: '#EC4899', to: '#F43F5E' }, // Pink to Rose
-//     { from: '#3B82F6', to: '#6366F1' }, // Blue to Indigo
-//     { from: '#14B8A6', to: '#06B6D4' }, // Teal to Cyan
-//     { from: '#F43F5E', to: '#F59E0B' }, // Rose to Amber
-//     { from: '#84CC16', to: '#10B981' }, // Lime to Emerald
-// ];
-
-
 const GRADIENT_PAIRS = [
     // --- TUS 10 ORIGINALES ---
     { from: '#8B5CF6', to: '#EC4899' }, // 1. Purple to Pink

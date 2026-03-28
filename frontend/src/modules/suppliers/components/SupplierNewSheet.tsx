@@ -14,7 +14,13 @@ interface SupplierNewSheetProps {
 
 const SupplierNewSheet: Component<SupplierNewSheetProps> = (props) => {
     const createMutation = useCreateSupplier();
-    const handleClose = () => props.onClose();
+    
+    let dismissSheet: () => void;
+    
+    const handleClose = () => {
+        if (dismissSheet) dismissSheet();
+        else props.onClose();
+    };
 
     const handleSubmit = async (data: EntityFormData) => {
         try {
@@ -30,8 +36,9 @@ const SupplierNewSheet: Component<SupplierNewSheetProps> = (props) => {
 
     return (
         <Sheet
+            bindDismiss={(fn) => dismissSheet = fn}
             isOpen={true}
-            onClose={handleClose}
+            onClose={props.onClose}
             title="Nuevo Proveedor"
             description="Ingresa los datos del nuevo proveedor"
             size="xxxxl"

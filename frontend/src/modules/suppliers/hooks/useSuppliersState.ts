@@ -3,8 +3,8 @@
  *
  * Extracts ~350 lines of logic from the God Component so the page only renders.
  */
-import { createSignal, createMemo, batch, createEffect } from 'solid-js';
-import type { RowSelectionState, ColumnPinningState, VisibilityState, SortingState, Updater, Table } from '@tanstack/solid-table';
+import { createSignal, createMemo, batch } from 'solid-js';
+import type { Updater, SortingState } from '@tanstack/solid-table';
 import { useQueryClient } from '@tanstack/solid-query';
 import { useNavigate, useSearch } from '@tanstack/solid-router';
 import type { PanelSearch } from '@shared/types/search-params.types';
@@ -13,6 +13,7 @@ import { copyToClipboard } from '@shared/utils/clipboard';
 import { buildFilterOptions } from '@shared/utils/facets.utils';
 import { isActiveLabels } from '@shared/constants/labels';
 import { taxIdTypeLabels, personTypeLabels } from '../models/supplier.types';
+import { useDataTable } from '@shared/hooks/useDataTable';
 import { useDataTableSSE, useRealtimeInvalidation } from '@shared/hooks/useDataTableSSE';
 import { useAuth } from '@/modules/auth/store/auth.store';
 
@@ -36,32 +37,11 @@ export function useSuppliersState() {
     const auth = useAuth();
     const routerSearch = useSearch({ strict: false });
 
-    // ─── Pagination & Filter State ───────────────────────────────
-    const [search, setSearch] = createSignal('');
-    const [pageSize, setPageSize] = createSignal(10);
-    const [cursor, setCursor] = createSignal<string | undefined>(undefined);
-    const [direction, setDirection] = createSignal<'first' | 'next' | 'prev' | 'last'>('first');
-    const [sorting, setSorting] = createSignal<SortingState>([]);
-    const [page, setPage] = createSignal(1);
-
-    // UI State
-    const [rowSelection, setRowSelection] = createSignal<RowSelectionState>({});
-    const [columnVisibility, setColumnVisibility] = createSignal<VisibilityState>({});
-    const [columnPinning, setColumnPinning] = createSignal<ColumnPinningState>({
-        left: ['select'],
-        right: ['actions'],
-    });
-
-    // Column Filter State
+    // Filter sheet
     const [personTypeFilter, setPersonTypeFilter] = createSignal<string[]>([]);
     const [taxIdTypeFilter, setTaxIdTypeFilter] = createSignal<string[]>([]);
     const [isActiveFilter, setIsActiveFilter] = createSignal<string[]>([]);
     const [businessNameFilter, setBusinessNameFilter] = createSignal<string[]>([]);
-
-    // Table instance ref
-    const [tableInstance, setTableInstance] = createSignal<Table<SupplierListItem>>();
-
-    // Filter sheet
     const [showFilterSheet, setShowFilterSheet] = createSignal(false);
 
     // Delete / Restore confirmation state
@@ -73,20 +53,25 @@ export function useSuppliersState() {
     useDataTableSSE({ room: 'suppliers', queryKey: supplierKeys.lists() });
     useRealtimeInvalidation([...supplierKeys.all, 'facets']);
 
-    // ─── Derived: Sort params & pagination mode ──────────────────
-    const sortBy = () => sorting().length > 0 ? sorting()[0].id : undefined;
-    const sortOrder = () => sorting().length > 0 ? (sorting()[0].desc ? 'desc' as const : 'asc' as const) : undefined;
-    const isSortedMode = () => !!sortBy() && sortBy() !== 'id';
+    // ─── Table State ─────────────────────────────────────────────
+    let getQueryData = () => [] as SupplierListItem[];
+    let getQueryMeta = () => undefined as any;
+
+    const tableState = useDataTable<SupplierListItem>({
+        data: () => getQueryData(),
+        meta: () => getQueryMeta(),
+        isCursorBased: true
+    });
 
     // ─── Query Filters ───────────────────────────────────────────
     const filters = (): SupplierFilters => ({
-        cursor: isSortedMode() ? undefined : cursor(),
-        direction: isSortedMode() ? undefined : direction(),
-        sortBy: sortBy(),
-        sortOrder: sortOrder(),
-        page: isSortedMode() ? page() : undefined,
-        limit: pageSize(),
-        search: search() || undefined,
+        cursor: tableState.isSortedMode() ? undefined : tableState.cursor(),
+        direction: tableState.isSortedMode() ? undefined : tableState.direction(),
+        sortBy: tableState.sortBy(),
+        sortOrder: tableState.sortOrder(),
+        page: tableState.isSortedMode() ? tableState.page() : undefined,
+        limit: tableState.pageSize(),
+        search: tableState.search() || undefined,
         personType: personTypeFilter().length > 0 ? personTypeFilter() : undefined,
         taxIdType: taxIdTypeFilter().length > 0 ? taxIdTypeFilter() : undefined,
         isActive: isActiveFilter().length > 0 ? isActiveFilter() : undefined,
@@ -96,7 +81,7 @@ export function useSuppliersState() {
     // ─── Queries & Mutations ─────────────────────────────────────
     const suppliersQuery = useSuppliers(filters);
     const facetsQuery = useSupplierFacets(
-        () => search() || undefined,
+        () => tableState.search() || undefined,
         () => ({
             personType: personTypeFilter().length > 0 ? personTypeFilter() : undefined,
             taxIdType: taxIdTypeFilter().length > 0 ? taxIdTypeFilter() : undefined,
@@ -113,72 +98,9 @@ export function useSuppliersState() {
     // ─── Derived Data ────────────────────────────────────────────
     const suppliers = () => suppliersQuery.data?.data ?? [];
     const meta = () => suppliersQuery.data?.meta;
-    const totalRows = () => meta()?.total ?? 0;
-    const hasNextPage = () => meta()?.hasNextPage ?? false;
-    const hasPrevPage = () => meta()?.hasPrevPage ?? false;
 
-    const selectedCount = () => Object.keys(rowSelection()).length;
-    const selectedSuppliers = createMemo(() => {
-        const selection = rowSelection();
-        return suppliers().filter(s => selection[String(s.id)]);
-    });
-    const selectedActiveCount = () => selectedSuppliers().filter(s => s.is_active).length;
-    const selectedInactiveCount = () => selectedSuppliers().filter(s => !s.is_active).length;
-
-    // Clamp page
-    createEffect(() => {
-        const pageCount = meta()?.pageCount;
-        if (pageCount && page() > pageCount) setPage(Math.max(1, pageCount));
-    });
-
-    // ─── Pagination Handlers ─────────────────────────────────────
-    const handleSearchInput = (value: string) => {
-        batch(() => { setSearch(value); setCursor(undefined); setDirection('first'); setPage(1); });
-    };
-
-    const handleFirstPage = () => {
-        batch(() => { setCursor(undefined); setDirection('first'); setPage(1); setRowSelection({}); });
-    };
-
-    const handleLastPage = () => {
-        if (isSortedMode()) {
-            const pageCount = meta()?.pageCount ?? 1;
-            batch(() => { setPage(pageCount); setRowSelection({}); });
-        } else {
-            batch(() => { setCursor(undefined); setDirection('last'); setRowSelection({}); });
-        }
-    };
-
-    const handleNextPage = () => {
-        if (isSortedMode()) {
-            batch(() => { setPage(p => p + 1); setRowSelection({}); });
-        } else {
-            const nextCursor = meta()?.nextCursor;
-            if (nextCursor) batch(() => { setCursor(nextCursor); setDirection('next'); setRowSelection({}); });
-        }
-    };
-
-    const handlePrevPage = () => {
-        if (isSortedMode()) {
-            batch(() => { setPage(p => Math.max(1, p - 1)); setRowSelection({}); });
-        } else {
-            const prevCursor = meta()?.prevCursor;
-            if (prevCursor) batch(() => { setCursor(prevCursor); setDirection('prev'); setRowSelection({}); });
-        }
-    };
-
-    const handlePageSizeChange = (size: number) => {
-        batch(() => { setPageSize(size); setCursor(undefined); setDirection('first'); setPage(1); });
-    };
-
-    const handleSortingChange = (updater: Updater<SortingState>) => {
-        batch(() => {
-            const newSorting = typeof updater === 'function' ? updater(sorting()) : updater;
-            setSorting(newSorting);
-            setCursor(undefined);
-            setDirection('first');
-        });
-    };
+    const selectedActiveCount = () => tableState.selectedItems().filter(s => s.is_active).length;
+    const selectedInactiveCount = () => tableState.selectedItems().filter(s => !s.is_active).length;
 
     // ─── Navigation Handlers ─────────────────────────────────────
     const panelSearch = (): PanelSearch => (routerSearch() as PanelSearch) ?? {};
@@ -196,7 +118,7 @@ export function useSuppliersState() {
 
     // ─── Action Handlers ─────────────────────────────────────────
     const handleCopySelection = async () => {
-        const selected = selectedSuppliers();
+        const selected = tableState.selectedItems();
         if (selected.length === 0) return;
         const text = selected.map(s => {
             const parts = [
@@ -209,7 +131,7 @@ export function useSuppliersState() {
         const ok = await copyToClipboard(text);
         if (ok) toast.success(`Copiado ${selected.length} proveedores al portapapeles`);
         else toast.error('Error al copiar al portapapeles');
-        setRowSelection({});
+        tableState.setRowSelection({});
     };
 
     const handleDelete = (supplier: SupplierListItem) => setDeleteTarget(supplier);
@@ -224,25 +146,25 @@ export function useSuppliersState() {
     const handleBulkDelete = () => setShowBulkDeleteConfirm(true);
 
     const confirmBulkDelete = () => {
-        const ids = selectedSuppliers().filter(s => s.is_active).map(s => s.id);
+        const ids = tableState.selectedItems().filter(s => s.is_active).map(s => s.id);
         if (ids.length === 0) return;
         bulkDeleteMutation.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} proveedores eliminados`); setRowSelection({}); setShowBulkDeleteConfirm(false); },
+            onSuccess: () => { toast.success(`${ids.length} proveedores eliminados`); tableState.setRowSelection({}); setShowBulkDeleteConfirm(false); },
             onError: (err: any) => toast.error(err.message || 'Error al eliminar'),
         });
     };
 
     const confirmBulkRestore = () => {
-        const ids = selectedSuppliers().filter(s => !s.is_active).map(s => s.id);
+        const ids = tableState.selectedItems().filter(s => !s.is_active).map(s => s.id);
         if (ids.length === 0) return;
         bulkRestoreMutation.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} proveedores restaurados`); setRowSelection({}); setShowBulkRestoreConfirm(false); },
+            onSuccess: () => { toast.success(`${ids.length} proveedores restaurados`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },
             onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
 
     const handleFilterChange = (setter: (v: string[]) => void) => (selected: string[]) => {
-        batch(() => { setter(selected); setCursor(undefined); setDirection('first'); });
+        batch(() => { setter(selected); tableState.setCursor(undefined); tableState.setDirection('first'); });
     };
 
     // ─── Filter Options ──────────────────────────────────────────
@@ -269,23 +191,23 @@ export function useSuppliersState() {
     );
 
     return {
+        // ...Spread all base table handlers and state
+        ...tableState,
+
         // State
         auth, panelSearch, handleClosePanel,
-        search, sorting, rowSelection, setRowSelection, columnVisibility, setColumnVisibility,
-        columnPinning, setColumnPinning, tableInstance, setTableInstance,
         showFilterSheet, setShowFilterSheet, deleteTarget, setDeleteTarget,
         showBulkDeleteConfirm, setShowBulkDeleteConfirm, showBulkRestoreConfirm, setShowBulkRestoreConfirm,
 
         // Query results
-        suppliersQuery, facetsQuery, suppliers, totalRows, hasNextPage, hasPrevPage, meta,
-        selectedCount, selectedActiveCount, selectedInactiveCount, pageSize,
+        suppliersQuery, facetsQuery, suppliers, meta,
+        selectedActiveCount, selectedInactiveCount,
 
         // Mutations
         deleteMutation, bulkDeleteMutation, bulkRestoreMutation,
 
         // Handlers
-        handleSearchInput, handleFirstPage, handleLastPage, handleNextPage, handlePrevPage,
-        handlePageSizeChange, handleSortingChange, handleNew, handleView, handleEdit,
+        handleNew, handleView, handleEdit,
         handlePrefetch, handleCopySelection, handleDelete, handleRestore, handleBulkDelete,
         confirmBulkDelete, confirmBulkRestore, handleFilterChange, filters,
 

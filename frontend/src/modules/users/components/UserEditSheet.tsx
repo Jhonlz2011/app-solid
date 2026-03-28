@@ -27,9 +27,14 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
     const setEntityMutation = useSetUserEntity();
     const resetPwMutation = useAdminResetPassword();
 
+    let dismissSheet: () => void;
+
     const handleClose = () => {
-        if (props.onBack) props.onBack();
-        else props.onClose();
+        if (dismissSheet) dismissSheet();
+        else {
+            if (props.onBack) props.onBack();
+            else props.onClose();
+        }
     };
 
     const entityOptions = createMemo((): EntityOption[] => {
@@ -95,8 +100,9 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
 
     return (
         <Sheet
+            bindDismiss={(fn) => dismissSheet = fn}
             isOpen={true}
-            onClose={handleClose}
+            onClose={props.onClose}
             onBack={props.onBack}
             title="Editar Usuario"
             description="Modifica los datos de la cuenta"

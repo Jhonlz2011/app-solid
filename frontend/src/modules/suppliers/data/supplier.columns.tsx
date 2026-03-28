@@ -13,8 +13,7 @@ import Checkbox from '@shared/ui/Checkbox';
 import { Badge, StatusBadge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
-import { EditIcon, TrashIcon, RotateCcwIcon, MoreVerticalIcon, EyeIcon } from '@shared/ui/icons';
-import DropdownMenu from '@shared/ui/DropdownMenu';
+import ActionMenu from '@shared/ui/ActionMenu';
 
 /** Filter configuration for a single column - uses accessors for SolidJS reactivity */
 export interface ColumnFilterConfig {
@@ -227,55 +226,15 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             enableHiding: false,
             cell: (info) => {
                 const supplier = info.row.original;
-                const isActive = () => supplier.is_active;
-                const canDestroy = () => handlers.auth.hasPermission('suppliers.destroy');
-                const canRestore = () => handlers.auth.hasPermission('suppliers.restore') && !isActive();
-                const canEdit = () => handlers.auth.canEdit('suppliers');
-                const canDelete = () => handlers.auth.canDelete('suppliers') && isActive();
                 return (
-                    <div class="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <DropdownMenu placement="bottom-end">
-                            <DropdownMenu.Trigger variant="ghost" class="size-8 p-0 data-[expanded]:bg-card-alt data-[expanded]:opacity-100" title="Acciones">
-                                <MoreVerticalIcon class="size-4" />
-                            </DropdownMenu.Trigger>
-                            <DropdownMenu.Content class="min-w-[160px]">
-                                <DropdownMenu.Item
-                                    to="."
-                                    search={(prev: any) => ({ ...prev, panel: 'show', id: supplier.id })}
-                                    preload="intent"
-                                >
-                                    <EyeIcon class="size-4 mr-2" />
-                                    <span>Ver detalles</span>
-                                </DropdownMenu.Item>
-                                
-                                <Show when={canEdit()}>
-                                    <DropdownMenu.Item
-                                        to="."
-                                        search={(prev: any) => ({ ...prev, panel: 'edit', id: supplier.id, from: 'show' })}
-                                        preload="intent"
-                                    >
-                                        <EditIcon class="size-4 mr-2" />
-                                        <span>Editar</span>
-                                    </DropdownMenu.Item>
-                                </Show>
-
-                                <Show when={canRestore()}>
-                                    <DropdownMenu.Item onSelect={() => handlers.onRestore(supplier)}>
-                                        <RotateCcwIcon class="size-4 mr-2 text-emerald-500" />
-                                        <span class="text-emerald-500">Restaurar</span>
-                                    </DropdownMenu.Item>
-                                </Show>
-
-                                <Show when={canDelete() || canDestroy()}>
-                                    <DropdownMenu.Separator />
-                                    <DropdownMenu.Item onSelect={() => handlers.onDelete(supplier)} destructive>
-                                        <TrashIcon class="size-4 mr-2" />
-                                        <span>Eliminar</span>
-                                    </DropdownMenu.Item>
-                                </Show>
-                            </DropdownMenu.Content>
-                        </DropdownMenu>
-                    </div>
+                    <ActionMenu
+                        module="suppliers"
+                        isActive={supplier.is_active ?? false}
+                        showSearch={(prev: any) => ({ ...prev, panel: 'show', id: supplier.id })}
+                        editSearch={(prev: any) => ({ ...prev, panel: 'edit', id: supplier.id })}
+                        onRestore={() => handlers.onRestore(supplier)}
+                        onDelete={() => handlers.onDelete(supplier)}
+                    />
                 );
             },
         },

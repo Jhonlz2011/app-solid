@@ -1,7 +1,11 @@
-import { Component, JSX, Show, createEffect, onCleanup, mergeProps } from 'solid-js';
+import { Component, JSX, Show, createEffect, onCleanup, mergeProps, createSignal, createUniqueId } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { XIcon, ChevronLeftIcon } from '@shared/ui/icons';
 import { ScrollArea } from '@/layout/components/ScrollArea';
+import { cn } from '../lib/utils';
+
+// Global stacking registry for nested Sheets
+const activeSheets: string[] = [];
 
 interface SheetProps {
     isOpen: boolean;
@@ -15,6 +19,8 @@ interface SheetProps {
     footer?: JSX.Element;
     side?: 'left' | 'right';
     size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'xxxl' | 'xxxxl' | 'full';
+    /** Binding callback to expose internal animated dismiss function to the parent */
+    bindDismiss?: (dismiss: () => void) => void;
 }
 
 const Sheet: Component<SheetProps> = (rawProps) => {
@@ -31,35 +37,52 @@ const Sheet: Component<SheetProps> = (rawProps) => {
         full: 'max-w-full',
     };
 
+    const sheetId = createUniqueId();
+
     createEffect(() => {
         if (props.isOpen) {
+            activeSheets.push(sheetId);
             document.body.style.overflow = 'hidden';
+            window.addEventListener('keydown', handleKeyDown);
         } else {
-            document.body.style.overflow = '';
+            cleanupSheet();
         }
     });
 
-    onCleanup(() => {
-        document.body.style.overflow = '';
-    });
-
-    const handleDismiss = () => {
-        if (props.onBack) props.onBack();
-        else props.onClose();
+    const cleanupSheet = () => {
+        const idx = activeSheets.indexOf(sheetId);
+        if (idx > -1) activeSheets.splice(idx, 1);
+        
+        if (activeSheets.length === 0) {
+            document.body.style.overflow = '';
+        }
+        window.removeEventListener('keydown', handleKeyDown);
     };
 
+    onCleanup(cleanupSheet);
+
+    const [isClosing, setIsClosing] = createSignal(false);
+
+    const handleDismiss = () => {
+        if (isClosing()) return;
+        setIsClosing(true);
+        setTimeout(() => {
+            if (props.onBack) props.onBack();
+            else props.onClose();
+        }, 200); // 200ms duration for the exit animation
+    };
+
+    if (props.bindDismiss) {
+        props.bindDismiss(handleDismiss);
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
+        // Only the visually topmost sheet should handle the escape key
+        if (e.key === 'Escape' && activeSheets[activeSheets.length - 1] === sheetId) {
+            e.preventDefault();
             handleDismiss();
         }
     };
-
-    createEffect(() => {
-        if (props.isOpen) {
-            window.addEventListener('keydown', handleKeyDown);
-        }
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    });
 
     return (
         <Show when={props.isOpen}>
@@ -67,17 +90,26 @@ const Sheet: Component<SheetProps> = (rawProps) => {
                 <div class="fixed inset-0 z-50 flex justify-end">
                     {/* Overlay */}
                     <div
-                        class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-300"
+                        class={cn(
+                            "fixed inset-0 transition-opacity duration-200 fill-mode-forwards",
+                            props.onBack ? "bg-black/30" : "bg-black/60 backdrop-blur-sm",
+                            isClosing() ? "opacity-0" : "animate-in fade-in opacity-100"
+                        )}
                         onClick={handleDismiss}
                     />
                     {/* Sheet Panel */}
                     <div
-                        class={`
-                            relative z-50 h-full w-full ${sizeClasses[props.size as keyof typeof sizeClasses]} 
-                            bg-card border-l border-border shadow-2xl 
-                            flex flex-col 
-                            animate-in slide-in-from-right duration-300
-                        `}
+                        class={cn(
+                            `relative z-50 h-full w-full ${sizeClasses[props.size as keyof typeof sizeClasses]}`,
+                            `bg-card border-l border-border shadow-2xl flex flex-col fill-mode-forwards`,
+                            !isClosing() 
+                                ? props.onBack 
+                                    ? "animate-in fade-in zoom-in-95 duration-200"
+                                    : "animate-in slide-in-from-right duration-300" 
+                                : props.onBack 
+                                    ? "animate-out fade-out zoom-out-95 duration-200" 
+                                    : "animate-out slide-out-to-right duration-200"
+                        )}
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header — flex-none, always visible */}
@@ -85,7 +117,7 @@ const Sheet: Component<SheetProps> = (rawProps) => {
                             <div class="flex items-center gap-3">
                                 <Show when={props.onBack}>
                                     <button
-                                        onClick={props.onBack}
+                                        onClick={handleDismiss}
                                         class="p-2 rounded-lg hover:bg-surface text-muted hover:text-text transition-colors cursor-pointer -ml-1"
                                         aria-label="Volver"
                                     >

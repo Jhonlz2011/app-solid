@@ -24,14 +24,20 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
     const auth = useAuth();
     const userQuery = useUser(() => props.userId);
 
-    const handleClose = () => props.onClose();
+    let dismissSheet: () => void;
+
+    const handleClose = () => {
+        if (dismissSheet) dismissSheet();
+        else props.onClose();
+    };
 
     const canUpdate = () => auth.canEdit?.('users') ?? false;
 
     return (
         <Sheet
+            bindDismiss={(fn) => dismissSheet = fn}
             isOpen={true}
-            onClose={handleClose}
+            onClose={props.onClose}
             title="Detalle de Usuario"
             description="Información completa de la cuenta"
             size="xl"

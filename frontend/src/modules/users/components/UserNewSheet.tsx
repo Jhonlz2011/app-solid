@@ -18,7 +18,12 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
     const entitiesQuery = useEntitiesList();
     const setEntityMutation = useSetUserEntity();
 
-    const handleClose = () => props.onClose();
+    let dismissSheet: () => void;
+
+    const handleClose = () => {
+        if (dismissSheet) dismissSheet();
+        else props.onClose();
+    };
 
     const entityOptions = createMemo((): EntityOption[] => {
         const raw = entitiesQuery.data;
@@ -59,8 +64,9 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
 
     return (
         <Sheet
+            bindDismiss={(fn) => dismissSheet = fn}
             isOpen={true}
-            onClose={handleClose}
+            onClose={props.onClose}
             title="Nuevo Usuario"
             description="Crea una cuenta de acceso para un nuevo colaborador"
             size="lg"

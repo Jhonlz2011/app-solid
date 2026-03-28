@@ -21,9 +21,14 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
     const supplierQuery = useSupplier(supplierId);
     const updateMutation = useUpdateSupplier();
 
+    let dismissSheet: () => void;
+
     const handleClose = () => {
-        if (props.onBack) props.onBack();
-        else props.onClose();
+        if (dismissSheet) dismissSheet();
+        else {
+            if (props.onBack) props.onBack();
+            else props.onClose();
+        }
     };
 
     const handleSubmit = async (data: EntityFormData) => {
@@ -46,8 +51,9 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
 
     return (
         <Sheet
+            bindDismiss={(fn) => dismissSheet = fn}
             isOpen={true}
-            onClose={handleClose}
+            onClose={props.onClose}
             onBack={props.onBack}
             title="Editar Proveedor"
             description="Modifica los datos del proveedor"
