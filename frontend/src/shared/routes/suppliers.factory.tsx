@@ -1,4 +1,4 @@
-import { createRoute, lazyRouteComponent, redirect } from '@tanstack/solid-router';
+import { createRoute, lazyRouteComponent, redirect, useNavigate } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import { supplierKeys, suppliersApi } from '@modules/suppliers/data/suppliers.api';
 
@@ -63,11 +63,13 @@ export const createSupplierModals = (parentRoute: any, basePath = '', fallbackRe
         component: LazySupplierEditRoute,
     });
 
-    // --- EDIT CHILD (/$supplierId/show/edit) (FROM SHOW PANEL) ---
     const nestedEditRoute = createRoute({
         getParentRoute: () => showRoute,
         path: `edit`,
-        component: LazySupplierEditRoute,
+        component: function NestedEditWrapper() {
+            const navigate = useNavigate();
+            return <LazySupplierEditRoute onBack={() => navigate({ to: '..', search: true })} />;
+        }
     });
 
     // Return the array of configured routes

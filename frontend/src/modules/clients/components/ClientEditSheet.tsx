@@ -1,6 +1,8 @@
 import { Component, Show } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useClient, useUpdateClient } from '../data/clients.api';
+import { useParams } from '@tanstack/solid-router';
+import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { EntityForm } from '@shared/forms/entity';
 import type { EntityFormData } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
@@ -10,26 +12,19 @@ import Button from '@shared/ui/Button';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 
 interface ClientEditSheetProps {
-    clientId: number;
-    onClose: () => void;
+    clientId?: number;
+    onClose?: () => void;
     onBack?: () => void;
 }
 
 const ClientEditSheet: Component<ClientEditSheetProps> = (props) => {
-    const clientId = () => props.clientId;
+    const params = useParams({ strict: false }) as () => any;
+    const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
+
+    const clientId = () => props.clientId ?? Number(params()?.clientId);
 
     const clientQuery = useClient(clientId);
     const updateMutation = useUpdateClient();
-
-    let dismissSheet: () => void;
-
-    const handleClose = () => {
-        if (dismissSheet) dismissSheet();
-        else {
-            if (props.onBack) props.onBack();
-            else props.onClose();
-        }
-    };
 
     const handleSubmit = async (data: EntityFormData) => {
         if (clientId() === 0) return;
@@ -39,7 +34,6 @@ const ClientEditSheet: Component<ClientEditSheetProps> = (props) => {
             const { taxId, taxIdType, ...updateData } = data;
             await updateMutation.mutateAsync({ id: clientId(), data: updateData });
             toast.success('Cliente actualizado correctamente');
-            handleClose();
         } catch (error: any) {
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
             if (!hasFieldErrors) {
@@ -51,16 +45,16 @@ const ClientEditSheet: Component<ClientEditSheetProps> = (props) => {
 
     return (
         <Sheet
-            bindDismiss={(fn) => dismissSheet = fn}
+            bindDismiss={bindDismiss}
             isOpen={true}
-            onClose={props.onClose}
+            onClose={navigateAway}
             onBack={props.onBack}
             title="Editar Cliente"
             description="Modifica los datos del cliente"
             size="xxxxl"
             footer={
                 <>
-                    <Button variant="outline" type="button" onClick={handleClose} disabled={updateMutation.isPending}>
+                    <Button variant="outline" type="button" onClick={close} disabled={updateMutation.isPending}>
                         Cancelar
                     </Button>
                     <Button

@@ -20,6 +20,7 @@ interface SupplierEditSheetProps {
 const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => any;
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
+    
     const supplierId = () => props.supplierId ?? Number(params()?.supplierId);
 
     const supplierQuery = useSupplier(supplierId);

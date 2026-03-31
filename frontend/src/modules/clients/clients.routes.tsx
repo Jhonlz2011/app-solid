@@ -1,6 +1,8 @@
 import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
+import { createClientsModals } from '@shared/routes/clients.factory';
+import { createUserModals } from '@shared/routes/users.factory';
 
 // --- LAZY PAGE ---
 const ClientsPage = lazyRouteComponent(() => import('./views/ClientsPage'));
@@ -30,6 +32,11 @@ export const createClientsRoutes = (layoutRoute: any) => {
         pendingComponent: GlobalPageLoader,
         component: ClientsPage,
     });
+
+    clientsRoute.addChildren([
+        ...createClientsModals(clientsRoute),
+        ...createUserModals(clientsRoute, 'user', '/clients')
+    ]);
 
     return clientsRoute;
 };

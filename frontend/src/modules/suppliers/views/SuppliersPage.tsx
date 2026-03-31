@@ -5,7 +5,7 @@
  * This component only handles layout and wiring of sub-components.
  */
 import { Component, Show } from 'solid-js';
-import { useNavigate, Outlet } from '@tanstack/solid-router';
+import { Outlet } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { useSuppliersState } from '../hooks/useSuppliersState';
@@ -31,7 +31,6 @@ import {
 
 const SuppliersPage: Component = () => {
     const isMobile = useIsMobile();
-    const navigate = useNavigate();
     const state = useSuppliersState();
 
     return (

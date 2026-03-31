@@ -1,5 +1,6 @@
 import { Component, Show, For } from 'solid-js';
-import { useNavigate } from '@tanstack/solid-router';
+import { useNavigate, useParams, Outlet } from '@tanstack/solid-router';
+import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useClient } from '../data/clients.api';
 import { EditIcon, UserIcon, InfoIcon, MapPinIcon, ScalesIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
@@ -11,44 +12,36 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
 
 interface ClientShowPanelProps {
-    clientId: number;
-    onClose: () => void;
-    onEdit?: () => void;
+    clientId?: number;
+    onClose?: () => void;
 }
 
 const ClientShowPanel: Component<ClientShowPanelProps> = (props) => {
     const navigate = useNavigate();
+    const params = useParams({ strict: false }) as () => any;
 
-    // Use TanStack Query hook with the passed clientId
-    const clientQuery = useClient(() => props.clientId);
+    const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
 
-    let dismissSheet: () => void;
+    const clientId = () => props.clientId ?? Number(params()?.clientId);
 
-    const handleClose = () => {
-        if (dismissSheet) dismissSheet();
-        else props.onClose();
-    };
-
-    const handleEdit = () => {
-        if (props.clientId) navigate({ search: (prev: any) => ({ ...prev, panel: 'edit', id: props.clientId, from: 'show' }) } as any);
-    };
+    const clientQuery = useClient(clientId);
 
     return (
         <Sheet
-            bindDismiss={(fn) => dismissSheet = fn}
+            bindDismiss={bindDismiss}
             isOpen={true}
-            onClose={props.onClose}
+            onClose={navigateAway}
             title="Detalles del Cliente"
             description="Información completa del cliente"
             size="xxxxl"
             footer={
-                <Button variant="outline" onClick={handleClose}>
+                <Button variant="outline" onClick={close}>
                     Cerrar Panel
                 </Button>
             }
         >
             <Show
-                when={props.clientId > 0}
+                when={clientId() > 0}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center h-full">
                         <div class="text-4xl mb-4 opacity-50">🔍</div>
@@ -113,17 +106,11 @@ const ClientShowPanel: Component<ClientShowPanelProps> = (props) => {
                                         </div>
 
                                         <Button
+                                            to={`./edit`}
                                             variant="outline"
                                             size="sm"
                                             class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                            {...(props.onEdit
-                                                ? { onClick: props.onEdit }
-                                                : {
-                                                    search: (prev: any) => ({ ...prev, panel: 'edit', id: props.clientId, from: 'show' }),
-                                                    preload: "intent" as const
-                                                }
-                                            )}
-                                            disabled={!props.clientId}
+                                            disabled={!clientId()}
                                         >
                                             <EditIcon class="size-4 text-muted" />
                                             Editar
@@ -302,6 +289,7 @@ const ClientShowPanel: Component<ClientShowPanelProps> = (props) => {
                     </Show>
                 </Show>
             </Show>
+            <Outlet />
         </Sheet>
     );
 };

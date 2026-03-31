@@ -1,8 +1,8 @@
 import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
-import { createSupplierModals } from '@shared/routes/suppliers-modals.factory';
-import { createUserModals } from '@shared/routes/user-modals.factory';
+import { createSupplierModals } from '@shared/routes/suppliers.factory';
+import { createUserModals } from '@shared/routes/users.factory';
 
 // --- LAZY PAGE ---
 const SuppliersPage = lazyRouteComponent(() => import('./views/SuppliersPage'));

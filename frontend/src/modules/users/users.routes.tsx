@@ -3,8 +3,8 @@ import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
 import { rbacKeys } from './data/users.keys';
 import { usersApi } from './data/users.api';
-import { createUserModals } from '@shared/routes/user-modals.factory';
-import { createSupplierModals } from '@shared/routes/suppliers-modals.factory';
+import { createUserModals } from '@shared/routes/users.factory';
+import { createSupplierModals } from '@shared/routes/suppliers.factory';
 
 // ─── Lazy page ──────────────────────────────────────────────────────────────
 import { lazyRouteComponent } from '@tanstack/solid-router';

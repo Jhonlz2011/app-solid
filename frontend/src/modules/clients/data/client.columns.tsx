@@ -24,9 +24,7 @@ export interface ColumnFilterConfig {
 }
 
 export interface ClientColumnHandlers {
-    onEdit: (client: ClientListItem) => void;
     onDelete: (client: ClientListItem) => void;
-    onView: (client: ClientListItem) => void;
     onRestore: (client: ClientListItem) => void;
     auth: ReturnType<typeof useAuth>;
     filters?: {
@@ -80,8 +78,7 @@ export function createClientColumns(handlers: ClientColumnHandlers): ColumnDef<C
             size: 210,
             cell: (info) => (
                 <Link
-                    to="."
-                    search={(prev: any) => ({ ...prev, panel: 'show', id: info.row.original.id })}
+                    to={`/clients/${info.row.original.id}/show`}
                     preload="intent"
                     class="min-w-0 block cursor-pointer group/cell"
                     title={info.getValue<string>()}
@@ -114,8 +111,7 @@ export function createClientColumns(handlers: ClientColumnHandlers): ColumnDef<C
             size: 170,
             cell: (info) => (
                 <Link
-                    to="."
-                    search={(prev: any) => ({ ...prev, panel: 'show', id: info.row.original.id })}
+                    to={'/clients/' + String(info.row.original.id) + '/show'}
                     preload="intent"
                     class="block cursor-pointer group/cell"
                     onClick={(e) => e.stopPropagation()}
@@ -230,8 +226,8 @@ export function createClientColumns(handlers: ClientColumnHandlers): ColumnDef<C
                     <ActionMenu
                         module="clients"
                         isActive={client.is_active ?? false}
-                        showSearch={(prev: any) => ({ ...prev, panel: 'show', id: client.id })}
-                        editSearch={(prev: any) => ({ ...prev, panel: 'edit', id: client.id })}
+                        showTo={`/clients/${client.id}/show`}
+                        editTo={`/clients/${client.id}/edit`}
                         onRestore={() => handlers.onRestore(client)}
                         onDelete={() => handlers.onDelete(client)}
                     />

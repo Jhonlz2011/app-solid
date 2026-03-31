@@ -103,10 +103,10 @@ export function useClientsState() {
     const selectedInactiveCount = () => tableState.selectedItems().filter(s => !s.is_active).length;
 
     // ─── Navigation Handlers ─────────────────────────────────────
-    const handleNew = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'new', id: undefined }) } as any);
-    const handleEdit = (s: ClientListItem) => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'edit', id: s.id }) } as any);
-    const handleView = (s: ClientListItem) => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'show', id: s.id }) } as any);
-    const handleClosePanel = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: undefined, id: undefined, from: undefined }) } as any);
+    const handleNew = () => navigate({ to: '/clients/new' });
+    const handleEdit = (s: ClientListItem) => navigate({ to: '/clients/$clientId/edit', params: { clientId: String(s.id) } });
+    const handleView = (s: ClientListItem) => navigate({ to: '/clients/$clientId/show', params: { clientId: String(s.id) } });
+    const handleClosePanel = () => navigate({ to: '/clients' });
     const handlePrefetch = (s: ClientListItem) => {
         queryClient.prefetchQuery({
             queryKey: clientKeys.detail(s.id),

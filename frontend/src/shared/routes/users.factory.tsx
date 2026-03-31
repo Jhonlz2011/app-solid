@@ -1,4 +1,4 @@
-import { createRoute, lazyRouteComponent, redirect } from '@tanstack/solid-router';
+import { createRoute, lazyRouteComponent, redirect, useNavigate } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import { rbacKeys } from '@modules/users/data/users.keys';
 import { usersApi } from '@modules/users/data/users.api';
@@ -71,7 +71,6 @@ export const createUserModals = (parentRoute: any, basePath = '', fallbackRedire
         component: LazyUserEditRoute,
     });
 
-    // --- EDIT USER CHILD (/users/$userId/show/edit) (FROM SHOW PANEL) ---
     const nestedEditRoute = createRoute({
         getParentRoute: () => showRoute,
         path: `edit`,
@@ -79,7 +78,10 @@ export const createUserModals = (parentRoute: any, basePath = '', fallbackRedire
             const userId = Number(params.userId);
             await queryClient.prefetchQuery({ queryKey: rbacKeys.roles(), queryFn: () => usersApi.listRoles(), staleTime: 1000 * 60 * 5 });
         },
-        component: LazyUserEditRoute,
+        component: function NestedEditWrapper() {
+            const navigate = useNavigate();
+            return <LazyUserEditRoute onBack={() => navigate({ to: '..', search: true })} />;
+        }
     });
 
     // Return the array of configured routes to inject into `addChildren`

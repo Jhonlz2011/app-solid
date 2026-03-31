@@ -282,7 +282,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                                                     ? 'bg-primary/10 text-primary-strong font-medium'
                                                     : 'text-muted'}`}
                                         >
-                                            <svg class="size-4 shrink-0 opacity-70" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="size-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={child.icon} />
                                             </svg>
                                             <span class="truncate">{child.label}</span>

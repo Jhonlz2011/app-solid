@@ -4,8 +4,8 @@
  * All state and logic extracted to useClientsState hook.
  * This component only handles layout and wiring of sub-components.
  */
-import { Component, Show, lazy, Suspense } from 'solid-js';
-import { useNavigate } from '@tanstack/solid-router';
+import { Component, Show } from 'solid-js';
+import { Outlet } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { useClientsState } from '../hooks/useClientsState';
@@ -23,12 +23,6 @@ import ClientDeleteDialog from '../components/ClientDeleteDialog';
 import { ClientCardList } from '../components/ClientCardList';
 import { ClientFilterSheet } from '../components/ClientFilterSheet';
 
-// Lazy Components
-const LazyUserNewSheet = lazy(() => import('../../users/components/UserNewSheet'));
-const LazyClientNewSheet = lazy(() => import('../components/ClientNewSheet'));
-const LazyClientEditSheet = lazy(() => import('../components/ClientEditSheet'));
-const LazyClientShowPanel = lazy(() => import('../components/ClientShowPanel'));
-
 // Icons
 import {
     PlusIcon, TrashIcon, UsersIcon, DownloadIcon, UploadIcon,
@@ -37,15 +31,16 @@ import {
 
 const ClientsPage: Component = () => {
     const isMobile = useIsMobile();
-    const navigate = useNavigate();
     const state = useClientsState();
 
     // Cross-Module Modals — driven by ?modal= searchParam
-    const openUserModal = () => navigate({ search: (prev: any) => ({ ...prev, modal: 'newUser' }) } as any);
-    const closeAllModals = () => navigate({ search: (prev: any) => ({ ...prev, modal: undefined }) } as any);
+
 
     return (
         <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
+
+            {/* Modals from Router (Sheets/Panels) */}
+                <Outlet />
             {/* Header */}
             <div class="flex-shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
                 <PageHeader
@@ -59,18 +54,9 @@ const ClientsPage: Component = () => {
                             <Button variant="outline" icon={<UploadIcon />} onClick={() => toast.info('Importación próximamente')}>
                                 <span class="hidden sm:inline">Importar</span>
                             </Button>
-                            <Button
-                                variant="outline"
-                                icon={<UsersIcon />}
-                                onMouseEnter={() => import('../../users/components/UserNewSheet')}
-                                onClick={openUserModal}
-                            >
-                                <span class="hidden sm:inline">Nuevo Usuario</span>
-                            </Button>
                             <Show when={state.auth.canAdd('clients')}>
                                 <Button
-                                    search={(prev: any) => ({ ...prev, panel: 'new', id: undefined })}
-                                    onMouseEnter={() => import('../components/ClientNewSheet')}
+                                    to="/clients/new"
                                     preload="intent"
                                     icon={<PlusIcon />}
                                 >
@@ -244,9 +230,6 @@ const ClientsPage: Component = () => {
                 confirmLabel="Restaurar" variant="success"
                 isLoading={state.bulkRestoreMutation.isPending}
             />
-
-            {/* SearchParams-driven sheets */}
-           
         </div>
     );
 };
