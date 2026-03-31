@@ -1,54 +1,63 @@
 import { Component, Show, For } from 'solid-js';
-import { useParams, Outlet } from '@tanstack/solid-router';
-import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
-import { useSupplier } from '../data/suppliers.api';
-import { EditIcon, UserIcon, InfoIcon, MapPinIcon } from '@shared/ui/icons';
+import { useNavigate } from '@tanstack/solid-router';
+import { useClient } from '../data/clients.api';
+import { EditIcon, UserIcon, InfoIcon, MapPinIcon, ScalesIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Button from '@shared/ui/Button';
 import Sheet from '@shared/ui/Sheet';
-import { personTypeLabels, taxIdTypeLabels, taxRegimeTypeLabels } from '../models/supplier.types';
-import { StatusBadge } from '@shared/ui/Badge';
+import { personTypeLabels, taxIdTypeLabels, taxRegimeTypeLabels } from '../models/client.types';
+import { CounterBadge, StatusBadge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
 
-interface SupplierShowPanelProps {
-    supplierId?: number;
-    onClose?: () => void;
+interface ClientShowPanelProps {
+    clientId: number;
+    onClose: () => void;
+    onEdit?: () => void;
 }
 
-const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
-    const params = useParams({ strict: false }) as () => any;
-    const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-    const supplierId = () => props.supplierId ?? Number(params()?.supplierId);
+const ClientShowPanel: Component<ClientShowPanelProps> = (props) => {
+    const navigate = useNavigate();
 
-    // Use TanStack Query hook with the passed supplierId
-    const supplierQuery = useSupplier(supplierId);
+    // Use TanStack Query hook with the passed clientId
+    const clientQuery = useClient(() => props.clientId);
+
+    let dismissSheet: () => void;
+
+    const handleClose = () => {
+        if (dismissSheet) dismissSheet();
+        else props.onClose();
+    };
+
+    const handleEdit = () => {
+        if (props.clientId) navigate({ search: (prev: any) => ({ ...prev, panel: 'edit', id: props.clientId, from: 'show' }) } as any);
+    };
 
     return (
         <Sheet
-            bindDismiss={bindDismiss}
+            bindDismiss={(fn) => dismissSheet = fn}
             isOpen={true}
-            onClose={navigateAway}
-            title="Detalles del Proveedor"
-            description="Información completa del proveedor"
+            onClose={props.onClose}
+            title="Detalles del Cliente"
+            description="Información completa del cliente"
             size="xxxxl"
             footer={
-                <Button variant="outline" onClick={close}>
+                <Button variant="outline" onClick={handleClose}>
                     Cerrar Panel
                 </Button>
             }
         >
             <Show
-                when={supplierId() > 0}
+                when={props.clientId > 0}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center h-full">
                         <div class="text-4xl mb-4 opacity-50">🔍</div>
-                        <p class="text-muted font-medium">ID de proveedor inválido</p>
+                        <p class="text-muted font-medium">ID de cliente inválido</p>
                     </div>
                 }
             >
                 <Show
-                    when={!supplierQuery.isLoading}
+                    when={!clientQuery.isLoading}
                     fallback={
                         <div class="space-y-6 pt-4">
                             <div class="flex items-center gap-4">
@@ -67,15 +76,15 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                     }
                 >
                     <Show
-                        when={supplierQuery.data}
+                        when={clientQuery.data}
                         fallback={
                             <div class="flex flex-col items-center justify-center py-12 text-center h-full">
                                 <div class="text-4xl mb-4 opacity-50">📭</div>
-                                <p class="text-muted font-medium">No se encontró el proveedor</p>
+                                <p class="text-muted font-medium">No se encontró el cliente</p>
                             </div>
                         }
                     >
-                        {(supplier) => (
+                        {(client) => (
                             <Tabs defaultValue="general" class="w-full flex flex-col h-full">
                                 {/* 
                                     ESTRATEGIA TAILWIND V4 PARA STICKY HEADERS:
@@ -89,16 +98,16 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                     <div class="flex items-start justify-between flex-shrink-0">
                                         <div class="flex gap-4 items-center">
                                             <div class="size-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl shadow-inner border border-primary/20">
-                                                {supplier().business_name.substring(0, 2).toUpperCase()}
+                                                {client().business_name.substring(0, 2).toUpperCase()}
                                             </div>
                                             <div class="flex flex-col gap-1">
-                                                <h3 class="text-xl font-bold text-text leading-tight">{supplier().business_name}</h3>
-                                                <Show when={supplier().trade_name}>
-                                                    <p class="text-sm text-muted font-medium">{supplier().trade_name}</p>
+                                                <h3 class="text-xl font-bold text-text leading-tight">{client().business_name}</h3>
+                                                <Show when={client().trade_name}>
+                                                    <p class="text-sm text-muted font-medium">{client().trade_name}</p>
                                                 </Show>
                                                 <div class="flex gap-2 items-center mt-1">
-                                                    <span class="text-xs font-mono bg-surface/50 px-2 py-0.5 rounded-md border border-border/50 text-text/80 shadow-sm">{supplier().tax_id}</span>
-                                                    <StatusBadge isActive={supplier().is_active} />
+                                                    <span class="text-xs font-mono bg-surface/50 px-2 py-0.5 rounded-md border border-border/50 text-text/80 shadow-sm">{client().tax_id}</span>
+                                                    <StatusBadge isActive={client().is_active} />
                                                 </div>
                                             </div>
                                         </div>
@@ -107,8 +116,14 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                             variant="outline"
                                             size="sm"
                                             class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                            to={`./edit`}
-                                            disabled={!supplierId()}
+                                            {...(props.onEdit
+                                                ? { onClick: props.onEdit }
+                                                : {
+                                                    search: (prev: any) => ({ ...prev, panel: 'edit', id: props.clientId, from: 'show' }),
+                                                    preload: "intent" as const
+                                                }
+                                            )}
+                                            disabled={!props.clientId}
                                         >
                                             <EditIcon class="size-4 text-muted" />
                                             Editar
@@ -119,8 +134,8 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                     <div>
                                         <TabsList class="flex py-1.5 overflow-x-auto shadow-sm rounded-xl">
                                             <TabsTrigger value="general"><InfoIcon /> Información General</TabsTrigger>
-                                            <TabsTrigger value="contacts" count={supplier().contacts?.length || 0}><UserIcon class="size-4" /> Contactos</TabsTrigger>
-                                            <TabsTrigger value="addresses" count={supplier().addresses?.length || 0}><MapPinIcon class="size-4" /> Direcciones</TabsTrigger>
+                                            <TabsTrigger value="contacts" count={client().contacts?.length || 0}><UserIcon class="size-4" /> Contactos</TabsTrigger>
+                                            <TabsTrigger value="addresses" count={client().addresses?.length || 0}><MapPinIcon class="size-4" /> Direcciones</TabsTrigger>
                                         </TabsList>
                                     </div>
                                 </div>
@@ -136,14 +151,14 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                             </div>
                                             <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                                 <div class="sm:col-span-2">
-                                                    <InfoRow label="Razón Social" value={supplier().business_name} />
+                                                    <InfoRow label="Razón Social" value={client().business_name} />
                                                 </div>
                                                 <div class="sm:col-span-1">
-                                                    <InfoRow label="Nombre Comercial" value={supplier().trade_name} />
+                                                    <InfoRow label="Nombre Comercial" value={client().trade_name} />
                                                 </div>
-                                                <InfoRow label="Número ID" value={supplier().tax_id} />
-                                                <InfoRow label="Tipo ID" value={taxIdTypeLabels[supplier().tax_id_type as keyof typeof taxIdTypeLabels] ?? supplier().tax_id_type} />
-                                                <InfoRow label="Tipo Persona" value={personTypeLabels[supplier().person_type as keyof typeof personTypeLabels] ?? supplier().person_type} />
+                                                <InfoRow label="Número ID" value={client().tax_id} />
+                                                <InfoRow label="Tipo ID" value={taxIdTypeLabels[client().tax_id_type as keyof typeof taxIdTypeLabels] ?? client().tax_id_type} />
+                                                <InfoRow label="Tipo Persona" value={personTypeLabels[client().person_type as keyof typeof personTypeLabels] ?? client().person_type} />
                                             </div>
                                         </div>
                                         <div class="bg-surface/30 rounded-2xl border border-border/40 overflow-hidden shadow-sm">
@@ -152,8 +167,8 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                                 Contacto Principal
                                             </div>
                                             <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                <InfoRow label="Email Facturación" value={supplier().email_billing} />
-                                                <InfoRow label="Teléfono" value={supplier().phone} />
+                                                <InfoRow label="Email Facturación" value={client().email_billing} />
+                                                <InfoRow label="Teléfono" value={client().phone} />
                                             </div>
                                         </div>
 
@@ -164,13 +179,13 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                             </div>
                                             <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-6">
                                                 <div class="sm:col-span-2">
-                                                    <InfoRow label="Régimen Fiscal" value={supplier().tax_regime_type ? taxRegimeTypeLabels[supplier().tax_regime_type as keyof typeof taxRegimeTypeLabels] ?? supplier().tax_regime_type : undefined} />
+                                                    <InfoRow label="Régimen Fiscal" value={client().tax_regime_type ? taxRegimeTypeLabels[client().tax_regime_type as keyof typeof taxRegimeTypeLabels] ?? client().tax_regime_type : undefined} />
                                                 </div>
 
                                                 <div class="flex flex-col gap-1">
                                                     <span class="text-xs font-medium text-muted uppercase tracking-wider">Agente de Retención</span>
                                                     <div class="pt-1">
-                                                        <Show when={supplier().is_retention_agent} fallback={<span class="text-sm text-muted font-medium bg-surface px-2.5 py-1 rounded-md border border-border/60">No Asignado</span>}>
+                                                        <Show when={client().is_retention_agent} fallback={<span class="text-sm text-muted font-medium bg-surface px-2.5 py-1 rounded-md border border-border/60">No Asignado</span>}>
                                                             <span class="text-xs bg-info/10 text-info px-2.5 py-1 rounded-md font-bold uppercase tracking-wider border border-info/20 shadow-sm flex items-center w-max gap-1.5"><div class="size-1.5 bg-info rounded-full"></div> SÍ ES AGENTE</span>
                                                         </Show>
                                                     </div>
@@ -179,7 +194,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                                 <div class="flex flex-col gap-1">
                                                     <span class="text-xs font-medium text-muted uppercase tracking-wider">Contribuyente Especial</span>
                                                     <div class="pt-1">
-                                                        <Show when={supplier().is_special_contributor} fallback={<span class="text-sm text-muted font-medium bg-surface px-2.5 py-1 rounded-md border border-border/60">No Asignado</span>}>
+                                                        <Show when={client().is_special_contributor} fallback={<span class="text-sm text-muted font-medium bg-surface px-2.5 py-1 rounded-md border border-border/60">No Asignado</span>}>
                                                             <span class="text-xs bg-danger/10 text-danger px-2.5 py-1 rounded-md font-bold uppercase tracking-wider border border-danger/20 shadow-sm flex items-center w-max gap-1.5"><div class="size-1.5 bg-danger rounded-full"></div> SÍ ES ESPECIAL</span>
                                                         </Show>
                                                     </div>
@@ -188,7 +203,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                                 <div class="flex flex-col gap-1">
                                                     <span class="text-xs font-medium text-muted uppercase tracking-wider">Obligado a llevar Contabilidad</span>
                                                     <div class="pt-1">
-                                                        <Show when={supplier().obligado_contabilidad} fallback={<span class="text-sm text-muted font-medium bg-surface px-2.5 py-1 rounded-md border border-border/60">No</span>}>
+                                                        <Show when={client().obligado_contabilidad} fallback={<span class="text-sm text-muted font-medium bg-surface px-2.5 py-1 rounded-md border border-border/60">No</span>}>
                                                             <span class="text-xs bg-success/10 text-success px-2.5 py-1 rounded-md font-bold uppercase tracking-wider border border-success/20 shadow-sm flex items-center w-max gap-1.5"><div class="size-1.5 bg-success rounded-full"></div> SÍ ESTÁ OBLIGADO</span>
                                                         </Show>
                                                     </div>
@@ -198,14 +213,14 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                     </TabsContent>
 
                                     <TabsContent value="contacts" class="fill-mode-both">
-                                        <Show when={(supplier().contacts?.length ?? 0) > 0} fallback={
+                                        <Show when={(client().contacts?.length ?? 0) > 0} fallback={
                                             <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
                                                 <UserIcon class="size-8 opacity-20 mb-3" />
-                                                No hay contactos registrados para este proveedor.
+                                                No hay contactos registrados para este cliente.
                                             </div>
                                         }>
                                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                <For each={supplier().contacts}>
+                                                <For each={client().contacts}>
                                                     {(contact) => (
                                                         <div class="bg-card hover:bg-surface/40 transition-colors rounded-2xl p-5 border border-border/40 shadow-sm flex flex-col gap-4">
                                                             <div class="flex items-center gap-3 border-b border-border/50 pb-3">
@@ -232,14 +247,14 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                     </TabsContent>
 
                                     <TabsContent value="addresses" class="fill-mode-both">
-                                        <Show when={(supplier().addresses?.length ?? 0) > 0} fallback={
+                                        <Show when={(client().addresses?.length ?? 0) > 0} fallback={
                                             <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
                                                 <div class="text-2xl opacity-30 mb-2">📍</div>
-                                                No hay direcciones registradas para este proveedor.
+                                                No hay direcciones registradas para este cliente.
                                             </div>
                                         }>
                                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <For each={supplier().addresses}>
+                                                <For each={client().addresses}>
                                                     {(address) => (
                                                         <div class="bg-card hover:bg-surface/40 transition-colors rounded-2xl p-5 border border-border/40 shadow-sm flex flex-col gap-4">
                                                             <div class="flex items-start justify-between border-b border-border/50 pb-3">
@@ -287,10 +302,8 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                     </Show>
                 </Show>
             </Show>
-            
-            <Outlet />
         </Sheet>
     );
 };
 
-export default SupplierShowPanel;
+export default ClientShowPanel;

@@ -4,6 +4,7 @@ import { createRouter, createRootRoute, createRoute, RouterProvider, Outlet, red
 import MainLayout from './layout/MainLayout';
 import { createAuthRoutes } from './modules/auth/auth.routes';
 import { createSuppliersRoutes } from './modules/suppliers/suppliers.routes';
+import { createClientsRoutes } from './modules/clients/clients.routes';
 import { createUsersRoutes } from './modules/users/users.routes';
 
 import { connect as connectSSE } from './shared/store/sse.store';
@@ -57,7 +58,6 @@ const layoutRoute = createRoute({
 
     throw redirect({ to: '/login', search: { redirect: location.href } });
   },
-  loaderDeps: () => ({}),
   loader: async () => {
     // Parallel Fetching: the Sidebar items will be downloaded IN PARALLEL 
     // with any child route (like /profile or /suppliers).
@@ -130,6 +130,7 @@ const routeTree = rootRoute.addChildren([
     settingsGeneralRoute,
     profileRoute,
     createSuppliersRoutes(layoutRoute),
+    createClientsRoutes(layoutRoute),
   ]),
 ]);
 

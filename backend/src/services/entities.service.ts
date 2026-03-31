@@ -49,6 +49,9 @@ export interface EntityPayload {
     salaryBase?: number;
     hireDate?: string;
     costPerHour?: number;
+    isClient?: boolean;
+    isSupplier?: boolean;
+    isEmployee?: boolean;
     isCarrier?: boolean;
     // New relations
     isRetentionAgent?: boolean;
@@ -566,7 +569,7 @@ export async function createEntity(type: EntityType, payload: EntityPayload, aud
                 obligado_contabilidad: payload.obligadoContabilidad ?? false,
                 is_client: type === 'client',
                 is_supplier: type === 'supplier',
-                is_employee: type === 'employee' || type === 'carrier',
+                is_employee: type === 'employee',
                 is_carrier: type === 'carrier' || payload.isCarrier,
                 is_retention_agent: payload.isRetentionAgent ?? false,
                 is_special_contributor: payload.isSpecialContributor ?? false,

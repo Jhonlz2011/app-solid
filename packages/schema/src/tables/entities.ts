@@ -74,3 +74,31 @@ export const entityAddresses = pgTableV2("entity_addresses", {
     postal_code: text("postal_code"),
     is_main: boolean("is_main").default(false),
 });
+
+// --- 2. VEHÍCULOS DEL TRANSPORTISTA (Para la placa de la Guía de Remisión) ---
+export const carrierVehicles = pgTableV2("carrier_vehicles", {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    carrier_id: integer("carrier_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
+    // OBLIGATORIO PARA SRI: Etiqueta <placa> en el XML de la Guía de Remisión
+    license_plate: text("license_plate").notNull(), 
+    // Útil para UI del ERP ("Seleccione el camión Hino 500")
+    description: text("description"),  
+    is_active: boolean("is_active").default(true).notNull(),
+}, (t) => [
+    index("idx_carrier_vehicles_carrier_id").on(t.carrier_id),
+    // Índice parcial para buscar rápidamente por placa vehículos activos
+    index("idx_active_vehicles_plate").on(t.license_plate).where(sql`${t.is_active} = true`),
+]);
+
+export const carrierDrivers = pgTableV2("carrier_drivers", {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    carrier_id: integer("carrier_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
+    // SRI y Control Policial: Cédula o pasaporte del conductor real
+    identification_number: text("identification_number").notNull(),
+    full_name: text("full_name").notNull(),
+    // Control interno del ERP
+    phone: text("phone"), // Teléfono del chofer para rastreo de ruta
+    is_active: boolean("is_active").default(true).notNull(),
+}, (t) => [
+    index("idx_carrier_drivers_carrier_id").on(t.carrier_id),
+]);

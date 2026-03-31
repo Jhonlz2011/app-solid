@@ -11,8 +11,12 @@ export interface ActionMenuProps {
     isActive: boolean;
     
     /** Handlers for search params injected directly into DropdownMenu.Item */
-    showSearch: (prev: any) => any;
+    showSearch?: (prev: any) => any;
     editSearch?: (prev: any) => any;
+    
+    /** Handlers for Deep Nested Routing */
+    showTo?: string;
+    editTo?: string;
     
     /** Handlers for direct mutation calls */
     onDelete?: () => void;
@@ -38,13 +42,15 @@ const ActionMenu: Component<ActionMenuProps> = (props) => {
                     <MoreVerticalIcon class="size-4" />
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Content class="min-w-[160px]">
-                    <DropdownMenu.Item to="." search={props.showSearch} preload="intent">
-                        <EyeIcon class="size-4 mr-2" />
-                        <span>Ver detalles</span>
-                    </DropdownMenu.Item>
-                    
-                    <Show when={props.editSearch && canEdit()}>
-                        <DropdownMenu.Item to="." search={props.editSearch} preload="intent">
+                    <Show when={props.showTo || props.showSearch}>
+                        <DropdownMenu.Item to={props.showTo} search={props.showSearch} preload="intent">
+                            <EyeIcon class="size-4 mr-2" />
+                            <span>Ver detalles</span>
+                        </DropdownMenu.Item>
+                    </Show>
+
+                    <Show when={(props.editTo || props.editSearch) && canEdit()}>
+                        <DropdownMenu.Item to={props.editTo} search={props.editSearch} preload="intent">
                             <EditIcon class="size-4 mr-2" />
                             <span>Editar</span>
                         </DropdownMenu.Item>

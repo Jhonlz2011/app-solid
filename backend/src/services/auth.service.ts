@@ -180,7 +180,7 @@ export async function login(email: string, password: string, userAgent?: string,
   ]);
 
   // Broadcast session update
-  broadcast(RealtimeEvents.USER.SESSION_CREATED, { userId: user.id, sessionId }, `user:${user.id}`);
+  broadcast(RealtimeEvents.USER.SESSION_CREATED, { id: user.id, sessionId }, `user:${user.id}`);
 
   return {
     sessionId,
@@ -208,7 +208,7 @@ export async function logout(sessionId: string) {
 
   if (deleted.length > 0) {
     const userId = deleted[0].user_id;
-    broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId, sessionId }, `user:${userId}`);
+    broadcast(RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId }, `user:${userId}`);
     cacheService.invalidate(`session:${sessionId}`);
   }
 }
@@ -263,7 +263,7 @@ export async function revokeSession(sessionId: string, userId: number) {
   if (deleted.length === 0) throw new AuthError('Sesión no encontrada', 404);
 
   // Broadcast revocation via SSE
-  broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId, sessionId }, `user:${userId}`);
+  broadcast(RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId }, `user:${userId}`);
   cacheService.invalidate(`session:${sessionId}`);
 
   return { success: true };
@@ -322,7 +322,7 @@ export async function changePassword(userId: number, currentPassword: string, ne
   // Clear cache and broadcast logouts
   for (const s of deletedSessions) {
     cacheService.invalidate(`session:${s.id}`);
-    broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId, sessionId: s.id }, `user:${userId}`);
+    broadcast(RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId: s.id }, `user:${userId}`);
   }
 
   return { success: true };
@@ -349,7 +349,7 @@ export async function updateProfile(
 
     if (!updated) throw new AuthError('Usuario no encontrado');
 
-    broadcast(RealtimeEvents.USER.PROFILE_UPDATED, { userId, ...updateData }, `user:${userId}`);
+    broadcast(RealtimeEvents.USER.PROFILE_UPDATED, { id: userId, ...updateData }, `user:${userId}`);
 
   return { success: true, user: updated };
 }

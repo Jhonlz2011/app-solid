@@ -59,14 +59,19 @@ const Sheet: Component<SheetProps> = (rawProps) => {
         window.removeEventListener('keydown', handleKeyDown);
     };
 
-    onCleanup(cleanupSheet);
+    let dismissTimeout: ReturnType<typeof setTimeout>;
+
+    onCleanup(() => {
+        clearTimeout(dismissTimeout);
+        cleanupSheet();
+    });
 
     const [isClosing, setIsClosing] = createSignal(false);
 
     const handleDismiss = () => {
         if (isClosing()) return;
         setIsClosing(true);
-        setTimeout(() => {
+        dismissTimeout = setTimeout(() => {
             if (props.onBack) props.onBack();
             else props.onClose();
         }, 200); // 200ms duration for the exit animation
@@ -87,7 +92,7 @@ const Sheet: Component<SheetProps> = (rawProps) => {
     return (
         <Show when={props.isOpen}>
             <Portal>
-                <div class="fixed inset-0 z-50 flex justify-end">
+                <div class={cn("fixed inset-0 flex justify-end", props.onBack ? "z-[60]" : "z-50")}>
                     {/* Overlay */}
                     <div
                         class={cn(

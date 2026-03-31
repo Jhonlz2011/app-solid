@@ -1,4 +1,5 @@
 import { Component, createMemo } from 'solid-js';
+import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import type { UserFormData } from '@app/schema/frontend';
 import Sheet from '@shared/ui/Sheet';
@@ -9,21 +10,15 @@ import UserForm from './UserForm';
 import type { EntityOption } from './UserForm';
 
 interface UserNewSheetProps {
-    onClose: () => void;
+    onClose?: () => void;
 }
 
 const UserNewSheet: Component<UserNewSheetProps> = (props) => {
+    const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
     const createMutation = useCreateUser();
     const rolesQuery = useRoles();
     const entitiesQuery = useEntitiesList();
     const setEntityMutation = useSetUserEntity();
-
-    let dismissSheet: () => void;
-
-    const handleClose = () => {
-        if (dismissSheet) dismissSheet();
-        else props.onClose();
-    };
 
     const entityOptions = createMemo((): EntityOption[] => {
         const raw = entitiesQuery.data;
@@ -54,7 +49,6 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
             }
 
             toast.success(`Usuario "${values.username}" creado correctamente`);
-            handleClose();
         } catch (err: any) {
             toast.error(err?.message || 'Error al crear usuario');
         }
@@ -64,15 +58,15 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
 
     return (
         <Sheet
-            bindDismiss={(fn) => dismissSheet = fn}
+            bindDismiss={bindDismiss}
             isOpen={true}
-            onClose={props.onClose}
+            onClose={navigateAway}
             title="Nuevo Usuario"
             description="Crea una cuenta de acceso para un nuevo colaborador"
             size="lg"
             footer={
                 <>
-                    <Button variant="outline" onClick={handleClose} disabled={isPending()}>
+                    <Button variant="outline" onClick={close} disabled={isPending()}>
                         Cancelar
                     </Button>
                     <Button

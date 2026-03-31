@@ -113,9 +113,6 @@ export const EntityFormSchema = pipe(
     )
 );
 
-/** @deprecated Use EntityFormSchema — kept for backward compatibility */
-export const SupplierFormSchema = EntityFormSchema;
-
 export type EntityFormData = InferInput<typeof EntityFormSchema>;
 export type EmployeeDetailsFormData = InferInput<typeof EmployeeDetailsFormSchema>;
 /** @deprecated Use EntityFormData */

@@ -1,4 +1,6 @@
 import { Component, Show, createMemo } from 'solid-js';
+import { useParams } from '@tanstack/solid-router';
+import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import type { UserFormData } from '@app/schema/frontend';
 import Sheet from '@shared/ui/Sheet';
@@ -13,29 +15,23 @@ import UserForm from './UserForm';
 import type { EntityOption } from './UserForm';
 
 interface UserEditSheetProps {
-    userId: number;
-    onClose: () => void;
+    userId?: number;
+    onClose?: () => void;
     onBack?: () => void;
 }
 
 const UserEditSheet: Component<UserEditSheetProps> = (props) => {
-    const userQuery = useUser(() => props.userId);
+    const params = useParams({ strict: false }) as () => any;
+    const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
+    const userId = () => props.userId ?? Number(params()?.userId);
+
+    const userQuery = useUser(userId);
     const rolesQuery = useRoles();
     const entitiesQuery = useEntitiesList();
     const updateMutation = useUpdateUser();
     const assignRolesMutation = useAssignUserRoles();
     const setEntityMutation = useSetUserEntity();
     const resetPwMutation = useAdminResetPassword();
-
-    let dismissSheet: () => void;
-
-    const handleClose = () => {
-        if (dismissSheet) dismissSheet();
-        else {
-            if (props.onBack) props.onBack();
-            else props.onClose();
-        }
-    };
 
     const entityOptions = createMemo((): EntityOption[] => {
         const raw = entitiesQuery.data;
@@ -51,13 +47,13 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
         try {
             const promises: Promise<any>[] = [
                 updateMutation.mutateAsync({
-                    id: props.userId,
+                    id: userId(),
                     username: values.username,
                     email: values.email,
                     isActive: values.isActive,
                 }),
                 assignRolesMutation.mutateAsync({
-                    userId: props.userId,
+                    userId: userId(),
                     roleIds: values.roleIds,
                 }),
             ];
@@ -67,7 +63,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
             if (values.entityId !== undefined && values.entityId !== currentEntityId) {
                 promises.push(
                     setEntityMutation.mutateAsync({
-                        userId: props.userId,
+                        userId: userId(),
                         entityId: values.entityId,
                     })
                 );
@@ -77,7 +73,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
             if (values.newPassword) {
                 promises.push(
                     resetPwMutation.mutateAsync({
-                        userId: props.userId,
+                        userId: userId(),
                         newPassword: values.newPassword,
                     })
                 );
@@ -88,7 +84,6 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
             const msgs = ['Usuario actualizado correctamente'];
             if (values.newPassword) msgs.push('Contraseña restablecida — sesiones cerradas');
             toast.success(msgs.join('. '));
-            handleClose();
         } catch (err: any) {
             toast.error(err?.message || 'Error al actualizar usuario');
         }
@@ -100,16 +95,16 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
 
     return (
         <Sheet
-            bindDismiss={(fn) => dismissSheet = fn}
+            bindDismiss={bindDismiss}
             isOpen={true}
-            onClose={props.onClose}
+            onClose={navigateAway}
             onBack={props.onBack}
             title="Editar Usuario"
             description="Modifica los datos de la cuenta"
             size="lg"
             footer={
                 <>
-                    <Button variant="outline" onClick={handleClose} disabled={isPending()}>
+                    <Button variant="outline" onClick={close} disabled={isPending()}>
                         Cancelar
                     </Button>
                     <Button

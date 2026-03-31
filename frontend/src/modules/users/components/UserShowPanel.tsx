@@ -1,4 +1,6 @@
 import { Component, For, Show } from 'solid-js';
+import { useParams, Outlet } from '@tanstack/solid-router';
+import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
@@ -16,33 +18,30 @@ import UserActivityTab from './show/UserActivityTab';
 import PasswordResetSection from './PasswordResetSection';
 
 interface UserShowPanelProps {
-    userId: number;
-    onClose: () => void;
+    userId?: number;
+    onClose?: () => void;
 }
 
 const UserShowPanel: Component<UserShowPanelProps> = (props) => {
+    const params = useParams({ strict: false }) as () => any;
+    const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
+    const userId = () => props.userId ?? Number(params()?.userId);
+
     const auth = useAuth();
-    const userQuery = useUser(() => props.userId);
-
-    let dismissSheet: () => void;
-
-    const handleClose = () => {
-        if (dismissSheet) dismissSheet();
-        else props.onClose();
-    };
+    const userQuery = useUser(userId);
 
     const canUpdate = () => auth.canEdit?.('users') ?? false;
 
     return (
         <Sheet
-            bindDismiss={(fn) => dismissSheet = fn}
+            bindDismiss={bindDismiss}
             isOpen={true}
-            onClose={props.onClose}
+            onClose={navigateAway}
             title="Detalle de Usuario"
             description="Información completa de la cuenta"
             size="xl"
             footer={
-                <Button variant="outline" onClick={handleClose}>Cerrar</Button>
+                <Button variant="outline" onClick={close}>Cerrar</Button>
             }
         >
             <Show
@@ -88,13 +87,9 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                         variant="outline"
                                         size="sm"
                                         class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                        search={(prev: any) => ({
-                                            ...prev,
-                                            panel: 'edit',
-                                            id: props.userId,
-                                            from: 'show'
-                                        })}
-                                        disabled={!props.userId}
+                                        disabled={!userId()}
+                                        to={`./edit`}
+                                        search={true}
                                         preload="intent"
                                     >
                                         <EditIcon class="size-4 text-muted" />
@@ -213,23 +208,26 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
 
                                     {/* Security — Password Reset */}
                                     <Show when={canUpdate()}>
-                                        <PasswordResetSection userId={props.userId} username={user().username} />
+                                        <PasswordResetSection userId={userId()} username={user().username} />
                                     </Show>
                                 </TabsContent>
 
                                 {/* ═══ Sessions Tab ═══ */}
                                 <TabsContent value="sessions">
-                                    <UserSessionsTab userId={props.userId} />
+                                    <UserSessionsTab userId={userId()} />
                                 </TabsContent>
 
                                 <TabsContent value="activity">
-                                    <UserActivityTab userId={props.userId} />
+                                    <UserActivityTab userId={userId()} />
                                 </TabsContent>
                                 </div>
                             </Tabs>
                         )}
                 </Show>
             </Show>
+
+            {/* Deep Nested Routes (e.g. UserEditSheet) */}
+            <Outlet />
         </Sheet>
     );
 };

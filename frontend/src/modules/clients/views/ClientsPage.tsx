@@ -1,14 +1,14 @@
 /**
- * SuppliersPage — Orchestrator component.
+ * ClientsPage — Orchestrator component.
  *
- * All state and logic extracted to useSuppliersState hook.
+ * All state and logic extracted to useClientsState hook.
  * This component only handles layout and wiring of sub-components.
  */
-import { Component, Show } from 'solid-js';
-import { useNavigate, Outlet } from '@tanstack/solid-router';
+import { Component, Show, lazy, Suspense } from 'solid-js';
+import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
-import { useSuppliersState } from '../hooks/useSuppliersState';
+import { useClientsState } from '../hooks/useClientsState';
 
 // UI Components
 import { DataTable } from '@shared/ui/DataTable';
@@ -19,9 +19,15 @@ import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
 import Button from '@shared/ui/Button';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
-import SupplierDeleteDialog from '../components/SupplierDeleteDialog';
-import { SupplierCardList } from '../components/SupplierCardList';
-import { SupplierFilterSheet } from '../components/SupplierFilterSheet';
+import ClientDeleteDialog from '../components/ClientDeleteDialog';
+import { ClientCardList } from '../components/ClientCardList';
+import { ClientFilterSheet } from '../components/ClientFilterSheet';
+
+// Lazy Components
+const LazyUserNewSheet = lazy(() => import('../../users/components/UserNewSheet'));
+const LazyClientNewSheet = lazy(() => import('../components/ClientNewSheet'));
+const LazyClientEditSheet = lazy(() => import('../components/ClientEditSheet'));
+const LazyClientShowPanel = lazy(() => import('../components/ClientShowPanel'));
 
 // Icons
 import {
@@ -29,31 +35,42 @@ import {
     FilterIcon, CopyIcon, RotateCcwIcon, ChevronsUpDownIcon,
 } from '@shared/ui/icons';
 
-const SuppliersPage: Component = () => {
+const ClientsPage: Component = () => {
     const isMobile = useIsMobile();
     const navigate = useNavigate();
-    const state = useSuppliersState();
+    const state = useClientsState();
+
+    // Cross-Module Modals — driven by ?modal= searchParam
+    const openUserModal = () => navigate({ search: (prev: any) => ({ ...prev, modal: 'newUser' }) } as any);
+    const closeAllModals = () => navigate({ search: (prev: any) => ({ ...prev, modal: undefined }) } as any);
 
     return (
         <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
-            {/* Native Deep-Nested Routes */}
-            <Outlet />
             {/* Header */}
             <div class="flex-shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
                 <PageHeader
                     icon={<UsersIcon />}
-                    iconBg="linear-gradient(135deg, #b97010ff, #966305)"
-                    title="Proveedores"
+                    iconBg="linear-gradient(135deg, #10b981, #059669)"
+                    title="Clientes"
                     count={state.totalRows()}
-                    info="Gestiona los proveedores de tu negocio. Puedes agregar, editar, eliminar y buscar proveedores."
+                    info="Gestiona los clientes de tu negocio. Puedes agregar, editar, eliminar y buscar clientes."
                     actions={
                         <div class="flex items-center gap-2">
                             <Button variant="outline" icon={<UploadIcon />} onClick={() => toast.info('Importación próximamente')}>
                                 <span class="hidden sm:inline">Importar</span>
                             </Button>
-                            <Show when={state.auth.canAdd('suppliers')}>
+                            <Button
+                                variant="outline"
+                                icon={<UsersIcon />}
+                                onMouseEnter={() => import('../../users/components/UserNewSheet')}
+                                onClick={openUserModal}
+                            >
+                                <span class="hidden sm:inline">Nuevo Usuario</span>
+                            </Button>
+                            <Show when={state.auth.canAdd('clients')}>
                                 <Button
-                                    to="/suppliers/new"
+                                    search={(prev: any) => ({ ...prev, panel: 'new', id: undefined })}
+                                    onMouseEnter={() => import('../components/ClientNewSheet')}
                                     preload="intent"
                                     icon={<PlusIcon />}
                                 >
@@ -69,7 +86,7 @@ const SuppliersPage: Component = () => {
                     <SearchInput
                         value={state.search()}
                         onSearch={state.handleSearchInput}
-                        placeholder="Buscar proveedores..."
+                        placeholder="Buscar clientes..."
                         class="flex-1 w-full min-w-[150px] max-w-md"
                     />
                     <div class="flex items-center gap-2">
@@ -99,11 +116,10 @@ const SuppliersPage: Component = () => {
             {/* DataTable / Card List */}
             <div class="flex-1 min-h-0 px-3 pb-3 sm:px-4 sm:pb-4 overflow-hidden">
                 <div class="bg-card border border-border rounded-2xl shadow-card-soft h-full overflow-auto relative">
-
                     <Show
                         when={!isMobile()}
                         fallback={
-                            <SupplierCardList
+                            <ClientCardList
                                 filters={state.filters}
                                 rowSelection={state.rowSelection}
                                 onRowSelectionChange={state.setRowSelection}
@@ -115,10 +131,10 @@ const SuppliersPage: Component = () => {
                         }
                     >
                         <DataTable
-                            data={state.suppliers()}
+                            data={state.clients()}
                             columns={state.columns()}
-                            isLoading={state.suppliersQuery.isPending}
-                            isPlaceholderData={state.suppliersQuery.isPlaceholderData}
+                            isLoading={state.clientsQuery.isPending}
+                            isPlaceholderData={state.clientsQuery.isPlaceholderData}
                             pagination={{ pageIndex: 0, pageSize: state.pageSize() }}
                             onPaginationChange={() => { }}
                             pageCount={1}
@@ -147,7 +163,7 @@ const SuppliersPage: Component = () => {
                             enableVirtualization={false}
                             estimatedRowHeight={56}
                             emptyIcon={<UsersIcon />}
-                            emptyMessage="No hay proveedores"
+                            emptyMessage="No hay clientes"
                             emptyDescription="Crea uno nuevo para comenzar"
                             tableRef={(table) => { state.setTableInstance(table); }}
                         />
@@ -197,27 +213,25 @@ const SuppliersPage: Component = () => {
                 </Show>
             </DataTableSelectionBar>
 
-
-
             {/* Filter Sheet (Mobile) */}
-            <SupplierFilterSheet
+            <ClientFilterSheet
                 isOpen={state.showFilterSheet()}
                 onClose={() => state.setShowFilterSheet(false)}
                 filters={state.filterSheetConfig}
             />
 
             {/* Dialogs */}
-            <SupplierDeleteDialog
-                supplier={state.deleteTarget()}
+            <ClientDeleteDialog
+                client={state.deleteTarget()}
                 onClose={() => state.setDeleteTarget(null)}
-                onSuccess={() => toast.success('Proveedor eliminado')}
+                onSuccess={() => toast.success('Cliente eliminado')}
             />
             <ConfirmDialog
                 isOpen={state.showBulkDeleteConfirm()}
                 onClose={() => state.setShowBulkDeleteConfirm(false)}
                 onConfirm={state.confirmBulkDelete}
-                title={`Eliminar ${state.selectedActiveCount()} proveedores`}
-                description="Los proveedores seleccionados quedarán inactivos. Podrás restaurarlos en cualquier momento."
+                title={`Eliminar ${state.selectedActiveCount()} clientes`}
+                description="Los clientes seleccionados quedarán inactivos. Podrás restaurarlos en cualquier momento."
                 confirmLabel="Eliminar" variant="danger"
                 isLoading={state.bulkDeleteMutation.isPending}
             />
@@ -225,15 +239,16 @@ const SuppliersPage: Component = () => {
                 isOpen={state.showBulkRestoreConfirm()}
                 onClose={() => state.setShowBulkRestoreConfirm(false)}
                 onConfirm={state.confirmBulkRestore}
-                title={`Restaurar ${state.selectedInactiveCount()} proveedores`}
-                description="Los proveedores seleccionados volverán a estar activos."
+                title={`Restaurar ${state.selectedInactiveCount()} clientes`}
+                description="Los clientes seleccionados volverán a estar activos."
                 confirmLabel="Restaurar" variant="success"
                 isLoading={state.bulkRestoreMutation.isPending}
             />
 
-
+            {/* SearchParams-driven sheets */}
+           
         </div>
     );
 };
 
-export default SuppliersPage;
+export default ClientsPage;

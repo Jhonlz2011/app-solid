@@ -1,36 +1,35 @@
 /**
- * useSuppliersState — All state, queries, mutations, and handlers for SuppliersPage.
+ * useClientsState — All state, queries, mutations, and handlers for ClientsPage.
  *
  * Extracts ~350 lines of logic from the God Component so the page only renders.
  */
 import { createSignal, createMemo, batch } from 'solid-js';
-import type { Updater, SortingState } from '@tanstack/solid-table';
 import { useQueryClient } from '@tanstack/solid-query';
 import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { copyToClipboard } from '@shared/utils/clipboard';
 import { buildFilterOptions } from '@shared/utils/facets.utils';
 import { isActiveLabels } from '@shared/constants/labels';
-import { taxIdTypeLabels, personTypeLabels } from '../models/supplier.types';
+import { taxIdTypeLabels, personTypeLabels } from '../models/client.types';
 import { useDataTable } from '@shared/hooks/useDataTable';
 import { useDataTableSSE, useRealtimeInvalidation } from '@shared/hooks/useDataTableSSE';
 import { useAuth } from '@/modules/auth/store/auth.store';
 
 import {
-    useSuppliers,
-    useDeleteSupplier,
-    useBulkDeleteSupplier,
-    useBulkRestoreSupplier,
-    useRestoreSupplier,
-    useSupplierFacets,
-    supplierKeys,
-    suppliersApi,
-    type SupplierFilters,
-    type SupplierListItem,
-} from '../data/suppliers.api';
-import { createSupplierColumns } from '../data/supplier.columns';
+    useClients,
+    useDeleteClient,
+    useBulkDeleteClient,
+    useBulkRestoreClient,
+    useRestoreClient,
+    useClientFacets,
+    clientKeys,
+    clientsApi,
+    type ClientFilters,
+    type ClientListItem,
+} from '../data/clients.api';
+import { createClientColumns } from '../data/client.columns';
 
-export function useSuppliersState() {
+export function useClientsState() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const auth = useAuth();
@@ -44,26 +43,26 @@ export function useSuppliersState() {
     const [showFilterSheet, setShowFilterSheet] = createSignal(false);
 
     // Delete / Restore confirmation state
-    const [deleteTarget, setDeleteTarget] = createSignal<SupplierListItem | null>(null);
+    const [deleteTarget, setDeleteTarget] = createSignal<ClientListItem | null>(null);
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = createSignal(false);
     const [showBulkRestoreConfirm, setShowBulkRestoreConfirm] = createSignal(false);
 
     // ─── SSE ─────────────────────────────────────────────────────
-    useDataTableSSE({ room: 'suppliers', queryKey: supplierKeys.lists() });
-    useRealtimeInvalidation([...supplierKeys.all, 'facets']);
+    useDataTableSSE({ room: 'clients', queryKey: clientKeys.lists() });
+    useRealtimeInvalidation([...clientKeys.all, 'facets']);
 
     // ─── Table State ─────────────────────────────────────────────
-    let getQueryData = () => [] as SupplierListItem[];
+    let getQueryData = () => [] as ClientListItem[];
     let getQueryMeta = () => undefined as any;
 
-    const tableState = useDataTable<SupplierListItem>({
+    const tableState = useDataTable<ClientListItem>({
         data: () => getQueryData(),
         meta: () => getQueryMeta(),
         isCursorBased: true
     });
 
     // ─── Query Filters ───────────────────────────────────────────
-    const filters = (): SupplierFilters => ({
+    const filters = (): ClientFilters => ({
         cursor: tableState.isSortedMode() ? undefined : tableState.cursor(),
         direction: tableState.isSortedMode() ? undefined : tableState.direction(),
         sortBy: tableState.sortBy(),
@@ -78,10 +77,10 @@ export function useSuppliersState() {
     });
 
     // ─── Queries & Mutations ─────────────────────────────────────
-    const suppliersQuery = useSuppliers(filters);
-    getQueryData = () => suppliersQuery.data?.data ?? [];
-    getQueryMeta = () => suppliersQuery.data?.meta;
-    const facetsQuery = useSupplierFacets(
+    const clientsQuery = useClients(filters);
+    getQueryData = () => clientsQuery.data?.data ?? [];
+    getQueryMeta = () => clientsQuery.data?.meta;
+    const facetsQuery = useClientFacets(
         () => tableState.search() || undefined,
         () => ({
             personType: personTypeFilter().length > 0 ? personTypeFilter() : undefined,
@@ -91,27 +90,27 @@ export function useSuppliersState() {
         })
     );
 
-    const deleteMutation = useDeleteSupplier();
-    const bulkRestoreMutation = useBulkRestoreSupplier();
-    const bulkDeleteMutation = useBulkDeleteSupplier();
-    const restoreMutation = useRestoreSupplier();
+    const deleteMutation = useDeleteClient();
+    const bulkRestoreMutation = useBulkRestoreClient();
+    const bulkDeleteMutation = useBulkDeleteClient();
+    const restoreMutation = useRestoreClient();
 
     // ─── Derived Data ────────────────────────────────────────────
-    const suppliers = () => suppliersQuery.data?.data ?? [];
-    const meta = () => suppliersQuery.data?.meta;
+    const clients = () => clientsQuery.data?.data ?? [];
+    const meta = () => clientsQuery.data?.meta;
 
     const selectedActiveCount = () => tableState.selectedItems().filter(s => s.is_active).length;
     const selectedInactiveCount = () => tableState.selectedItems().filter(s => !s.is_active).length;
 
     // ─── Navigation Handlers ─────────────────────────────────────
     const handleNew = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'new', id: undefined }) } as any);
-    const handleEdit = (s: SupplierListItem) => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'edit', id: s.id }) } as any);
-    const handleView = (s: SupplierListItem) => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'show', id: s.id }) } as any);
+    const handleEdit = (s: ClientListItem) => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'edit', id: s.id }) } as any);
+    const handleView = (s: ClientListItem) => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'show', id: s.id }) } as any);
     const handleClosePanel = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: undefined, id: undefined, from: undefined }) } as any);
-    const handlePrefetch = (s: SupplierListItem) => {
+    const handlePrefetch = (s: ClientListItem) => {
         queryClient.prefetchQuery({
-            queryKey: supplierKeys.detail(s.id),
-            queryFn: () => suppliersApi.get(s.id),
+            queryKey: clientKeys.detail(s.id),
+            queryFn: () => clientsApi.get(s.id),
             staleTime: 1000 * 60 * 5,
         });
     };
@@ -129,16 +128,16 @@ export function useSuppliersState() {
             return parts.join(' | ');
         }).join('\n');
         const ok = await copyToClipboard(text);
-        if (ok) toast.success(`Copiado ${selected.length} proveedores al portapapeles`);
+        if (ok) toast.success(`Copiado ${selected.length} clientes al portapapeles`);
         else toast.error('Error al copiar al portapapeles');
         tableState.setRowSelection({});
     };
 
-    const handleDelete = (supplier: SupplierListItem) => setDeleteTarget(supplier);
+    const handleDelete = (client: ClientListItem) => setDeleteTarget(client);
 
-    const handleRestore = (supplier: SupplierListItem) => {
-        restoreMutation.mutate(supplier.id, {
-            onSuccess: () => toast.success(`Se ha restaurado '${supplier.business_name}'`),
+    const handleRestore = (client: ClientListItem) => {
+        restoreMutation.mutate(client.id, {
+            onSuccess: () => toast.success(`Se ha restaurado '${client.business_name}'`),
             onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
@@ -149,7 +148,7 @@ export function useSuppliersState() {
         const ids = tableState.selectedItems().filter(s => s.is_active).map(s => s.id);
         if (ids.length === 0) return;
         bulkDeleteMutation.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} proveedores eliminados`); tableState.setRowSelection({}); setShowBulkDeleteConfirm(false); },
+            onSuccess: () => { toast.success(`${ids.length} clientes eliminados`); tableState.setRowSelection({}); setShowBulkDeleteConfirm(false); },
             onError: (err: any) => toast.error(err.message || 'Error al eliminar'),
         });
     };
@@ -158,7 +157,7 @@ export function useSuppliersState() {
         const ids = tableState.selectedItems().filter(s => !s.is_active).map(s => s.id);
         if (ids.length === 0) return;
         bulkRestoreMutation.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} proveedores restaurados`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },
+            onSuccess: () => { toast.success(`${ids.length} clientes restaurados`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },
             onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
@@ -175,7 +174,7 @@ export function useSuppliersState() {
 
     // ─── Column Definitions ──────────────────────────────────────
     const columns = createMemo(() =>
-        createSupplierColumns({
+        createClientColumns({
             onView: handleView,
             onEdit: handleEdit,
             onDelete: handleDelete,
@@ -200,14 +199,14 @@ export function useSuppliersState() {
         showBulkDeleteConfirm, setShowBulkDeleteConfirm, showBulkRestoreConfirm, setShowBulkRestoreConfirm,
 
         // Query results
-        suppliersQuery, facetsQuery, suppliers, meta,
+        clientsQuery, facetsQuery, clients, meta,
         selectedActiveCount, selectedInactiveCount,
 
         // Mutations
         deleteMutation, bulkDeleteMutation, bulkRestoreMutation,
 
         // Handlers
-        handleNew, handleView, handleEdit,
+        handleView, handleEdit,
         handlePrefetch, handleCopySelection, handleDelete, handleRestore, handleBulkDelete,
         confirmBulkDelete, confirmBulkRestore, handleFilterChange, filters,
 
@@ -227,4 +226,4 @@ export function useSuppliersState() {
     };
 }
 
-export type SuppliersState = ReturnType<typeof useSuppliersState>;
+export type ClientsState = ReturnType<typeof useClientsState>;

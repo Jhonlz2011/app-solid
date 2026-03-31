@@ -117,14 +117,3 @@ export type RbacAction = typeof RBAC_ACTIONS[number];
 
 /** Compile-time permission slug: 'suppliers.create' | 'invoices.read' | ... */
 export type PermissionSlug = `${RbacModule}.${RbacAction}`;
-
-/** Audit log action types */
-export const AUDIT_ACTIONS = [
-    'role.created', 'role.updated', 'role.deleted',
-    'permission.updated',
-    'user.created', 'user.updated', 'user.deactivated', 'user.restored', 'user.destroyed',
-    'user.roles_assigned', 'user.role_removed',
-    'hierarchy.added', 'hierarchy.removed',
-] as const;
-
-export type AuditAction = typeof AUDIT_ACTIONS[number];

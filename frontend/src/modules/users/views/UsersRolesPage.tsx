@@ -4,10 +4,10 @@
  * All state and logic extracted to useUsersState hook.
  * This component only handles layout and wiring of sub-components.
  */
-import { Component, For, Show, lazy, Suspense } from 'solid-js';
+import { Component, For, Show } from 'solid-js';
 import { toast } from 'solid-sonner';
-import { useNavigate } from '@tanstack/solid-router';
-import { useIsMobile } from '@shared/hooks/useIsMobile';
+import { useNavigate, Outlet } from '@tanstack/solid-router';
+// import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { useUsersState } from '../hooks/useUsersState';
 
 // Shared UI
@@ -27,15 +27,6 @@ import RoleCard from '../components/RoleCard';
 import RoleFormDialog from '../components/RoleFormDialog';
 import RoleUsersDialog from '../components/RoleUsersDialog';
 
-// Lazy-loaded sheet components
-const LazyUserNewSheet = lazy(() => import('../components/UserNewSheet'));
-const LazyUserEditSheet = lazy(() => import('../components/UserEditSheet'));
-const LazyUserShowPanel = lazy(() => import('../components/UserShowPanel'));
-
-// External Panels (Cross-module)
-const LazySupplierShowPanel = lazy(() => import('../../suppliers/components/SupplierShowPanel'));
-const LazySupplierEditSheet = lazy(() => import('../../suppliers/components/SupplierEditSheet'));
-
 // Icons
 import {
     PlusIcon, TrashIcon, UsersIcon, IdCardIcon, UserKeyIcon,
@@ -43,50 +34,14 @@ import {
 } from '@shared/ui/icons';
 
 const UsersRolesPage: Component = () => {
-    const isMobile = useIsMobile();
+    // const isMobile = useIsMobile();
     const navigate = useNavigate();
     const state = useUsersState();
 
     return (
         <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
-            {/* SearchParams-driven sheets */}
-            <Suspense>
-                <Show when={state.panelSearch()?.panel === 'new'}>
-                    <LazyUserNewSheet onClose={state.handleClosePanel} />
-                </Show>
-                <Show when={state.panelSearch()?.panel === 'edit' && state.panelSearch()?.id}>
-                    {(_) => <LazyUserEditSheet
-                        userId={state.panelSearch().id!}
-                        onClose={state.handleClosePanel}
-                        onBack={state.panelSearch()?.from === 'show'
-                            ? () => navigate({ search: (prev: any) => ({ ...prev, panel: 'show', id: state.panelSearch().id!, from: undefined }) } as any)
-                            : undefined
-                        }
-                    />}
-                </Show>
-                <Show when={(state.panelSearch()?.panel === 'show' || state.panelSearch()?.from === 'show') && state.panelSearch()?.id}>
-                    {(_) => <LazyUserShowPanel userId={state.panelSearch().id!} onClose={state.handleClosePanel} />}
-                </Show>
-
-                {/* Cross-Module External Modals */}
-                <Show when={(state.panelSearch()?.modal === 'showSupplier' || state.panelSearch()?.fromModal === 'showSupplier') && state.panelSearch()?.modalId}>
-                    {(_) => <LazySupplierShowPanel 
-                        supplierId={state.panelSearch().modalId!} 
-                        onClose={state.handleCloseModal} 
-                        onEdit={() => navigate({ search: (prev: any) => ({ ...prev, modal: 'editSupplier', modalId: state.panelSearch().modalId!, fromModal: 'showSupplier' }) } as any)}
-                    />}
-                </Show>
-                <Show when={state.panelSearch()?.modal === 'editSupplier' && state.panelSearch()?.modalId}>
-                    {(_) => <LazySupplierEditSheet 
-                        supplierId={state.panelSearch().modalId!} 
-                        onClose={state.handleCloseModal}
-                        onBack={state.panelSearch()?.fromModal === 'showSupplier'
-                            ? () => navigate({ search: (prev: any) => ({ ...prev, modal: 'showSupplier', modalId: state.panelSearch().modalId!, fromModal: undefined }) } as any)
-                            : undefined
-                        }
-                    />}
-                </Show>
-            </Suspense>
+            {/* Native Deep-Nested Routes for User Modals */}
+            <Outlet />
 
             {/* Role FormDialog */}
             <RoleFormDialog
@@ -121,8 +76,8 @@ const UsersRolesPage: Component = () => {
 
                             <Show when={state.activeTab() === 'users' && state.auth.canAdd('users')}>
                                 <Button
-                                    search={(prev: any) => ({ ...prev, panel: 'new', id: undefined })}
-                                    onMouseEnter={() => import('../components/UserNewSheet')}
+                                    to="/users/new"
+                                    search={true}
                                     preload="intent"
                                     icon={<PlusIcon />}
                                 >

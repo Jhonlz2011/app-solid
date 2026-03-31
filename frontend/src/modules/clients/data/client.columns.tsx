@@ -1,13 +1,13 @@
 /**
- * Supplier Column Definitions
+ * Client Column Definitions
  *
- * Extracted from SuppliersPage for reusability and testability.
+ * Extracted from ClientsPage for reusability and testability.
  * Creates column definitions with proper handlers.
  */
 import { Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
-import type { SupplierListItem } from '../data/suppliers.api';
+import type { ClientListItem } from '../data/clients.api';
 import { useAuth } from '@/modules/auth/store/auth.store';
 import Checkbox from '@shared/ui/Checkbox';
 import { Badge, StatusBadge } from '@shared/ui/Badge';
@@ -23,9 +23,11 @@ export interface ColumnFilterConfig {
     isLoading: () => boolean;
 }
 
-export interface SupplierColumnHandlers {
-    onDelete: (supplier: SupplierListItem) => void;
-    onRestore: (supplier: SupplierListItem) => void;
+export interface ClientColumnHandlers {
+    onEdit: (client: ClientListItem) => void;
+    onDelete: (client: ClientListItem) => void;
+    onView: (client: ClientListItem) => void;
+    onRestore: (client: ClientListItem) => void;
     auth: ReturnType<typeof useAuth>;
     filters?: {
         businessName?: ColumnFilterConfig;
@@ -36,9 +38,9 @@ export interface SupplierColumnHandlers {
 }
 
 /**
- * Creates supplier table columns with provided handlers
+ * Creates client table columns with provided handlers
  */
-export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnDef<SupplierListItem>[] {
+export function createClientColumns(handlers: ClientColumnHandlers): ColumnDef<ClientListItem>[] {
     return [
         {
             id: 'select',
@@ -78,7 +80,8 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             size: 210,
             cell: (info) => (
                 <Link
-                    to={`/suppliers/${info.row.original.id}/show`}
+                    to="."
+                    search={(prev: any) => ({ ...prev, panel: 'show', id: info.row.original.id })}
                     preload="intent"
                     class="min-w-0 block cursor-pointer group/cell"
                     title={info.getValue<string>()}
@@ -111,7 +114,8 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             size: 170,
             cell: (info) => (
                 <Link
-                    to={`/suppliers/${info.row.original.id}/show`}
+                    to="."
+                    search={(prev: any) => ({ ...prev, panel: 'show', id: info.row.original.id })}
                     preload="intent"
                     class="block cursor-pointer group/cell"
                     onClick={(e) => e.stopPropagation()}
@@ -172,22 +176,22 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             meta: { title: 'Fiscal' },
             size: 160,
             cell: (info) => {
-                const supplier = info.row.original;
+                const client = info.row.original;
                 return (
                     <div class="flex flex-col gap-1">
-                        <Show when={supplier.tax_regime_type && supplier.tax_regime_type !== 'GENERAL'}>
+                        <Show when={client.tax_regime_type && client.tax_regime_type !== 'GENERAL'}>
                             <span class="text-[10px] font-bold uppercase tracking-wider bg-surface/50 border border-border/60 text-muted px-1.5 py-0.5 rounded w-max shadow-sm">
-                                {supplier.tax_regime_type}
+                                {client.tax_regime_type}
                             </span>
                         </Show>
                         <div class="flex flex-wrap gap-1">
-                            <Show when={supplier.obligado_contabilidad}>
+                            <Show when={client.obligado_contabilidad}>
                                 <span class="text-[9px] font-bold uppercase tracking-wider bg-success/10 text-success border border-success/20 px-1.5 py-0.5 rounded shadow-sm" title="Obligado a llevar contabilidad">Obl. Cont.</span>
                             </Show>
-                            <Show when={supplier.is_retention_agent}>
+                            <Show when={client.is_retention_agent}>
                                 <span class="text-[9px] font-bold uppercase tracking-wider bg-info/10 text-info border border-info/20 px-1.5 py-0.5 rounded shadow-sm" title="Agente de Retención">Ag. Ret.</span>
                             </Show>
-                            <Show when={supplier.is_special_contributor}>
+                            <Show when={client.is_special_contributor}>
                                 <span class="text-[9px] font-bold uppercase tracking-wider bg-warning/10 text-warning border border-warning/20 px-1.5 py-0.5 rounded shadow-sm" title="Contribuyente Especial">Contr. Esp.</span>
                             </Show>
                         </div>
@@ -221,15 +225,15 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             size: 50,
             enableHiding: false,
             cell: (info) => {
-                const supplier = info.row.original;
+                const client = info.row.original;
                 return (
                     <ActionMenu
-                        module="suppliers"
-                        isActive={supplier.is_active ?? false}
-                        showTo={`/suppliers/${supplier.id}/show`}
-                        editTo={`/suppliers/${supplier.id}/edit`}
-                        onRestore={() => handlers.onRestore(supplier)}
-                        onDelete={() => handlers.onDelete(supplier)}
+                        module="clients"
+                        isActive={client.is_active ?? false}
+                        showSearch={(prev: any) => ({ ...prev, panel: 'show', id: client.id })}
+                        editSearch={(prev: any) => ({ ...prev, panel: 'edit', id: client.id })}
+                        onRestore={() => handlers.onRestore(client)}
+                        onDelete={() => handlers.onDelete(client)}
                     />
                 );
             },

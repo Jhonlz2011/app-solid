@@ -35,24 +35,24 @@ export type UserEvent = typeof RealtimeEvents.USER[keyof typeof RealtimeEvents.U
 export type RoomName = typeof RealtimeEvents.ROOMS[keyof typeof RealtimeEvents.ROOMS];
 
 // Payload types
-export interface EntityEventPayload {
-    type: 'supplier' | 'client' | 'employee' | 'carrier';
-    entity?: Record<string, unknown>;
+export interface BaseEventPayload<TEntity = Record<string, unknown>> {
     id?: number;
     ids?: number[];
-    clientId?: string; // The client that initiated the change (for optimistic UI syncing)
+    entity?: TEntity;
+    clientId?: string;
+    type?: string;
+    // For backwards compatibility or explicit manual overrides
+    userId?: number;
 }
 
-// Payload for user CRUD events (targeted to room 'users')
-export interface UserEventPayload {
-    userId: number;
-    entity?: Record<string, unknown>;
-    clientId?: string;
-}
+export type EntityEventPayload<TEntity = Record<string, unknown>> = BaseEventPayload<TEntity> & {
+    type: 'supplier' | 'client' | 'employee' | 'carrier';
+};
+
+export type UserEventPayload<TUser = Record<string, unknown>> = BaseEventPayload<TUser>;
 
 // Payload for user profile update (targeted to personal room user:{id})
-export interface UserProfileUpdatedPayload {
-    userId: number;
+export interface UserProfileUpdatedPayload extends BaseEventPayload {
     username?: string;
     email?: string;
 }

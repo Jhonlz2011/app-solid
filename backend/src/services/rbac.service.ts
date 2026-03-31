@@ -6,7 +6,7 @@ import { cacheService } from './cache.service';
 import { DomainError } from './errors';
 import { broadcast } from '../plugins/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
-import { type AuditAction, SYSTEM_ROLES } from '@app/schema/enums';
+import { SYSTEM_ROLES } from '@app/schema/enums';
 
 // ============================================
 // USER PERMISSION QUERIES (CACHED)
@@ -123,7 +123,7 @@ async function revokeAllUserSessions(userId: number): Promise<void> {
     await db.delete(sessions).where(eq(sessions.user_id, userId));
     await redis.del(...activeSessions.map(s => `session:${s.id}`));
     for (const s of activeSessions) {
-        broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId, sessionId: s.id }, `user:${userId}`);
+        broadcast(RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId: s.id }, `user:${userId}`);
     }
 }
 
@@ -659,7 +659,7 @@ export async function assignUserRoles(userId: number, roleIds: number[], current
 
     // Invalidate cache
     await invalidateUserRbacCache(userId);
-    broadcast(RealtimeEvents.USER.UPDATED, { userId }, RealtimeEvents.ROOMS.USERS);
+    broadcast(RealtimeEvents.USER.UPDATED, { id: userId }, RealtimeEvents.ROOMS.USERS);
 
     logAudit(currentUserId, 'UPDATE', 'auth_user_roles', userId, { roleIds }, { roleIds: oldRoleIds });
 
@@ -709,7 +709,7 @@ export async function createUser(data: { username: string; email: string; passwo
         );
     }
 
-    broadcast(RealtimeEvents.USER.CREATED, { userId: user.id }, RealtimeEvents.ROOMS.USERS);
+    broadcast(RealtimeEvents.USER.CREATED, { id: user.id }, RealtimeEvents.ROOMS.USERS);
 
     if (currentUserId) logAudit(currentUserId, 'INSERT', 'auth_users', user.id, { username: data.username, email: data.email, roleIds: data.roleIds });
 
@@ -752,7 +752,7 @@ export async function removeUserFromRole(userId: number, roleId: number) {
 
     // Invalidate cache
     await invalidateUserRbacCache(userId);
-    broadcast(RealtimeEvents.USER.UPDATED, { userId }, RealtimeEvents.ROOMS.USERS);
+    broadcast(RealtimeEvents.USER.UPDATED, { id: userId }, RealtimeEvents.ROOMS.USERS);
 
     return { success: true };
 }

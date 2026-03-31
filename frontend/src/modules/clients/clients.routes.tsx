@@ -1,42 +1,35 @@
 import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
-import { createSupplierModals } from '@shared/routes/suppliers-modals.factory';
-import { createUserModals } from '@shared/routes/user-modals.factory';
 
 // --- LAZY PAGE ---
-const SuppliersPage = lazyRouteComponent(() => import('./views/SuppliersPage'));
+const ClientsPage = lazyRouteComponent(() => import('./views/ClientsPage'));
 
 // ─── Route factory ──────────────────────────────────────────────────────────
-export const createSuppliersRoutes = (layoutRoute: any) => {
-    const suppliersRoute = createRoute({
+export const createClientsRoutes = (layoutRoute: any) => {
+    const clientsRoute = createRoute({
         getParentRoute: () => layoutRoute,
-        path: 'suppliers',
+        path: 'clients',
         beforeLoad: async () => {
             const { useAuth } = await import('@modules/auth/store/auth.store');
-            if (!useAuth().canRead('suppliers')) {
+            if (!useAuth().canRead('clients')) {
                 throw redirect({ to: '/dashboard' });
             }
         },
         loader: async () => {
             // Parallel Fetching: Block route transition until data is pre-fetched
-            const { suppliersApi, supplierKeys } = await import('./data/suppliers.api');
+            const { clientsApi, clientKeys } = await import('./data/clients.api');
             const defaultFilters = { limit: 10, direction: 'first' as const };
 
             return await queryClient.prefetchQuery({
-                queryKey: supplierKeys.list(defaultFilters),
-                queryFn: () => suppliersApi.list(defaultFilters),
+                queryKey: clientKeys.list(defaultFilters),
+                queryFn: () => clientsApi.list(defaultFilters),
                 staleTime: 60 * 1000,
             });
         },
         pendingComponent: GlobalPageLoader,
-        component: SuppliersPage,
+        component: ClientsPage,
     });
 
-    suppliersRoute.addChildren([
-        ...createSupplierModals(suppliersRoute),
-        ...createUserModals(suppliersRoute, 'user', '/suppliers')
-    ]);
-
-    return suppliersRoute;
+    return clientsRoute;
 };

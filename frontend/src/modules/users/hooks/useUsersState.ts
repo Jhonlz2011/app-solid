@@ -15,7 +15,6 @@ import { useDataTable } from '@shared/hooks/useDataTable';
 import { useDataTableSSE } from '@shared/hooks/useDataTableSSE';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { RealtimeEvents } from '@app/schema/realtime-events';
-import type { PanelSearch } from '@shared/types/search-params.types';
 
 import {
     useRoles, useUsers, useDeleteRole,
@@ -137,11 +136,10 @@ export function useUsersState() {
     };
 
     // ─── Navigation handlers ────────────────────────────────────
-    const panelSearch = (): PanelSearch => (search() as PanelSearch) ?? {};
-    const handleNewUser = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'new', id: undefined }) } as any);
-    const handleViewUser = (u: UserWithRoles) => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'show', id: u.id }) } as any);
-    const handleEditUser = (u: UserWithRoles) => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'edit', id: u.id }) } as any);
-    const handleClosePanel = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: undefined, id: undefined, from: undefined }) } as any);
+    const handleNewUser = () => navigate({ to: '/users/new', search: true });
+    const handleViewUser = (u: UserWithRoles) => navigate({ to: `/users/${u.id}`, search: true });
+    const handleEditUser = (u: UserWithRoles) => navigate({ to: `/users/${u.id}/edit`, search: true });
+    const handleClosePanel = () => navigate({ to: '/users', search: true });
     const handleCloseModal = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, modal: undefined, modalId: undefined, fromModal: undefined }) } as any);
 
     const handleRestore = (user: UserWithRoles) => {
@@ -264,7 +262,7 @@ export function useUsersState() {
         activeTab, handleTabChange, auth,
 
         // Panel (searchParams-driven sheets)
-        panelSearch, handleClosePanel, handleCloseModal,
+        handleClosePanel, handleCloseModal,
 
         // Users data
         usersQuery, users, usersMeta, totalUsers, selectedActiveCount, selectedInactiveCount,

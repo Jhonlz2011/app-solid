@@ -70,7 +70,6 @@ export const authUserRoles = pgTableV2("auth_user_roles", {
     index("idx_user_roles_by_role").on(t.role_id),
 ]);
 
-
 // --- 9. MENU SYSTEM (Dynamic Menus) ---
 export const authMenuItems = pgTableV2("auth_menu_items", {
     id: smallint("id").generatedAlwaysAsIdentity().primaryKey(),

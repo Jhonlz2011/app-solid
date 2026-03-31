@@ -85,6 +85,11 @@ export const SupplierBodySchema = Type.Object({
 export const EntityBodySchema = SupplierBodySchema;
 
 export const SupplierUpdateSchema = Type.Partial(Type.Omit(SupplierBodySchema, ['taxId', 'taxIdType']));
+export const EntityUpdateSchema = SupplierUpdateSchema;
+
+// Client schemas (aliases to Entity schema)
+export const ClientBodySchema = EntityBodySchema;
+export const ClientUpdateSchema = EntityUpdateSchema;
 
 // --- PRODUCTS ---
 export const ProductSelect = createSelectSchema(tables.products);

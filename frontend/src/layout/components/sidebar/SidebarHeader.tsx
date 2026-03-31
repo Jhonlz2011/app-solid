@@ -73,7 +73,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                         <button
                             onClick={props.toggleCollapse}
                             class="hidden sm:flex items-center justify-center text-muted hover:bg-card-alt hover:text-heading p-2 rounded-lg
-                                   focus-visible:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
+                                   focus-visible:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent cursor-pointer"
                             title="Colapsar sidebar"
                             aria-label="Colapsar sidebar">
                             <SidebarCollapseIcon class="size-5" />

@@ -4,14 +4,14 @@
  * Extracted from UsersRolesPage for reusability and testability.
  * Creates column definitions with proper handlers.
  */
-import { Show } from 'solid-js';
-import { For } from 'solid-js';
+import { Show, For } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { UserWithRoles } from '../models/users.types';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { Avatar } from '@shared/ui/Avatar';
-import { RoleBadge, StatusBadge } from '@shared/ui/Badge';
+import { RoleBadge, StatusBadge, EntityTypeBadge } from '@shared/ui/Badge';
+import { formatSessionDate } from '@shared/utils/session.utils';
 import Checkbox from '@shared/ui/Checkbox';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
@@ -26,8 +26,6 @@ export interface ColumnFilterConfig {
 }
 
 export interface UserColumnHandlers {
-    onView: (user: UserWithRoles) => void;
-    onEdit: (user: UserWithRoles) => void;
     onDelete: (user: UserWithRoles) => void;
     onRestore: (user: UserWithRoles) => void;
     onRoleBadgeClick?: (role: { id: number; name: string }) => void;
@@ -87,8 +85,7 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
             ),
             cell: (info) => (
                 <Link
-                    to="."
-                    search={(prev: any) => ({ ...prev, panel: 'show', id: info.row.original.id })}
+                    to={`/users/${info.row.original.id}/show`}
                     preload="intent"
                     class="flex items-center gap-3 min-w-0 pl-2 cursor-pointer group/cell"
                     onClick={(e) => e.stopPropagation()}
@@ -164,19 +161,18 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
                 if (!name) {
                     return <span class="text-muted text-sm italic">Sin entidad</span>;
                 }
-                const modalName = user.entityIsSupplier ? 'showSupplier'
-                    : user.entityIsClient ? 'showClient'
-                    : user.entityIsEmployee ? 'showEmployee'
-                    : undefined;
+                const isSupplier = user.entityIsSupplier;
+                // Currently deeply nested modaling is only fully implemented for Suppliers.
+                // Clients and Employees will link here once their respective route factories exist.
+                const hasModal = isSupplier && user.entityId;
 
                 return (
                     <div class="flex flex-col gap-0.5 min-w-0">
-                        <Show when={modalName && user.entityId}
+                        <Show when={hasModal}
                             fallback={<span class="text-sm text-text truncate font-medium" title={name}>{name}</span>}
                         >
                             <Link
-                                to="."
-                                search={(prev: any) => ({ ...prev, modal: modalName, modalId: user.entityId })}
+                                to={`/users/supplier/${user.entityId}/show`}
                                 preload="intent"
                                 class="text-sm text-text hover:text-primary hover:underline truncate font-medium"
                                 title={`Ver detalles de ${name}`}
@@ -190,13 +186,13 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
                         </Show>
                         <div class="flex gap-1 mt-0.5">
                             <Show when={user.entityIsClient}>
-                                <span class="text-[9px] px-1.5 py-px rounded bg-emerald-500/10 text-emerald-600 font-semibold">Cli</span>
+                                <EntityTypeBadge type="client" />
                             </Show>
                             <Show when={user.entityIsSupplier}>
-                                <span class="text-[9px] px-1.5 py-px rounded bg-amber-500/10 text-amber-600 font-semibold">Prov</span>
+                                <EntityTypeBadge type="supplier" />
                             </Show>
                             <Show when={user.entityIsEmployee}>
-                                <span class="text-[9px] px-1.5 py-px rounded bg-primary/10 text-primary font-semibold">Emp</span>
+                                <EntityTypeBadge type="employee" />
                             </Show>
                         </div>
                     </div>
@@ -245,9 +241,7 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
                 if (!val) return <span class="text-muted text-xs">Nunca</span>;
                 return (
                     <span class="text-sm text-muted">
-                        {new Date(val).toLocaleDateString('es-EC', {
-                            day: '2-digit', month: 'short', year: 'numeric'
-                        })}
+                        {formatSessionDate(val)}
                     </span>
                 );
             },
@@ -267,8 +261,8 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
                     <ActionMenu
                         module="users"
                         isActive={user.isActive ?? false}
-                        showSearch={(prev: any) => ({ ...prev, panel: 'show', id: user.id })}
-                        editSearch={(prev: any) => ({ ...prev, panel: 'edit', id: user.id })}
+                        showTo={`/users/${user.id}/show`}
+                        editTo={`/users/${user.id}/edit`}
                         onRestore={() => handlers.onRestore(user)}
                         onDelete={() => handlers.onDelete(user)}
                     />

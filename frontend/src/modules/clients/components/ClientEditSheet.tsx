@@ -1,8 +1,6 @@
 import { Component, Show } from 'solid-js';
-import { useParams } from '@tanstack/solid-router';
-import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
-import { useSupplier, useUpdateSupplier } from '../data/suppliers.api';
+import { useClient, useUpdateClient } from '../data/clients.api';
 import { EntityForm } from '@shared/forms/entity';
 import type { EntityFormData } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
@@ -11,32 +9,41 @@ import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 
-interface SupplierEditSheetProps {
-    supplierId?: number;
-    onClose?: () => void;
+interface ClientEditSheetProps {
+    clientId: number;
+    onClose: () => void;
     onBack?: () => void;
 }
 
-const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
-    const params = useParams({ strict: false }) as () => any;
-    const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-    const supplierId = () => props.supplierId ?? Number(params()?.supplierId);
+const ClientEditSheet: Component<ClientEditSheetProps> = (props) => {
+    const clientId = () => props.clientId;
 
-    const supplierQuery = useSupplier(supplierId);
-    const updateMutation = useUpdateSupplier();
+    const clientQuery = useClient(clientId);
+    const updateMutation = useUpdateClient();
+
+    let dismissSheet: () => void;
+
+    const handleClose = () => {
+        if (dismissSheet) dismissSheet();
+        else {
+            if (props.onBack) props.onBack();
+            else props.onClose();
+        }
+    };
 
     const handleSubmit = async (data: EntityFormData) => {
-        if (supplierId() === 0) return;
+        if (clientId() === 0) return;
 
         try {
-            // Remove taxId and taxIdType as they are not allowed by SupplierUpdateSchema in backend
+            // Remove taxId and taxIdType as they are not allowed by ClientUpdateSchema in backend
             const { taxId, taxIdType, ...updateData } = data;
-            await updateMutation.mutateAsync({ id: supplierId(), data: updateData });
-            toast.success('Proveedor actualizado correctamente');
+            await updateMutation.mutateAsync({ id: clientId(), data: updateData });
+            toast.success('Cliente actualizado correctamente');
+            handleClose();
         } catch (error: any) {
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
             if (!hasFieldErrors) {
-                toast.error(error?.message || 'Error al editar proveedor');
+                toast.error(error?.message || 'Error al editar cliente');
             }
             throw error;
         }
@@ -44,16 +51,16 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
 
     return (
         <Sheet
-            bindDismiss={bindDismiss}
+            bindDismiss={(fn) => dismissSheet = fn}
             isOpen={true}
-            onClose={navigateAway}
+            onClose={props.onClose}
             onBack={props.onBack}
-            title="Editar Proveedor"
-            description="Modifica los datos del proveedor"
+            title="Editar Cliente"
+            description="Modifica los datos del cliente"
             size="xxxxl"
             footer={
                 <>
-                    <Button variant="outline" type="button" onClick={close} disabled={updateMutation.isPending}>
+                    <Button variant="outline" type="button" onClick={handleClose} disabled={updateMutation.isPending}>
                         Cancelar
                     </Button>
                     <Button
@@ -70,17 +77,17 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
             }
         >
             <Show
-                when={supplierId() > 0}
+                when={clientId() > 0}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center">
                         <div class="text-4xl mb-4">🔍</div>
-                        <p class="text-muted">ID de proveedor inválido</p>
+                        <p class="text-muted">ID de cliente inválido</p>
                         <p class="text-sm text-muted/70 mt-1">Verifica la URL e intenta de nuevo</p>
                     </div>
                 }
             >
                 <Show
-                    when={!supplierQuery.isLoading}
+                    when={!clientQuery.isLoading}
                     fallback={
                         <div class="space-y-6 p-2">
                             <SkeletonLoader type="text" count={2} />
@@ -90,19 +97,19 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
                     }
                 >
                     <Show
-                        when={supplierQuery.data}
+                        when={clientQuery.data}
                         fallback={
                             <div class="flex flex-col items-center justify-center py-12 text-center">
                                 <div class="text-4xl mb-4">📭</div>
-                                <p class="text-muted">No se encontró el proveedor</p>
+                                <p class="text-muted">No se encontró el cliente</p>
                             </div>
                         }
                     >
                         <EntityForm
-                            entity={supplierQuery.data}
+                            entity={clientQuery.data}
                             onSubmit={handleSubmit}
                             isSubmitting={updateMutation.isPending}
-                            lockedRoles={{ isSupplier: true }}
+                            lockedRoles={{ isClient: true }}
                         />
                     </Show>
                 </Show>
@@ -111,4 +118,4 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
     );
 };
 
-export default SupplierEditSheet;
+export default ClientEditSheet;

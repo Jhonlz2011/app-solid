@@ -1,9 +1,10 @@
 import { createRoute, redirect } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
-import { validatePanelSearch } from '@shared/types/search-params.types';
 import { rbacKeys } from './data/users.keys';
 import { usersApi } from './data/users.api';
+import { createUserModals } from '@shared/routes/user-modals.factory';
+import { createSupplierModals } from '@shared/routes/suppliers-modals.factory';
 
 // ─── Lazy page ──────────────────────────────────────────────────────────────
 import { lazyRouteComponent } from '@tanstack/solid-router';
@@ -14,16 +15,14 @@ export const createUsersRoutes = (layoutRoute: any) => {
     const usersRoute = createRoute({
         getParentRoute: () => layoutRoute,
         path: 'users',
-        validateSearch: validatePanelSearch,
         beforeLoad: async () => {
             const { useAuth } = await import('@modules/auth/store/auth.store');
             if (!useAuth().canRead('users')) {
                 throw redirect({ to: '/dashboard' });
             }
         },
-        loaderDeps: () => ({}),
         loader: async () => {
-            // Prefetch first page of users + all roles in parallel
+            // B) Parallel Query Prefetching
             return await Promise.all([
                 queryClient.prefetchQuery({
                     queryKey: rbacKeys.list({ page: 1, limit: 15 }),
@@ -40,6 +39,12 @@ export const createUsersRoutes = (layoutRoute: any) => {
         pendingComponent: GlobalPageLoader,
         component: UsersRolesPage,
     });
+
+    // Inject deep nested modals
+    usersRoute.addChildren([
+        ...createUserModals(usersRoute),
+        ...createSupplierModals(usersRoute, 'supplier', '/users')
+    ]);
 
     return usersRoute;
 };

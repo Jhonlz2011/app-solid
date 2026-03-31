@@ -192,7 +192,7 @@ export const usersApi = {
     // ─── Entities (for picker) ───────────────────────────────────
     listEntities: async (search?: string): Promise<EntityPickerItem[]> => {
         const { data, error } = await api.api.entities.get({
-            query: { limit: 200, search },
+            query: { limit: 10, search },
         });
         if (error) throwApiError(error);
         return (data ?? []) as EntityPickerItem[];

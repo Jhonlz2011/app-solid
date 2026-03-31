@@ -7,7 +7,7 @@ export interface IconProps extends JSX.SvgSVGAttributes<SVGSVGElement> {
 
 // export const UserHistoryIcon: Component<IconProps> = (props) => (
 //     <BaseIcon {...props}>
-       
+
 //         <path d="M11 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z M3 20v-1a4 4 0 0 1 4-4h2 M22 15a5 5 0 1 1-10 0 5 5 0 0 1 10 0z M17 12.5v2.5l1.5 1.5" />
 //     </BaseIcon>
 // );
@@ -38,7 +38,7 @@ export const BriefcaseIcon: Component<IconProps> = (props) => (
 
 const BaseIcon = (props: IconProps & { children: JSX.Element }) => {
     // Separamos 'class' y 'children' para manejarlos manualmente, el resto se pasa directo (...others)
-const [local, others] = splitProps(props, ['class', 'children', 'strokeWidth']);
+    const [local, others] = splitProps(props, ['class', 'children', 'strokeWidth']);
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -144,7 +144,6 @@ export const FilterIcon: Component<IconProps> = (props) => (
     </BaseIcon>
 );
 
-// Entity icons
 export const UsersIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>
         <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -183,7 +182,6 @@ export const XIcon: Component<IconProps> = (props) => (
     </BaseIcon>
 );
 
-// Sidebar specific icons
 export const UserIcon: Component<IconProps> = (props) => (
     <BaseIcon class="size-4" {...props}>
         <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -216,7 +214,7 @@ export const AlertCircleIcon: Component<IconProps> = (props) => (
 // );
 export const IdCardIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>
-        <path d="M13.5 8h-3"/><path d="m15 2-1 2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3"/><path d="M16.899 22A5 5 0 0 0 7.1 22"/><path d="m9 2 3 6"/><circle cx="12" cy="15" r="3"/>
+        <path d="M13.5 8h-3" /><path d="m15 2-1 2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3" /><path d="M16.899 22A5 5 0 0 0 7.1 22" /><path d="m9 2 3 6" /><circle cx="12" cy="15" r="3" />
     </BaseIcon>
 );
 
@@ -325,7 +323,7 @@ export const ScalesIcon: Component<IconProps> = (props) => (
     </BaseIcon>
 );
 
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scale-icon lucide-scale"><path d="M12 3v18"/><path d="m19 8 3 8a5 5 0 0 1-6 0zV7"/><path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1"/><path d="m5 8 3 8a5 5 0 0 1-6 0zV7"/><path d="M7 21h10"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scale-icon lucide-scale"><path d="M12 3v18" /><path d="m19 8 3 8a5 5 0 0 1-6 0zV7" /><path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1" /><path d="m5 8 3 8a5 5 0 0 1-6 0zV7" /><path d="M7 21h10" /></svg>
 
 
 // Download icon
