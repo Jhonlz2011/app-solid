@@ -8,8 +8,9 @@
  */
 import { Component, createMemo, onMount, onCleanup, For, Show } from 'solid-js';
 import type { RowSelectionState } from '@tanstack/solid-table';
-import { useInfiniteClients } from '../data/clients.api';
-import type { ClientListItem, ClientFilters } from '../data/clients.api';
+import { useInfiniteClients } from '../data/clients.queries';
+import type { ClientListItem } from '../data/clients.api';
+import type { EntityFilters as ClientFilters } from '@app/schema/shared-dto';
 import { ClientCard } from './ClientCard';
 import { Skeleton } from '@shared/ui/Skeleton';
 import { EmptyState } from '@shared/ui/EmptyState';
@@ -21,8 +22,6 @@ export interface ClientCardListProps {
     filters: () => MobileFilters;
     rowSelection: () => RowSelectionState;
     onRowSelectionChange: (sel: RowSelectionState) => void;
-    onView: (client: ClientListItem) => void;
-    onEdit: (client: ClientListItem) => void;
     onDelete: (client: ClientListItem) => void;
     onRestore: (client: ClientListItem) => void;
 }
@@ -101,8 +100,8 @@ export const ClientCardList: Component<ClientCardListProps> = (props) => {
                                     else delete next[id];
                                     props.onRowSelectionChange(next);
                                 }}
-                                onView={props.onView}
-                                onEdit={props.onEdit}
+                                // onView={props.onView}
+                                // onEdit={props.onEdit}
                                 onDelete={props.onDelete}
                                 onRestore={props.onRestore}
                             />

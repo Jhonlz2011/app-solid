@@ -1,12 +1,9 @@
 import { Component, createSignal } from 'solid-js';
 import { useAuth } from '@/modules/auth/store/auth.store';
-import {
-    useDeleteSupplier,
-    useHardDeleteSupplier,
-    useCheckSupplierReferences,
-    type SupplierListItem,
-    type SupplierReferences,
-} from '../data/suppliers.api';
+import { useCheckSupplierReferences } from '../data/suppliers.queries';
+import { useDeleteSupplier, useHardDeleteSupplier } from '../data/suppliers.mutations';
+import type { SupplierListItem } from '../data/suppliers.api';
+import type { EntityReferences } from '@app/schema/shared-dto';
 import DeleteDialog from '@shared/ui/DeleteDialog';
 
 export interface SupplierDeleteDialogProps {
@@ -32,7 +29,10 @@ const SupplierDeleteDialog: Component<SupplierDeleteDialogProps> = (props) => {
     const hardDeleteMutation = useHardDeleteSupplier();
 
     const isLoading = () => deactivateMutation.isPending || hardDeleteMutation.isPending;
-    const hasReferences = () => (refsQuery.data?.total ?? 0) > 0;
+    const hasReferences = () => {
+        if (refsQuery.isPending) return false;
+        return (refsQuery.data?.total ?? 0) > 0;
+    };
 
     const handleConfirm = (confirmedMode: 'soft' | 'hard') => {
         if (!props.supplier) return;
@@ -45,7 +45,8 @@ const SupplierDeleteDialog: Component<SupplierDeleteDialogProps> = (props) => {
     };
 
     const referenceLines = () => {
-        const data = refsQuery.data as SupplierReferences | undefined;
+        if (refsQuery.isPending) return [];
+        const data = refsQuery.data as EntityReferences | undefined;
         if (!data) return [];
         const lines: string[] = [];
         if (data.supplierProducts > 0) lines.push(`${data.supplierProducts} producto(s) vinculado(s)`);

@@ -2,8 +2,9 @@
 import { Component, Show, onMount, onCleanup, createMemo } from 'solid-js';
 import { useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
-import { actions as authActions } from '@modules/auth/store/auth.store';
-import { useProfile, useUpdateProfile, useChangePassword, profileKeys } from '../data/profile.api';
+import { useProfile } from '../data/profile.queries';
+import { useUpdateProfile, useChangePassword } from '../data/profile.mutations';
+import { profileKeys } from '../data/profile.keys';
 import { ScrollArea } from '@/layout/components/ScrollArea';
 import { ProfileHeader, ProfileHeaderSkeleton } from '../components/ProfileHeader';
 import { AccountSection } from '../components/AccountSection';
@@ -59,14 +60,9 @@ const ProfilePage: Component = () => {
 
     const handleUpdateProfile = async (data: { username?: string; email?: string }) => {
         try {
-            const result = await updateProfileMutation.mutateAsync(data);
-            if (result.success) {
-                // Update auth store immediately for sidebar reactivity + broadcast to other tabs
-                authActions.updateUser(data);
-                // Invalidate query in background (won't cause flash because we don't use keyed)
-                queryClient.invalidateQueries({ queryKey: profileKeys.me() });
-                toast.success('Perfil actualizado correctamente');
-            }
+            await updateProfileMutation.mutateAsync(data);
+            // authActions.updateUser + queryClient.invalidateQueries handled by mutation onSuccess
+            toast.success('Perfil actualizado correctamente');
         } catch (error: any) {
             toast.error(error?.message || 'Error al actualizar el perfil');
             throw error;

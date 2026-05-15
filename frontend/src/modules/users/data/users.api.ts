@@ -2,16 +2,11 @@
  * users.api.ts — Unified Data API
  *
  * Contains strictly the Eden API fetchers for the Users module.
+ * All response types are inferred from backend response schemas — no `as any` casts.
  */
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { 
-    RoleBody, 
-    UsersFilters, 
-    UserSession, 
-    EntityPickerItem,
-    AuditLogResponse,
-} from '../models/users.types';
+import type { RoleBody, UsersFilters } from '../models/users.types';
 
 export const usersApi = {
     // ─── Roles ───────────────────────────────────────────────────
@@ -106,24 +101,28 @@ export const usersApi = {
     },
 
     deactivateUser: async (id: number) => {
-        const { error } = await (api.api.rbac.users as any)({ id }).deactivate.patch();
-        if (error) throw new Error(String(error.value));
+        const userPath = api.api.rbac.users({ id });
+        const { error } = await userPath.deactivate.patch();
+        if (error) throwApiError(error);
     },
 
     restoreUser: async (id: number) => {
-        const { error } = await (api.api.rbac.users as any)({ id }).restore.patch();
-        if (error) throw new Error(String(error.value));
+        const userPath = api.api.rbac.users({ id });
+        const { error } = await userPath.restore.patch();
+        if (error) throwApiError(error);
     },
 
     hardDeleteUser: async (id: number) => {
-        const { error } = await (api.api.rbac.users as any)({ id }).delete();
-        if (error) throw new Error(String(error.value));
+        const userPath = api.api.rbac.users({ id });
+        const { error } = await userPath.delete();
+        if (error) throwApiError(error);
     },
 
     canDeleteUser: async (id: number) => {
-        const { data, error } = await (api.api.rbac.users as any)({ id })['can-delete'].get();
-        if (error) throw new Error(String(error.value));
-        return data;
+        const userPath = api.api.rbac.users({ id });
+        const { data, error } = await userPath['can-delete'].get();
+        if (error) throwApiError(error);
+        return data!;
     },
 
     // ─── User Roles ──────────────────────────────────────────────
@@ -147,23 +146,23 @@ export const usersApi = {
     },
 
     bulkDeactivateUsers: async (ids: number[]) => {
-        const { data, error } = await (api.api.rbac.users.bulk.delete as any).post({ ids });
+        const { data, error } = await api.api.rbac.users.bulk.delete.post({ ids });
         if (error) throwApiError(error);
         return data!;
     },
 
     bulkRestoreUsers: async (ids: number[]) => {
-        const { data, error } = await (api.api.rbac.users.bulk.restore as any).patch({ ids });
+        const { data, error } = await api.api.rbac.users.bulk.restore.patch({ ids });
         if (error) throwApiError(error);
         return data!;
     },
 
     // ─── User Sessions (Admin) ───────────────────────────────────
-    getUserSessions: async (userId: number): Promise<UserSession[]> => {
+    getUserSessions: async (userId: number) => {
         const userPath = api.api.rbac.users({ id: userId });
         const { data, error } = await userPath.sessions.get();
         if (error) throwApiError(error);
-        return data as unknown as UserSession[];
+        return data!;
     },
 
     revokeUserSession: async (userId: number, sessionId: string) => {
@@ -190,19 +189,19 @@ export const usersApi = {
     },
 
     // ─── Entities (for picker) ───────────────────────────────────
-    listEntities: async (search?: string): Promise<EntityPickerItem[]> => {
+    listEntities: async (search?: string) => {
         const { data, error } = await api.api.entities.get({
             query: { limit: 10, search },
         });
         if (error) throwApiError(error);
-        return (data ?? []) as EntityPickerItem[];
+        return data ?? [];
     },
 
     // ─── User Audit Log ──────────────────────────────────────────
-    getUserAuditLog: async (userId: number, page = 1, limit = 20): Promise<AuditLogResponse> => {
+    getUserAuditLog: async (userId: number, page = 1, limit = 20) => {
         const userPath = api.api.rbac.users({ id: userId });
         const { data, error } = await userPath['audit-log'].get({ query: { page, limit } });
         if (error) throwApiError(error);
-        return data as unknown as AuditLogResponse;
+        return data!;
     },
 };

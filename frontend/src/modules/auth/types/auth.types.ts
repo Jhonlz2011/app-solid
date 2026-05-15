@@ -1,37 +1,20 @@
-import type { AuthLoginDto } from '@app/schema/frontend';
+/**
+ * auth.types.ts — Centralized types for Auth module
+ *
+ * User type unified with ProfileDto (single source of truth).
+ * No more manual interfaces — everything derived from shared DTOs.
+ */
+import type { ProfileDto } from '@app/schema/profile-dto';
 import type { AuthUserResponseType } from '@app/schema/backend';
 
-// Inferred from shared schema — stays in sync with backend automatically
-export type User = AuthUserResponseType & {
-    sessionId?: string;  // Returned by /me for WS revoke comparison
-};
+// User in auth store = ProfileDto shape (includes sessionId after getMe/login merge)
+export type User = ProfileDto;
 
-export type LoginRequest = AuthLoginDto;
-
+// Login response: user (without sessionId) at root + sessionId separate
 export interface LoginResponse {
-    user: User;
+    user: AuthUserResponseType;
     sessionId: string;
 }
 
-export interface ApiError {
-    error: string;
-    message?: string;
-}
-
-export class AuthError extends Error {
-    constructor(input: unknown, defaultMsg: string = 'Error de autenticación') {
-        super(AuthError.parse(input, defaultMsg));
-        this.name = 'AuthError';
-    }
-
-    private static parse(input: unknown, fallback: string): string {
-        if (typeof input === 'string') return input;
-        if (typeof input === 'object' && input !== null) {
-            const obj = input as Record<string, unknown>;
-            if (typeof obj.error === 'string') return obj.error;
-            if (typeof obj.summary === 'string') return obj.summary;
-            if (typeof obj.message === 'string') return obj.message;
-        }
-        return fallback;
-    }
-}
+// Re-export for consumers (Login.tsx)
+export { AuthError } from './auth-error';

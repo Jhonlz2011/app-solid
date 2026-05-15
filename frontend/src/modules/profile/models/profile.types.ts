@@ -1,39 +1,12 @@
-// Profile Types for My Account Page
+/**
+ * profile.types.ts — Centralized Types for Profile module
+ *
+ * All types re-exported from @app/schema shared DTOs.
+ */
 
-import type { Entity } from '@app/schema/types';
-
-export interface Profile {
-    id: number;
-    email: string;
-    username: string;
-    entityId: number | null;
-    isActive: boolean;
-    lastLogin: string | null;
-    roles: string[];
-    permissions: string[];
-    entity: Entity | null;
-}
-
-export interface UpdateProfileRequest {
-    username?: string;
-    email?: string;
-}
-
-export interface UpdateProfileResponse {
-    success: boolean;
-    message?: string;
-    user?: {
-        id: number;
-        email: string;
-        username: string;
-    };
-}
-
-export interface ChangePasswordRequest {
-    currentPassword: string;
-    newPassword: string;
-}
-
-export interface ChangePasswordResponse {
-    success: boolean;
-}
+// ─── Re-exports from shared DTOs (single source of truth) ──────────────────
+export type { ProfileDto as Profile } from '@app/schema/profile-dto';
+export type { ProfileEntityDto as ProfileEntity } from '@app/schema/profile-dto';
+export type { UpdateProfileResponseDto as UpdateProfileResponse } from '@app/schema/profile-dto';
+export type { SessionDto as Session } from '@app/schema/profile-dto';
+export type { SuccessDto } from '@app/schema/profile-dto';

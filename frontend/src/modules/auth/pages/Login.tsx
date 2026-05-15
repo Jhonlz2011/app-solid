@@ -129,7 +129,11 @@ const Login: Component = () => {
         />
 
         <div class="text-sm text-muted mt-2 text-center">
-          ¿Problemas para ingresar? Contacta al administrador.
+          ¿No tienes cuenta?{' '}
+          <a href="/register" class="text-primary hover:underline font-medium"
+             onClick={(e) => { e.preventDefault(); navigate({ to: '/register' }); }}>
+            Regístrate
+          </a>
         </div>
       </form>
     </div>

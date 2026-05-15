@@ -94,12 +94,21 @@ export const ClientUpdateSchema = EntityUpdateSchema;
 // --- PRODUCTS ---
 export const ProductSelect = createSelectSchema(tables.products);
 export const ProductInsert = createInsertSchema(tables.products, {
-    sku: Type.String({ minLength: 1, maxLength: 50 }),
+    slug: Type.String({ minLength: 1, maxLength: 50 }),
     name: Type.String({ minLength: 1 }),
 });
 
 export type ProductSelectType = Static<typeof ProductSelect>;
 export type ProductInsertType = Static<typeof ProductInsert>;
+
+// --- PRODUCT VARIANTS ---
+export const ProductVariantSelect = createSelectSchema(tables.productVariants);
+export const ProductVariantInsert = createInsertSchema(tables.productVariants, {
+    sku: Type.String({ minLength: 1, maxLength: 50 }),
+});
+
+export type ProductVariantSelectType = Static<typeof ProductVariantSelect>;
+export type ProductVariantInsertType = Static<typeof ProductVariantInsert>;
 
 // --- ENTITIES ---
 export const EntitySelect = createSelectSchema(tables.entities);
@@ -107,6 +116,37 @@ export const EntityInsert = createInsertSchema(tables.entities, {
     tax_id: Type.String({ minLength: 10, maxLength: 13 }),
     business_name: Type.String({ minLength: 3 }),
 });
+
+// --- CATEGORIES ---
+export const CategoryAttributeEntrySchema = Type.Object({
+    attributeDefId: Type.Number(),
+    required: Type.Optional(Type.Boolean()),
+    order: Type.Optional(Type.Number()),
+    specificOptions: Type.Optional(Type.Any()),
+});
+
+export const CategoryBodySchema = Type.Object({
+    name: Type.String({ minLength: 1 }),
+    parentId: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    description: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    icon: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    nameTemplate: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    sortOrder: Type.Optional(Type.Number()),
+    attributes: Type.Optional(Type.Array(CategoryAttributeEntrySchema)),
+});
+
+export const CategoryUpdateSchema = Type.Partial(Type.Object({
+    name: Type.String(),
+    parentId: Type.Union([Type.Number(), Type.Null()]),
+    description: Type.Union([Type.String(), Type.Null()]),
+    icon: Type.Union([Type.String(), Type.Null()]),
+    nameTemplate: Type.Union([Type.String(), Type.Null()]),
+    sortOrder: Type.Number(),
+    attributes: Type.Array(CategoryAttributeEntrySchema),
+}));
+
+export type CategoryBodyType = Static<typeof CategoryBodySchema>;
+export type CategoryUpdateType = Static<typeof CategoryUpdateSchema>;
 
 // --- WORK ORDERS ---
 export const WorkOrderSelect = createSelectSchema(tables.workOrders);
@@ -125,9 +165,23 @@ export type AuthUserInsertType = Static<typeof AuthUserInsert>;
 
 // --- AUTH DTOs (API Contracts) ---
 export const AuthRegisterDto = Type.Object({
+    // Step 1: User → stored in entities + authUsers
+    fullName: Type.String({ minLength: 3 }),
     email: Type.String({ format: 'email' }),
     password: Type.String({ minLength: 8 }),
-    username: Type.Optional(Type.String({ minLength: 3 })),
+    phone: Type.Optional(Type.String()),
+    cedula: Type.Optional(Type.String()),
+    // Step 2: Company → stored in companies
+    slug: Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9-]+$' }),
+    ruc: Type.String({ minLength: 13, maxLength: 13 }),
+    businessName: Type.String({ minLength: 3 }),
+    tradeName: Type.Optional(Type.String()),
+    businessType: Type.Optional(Type.String()),
+    mainAddress: Type.Optional(Type.String()),
+    // Fiscal
+    obligadoContabilidad: Type.Optional(Type.Boolean()),
+    contribuyenteEspecial: Type.Optional(Type.String()),
+    taxRegime: Type.Optional(Type.String()),
 });
 
 export const AuthLoginDto = Type.Object({
@@ -156,9 +210,9 @@ export const PublicUser = Type.Object({
     id: Type.Number(),
     username: Type.String(),
     email: Type.String(),
-    is_active: Type.Union([Type.Boolean(), Type.Null()]),
-    last_login: Type.Union([Type.Date(), Type.Null()]),
-    entity_id: Type.Union([Type.Number(), Type.Null()]),
+    isActive: Type.Union([Type.Boolean(), Type.Null()]),
+    lastLogin: Type.Union([Type.Date(), Type.Null()]),
+    entityId: Type.Union([Type.Number(), Type.Null()]),
 });
 
 // We need to extend it to include relations that are not in the base table schema but returned by service

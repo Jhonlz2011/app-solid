@@ -1,6 +1,7 @@
 // Reusable DataTable with TanStack Table + Virtual Scrolling + Pagination
 import {
     For,
+    Index,
     Show,
     JSX,
     createSignal,
@@ -344,7 +345,7 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
     const pageSizes = () => local.pageSizeOptions ?? [10, 20, 30, 50];
 
     return (
-        <div class={`flex flex-col h-full ${local.class ?? ''} ${local.isPlaceholderData ? 'opacity-60 pointer-events-none' : ''}`}>
+        <div class={`flex flex-col h-full ${local.class ?? ''}`}>
             {/* Table Container with Virtual Scroll */}
             <div
                 ref={tableContainerRef}
@@ -430,16 +431,17 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
                                 <Show
                                     when={local.enableVirtualization && rowVirtualizer()}
                                     fallback={
-                                        // Non-virtualized rows
-                                        <For each={table.getRowModel().rows}>
+                                        // Non-virtualized rows — <Index> tracks by position,
+                                        // preserving DOM nodes (and scroll) when data changes.
+                                        <Index each={table.getRowModel().rows}>
                                             {(row) => (
                                                 <DataTableRow
-                                                    row={row}
+                                                    row={row()}
                                                     onRowClick={local.onRowClick}
                                                     onRowHover={local.onRowHover}
                                                 />
                                             )}
-                                        </For>
+                                        </Index>
                                     }
                                 >
                                     {/* Virtualized rows */}

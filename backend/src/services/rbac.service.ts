@@ -151,7 +151,7 @@ async function ensureNotLastSuperadmin(userId: number): Promise<void> {
 /**
  * Get all roles with user count
  */
-export async function getAllRoles() {
+export async function getAllRoles(companyId: number) {
     const roles = await db
         .select({
             id: authRoles.id,
@@ -160,6 +160,7 @@ export async function getAllRoles() {
             is_system: authRoles.is_system,
         })
         .from(authRoles)
+        .where(eq(authRoles.company_id, companyId))
         .orderBy(authRoles.name);
 
     // Get user + permission counts per role in parallel
@@ -183,9 +184,9 @@ export async function getAllRoles() {
 /**
  * Create a new role
  */
-export async function createRole(name: string, description?: string, currentUserId?: number) {
+export async function createRole(name: string, description?: string, currentUserId?: number, companyId?: number) {
     const existing = await db.query.authRoles.findFirst({
-        where: eq(authRoles.name, name),
+        where: and(eq(authRoles.company_id, companyId!), eq(authRoles.name, name)),
     });
 
     if (existing) {
@@ -194,7 +195,7 @@ export async function createRole(name: string, description?: string, currentUser
 
     const [role] = await db
         .insert(authRoles)
-        .values({ name, description })
+        .values({ name, description, company_id: companyId! })
         .returning();
 
     if (currentUserId) logAudit(currentUserId, 'INSERT', 'auth_roles', role.id, { name, description });
@@ -358,13 +359,14 @@ const USERS_SORT_WHITELIST: Record<string, any> = {
  * Get paginated users with their roles.
  * Returns { data, meta } matching the CacheShape pattern.
  */
-export async function getAllUsersWithRoles(filters: UsersListFilters = {}) {
+export async function getAllUsersWithRoles(filters: UsersListFilters = {}, companyId?: number) {
     const page = Math.max(1, filters.page ?? 1);
     const limit = Math.min(100, Math.max(1, filters.limit ?? 15));
     const offset = (page - 1) * limit;
 
     // ── WHERE conditions ──
     const conditions = [];
+    if (companyId) conditions.push(eq(authUsers.company_id, companyId));
     if (filters.search) {
         const term = `%${filters.search}%`;
         conditions.push(or(ilike(authUsers.username, term), ilike(authUsers.email, term)));
@@ -459,14 +461,15 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}) {
 /**
  * Get faceted filter values + counts for users (is_active, roles)
  */
-export async function getUserFacets(filters: { search?: string; isActive?: string[]; roles?: string[] }) {
-    const cacheKey = `rbac:facets:users:${JSON.stringify(filters)}`;
+export async function getUserFacets(filters: { search?: string; isActive?: string[]; roles?: string[] }, companyId?: number) {
+    const cacheKey = `rbac:facets:users:${companyId}:${JSON.stringify(filters)}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
         const results: Record<string, { value: string; count: number }[]> = {};
 
         // 1. is_active facet (exclude isActive filter)
-        let activeConditions = [];
+        let activeConditions: any[] = [];
+        if (companyId) activeConditions.push(eq(authUsers.company_id, companyId));
         if (filters.search) {
             const term = `%${filters.search}%`;
             activeConditions.push(or(ilike(authUsers.username, term), ilike(authUsers.email, term)));
@@ -494,7 +497,8 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
         results['isActive'] = activeRows.filter(r => r.value !== null).map(r => ({ value: r.value, count: Number(r.count) }));
 
         // 2. roles facet (exclude roles filter)
-        let rolesConditions = [];
+        let rolesConditions: any[] = [];
+        if (companyId) rolesConditions.push(eq(authUsers.company_id, companyId));
         if (filters.search) {
             const term = `%${filters.search}%`;
             rolesConditions.push(or(ilike(authUsers.username, term), ilike(authUsers.email, term)));
@@ -528,9 +532,11 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
 /**
  * Get a single user by ID with their roles
  */
-export async function getUserById(id: number) {
+export async function getUserById(id: number, companyId?: number) {
+    const conditions = [eq(authUsers.id, id)];
+    if (companyId) conditions.push(eq(authUsers.company_id, companyId));
     const user = await db.query.authUsers.findFirst({
-        where: eq(authUsers.id, id),
+        where: and(...conditions),
         columns: {
             id: true,
             username: true,
@@ -669,10 +675,10 @@ export async function assignUserRoles(userId: number, roleIds: number[], current
 /**
  * Create a new user (admin function)
  */
-export async function createUser(data: { username: string; email: string; password: string; roleIds?: number[] }, currentUserId?: number) {
-    // Check for existing user
+export async function createUser(data: { username: string; email: string; password: string; roleIds?: number[] }, currentUserId?: number, companyId?: number) {
+    // Check for existing user within company
     const existing = await db.query.authUsers.findFirst({
-        where: eq(authUsers.email, data.email),
+        where: and(eq(authUsers.company_id, companyId!), eq(authUsers.email, data.email)),
     });
 
     if (existing) {
@@ -680,7 +686,7 @@ export async function createUser(data: { username: string; email: string; passwo
     }
 
     const existingUsername = await db.query.authUsers.findFirst({
-        where: eq(authUsers.username, data.username),
+        where: and(eq(authUsers.company_id, companyId!), eq(authUsers.username, data.username)),
     });
 
     if (existingUsername) {
@@ -692,6 +698,7 @@ export async function createUser(data: { username: string; email: string; passwo
     const [user] = await db
         .insert(authUsers)
         .values({
+            company_id: companyId!,
             username: data.username,
             email: data.email,
             password_hash,

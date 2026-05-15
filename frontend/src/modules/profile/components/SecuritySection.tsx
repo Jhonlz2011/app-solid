@@ -2,7 +2,7 @@
 import { Component, Show } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
-import { ChangePasswordSchema } from '../models/profile.schemas';
+import { ChangePasswordSchema } from '@app/schema/frontend';
 import { TextField } from '@shared/ui/TextField';
 import Button from '@shared/ui/Button';
 import { AlertCircleIcon, WarningIcon, KeyIcon } from '@shared/ui/icons';

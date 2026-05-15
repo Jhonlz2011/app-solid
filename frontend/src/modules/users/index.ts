@@ -5,6 +5,7 @@
 export * from './data/users.api';
 export * from './data/users.keys';
 export * from './data/users.queries';
+export * from './data/users.mutations';
 
 // Types
 export * from './models/users.types';

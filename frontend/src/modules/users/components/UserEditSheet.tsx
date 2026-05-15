@@ -7,10 +7,11 @@ import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import { useUser, useRoles, useEntitiesList } from '../data/users.queries';
 import {
-    useUser, useUpdateUser, useAssignUserRoles, useRoles,
-    useSetUserEntity, useEntitiesList, useAdminResetPassword,
-} from '../data/users.queries';
+    useUpdateUser, useAssignUserRoles,
+    useSetUserEntity, useAdminResetPassword,
+} from '../data/users.mutations';
 import UserForm from './UserForm';
 import type { EntityOption } from './UserForm';
 

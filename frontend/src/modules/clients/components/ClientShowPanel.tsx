@@ -1,7 +1,7 @@
 import { Component, Show, For } from 'solid-js';
 import { useNavigate, useParams, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
-import { useClient } from '../data/clients.api';
+import { useClient } from '../data/clients.queries';
 import { EditIcon, UserIcon, InfoIcon, MapPinIcon, ScalesIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Button from '@shared/ui/Button';
@@ -256,7 +256,7 @@ const ClientShowPanel: Component<ClientShowPanelProps> = (props) => {
                                                                 </Show>
                                                             </div>
                                                             <div class="grid grid-cols-2 gap-4">
-                                                                <InfoRow label="Ciudad" value={address.city} />
+                                                                <InfoRow label="Ciudad/Cantón" value={address.city} />
                                                                 <InfoRow label="Cód. Postal" value={address.postal_code} />
                                                                 <div class="col-span-2">
                                                                     <div class="flex flex-col gap-1 animate-in fade-in">

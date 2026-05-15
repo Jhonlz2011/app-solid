@@ -3,6 +3,8 @@ import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
 import { createSupplierModals } from '@shared/routes/suppliers.factory';
 import { createUserModals } from '@shared/routes/users.factory';
+import { suppliersApi } from './data/suppliers.api';
+import { supplierKeys } from './data/suppliers.keys';
 
 // --- LAZY PAGE ---
 const SuppliersPage = lazyRouteComponent(() => import('./views/SuppliersPage'));
@@ -20,7 +22,7 @@ export const createSuppliersRoutes = (layoutRoute: any) => {
         },
         loader: async () => {
             // Parallel Fetching: Block route transition until data is pre-fetched
-            const { suppliersApi, supplierKeys } = await import('./data/suppliers.api');
+            // const { suppliersApi, supplierKeys } = await import('./data/suppliers.api');
             const defaultFilters = { limit: 10, direction: 'first' as const };
 
             return await queryClient.prefetchQuery({

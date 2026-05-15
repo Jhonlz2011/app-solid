@@ -106,8 +106,6 @@ const SuppliersPage: Component = () => {
                                 filters={state.filters}
                                 rowSelection={state.rowSelection}
                                 onRowSelectionChange={state.setRowSelection}
-                                onView={state.handleView}
-                                onEdit={state.handleEdit}
                                 onDelete={state.handleDelete}
                                 onRestore={state.handleRestore}
                             />
@@ -220,6 +218,7 @@ const SuppliersPage: Component = () => {
                 confirmLabel="Eliminar" variant="danger"
                 isLoading={state.bulkDeleteMutation.isPending}
             />
+            
             <ConfirmDialog
                 isOpen={state.showBulkRestoreConfirm()}
                 onClose={() => state.setShowBulkRestoreConfirm(false)}

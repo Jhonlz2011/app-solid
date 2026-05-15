@@ -1,10 +1,13 @@
-import { createSignal } from 'solid-js';
+import { createSignal, createRoot } from 'solid-js';
 
-const [isMobileSidebarOpen, setMobileSidebarOpen] = createSignal(false);
+const { isOpen, setOpen } = createRoot(() => {
+    const [isMobileSidebarOpen, setMobileSidebarOpen] = createSignal(false);
+    return { isOpen: isMobileSidebarOpen, setOpen: setMobileSidebarOpen };
+});
 
 export const useMobileSidebar = () => ({
-    isOpen: isMobileSidebarOpen,
-    open: () => setMobileSidebarOpen(true),
-    close: () => setMobileSidebarOpen(false),
-    toggle: () => setMobileSidebarOpen(v => !v),
+    isOpen,
+    open: () => setOpen(true),
+    close: () => setOpen(false),
+    toggle: () => setOpen(v => !v),
 });

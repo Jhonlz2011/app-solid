@@ -17,11 +17,14 @@ import { useAuth } from '@modules/auth/store/auth.store';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 
 import {
-    useRoles, useUsers, useDeleteRole,
-    useDeactivateUser, useRestoreUser,
-    useBulkDeactivateUsers, useBulkRestoreUsers,
+    useRoles, useUsers,
     useUserFacets,
 } from '../data/users.queries';
+import {
+    useDeleteRole,
+    useDeactivateUser, useRestoreUser,
+    useBulkDeactivateUsers, useBulkRestoreUsers,
+} from '../data/users.mutations';
 import { rbacKeys } from '../data/users.keys';
 import { usersApi } from '../data/users.api';
 import { type UserWithRoles, type Role, type UsersFilters } from '../models/users.types';
@@ -136,11 +139,11 @@ export function useUsersState() {
     };
 
     // ─── Navigation handlers ────────────────────────────────────
-    const handleNewUser = () => navigate({ to: '/users/new', search: true });
-    const handleViewUser = (u: UserWithRoles) => navigate({ to: `/users/${u.id}`, search: true });
-    const handleEditUser = (u: UserWithRoles) => navigate({ to: `/users/${u.id}/edit`, search: true });
-    const handleClosePanel = () => navigate({ to: '/users', search: true });
-    const handleCloseModal = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, modal: undefined, modalId: undefined, fromModal: undefined }) } as any);
+    // const handleNewUser = () => navigate({ to: '/users/new', search: true });
+    // const handleViewUser = (u: UserWithRoles) => navigate({ to: `/users/${u.id}`, search: true });
+    // const handleEditUser = (u: UserWithRoles) => navigate({ to: `/users/${u.id}/edit`, search: true });
+    // const handleClosePanel = () => navigate({ to: '/users', search: true });
+    // const handleCloseModal = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, modal: undefined, modalId: undefined, fromModal: undefined }) } as any);
 
     const handleRestore = (user: UserWithRoles) => {
         restoreMutation.mutate(user.id, {
@@ -232,8 +235,8 @@ export function useUsersState() {
     // ─── Column definitions ─────────────────────────────────────
     const columns = createMemo(() =>
         createUserColumns({
-            onView: handleViewUser,
-            onEdit: handleEditUser,
+            // onView: handleViewUser,
+            // onEdit: handleEditUser,
             onDelete: handleDeleteUser,
             onRestore: handleRestore,
             onRoleBadgeClick: (role) => setRoleDialog({ mode: 'permissions', roleId: role.id }),
@@ -262,13 +265,12 @@ export function useUsersState() {
         activeTab, handleTabChange, auth,
 
         // Panel (searchParams-driven sheets)
-        handleClosePanel, handleCloseModal,
 
         // Users data
         usersQuery, users, usersMeta, totalUsers, selectedActiveCount, selectedInactiveCount,
 
         // Users handlers
-        handleNewUser, handleViewUser, handleEditUser,
+        // handleNewUser, handleViewUser, handleEditUser,
         handlePrefetchUser, handleDeleteUser, handleRestore, handleCopySelection,
         handleBulkDelete, confirmBulkDelete, confirmBulkRestore, 
 

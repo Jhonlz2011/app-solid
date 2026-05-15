@@ -26,6 +26,8 @@ export interface ColumnFilterConfig {
 }
 
 export interface UserColumnHandlers {
+    // onView: (user: UserWithRoles) => void;
+    // onEdit: (user: UserWithRoles) => void;
     onDelete: (user: UserWithRoles) => void;
     onRestore: (user: UserWithRoles) => void;
     onRoleBadgeClick?: (role: { id: number; name: string }) => void;
@@ -238,7 +240,6 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
             ),
             cell: (info) => {
                 const val = info.getValue<string | null>();
-                if (!val) return <span class="text-muted text-xs">Nunca</span>;
                 return (
                     <span class="text-sm text-muted">
                         {formatSessionDate(val)}

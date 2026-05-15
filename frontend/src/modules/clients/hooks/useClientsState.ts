@@ -17,16 +17,17 @@ import { useAuth } from '@/modules/auth/store/auth.store';
 
 import {
     useClients,
+    useClientFacets,
+} from '../data/clients.queries';
+import {
     useDeleteClient,
     useBulkDeleteClient,
     useBulkRestoreClient,
     useRestoreClient,
-    useClientFacets,
-    clientKeys,
-    clientsApi,
-    type ClientFilters,
-    type ClientListItem,
-} from '../data/clients.api';
+} from '../data/clients.mutations';
+import { clientKeys } from '../data/clients.keys';
+import { clientsApi, type ClientListItem } from '../data/clients.api';
+import type { EntityFilters as ClientFilters } from '@app/schema/shared-dto';
 import { createClientColumns } from '../data/client.columns';
 
 export function useClientsState() {
@@ -103,9 +104,6 @@ export function useClientsState() {
     const selectedInactiveCount = () => tableState.selectedItems().filter(s => !s.is_active).length;
 
     // ─── Navigation Handlers ─────────────────────────────────────
-    const handleNew = () => navigate({ to: '/clients/new' });
-    const handleEdit = (s: ClientListItem) => navigate({ to: '/clients/$clientId/edit', params: { clientId: String(s.id) } });
-    const handleView = (s: ClientListItem) => navigate({ to: '/clients/$clientId/show', params: { clientId: String(s.id) } });
     const handleClosePanel = () => navigate({ to: '/clients' });
     const handlePrefetch = (s: ClientListItem) => {
         queryClient.prefetchQuery({
@@ -175,8 +173,6 @@ export function useClientsState() {
     // ─── Column Definitions ──────────────────────────────────────
     const columns = createMemo(() =>
         createClientColumns({
-            onView: handleView,
-            onEdit: handleEdit,
             onDelete: handleDelete,
             onRestore: handleRestore,
             auth,
@@ -206,7 +202,6 @@ export function useClientsState() {
         deleteMutation, bulkDeleteMutation, bulkRestoreMutation,
 
         // Handlers
-        handleView, handleEdit,
         handlePrefetch, handleCopySelection, handleDelete, handleRestore, handleBulkDelete,
         confirmBulkDelete, confirmBulkRestore, handleFilterChange, filters,
 

@@ -21,8 +21,8 @@ import {
 } from './entity-form.utils';
 
 // SRI search types (re-used from suppliers module)
-import type { SriSupplierResponse } from '@modules/suppliers/data/suppliers.api';
-import { useSriSearchByName } from '@modules/suppliers/data/suppliers.api';
+import type { SriSupplierResponse } from '@modules/sri/sri.types';
+import { useSriSearchByName } from '@modules/sri/sri.queries';
 
 import { useGeoNamesCities, type GeoNameCity } from '@shared/hooks/useGeoNamesCities';
 import Button from '@shared/ui/Button';
@@ -684,10 +684,10 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                                             ? `${taxIdType() === 'CEDULA' ? 'Cédula' : 'Pasaporte'} solo aplica a Persona Natural`
                                                             : 'Un empleado debe registrarse obligatoriamente como Persona Natural'
                                                     }
-                                                    placement="top"
+                                                    placement="right"
                                                     delay={0}
                                                 >
-                                                    <InfoIcon class="size-4 text-info hover:text-info/80 cursor-help transition-colors" />
+                                                    <InfoIcon class="size-4 text-primary-strong hover:primary-strong/80 cursor-help transition-colors" />
                                                 </Tooltip>
                                             </Show>
                                         </div>
@@ -803,7 +803,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                         <Show when={showTaxSection()}>
                             <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
                                 <div class="flex items-center gap-2 mb-2">
-                                    <div class="w-1.5 h-4 bg-info rounded-full"></div>
+                                    <div class="w-1.5 h-4 bg-blue-800 rounded-full"></div>
                                     <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Clasificación SRI</h3>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-0 sm:gap-4 place-items-start">

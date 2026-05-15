@@ -1,16 +1,12 @@
-import { Component, Show, createSignal } from 'solid-js';
-import { Portal } from 'solid-js/web';
+import { Component, Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
 import { useSidebar } from './SidebarContext';
-import { clickOutside } from '@shared/directives/clickOutside';
 import { LogoutIcon } from '@shared/ui/icons';
 import { useLogout } from '@modules/auth/hooks/useLogout';
 import { UserMenuDropdown } from '../UserMenuDropdown';
+import { DropdownMenu } from '@shared/ui/DropdownMenu';
 import Button from '@shared/ui/Button';
-
-// Register directive
-false && clickOutside;
 
 interface SidebarFooterProps {
     userName: string;
@@ -19,11 +15,9 @@ interface SidebarFooterProps {
 
 export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
     const { collapsed, isMobileViewport, setIsMobileOpen } = useSidebar();
-    const [showUserMenu, setShowUserMenu] = createSignal(false);
     const { handleLogout, isLoggingOut } = useLogout();
 
     const handleNavClick = () => {
-        setShowUserMenu(false);
         if (isMobileViewport()) setIsMobileOpen(false);
     };
 
@@ -31,7 +25,6 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
         <footer
             class="hidden sm:block relative border-t border-border h-18 shrink-0 mt-auto"
             tabIndex={-1}
-            use:clickOutside={() => setShowUserMenu(false)}
         >
             {/* Avatar — always visible, on top */}
             <div class="absolute inset-0 flex items-center px-4 sm:pl-5 pointer-events-none z-10">
@@ -43,38 +36,27 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                 </div>
             </div>
 
-            {/* COLLAPSED: avatar doubles as menu trigger → Portal dropdown */}
+            {/* COLLAPSED: avatar doubles as menu trigger → DropdownMenu */}
             <Show when={collapsed()}>
                 <div class="absolute inset-0 flex items-center px-4 sm:pl-5">
-                    <div class="relative size-10">
-                        <button
-                            onClick={() => setShowUserMenu(!showUserMenu())}
-                            class="absolute inset-0 flex items-center justify-center rounded-xl 
-                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent
-                                   pointer-events-auto"
+                    <DropdownMenu placement="right" gutter={14}>
+                        <DropdownMenu.Trigger 
+                            class="relative size-10 rounded-xl focus-visible:ring-offset-1 pointer-events-auto"
                             aria-label="Menú de usuario"
-                            aria-expanded={showUserMenu()}
-                            aria-haspopup="menu"
-                        />
-
-                        <Show when={showUserMenu()}>
-                            <Portal>
-                                <div
-                                    role="menu"
-                                    class="hidden sm:block fixed w-56 bg-surface border border-border rounded-xl shadow-xl z-[100] overflow-hidden animate-in"
-                                    style={{ left: '4.6rem', bottom: '1rem' }}
-                                >
-                                    <UserMenuDropdown
-                                        userName={props.userName}
-                                        userRole={props.userRole}
-                                        onNavClick={handleNavClick}
-                                        onLogout={handleLogout}
-                                        isLoggingOut={isLoggingOut}
-                                    />
-                                </div>
-                            </Portal>
-                        </Show>
-                    </div>
+                        >
+                            {/* The trigger needs to be the same size as the avatar to overlay it perfectly */}
+                            <span class="sr-only">Abrir menú de usuario</span>
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Content class="w-56 mb-2 p-0">
+                            <UserMenuDropdown
+                                userName={props.userName}
+                                userRole={props.userRole}
+                                onNavClick={handleNavClick}
+                                onLogout={handleLogout}
+                                isLoggingOut={isLoggingOut}
+                            />
+                        </DropdownMenu.Content>
+                    </DropdownMenu>
                 </div>
             </Show>
 

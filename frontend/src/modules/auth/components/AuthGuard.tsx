@@ -1,8 +1,9 @@
 import { ParentComponent, Show } from 'solid-js';
+import type { PermissionSlug } from '@app/schema/enums';
 import { useAuth } from '../store/auth.store';
 
 interface AuthGuardProps {
-    permission?: string;
+    permission?: PermissionSlug;
     role?: string;
 }
 

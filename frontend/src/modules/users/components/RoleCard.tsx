@@ -38,7 +38,7 @@ const StatButton = (p: { icon: JSX.Element; count: number; label: string; onClic
     );
 };
 
-// ── Badge-to-accent color map (mirrors roleVariants in Badge.tsx) ──
+// ── Badge-to-accent color map (mirrors rolePresentations in Badge.tsx) ──
 const ROLE_ACCENT_COLORS: Record<string, string> = {
     superadmin: 'from-danger/70 via-danger/30',
     admin: 'from-warning/70 via-warning/30',

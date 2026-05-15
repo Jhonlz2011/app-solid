@@ -22,20 +22,20 @@ export const createUsersRoutes = (layoutRoute: any) => {
             }
         },
         loader: async () => {
-            // B) Parallel Query Prefetching
-            return await Promise.all([
-                queryClient.prefetchQuery({
+            await Promise.all([
+                queryClient.ensureQueryData({
                     queryKey: rbacKeys.list({ page: 1, limit: 15 }),
                     queryFn: () => usersApi.listUsersWithRoles({ page: 1, limit: 15 }),
                     staleTime: 1000 * 60 * 2,
                 }),
-                queryClient.prefetchQuery({
+                queryClient.ensureQueryData({
                     queryKey: rbacKeys.roles(),
                     queryFn: () => usersApi.listRoles(),
                     staleTime: 1000 * 60 * 5,
                 }),
             ]);
         },
+        staleTime: Infinity, // TanStack Router: don't re-run loader once loaded (TanStack Query handles freshness)
         pendingComponent: GlobalPageLoader,
         component: UsersRolesPage,
     });

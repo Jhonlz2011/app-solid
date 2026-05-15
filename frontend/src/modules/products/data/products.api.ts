@@ -1,118 +1,170 @@
-// products/data/products.api.ts
-// Pure API functions using Eden treaty client - Types inferred from backend
+/**
+ * products.api.ts — Pure Eden API fetchers for Products module
+ *
+ * Strictly fetchers — no hooks, no mutations.
+ * All response types inferred from backend response schemas.
+ */
 import { api } from '@shared/lib/eden';
+import { throwApiError } from '@shared/utils/api-errors';
+import type { ProductFormData } from '@app/schema/frontend';
+import type { ProductType, ProductSubtype } from '@app/schema/frontend';
 
-// Type utilities - Extract body types from Eden
-type ProductBody = Parameters<typeof api.api.products.post>[0];
-// For parameterized routes, we need to call the function first to access the method
-type ProductUpdateBody = NonNullable<Parameters<ReturnType<typeof api.api.products>['put']>[0]>;
-type CategoryBody = Parameters<typeof api.api.categories.post>[0];
-type BrandBody = Parameters<typeof api.api.catalogs.brands.post>[0];
-
-// Filter type for list queries (defined here to avoid circular dependency)
-export interface ProductFilters {
-    search?: string;
-    categoryId?: number;
-    brandId?: number;
-    productType?: string;
-    productSubtype?: string;
-    isActive?: boolean;
-    limit?: number;
-    offset?: number;
-}
-
-// Helper to convert ProductFilters to query string params
-const toQueryParams = (filters?: ProductFilters): Record<string, string> | undefined => {
-    if (!filters) return undefined;
-    const query: Record<string, string> = {};
-    if (filters.search) query.search = filters.search;
-    if (filters.categoryId) query.categoryId = String(filters.categoryId);
-    if (filters.brandId) query.brandId = String(filters.brandId);
-    if (filters.productType) query.productType = filters.productType;
-    if (filters.productSubtype) query.productSubtype = filters.productSubtype;
-    if (filters.isActive !== undefined) query.isActive = String(filters.isActive);
-    if (filters.limit) query.limit = String(filters.limit);
-    if (filters.offset) query.offset = String(filters.offset);
-    return Object.keys(query).length > 0 ? query : undefined;
-};
+// =============================================================================
+// API Fetchers
+// =============================================================================
 
 export const productsApi = {
-    // Products CRUD
-    list: async (filters?: ProductFilters) => {
-        const { data, error } = await api.api.products.get({ query: toQueryParams(filters) });
-        if (error) throw new Error(String(error.value));
+    list: async (params: ProductFilters) => {
+        const { data, error } = await api.api.products.get({
+            query: {
+                cursor: params.cursor,
+                direction: params.direction,
+                limit: params.limit,
+                search: params.search,
+                sortBy: params.sortBy,
+                sortOrder: params.sortOrder,
+                page: params.page,
+                categoryId: params.categoryId?.join(','),
+                brandId: params.brandId?.join(','),
+                productType: params.productType?.join(','),
+                isActive: params.isActive?.join(','),
+            },
+        });
+        if (error) throwApiError(error);
         return data!;
     },
 
     get: async (id: number) => {
         const { data, error } = await api.api.products({ id }).get();
-        if (error) throw new Error(String(error.value));
+        if (error) throwApiError(error);
         return data!;
     },
 
-    create: async (body: ProductBody) => {
-        const { data, error } = await api.api.products.post(body);
-        if (error) throw new Error(String(error.value));
+    deactivate: async (id: number) => {
+        const { error } = await (api.api.products as any)({ id }).deactivate.patch();
+        if (error) throwApiError(error);
+    },
+
+    restore: async (id: number) => {
+        const { error } = await (api.api.products as any)({ id }).restore.patch();
+        if (error) throwApiError(error);
+    },
+
+    hardDelete: async (id: number) => {
+        const { error } = await (api.api.products as any)({ id }).delete();
+        if (error) throwApiError(error);
+    },
+
+    bulkDelete: async (ids: number[]) => {
+        const { data, error } = await (api.api.products.bulk as any).delete({ ids });
+        if (error) throwApiError(error);
         return data!;
     },
 
-    update: async (id: number, body: ProductUpdateBody) => {
-        const { data, error } = await api.api.products({ id }).put(body);
-        if (error) throw new Error(String(error.value));
+    bulkRestore: async (ids: number[]) => {
+        const { data, error } = await (api.api.products.bulk.restore as any).patch({ ids });
+        if (error) throwApiError(error);
         return data!;
     },
 
-    delete: async (id: number) => {
-        const { error } = await api.api.products({ id }).delete();
-        if (error) throw new Error(String(error.value));
+    canDelete: async (id: number): Promise<ProductReferences> => {
+        const { data, error } = await (api.api.products as any)({ id })['can-delete'].get();
+        if (error) throwApiError(error);
+        return data as ProductReferences;
     },
 
-    // Categories
-    listCategories: async () => {
-        const { data, error } = await api.api.categories.get();
-        if (error) throw new Error(String(error.value));
-        return data!;
+    generateSku: async (categoryId?: number, brandId?: number): Promise<string> => {
+        const { data, error } = await (api.api.products as any)['generate-sku'].get({
+            query: { categoryId, brandId },
+        });
+        if (error) throwApiError(error);
+        return data as string;
     },
 
-    getCategoryWithAttributes: async (id: number) => {
-        const { data, error } = await api.api.categories({ id }).get();
-        if (error) throw new Error(String(error.value));
-        return data!;
-    },
-
-    createCategory: async (body: CategoryBody) => {
-        const { data, error } = await api.api.categories.post(body);
-        if (error) throw new Error(String(error.value));
-        return data!;
-    },
-
-    // Brands
-    listBrands: async () => {
-        const { data, error } = await api.api.catalogs.brands.get();
-        if (error) throw new Error(String(error.value));
-        return data!;
-    },
-
-    createBrand: async (body: BrandBody) => {
-        const { data, error } = await api.api.catalogs.brands.post(body);
-        if (error) throw new Error(String(error.value));
-        return data!;
-    },
-
-    // UOM
-    listUoms: async () => {
-        const { data, error } = await api.api.catalogs.uom.get();
-        if (error) throw new Error(String(error.value));
-        return data!;
-    },
-
-    // Attribute Definitions
-    listAttributes: async () => {
-        const { data, error } = await api.api.catalogs.attributes.get();
-        if (error) throw new Error(String(error.value));
-        return data!;
+    /** Upload product images. Returns full URLs ready for storage. */
+    uploadImages: async (files: File[]): Promise<string[]> => {
+        if (files.length === 0) return [];
+        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const formData = new FormData();
+        files.forEach(f => formData.append('files', f));
+        const res = await fetch(`${apiBase}/api/uploads/products`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+        if (!res.ok) throw new Error('Upload failed');
+        const data = await res.json();
+        return (data.urls ?? []).map((u: string) => `${apiBase}${u}`);
     },
 };
 
-// Re-export inferred types for consumers
-export type { ProductBody, ProductUpdateBody, CategoryBody, BrandBody };
+// =============================================================================
+// Eden-inferred Types (zero manual interfaces)
+// =============================================================================
+
+type ProductsListResponse = Awaited<ReturnType<typeof api.api.products.get>>['data'];
+export type ProductListItem = NonNullable<ProductsListResponse>['data'][number];
+export type Product = Awaited<ReturnType<typeof productsApi.get>>;
+export type ProductBody = ProductFormData;
+
+export interface ProductFilters {
+    cursor?: string;
+    direction?: 'first' | 'next' | 'prev' | 'last';
+    limit?: number;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    page?: number;
+    categoryId?: string[];
+    brandId?: string[];
+    productType?: string[];
+    isActive?: string[];
+}
+
+export interface ProductReferences {
+    purchaseOrderItems: number;
+    invoiceItems: number;
+    workOrderItems: number;
+    inventoryMovements: number;
+    total: number;
+    canDelete: boolean;
+}
+
+/** Facet response type from API */
+export type FacetData = Record<string, { value: string; label?: string; count: number }[]>;
+
+// =============================================================================
+// Query Keys
+// =============================================================================
+
+export const productKeys = {
+    all: ['products'] as const,
+    lists: () => [...productKeys.all, 'list'] as const,
+    list: (filters: ProductFilters) => [...productKeys.lists(), filters] as const,
+    details: () => [...productKeys.all, 'detail'] as const,
+    detail: (id: number) => [...productKeys.details(), id] as const,
+    facets: (search?: string, filters?: Record<string, string[] | undefined>) =>
+        [...productKeys.all, 'facets', { search, ...filters }] as const,
+};
+
+// =============================================================================
+// UI Label Mappings (moved from product.types.ts)
+// =============================================================================
+
+export const productTypeLabels: Record<ProductType, string> = {
+    PRODUCTO: 'Producto',
+    SERVICIO: 'Servicio',
+};
+
+export const productSubtypeLabels: Record<ProductSubtype, string> = {
+    SIMPLE: 'Simple',
+    COMPUESTO: 'Compuesto',
+    FABRICADO: 'Fabricado',
+};
+
+export const productTypeIcons: Record<ProductType, string> = {
+    PRODUCTO: '📦',
+    SERVICIO: '🔧',
+};
+
+export { isActiveLabels } from '@shared/constants/labels';

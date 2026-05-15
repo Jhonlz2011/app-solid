@@ -217,7 +217,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                 <Portal>
                     <div
                         ref={el => tooltipRef = el}
-                        class="fixed z-[9999] min-w-[180px] p-2 bg-surface/95 backdrop-blur-lg border border-border/80 rounded-xl shadow-2xl
+                        class="fixed z-[9999] min-w-[180px] p-2 bg-surface backdrop-blur-lg border border-border/80 rounded-xl shadow-2xl
                                animate-in fade-in slide-in-from-left-2 duration-150"
                         style={{ top: `${tooltipRect()?.top}px`, left: `${tooltipRect()?.left}px`, transform: 'translateY(-50%)' }}
                         onMouseEnter={() => clearTimeout(hoverTimeout)}
@@ -294,7 +294,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                         </Show>
 
                         {/* Arrow indicator */}
-                        <div class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1.5 w-3 h-3 bg-surface/95 border-l border-b border-border/80 rotate-45" />
+                        <div class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1.5 w-3 h-3 bg-surface border-l border-b border-border/80 rotate-45" />
                     </div>
                 </Portal>
             </Show>

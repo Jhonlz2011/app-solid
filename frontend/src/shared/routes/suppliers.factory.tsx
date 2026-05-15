@@ -1,6 +1,7 @@
 import { createRoute, lazyRouteComponent, redirect, useNavigate } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
-import { supplierKeys, suppliersApi } from '@modules/suppliers/data/suppliers.api';
+import { supplierKeys } from '@modules/suppliers/data/suppliers.keys';
+import { suppliersApi } from '@modules/suppliers/data/suppliers.api';
 
 // Lazy loading the Panels as Route Components
 const LazySupplierShowRoute = lazyRouteComponent(() => import('@modules/suppliers/components/SupplierShowPanel'));

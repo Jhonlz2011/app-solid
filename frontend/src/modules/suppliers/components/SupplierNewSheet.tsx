@@ -1,7 +1,7 @@
 import { Component } from 'solid-js';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
-import { useCreateSupplier } from '../data/suppliers.api';
+import { useCreateSupplier } from '../data/suppliers.mutations';
 import { EntityForm } from '@shared/forms/entity';
 import type { EntityFormData } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
@@ -46,7 +46,6 @@ const SupplierNewSheet: Component<SupplierNewSheetProps> = (props) => {
                         form="entity-form"
                         loading={createMutation.isPending}
                         loadingText="Creando..."
-                        class="min-w-[200px]"
                         icon={<FloppyDiskIcon />}
                     >
                         Crear Proveedor

@@ -6,8 +6,10 @@ import { PermissionMatrix } from './PermissionMatrix';
 import { RoleBadge } from '@shared/ui/Badge';
 import {
     useRole, useRolePermissions, usePermissions,
-    useCreateRole, useUpdateRole, useUpdateRolePermissions
 } from '../data/users.queries';
+import {
+    useCreateRole, useUpdateRole, useUpdateRolePermissions,
+} from '../data/users.mutations';
 
 import type { Role } from '../models/users.types';
 import { ShieldIcon } from '@/shared/ui/icons';

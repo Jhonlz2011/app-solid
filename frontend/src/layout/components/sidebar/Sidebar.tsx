@@ -126,13 +126,16 @@ export const Sidebar: Component = () => {
             <aside
                 data-collapsed={effectiveCollapsed()}
                 data-mobile={isMobileOpen()}
-                class="fixed top-0 left-0 h-screen z-50 w-64 flex flex-col bg-surface border-r border-border
+                class="fixed top-0 left-0 h-screen z-50 flex flex-col bg-surface border-r border-border
                        transition-[width,transform] duration-300 ease-[cubic-bezier(0.2,0,0,1)]
                        sm:static sm:z-auto
                        max-sm:pt-[env(safe-area-inset-top)] 
                        data-[mobile=false]:-translate-x-full sm:data-[mobile=false]:translate-x-0
-                       data-[mobile=true]:translate-x-0
-                       data-[collapsed=true]:sm:w-20"
+                       data-[mobile=true]:translate-x-0"
+                classList={{
+                    'w-64': !effectiveCollapsed(),
+                    'w-20': effectiveCollapsed()
+                }}
             >
                 <SidebarHeader toggleCollapse={toggleCollapse} />
 

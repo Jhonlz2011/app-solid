@@ -34,12 +34,12 @@ import { getActiveSessions, revokeSession } from '../services/auth.service';
 export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     .use(authGuard)
     .use(rbac)
-    .get('/roles', async () => {
-        return await getAllRoles();
+    .get('/roles', async ({ currentCompanyId }) => {
+        return await getAllRoles(currentCompanyId);
     }, { permission: 'roles.read' })
 
-    .post('/roles', async ({ body, currentUserId }) => {
-        return await createRole(body.name, body.description, currentUserId);
+    .post('/roles', async ({ body, currentUserId, currentCompanyId }) => {
+        return await createRole(body.name, body.description, currentUserId, currentCompanyId);
     }, {
         permission: 'roles.create',
         body: t.Object({
@@ -95,13 +95,13 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     }, { permission: 'permissions.read' })
 
     // Parse arrays
-    .get('/users/facets', async ({ query }) => {
+    .get('/users/facets', async ({ query, currentCompanyId }) => {
         const parseArray = (val?: string) => val?.split(',').filter(Boolean);
         return await getUserFacets({
             search: query.search,
             isActive: parseArray(query.isActive),
             roles: parseArray(query.roles),
-        });
+        }, currentCompanyId);
     }, {
         permission: 'users.read',
         query: t.Object({
@@ -112,7 +112,7 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     })
 
     // Users with roles (paginated)
-    .get('/users', async ({ query }) => {
+    .get('/users', async ({ query, currentCompanyId }) => {
         const parseArray = (val?: string) => val?.split(',').filter(Boolean);
         return await getAllUsersWithRoles({
             search: query.search,
@@ -122,7 +122,7 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
             sortOrder: query.sortOrder as 'asc' | 'desc' | undefined,
             isActive: parseArray(query.isActive),
             roles: parseArray(query.roles),
-        });
+        }, currentCompanyId);
     }, {
         permission: 'users.read',
         query: t.Object({
@@ -137,12 +137,12 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     })
 
     // Single user by ID
-    .get('/users/:id', async ({ params }) => {
-        return await getUserById(Number(params.id));
+    .get('/users/:id', async ({ params, currentCompanyId }) => {
+        return await getUserById(Number(params.id), currentCompanyId);
     }, { permission: 'users.read' })
 
-    .post('/users', async ({ body, currentUserId }) => {
-        return await createUser(body, currentUserId);
+    .post('/users', async ({ body, currentUserId, currentCompanyId }) => {
+        return await createUser(body, currentUserId, currentCompanyId);
     }, {
         permission: 'users.create',
         body: t.Object({
@@ -167,22 +167,39 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     // Soft-delete (deactivate) — preserves roles
     .patch('/users/:id/deactivate', async ({ params, currentUserId }) => {
         return await deactivateUser(Number(params.id), currentUserId);
-    }, { permission: 'users.delete' })
+    }, {
+        permission: 'users.delete',
+        response: t.Object({ success: t.Boolean() }),
+    })
 
     // Hard-delete (destroy) — permanently removes user
     .delete('/users/:id', async ({ params, currentUserId }) => {
         return await hardDeleteUser(Number(params.id), currentUserId);
-    }, { permission: 'users.destroy' })
+    }, {
+        permission: 'users.destroy',
+        response: t.Object({ success: t.Boolean() }),
+    })
 
     // Restore a deactivated user
     .patch('/users/:id/restore', async ({ params, currentUserId }) => {
         return await restoreUser(Number(params.id), currentUserId);
-    }, { permission: 'users.restore' })
+    }, {
+        permission: 'users.restore',
+        response: t.Object({ success: t.Boolean() }),
+    })
 
     // Pre-flight hard-delete reference check
     .get('/users/:id/can-delete', async ({ params }) => {
         return await checkUserReferences(Number(params.id));
-    }, { permission: 'users.destroy' })
+    }, {
+        permission: 'users.destroy',
+        response: t.Object({
+            roles: t.Number(),
+            activeSessions: t.Number(),
+            total: t.Number(),
+            canDelete: t.Boolean(),
+        }),
+    })
 
     .get('/users/:id/roles', async ({ params }) => {
         return await getUserRolesById(Number(params.id));
@@ -204,12 +221,25 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     // Admin: view sessions for a specific user
     .get('/users/:id/sessions', async ({ params, currentSessionId }) => {
         return await getActiveSessions(Number(params.id), currentSessionId);
-    }, { permission: 'users.read' })
+    }, {
+        permission: 'users.read',
+        response: t.Array(t.Object({
+            id: t.String(),
+            user_agent: t.Union([t.String(), t.Null()]),
+            ip_address: t.Union([t.String(), t.Null()]),
+            location: t.Union([t.String(), t.Null()]),
+            created_at: t.Date(),
+            is_current: t.Boolean(),
+        })),
+    })
 
     // Admin: revoke a specific session for a user
     .delete('/users/:id/sessions/:sessionId', async ({ params }) => {
         return await revokeSession(params.sessionId, Number(params.id));
-    }, { permission: 'users.update' })
+    }, {
+        permission: 'users.update',
+        response: t.Object({ success: t.Boolean() }),
+    })
 
     // Paginated audit log for a user
     .get('/users/:id/audit-log', async ({ params, query }) => {
@@ -224,6 +254,27 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
             page: t.Optional(t.Numeric()),
             limit: t.Optional(t.Numeric()),
         }),
+        response: t.Object({
+            data: t.Array(t.Object({
+                id: t.String(),
+                tableName: t.String(),
+                recordId: t.String(),
+                action: t.String(),
+                oldData: t.Any(),
+                newData: t.Any(),
+                ipAddress: t.Union([t.String(), t.Null()]),
+                createdAt: t.Date(),
+                userId: t.Union([t.Number(), t.Null()]),
+                performedByUsername: t.Union([t.String(), t.Null()]),
+            })),
+            meta: t.Object({
+                total: t.Number(),
+                page: t.Number(),
+                pageCount: t.Number(),
+                hasNextPage: t.Boolean(),
+                hasPrevPage: t.Boolean(),
+            }),
+        }),
     })
 
     // Admin password reset (no current password required)
@@ -234,6 +285,7 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         body: t.Object({
             newPassword: t.String({ minLength: 8 }),
         }),
+        response: t.Object({ success: t.Boolean() }),
     })
 
     // Assign/unassign entity to user
@@ -242,6 +294,10 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     }, {
         permission: 'users.update',
         body: t.Object({
+            entityId: t.Union([t.Number(), t.Null()]),
+        }),
+        response: t.Object({
+            id: t.Number(),
             entityId: t.Union([t.Number(), t.Null()]),
         }),
     })
@@ -257,6 +313,11 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         body: t.Object({
             ids: t.Array(t.Number()),
         }),
+        response: t.Array(t.Object({
+            userId: t.Number(),
+            success: t.Boolean(),
+            error: t.Optional(t.String()),
+        })),
     })
 
     // Bulk restore
@@ -267,6 +328,11 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         body: t.Object({
             ids: t.Array(t.Number()),
         }),
+        response: t.Array(t.Object({
+            userId: t.Number(),
+            success: t.Boolean(),
+            error: t.Optional(t.String()),
+        })),
     })
 
 

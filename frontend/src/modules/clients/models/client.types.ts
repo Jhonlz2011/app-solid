@@ -1,7 +1,10 @@
 // Client types - UI constants and type definitions
-import type { ClientBody, ClientFilters } from '../data/clients.api';
 import { clientsApi } from '../data/clients.api';
 import type { TaxIdType, PersonType, TaxRegimeType } from '@app/schema/frontend';
+
+// Centralized filter/reference types
+export type { EntityFilters as ClientFilters } from '@app/schema/shared-dto';
+export type { EntityReferences as ClientReferences } from '@app/schema/shared-dto';
 
 // Infer Client type from API response (single item with relations)
 export type Client = Awaited<ReturnType<typeof clientsApi.get>>;
@@ -9,7 +12,6 @@ export type Client = Awaited<ReturnType<typeof clientsApi.get>>;
 export type ClientsResponse = Awaited<ReturnType<typeof clientsApi.list>>;
 
 // Re-export for convenience
-export type { ClientBody as ClientPayload, ClientFilters };
 export type { TaxIdType, PersonType, TaxRegimeType };
 export type { ContactFormData, AddressFormData } from '@app/schema/frontend';
 

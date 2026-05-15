@@ -4,9 +4,10 @@
  * Used by SuppliersPage, UsersRolesPage, and any future module with DataTableColumnFilter.
  */
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
+import type { FacetData } from '@app/schema/shared-dto';
 
-/** Generic facet response shape from backend */
-export type FacetData = Record<string, { value: string; count: number }[]>;
+// Re-export for backward compatibility
+export type { FacetData };
 
 /**
  * Convert a specific facet key from the backend response into FilterOption[].

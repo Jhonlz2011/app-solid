@@ -8,8 +8,9 @@
  */
 import { Component, createMemo, onMount, onCleanup, For, Show } from 'solid-js';
 import type { RowSelectionState } from '@tanstack/solid-table';
-import { useInfiniteSuppliers } from '../data/suppliers.api';
-import type { SupplierListItem, SupplierFilters } from '../data/suppliers.api';
+import { useInfiniteSuppliers } from '../data/suppliers.queries';
+import type { SupplierListItem } from '../data/suppliers.api';
+import type { SupplierFilters } from '../models/supplier.types';
 import { SupplierCard } from './SupplierCard';
 import { Skeleton } from '@shared/ui/Skeleton';
 import { EmptyState } from '@shared/ui/EmptyState';
@@ -21,8 +22,6 @@ export interface SupplierCardListProps {
     filters: () => MobileFilters;
     rowSelection: () => RowSelectionState;
     onRowSelectionChange: (sel: RowSelectionState) => void;
-    onView: (supplier: SupplierListItem) => void;
-    onEdit: (supplier: SupplierListItem) => void;
     onDelete: (supplier: SupplierListItem) => void;
     onRestore: (supplier: SupplierListItem) => void;
 }
@@ -101,8 +100,6 @@ export const SupplierCardList: Component<SupplierCardListProps> = (props) => {
                                     else delete next[id];
                                     props.onRowSelectionChange(next);
                                 }}
-                                onView={props.onView}
-                                onEdit={props.onEdit}
                                 onDelete={props.onDelete}
                                 onRestore={props.onRestore}
                             />

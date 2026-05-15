@@ -4,12 +4,13 @@ import { useQueryClient } from '@tanstack/solid-query';
 import { useSSE } from '@shared/store/sse.store';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { rbacKeys } from '../../data/users.keys';
-import { SessionItem } from '@modules/profile/components/SessionItem';
+import { SessionItem } from '@shared/ui/SessionItem';
 import { DeviceIcon } from '@shared/ui/icons';
 import { ListItemSkeleton } from '@shared/ui/SkeletonLoader';
 import ErrorState from '@shared/ui/ErrorState';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
-import { useUserSessions, useRevokeUserSession } from '../../data/users.queries';
+import { useUserSessions } from '../../data/users.queries';
+import { useRevokeUserSession } from '../../data/users.mutations';
 
 const UserSessionsTab: Component<{ userId: number }> = (props) => {
     const queryClient = useQueryClient();

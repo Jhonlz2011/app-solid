@@ -4,7 +4,7 @@ import { Outlet } from '@tanstack/solid-router';
 const AuthLayout: ParentComponent = () => {
     return (
         <div class="h-screen flex items-center justify-center bg-background overflow-hidden">
-            <div class="w-full max-w-md p-4 max-h-full">
+            <div class="w-full max-w-xl p-4 max-h-full overflow-y-auto">
                 <Outlet />
             </div>
         </div>

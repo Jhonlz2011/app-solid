@@ -1,10 +1,10 @@
 import { Component, createSignal } from 'solid-js';
 import { useAuth } from '@/modules/auth/store/auth.store';
+import { useCheckUserReferences } from '../data/users.queries';
 import {
     useDeactivateUser,
     useHardDeleteUser,
-    useCheckUserReferences,
-} from '../data/users.queries';
+} from '../data/users.mutations';
 
 import type { UserListItem, UserReferences } from '../models/users.types';
 
@@ -33,7 +33,10 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
     const hardDeleteMutation = useHardDeleteUser();
 
     const isLoading = () => deactivateMutation.isPending || hardDeleteMutation.isPending;
-    const hasReferences = () => (refsQuery.data?.total ?? 0) > 0;
+    const hasReferences = () => {
+        if (refsQuery.isPending) return false;
+        return (refsQuery.data?.total ?? 0) > 0;
+    };
 
     const handleConfirm = (confirmedMode: 'soft' | 'hard') => {
         if (!props.user) return;
@@ -46,6 +49,7 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
     };
 
     const referenceLines = () => {
+        if (refsQuery.isPending) return [];
         const data = refsQuery.data as UserReferences | undefined;
         if (!data) return [];
         const lines: string[] = [];

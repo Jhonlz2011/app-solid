@@ -20,7 +20,7 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     // List with cursor pagination
     .get(
         '/',
-        ({ query }) => {
+        ({ query, currentCompanyId }) => {
             return suppliersService.list({
                 cursor: query.cursor,
                 direction: query.direction as 'next' | 'prev' | 'first' | 'last' | undefined,
@@ -33,7 +33,7 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
                 taxIdType: parseArray(query.taxIdType),
                 isActive: parseArray(query.isActive),
                 businessName: parseArray(query.businessName),
-            });
+            }, currentCompanyId);
         },
         {
             query: t.Object({
@@ -54,14 +54,14 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     // Get faceted filter values + counts (with cross-filtering)
     .get(
         '/facets',
-        ({ query }) => {
+        ({ query, currentCompanyId }) => {
             return suppliersService.facets({
                 search: query.search,
                 personType: parseArray(query.personType),
                 taxIdType: parseArray(query.taxIdType),
                 isActive: parseArray(query.isActive),
                 businessName: parseArray(query.businessName),
-            });
+            }, currentCompanyId);
         },
         {
             query: t.Object({
@@ -75,14 +75,14 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     )
     .get(
         '/:id',
-        ({ params }) => suppliersService.get(Number(params.id)),
+        ({ params, currentCompanyId }) => suppliersService.get(Number(params.id), currentCompanyId),
         { params: t.Object({ id: t.Numeric() }) }
     )
     .post(
         '/',
-        async ({ body, set, headers, currentUserId, request }) => {
+        async ({ body, set, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
-            const supplier = await suppliersService.create(body, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
+            const supplier = await suppliersService.create(body, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
             set.status = 201;
             return supplier;
         },
@@ -90,9 +90,9 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     )
     .put(
         '/:id',
-        ({ params, body, headers, currentUserId, request }) => {
+        ({ params, body, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
-            return suppliersService.update(Number(params.id), body, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
+            return suppliersService.update(Number(params.id), body, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
         },
         {
             params: t.Object({ id: t.Numeric() }),
@@ -134,12 +134,13 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     // Soft delete (deactivate) — safe default, reversible
     .patch(
         '/:id/deactivate',
-        async ({ params, set, headers, currentUserId, request }) => {
+        async ({ params, set, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
             await suppliersService.softDelete(
                 Number(params.id),
-                undefined, // deletedBy: wire to session user id when RBAC is available
-                { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
+                undefined,
+                { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] },
+                currentCompanyId
             );
             set.status = 204;
         },
@@ -148,18 +149,18 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     // Restore a soft-deleted supplier
     .patch(
         '/:id/restore',
-        async ({ params, headers, currentUserId, request }) => {
+        async ({ params, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
-            return suppliersService.restore(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
+            return suppliersService.restore(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
         },
         { params: t.Object({ id: t.Numeric() }) }
     )
     // Hard delete — permanent, guarded by suppliers:destroy permission
     .delete(
         '/:id',
-        async ({ params, set, headers, currentUserId, request }) => {
+        async ({ params, set, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
-            await suppliersService.hardDelete(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
+            await suppliersService.hardDelete(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
             set.status = 204;
         },
         { params: t.Object({ id: t.Numeric() }) }

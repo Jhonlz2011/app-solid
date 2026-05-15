@@ -1,9 +1,9 @@
 export * from './entities';
 export * from './config';
+export * from './catalogs';
 export * from './auth';
 export * from './audit';
 export * from './products';
-export * from './pricing';
 export * from './suppliers';
 export * from './inventory';
 export * from './visits';
@@ -11,3 +11,4 @@ export * from './manufacturing';
 export * from './requests';
 export * from './documents';
 export * from './pos';
+export * from './finance';

@@ -29,7 +29,7 @@ export const PageHeader: Component<PageHeaderProps> = (props) => (
                         </div>
                     }
                 >
-                    <Tooltip content={props.info} placement="bottom">
+                    <Tooltip content={props.info} placement="bottom-start">
                         <div
                             class="group relative size-8 sm:size-10 rounded-xl flex items-center justify-center shrink-0 cursor-help"
                             style={{ background: props.iconBg ?? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))' }}

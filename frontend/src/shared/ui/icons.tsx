@@ -5,12 +5,25 @@ export interface IconProps extends JSX.SvgSVGAttributes<SVGSVGElement> {
     strokeWidth?: number; // Nueva propiedad para el grosor
 }
 
-// export const UserHistoryIcon: Component<IconProps> = (props) => (
-//     <BaseIcon {...props}>
+const BaseIcon = (props: IconProps & { children: JSX.Element }) => {
+    // Separamos 'class' y 'children' para manejarlos manualmente, el resto se pasa directo (...others)
+    const [local, others] = splitProps(props, ['class', 'children', 'strokeWidth']);
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class={local.class ?? 'size-5'}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width={local.strokeWidth ?? 2} stroke-linecap="round"
+            stroke-linejoin="round"
+            {...others}
+        >
+            {local.children}
+        </svg>
+    );
+};
 
-//         <path d="M11 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z M3 20v-1a4 4 0 0 1 4-4h2 M22 15a5 5 0 1 1-10 0 5 5 0 0 1 10 0z M17 12.5v2.5l1.5 1.5" />
-//     </BaseIcon>
-// );
 
 export const UserHistoryIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>
@@ -36,24 +49,6 @@ export const BriefcaseIcon: Component<IconProps> = (props) => (
     </BaseIcon>
 );
 
-const BaseIcon = (props: IconProps & { children: JSX.Element }) => {
-    // Separamos 'class' y 'children' para manejarlos manualmente, el resto se pasa directo (...others)
-    const [local, others] = splitProps(props, ['class', 'children', 'strokeWidth']);
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class={local.class ?? 'size-5'}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width={local.strokeWidth ?? 2} stroke-linecap="round"
-            stroke-linejoin="round"
-            {...others}
-        >
-            {local.children}
-        </svg>
-    );
-};
 
 export const ChevronsUpDownIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>
@@ -207,11 +202,7 @@ export const AlertCircleIcon: Component<IconProps> = (props) => (
     </BaseIcon>
 );
 
-// export const IdCardIcon: Component<IconProps> = (props) => (
-//   <BaseIcon {...props}>
-//         <path d="M8 8H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-3 M9.5 7.5V5a2.5 2.5 0 0 1 5 0v2.5L12 10z M11 5h2 M8 15a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M4.5 20a3.5 3.5 0 0 1 7 0 M14 14.5h4 M14 18.5h1.5 M17 18.5h1" />
-//     </BaseIcon>
-// );
+
 export const IdCardIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>
         <path d="M13.5 8h-3" /><path d="m15 2-1 2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3" /><path d="M16.899 22A5 5 0 0 0 7.1 22" /><path d="m9 2 3 6" /><circle cx="12" cy="15" r="3" />
@@ -314,16 +305,9 @@ export const FileTextIcon: Component<IconProps> = (props) => (
 );
 export const ScalesIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>
-        {/* Base central simple */}
-        <path d="M12 21h-3a1 1 0 01-1-1v-1a1 1 0 011-1h3m0 0h3a1 1 0 011 1v1a1 1 0 01-1 1h-3" />
-        {/* Pilar central y haz horizontal superior */}
-        <path d="M12 4v16m0-16c-1.042 0-2 .133-2 .382L9 6.2a1 1 0 01-1 1H7l1 1h8l1-1h-1a1 1 0 01-1-1L14 4.382c0-.249-.958-.382-2-.382zM12 4c1.042 0 2 .133 2 .382z" />
-        {/* Bandejas colgantes idénticas (arcos de sartén semicirculares simples) */}
-        <path d="M5 10c0-3.313 3-4.5 7-4.5s7 1.187 7 4.5M6 10a2 2 0 01-2-2m-2-2a2 2 0 012-2M18 10a2 2 0 002-2m2-2a2 2 0 00-2-2m-8 6a4 4 0 01-4 4h8a4 4 0 01-4-4z" />
+        <path d="M12 3v18M19 8l3 8a5 5 0 0 1-6 0zV7" /><path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1M5 8l3 8a5 5 0 0 1-6 0zV7M7 21h10" />
     </BaseIcon>
 );
-
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scale-icon lucide-scale"><path d="M12 3v18" /><path d="m19 8 3 8a5 5 0 0 1-6 0zV7" /><path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1" /><path d="m5 8 3 8a5 5 0 0 1-6 0zV7" /><path d="M7 21h10" /></svg>
 
 
 // Download icon
@@ -374,5 +358,173 @@ export const MoreVerticalIcon: Component<IconProps> = (props) => (
         <circle cx="12" cy="12" r="1" />
         <circle cx="12" cy="5" r="1" />
         <circle cx="12" cy="19" r="1" />
+    </BaseIcon>
+);
+
+export const SparklesIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+        <path d="M5 3v4" />
+        <path d="M19 17v4" />
+        <path d="M3 5h4" />
+        <path d="M17 19h4" />
+    </BaseIcon>
+);
+
+// Catalog / hierarchy icons
+export const FolderIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+    </BaseIcon>
+);
+
+export const FolderOpenIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
+    </BaseIcon>
+);
+
+export const TagIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
+        <circle cx="7.5" cy="7.5" r=".5"/>
+    </BaseIcon>
+);
+
+export const Collapse: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M12 22v-6M12 8V2M4 12H2M10 12H8M16 12h-2M22 12h-2M15 19l-3-3-3 3M15 5l-3 3-3-3"/>
+    </BaseIcon>
+)
+
+export const Expand: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M12 22v-6M12 8V2M4 12H2M10 12H8M16 12h-2M22 12h-2M15 19l-3 3-3-3M15 5l-3-3-3 3"/>
+    </BaseIcon>
+)
+
+export const GripVerticalIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <circle cx="9" cy="12" r="1" /><circle cx="9" cy="5" r="1" /><circle cx="9" cy="19" r="1" />
+        <circle cx="15" cy="12" r="1" /><circle cx="15" cy="5" r="1" /><circle cx="15" cy="19" r="1" />
+    </BaseIcon>
+);
+
+export const WeightIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <circle cx="12" cy="5" r="3"/><path d="M6.5 8a2 2 0 0 0-2 1.5l-2.4 9A2 2 0 0 0 4 21h16a2 2 0 0 0 2-2.5l-2.6-9a2 2 0 0 0-2-1.5Z"/>
+    </BaseIcon>
+);
+
+// ── Settings Module Icons ──
+
+export const RulerIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0ZM14.5 12.5l2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2" />
+    </BaseIcon>
+);
+
+export const LayersIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+        <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+        <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
+    </BaseIcon>
+);
+
+export const SlidersIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <line x1="4" x2="4" y1="21" y2="14" />
+        <line x1="4" x2="4" y1="10" y2="3" />
+        <line x1="12" x2="12" y1="21" y2="12" />
+        <line x1="12" x2="12" y1="8" y2="3" />
+        <line x1="20" x2="20" y1="21" y2="16" />
+        <line x1="20" x2="20" y1="12" y2="3" />
+        <line x1="2" x2="6" y1="14" y2="14" />
+        <line x1="10" x2="14" y1="8" y2="8" />
+        <line x1="18" x2="22" y1="16" y2="16" />
+    </BaseIcon>
+);
+
+export const LayoutIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+      <rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>
+    </BaseIcon>
+);
+
+export const WarehouseIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M 12.000977 1.9379883 C 11.676223 1.9380674 11.351527 2.01488 11.054688 2.1679688 L 11.052734 2.1679688 L 3.1035156 6.140625 C 2.3903631 6.4848164 1.9370351 7.2080438 1.9375 8 L 1.9375 19 C 1.9375 20.138347 2.861653 21.0625 4 21.0625 L 6 21.0625 L 18 21.0625 L 20 21.0625 C 21.138347 21.0625 22.0625 20.138347 22.0625 19 L 22.0625 8 C 22.062775 7.2073051 21.608871 6.4842582 20.894531 6.140625 L 12.947266 2.1679688 C 12.650541 2.0145637 12.32573 1.9379092 12.000977 1.9379883 z M 12.000977 2.0629883 C 12.306259 2.0629883 12.611542 2.1350123 12.890625 2.2792969 L 20.839844 6.2519531 A 0.06250625 0.06250625 0 0 0 20.839844 6.2539062 C 21.511092 6.5768354 21.937758 7.2550728 21.9375 8 L 21.9375 19 C 21.9375 20.070792 21.070792 20.9375 20 20.9375 L 18.0625 20.9375 L 18.0625 17 L 18.0625 13 L 18.0625 10 C 18.0625 9.4139377 17.586062 8.9375 17 8.9375 L 7 8.9375 C 6.4139377 8.9375 5.9375 9.4139377 5.9375 10 L 5.9375 13 L 5.9375 17 L 5.9375 20.9375 L 4 20.9375 C 2.929208 20.9375 2.0625 20.070792 2.0625 19 L 2.0625 8 C 2.0620628 7.2552928 2.4872867 6.5771091 3.1582031 6.2539062 A 0.06250625 0.06250625 0 0 0 3.1601562 6.2519531 L 11.109375 2.2792969 A 0.06250625 0.06250625 0 0 0 11.111328 2.2792969 C 11.390412 2.1350123 11.695694 2.0629883 12.000977 2.0629883 z M 7 9.0625 L 17 9.0625 C 17.518507 9.0625 17.9375 9.4814928 17.9375 10 L 17.9375 12.9375 L 6.0625 12.9375 L 6.0625 10 C 6.0625 9.4814928 6.4814928 9.0625 7 9.0625 z M 6.0625 13.0625 L 17.9375 13.0625 L 17.9375 16.9375 L 6.0625 16.9375 L 6.0625 13.0625 z M 6.0625 17.0625 L 17.9375 17.0625 L 17.9375 20.9375 L 6.0625 20.9375 L 6.0625 17.0625 z" />
+    </BaseIcon>
+);
+
+export const PercentIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <line x1="19" x2="5" y1="5" y2="19" />
+        <circle cx="6.5" cy="6.5" r="2.5" />
+        <circle cx="17.5" cy="17.5" r="2.5" />
+    </BaseIcon>
+);
+
+export const HashIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <line x1="4" x2="20" y1="9" y2="9" />
+        <line x1="4" x2="20" y1="15" y2="15" />
+        <line x1="10" x2="8" y1="3" y2="21" />
+        <line x1="16" x2="14" y1="3" y2="21" />
+    </BaseIcon>
+);
+
+export const BeakerIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M21 7 6.8 21.2a3 3 0 0 1-4 0 3 3 0 0 1 0-4L17 3M16 2l6 6M12 16H4" />
+    </BaseIcon>
+);
+
+export const GridIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="m12 8 6-3-6-3v10M8 12 2.5 15a1 1 0 0 0 0 1.8l8.5 4.8a2 2 0 0 0 2 0l8.5-4.8a1 1 0 0 0 0-1.8L16 12M6.5 12.9l11 6.2M17.5 12.9 6.5 19" />
+    </BaseIcon>
+);
+
+export const BookmarkIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M7 3a2 2 0 0 0-2 2v15a1 1 0 0 0 1.5.9l4.5-2.6a2 2 0 0 1 2 0l4.5 2.6A1 1 0 0 0 19 20V5a2 2 0 0 0-2-2zm0 0h10a2 2 0 0 1 2 2v15a1 1 0 0 1-1.5.9L13 18.3a2 2 0 0 0-2 0l-4.5 2.6A1 1 0 0 1 5 20V5q.2-1.8 2-2" />
+    </BaseIcon>
+);
+
+export const BoxIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+        <path d="m3.3 7 8.7 5 8.7-5" />
+        <path d="M12 22V12" />
+    </BaseIcon>
+);
+
+export const ClockIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+    </BaseIcon>
+);
+
+export const ThermometerIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" />
+    </BaseIcon>
+);
+
+export const DatabaseIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <ellipse cx="12" cy="5" rx="9" ry="3" />
+        <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+        <path d="M3 12A9 3 0 0 0 21 12" />
+    </BaseIcon>
+);
+
+export const LockIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </BaseIcon>
 );

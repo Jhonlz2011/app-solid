@@ -1,14 +1,36 @@
-// src/modules/auth/auth.api.ts
-import { LoginResponse, AuthError, User } from "../types/auth.types";
+/**
+ * auth.api.ts — Eden API fetchers for Auth module
+ *
+ * Login, logout, register, slug/ruc checks.
+ * Type-safe — payload types inferred from backend schema contracts.
+ */
 import { api } from '@shared/lib/eden';
+import { AuthError } from '../types/auth-error';
+import type { AuthRegisterDtoType } from '@app/schema/backend';
 
 export const authApi = {
-    login: async (credentials: { email: string; password: string }, signal?: AbortSignal): Promise<LoginResponse> => {
-        const response = await api.api.auth.login.post(credentials, { fetch: { signal } });
-        const { data, error } = response;
+    login: async (credentials: { email: string; password: string }, signal?: AbortSignal) => {
+        const { data, error } = await api.api.auth.login.post(credentials, { fetch: { signal } });
         if (error) throw new AuthError(error.value, 'Login fallido');
-        if (!data) throw new AuthError('No data received');
-        return data as LoginResponse;
+        return data!;
+    },
+
+    register: async (payload: AuthRegisterDtoType, signal?: AbortSignal) => {
+        const { data, error } = await api.api.auth.register.post(payload, { fetch: { signal } });
+        if (error) throw new AuthError(error.value, 'Registro fallido');
+        return data!;
+    },
+
+    checkSlug: async (slug: string) => {
+        const { data, error } = await api.api.auth['check-slug']({ slug }).get();
+        if (error) throw new AuthError(error.value, 'Error verificando slug');
+        return data!;
+    },
+
+    checkRuc: async (ruc: string) => {
+        const { data, error } = await api.api.auth['check-ruc']({ ruc }).get();
+        if (error) throw new AuthError(error.value, 'Error verificando RUC');
+        return data!;
     },
 
     logout: async (signal?: AbortSignal): Promise<void> => {
@@ -19,14 +41,4 @@ export const authApi = {
             console.warn('Logout request failed', e);
         }
     },
-
-    getMe: async (signal?: AbortSignal): Promise<User> => {
-        const response = await api.api.auth.me.get({
-            fetch: { signal }
-        });
-        const { data, error } = response;
-        if (error) throw new AuthError(error.value, 'Error obteniendo usuario');
-        if (!data) throw new AuthError('No data received');
-        return data as User;
-    }
 };

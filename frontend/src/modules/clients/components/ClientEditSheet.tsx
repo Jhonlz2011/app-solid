@@ -1,6 +1,7 @@
 import { Component, Show } from 'solid-js';
 import { toast } from 'solid-sonner';
-import { useClient, useUpdateClient } from '../data/clients.api';
+import { useClient } from '../data/clients.queries';
+import { useUpdateClient } from '../data/clients.mutations';
 import { useParams } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { EntityForm } from '@shared/forms/entity';
@@ -62,7 +63,6 @@ const ClientEditSheet: Component<ClientEditSheetProps> = (props) => {
                         form="entity-form"
                         loading={updateMutation.isPending}
                         loadingText="Guardando..."
-                        class="min-w-[200px]"
                         icon={<FloppyDiskIcon/>}
                     >
                         Guardar Cambios

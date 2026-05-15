@@ -13,7 +13,10 @@
         "./types": "./src/types.ts",
         "./enums": "./src/enums.ts",
         "./realtime-events": "./src/realtime-events.ts",
-        "./sri": "./src/tables/sri.ts"
+        "./sri": "./src/tables/sri.ts",
+        "./shared-dto": "./src/shared.dto.ts",
+        "./rbac-dto": "./src/rbac.dto.ts",
+        "./profile-dto": "./src/profile.dto.ts"
     },
     "typesVersions": {
         "*": {
@@ -40,6 +43,15 @@
             ],
             "sri": [
                 "./src/tables/sri.ts"
+            ],
+            "shared-dto": [
+                "./src/shared.dto.ts"
+            ],
+            "rbac-dto": [
+                "./src/rbac.dto.ts"
+            ],
+            "profile-dto": [
+                "./src/profile.dto.ts"
             ]
         }
     },

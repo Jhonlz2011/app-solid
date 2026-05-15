@@ -1,29 +1,31 @@
 import { Elysia, t } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
+import { staticPlugin } from '@elysiajs/static';
 
 // Routes
 import { authRoutes } from './routes/auth.routes';
 import { productRoutes } from './routes/products.routes';
-import { workOrderRoutes } from './routes/work-orders.routes';
 import { clientRoutes } from './routes/clients.routes';
 import { supplierRoutes } from './routes/suppliers.routes';
 import { employeeRoutes } from './routes/employees.routes';
-import { catalogRoutes } from './routes/catalogs.routes';
+import { brandRoutes } from './routes/brands.routes';
+import { uomRoutes } from './routes/uom.routes';
 import { categoryRoutes } from './routes/categories.routes';
+import { attributeRoutes } from './routes/attributes.routes';
 import { invoiceRoutes } from './routes/invoices.routes';
 import { materialRoutes } from './routes/materials.routes';
-import { bomRoutes } from './routes/bom.routes';
 import { modulesRoutes } from './routes/modules.routes';
 import { sriRoutes } from './routes/sri.routes';
 import { geonamesRoutes } from './routes/geonames.routes';
 import { electronicDocumentsRoutes } from './routes/electronic-documents.routes';
-import { remissionGuidesRoutes } from './routes/remission-guides.routes';
-import { technicalVisitsRoutes } from './routes/technical-visits.routes';
 import { quotationRoutes } from './routes/quotations.routes';
 import { employeeSchedulesRoutes } from './routes/employee-schedules.routes';
 import { rbacRoutes } from './routes/rbac.routes';
 import { entityRoutes } from './routes/entities.routes';
+import { uploadsRoutes } from './routes/uploads.routes';
+import { inventoryRoutes } from './routes/inventory.routes';
+import { locationsRoutes } from './routes/locations.routes';
 
 // Plugins
 import { rateLimit } from './plugins/rate-limit';
@@ -115,21 +117,23 @@ const app = new Elysia({ prefix: '/api', aot: false })
   .use(employeeRoutes)
   .use(productRoutes)
   .use(categoryRoutes)
-  .use(catalogRoutes)
-  .use(workOrderRoutes)
+  .use(attributeRoutes)
+  .use(brandRoutes)
+  .use(uomRoutes)
   .use(invoiceRoutes)
   .use(materialRoutes)
-  .use(bomRoutes)
   .use(modulesRoutes)
   .use(electronicDocumentsRoutes)
-  .use(remissionGuidesRoutes)
-  .use(technicalVisitsRoutes)
   .use(quotationRoutes)
   .use(employeeSchedulesRoutes)
   .use(rbacRoutes)
   .use(entityRoutes)
   .use(sriRoutes)
   .use(geonamesRoutes)
+  .use(uploadsRoutes)
+  .use(inventoryRoutes)
+  .use(locationsRoutes)
+  .use(staticPlugin({ assets: 'public', prefix: '/' }))
 
 // Server configuration with optional Unix Socket support
 const serverConfig = {

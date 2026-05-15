@@ -46,12 +46,12 @@ export const suppliersService = {
         cursor?: string; direction?: string;
         sortBy?: string; sortOrder?: string; page?: number;
         personType?: string[]; taxIdType?: string[]; isActive?: string[]; businessName?: string[];
-    }) {
+    }, companyId: number) {
         return listEntities('supplier', {
             ...filters,
             direction: filters.direction as any,
             sortOrder: filters.sortOrder as 'asc' | 'desc' | undefined,
-        });
+        }, companyId);
     },
 
     /** Get faceted filter values + counts for supplier columns */
@@ -61,17 +61,18 @@ export const suppliersService = {
         taxIdType?: string[];
         isActive?: string[];
         businessName?: string[];
-    }) {
+    }, companyId: number) {
         return getEntityFacets(
             'supplier',
             ['person_type', 'tax_id_type', 'is_active', 'business_name'],
-            filters
+            filters,
+            companyId
         );
     },
 
     /** Get a single supplier by ID */
-    async get(id: number) {
-        const supplier = await getEntity(id);
+    async get(id: number, companyId: number) {
+        const supplier = await getEntity(id, companyId);
         if (!supplier.is_supplier) {
             throw new DomainError('Entidad no es un proveedor', 404);
         }
@@ -79,30 +80,30 @@ export const suppliersService = {
     },
 
     /** Create a new supplier */
-    async create(payload: EntityPayload, audit?: AuditContext) {
-        return createEntity('supplier', payload, audit);
+    async create(payload: EntityPayload, audit?: AuditContext, companyId?: number) {
+        return createEntity('supplier', payload, audit, companyId);
     },
 
     /** Update an existing supplier */
-    async update(id: number, payload: Partial<EntityPayload>, audit?: AuditContext) {
+    async update(id: number, payload: Partial<EntityPayload>, audit?: AuditContext, companyId?: number) {
         await assertSupplier(id);
-        return updateEntity(id, 'supplier', payload, audit);
+        return updateEntity(id, 'supplier', payload, audit, companyId);
     },
 
     /**
      * Soft delete (deactivate) — safe default.
      * Sets is_active=false, deleted_at=now(), deleted_by for audit trail.
      */
-    async softDelete(id: number, deletedBy?: number, audit?: AuditContext) {
+    async softDelete(id: number, deletedBy?: number, audit?: AuditContext, companyId?: number) {
         await assertSupplier(id);
-        return deactivateEntity(id, 'supplier', deletedBy, audit);
+        return deactivateEntity(id, 'supplier', deletedBy, audit, companyId);
     },
 
     /**
      * Restore a soft-deleted supplier back to active.
      */
-    async restore(id: number, audit?: AuditContext) {
-        return restoreEntity(id, 'supplier', audit);
+    async restore(id: number, audit?: AuditContext, companyId?: number) {
+        return restoreEntity(id, 'supplier', audit, companyId);
     },
 
     /**
@@ -119,9 +120,9 @@ export const suppliersService = {
      * Server always re-validates integrity regardless of client pre-check.
      * Route must be guarded with `suppliers:destroy` permission.
      */
-    async hardDelete(id: number, audit?: AuditContext) {
+    async hardDelete(id: number, audit?: AuditContext, companyId?: number) {
         await assertSupplier(id);
-        return hardDeleteEntity(id, 'supplier', audit);
+        return hardDeleteEntity(id, 'supplier', audit, companyId);
     },
 
     /**
@@ -130,7 +131,6 @@ export const suppliersService = {
      */
     async bulkDelete(ids: number[], audit?: AuditContext) {
         if (ids.length === 0) return { success: true, count: 0 };
-
         return withAuditTransaction(audit, async (tx) => {
             const existing = await tx
                 .select({ id: entities.id })
@@ -141,7 +141,7 @@ export const suppliersService = {
                     inArray(entities.id, ids)
                 ));
 
-            const existingIds = existing.map(e => e.id);
+            const existingIds = existing.map((e: { id: number }) => e.id);
             if (existingIds.length === 0) {
                 throw new DomainError('No se encontraron proveedores válidos para eliminar', 404);
             }
@@ -185,7 +185,7 @@ export const suppliersService = {
                     inArray(entities.id, ids)
                 ));
 
-            const existingIds = existing.map(e => e.id);
+            const existingIds = existing.map((e: { id: number }) => e.id);
             if (existingIds.length === 0) {
                 throw new DomainError('No se encontraron proveedores válidos para restaurar', 404);
             }

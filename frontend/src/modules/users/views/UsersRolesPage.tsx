@@ -6,7 +6,7 @@
  */
 import { Component, For, Show } from 'solid-js';
 import { toast } from 'solid-sonner';
-import { useNavigate, Outlet } from '@tanstack/solid-router';
+import { Outlet } from '@tanstack/solid-router';
 // import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { useUsersState } from '../hooks/useUsersState';
 
@@ -35,7 +35,7 @@ import {
 
 const UsersRolesPage: Component = () => {
     // const isMobile = useIsMobile();
-    const navigate = useNavigate();
+    // const navigate = useNavigate();
     const state = useUsersState();
 
     return (

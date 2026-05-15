@@ -6,7 +6,7 @@ import { TextField } from '@shared/ui/TextField';
 import Button from '@shared/ui/Button';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
 import { CopyIcon } from '@shared/ui/icons';
-import { useAdminResetPassword } from '../data/users.queries';
+import { useAdminResetPassword } from '../data/users.mutations';
 
 interface PasswordResetSectionProps {
     userId: number;

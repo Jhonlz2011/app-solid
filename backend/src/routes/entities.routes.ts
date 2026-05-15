@@ -10,8 +10,9 @@ export const entityRoutes = new Elysia({ prefix: '/entities' })
     .use(authGuard)
     .get(
         '/',
-        ({ query }) => {
+        ({ query, currentCompanyId }) => {
             return listForPicker(
+                currentCompanyId,
                 query.search,
                 query.limit ? Number(query.limit) : 200,
             );

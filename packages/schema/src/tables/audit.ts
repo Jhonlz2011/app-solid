@@ -3,6 +3,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { v7 as uuidv7 } from 'uuid'; // Generación de UUIDv7 en Bun
 import { authUsers } from './auth';
+import { companies } from './config';
 
 // 1. ENUM: Ahorra millones de bytes guardando un entero (4 bytes) en lugar de texto
 export const actionEnum = pgEnum('audit_action', ['INSERT', 'UPDATE', 'DELETE', 'LOGIN', 'EXPORT']);
@@ -15,6 +16,7 @@ const inet = customType<{ data: string }>({
 export const auditLogs = pgTable("audit_logs", {
     // Generación descentralizada cronológica. Rápida y sin fragmentar el índice.
     id: uuid("id").$defaultFn(() => uuidv7()).notNull(),    // Identificadores Polimórficos
+    company_id: integer("company_id").references(() => companies.id),
     tableName: varchar("table_name", { length: 64 }).notNull(),
     recordId: varchar("record_id", { length: 128 }).notNull(),
     action: actionEnum("action").notNull(),
@@ -37,6 +39,9 @@ export const auditLogs = pgTable("audit_logs", {
     
     // Índice para buscar qué hizo un usuario específico
     index("idx_audit_user").on(t.userId),
+
+    // Index for multi-tenant audit trail queries
+    index("idx_audit_company").on(t.company_id),
     
     // Índice para filtrar por rangos de fecha rápidos
 ]);
@@ -44,6 +49,7 @@ export const auditLogs = pgTable("audit_logs", {
 // Esta es la tabla temporal ultraligera
 export const auditQueue = pgTable("_audit_queue", {
     id: integer("id").generatedAlwaysAsIdentity({ cycle:true }).primaryKey(),
+    company_id: integer("company_id"),
     tableName: text("table_name").notNull(),
     recordId: text("record_id").notNull(),
     action: text("action").notNull(),

@@ -5,6 +5,7 @@
  * Actions (Edit / Delete / Restore) are exposed via inline icon buttons.
  */
 import { Component, Show } from 'solid-js';
+import { useNavigate } from '@tanstack/solid-router';
 import type { SupplierListItem } from '../data/suppliers.api';
 import { useAuth } from '@/modules/auth/store/auth.store';
 import { StatusBadge, Badge } from '@shared/ui/Badge';
@@ -17,14 +18,13 @@ export interface SupplierCardProps {
     supplier: SupplierListItem;
     isSelected: boolean;
     onSelect: (checked: boolean) => void;
-    onView: (supplier: SupplierListItem) => void;
-    onEdit: (supplier: SupplierListItem) => void;
     onDelete: (supplier: SupplierListItem) => void;
     onRestore: (supplier: SupplierListItem) => void;
 }
 
 export const SupplierCard: Component<SupplierCardProps> = (props) => {
     const auth = useAuth();
+    const navigate = useNavigate();
     const canDestroy = () => auth.hasPermission('suppliers.destroy');
 
     return (
@@ -36,7 +36,7 @@ export const SupplierCard: Component<SupplierCardProps> = (props) => {
                 'active:bg-surface-2',
                 props.isSelected && 'bg-row-selected',
             )}
-            onClick={() => props.onView(props.supplier)}
+            onClick={() => navigate({ to: `/suppliers/${props.supplier.id}/show` })}
         >
             {/* Left: checkbox + active accent */}
             <div
@@ -105,7 +105,6 @@ export const SupplierCard: Component<SupplierCardProps> = (props) => {
                                 size="icon"
                                 class="h-8 w-8 text-muted hover:text-emerald-400 hover:bg-emerald-500/10"
                                 title="Restaurar"
-                                
                                 onClick={() => props.onRestore(props.supplier)}
                             >
                                 <RotateCcwIcon class="size-4" />
@@ -125,18 +124,19 @@ export const SupplierCard: Component<SupplierCardProps> = (props) => {
                     }
                 >
                     <Button
+                        to={`/suppliers/${props.supplier.id}/edit`}
                         variant="ghost"
                         size="icon"
-                        class="h-8 w-8 text-muted hover:text-info hover:bg-info/10"
+                        class="size-8 text-muted hover:text-info hover:bg-info/10"
                         title="Editar"
-                        onClick={() => props.onEdit(props.supplier)}
+                        onClick={(e) => e.stopPropagation()}
                     >
                         <EditIcon class="size-4" />
                     </Button>
                     <Button
                         variant="ghost"
                         size="icon"
-                        class="h-8 w-8 text-muted hover:text-danger hover:bg-danger/10"
+                        class="size-8 text-muted hover:text-danger hover:bg-danger/10"
                         title="Eliminar"
                         onClick={() => props.onDelete(props.supplier)}
                     >

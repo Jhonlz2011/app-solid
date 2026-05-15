@@ -5,7 +5,8 @@ import type { UserFormData } from '@app/schema/frontend';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 import { FloppyDiskIcon } from '@shared/ui/icons';
-import { useCreateUser, useRoles, useEntitiesList, useSetUserEntity } from '../data/users.queries';
+import { useRoles, useEntitiesList } from '../data/users.queries';
+import { useCreateUser, useSetUserEntity } from '../data/users.mutations';
 import UserForm from './UserForm';
 import type { EntityOption } from './UserForm';
 

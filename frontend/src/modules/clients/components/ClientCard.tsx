@@ -5,10 +5,11 @@
  * Actions (Edit / Delete / Restore) are exposed via inline icon buttons.
  */
 import { Component, Show } from 'solid-js';
+import { useNavigate } from '@tanstack/solid-router';
 import type { ClientListItem } from '../data/clients.api';
 import { useAuth } from '@/modules/auth/store/auth.store';
 import { StatusBadge, Badge } from '@shared/ui/Badge';
-import { EditIcon, TrashIcon, RotateCcwIcon} from '@shared/ui/icons';
+import { EditIcon, TrashIcon, RotateCcwIcon } from '@shared/ui/icons';
 import Checkbox from '@shared/ui/Checkbox';
 import { cn } from '@shared/lib/utils';
 import Button from '@shared/ui/Button';
@@ -23,6 +24,7 @@ export interface ClientCardProps {
 
 export const ClientCard: Component<ClientCardProps> = (props) => {
     const auth = useAuth();
+    const navigate = useNavigate();
     const canDestroy = () => auth.hasPermission('clients.destroy');
 
     return (
@@ -34,8 +36,7 @@ export const ClientCard: Component<ClientCardProps> = (props) => {
                 'active:bg-surface-2',
                 props.isSelected && 'bg-row-selected',
             )}
-            onClick={() => props.onView(props.client)}
-        >
+            onClick={() => navigate({ to: `/clients/${props.client.id}/show` })}        >
             {/* Left: checkbox + active accent */}
             <div
                 class={cn(
@@ -103,7 +104,6 @@ export const ClientCard: Component<ClientCardProps> = (props) => {
                                 size="icon"
                                 class="h-8 w-8 text-muted hover:text-emerald-400 hover:bg-emerald-500/10"
                                 title="Restaurar"
-                                
                                 onClick={() => props.onRestore(props.client)}
                             >
                                 <RotateCcwIcon class="size-4" />
@@ -112,7 +112,7 @@ export const ClientCard: Component<ClientCardProps> = (props) => {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    class="size-8 text-muted hover:text-danger hover:bg-danger/10 shadow-none" 
+                                    class="size-8 text-muted hover:text-danger hover:bg-danger/10 shadow-none"
                                     title="Eliminar permanentemente"
                                     onClick={() => props.onDelete(props.client)}
                                 >
@@ -123,11 +123,12 @@ export const ClientCard: Component<ClientCardProps> = (props) => {
                     }
                 >
                     <Button
+                        to={`/clients/${props.client.id}/edit`}
                         variant="ghost"
                         size="icon"
-                        class="h-8 w-8 text-muted hover:text-info hover:bg-info/10"
+                        class="size-8 text-muted hover:text-info hover:bg-info/10"
                         title="Editar"
-                        onClick={() => props.onEdit(props.client)}
+                        onClick={(e) => e.stopPropagation()}
                     >
                         <EditIcon class="size-4" />
                     </Button>

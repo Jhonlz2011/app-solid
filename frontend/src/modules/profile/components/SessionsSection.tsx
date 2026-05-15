@@ -1,45 +1,36 @@
-// Sessions Section - Embedded Session Management (Optimized for 0ms UX)
+/**
+ * SessionsSection — My active sessions (Profile page)
+ *
+ * Uses centralized queries/mutations from the data layer.
+ * Real-time updates via SSE + BroadcastChannel.
+ */
 import { Component, createSignal, createEffect, For, Show, onCleanup } from 'solid-js';
-import { createQuery, createMutation, useQueryClient } from '@tanstack/solid-query';
+import { useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
-import { api } from '@shared/lib/eden';
 import { useSSE } from '@shared/store/sse.store';
 import { useAuth } from '@modules/auth/store/auth.store';
-import { SessionItem, type Session } from './SessionItem';
-import { DeviceIcon, WarningIcon } from '@shared/ui/icons';
+import { SessionItem } from '@shared/ui/SessionItem';
+import { DeviceIcon } from '@shared/ui/icons';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { ListItemSkeleton } from '@shared/ui/SkeletonLoader';
 import ErrorState from '@shared/ui/ErrorState';
+import { profileKeys } from '../data/profile.keys';
+import { useMySessions } from '../data/profile.queries';
+import { useRevokeMySession } from '../data/profile.mutations';
+import ConfirmDialog from '@shared/ui/ConfirmDialog';
 
 export const SessionsSection: Component = () => {
     const queryClient = useQueryClient();
     const auth = useAuth();
     const { subscribe, unsubscribe } = useSSE();
     const [revoking, setRevoking] = createSignal<string | null>(null);
+    const [confirmRevoke, setConfirmRevoke] = createSignal<string | null>(null);
 
-    const sessionsQuery = createQuery(() => ({
-        queryKey: ['auth', 'sessions'],
-        queryFn: async (): Promise<Session[]> => {
-            const { data, error } = await api.api.auth.sessions.get();
-            if (error) throw new Error(String(error.value));
-            // Map Date to string for SessionItem component
-            return (data as any[]).map(s => ({
-                ...s,
-                created_at: typeof s.created_at === 'string' ? s.created_at : s.created_at.toISOString(),
-            }));
-        },
-        // 2026 Best Practices for 0ms UX:
-        staleTime: 60 * 1000, // Data stays fresh for 1 minute
-        gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-        refetchOnMount: false, // Don't refetch if we have fresh data
-        refetchOnWindowFocus: false, // Avoid unnecessary refetches
-    }));
+    const sessionsQuery = useMySessions();
+    const revokeMutation = useRevokeMySession();
 
-    // Real-time session list updates
-    // Using createEffect so this runs (and re-runs) reactively when auth.user() resolves.
-    // onMount would capture userId once at mount time — if the user wasn't loaded yet,
-    // userId would be undefined and the room subscription would never happen.
+    // ── Real-time session updates ──
     const [cleanupFns, setCleanupFns] = createSignal<(() => void)[]>([]);
 
     createEffect(() => {
@@ -49,21 +40,17 @@ export const SessionsSection: Component = () => {
         const room = `user:${userId}`;
         subscribe(room);
 
-        // Same-browser sync via BroadcastChannel
         const cleanupBroadcast = broadcast.on(BroadcastEvents.SESSIONS_REFRESH, () => {
-            queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
+            queryClient.invalidateQueries({ queryKey: profileKeys.sessions() });
         });
 
-        // Cross-browser sync: SSE events dispatched by sse.store when backend broadcasts.
-        // Covers both new logins (session_created) and revocations (session_revoked).
         const handleSessionsChanged = () => {
-            queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
+            queryClient.invalidateQueries({ queryKey: profileKeys.sessions() });
         };
 
         window.addEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged);
         window.addEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged);
 
-        // Store cleanup for onCleanup
         setCleanupFns([
             () => unsubscribe(room),
             cleanupBroadcast,
@@ -74,34 +61,21 @@ export const SessionsSection: Component = () => {
 
     onCleanup(() => cleanupFns().forEach(fn => fn()));
 
-    const revokeMutation = createMutation(() => ({
-        mutationFn: async (sessionId: string) => {
-            const { error } = await api.api.auth.sessions({ id: sessionId }).delete();
-            if (error) throw new Error(String(error.value));
-            return { success: true };
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
-            // Notify same-browser tabs immediately (BroadcastChannel is same-browser only).
-            // Cross-browser tabs are handled by the SSE user:session_revoked event from the backend.
-            broadcast.emit(BroadcastEvents.SESSIONS_REFRESH);
-            toast.success('Sesión cerrada correctamente');
-        },
-        onError: () => {
-            toast.error('No se pudo cerrar la sesión');
-        },
-    }));
-
+    // ── Handlers ──
     const handleRevoke = async (sessionId: string) => {
         setRevoking(sessionId);
+        setConfirmRevoke(null);
         try {
             await revokeMutation.mutateAsync(sessionId);
+            toast.success('Sesión cerrada correctamente');
+        } catch {
+            toast.error('No se pudo cerrar la sesión');
         } finally {
             setRevoking(null);
         }
     };
 
-    // Derived state
+    // ── Derived state ──
     const sessions = () => sessionsQuery.data ?? [];
     const hasCachedData = () => sessionsQuery.data !== undefined;
     const isInitialLoading = () => sessionsQuery.isLoading && !hasCachedData();
@@ -113,7 +87,6 @@ export const SessionsSection: Component = () => {
                 <div>
                     <h2 class="text-lg font-semibold text-heading mb-1">
                         Sesiones activas
-                        {/* Subtle indicator when background refetching */}
                         <Show when={isBackgroundRefetching()}>
                             <span class="inline-block ml-2 w-2 h-2 rounded-full bg-primary animate-pulse" />
                         </Show>
@@ -138,10 +111,10 @@ export const SessionsSection: Component = () => {
 
             {/* Error State */}
             <Show when={sessionsQuery.isError && !hasCachedData()}>
-                <ErrorState 
+                <ErrorState
                     size="sm"
-                    description="Error al cargar las sesiones" 
-                    onRetry={() => sessionsQuery.refetch()} 
+                    description="Error al cargar las sesiones"
+                    onRetry={() => sessionsQuery.refetch()}
                 />
             </Show>
 
@@ -155,20 +128,32 @@ export const SessionsSection: Component = () => {
                 </div>
             </Show>
 
-            {/* Sessions List - Shows cached data even during refetch */}
+            {/* Sessions List */}
             <Show when={sessions().length > 0}>
                 <div class="space-y-3">
                     <For each={sessions()}>
                         {(session) => (
                             <SessionItem
                                 session={session}
-                                onRevoke={handleRevoke}
+                                onRevoke={(id) => setConfirmRevoke(id)}
                                 isRevoking={revoking() === session.id}
                             />
                         )}
                     </For>
                 </div>
             </Show>
+
+            <ConfirmDialog
+                isOpen={!!confirmRevoke()}
+                onClose={() => setConfirmRevoke(null)}
+                onConfirm={() => confirmRevoke() && handleRevoke(confirmRevoke()!)}
+                title="¿Cerrar sesión?"
+                description="Serás desconectado de este dispositivo inmediatamente."
+                confirmLabel="Cerrar sesión"
+                variant="danger"
+                isLoading={!!revoking()}
+                loadingText="Cerrando sesión..."
+            />
         </div>
     );
 };

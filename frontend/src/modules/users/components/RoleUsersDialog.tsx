@@ -11,10 +11,12 @@ import { UserMinusIcon, PlusIcon, UsersIcon } from '@shared/ui/icons';
 import { rbacKeys } from '../data/users.keys';
 import {
     useRoleUsers,
-    useRemoveUserFromRole,
     useUsers,
-    useAssignUserRoles,
 } from '../data/users.queries';
+import {
+    useRemoveUserFromRole,
+    useAssignUserRoles,
+} from '../data/users.mutations';
 
 // =============================================================================
 // Types

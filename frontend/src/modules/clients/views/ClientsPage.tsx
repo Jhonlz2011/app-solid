@@ -52,7 +52,7 @@ const ClientsPage: Component = () => {
                     actions={
                         <div class="flex items-center gap-2">
                             <Button variant="outline" icon={<UploadIcon />} onClick={() => toast.info('Importación próximamente')}>
-                                <span class="hidden sm:inline">Importar</span>
+                                <span class="hidden @sm:inline">Importar</span>
                             </Button>
                             <Show when={state.auth.canAdd('clients')}>
                                 <Button
@@ -60,7 +60,7 @@ const ClientsPage: Component = () => {
                                     preload="intent"
                                     icon={<PlusIcon />}
                                 >
-                                    <span class="hidden sm:inline">Nuevo</span>
+                                    <span class="hidden @sm:inline">Nuevo</span>
                                 </Button>
                             </Show>
                         </div>
@@ -109,9 +109,7 @@ const ClientsPage: Component = () => {
                                 filters={state.filters}
                                 rowSelection={state.rowSelection}
                                 onRowSelectionChange={state.setRowSelection}
-                                onView={state.handleView}
-                                onEdit={state.handleEdit}
-                                onDelete={state.handleDelete}
+                                onDelete={state. handleDelete}
                                 onRestore={state.handleRestore}
                             />
                         }

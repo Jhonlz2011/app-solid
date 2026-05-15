@@ -20,7 +20,7 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
     // List with cursor pagination
     .get(
         '/',
-        ({ query }) => {
+        ({ query, currentCompanyId }) => {
             return clientsService.list({
                 cursor: query.cursor,
                 direction: query.direction as 'next' | 'prev' | 'first' | 'last' | undefined,
@@ -33,7 +33,7 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
                 taxIdType: parseArray(query.taxIdType),
                 isActive: parseArray(query.isActive),
                 businessName: parseArray(query.businessName),
-            });
+            }, currentCompanyId);
         },
         {
             query: t.Object({
@@ -54,14 +54,14 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
     // Get faceted filter values + counts (with cross-filtering)
     .get(
         '/facets',
-        ({ query }) => {
+        ({ query, currentCompanyId }) => {
             return clientsService.facets({
                 search: query.search,
                 personType: parseArray(query.personType),
                 taxIdType: parseArray(query.taxIdType),
                 isActive: parseArray(query.isActive),
                 businessName: parseArray(query.businessName),
-            });
+            }, currentCompanyId);
         },
         {
             query: t.Object({
@@ -75,14 +75,14 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
     )
     .get(
         '/:id',
-        ({ params }) => clientsService.get(Number(params.id)),
+        ({ params, currentCompanyId }) => clientsService.get(Number(params.id), currentCompanyId),
         { params: t.Object({ id: t.Numeric() }) }
     )
     .post(
         '/',
-        async ({ body, set, headers, currentUserId, request }) => {
+        async ({ body, set, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
-            const client = await clientsService.create(body, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
+            const client = await clientsService.create(body, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
             set.status = 201;
             return client;
         },
@@ -90,9 +90,9 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
     )
     .put(
         '/:id',
-        ({ params, body, headers, currentUserId, request }) => {
+        ({ params, body, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
-            return clientsService.update(Number(params.id), body, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
+            return clientsService.update(Number(params.id), body, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
         },
         {
             params: t.Object({ id: t.Numeric() }),
@@ -102,7 +102,7 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
     // Bulk deactivate (soft delete) — before /:id to avoid route conflict
     .delete(
         '/bulk',
-        async ({ body, headers, currentUserId, request }) => {
+        async ({ body, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
             return clientsService.bulkDelete(body.ids, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
         },
@@ -115,7 +115,7 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
     // Bulk restore
     .patch(
         '/bulk/restore',
-        async ({ body, headers, currentUserId, request }) => {
+        async ({ body, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
             return clientsService.bulkRestore(body.ids, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
         },
@@ -134,12 +134,13 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
     // Soft delete (deactivate) — safe default, reversible
     .patch(
         '/:id/deactivate',
-        async ({ params, set, headers, currentUserId, request }) => {
+        async ({ params, set, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
             await clientsService.softDelete(
                 Number(params.id),
-                undefined, // deletedBy: wire to session user id when RBAC is available
-                { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
+                undefined,
+                { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] },
+                currentCompanyId
             );
             set.status = 204;
         },
@@ -148,18 +149,18 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
     // Restore a soft-deleted client
     .patch(
         '/:id/restore',
-        async ({ params, headers, currentUserId, request }) => {
+        async ({ params, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
-            return clientsService.restore(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
+            return clientsService.restore(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
         },
         { params: t.Object({ id: t.Numeric() }) }
     )
     // Hard delete — permanent, guarded by clients:destroy permission
     .delete(
         '/:id',
-        async ({ params, set, headers, currentUserId, request }) => {
+        async ({ params, set, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
-            await clientsService.hardDelete(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
+            await clientsService.hardDelete(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
             set.status = 204;
         },
         { params: t.Object({ id: t.Numeric() }) }

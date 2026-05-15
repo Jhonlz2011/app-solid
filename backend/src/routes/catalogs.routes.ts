@@ -1,29 +1,15 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
 import {
-    listUom, createUom,
-    listBrands, createBrand, updateBrand, deleteBrand,
-    listAttributeDefinitions, createAttributeDefinition,
-} from '../services/catalogs.service';
+    listBrands, createBrand, updateBrand, deactivateBrand, restoreBrand,
+    listFamilies, createFamily, updateFamily, deactivateFamily, restoreFamily,
+} from '../services/categories.service';
 
-export const catalogRoutes = new Elysia({ prefix: '/catalogs' })
+export const categorieRoutes = new Elysia({ prefix: '/categories' })
     .use(authGuard)
-    // ====== UOM ======
-    .get('/uom', () => listUom())
-    .post(
-        '/uom',
-        async ({ body, set }) => {
-            const uom = await createUom(body);
-            set.status = 201;
-            return uom;
-        },
-        {
-            body: t.Object({
-                code: t.String({ maxLength: 10 }),
-                name: t.String({ maxLength: 50 }),
-            }),
-        }
-    )
+
+    // NOTE: UOM routes are now in uom.routes.ts (tenant-aware, integer PK)
+
     // ====== BRANDS ======
     .get('/brands', () => listBrands())
     .post(
@@ -49,35 +35,60 @@ export const catalogRoutes = new Elysia({ prefix: '/catalogs' })
                 t.Object({
                     name: t.String({ maxLength: 100 }),
                     website: t.String({ maxLength: 255 }),
+                    is_active: t.Boolean(),
                 })
             ),
         }
     )
-    .delete(
-        '/brands/:id',
-        async ({ params, set }) => {
-            await deleteBrand(Number(params.id));
-            set.status = 204;
-        },
-        {
-            params: t.Object({ id: t.Numeric() }),
-        }
+    .patch(
+        '/brands/:id/deactivate',
+        ({ params }) => deactivateBrand(Number(params.id)),
+        { params: t.Object({ id: t.Numeric() }) }
     )
-    // ====== ATTRIBUTES ======
-    .get('/attributes', () => listAttributeDefinitions())
+    .patch(
+        '/brands/:id/restore',
+        ({ params }) => restoreBrand(Number(params.id)),
+        { params: t.Object({ id: t.Numeric() }) }
+    )
+
+    // ====== FAMILIES ======
+    .get('/families', () => listFamilies())
     .post(
-        '/attributes',
+        '/families',
         async ({ body, set }) => {
-            const attr = await createAttributeDefinition(body);
+            const family = await createFamily(body);
             set.status = 201;
-            return attr;
+            return family;
         },
         {
             body: t.Object({
-                key: t.String({ maxLength: 50 }),
-                label: t.String({ maxLength: 50 }),
-                type: t.String({ maxLength: 20 }),
-                defaultOptions: t.Optional(t.Any()),
+                name: t.String({ maxLength: 100 }),
+                categoryId: t.Optional(t.Number()),
+                description: t.Optional(t.String({ maxLength: 255 })),
             }),
         }
+    )
+    .put(
+        '/families/:id',
+        ({ params, body }) => updateFamily(Number(params.id), body),
+        {
+            params: t.Object({ id: t.Numeric() }),
+            body: t.Partial(
+                t.Object({
+                    name: t.String({ maxLength: 100 }),
+                    categoryId: t.Nullable(t.Number()),
+                    description: t.Nullable(t.String({ maxLength: 255 })),
+                })
+            ),
+        }
+    )
+    .patch(
+        '/families/:id/deactivate',
+        ({ params }) => deactivateFamily(Number(params.id)),
+        { params: t.Object({ id: t.Numeric() }) }
+    )
+    .patch(
+        '/families/:id/restore',
+        ({ params }) => restoreFamily(Number(params.id)),
+        { params: t.Object({ id: t.Numeric() }) }
     );

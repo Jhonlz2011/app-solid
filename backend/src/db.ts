@@ -3,6 +3,7 @@ import postgres from 'postgres';
 import { env } from './config/env';
 import { cacheService } from './services/cache.service';
 import { broadcast } from './plugins/sse';
+import * as schema from '@app/schema';
 
 const queryClient = postgres(env.DATABASE_URL, {
   max: 10,
@@ -45,7 +46,6 @@ listener.listen('db_change', (payload: string) => {
   }
 });
 
-import * as schema from '@app/schema';
 
 export const db = drizzle(queryClient, {
   schema,

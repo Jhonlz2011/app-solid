@@ -1,6 +1,6 @@
 import { Show, createMemo, createContext, useContext, createUniqueId, JSX, createSignal, createEffect, onCleanup } from 'solid-js';
 import { Combobox as KCombobox } from '@kobalte/core/combobox';
-import { SearchIcon, XIcon } from './icons';
+import { SearchIcon, XIcon, PlusIcon } from './icons';
 import type { FieldLike } from './form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from './form/form.types';
 
@@ -110,6 +110,8 @@ export interface AutocompleteInputProps<T> {
     onSearchAction?: () => void;
     minLength?: number;
     inputId?: string;
+    onCreateNew?: () => void;
+    createNewLabel?: string;
 }
 
 const Input = <T,>(props: AutocompleteInputProps<T>) => {
@@ -229,7 +231,8 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                     <KCombobox.Input 
                         id={props.inputId || context.id}
                         placeholder={props.placeholder}
-                        class="flex-1 bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0"
+                        readOnly={isSelectedState()}
+                        class={`flex-1 bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0 ${isSelectedState() ? 'cursor-default' : ''}`}
                         onPointerDown={(e) => e.stopPropagation()}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && props.onSearchAction) {
@@ -285,7 +288,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
             <KCombobox.Portal>
                 <KCombobox.Content 
                     class="relative z-[100] min-w-[8rem] overflow-hidden bg-card border border-border shadow-md rounded-xl p-1 transform-origin-var data-[expanded]:animate-in data-[expanded]:fade-in-0 data-[expanded]:zoom-in-95 data-[expanded]:slide-in-from-top-2 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:zoom-out-95 data-[closed]:slide-out-to-top-2"
-                    classList={{ 'hidden': isSelectedState() || (props.options.length === 0 && !props.isLoading && (props.hideEmptyState || (props.value?.length ?? 0) < (props.minLength ?? 3))) }}
+                    classList={{ 'hidden': isSelectedState() || (props.options.length === 0 && !props.onCreateNew && !props.isLoading && (props.hideEmptyState || (props.value?.length ?? 0) < (props.minLength ?? 3))) }}
                     style={{
                         "width": triggerWidth() > 0 ? `${triggerWidth()}px` : "100%",
                         "max-width": triggerWidth() > 0 ? `${triggerWidth()}px` : "calc(100vw - 2rem)",
@@ -310,6 +313,24 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                         }
                     >
                         <KCombobox.Listbox class={`max-h-[256px] overflow-y-auto outline-none p-1 bg-card text-text transition-opacity duration-200 ${props.isLoading ? 'opacity-50 pointer-events-none' : 'opacity-100 pointer-events-auto'}`} />
+                    </Show>
+                    {/* Footer: Create New button */}
+                    <Show when={props.onCreateNew}>
+                        <div class="border-t border-border/50 p-1">
+                            <button
+                                type="button"
+                                class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-primary-soft transition-colors cursor-pointer"
+                                onPointerDown={(e) => e.preventDefault()}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    props.onCreateNew!();
+                                }}
+                            >
+                                <PlusIcon class="size-4" />
+                                {props.createNewLabel ?? 'Crear nuevo'}
+                            </button>
+                        </div>
                     </Show>
                 </KCombobox.Content>
             </KCombobox.Portal>

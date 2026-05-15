@@ -1,6 +1,5 @@
 import { Component, JSX } from 'solid-js';
 import { scrollBar } from '@shared/directives/scroll';
-import { useLocation } from '@tanstack/solid-router';
 
 // Evita que el compilador elimine la directiva
 false && scrollBar;
@@ -8,14 +7,18 @@ false && scrollBar;
 export interface ScrollAreaProps {
   children: JSX.Element;
   class?: string;
+  /** 
+   * Si se provee, el scroll volverá arriba (scrollTop = 0) automáticamente 
+   * cuando el valor de esta prop cambie.
+   */
+  resetKey?: unknown;
 }
 
 export const ScrollArea: Component<ScrollAreaProps> = (props) => {
-  const location = useLocation();
 
   return (
     <div 
-      use:scrollBar={location().pathname} 
+      use:scrollBar={props.resetKey} 
       class={`flex-1 h-full min-h-0 relative w-full ${props.class || ''}`}
     >
       {/* 

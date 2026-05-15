@@ -1,4 +1,4 @@
-import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal } from 'solid-js';
+import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect } from 'solid-js';
 import type { FieldLike } from './form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from './form/form.types';
 import { EyeIcon, EyeOffIcon } from './icons';
@@ -9,7 +9,7 @@ import { EyeIcon, EyeOffIcon } from './icons';
 type ValidationState = 'valid' | 'invalid';
 
 interface TextFieldRootProps {
-    /** TanStack Form field - accepts any field type (string, number, undefined variants) */
+    /** TanStack Form field - accepts any field type (string, number, undefined presentations) */
     field?: FieldLike<any>;
     /** Current value (controlled) - ignored if field is provided */
     value?: string;
@@ -47,6 +47,14 @@ interface TextFieldPasswordInputProps extends Omit<JSX.InputHTMLAttributes<HTMLI
     class?: string;
 }
 
+interface TextFieldNumericInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type' | 'inputMode'> {
+    class?: string;
+    /** Whether to allow negative numbers. Default: false */
+    allowNegative?: boolean;
+    /** Whether to allow decimals. Default: true */
+    allowDecimal?: boolean;
+}
+
 interface TextFieldErrorMessageProps {
     class?: string;
     children?: JSX.Element;
@@ -65,7 +73,8 @@ import { createContext, useContext } from 'solid-js';
 interface TextFieldContextValue {
     id: string;
     value: () => string;
-    onChange: (value: string) => void;
+    /** Receives raw string from input; for TanStack Form fields, numeric coercion happens in Input */
+    onChange: (value: any) => void;
     onBlur: () => void;
     validationState: () => ValidationState;
     disabled: () => boolean;
@@ -89,7 +98,6 @@ const useTextFieldContext = () => {
 const inputBaseStyles = `
     w-full bg-card-alt border border-border text-text 
     rounded-xl px-4 py-1.5 outline-none 
-    transition-all duration-200
     hover:border-border-strong hover:bg-card
     focus:border-primary/65 focus:ring-2 focus:ring-primary/25
     disabled:cursor-not-allowed disabled:opacity-50
@@ -208,16 +216,32 @@ export const FieldLabel = (props: { class?: string; children: JSX.Element }) => 
     );
 };
 
-/** Text input */
+/** Text input — coerces to number when type="number" for TanStack Form compatibility */
 const Input = (props: TextFieldInputProps) => {
     const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class']);
+    const [local, others] = splitProps(props, ['class', 'type']);
+
+    const handleInput = (e: InputEvent & { currentTarget: HTMLInputElement }) => {
+        const raw = e.currentTarget.value;
+        if (local.type === 'number') {
+            // For number inputs: pass actual number (or null for empty) to TanStack Form
+            if (raw === '' || raw == null) {
+                context.onChange(null as any);
+            } else {
+                const num = Number(raw);
+                context.onChange(isNaN(num) ? raw : num);
+            }
+        } else {
+            context.onChange(raw);
+        }
+    };
 
     return (
         <input
             id={context.id}
+            type={local.type}
             value={context.value()}
-            onInput={(e) => context.onChange(e.currentTarget.value)}
+            onInput={handleInput}
             onBlur={() => context.onBlur()}
             disabled={context.disabled()}
             readOnly={context.readOnly()}
@@ -260,6 +284,118 @@ const PasswordInput = (props: TextFieldPasswordInputProps) => {
                 </Show>
             </button>
         </div>
+    );
+};
+
+/** 
+ * Numeric input - uses type="text" with inputMode="decimal" to allow native dot/comma typing.
+ * Robustly prevents typing letters and normalizes output to numbers.
+ */
+const NumericInput = (props: TextFieldNumericInputProps) => {
+    const context = useTextFieldContext();
+    const [local, others] = splitProps(props, ['class', 'allowNegative', 'allowDecimal']);
+    const [inputValue, setInputValue] = createSignal("");
+    const [isTyping, setIsTyping] = createSignal(false);
+
+    // Sync from context to local input ONLY when not typing
+    createEffect(() => {
+        const val = context.value();
+        if (!isTyping()) {
+            setInputValue(val == null ? '' : String(val));
+        }
+    });
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (
+            ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) ||
+            e.ctrlKey || e.metaKey || e.altKey
+        ) {
+            return;
+        }
+
+        const allowDecimal = local.allowDecimal !== false;
+        const allowNegative = local.allowNegative === true;
+
+        const isNumber = /^[0-9]$/.test(e.key);
+        const isDecimal = allowDecimal && (e.key === '.' || e.key === ',');
+        const isNegative = allowNegative && e.key === '-';
+
+        if (!isNumber && !isDecimal && !isNegative) {
+            e.preventDefault();
+            return;
+        }
+
+        if (isDecimal) {
+            const el = e.currentTarget as HTMLInputElement;
+            const val = el.value;
+            const hasDecimal = val.includes('.') || val.includes(',');
+            if (hasDecimal) {
+                // Permitir si se está sobreescribiendo el decimal existente
+                const selected = val.substring(el.selectionStart || 0, el.selectionEnd || 0);
+                if (!selected.includes('.') && !selected.includes(',')) {
+                    e.preventDefault();
+                }
+            }
+        }
+    };
+
+    const handleInput = (e: InputEvent & { currentTarget: HTMLInputElement }) => {
+        let raw = e.currentTarget.value;
+        
+        // Strip out invalid characters on paste
+        const allowDecimal = local.allowDecimal !== false;
+        const allowNegative = local.allowNegative === true;
+        
+        let pattern = '[^0-9';
+        if (allowDecimal) pattern += '\\.,';
+        if (allowNegative) pattern += '\\-';
+        pattern += ']';
+        
+        const regex = new RegExp(pattern, 'g');
+        raw = raw.replace(regex, '');
+
+        if (allowDecimal) {
+            // Unificar temporalmente y asegurar un solo separador
+            const parts = raw.split(/[\.,]/);
+            if (parts.length > 2) {
+                // Si hay múltiples, conservar solo el primer separador que el usuario escribió
+                const firstSep = raw.match(/[\.,]/)?.[0] || '.';
+                raw = parts[0] + firstSep + parts.slice(1).join('');
+            }
+        }
+
+        // Normalize comma to dot for parsing
+        const normalized = raw.replace(',', '.');
+        setInputValue(raw);
+        
+        if (normalized === '' || normalized === '-' || normalized === '.') {
+            context.onChange(null as any);
+        } else {
+            const num = parseFloat(normalized);
+            // Si el usuario pone "1.", parseFloat da "1". Devolvemos raw para no perder el punto.
+            context.onChange(isNaN(num) || raw.endsWith('.') || raw.endsWith(',') ? normalized : num);
+        }
+    };
+
+    return (
+        <input
+            id={context.id}
+            type="text"
+            inputMode="decimal"
+            value={inputValue()}
+            onKeyDown={handleKeyDown}
+            onInput={handleInput}
+            onFocus={() => setIsTyping(true)}
+            onBlur={() => {
+                setIsTyping(false);
+                context.onBlur();
+            }}
+            disabled={context.disabled()}
+            readOnly={context.readOnly()}
+            data-invalid={context.validationState() === 'invalid'}
+            class={`${inputBaseStyles} font-mono ${local.class ?? ''}`}
+            {...others}
+        />
     );
 };
 
@@ -325,6 +461,7 @@ export const TextField = {
     Root,
     Label,
     Input,
+    NumericInput,
     PasswordInput,
     TextArea,
     ErrorMessage,

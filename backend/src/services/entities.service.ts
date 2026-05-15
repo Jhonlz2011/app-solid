@@ -150,6 +150,7 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
 // =============================================================================
 
 interface FilterBuildOptions {
+    companyId: number;
     type: EntityType;
     search?: string;
     isCarrier?: boolean;
@@ -165,6 +166,9 @@ interface FilterBuildOptions {
  */
 function buildWhereConditions(opts: FilterBuildOptions) {
     const conditions = [];
+
+    // Tenant isolation — always filter by company
+    conditions.push(eq(entities.company_id, opts.companyId));
 
     // Type filter
     switch (opts.type) {
@@ -236,33 +240,33 @@ function buildWhereConditions(opts: FilterBuildOptions) {
  * - Default (sort by id): Keyset/cursor pagination (O(1))
  * - Custom sort column: Offset pagination with Deferred Join
  */
-export async function listEntities(type: EntityType, filters: ListFilters) {
+export async function listEntities(type: EntityType, filters: ListFilters, companyId: number) {
     const { sortBy } = filters;
 
     // If sorting by a custom column (not id), use offset pagination
     if (sortBy && sortBy !== 'id' && SORTABLE_COLUMNS[sortBy]) {
-        return listEntitiesSorted(type, filters);
+        return listEntitiesSorted(type, filters, companyId);
     }
 
     // Default: keyset cursor pagination
-    return listEntitiesCursor(type, filters);
+    return listEntitiesCursor(type, filters, companyId);
 }
 
 // =============================================================================
 // Strategy 1: Keyset Cursor Pagination (default, sort by id)
 // =============================================================================
 
-async function listEntitiesCursor(type: EntityType, filters: ListFilters) {
+async function listEntitiesCursor(type: EntityType, filters: ListFilters, companyId: number) {
     const { cursor, limit: limitRaw = 25, search, isCarrier, direction = 'first', ...rest } = filters;
     const { sortBy, sortOrder, page, ...columnFilters } = rest;
     const limit = Number(limitRaw);
-    const cacheKey = `${type}s:list:${hashKey({ cursor, limit, search, direction, ...columnFilters })}`;
+    const cacheKey = `${type}s:c${companyId}:list:${hashKey({ cursor, limit, search, direction, ...columnFilters })}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
-        const conditions = buildWhereConditions({ type, search, isCarrier, columnFilters });
+        const conditions = buildWhereConditions({ companyId, type, search, isCarrier, columnFilters });
 
         // 1. Total count
-        const total = await getCachedTotal(type, search, isCarrier, columnFilters);
+        const total = await getCachedTotal(companyId, type, search, isCarrier, columnFilters);
 
         // 2. Adjust limit for 'last' page
         let effectiveLimit = limit;
@@ -272,7 +276,7 @@ async function listEntitiesCursor(type: EntityType, filters: ListFilters) {
         }
 
         // 3. Boundary checks (min/max ID)
-        const { minId, maxId } = await getCachedBounds(type, search, isCarrier, columnFilters);
+        const { minId, maxId } = await getCachedBounds(companyId, type, search, isCarrier, columnFilters);
 
         // Cursor condition
         const cursorData = cursor ? decodeCursor(cursor) : null;
@@ -330,7 +334,7 @@ async function listEntitiesCursor(type: EntityType, filters: ListFilters) {
  * 
  * This avoids reading full rows for skipped offset rows.
  */
-async function listEntitiesSorted(type: EntityType, filters: ListFilters) {
+async function listEntitiesSorted(type: EntityType, filters: ListFilters, companyId: number) {
     const {
         limit: limitRaw = 25, search, isCarrier,
         sortBy = 'business_name', sortOrder = 'asc',
@@ -342,13 +346,13 @@ async function listEntitiesSorted(type: EntityType, filters: ListFilters) {
     const page = Math.max(1, Number(pageRaw));
     const offset = (page - 1) * limit;
 
-    const cacheKey = `${type}s:sorted:${hashKey({ limit, search, sortBy, sortOrder, page, ...columnFilters })}`;
+    const cacheKey = `${type}s:c${companyId}:sorted:${hashKey({ limit, search, sortBy, sortOrder, page, ...columnFilters })}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
-        const conditions = buildWhereConditions({ type, search, isCarrier, columnFilters });
+        const conditions = buildWhereConditions({ companyId, type, search, isCarrier, columnFilters });
 
         // Total count (shared cache)
-        const total = await getCachedTotal(type, search, isCarrier, columnFilters);
+        const total = await getCachedTotal(companyId, type, search, isCarrier, columnFilters);
         const pageCount = Math.ceil(total / limit);
 
         // Resolve sort column reference (safe — already validated via SORTABLE_COLUMNS)
@@ -407,11 +411,11 @@ async function listEntitiesSorted(type: EntityType, filters: ListFilters) {
 // =============================================================================
 
 async function getCachedTotal(
-    type: EntityType, search?: string, isCarrier?: boolean, columnFilters?: ColumnFilters
+    companyId: number, type: EntityType, search?: string, isCarrier?: boolean, columnFilters?: ColumnFilters
 ) {
-    const totalCacheKey = `${type}s:total:${hashKey({ search: search || 'all', ...columnFilters })}`;
+    const totalCacheKey = `${type}s:c${companyId}:total:${hashKey({ search: search || 'all', ...columnFilters })}`;
     return cacheService.getOrSet(totalCacheKey, async () => {
-        const conditions = buildWhereConditions({ type, search, isCarrier, columnFilters });
+        const conditions = buildWhereConditions({ companyId, type, search, isCarrier, columnFilters });
         const [{ count }] = await db
             .select({ count: sql<number>`count(*)`.mapWith(Number) })
             .from(entities)
@@ -421,11 +425,11 @@ async function getCachedTotal(
 }
 
 async function getCachedBounds(
-    type: EntityType, search?: string, isCarrier?: boolean, columnFilters?: ColumnFilters
+    companyId: number, type: EntityType, search?: string, isCarrier?: boolean, columnFilters?: ColumnFilters
 ) {
-    const boundaryCacheKey = `${type}s:bounds:${hashKey({ search: search || 'all', ...columnFilters })}`;
+    const boundaryCacheKey = `${type}s:c${companyId}:bounds:${hashKey({ search: search || 'all', ...columnFilters })}`;
     return cacheService.getOrSet(boundaryCacheKey, async () => {
-        const conditions = buildWhereConditions({ type, search, isCarrier, columnFilters });
+        const conditions = buildWhereConditions({ companyId, type, search, isCarrier, columnFilters });
         const [result] = await db
             .select({
                 minId: sql<number>`min(${entities.id})`.mapWith(Number),
@@ -464,10 +468,11 @@ interface FacetFilters extends ColumnFilters {
 export async function getEntityFacets(
     type: EntityType,
     columns: FacetColumn[],
-    filters: FacetFilters
+    filters: FacetFilters,
+    companyId: number
 ): Promise<Record<string, { value: string; count: number }[]>> {
     const { search, isCarrier, ...columnFilters } = filters;
-    const cacheKey = `${type}s:facets:${hashKey({ columns, search, ...columnFilters })}`;
+    const cacheKey = `${type}s:c${companyId}:facets:${hashKey({ columns, search, ...columnFilters })}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
         // Column mapping to drizzle columns
@@ -489,6 +494,7 @@ export async function getEntityFacets(
                 // Cross-filter: apply all filters EXCEPT this column's own filter
                 const excludeKey = FACET_TO_FILTER_KEY[col];
                 const conditions = buildWhereConditions({
+                    companyId,
                     type,
                     search,
                     isCarrier,
@@ -521,11 +527,13 @@ export async function getEntityFacets(
 /**
  * Get single entity by ID with addresses and contacts
  */
-export async function getEntity(id: number) {
+export async function getEntity(id: number, companyId?: number) {
     const cacheKey = `entity:${id}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
-        const [entity] = await db.select().from(entities).where(eq(entities.id, id));
+        const conditions = [eq(entities.id, id)];
+        if (companyId) conditions.push(eq(entities.company_id, companyId));
+        const [entity] = await db.select().from(entities).where(and(...conditions));
         if (!entity) throw new DomainError('Entidad no encontrada', 404);
 
         const [addresses, contacts] = await Promise.all([
@@ -553,11 +561,12 @@ export async function getEntity(id: number) {
 /**
  * Create entity with type flags
  */
-export async function createEntity(type: EntityType, payload: EntityPayload, audit?: AuditContext) {
+export async function createEntity(type: EntityType, payload: EntityPayload, audit?: AuditContext, companyId?: number) {
     return await withAuditTransaction(audit, async (tx) => {
         const [created] = await tx
             .insert(entities)
             .values({
+                company_id: companyId!,
                 tax_id: payload.taxId,
                 tax_id_type: payload.taxIdType,
                 person_type: payload.personType ?? 'NATURAL',
@@ -629,8 +638,10 @@ export async function createEntity(type: EntityType, payload: EntityPayload, aud
 /**
  * Update entity
  */
-export async function updateEntity(id: number, type: EntityType, payload: Partial<EntityPayload>, audit?: AuditContext) {
+export async function updateEntity(id: number, type: EntityType, payload: Partial<EntityPayload>, audit?: AuditContext, companyId?: number) {
     return withAuditTransaction(audit, async (tx) => {
+        const whereConditions = [eq(entities.id, id)];
+        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
         const [updated] = await tx
             .update(entities)
             .set(stripUndefined({
@@ -645,7 +656,7 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
                 is_special_contributor: payload.isSpecialContributor,
                 is_carrier: payload.isCarrier,
             }))
-            .where(eq(entities.id, id))
+            .where(and(...whereConditions))
             .returning();
 
         if (!updated) throw new DomainError('Entidad no encontrada', 404);
@@ -741,9 +752,12 @@ export async function deactivateEntity(
     id: number,
     type: EntityType,
     deletedBy?: number,
-    audit?: AuditContext
+    audit?: AuditContext,
+    companyId?: number
 ) {
     return withAuditTransaction(audit, async (tx) => {
+        const whereConditions = [eq(entities.id, id)];
+        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
         const [updated] = await tx
             .update(entities)
             .set({
@@ -751,7 +765,7 @@ export async function deactivateEntity(
                 deleted_at: new Date(),
                 deleted_by: deletedBy ?? null,
             })
-            .where(eq(entities.id, id))
+            .where(and(...whereConditions))
             .returning();
 
         if (!updated) throw new DomainError('Entidad no encontrada', 404);
@@ -772,9 +786,12 @@ export async function deactivateEntity(
 export async function restoreEntity(
     id: number,
     type: EntityType,
-    audit?: AuditContext
+    audit?: AuditContext,
+    companyId?: number
 ) {
     return withAuditTransaction(audit, async (tx) => {
+        const whereConditions = [eq(entities.id, id)];
+        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
         const [updated] = await tx
             .update(entities)
             .set({
@@ -782,7 +799,7 @@ export async function restoreEntity(
                 deleted_at: null,
                 deleted_by: null,
             })
-            .where(and(eq(entities.id, id)))
+            .where(and(...whereConditions))
             .returning();
 
         if (!updated) throw new DomainError('Entidad no encontrada', 404);
@@ -829,7 +846,8 @@ export async function checkEntityReferences(id: number): Promise<EntityReference
 export async function hardDeleteEntity(
     id: number,
     type: EntityType,
-    audit?: AuditContext
+    audit?: AuditContext,
+    companyId?: number
 ) {
     // 1. Integrity guard — server always validates, never trust client pre-check
     const refs = await checkEntityReferences(id);
@@ -841,11 +859,13 @@ export async function hardDeleteEntity(
     }
 
     return withAuditTransaction(audit, async (tx) => {
-        // 2. Confirm entity exists and belongs to expected type
+        // 2. Confirm entity exists and belongs to expected type + company
+        const whereConditions = [eq(entities.id, id)];
+        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
         const [target] = await tx
             .select({ id: entities.id })
             .from(entities)
-            .where(eq(entities.id, id));
+            .where(and(...whereConditions));
 
         if (!target) throw new DomainError('Entidad no encontrada', 404);
 
@@ -984,8 +1004,8 @@ export async function getAddresses(entityId: number) {
  * Returns minimal fields: id, businessName, taxId.
  * Supports optional search by business_name or tax_id.
  */
-export async function listForPicker(search?: string, limit: number = 200) {
-    const conditions = [eq(entities.is_active, true)];
+export async function listForPicker(companyId: number, search?: string, limit: number = 200) {
+    const conditions = [eq(entities.company_id, companyId), eq(entities.is_active, true)];
 
     if (search && search.length >= 1) {
         const term = `%${search}%`;

@@ -42,12 +42,12 @@ export const clientsService = {
         cursor?: string; direction?: string;
         sortBy?: string; sortOrder?: string; page?: number;
         personType?: string[]; taxIdType?: string[]; isActive?: string[]; businessName?: string[];
-    }) {
+    }, companyId: number) {
         return listEntities('client', {
             ...filters,
             direction: filters.direction as any,
             sortOrder: filters.sortOrder as 'asc' | 'desc' | undefined,
-        });
+        }, companyId);
     },
 
     /** Get faceted filter values + counts for client columns */
@@ -57,17 +57,18 @@ export const clientsService = {
         taxIdType?: string[];
         isActive?: string[];
         businessName?: string[];
-    }) {
+    }, companyId: number) {
         return getEntityFacets(
             'client',
             ['person_type', 'tax_id_type', 'is_active', 'business_name'],
-            filters
+            filters,
+            companyId
         );
     },
 
     /** Get a single client by ID */
-    async get(id: number) {
-        const client = await getEntity(id);
+    async get(id: number, companyId: number) {
+        const client = await getEntity(id, companyId);
         if (!client.is_client) {
             throw new DomainError('Entidad no es un cliente', 404);
         }
@@ -75,30 +76,30 @@ export const clientsService = {
     },
 
     /** Create a new client */
-    async create(payload: EntityPayload, audit?: AuditContext) {
-        return createEntity('client', payload, audit);
+    async create(payload: EntityPayload, audit?: AuditContext, companyId?: number) {
+        return createEntity('client', payload, audit, companyId);
     },
 
     /** Update an existing client */
-    async update(id: number, payload: Partial<EntityPayload>, audit?: AuditContext) {
+    async update(id: number, payload: Partial<EntityPayload>, audit?: AuditContext, companyId?: number) {
         await assertClient(id);
-        return updateEntity(id, 'client', payload, audit);
+        return updateEntity(id, 'client', payload, audit, companyId);
     },
 
     /**
      * Soft delete (deactivate) — safe default.
      * Sets is_active=false, deleted_at=now(), deleted_by for audit trail.
      */
-    async softDelete(id: number, deletedBy?: number, audit?: AuditContext) {
+    async softDelete(id: number, deletedBy?: number, audit?: AuditContext, companyId?: number) {
         await assertClient(id);
-        return deactivateEntity(id, 'client', deletedBy, audit);
+        return deactivateEntity(id, 'client', deletedBy, audit, companyId);
     },
 
     /**
      * Restore a soft-deleted client back to active.
      */
-    async restore(id: number, audit?: AuditContext) {
-        return restoreEntity(id, 'client', audit);
+    async restore(id: number, audit?: AuditContext, companyId?: number) {
+        return restoreEntity(id, 'client', audit, companyId);
     },
 
     /**
@@ -115,9 +116,9 @@ export const clientsService = {
      * Server always re-validates integrity regardless of client pre-check.
      * Route must be guarded with `clients:destroy` permission.
      */
-    async hardDelete(id: number, audit?: AuditContext) {
+    async hardDelete(id: number, audit?: AuditContext, companyId?: number) {
         await assertClient(id);
-        return hardDeleteEntity(id, 'client', audit);
+        return hardDeleteEntity(id, 'client', audit, companyId);
     },
 
     /**
@@ -137,7 +138,7 @@ export const clientsService = {
                     inArray(entities.id, ids)
                 ));
 
-            const existingIds = existing.map(e => e.id);
+            const existingIds = existing.map((e: { id: number }) => e.id);
             if (existingIds.length === 0) {
                 throw new DomainError('No se encontraron clientes válidos para eliminar', 404);
             }
@@ -181,7 +182,7 @@ export const clientsService = {
                     inArray(entities.id, ids)
                 ));
 
-            const existingIds = existing.map(e => e.id);
+            const existingIds = existing.map((e: { id: number }) => e.id);
             if (existingIds.length === 0) {
                 throw new DomainError('No se encontraron clientes válidos para restaurar', 404);
             }

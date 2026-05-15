@@ -48,14 +48,14 @@ export const parseUserAgent = (ua: string | null): { browser: string; os: string
  * Format a date string for session display.
  * Uses es-EC locale with abbreviated month.
  */
-export const formatSessionDate = (dateStr: string): string => {
-    const d = new Date(dateStr);
+export const formatSessionDate = (date: string | Date | null | undefined): string => {
+    if (!date) return 'Nunca';
+    const d = typeof date === 'string' ? new Date(date) : date;
     return d.toLocaleDateString('es-EC', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        timeZone: 'UTC'
     });
 };

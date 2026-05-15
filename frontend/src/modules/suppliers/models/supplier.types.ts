@@ -1,7 +1,10 @@
 // Supplier types - UI constants and type definitions
-import type { SupplierBody, SupplierFilters } from '../data/suppliers.api';
 import { suppliersApi } from '../data/suppliers.api';
 import type { TaxIdType, PersonType, TaxRegimeType } from '@app/schema/frontend';
+
+// Centralized filter/reference types
+export type { EntityFilters as SupplierFilters } from '@app/schema/shared-dto';
+export type { EntityReferences as SupplierReferences } from '@app/schema/shared-dto';
 
 // Infer Supplier type from API response (single item with relations)
 export type Supplier = Awaited<ReturnType<typeof suppliersApi.get>>;
@@ -9,7 +12,6 @@ export type Supplier = Awaited<ReturnType<typeof suppliersApi.get>>;
 export type SuppliersResponse = Awaited<ReturnType<typeof suppliersApi.list>>;
 
 // Re-export for convenience
-export type { SupplierBody as SupplierPayload, SupplierFilters };
 export type { TaxIdType, PersonType, TaxRegimeType };
 export type { ContactFormData, AddressFormData } from '@app/schema/frontend';
 

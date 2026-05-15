@@ -3,6 +3,8 @@ import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
 import { createClientsModals } from '@shared/routes/clients.factory';
 import { createUserModals } from '@shared/routes/users.factory';
+import { clientsApi } from './data/clients.api';
+import { clientKeys } from './data/clients.keys';
 
 // --- LAZY PAGE ---
 const ClientsPage = lazyRouteComponent(() => import('./views/ClientsPage'));
@@ -20,7 +22,7 @@ export const createClientsRoutes = (layoutRoute: any) => {
         },
         loader: async () => {
             // Parallel Fetching: Block route transition until data is pre-fetched
-            const { clientsApi, clientKeys } = await import('./data/clients.api');
+            // const { clientsApi, clientKeys } = await import('./data/clients.api');
             const defaultFilters = { limit: 10, direction: 'first' as const };
 
             return await queryClient.prefetchQuery({
@@ -33,10 +35,10 @@ export const createClientsRoutes = (layoutRoute: any) => {
         component: ClientsPage,
     });
 
-    clientsRoute.addChildren([
+    
+
+    return clientsRoute.addChildren([
         ...createClientsModals(clientsRoute),
         ...createUserModals(clientsRoute, 'user', '/clients')
     ]);
-
-    return clientsRoute;
 };

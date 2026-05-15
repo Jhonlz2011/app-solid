@@ -6,6 +6,13 @@ import { createAuthRoutes } from './modules/auth/auth.routes';
 import { createSuppliersRoutes } from './modules/suppliers/suppliers.routes';
 import { createClientsRoutes } from './modules/clients/clients.routes';
 import { createUsersRoutes } from './modules/users/users.routes';
+import { createProductsRoutes } from './modules/products/products.routes';
+import { createCategoriesRoutes } from './modules/categories/categories.routes';
+import { createSettingsRoutes } from './modules/settings/settings.routes';
+import { createBrandsRoutes } from './modules/brands/brands.routes';
+import { createUomRoutes } from './modules/uom/uom.routes';
+import { createAttributesRoutes } from './modules/attributes/attributes.routes';
+import { createLocationRoutes } from './modules/locations/locations.routes';
 
 import { connect as connectSSE } from './shared/store/sse.store';
 import { queryClient } from './shared/lib/queryClient';
@@ -69,27 +76,6 @@ const layoutRoute = createRoute({
   component: ProtectedLayout,
 });
 
-// --- HELPER: Permission-guarded module route ---
-// const createModuleRoute = (opts: {
-//   path: string;
-//   permission: string;
-//   component: Component;
-//   parent?: any;
-//   loader?: () => Promise<void> | void;
-// }) =>
-//   createRoute({
-//     getParentRoute: () => opts.parent ?? layoutRoute,
-//     path: opts.path,
-//     beforeLoad: async () => {
-//       const { useAuth } = await import('./modules/auth/store/auth.store');
-//       if (!useAuth().canRead(opts.permission)) {
-//         throw redirect({ to: '/dashboard' });
-//       }
-//     },
-//     loader: opts.loader,
-//     component: () => <opts.component />,
-//   });
-
 // --- ROUTES ---
 const indexRoute = createRoute({
   getParentRoute: () => layoutRoute,
@@ -105,11 +91,7 @@ const dashboardRoute = createRoute({
 
 // Users routes are now managed in users.routes.tsx
 
-const settingsGeneralRoute = createRoute({
-  getParentRoute: () => layoutRoute,
-  path: '/settings/general',
-  component: () => <div class="p-6"><h1>Configuración General</h1><p>Próximamente...</p></div>,
-});
+
 
 const profileRoute = createRoute({
   getParentRoute: () => layoutRoute,
@@ -127,10 +109,16 @@ const routeTree = rootRoute.addChildren([
     indexRoute,
     dashboardRoute,
     createUsersRoutes(layoutRoute),
-    settingsGeneralRoute,
+    createSettingsRoutes(layoutRoute),
     profileRoute,
     createSuppliersRoutes(layoutRoute),
     createClientsRoutes(layoutRoute),
+    createProductsRoutes(layoutRoute),
+    createCategoriesRoutes(layoutRoute),
+    createBrandsRoutes(layoutRoute),
+    createUomRoutes(layoutRoute),
+    createAttributesRoutes(layoutRoute),
+    createLocationRoutes(layoutRoute),
   ]),
 ]);
 

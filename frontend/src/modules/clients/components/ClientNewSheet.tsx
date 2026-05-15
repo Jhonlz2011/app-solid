@@ -1,6 +1,6 @@
 import { Component } from 'solid-js';
 import { toast } from 'solid-sonner';
-import { useCreateClient } from '../data/clients.api';
+import { useCreateClient } from '../data/clients.mutations';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { EntityForm } from '@shared/forms/entity';
 import type { EntityFormData } from '@app/schema/frontend';
@@ -47,7 +47,6 @@ const ClientNewSheet: Component<ClientNewSheetProps> = (props) => {
                         form="entity-form"
                         loading={createMutation.isPending}
                         loadingText="Creando..."
-                        class="min-w-[200px]"
                         icon={<FloppyDiskIcon />}
                     >
                         Crear Cliente

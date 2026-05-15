@@ -1,4 +1,4 @@
-import { createRoute, redirect } from '@tanstack/solid-router';
+import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import AuthLayout from '@layout/AuthLayout';
 import Login from './pages/Login';
 
@@ -38,5 +38,11 @@ export const createAuthRoutes = (rootRoute: any) => {
         component: Login,
     });
 
-    return authRoute.addChildren([loginRoute]);
+    const registerRoute = createRoute({
+        getParentRoute: () => authRoute,
+        path: 'register',
+        component: lazyRouteComponent(() => import('./pages/Register')),
+    });
+
+    return authRoute.addChildren([loginRoute, registerRoute]);
 };

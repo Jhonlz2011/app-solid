@@ -1,8 +1,9 @@
 import { Component, JSX, Show, createEffect, onCleanup, mergeProps, createSignal, createUniqueId } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { XIcon, ChevronLeftIcon } from '@shared/ui/icons';
+import { XIcon, ChevronLeftIcon, InfoIcon } from '@shared/ui/icons';
 import { ScrollArea } from '@/layout/components/ScrollArea';
 import { cn } from '../lib/utils';
+import { Tooltip } from './Tooltip';
 
 // Global stacking registry for nested Sheets
 const activeSheets: string[] = [];
@@ -18,7 +19,7 @@ interface SheetProps {
     /** Optional sticky footer — rendered outside the scroll area, always visible at the bottom */
     footer?: JSX.Element;
     side?: 'left' | 'right';
-    size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'xxxl' | 'xxxxl' | 'full';
+    size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'xxxl' | 'xxxxl' | '5xl' | 'full';
     /** Binding callback to expose internal animated dismiss function to the parent */
     bindDismiss?: (dismiss: () => void) => void;
 }
@@ -34,6 +35,7 @@ const Sheet: Component<SheetProps> = (rawProps) => {
         xxl: 'max-w-2xl',
         xxxl: 'max-w-3xl',
         xxxxl: 'max-w-4xl',
+        '5xl': 'max-w-5xl',
         full: 'max-w-full',
     };
 
@@ -118,7 +120,7 @@ const Sheet: Component<SheetProps> = (rawProps) => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header — flex-none, always visible */}
-                        <div class="flex items-center justify-between px-4 py-4 border-b border-border bg-muted/10 flex-none">
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/10 flex-none">
                             <div class="flex items-center gap-3">
                                 <Show when={props.onBack}>
                                     <button
@@ -129,12 +131,14 @@ const Sheet: Component<SheetProps> = (rawProps) => {
                                         <ChevronLeftIcon class="size-4" />
                                     </button>
                                 </Show>
-                                <div class="space-y-1">
+                                <div class="flex items-center gap-2">
                                     <Show when={props.title}>
                                         <h2 class="text-lg font-semibold text-text">{props.title}</h2>
                                     </Show>
                                     <Show when={props.description}>
-                                        <p class="text-sm text-muted">{props.description}</p>
+                                        <Tooltip content={props.description} placement="right" delay={0}>
+                                            <InfoIcon class="size-4 text-muted hover:text-text cursor-help transition-colors" />
+                                        </Tooltip>
                                     </Show>
                                 </div>
                             </div>

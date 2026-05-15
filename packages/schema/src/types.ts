@@ -5,6 +5,10 @@ import * as tables from './tables';
 export type Product = InferSelectModel<typeof tables.products>;
 export type NewProduct = InferInsertModel<typeof tables.products>;
 
+// --- PRODUCT VARIANTS ---
+export type ProductVariant = InferSelectModel<typeof tables.productVariants>;
+export type NewProductVariant = InferInsertModel<typeof tables.productVariants>;
+
 // --- ENTITIES ---
 export type Entity = InferSelectModel<typeof tables.entities>;
 export type NewEntity = InferInsertModel<typeof tables.entities>;

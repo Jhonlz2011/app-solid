@@ -2,10 +2,14 @@
 import { createStore } from "solid-js/store";
 import { batch } from "solid-js";
 import { authApi } from "../api/auth.api";
-import type { LoginRequest, User } from "../types/auth.types";
+import { profileApi } from "@modules/profile/data/profile.api";
+import type { User } from "../types/auth.types";
 import type { RbacModule, PermissionSlug } from '@app/schema/enums';
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
+
+// Prevent multiple initStore() calls
+let storeInitialized = false;
 
 // --- CONFIGURACIÓN ---
 const SESSION_FLAG_KEY = 'hasSession';
@@ -41,14 +45,16 @@ const setSessionFlag = (active: boolean) => {
 // --- ACTIONS ---
 
 export const actions = {
-    login: async (credentials: LoginRequest) => {
+    login: async (credentials: { email: string; password: string }) => {
         setState('status', 'loading');
         try {
             const data = await authApi.login(credentials);
             // Server set httpOnly cookie — zero token management needed
             currentSessionId = data.sessionId ?? null;
+            // Merge sessionId into user to match ProfileDto shape
+            const user: User = { ...data.user, sessionId: data.sessionId };
             batch(() => {
-                setState('user', data.user);
+                setState('user', user);
                 setState('status', 'authenticated');
             });
             setSessionFlag(true);
@@ -59,7 +65,7 @@ export const actions = {
 
             // Notify other tabs
             if (authChannel) {
-                authChannel.postMessage({ type: 'LOGIN', user: sanitizeUser(data.user), sessionId: currentSessionId });
+                authChannel.postMessage({ type: 'LOGIN', user: sanitizeUser(user), sessionId: currentSessionId });
             }
 
             return data;
@@ -109,6 +115,25 @@ export const actions = {
         }
     },
 
+    // Direct session injection — used after register to avoid redundant GET /me
+    setSession: (userData: User, sessionId: string) => {
+        currentSessionId = sessionId;
+        batch(() => {
+            setState('user', userData);
+            setState('status', 'authenticated');
+        });
+        setSessionFlag(true);
+
+        // WebSocket
+        enableReconnect();
+        connect(currentSessionId);
+
+        // Notify other tabs
+        if (authChannel) {
+            authChannel.postMessage({ type: 'LOGIN', user: sanitizeUser(userData), sessionId });
+        }
+    },
+
     // Session initialization — just call GET /me, cookie is sent automatically
     initSession: async (): Promise<boolean> => {
         if (state.status === 'authenticated') return true;
@@ -117,7 +142,7 @@ export const actions = {
 
         try {
             // Cookie goes automatically via credentials: 'include'
-            const userData = await authApi.getMe();
+            const userData = await profileApi.getMe();
             currentSessionId = userData.sessionId ?? null;
             batch(() => {
                 setState('user', userData);
@@ -141,13 +166,8 @@ export const actions = {
     // Initialize global listeners
     initStore: () => {
         if (typeof window === 'undefined') return;
-
-        // Prevent multiple initializations
-        if ((window as any).__authStoreInitialized) {
-            console.log('[Auth] initStore already initialized, skipping');
-            return;
-        }
-        (window as any).__authStoreInitialized = true;
+        if (storeInitialized) return;
+        storeInitialized = true;
 
         // Storage event (other tab logged out)
         window.addEventListener('storage', (e: StorageEvent) => {

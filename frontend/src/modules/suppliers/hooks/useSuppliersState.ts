@@ -18,16 +18,17 @@ import { useAuth } from '@/modules/auth/store/auth.store';
 
 import {
     useSuppliers,
+    useSupplierFacets,
+} from '../data/suppliers.queries';
+import {
     useDeleteSupplier,
     useBulkDeleteSupplier,
     useBulkRestoreSupplier,
     useRestoreSupplier,
-    useSupplierFacets,
-    supplierKeys,
-    suppliersApi,
-    type SupplierFilters,
-    type SupplierListItem,
-} from '../data/suppliers.api';
+} from '../data/suppliers.mutations';
+import { supplierKeys } from '../data/suppliers.keys';
+import { suppliersApi, type SupplierListItem } from '../data/suppliers.api';
+import type { SupplierFilters } from '../models/supplier.types';
 import { createSupplierColumns } from '../data/supplier.columns';
 
 export function useSuppliersState() {
@@ -104,9 +105,6 @@ export function useSuppliersState() {
     const selectedInactiveCount = () => tableState.selectedItems().filter(s => !s.is_active).length;
 
     // ─── Navigation Handlers ─────────────────────────────────────
-    const handleNew = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'new', id: undefined }) } as any);
-    const handleEdit = (s: SupplierListItem) => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'edit', id: s.id }) } as any);
-    const handleView = (s: SupplierListItem) => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: 'show', id: s.id }) } as any);
     const handleClosePanel = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: undefined, id: undefined, from: undefined }) } as any);
     const handlePrefetch = (s: SupplierListItem) => {
         queryClient.prefetchQuery({
@@ -176,8 +174,6 @@ export function useSuppliersState() {
     // ─── Column Definitions ──────────────────────────────────────
     const columns = createMemo(() =>
         createSupplierColumns({
-            onView: handleView,
-            onEdit: handleEdit,
             onDelete: handleDelete,
             onRestore: handleRestore,
             auth,
@@ -207,7 +203,6 @@ export function useSuppliersState() {
         deleteMutation, bulkDeleteMutation, bulkRestoreMutation,
 
         // Handlers
-        handleNew, handleView, handleEdit,
         handlePrefetch, handleCopySelection, handleDelete, handleRestore, handleBulkDelete,
         confirmBulkDelete, confirmBulkRestore, handleFilterChange, filters,
 

@@ -5,7 +5,7 @@ import { Link, type LinkProps } from '@tanstack/solid-router';
 // Usamos Tailwind v4 con variables semánticas (asegúrate de tenerlas en tu @theme)
 export const BUTTON_VARIANTS = {
   primary: "bg-primary text-on-primary hover:bg-primary/90 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-primary/20",
-  secondary: "bg-secondary text-on-secondary hover:bg-secondary/90 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-secondary/20",
+  secondary: "bg-secondary text-on-secondary hover:bg-secondary active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-secondary/20",
   outline: "bg-transparent border border-border text-text hover:bg-surface hover:border-border-strong active:bg-surface-3",
   ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 border border-transparent transition-colors duration-200",
   danger: "bg-danger text-white hover:bg-danger/85 active:scale-[0.98] transition-all duration-200 border border-transparent shadow-lg shadow-danger/20",
@@ -134,17 +134,17 @@ export default function Button(props: ButtonProps) {
       }
     >
       {/* Si es enlace y está activo, renderizamos el componente de TanStack */}
-      <Link
+          <Link
         {...(others as unknown as LinkProps)}
         to={local.to}
         search={local.search}
         params={local.params}
         preload={local.preload}
         replace={local.replace}
-        class={buttonClasses()}
-      >
-        {innerContent()}
-      </Link>
+            class={buttonClasses()}
+          >
+            {innerContent()}
+          </Link>
     </Show>
   );
 }

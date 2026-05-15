@@ -3,7 +3,7 @@ import { Component, Show, createMemo } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import type { Profile } from '../models/profile.types';
-import { UpdateProfileSchema } from '../models/profile.schemas';
+import { UpdateProfileSchema } from '@app/schema/frontend';
 import { TextField } from '@shared/ui/TextField';
 import Button from '@shared/ui/Button';
 import { AlertCircleIcon, FloppyDiskIcon } from '@shared/ui/icons';

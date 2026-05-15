@@ -116,7 +116,7 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
                     class="block cursor-pointer group/cell"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div class="font-mono text-sm font-semibold text-primary group-hover/cell:underline underline-offset-2 transition-all duration-150">
+                    <div class="font-mono text-sm font-semibold text-primary group-hover/cell:underline underline-offset-2 transition-colors duration-150">
                         {info.getValue<string>()}
                     </div>
                     <div class="text-xs text-muted">{info.row.original.tax_id_type}</div>

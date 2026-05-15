@@ -6,6 +6,8 @@ import { Badge, RoleBadge } from '@shared/ui/Badge';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { Skeleton } from '@shared/ui/Skeleton';
 
+import { formatSessionDate } from '@shared/utils/session.utils';
+
 export const ProfileHeaderSkeleton: Component = () => (
     <div class="mb-8">
         <div class="flex flex-col sm:flex-row items-center gap-5">
@@ -44,21 +46,11 @@ export const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
     const auth = useAuth();
 
     const displayName = createMemo(() =>
-        props.profile?.entity?.business_name || auth.user()?.username || props.profile?.email || ''
+        props.profile?.entity?.businessName || auth.user()?.username || props.profile?.email || ''
     );
 
     const avatarStyle = createMemo(() => getAvatarGradientStyle(displayName()));
     const initials = createMemo(() => getInitials(displayName()));
-
-    const formatDate = (dateStr: string | null | undefined) => {
-        if (!dateStr) return 'Nunca';
-        const d = new Date(dateStr);
-        return d.toLocaleDateString('es-EC', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-        });
-    };
 
     return (
         <Show when={!props.isLoading} fallback={<ProfileHeaderSkeleton />}>
@@ -86,10 +78,10 @@ export const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
                         <For each={props.profile?.roles ?? []}>
                                 {(role) => <RoleBadge name={role} />}
                             </For>
-                        {props.profile?.entity?.is_employee && (
+                        {props.profile?.entity?.isEmployee && (
                                 <Badge variant="success">Empleado</Badge>
                             )}
-                        {props.profile?.entity?.is_client && (
+                        {props.profile?.entity?.isClient && (
                                 <Badge variant="info">Cliente</Badge>
                             )}
                         </div>
@@ -98,7 +90,7 @@ export const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
                     {/* Last Login */}
                     <div class="text-center sm:text-right text-sm text-muted hidden md:block">
                         <div class="text-xs uppercase tracking-wider mb-1">Último acceso</div>
-                    <div class="font-medium text-heading">{formatDate(props.profile?.lastLogin)}</div>
+                    <div class="font-medium text-heading">{formatSessionDate(props.profile?.lastLogin)}</div>
                 </div>
             </div>
         </div>

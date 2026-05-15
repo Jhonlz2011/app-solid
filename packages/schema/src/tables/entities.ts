@@ -1,12 +1,14 @@
-import { text, integer, boolean, timestamp, numeric, date, index } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, numeric, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { pgTableV2 } from '../utils';
+import { pgTableV2, TZ } from '../utils';
 import { taxIdTypeEnum, personTypeEnum, taxRegimeTypeEnum } from '../enums';
+import { companies } from './config';
 
 // --- 1. ENTITIES (CORE) ---
 export const entities = pgTableV2("entities", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    tax_id: text("tax_id").notNull().unique(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
+    tax_id: text("tax_id").notNull(),
     tax_id_type: taxIdTypeEnum("tax_id_type").notNull(),
     person_type: personTypeEnum("person_type").default('NATURAL').notNull(),
     business_name: text("business_name").notNull(),
@@ -22,20 +24,21 @@ export const entities = pgTableV2("entities", {
     is_special_contributor: boolean("is_special_contributor").default(false),
     obligado_contabilidad: boolean("obligado_contabilidad").default(false).notNull(),
     is_active: boolean("is_active").default(true),
-    updated_at: timestamp("updated_at")
+    updated_at: timestamp("updated_at", TZ)
         .defaultNow()
         .$onUpdate(() => new Date()) // Drizzle actualiza esto automáticamente al hacer un UPDATE
         .notNull(),
     // Soft-delete audit trail
-    deleted_at: timestamp("deleted_at"),            // null = active; populated = soft-deleted
+    deleted_at: timestamp("deleted_at", TZ),            // null = active; populated = soft-deleted
     deleted_by: integer("deleted_by"),              // auth user id who triggered the delete
-    created_at: timestamp("created_at").defaultNow().notNull(),
+    created_at: timestamp("created_at", TZ).defaultNow().notNull(),
 }, (t) => [
-    index("idx_entities_tax_id").on(t.tax_id),
+    uniqueIndex("idx_entities_company_tax_id").on(t.company_id, t.tax_id),
+    index("idx_entities_company").on(t.company_id),
     index("idx_entities_roles").on(t.is_client, t.is_supplier, t.is_employee, t.is_carrier),
     index("idx_entities_active").on(t.is_active),
     // Partial index for active suppliers (most common query)
-    index("idx_active_suppliers").on(t.id).where(sql`${t.is_supplier} = true AND ${t.is_active} = true`),
+    index("idx_active_suppliers").on(t.company_id, t.id).where(sql`${t.is_supplier} = true AND ${t.is_active} = true`),
     // Composite indexes for sorted pagination (column + id tiebreaker)
     index("idx_entities_business_name_id").on(t.business_name, t.id),
     index("idx_entities_created_at_id").on(t.created_at, t.id),

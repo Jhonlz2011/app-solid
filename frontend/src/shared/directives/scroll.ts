@@ -1,16 +1,16 @@
-import { onCleanup, createEffect, Accessor } from "solid-js";
+import { onCleanup, createEffect, on, Accessor } from "solid-js";
 import SimpleBar from "simplebar";
 import "simplebar/dist/simplebar.css";
 
 declare module "solid-js" {
     namespace JSX {
         interface Directives {
-            scrollBar: string | boolean | undefined; // Flexibilizamos el tipo
+            scrollBar: unknown; // 'unknown' es el tipado correcto para dependencias de reactividad
         }
     }
 }
 
-export function scrollBar(el: HTMLElement, accessor: Accessor<string | boolean | undefined>) {
+export function scrollBar(el: HTMLElement, accessor: Accessor<unknown>) {
     // 1. OPTIMIZACIÓN MÓVIL:
     // Si es un dispositivo táctil, no inicializamos SimpleBar.
     // El scroll nativo es mucho más eficiente en CPU/Batería en móviles.
@@ -44,35 +44,21 @@ export function scrollBar(el: HTMLElement, accessor: Accessor<string | boolean |
         contentWrapper.setAttribute('aria-label', 'Contenido desplazable');
     }
 
-    // 3. SCROLL RESET SUAVE (Micro-task optimization)
-    createEffect(() => {
-        const dependency = accessor(); // Escuchamos cambios de ruta (pathname)
-
-        if (dependency && scrollEl) {
+    // 3. SCROLL RESET SUAVE (Micro-task optimization & Opt-in)
+    // Utilizamos `on` con `defer: true` para que SOLO se dispare 
+    // cuando cambie activamente el valor (por ejemplo al cambiar de página),
+    // ignorando la renderización inicial o cuando es indefinido.
+    createEffect(on(accessor, (dependency) => {
+        if (dependency !== undefined && scrollEl) {
             // Usamos requestAnimationFrame para asegurar que el reset ocurra
             // EN EL SIGUIENTE FRAME de pintado, cuando el contenido nuevo ya existe.
             requestAnimationFrame(() => {
                 scrollEl.scrollTop = 0;
             });
         }
-    });
-
-    // 4. OBSERVER OPTIMIZADO (Evita errores de Loop)
-    // Usamos requestAnimationFrame para no saturar el hilo principal si hay muchos resizes
-    let rafId: number;
-    const resizeObserver = new ResizeObserver(() => {
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => {
-            instance.recalculate();
-        });
-    });
-
-    if (scrollEl) resizeObserver.observe(scrollEl);
-    resizeObserver.observe(el);
+    }, { defer: true }));
 
     onCleanup(() => {
-        if (rafId) cancelAnimationFrame(rafId);
-        resizeObserver.disconnect();
         instance.unMount();
     });
 }

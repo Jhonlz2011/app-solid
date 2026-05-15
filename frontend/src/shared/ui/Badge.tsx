@@ -62,7 +62,7 @@ interface CounterBadgeProps extends JSX.HTMLAttributes<HTMLSpanElement> {
     class?: string;
 }
 
-const counterVariants: Record<CounterVariant, string> = {
+const counterPresentations: Record<CounterVariant, string> = {
     primary: "bg-primary/15 text-primary",
     secondary: "bg-secondary/15 text-secondary",
     danger: "bg-danger/15 text-danger",
@@ -87,7 +87,7 @@ export const CounterBadge: Component<CounterBadgeProps> = (props) => {
             <span 
                 class={cn(
                     "px-1.5 py-0.5 text-xs font-semibold rounded-full", 
-                    counterVariants[local.variant ?? 'default'],
+                    counterPresentations[local.variant ?? 'default'],
                     local.class
                 )}
                 {...rest}
@@ -99,13 +99,13 @@ export const CounterBadge: Component<CounterBadgeProps> = (props) => {
 };
 
 // ── Role & Status Badges ──
-const roleVariants: Record<string, BadgeVariant> = {
+const rolePresentations: Record<string, BadgeVariant> = {
     superadmin: 'danger',
     admin: 'warning',
 };
 
 export const RoleBadge: Component<{ name: string; onClick?: () => void }> = (props) => (
-    <Badge variant={roleVariants[props.name] || 'info'} onClick={props.onClick}>
+    <Badge variant={rolePresentations[props.name] || 'info'} onClick={props.onClick}>
         {props.name}
     </Badge>
 );

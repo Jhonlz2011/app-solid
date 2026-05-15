@@ -2,7 +2,8 @@ import { Component, Show } from 'solid-js';
 import { useParams } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
-import { useSupplier, useUpdateSupplier } from '../data/suppliers.api';
+import { useSupplier } from '../data/suppliers.queries';
+import { useUpdateSupplier } from '../data/suppliers.mutations';
 import { EntityForm } from '@shared/forms/entity';
 import type { EntityFormData } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
@@ -62,7 +63,6 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
                         form="entity-form"
                         loading={updateMutation.isPending}
                         loadingText="Guardando..."
-                        class="min-w-[200px]"
                         icon={<FloppyDiskIcon/>}
                     >
                         Guardar Cambios

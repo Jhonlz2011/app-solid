@@ -1,7 +1,7 @@
 import { db } from '../db';
-import { authUsers as users, sessions } from '@app/schema/tables';
-import { eq, and, gt, inArray, or } from '@app/schema';
-import type { PublicUserType } from '@app/schema/backend';
+import { authUsers as users, sessions, companies, sriEstablishments, entities, authUserRoles, authRoles } from '@app/schema/tables';
+import { eq, and, gt, inArray, or, sql } from '@app/schema';
+import type { Entity } from '@app/schema/types';
 import { getUserRoles, getUserPermissions } from './rbac.service';
 import { broadcast } from '../plugins/sse';
 import { SESSION_EXPIRE_DAYS } from '../config/auth';
@@ -9,6 +9,11 @@ import { cacheService } from './cache.service';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import geoip from 'geoip-lite';
 import { DomainError } from './errors';
+import {
+  seedCompanyRBAC,
+  seedCompanyMenus,
+  seedCompanyUOMs,
+} from './tenant-provisioning.service';
 
 // --- CONSTANTS ---
 const SESSION_REFRESH_THRESHOLD_DAYS = Math.floor(SESSION_EXPIRE_DAYS / 2);
@@ -16,7 +21,7 @@ const MAX_SESSIONS = 5;
 
 // --- HELPERS ---
 
-function mapEntity(entity: any) {
+function mapEntity(entity: Pick<Entity, 'id' | 'business_name' | 'is_client' | 'is_supplier' | 'is_employee'> | null | undefined) {
     if (!entity) return undefined;
     return {
         id: entity.id,
@@ -105,14 +110,82 @@ export async function validateSession(sessionId: string) {
 
 // --- AUTH FUNCTIONS ---
 
-export async function register(email: string, password: string, username?: string): Promise<PublicUserType> {
-  const password_hash = await Bun.password.hash(password);
-  const result = await db
+export async function register(
+  data: {
+    fullName: string; email: string; password: string;
+    phone?: string; cedula?: string;
+    slug: string; ruc: string; businessName: string; tradeName?: string;
+    businessType?: string; mainAddress?: string;
+    obligadoContabilidad?: boolean; contribuyenteEspecial?: string; taxRegime?: string;
+  },
+  userAgent?: string,
+  ipAddress?: string
+) {
+  return await db.transaction(async (tx) => {
+    // 0. Verify slug + ruc uniqueness (descriptive errors vs opaque PG constraint violations)
+    const [existingSlug] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.slug, data.slug)).limit(1);
+    if (existingSlug) throw new DomainError('Este identificador (slug) ya está en uso', 409);
+
+    const [existingRuc] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.ruc, data.ruc)).limit(1);
+    if (existingRuc) throw new DomainError('Este RUC ya está registrado', 409);
+
+    // 1. Create company
+    const [company] = await tx
+      .insert(companies)
+      .values({
+        slug: data.slug,
+        ruc: data.ruc,
+        business_name: data.businessName,
+        trade_name: data.tradeName || null,
+        main_address: data.mainAddress || data.businessName,
+        business_type: data.businessType || null,
+        obligado_contabilidad: data.obligadoContabilidad ?? false,
+        contribuyente_especial: data.contribuyenteEspecial || null,
+      })
+      .returning();
+
+    // 2. Default SRI establishment
+    await tx.insert(sriEstablishments).values({
+      company_id: company.id,
+      code: '001',
+      name: 'Matriz',
+      address: company.main_address,
+      emission_points: ['001'],
+    });
+
+    // 3. CONSUMIDOR FINAL entity
+    await tx.insert(entities).values({
+      company_id: company.id,
+      tax_id: '9999999999999',
+      tax_id_type: 'CONSUMIDOR_FINAL',
+      person_type: 'NATURAL',
+      business_name: 'CONSUMIDOR FINAL',
+      is_client: true,
+    });
+
+    // 4. Owner entity (personal data from Step 1)
+    const [ownerEntity] = await tx.insert(entities).values({
+      company_id: company.id,
+      tax_id: data.cedula || data.ruc,
+      tax_id_type: data.cedula ? 'CEDULA' : 'RUC',
+      person_type: 'NATURAL',
+      business_name: data.fullName,
+      phone: data.phone || null,
+      email_billing: data.email,
+      is_employee: true,
+    }).returning();
+
+    // 5. Create owner user linked to entity
+    const password_hash = await Bun.password.hash(data.password);
+    const [user] = await tx
       .insert(users)
       .values({
-        email,
+        company_id: company.id,
+        entity_id: ownerEntity.id,
+        email: data.email,
+        username: data.email.split('@')[0],
         password_hash,
-        username: username || email.split('@')[0],
+        is_owner: true,
       })
       .returning({
         id: users.id,
@@ -121,9 +194,62 @@ export async function register(email: string, password: string, username?: strin
         email: users.email,
         is_active: users.is_active,
         last_login: users.last_login,
-        created_at: users.created_at,
       });
-  return result[0];
+
+    // 6. Seed RBAC (roles + permissions + assign superadmin)
+    await seedCompanyRBAC(tx, company.id, user.id);
+
+    // 7. Seed menus
+    await seedCompanyMenus(tx);
+
+    // 7.5 Seed UOMs (derived)
+    await seedCompanyUOMs(tx, company.id);
+
+    // 8. Create session (auto-login)
+    const sessionId = generateSessionToken();
+    const expiresAt = new Date(Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
+    await tx.insert(sessions).values({
+      id: sessionId,
+      user_id: user.id,
+      company_id: company.id,
+      expires_at: expiresAt,
+      user_agent: userAgent,
+      ip_address: ipAddress,
+    });
+
+    // 9. Fetch roles/permissions within tx (global `db` can't see uncommitted inserts)
+    const txRoles = await tx
+      .select({ roleName: authRoles.name })
+      .from(authUserRoles)
+      .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
+      .where(eq(authUserRoles.user_id, user.id));
+
+    const txPermissions = await tx.execute(sql`
+      SELECT DISTINCT ap.slug
+      FROM auth_user_roles ur
+      JOIN auth_role_permissions rp ON ur.role_id = rp.role_id
+      JOIN auth_permissions ap ON rp.permission_id = ap.id
+      WHERE ur.user_id = ${user.id}
+    `);
+
+    const roles = txRoles.map(r => r.roleName);
+    const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
+
+    return {
+      sessionId,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        isActive: user.is_active,
+        lastLogin: user.last_login,
+        entityId: user.entity_id,
+        roles,
+        permissions,
+        entity: mapEntity(ownerEntity),
+      },
+    };
+  });
 }
 
 export async function login(email: string, password: string, userAgent?: string, ipAddress?: string) {
@@ -172,6 +298,7 @@ export async function login(email: string, password: string, userAgent?: string,
     db.insert(sessions).values({
       id: sessionId,
       user_id: user.id,
+      company_id: user.company_id,
       expires_at: expiresAt,
       user_agent: userAgent,
       ip_address: ipAddress,
@@ -184,14 +311,14 @@ export async function login(email: string, password: string, userAgent?: string,
 
   return {
     sessionId,
-    expiresAt,
     user: {
       id: user.id,
+      companyId: user.company_id,
       email: user.email,
       username: user.username,
-      is_active: user.is_active,
-      last_login: user.last_login,
-      entity_id: user.entity_id,
+      isActive: user.is_active,
+      lastLogin: user.last_login,
+      entityId: user.entity_id,
       roles,
       permissions,
       entity: mapEntity(user.entity),
@@ -266,7 +393,7 @@ export async function revokeSession(sessionId: string, userId: number) {
   broadcast(RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId }, `user:${userId}`);
   cacheService.invalidate(`session:${sessionId}`);
 
-  return { success: true };
+  return { success: true } as const;
 }
 
 export async function getMe(userId: number) {
@@ -274,6 +401,7 @@ export async function getMe(userId: number) {
     where: eq(users.id, userId),
     columns: {
       id: true,
+      company_id: true,
       email: true,
       username: true,
       entity_id: true,
@@ -292,6 +420,7 @@ export async function getMe(userId: number) {
 
   return {
     id: user.id,
+    companyId: user.company_id,
     email: user.email,
     username: user.username,
     entityId: user.entity_id,
@@ -325,7 +454,7 @@ export async function changePassword(userId: number, currentPassword: string, ne
     broadcast(RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId: s.id }, `user:${userId}`);
   }
 
-  return { success: true };
+  return { success: true } as const;
 }
 
 export async function updateProfile(
@@ -338,7 +467,7 @@ export async function updateProfile(
   if (data.email) updateData.email = data.email;
 
   if (Object.keys(updateData).length === 0) {
-    return { success: true, message: 'Sin cambios' };
+    return { success: true, message: 'Sin cambios' } as const;
   }
 
   const [updated] = await db.update(users).set(updateData).where(eq(users.id, userId)).returning({
@@ -351,5 +480,5 @@ export async function updateProfile(
 
     broadcast(RealtimeEvents.USER.PROFILE_UPDATED, { id: userId, ...updateData }, `user:${userId}`);
 
-  return { success: true, user: updated };
+  return { success: true, user: updated } as const;
 }

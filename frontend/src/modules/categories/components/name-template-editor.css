@@ -1,0 +1,158 @@
+/* ============================================================================
+ * NameTemplateEditor — Quill 2 integration styles
+ * Design system integration for inline attribute badges within the editor.
+ * ============================================================================ */
+
+/* Quill container reset — integrate with design system */
+.ql-template-editor {
+    position: relative;
+}
+
+.ql-template-editor .ql-editor {
+    min-height: 38px;
+    max-height: 120px;
+    font-family: var(--font-mono, ui-monospace, 'Cascadia Code', 'Fira Code', monospace);
+    font-size: 0.875rem;
+    line-height: 1.75;
+    padding: 0.36rem 0.75rem;
+    border: 1px solid var(--color-border, hsl(220 13% 91%));
+    border-radius: 0.75rem;
+    background: var(--color-card-alt, hsl(220 20% 97%));
+    color: var(--color-text, hsl(220 20% 15%));
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    overflow-y: auto;
+}
+
+.ql-template-editor .ql-editor:focus {
+    outline: none;
+    border-color: hsl(var(--primary, 220 80% 55%) / 0.65);
+    box-shadow: 0 0 0 3px hsl(var(--primary, 220 80% 55%) / 0.15);
+}
+
+/* Remove Quill default toolbar */
+.ql-template-editor .ql-toolbar {
+    display: none;
+}
+
+/* Remove Quill default container border (we style .ql-editor directly) */
+.ql-template-editor .ql-container {
+    border: none;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+/* Placeholder text */
+.ql-template-editor .ql-editor.ql-blank::before {
+    font-style: normal;
+    color: var(--color-muted, hsl(220 10% 55%));
+    opacity: 0.6;
+    font-size: 0.875rem;
+}
+
+/* ── Attribute Badge Blot — Inline embed ──────────────────────────── */
+
+.ql-attribute-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 8px;
+    margin: 0 2px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: var(--font-mono, ui-monospace, 'Cascadia Code', monospace);
+    cursor: grab;
+    user-select: none;
+    vertical-align: baseline;
+    line-height: 1.5;
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    /* Primary color from design system */
+    background: hsl(var(--primary, 220 80% 55%) / 0.1);
+    color: hsl(var(--primary, 220 80% 55%));
+    border: 1px solid hsl(var(--primary, 220 80% 55%) / 0.25);
+}
+
+.ql-attribute-badge:hover {
+    background: hsl(var(--primary, 220 80% 55%) / 0.18);
+    border-color: hsl(var(--primary, 220 80% 55%) / 0.4);
+}
+
+.ql-attribute-badge:active {
+    cursor: grabbing;
+    transform: scale(1.03);
+}
+
+/* Badge prefix icon */
+.ql-attribute-badge::before {
+    content: '{';
+    opacity: 0.5;
+    font-weight: 400;
+}
+.ql-attribute-badge::after {
+    content: '}';
+    opacity: 0.5;
+    font-weight: 400;
+}
+
+/* ── DnD Drop Indicator ──────────────────────────────────────────── */
+
+.ql-template-editor .ql-editor.drop-target {
+    border-color: hsl(var(--primary, 220 80% 55%) / 0.65);
+    background: hsl(var(--primary, 220 80% 55%) / 0.03);
+}
+
+/* ── Source Badge Panel ──────────────────────────────────────────── */
+
+.template-badge-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: var(--font-mono, ui-monospace, 'Cascadia Code', monospace);
+    cursor: grab;
+    user-select: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    background: hsl(var(--primary, 220 80% 55%) / 0.08);
+    color: hsl(var(--primary, 220 80% 55%));
+    border: 1px solid hsl(var(--primary, 220 80% 55%) / 0.2);
+}
+
+.template-badge-source:hover {
+    background: hsl(var(--primary, 220 80% 55%) / 0.14);
+    border-color: hsl(var(--primary, 220 80% 55%) / 0.35);
+}
+
+.template-badge-source:active {
+    cursor: grabbing;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* Dragging state (while being dragged) */
+.template-badge-source[data-dragging="true"] {
+    opacity: 0.4;
+}
+
+/* ── Template Preview ────────────────────────────────────────────── */
+
+.template-preview-badge-filled {
+    display: inline;
+    padding: 0 4px;
+    border-radius: 4px;
+    font-weight: 600;
+    background: hsl(var(--success, 140 60% 45%) / 0.1);
+    color: hsl(var(--success, 140 60% 45%));
+}
+
+.template-preview-badge-empty {
+    display: inline;
+    padding: 0 4px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-style: italic;
+    background: hsl(var(--warning, 40 90% 55%) / 0.1);
+    color: hsl(var(--warning, 40 90% 55%) / 0.7);
+}

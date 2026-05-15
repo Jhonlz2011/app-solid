@@ -1,59 +1,117 @@
-// products/data/products.queries.ts
-// TanStack Query options and mutations
-import { queryOptions } from '@tanstack/solid-query';
-import { productsApi } from './products.api';
-import { productKeys, categoryKeys, brandKeys, catalogKeys } from './products.keys';
-import type { ProductFilters } from '../models/products.types';
+/**
+ * products.queries.ts — TanStack Query Hooks (read-only) for Products module
+ *
+ * Only `createQuery` hooks live here.
+ * All mutations are in `products.mutations.ts`.
+ */
+import { createQuery, keepPreviousData, useQueryClient } from '@tanstack/solid-query';
+import { createEffect } from 'solid-js';
+import { api } from '@shared/lib/eden';
+import { throwApiError } from '@shared/utils/api-errors';
+import { productsApi, productKeys } from './products.api';
+import type { ProductFilters, FacetData, ProductReferences } from './products.api';
 
-// Query Options - use with createQuery(() => productQueries.list(filters))
-export const productQueries = {
-    list: (filters?: ProductFilters) => queryOptions({
-        queryKey: productKeys.list(filters),
-        queryFn: () => productsApi.list(filters),
-        staleTime: 1000 * 60 * 2, // 2 minutes
-    }),
+// =============================================================================
+// List with Cursor Pagination + Auto-prefetch
+// =============================================================================
 
-    detail: (id: number) => queryOptions({
-        queryKey: productKeys.detail(id),
-        queryFn: () => productsApi.get(id),
-        staleTime: 1000 * 60 * 5, // 5 minutes
-    }),
-};
+export function useProducts(filters: () => ProductFilters) {
+    const queryClient = useQueryClient();
+    const query = createQuery(() => ({
+        queryKey: productKeys.list(filters()),
+        queryFn: () => productsApi.list(filters()),
+        staleTime: 1000 * 60 * 2,
+        gcTime: 1000 * 60 * 30,
+        placeholderData: keepPreviousData,
+    }));
 
-export const categoryQueries = {
-    list: () => queryOptions({
-        queryKey: categoryKeys.list(),
-        queryFn: () => productsApi.listCategories(),
-        staleTime: 1000 * 60 * 10, // 10 minutes
-    }),
+    // Auto-prefetch NEXT and PREVIOUS pages
+    createEffect(() => {
+        const data = query.data;
+        const currentFilters = filters();
+        if (!data) return;
 
-    detail: (id: number) => queryOptions({
-        queryKey: categoryKeys.detail(id),
-        queryFn: () => productsApi.getCategoryWithAttributes(id),
-    }),
-};
+        if (data.meta.nextCursor && data.meta.hasNextPage) {
+            queryClient.prefetchQuery({
+                queryKey: productKeys.list({ ...currentFilters, cursor: data.meta.nextCursor, direction: 'next' }),
+                queryFn: () => productsApi.list({ ...currentFilters, cursor: data.meta.nextCursor!, direction: 'next' }),
+                staleTime: 1000 * 60 * 2,
+            });
+        }
 
-export const brandQueries = {
-    list: () => queryOptions({
-        queryKey: brandKeys.list(),
-        queryFn: () => productsApi.listBrands(),
-        staleTime: 1000 * 60 * 10,
-    }),
-};
+        if (data.meta.prevCursor && data.meta.hasPrevPage) {
+            queryClient.prefetchQuery({
+                queryKey: productKeys.list({ ...currentFilters, cursor: data.meta.prevCursor, direction: 'prev' }),
+                queryFn: () => productsApi.list({ ...currentFilters, cursor: data.meta.prevCursor!, direction: 'prev' }),
+                staleTime: 1000 * 60 * 2,
+            });
+        }
+    });
 
-export const catalogQueries = {
-    uom: () => queryOptions({
-        queryKey: catalogKeys.uom,
-        queryFn: () => productsApi.listUoms(),
-        staleTime: 1000 * 60 * 30, // 30 minutes - rarely changes
-    }),
+    return query;
+}
 
-    attributes: () => queryOptions({
-        queryKey: catalogKeys.attributes,
-        queryFn: () => productsApi.listAttributes(),
-        staleTime: 1000 * 60 * 30,
-    }),
-};
+// =============================================================================
+// Faceted Filter Options
+// =============================================================================
 
-// Re-export API for mutations (mutations don't use queryOptions)
-export { productsApi };
+export function useProductFacets(
+    search: () => string | undefined,
+    columnFilters?: () => {
+        categoryId?: string[];
+        brandId?: string[];
+        productType?: string[];
+        isActive?: string[];
+    }
+) {
+    return createQuery(() => ({
+        queryKey: productKeys.facets(search(), columnFilters?.()),
+        queryFn: async (): Promise<FacetData> => {
+            const cf = columnFilters?.();
+            const { data, error } = await api.api.products.facets.get({
+                query: {
+                    search: search(),
+                    categoryId: cf?.categoryId?.length ? cf.categoryId.join(',') : undefined,
+                    brandId: cf?.brandId?.length ? cf.brandId.join(',') : undefined,
+                    productType: cf?.productType?.length ? cf.productType.join(',') : undefined,
+                    isActive: cf?.isActive?.length ? cf.isActive.join(',') : undefined,
+                },
+            });
+            if (error) throwApiError(error);
+            return data as unknown as FacetData;
+        },
+        staleTime: 1000 * 60 * 5,
+        gcTime: 1000 * 60 * 30,
+        retry: 2,
+        placeholderData: keepPreviousData,
+    }));
+}
+
+// =============================================================================
+// Single Product Detail
+// =============================================================================
+
+export function useProduct(id: () => number) {
+    return createQuery(() => ({
+        queryKey: productKeys.detail(id()),
+        queryFn: () => productsApi.get(id()),
+        enabled: !!id(),
+        staleTime: 1000 * 60 * 5,
+        gcTime: 1000 * 60 * 30,
+    }));
+}
+
+// =============================================================================
+// Reference Check (pre-flight for hard delete)
+// =============================================================================
+
+export function useCheckProductReferences(id: () => number | null, enabled: () => boolean) {
+    return createQuery(() => ({
+        queryKey: [...productKeys.all, 'can-delete', id()],
+        queryFn: async (): Promise<ProductReferences> => productsApi.canDelete(id()!),
+        enabled: enabled() && id() !== null,
+        staleTime: 10_000,
+        gcTime: 30_000,
+        retry: false,
+    }));
+}
