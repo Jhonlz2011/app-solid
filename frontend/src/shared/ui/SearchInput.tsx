@@ -1,4 +1,5 @@
 import { Component, createSignal, onCleanup } from 'solid-js';
+import { SearchIcon } from '@shared/ui/icons';
 
 interface SearchInputProps {
     value: string;
@@ -7,12 +8,6 @@ interface SearchInputProps {
     debounceMs?: number;
     class?: string;
 }
-
-const SearchIcon = () => (
-    <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-    </svg>
-);
 
 export const SearchInput: Component<SearchInputProps> = (props) => {
     const [localValue, setLocalValue] = createSignal(props.value);
@@ -29,16 +24,16 @@ export const SearchInput: Component<SearchInputProps> = (props) => {
     onCleanup(() => clearTimeout(timeout));
 
     return (
-        <div class={`relative ${props.class ?? ''}`}>
+        <div class={`group relative ${props.class ?? ''}`}>
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <SearchIcon />
+                <SearchIcon class="size-5 text-muted group-hover:text-text/80 group-focus-within:text-text/80"/>
             </div>
             <input
                 type="text"
                 placeholder={props.placeholder ?? 'Buscar...'}
                 value={localValue()}
                 onInput={(e) => handleInput(e.currentTarget.value)}
-                class="bg-card border border-border text-text rounded-xl px-4 py-1.5 pl-10 w-full placeholder:text-muted hover:border-border-strong focus:border-primary focus:ring-3 focus:ring-primary/15 outline-hidden"
+                class="bg-card border border-border text-text rounded-xl px-4 py-1.5 pl-10 w-full placeholder:text-muted outline-none hover: focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg"
             />
         </div>
     );

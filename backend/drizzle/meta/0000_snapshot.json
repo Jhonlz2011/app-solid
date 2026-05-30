@@ -1,5 +1,5 @@
 {
-  "id": "f6f7bad8-a669-489d-9fda-9cb8c3853089",
+  "id": "6b375ba6-6b7c-43e3-bffa-d0c511770a2e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1438,6 +1438,20 @@
           "primaryKey": false,
           "notNull": false,
           "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {
@@ -1884,133 +1898,6 @@
           "columns": [
             "category_id",
             "attribute_def_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.product_families": {
-      "name": "product_families",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "product_families_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "company_id": {
-          "name": "company_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category_id": {
-          "name": "category_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "idx_families_company": {
-          "name": "idx_families_company",
-          "columns": [
-            {
-              "expression": "company_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "product_families_company_id_companies_id_fk": {
-          "name": "product_families_company_id_companies_id_fk",
-          "tableFrom": "product_families",
-          "tableTo": "companies",
-          "columnsFrom": [
-            "company_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "product_families_category_id_categories_id_fk": {
-          "name": "product_families_category_id_categories_id_fk",
-          "tableFrom": "product_families",
-          "tableTo": "categories",
-          "columnsFrom": [
-            "category_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "unq_family_name_company": {
-          "name": "unq_family_name_company",
-          "nullsNotDistinct": false,
-          "columns": [
-            "company_id",
-            "name"
           ]
         }
       },
@@ -3590,12 +3477,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "family_id": {
-          "name": "family_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "slug": {
           "name": "slug",
           "type": "text",
@@ -3826,19 +3707,6 @@
           "tableTo": "brands",
           "columnsFrom": [
             "brand_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "products_family_id_product_families_id_fk": {
-          "name": "products_family_id_product_families_id_fk",
-          "tableFrom": "products",
-          "tableTo": "product_families",
-          "columnsFrom": [
-            "family_id"
           ],
           "columnsTo": [
             "id"
@@ -4826,8 +4694,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "purchase_uom_id": {
-          "name": "purchase_uom_id",
+        "purchase_uom": {
+          "name": "purchase_uom",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -4945,12 +4813,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "supplier_products_purchase_uom_id_uom_id_fk": {
-          "name": "supplier_products_purchase_uom_id_uom_id_fk",
+        "supplier_products_purchase_uom_uom_id_fk": {
+          "name": "supplier_products_purchase_uom_uom_id_fk",
           "tableFrom": "supplier_products",
           "tableTo": "uom",
           "columnsFrom": [
-            "purchase_uom_id"
+            "purchase_uom"
           ],
           "columnsTo": [
             "id"
@@ -5546,8 +5414,20 @@
             "cycle": false
           }
         },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "warehouse_id": {
           "name": "warehouse_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_id": {
+          "name": "parent_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -5594,11 +5474,41 @@
         }
       },
       "indexes": {
+        "idx_locations_company": {
+          "name": "idx_locations_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "idx_locations_warehouse": {
           "name": "idx_locations_warehouse",
           "columns": [
             {
               "expression": "warehouse_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_locations_parent": {
+          "name": "idx_locations_parent",
+          "columns": [
+            {
+              "expression": "parent_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5623,24 +5533,22 @@
           "concurrently": false,
           "method": "gist",
           "with": {}
-        },
-        "idx_locations_barcode": {
-          "name": "idx_locations_barcode",
-          "columns": [
-            {
-              "expression": "barcode",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
+        "warehouse_locations_company_id_companies_id_fk": {
+          "name": "warehouse_locations_company_id_companies_id_fk",
+          "tableFrom": "warehouse_locations",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "warehouse_locations_warehouse_id_warehouses_id_fk": {
           "name": "warehouse_locations_warehouse_id_warehouses_id_fk",
           "tableFrom": "warehouse_locations",
@@ -5657,10 +5565,11 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "warehouse_locations_barcode_unique": {
-          "name": "warehouse_locations_barcode_unique",
+        "unq_location_barcode_company": {
+          "name": "unq_location_barcode_company",
           "nullsNotDistinct": false,
           "columns": [
+            "company_id",
             "barcode"
           ]
         }
@@ -8054,13 +7963,7 @@
           "name": "variant_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
-        },
-        "family_id": {
-          "name": "family_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "quantity_requested": {
           "name": "quantity_requested",
@@ -8106,21 +8009,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "idx_mri_family": {
-          "name": "idx_mri_family",
-          "columns": [
-            {
-              "expression": "family_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -8149,30 +8037,12 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "material_request_items_family_id_product_families_id_fk": {
-          "name": "material_request_items_family_id_product_families_id_fk",
-          "tableFrom": "material_request_items",
-          "tableTo": "product_families",
-          "columnsFrom": [
-            "family_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "chk_variant_or_family": {
-          "name": "chk_variant_or_family",
-          "value": "\n        (\"material_request_items\".\"variant_id\" IS NOT NULL AND \"material_request_items\".\"family_id\" IS NULL) OR\n        (\"material_request_items\".\"variant_id\" IS NULL AND \"material_request_items\".\"family_id\" IS NOT NULL)\n    "
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.material_requests": {
@@ -12152,7 +12022,6 @@
         "AREA",
         "CANTIDAD",
         "TIEMPO",
-        "TEMPERATURA",
         "DATA"
       ]
     },

@@ -1,13 +1,13 @@
 import { createSelectSchema, createInsertSchema } from 'drizzle-valibot';
 import { pipe, string, minLength, maxLength, trim, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array, number, optional, nullable, forward, check, partialCheck, any, partial, regex } from 'valibot';
 import * as tables from './tables';
-import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES, PRODUCT_TYPES, PRODUCT_SUBTYPES, ATTRIBUTE_DATA_TYPES, UOM_GROUPS } from './enums';
+import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES, PRODUCT_TYPES, PRODUCT_SUBTYPES, ATTRIBUTE_DATA_TYPES, UOM_GROUPS, LOCATION_TYPES } from './enums';
 
 // Re-export enum types for frontend convenience
 export { type TaxIdType, type TaxIdTypeForm, type PersonType, type TaxRegimeType } from './enums';
 export { type RbacModule, type RbacAction, type PermissionSlug } from './enums';
 export { type ProductType, type ProductSubtype } from './enums';
-export { TAX_ID_TYPES_FORM, PRODUCT_TYPES, PRODUCT_SUBTYPES, ATTRIBUTE_DATA_TYPES, UOM_GROUPS } from './enums';
+export { TAX_ID_TYPES_FORM, PRODUCT_TYPES, PRODUCT_SUBTYPES, ATTRIBUTE_DATA_TYPES, UOM_GROUPS, LOCATION_TYPES } from './enums';
 export { type AttributeDataType, type UomGroup } from './enums';
 
 // --- PRODUCTS ---
@@ -59,7 +59,6 @@ export const ProductFormSchema = object({
     product_subtype: optional(nullable(picklist(PRODUCT_SUBTYPES))),
     category_id: number('Categoría es requerida'),
     brand_id: optional(nullable(number())),
-    family_id: optional(nullable(number())),
     // Identification
     slug: string(),  // Can be empty — auto-generated from generateSku() on submit
     name: pipe(string(), minLength(1, 'Nombre es requerido')),
@@ -275,8 +274,8 @@ export type WarehouseFormData = InferInput<typeof WarehouseFormSchema>;
 export const LocationFormSchema = object({
     name: pipe(string(), trim(), minLength(1, 'El nombre es requerido'), maxLength(100, 'Máx 100 caracteres')),
     parent_id: optional(nullable(number())),
-    barcode: optional(nullable(string())),
-    type: picklist(['VIEW', 'INTERNAL'] as const, 'Tipo requerido'),
+    warehouse_id: optional(nullable(number())),
+    type: picklist(LOCATION_TYPES, 'Tipo requerido'),
 });
 export type LocationFormData = InferInput<typeof LocationFormSchema>;
 

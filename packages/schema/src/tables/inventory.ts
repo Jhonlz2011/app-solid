@@ -26,6 +26,8 @@ export const warehouses = pgTableV2("warehouses", {
 // Dual tracking: parent_id para tree rendering (frontend), ltree para queries jerárquicas (backend)
 export const warehouseLocations = pgTableV2("warehouse_locations", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    // Multi-tenant: required for virtual locations (warehouse_id=null) that can't inherit tenant from warehouse
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     // Nullable para ubicaciones virtuales (como Proveedores o Clientes) que no pertenecen a una bodega física
     warehouse_id: integer("warehouse_id").references(() => warehouses.id),
     // Self-reference para árbol jerárquico (FK via migración SQL: fk_location_parent)
@@ -35,17 +37,16 @@ export const warehouseLocations = pgTableV2("warehouse_locations", {
     // ltree path: "bodega_principal.zona_a.pasillo_3"
     path: ltree("path").notNull(),
     
-    barcode: text("barcode").unique(),
     type: locationTypeEnum("type").default('INTERNAL').notNull(),
     
     // Depth in tree (0 = root)
     depth: integer("depth").default(0).notNull(),
     is_active: boolean("is_active").default(true),
 }, (t) => [
+    index("idx_locations_company").on(t.company_id),
     index("idx_locations_warehouse").on(t.warehouse_id),
     index("idx_locations_parent").on(t.parent_id),
     index("idx_locations_path_gist").using("gist", t.path),
-    index("idx_locations_barcode").on(t.barcode),
 ]);
 
 // Stock agrupado por UBICACIÓN + VARIANTE (la unidad transaccional)

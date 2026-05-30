@@ -11,9 +11,14 @@ export const createLocationRoutes = (layoutRoute: any) => {
     const locationsRoute = createRoute({
         getParentRoute: () => layoutRoute,
         path: 'locations',
+        validateSearch: (search: Record<string, unknown>) => {
+            return {
+                warehouseId: search.warehouseId ? Number(search.warehouseId) : undefined,
+            };
+        },
         loader: async () => {
             await queryClient.prefetchQuery({
-                queryKey: locationKeys.all,
+                queryKey: locationKeys.list(),
                 queryFn: () => locationsApi.list(),
                 staleTime: 1000 * 60 * 30,
             });

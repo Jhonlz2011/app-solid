@@ -71,7 +71,6 @@ function buildDefaultValues(product?: Product): ProductFormData {
             product_subtype: p.product_subtype ?? null,
             category_id: p.category_id,
             brand_id: p.brand_id ?? null,
-            family_id: p.family_id ?? null,
             slug: p.slug,
             name: p.name,
             description: p.description ?? null,
@@ -103,7 +102,7 @@ function buildDefaultValues(product?: Product): ProductFormData {
     }
     return {
         product_type: 'PRODUCTO', product_subtype: 'SIMPLE',
-        category_id: 0, brand_id: null, family_id: null,
+        category_id: 0, brand_id: null,
         slug: '', name: '', description: null,
         shared_attributes: {}, extra_specs: {}, image_urls: [],
         uom_inventory_id: 0, has_dimensional_tracking: false,

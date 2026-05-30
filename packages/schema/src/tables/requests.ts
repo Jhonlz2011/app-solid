@@ -5,7 +5,7 @@ import { requestDestinationEnum, materialRequestStatusEnum, conditionEnum } from
 import { workOrders } from './manufacturing';
 import { entities } from './entities';
 import { products, productVariants } from './products';
-import { productFamilies } from './catalogs';
+
 import { warehouses, warehouseLocations, inventoryDimensionalItems } from './inventory';
 
 // --- REQUEST TEMPLATES (Kits preestablecidos) ---
@@ -43,14 +43,11 @@ export const materialRequests = pgTableV2("material_requests", {
     index("idx_mr_requester").on(t.requester_id),
 ]);
 
-// Items solicitados — "quiero Cable de Acero 1/4" (variant) O "cualquier Cemento" (family)
 export const materialRequestItems = pgTableV2("material_request_items", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     request_id: integer("request_id").references(() => materialRequests.id, { onDelete: 'cascade' }).notNull(),
     // Request ESPECÍFICO: variante exacta (con marca + atributos)
-    variant_id: integer("variant_id").references(() => productVariants.id),
-    // Request GENÉRICO: familia intercambiable ("Cemento de Contacto" sin importar marca)
-    family_id: integer("family_id").references(() => productFamilies.id),
+    variant_id: integer("variant_id").references(() => productVariants.id).notNull(),
 
     quantity_requested: numeric("quantity_requested", { precision: 12, scale: 4 }).notNull(),
 
@@ -59,12 +56,6 @@ export const materialRequestItems = pgTableV2("material_request_items", {
 }, (t) => [
     index("idx_mri_request").on(t.request_id),
     index("idx_mri_variant").on(t.variant_id),
-    index("idx_mri_family").on(t.family_id),
-    // Exactamente uno de variant_id o family_id debe estar presente
-    check("chk_variant_or_family", sql`
-        (${t.variant_id} IS NOT NULL AND ${t.family_id} IS NULL) OR
-        (${t.variant_id} IS NULL AND ${t.family_id} IS NOT NULL)
-    `),
 ]);
 
 // --- DESPACHOS PARCIALES (quién, cuánto, cuándo, desde dónde) ---

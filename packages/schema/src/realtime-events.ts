@@ -25,6 +25,7 @@ export const RealtimeEvents = {
         EMPLOYEES: 'employees',
         CARRIERS: 'carriers',
         USERS: 'users',
+        LOCATIONS: 'locations',
     },
 } as const;
 

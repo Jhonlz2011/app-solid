@@ -80,7 +80,7 @@ const Trigger: Component<DropdownMenuTriggerProps> = (props) => {
             class={cn(
                 // Base — same as Button
                 'inline-flex items-center justify-center gap-2 rounded-xl font-medium cursor-pointer text-sm',
-                'outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1',
+                'outline-none focus-within:text-text focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
                 // Variant + Size tokens shared with Button
                 BUTTON_VARIANTS[variant()],

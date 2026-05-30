@@ -48,7 +48,7 @@ export const Avatar: Component<AvatarProps> = (props) => {
     return (
         <div
             class={cn(
-                'rounded-full bg-gradient-to-br flex items-center justify-center ring-1 ring-white/10 font-semibold select-none',
+                'rounded-full bg-linear-to-br flex items-center justify-center ring-1 ring-white/10 font-semibold select-none',
                 gradient(),
                 size(),
                 local.class,

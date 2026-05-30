@@ -2,7 +2,7 @@ import { createRoute, lazyRouteComponent, redirect, useNavigate } from '@tanstac
 import { queryClient } from '@shared/lib/queryClient';
 import { productKeys, productsApi } from '@modules/products/data/products.api';
 import { createCategoryModals } from '@/shared/routes/categories.factory';
-import { createFamilyModals } from '@shared/routes/settings.factory';
+
 import { createBrandModals } from '@shared/routes/brands.factory';
 import { createUomModals } from '@shared/routes/uom.factory';
 
@@ -18,15 +18,13 @@ const LazyProductNewRoute = lazyRouteComponent(() => import('@modules/products/c
  *   /products (ProductsPage + <Outlet />)
  *     ├── new (ProductNewSheet + <Outlet />)
  *     │    ├── categories/new   ← nested CategoryNewSheet
- *     │    ├── brands/new       ← nested BrandNewSheet
- *     │    └── families/new     ← nested FamilyNewSheet
+ *     │    └── brands/new       ← nested BrandNewSheet
  *     └── $productId
  *          ├── show (ProductShowPanel + <Outlet />)
  *          │    └── edit (nested ProductEditSheet)
  *          └── edit (ProductEditSheet + <Outlet />)
  *               ├── categories/new
- *               ├── brands/new
- *               └── families/new
+ *               └── brands/new
  */
 export const createProductModals = (parentRoute: any, basePath = '', fallbackRedirect = '/products') => {
     const prefix = basePath ? `${basePath}/` : '';
@@ -44,7 +42,6 @@ export const createProductModals = (parentRoute: any, basePath = '', fallbackRed
     newRoute.addChildren([
         ...createCategoryModals(newRoute, 'categories', { to: fallbackRedirect }),
         ...createBrandModals(newRoute, 'brands', { to: fallbackRedirect }),
-        ...createFamilyModals(newRoute, 'families', { to: fallbackRedirect }),
     ]);
 
     // --- BASE LAYOUT WRAPPER (/$productId) ---
@@ -97,7 +94,6 @@ export const createProductModals = (parentRoute: any, basePath = '', fallbackRed
     editRoute.addChildren([
         ...createCategoryModals(editRoute, 'categories', { to: fallbackRedirect }),
         ...createBrandModals(editRoute, 'brands', { to: fallbackRedirect }),
-        ...createFamilyModals(editRoute, 'families', { to: fallbackRedirect }),
     ]);
 
     // --- NESTED EDIT (/$productId/show/edit) (FROM SHOW PANEL) ---

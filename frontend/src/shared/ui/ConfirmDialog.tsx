@@ -90,7 +90,7 @@ const ConfirmDialog: Component<ConfirmDialogProps> = (props) => {
                                 onClick={() => props.onConfirm()}
                                 disabled={props.isLoading}
                                 loading={props.isLoading}
-                                loadingText={props.loadingText ?? 'Eliminando...'}
+                                loadingText={props.loadingText ?? 'Desactivando...'}
                                 class="shrink-0"
                             >
                                 {props.confirmLabel ?? 'Eliminar'}

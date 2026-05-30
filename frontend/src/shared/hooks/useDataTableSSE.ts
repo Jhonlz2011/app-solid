@@ -68,6 +68,29 @@ export function useDataTableSSE<TEntity extends { id: string | number } = SseEnt
                 const matchingQueries = queryClient.getQueriesData({ queryKey: options.queryKey });
                 
                 matchingQueries.forEach(([queryKey, oldData]) => {
+                    if (!oldData) return;
+
+                    // Handle flat array query cache (e.g. locations list)
+                    if (Array.isArray(oldData)) {
+                        const payloadId = eventData.id as number;
+                        if (!payloadId) return;
+
+                        queryClient.setQueryData<any[]>(queryKey as readonly unknown[], (old) => {
+                            if (!old) return old;
+                            const exists = old.some((item) => item.id === payloadId);
+                            if (exists) {
+                                return old.map((item) =>
+                                    item.id === payloadId ? { ...item, ...eventData.entity } : item
+                                );
+                            } else {
+                                queueMicrotask(() => queryClient.invalidateQueries({ queryKey: queryKey as readonly unknown[] }));
+                                return old;
+                            }
+                        });
+                        return;
+                    }
+
+                    // Handle standard CacheShape (paginated or infinite cache)
                     const typedOldData = oldData as CacheShape<TEntity> | undefined;
                     if (!typedOldData || (!('data' in typedOldData) && !('pages' in typedOldData))) return;
                     
@@ -120,9 +143,13 @@ export function useDataTableSSE<TEntity extends { id: string | number } = SseEnt
                 const idsToRemove = eventData?.ids || (eventData?.id ? [eventData.id] : []);
                 if (idsToRemove.length === 0) return;
                 
-                queryClient.setQueriesData<CacheShape<TEntity>>({ queryKey: options.queryKey }, (old) => {
+                queryClient.setQueriesData<any>({ queryKey: options.queryKey }, (old) => {
                     if (!old) return old;
-                    return removeCacheItems(old, idsToRemove);
+                    if (Array.isArray(old)) {
+                        const idSet = new Set(idsToRemove);
+                        return old.filter((item) => !idSet.has(item.id));
+                    }
+                    return removeCacheItems(old as CacheShape<TEntity>, idsToRemove);
                 });
             } else {
                 queryClient.invalidateQueries({ queryKey: options.queryKey });

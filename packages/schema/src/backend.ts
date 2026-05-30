@@ -120,8 +120,8 @@ export const EntityInsert = createInsertSchema(tables.entities, {
 // --- CATEGORIES ---
 export const CategoryAttributeEntrySchema = Type.Object({
     attributeDefId: Type.Number(),
-    required: Type.Optional(Type.Boolean()),
-    order: Type.Optional(Type.Number()),
+    required: Type.Boolean(),
+    order: Type.Number(),
     specificOptions: Type.Optional(Type.Any()),
 });
 
@@ -132,7 +132,7 @@ export const CategoryBodySchema = Type.Object({
     icon: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     nameTemplate: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     sortOrder: Type.Optional(Type.Number()),
-    attributes: Type.Optional(Type.Array(CategoryAttributeEntrySchema)),
+    attributes: Type.Array(CategoryAttributeEntrySchema),
 });
 
 export const CategoryUpdateSchema = Type.Partial(Type.Object({

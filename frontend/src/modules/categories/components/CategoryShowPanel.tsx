@@ -6,7 +6,7 @@ import { EditIcon, InfoIcon, TagIcon, ChevronRightIcon } from '@shared/ui/icons'
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Button from '@shared/ui/Button';
 import Sheet from '@shared/ui/Sheet';
-import { StatusBadge } from '@shared/ui/Badge';
+import { StatusBadge, Badge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
 
@@ -138,9 +138,9 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                                                     <span class="text-xs font-medium text-muted uppercase tracking-wider">Plantilla de Nombre (SKU)</span>
                                                     <div class="pt-1">
                                                         <Show when={category().name_template} fallback={<span class="text-sm font-mono text-muted/60">No definida</span>}>
-                                                            <span class="text-xs font-mono bg-surface px-2 py-1 rounded border border-border text-text">
+                                                            <Badge variant="default" class="text-xs font-mono px-2 py-1 rounded border border-border">
                                                                 {category().name_template}
-                                                            </span>
+                                                            </Badge>
                                                         </Show>
                                                     </div>
                                                 </div>
@@ -193,7 +193,7 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                                                                 <div class="flex items-center gap-2">
                                                                     <span class="font-bold text-text truncate">{attr.label}</span>
                                                                     <Show when={attr.required}>
-                                                                        <span class="text-[9px] bg-danger/10 text-danger px-1.5 py-0.5 rounded-sm uppercase font-bold tracking-wider">Requerido</span>
+                                                                        <Badge variant="danger" class="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-sm">Requerido</Badge>
                                                                     </Show>
                                                                 </div>
                                                                 <span class="text-xs text-muted font-mono mt-0.5">{attr.key}</span>

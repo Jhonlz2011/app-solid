@@ -14,6 +14,7 @@ import {
     flexRender,
     getCoreRowModel,
     getFilteredRowModel,
+    getSortedRowModel,
     type ColumnDef,
     type SortingState,
     type VisibilityState,
@@ -259,6 +260,7 @@ export function DataTable<TData>(props: DataTableProps<TData>): JSX.Element {
         get columns() { return local.columns; },
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
+        getSortedRowModel: getSortedRowModel(),
         getRowId: local.getRowId ?? ((row: any) => String(row.id)),
 
         // Sorting — server-side when controlled, client-side when not

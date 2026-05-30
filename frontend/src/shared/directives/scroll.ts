@@ -37,11 +37,10 @@ export function scrollBar(el: HTMLElement, accessor: Accessor<unknown>) {
     const scrollEl = instance.getScrollElement();
 
     // 2. FIX ACCESIBILIDAD
-    const contentWrapper = el.querySelector('.simplebar-content-wrapper');
-    if (contentWrapper) {
-        contentWrapper.setAttribute('tabindex', '-1');
-        contentWrapper.setAttribute('role', 'region');
-        contentWrapper.setAttribute('aria-label', 'Contenido desplazable');
+    if (scrollEl) {
+        scrollEl.setAttribute('tabindex', '-1');
+        scrollEl.setAttribute('role', 'region');
+        scrollEl.setAttribute('aria-label', 'Contenido desplazable');
     }
 
     // 3. SCROLL RESET SUAVE (Micro-task optimization & Opt-in)

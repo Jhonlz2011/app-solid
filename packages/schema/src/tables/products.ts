@@ -3,7 +3,7 @@ import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ } from '../utils';
 import { productTypeEnum, productSubtypeEnum, priceChangeTypeEnum, priceChangeSourceEnum } from '../enums';
 import { uom, companies } from './config';
-import { categories, brands, productFamilies } from './catalogs';
+import { categories, brands } from './catalogs';
 import { authUsers } from './auth';
 import { warehouseLocations } from './inventory';
 
@@ -32,11 +32,6 @@ export const products = pgTableV2("products", {
     // Subcategories: TALADROS -> ELECTRICO/BATERIA
     category_id: integer("category_id").references(() => categories.id).notNull(),
     brand_id: integer("brand_id").references(() => brands.id),
-    // Familia de productos intercambiables (para material requests genéricos)
-    // "Cemento de Contacto" agrupa Africano, Mega — cualquier marca sirve
-    // NULL = producto no intercambiable (tornillo específico, etc.)
-    family_id: integer("family_id").references(() => productFamilies.id),
-
     // Human-readable slug (NOT the transactional SKU — that's on variants)
     slug: text("slug").notNull(),
     name: text("name").notNull(),

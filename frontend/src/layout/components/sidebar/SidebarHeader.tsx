@@ -17,7 +17,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
         >
             {/* Logo Layer - Always visible */}
             <div class="absolute inset-0 flex items-center px-4 sm:pl-5 pointer-events-none">
-                <div class="size-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shrink-0">
+                <div class="size-10 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shrink-0">
                     <span class="text-white font-bold text-lg">A</span>
                 </div>
             </div>

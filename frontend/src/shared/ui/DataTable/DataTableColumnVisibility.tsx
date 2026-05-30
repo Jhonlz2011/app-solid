@@ -45,14 +45,14 @@ export const DataTableColumnVisibility: Component<DataTableColumnVisibilityProps
         <DropdownMenu placement="bottom-end">
             <DropdownMenu.Trigger class="h-9.5 px-4" variant="ghost">
                 <ColumnsIcon />
-                <span class="hidden sm:inline">Columnas</span>
+                <span class="hidden @lg:inline">Columnas</span>
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content class="min-w-[280px] p-2">
+            <DropdownMenu.Content class="min-w-70 p-2">
                 <DropdownMenu.Label class="text-xs font-semibold text-muted tracking-wider mb-2">
                     Visibilidad de columnas
                 </DropdownMenu.Label>
 
-                <div class="max-h-[320px] overflow-y-auto">
+                <div class="max-h-80 overflow-y-auto">
                     <For each={configurableColumns()}>
                         {(column) => {
                             const isPinned = () => column.getIsPinned();

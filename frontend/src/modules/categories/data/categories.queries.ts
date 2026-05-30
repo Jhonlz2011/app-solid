@@ -1,10 +1,7 @@
 import { createQuery } from '@tanstack/solid-query';
-import { categoriesApi, type CategoryNode, type CategoryDetail } from './categories.api';
+import { categoriesApi, type CategoryNode, type CategoryDetail, type CategoryReferences } from './categories.api';
 import { categorieKeys } from './categories.keys';
-
-// =============================================================================
-// Query Hooks — Categories
-// =============================================================================
+import type { Accessor } from 'solid-js';
 
 export function useCategoriesTree() {
     return createQuery(() => ({
@@ -39,5 +36,15 @@ export function useCategoryFormSchema(id: () => number | null) {
         queryFn: () => categoriesApi.getCategoryFormSchema(id()!),
         enabled: id() !== null && id()! > 0,
         staleTime: 1000 * 60 * 10,
+    }));
+}
+
+export function useCheckCategoryReferences(id: Accessor<number | null>, enabled: Accessor<boolean>) {
+    return createQuery(() => ({
+        queryKey: categorieKeys.references(id()!),
+        queryFn: () => categoriesApi.checkReferences(id()!),
+        enabled: enabled() && id() !== null,
+        staleTime: 0,
+        retry: false,
     }));
 }

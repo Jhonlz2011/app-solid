@@ -74,7 +74,7 @@ const DeleteDialog: Component<DeleteDialogProps> = (props) => {
                                         {props.title}
                                     </Dialog.Title>
                                     <p
-                                        class="text-sm text-muted mt-0.5 truncate max-w-[200px] sm:max-w-[260px]"
+                                        class="text-sm text-muted mt-0.5 truncate max-w-50 sm:max-w-65"
                                         title={props.description}
                                     >
                                         {props.description}

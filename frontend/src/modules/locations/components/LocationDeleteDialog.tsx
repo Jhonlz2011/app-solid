@@ -4,6 +4,7 @@ import { useCheckLocationReferences } from '../data/locations.queries';
 import { useDeactivateLocation, useHardDeleteLocation } from '../data/locations.mutations';
 import type { LocationItem } from '../data/locations.api';
 import DeleteDialog from '@shared/ui/DeleteDialog';
+import { toast } from 'solid-sonner';
 
 export interface LocationDeleteDialogProps {
     location: LocationItem | null;
@@ -37,9 +38,25 @@ const LocationDeleteDialog: Component<LocationDeleteDialogProps> = (props) => {
         if (!props.location) return;
         const id = props.location.id;
         if (confirmedMode === 'hard') {
-            hardDeleteMutation.mutate(id, { onSuccess: () => { props.onSuccess?.(); props.onClose(); } });
+            hardDeleteMutation.mutate(id, {
+                onSuccess: () => {
+                    props.onSuccess?.();
+                    props.onClose();
+                },
+                onError: (err: any) => {
+                    toast.error(err.message || 'Error al destruir permanentemente');
+                }
+            });
         } else {
-            deactivateMutation.mutate(id, { onSuccess: () => { props.onSuccess?.(); props.onClose(); } });
+            deactivateMutation.mutate(id, {
+                onSuccess: () => {
+                    props.onSuccess?.();
+                    props.onClose();
+                },
+                onError: (err: any) => {
+                    toast.error(err.message || 'Error al desactivar');
+                }
+            });
         }
     };
 

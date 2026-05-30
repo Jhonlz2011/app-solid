@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { getIpAndUserAgent } from '../plugins/ip';
 import { locationsService } from '../services/locations.service';
 
 const LOCATION_TYPES = ['VIEW', 'INTERNAL'] as const;
@@ -10,9 +11,9 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
     // List all locations (optionally filtered by warehouse)
     .get(
         '/',
-        ({ query }) => {
+        ({ query, currentCompanyId }) => {
             const warehouseId = query.warehouseId ? Number(query.warehouseId) : undefined;
-            return locationsService.list(warehouseId);
+            return locationsService.list(currentCompanyId, warehouseId);
         },
         {
             query: t.Object({
@@ -21,11 +22,46 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
         }
     )
 
+    // Bulk deactivate — before /:id to avoid route conflicts
+    .delete(
+        '/bulk',
+        async ({ body, headers, currentUserId, currentCompanyId, request }) => {
+            const { ipAddress } = getIpAndUserAgent(request);
+            return locationsService.bulkDeactivate(
+                body.ids,
+                currentCompanyId,
+                { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
+            );
+        },
+        {
+            body: t.Object({
+                ids: t.Array(t.Number(), { minItems: 1 })
+            })
+        }
+    )
+    // Bulk restore
+    .patch(
+        '/bulk/restore',
+        async ({ body, headers, currentUserId, currentCompanyId, request }) => {
+            const { ipAddress } = getIpAndUserAgent(request);
+            return locationsService.bulkRestore(
+                body.ids,
+                currentCompanyId,
+                { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
+            );
+        },
+        {
+            body: t.Object({
+                ids: t.Array(t.Number(), { minItems: 1 })
+            })
+        }
+    )
+
     // Create a new location
     .post(
         '/',
-        async ({ body, set }) => {
-            const location = await locationsService.create(body);
+        async ({ body, set, headers, currentCompanyId }) => {
+            const location = await locationsService.create(body, currentCompanyId, headers['x-client-id']);
             set.status = 201;
             return location;
         },
@@ -34,7 +70,6 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
                 warehouse_id: t.Optional(t.Nullable(t.Number())),
                 parent_id: t.Optional(t.Nullable(t.Number())),
                 name: t.String({ maxLength: 100 }),
-                barcode: t.Optional(t.Nullable(t.String({ maxLength: 50 }))),
                 type: t.Optional(t.Union(LOCATION_TYPES.map(l => t.Literal(l)))),
             }),
         }
@@ -43,14 +78,15 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
     // Update a location
     .put(
         '/:id',
-        ({ params, body }) => locationsService.update(params.id, body),
+        ({ params, body, headers, currentCompanyId }) => locationsService.update(params.id, body, currentCompanyId, headers['x-client-id']),
         {
             params: t.Object({ id: t.Numeric() }),
             body: t.Partial(
                 t.Object({
                     name: t.String({ maxLength: 100 }),
-                    barcode: t.Nullable(t.String({ maxLength: 50 })),
                     type: t.Union(LOCATION_TYPES.map(l => t.Literal(l))),
+                    warehouse_id: t.Nullable(t.Number()),
+                    parent_id: t.Nullable(t.Number()),
                     is_active: t.Boolean(),
                 })
             ),
@@ -60,7 +96,7 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
     // Reparent — Drag & Drop: move location under a new parent (or to root)
     .patch(
         '/:id/reparent',
-        ({ params, body }) => locationsService.reparent(params.id, body.parent_id),
+        ({ params, body, headers, currentCompanyId }) => locationsService.reparent(params.id, body.parent_id, currentCompanyId, headers['x-client-id']),
         {
             params: t.Object({ id: t.Numeric() }),
             body: t.Object({
@@ -72,7 +108,7 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
     // Check references before hard delete
     .get(
         '/:id/references',
-        ({ params }) => locationsService.checkReferences(params.id),
+        ({ params, currentCompanyId }) => locationsService.checkReferences(params.id, currentCompanyId),
         {
             params: t.Object({ id: t.Numeric() }),
         }
@@ -81,8 +117,14 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
     // Soft delete (deactivate)
     .patch(
         '/:id/deactivate',
-        async ({ params }) => {
-            await locationsService.deactivate(params.id);
+        async ({ params, headers, currentUserId, currentCompanyId, request }) => {
+            const { ipAddress } = getIpAndUserAgent(request);
+            await locationsService.deactivate(
+                params.id,
+                currentCompanyId,
+                headers['x-client-id'],
+                { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
+            );
             return { success: true };
         },
         { params: t.Object({ id: t.Numeric() }) }
@@ -91,15 +133,23 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
     // Restore
     .patch(
         '/:id/restore',
-        ({ params }) => locationsService.restore(params.id),
+        async ({ params, headers, currentUserId, currentCompanyId, request }) => {
+            const { ipAddress } = getIpAndUserAgent(request);
+            return locationsService.restore(
+                params.id,
+                currentCompanyId,
+                headers['x-client-id'],
+                { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
+            );
+        },
         { params: t.Object({ id: t.Numeric() }) }
     )
 
     // Hard delete
     .delete(
         '/:id',
-        async ({ params }) => {
-            await locationsService.hardDelete(params.id);
+        async ({ params, headers, currentCompanyId }) => {
+            await locationsService.hardDelete(params.id, currentCompanyId, headers['x-client-id']);
             return { success: true } as const;
         },
         {

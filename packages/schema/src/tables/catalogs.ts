@@ -92,23 +92,3 @@ export const categoryAttributes = pgTableV2("category_attributes", {
     specific_options: jsonb("specific_options").$type<string[] | null>(),
 }, (t) => [unique("unq_cat_attr").on(t.category_id, t.attribute_def_id)]);
 
-// =============================================================================
-// PRODUCT FAMILIES — Intercambiables
-// =============================================================================
-
-// Familias de productos intercambiables (para material requests genéricos)
-// "Cemento de Contacto" agrupa Africano, Mega — cualquier marca sirve
-// Cruza marcas: Cemento Africano y Cemento Mega son intercambiables
-export const productFamilies = pgTableV2("product_families", {
-    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    company_id: integer("company_id").references(() => companies.id).notNull(),
-    name: text("name").notNull(),
-    category_id: integer("category_id").references(() => categories.id),
-    description: text("description"),
-    is_active: boolean("is_active").default(true),
-    created_at: timestamp("created_at", TZ).defaultNow().notNull(),
-    updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
-}, (t) => [
-    unique("unq_family_name_company").on(t.company_id, t.name),
-    index("idx_families_company").on(t.company_id),
-]);

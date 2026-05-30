@@ -53,13 +53,6 @@ interface SectionGroup {
 // ── Grouped sections data ──
 const SECTION_GROUPS: SectionGroup[] = [
     {
-        key: 'catalogs',
-        label: 'Catalogos de Producto',
-        sections: [
-            { key: 'families', path: '/settings/families', label: 'Familias de Productos', icon: LayersIcon, available: true, newAction: '/settings/families/new', newLabel: 'Nueva Familia' },
-        ],
-    },
-    {
         key: 'warehouse',
         label: 'Almacen',
         sections: [
@@ -86,7 +79,7 @@ const SettingsPage: Component = () => {
     const activeSection = () => {
         const pathname = matches().at(-1)?.pathname ?? '';
         const section = ALL_SECTIONS.find(s => pathname.startsWith(s.path));
-        return section?.key ?? 'families';
+        return section?.key ?? 'warehouses';
     };
 
     // Get the "new" action + label for the current section
@@ -94,14 +87,14 @@ const SettingsPage: Component = () => {
     const currentNewLabel = () => ALL_SECTIONS.find(s => s.key === activeSection())?.newLabel;
 
     return (
-        <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
+        <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
             {/* Header */}
             <div class="flex-shrink-0 p-3 sm:p-4">
                 <PageHeader
                     icon={<GearIcon />}
                     iconBg="linear-gradient(135deg, #6366f1, #4f46e5)"
                     title="Configuración General"
-                    info="Gestiona las unidades de medida, marcas, familias de productos y demás configuraciones del sistema."
+                    info="Gestiona las bodegas, ubicaciones y demás configuraciones del sistema."
                     actions={
                         <Show when={currentNewAction()}>
                             {(action) => (

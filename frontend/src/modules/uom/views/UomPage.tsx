@@ -24,7 +24,7 @@ import {
 const UomPage: Component = () => {
     const state = useUomState();
     return (
-        <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
+        <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
             <Outlet />
 
             {/* Header */}

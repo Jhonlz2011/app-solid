@@ -1,4 +1,4 @@
-import { Component } from 'solid-js';
+import { Component, For } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
 import { Sidebar } from './components/sidebar';
 import MobileHeader from './components/MobileHeader';
@@ -6,7 +6,7 @@ import { Skeleton } from '@shared/ui/Skeleton';
 
 export const LayoutSkeleton: Component = () => {
     return (
-        <div class="flex h-screen bg-background overflow-hidden relative">
+        <div class="flex h-dvh bg-background overflow-hidden relative">
             {/* Sidebar Skeleton */}
             <div class="w-64 h-full hidden sm:flex flex-col border-r border-border bg-surface shrink-0">
                
@@ -34,13 +34,15 @@ export const LayoutSkeleton: Component = () => {
                    </div>
                    
                    {/* Normal Links */}
-                   {Array.from({ length: 8 }, () => (
-                       <div class="w-full flex items-center gap-3 h-11 px-4 rounded-xl relative">
-                           <Skeleton class="size-5 rounded shrink-0 opacity-60" />
-                           <Skeleton class="h-4 w-28 rounded opacity-60" />
-                           <Skeleton class="size-3 w-3 rounded shrink-0 ml-auto opacity-40 xl:mr-2" />
-                       </div>
-                   ))}
+                    <For each={Array(8).fill(null)}>
+                        {() => (
+                            <div class="w-full flex items-center gap-3 h-11 px-4 rounded-xl relative">
+                                <Skeleton class="size-5 rounded shrink-0 opacity-60" />
+                                <Skeleton class="h-4 w-28 rounded opacity-60" />
+                                <Skeleton class="size-3 w-3 rounded shrink-0 ml-auto opacity-40 xl:mr-2" />
+                            </div>
+                        )}
+                    </For>
                </div>
 
                {/* Footer: User Profile (Matches SidebarFooter) */}
@@ -64,7 +66,7 @@ export const LayoutSkeleton: Component = () => {
 
 const MainLayout: Component = () => {
     return (
-        <div class="flex h-screen bg-background overflow-hidden relative">
+        <div class="flex h-dvh bg-background overflow-hidden relative">
             <MobileHeader />
             <Sidebar />
 

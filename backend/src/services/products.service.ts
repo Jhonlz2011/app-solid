@@ -480,7 +480,7 @@ export async function createProduct(payload: ProductPayload, userId: number, com
                 product_subtype: productData.product_subtype ?? null,
                 category_id: productData.category_id,
                 brand_id: productData.brand_id ?? null,
-                family_id: productData.family_id ?? null,
+
                 slug: productData.slug,
                 name: productData.name,
                 description: productData.description ?? null,
@@ -546,7 +546,6 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
         if (productData.product_subtype !== undefined) updateValues.product_subtype = productData.product_subtype;
         if (productData.category_id !== undefined) updateValues.category_id = productData.category_id;
         if (productData.brand_id !== undefined) updateValues.brand_id = productData.brand_id;
-        if (productData.family_id !== undefined) updateValues.family_id = productData.family_id;
         if (productData.slug !== undefined) updateValues.slug = productData.slug;
         if (productData.name !== undefined) updateValues.name = productData.name;
         if (productData.description !== undefined) updateValues.description = productData.description;

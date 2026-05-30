@@ -1,4 +1,4 @@
-import { Component, Show, For, createSignal, createEffect, onCleanup, on } from 'solid-js';
+import { Component, Show, For, createSignal, createEffect, onCleanup, on, createMemo } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { Link, useLocation } from '@tanstack/solid-router';
 import type { MenuItem } from './types';
@@ -20,9 +20,9 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
     const hasChildren = () => Boolean(props.item.children?.length);
     const isExpanded = () => expandedMenus().has(props.item.id);
 
-    // Auto-expand logic - only tracks location changes with defer
+    // Auto-expand logic - tracks location changes and sidebar expansion
     createEffect(on(
-        () => location().pathname,
+        () => [location().pathname, collapsed()],
         () => {
             if (!collapsed() && hasChildren() && hasActiveDescendant(props.item) && !isExpanded()) {
                 toggleMenu(props.item.id);
@@ -68,13 +68,13 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
     };
 
     // --- RENDER LOGIC ---
-    const dataState = () => {
+    const dataState = createMemo(() => {
         if (isActive(props.item.path)) return 'active';
         if (hasChildren() && hasActiveDescendant(props.item)) {
             return collapsed() || !isExpanded() ? 'active' : 'parent-active';
         }
         return 'default';
-    };
+    });
 
     // Toggle submenu for items with children
     const handleToggleSubmenu = () => {
@@ -140,7 +140,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                 fallback={
                     /* Parent item with children - uses button */
                     <button
-                        ref={el => itemRef = el}
+                        ref={(el) => { itemRef = el; }}
                         type="button"
                         data-state={dataState()}
                         onClick={handleToggleSubmenu}
@@ -157,9 +157,9 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                         </div>
                         {/* Text Container */}
                         <div
+                            class="flex-1 flex items-center justify-between overflow-hidden transition-[opacity,max-width] duration-300 ease-[cubic-bezier(0.2,0,0,1)]"
                             classList={{
-                                'flex-1 flex items-center justify-between overflow-hidden transition-[opacity,max-width] duration-300': true,
-                                'opacity-100 max-w-full': !collapsed(),
+                                'opacity-100 max-w-[200px]': !collapsed(),
                                 'opacity-0 max-w-0': collapsed()
                             }}
                         >
@@ -174,7 +174,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                 {/* Navigable item - uses Link (supports right-click open in new tab) */}
                 <Link
                     to={props.item.path!}
-                    ref={el => itemRef = el}
+                    ref={(el) => { itemRef = el; }}
                     data-state={dataState()}
                     onClick={() => {
                         if (isMobileOpen()) setIsMobileOpen(false);
@@ -193,9 +193,9 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
 
                     {/* Text Container */}
                     <div
+                        class="flex-1 overflow-hidden transition-[opacity,max-width] duration-300 ease-[cubic-bezier(0.2,0,0,1)]"
                         classList={{
-                            'flex-1 overflow-hidden transition-[opacity,max-width] duration-300': true,
-                            'opacity-100 max-w-full': !collapsed(),
+                            'opacity-100 max-w-[200px]': !collapsed(),
                             'opacity-0 max-w-0': collapsed()
                         }}
                     >
@@ -208,7 +208,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
             <Show when={hasChildren() && !collapsed()}>
                 <SidebarSubmenu
                     items={props.item.children!}
-                    expanded={isExpanded}
+                    expanded={isExpanded()}
                 />
             </Show>
 
@@ -216,7 +216,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
             <Show when={shouldShowTooltip()}>
                 <Portal>
                     <div
-                        ref={el => tooltipRef = el}
+                        ref={tooltipRef}
                         class="fixed z-[9999] min-w-[180px] p-2 bg-surface backdrop-blur-lg border border-border/80 rounded-xl shadow-2xl
                                animate-in fade-in slide-in-from-left-2 duration-150"
                         style={{ top: `${tooltipRect()?.top}px`, left: `${tooltipRect()?.left}px`, transform: 'translateY(-50%)' }}
@@ -275,12 +275,11 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                                                     itemRef?.focus();
                                                 }
                                             }}
-                                            class={`flex items-center gap-2 px-2 py-2 rounded-lg text-sm transition-all
-                                                   hover:bg-primary/10 hover:text-heading
-                                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent focus-visible:text-heading
-                                                   ${isActive(child.path)
-                                                    ? 'bg-primary/10 text-primary-strong font-medium'
-                                                    : 'text-muted'}`}
+                                            class="flex items-center gap-2 px-2 py-2 rounded-lg text-sm transition-all hover:bg-primary/10 hover:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent focus-visible:text-heading"
+                                            classList={{
+                                                'bg-primary/10 text-primary-strong font-medium': isActive(child.path),
+                                                'text-muted': !isActive(child.path)
+                                            }}
                                         >
                                             <svg class="size-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={child.icon} />

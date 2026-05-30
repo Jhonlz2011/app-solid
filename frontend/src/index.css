@@ -2,81 +2,77 @@
 @plugin "tailwindcss-animate";
 
 @theme {
-  --color-bg: var(--color-bg);
-  --color-surface: var(--color-surface);
-  --color-card: var(--color-card);
-  --color-card-alt: var(--color-card-alt);
-  --color-text: var(--color-text);
-  --color-heading: var(--color-heading);
-  --color-muted: var(--color-muted);
-  --color-border: var(--color-border);
-  --color-border-strong: var(--color-border-strong);
-  --color-table-hover: var(--color-table-hover);
-  --color-dropdown-hover: var(--color-dropdown-hover);
+  /* Mapeo limpio para Tailwind v4 a partir de tus variables de :root */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-card-alt: var(--card-alt);
+  --color-text: var(--text);
+  --color-heading: var(--heading);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-table-hover: var(--table-hover);
+  --color-dropdown-hover: var(--dropdown-hover);
 
-  --color-primary: var(--color-primary);
-  --color-primary-strong: var(--color-primary-strong);
-  --color-primary-soft: var(--color-primary-soft);
-  --color-on-primary: var(--color-on-primary);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
 
-  --color-secondary: var(--color-secondary);
-  --color-secondary-strong: var(--color-secondary-strong);
-  --color-secondary-soft: var(--color-secondary-soft);
-  --color-on-secondary: var(--color-on-secondary);
-  --color-row-selected: var(--color-row-selected);
-  --color-row-selected-hover: var(--color-row-selected-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-strong: var(--secondary-strong);
+  --color-secondary-soft: var(--secondary-soft);
+  --color-on-secondary: var(--on-secondary);
+  --color-row-selected: var(--row-selected);
+  --color-row-selected-hover: var(--row-selected-hover);
 
-  --color-info: var(--color-info);
-  --color-success: var(--color-success);
-  --color-warning: var(--color-warning);
-  --color-danger: var(--color-danger);
-  --color-destructive: var(--color-destructive);
+  --color-info: var(--info);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-destructive: var(--destructive);
   
+  /* Sombras corregidas */
   --shadow-card: var(--shadow-card);
   --shadow-card-soft: var(--shadow-card-soft);
 }
 
 :root {
   color-scheme: light dark;
-  /* Core UI Colors - using light-dark(light-value, dark-value) */
-  --color-bg: light-dark(#f4f7fb, #020617);
-  --color-surface: light-dark(#fff, #0f172a);
-  --color-card: light-dark(#fff, #111827);
-  --color-card-alt: light-dark(#eef2ff, #1f2937);
-  --color-text: light-dark(#0f172a, #f8fafc);
-  --color-heading: light-dark(#0b1220, #f8fafc);
-  --color-muted: light-dark(#475569, #94a3b8);
-  --color-border: light-dark(#e7eff8, #1f2533);
-  --color-border-strong: light-dark(#d0d7e5, #222c3c);
-  --color-table-hover: light-dark(#f4f7fc, #0c1222);
-  --color-text-muted: light-dark(#475569, #94a3b8);
-  --color-dropdown-hover: light-dark(#f4f7fb, #1f2937);
+  
+  /* Evitamos nombres idénticos para no causar recursión en el CSS */
+  --bg: light-dark(#f4f7fb, #020617);
+  --surface: light-dark(#fff, #0f172a);
+  --card: light-dark(#fff, #111827);
+  --card-alt: light-dark(#eef2ff, #1f2937);
+  --text: light-dark(#0f172a, #f8fafc);
+  --heading: light-dark(#0b1220, #f8fafc);
+  --muted: light-dark(#475569, #94a3b8);
+  --border: light-dark(#e7eff8, #1f2533);
+  --border-strong: light-dark(#d0d7e5, #222c3c);
+  --table-hover: light-dark(#f4f7fc, #0c1222);
+  --dropdown-hover: light-dark(#f4f7fb, #1f2937);
 
-  /* Primary Colors */
-  --color-primary: light-dark(#2563eb, #60a5fa);
-  --color-primary-strong: light-dark(#1d4ed8, #93c5fd);
-  --color-primary-soft: light-dark(#2563eb26, #5b8dff2e);
-  --color-on-primary: light-dark(#f8fafc, #FFF);
+  --primary: light-dark(#2563eb, #60a5fa);
+  --primary-strong: light-dark(#1d4ed8, #93c5fd);
+  --primary-soft: light-dark(#2563eb26, #5b8dff2e);
+  --on-primary: light-dark(#f8fafc, #fff);
 
-  /* Secondary Colors */
-  --color-secondary: light-dark(#64748b, #94a3b8);
-  --color-secondary-strong: light-dark(#475569, #e2e8f0);
-  --color-secondary-soft: light-dark(#64748b26, #94a3b82e);
-  --color-on-secondary: light-dark(#f8fafc, #0f172a);
+  --secondary: light-dark(#64748b, #94a3b8);
+  --secondary-strong: light-dark(#475569, #e2e8f0);
+  --secondary-soft: light-dark(#64748b26, #94a3b82e);
+  --on-secondary: light-dark(#f8fafc, #0f172a);
 
-  /* Table row selected - solid color (primary-soft blended with card background) */
-  --color-row-selected: light-dark(#e0e9fc, #1a2744);
-  --color-row-selected-hover: light-dark(#d0dffa, #1f3055);
+  --row-selected: light-dark(#e0e9fc, #1a2744);
+  --row-selected-hover: light-dark(#d0dffa, #1f3055);
 
-  /* Semantic Colors */
-  --color-info: light-dark(#0ea5e9, #38bdf8);
-  --color-success: light-dark(#16a34a, #22c55e);
-  --color-warning: light-dark(#ca8a04, #cca712);
-  --color-danger: light-dark(#dc2626, #da5252); /* Soft Red */
-  --color-destructive: light-dark(#9f1239, #9b0022); /* Strong Rose / Crimson */
+  --info: light-dark(#0ea5e9, #38bdf8);
+  --success: light-dark(#16a34a, #22c55e);
+  --warning: light-dark(#ca8a04, #cca712);
+  --danger: light-dark(#dc2626, #da5252);
+  --destructive: light-dark(#9f1239, #9b0022);
 
-
-  /* Shadows */
   --shadow-card: light-dark(0 12px 40px rgba(15, 23, 42, 0.08), 0 18px 40px rgba(2, 6, 23, 0.55));
   --shadow-card-soft: light-dark(0 8px 24px rgba(15, 23, 42, 0.05), 0 12px 30px rgba(2, 6, 23, 0.35));
 }
@@ -106,10 +102,26 @@
   }
 }
 
-/* Prevenir flash blanco durante transiciones */
-html,
-body,
-#root {
+@layer base {
+  button, a, input, select, textarea, [tabindex]:not([tabindex="-1"]) {
+    outline: none;
+    transition: property(outline-offset, outline-color, box-shadow) 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  button:focus-visible, 
+  a:focus-visible, 
+  input:focus-visible, 
+  select:focus-visible, 
+  textarea:focus-visible, 
+  [tabindex]:not([tabindex="-1"]):focus-visible {
+    /* ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg */
+    box-shadow: 
+      0 0 0 1px var(--color-bg), 
+      0 0 0 3px rgba(96, 165, 250, 0.5); /* Usa el canal alfa del color primary */
+  }
+}
+
+html, body, #root {
   @apply bg-bg text-text overflow-x-hidden;
 }
 
@@ -118,4 +130,36 @@ body,
   100% {
     transform: translateX(100%);
   }
+}
+
+/* Premium Drag & Drop Animations and Stable Styles (Zero CLS) */
+@keyframes dropzone-pulse {
+  0%, 100% {
+    box-shadow: inset 0 0 20px rgba(99, 102, 241, 0.15), 0 0 15px rgba(99, 102, 241, 0.05);
+    border-color: rgba(99, 102, 241, 0.25);
+  }
+  50% {
+    box-shadow: inset 0 0 35px rgba(99, 102, 241, 0.3), 0 0 25px rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.5);
+  }
+}
+
+.animate-dropzone-pulse {
+  animation: dropzone-pulse 2s infinite ease-in-out;
+}
+
+/* Stable classes to ensure zero layout shift on table rows */
+.dnd-row-draggable-active {
+  opacity: 0.30 !important;
+  background-color: var(--color-primary-soft) !important;
+  outline: 2px dashed rgba(99, 102, 241, 0.35) !important;
+  outline-offset: -2px !important;
+  border-bottom-color: transparent !important;
+}
+
+.dnd-row-droppable-active {
+  background-color: var(--color-primary-soft) !important;
+  box-shadow: inset 4px 0 0 0 var(--color-primary) !important;
+  position: relative;
+  z-index: 10;
 }

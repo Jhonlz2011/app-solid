@@ -7,14 +7,19 @@ import { throwApiError } from '@shared/utils/api-errors';
 
 export interface LocationItem {
     id: number;
+    company_id: number;
     warehouse_id: number | null;
     parent_id: number | null;
     name: string;
     path: string;
-    barcode: string | null;
     type: 'VIEW' | 'INTERNAL';
     depth: number;
     is_active: boolean | null;
+    // Joined from warehouses table
+    warehouse_name: string | null;
+    warehouse_code: string | null;
+    /** Cantidad total de productos con stock en esta ubicación */
+    product_count: number;
 }
 
 /** Extended with subRows for TanStack Table tree rendering */
@@ -46,7 +51,6 @@ export const locationsApi = {
         warehouse_id?: number | null;
         parent_id?: number | null;
         name: string;
-        barcode?: string | null;
         type?: 'VIEW' | 'INTERNAL';
     }) => {
         const { data, error } = await api.api.locations.post(body as any);
@@ -54,7 +58,7 @@ export const locationsApi = {
         return data!;
     },
 
-    update: async (id: number, body: Partial<{ name: string; barcode: string | null; type: 'VIEW' | 'INTERNAL'; is_active: boolean }>) => {
+    update: async (id: number, body: Partial<{ name: string; type: 'VIEW' | 'INTERNAL'; warehouse_id: number | null; parent_id: number | null; is_active: boolean }>) => {
         const { data, error } = await (api.api.locations as any)({ id }).put(body);
         if (error) throwApiError(error);
         return data!;
@@ -85,6 +89,18 @@ export const locationsApi = {
 
     hardDelete: async (id: number) => {
         const { data, error } = await (api.api.locations as any)({ id }).delete();
+        if (error) throwApiError(error);
+        return data!;
+    },
+
+    bulkDeactivate: async (ids: number[]) => {
+        const { data, error } = await api.api.locations.bulk.delete({ ids });
+        if (error) throwApiError(error);
+        return data!;
+    },
+
+    bulkRestore: async (ids: number[]) => {
+        const { data, error } = await (api.api.locations.bulk.restore as any).patch({ ids });
         if (error) throwApiError(error);
         return data!;
     },

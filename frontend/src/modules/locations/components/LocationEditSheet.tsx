@@ -1,8 +1,5 @@
-import { Component, Show, createSignal, createEffect, on } from 'solid-js';
+import { Component, Show } from 'solid-js';
 import { useParams } from '@tanstack/solid-router';
-import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
-import { LocationFormSchema, type LocationFormData } from '@app/schema/frontend';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import { useLocationList } from '../data/locations.queries';
@@ -14,13 +11,13 @@ import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 import LocationForm from './LocationForm';
+import type { LocationFormData } from '@app/schema/frontend';
 
 interface LocationEditSheetProps { onClose?: () => void; onBack?: () => void; }
 
 const LocationEditSheet: Component<LocationEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => { locationId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-    const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const auth = useAuth();
     const canEdit = () => auth.canEdit('locations');
 
@@ -31,40 +28,25 @@ const LocationEditSheet: Component<LocationEditSheetProps> = (props) => {
 
     const locationItem = () => ((locationQuery.data ?? []) as LocationItem[]).find(l => l.id === locationId()) ?? null;
 
-    const form = createForm(() => ({
-        defaultValues: { name: '', type: 'INTERNAL', barcode: '', parent_id: null } as LocationFormData,
-        validatorAdapter: valibotValidator(),
-        validators: { onChange: LocationFormSchema, onSubmit: LocationFormSchema },
-        onSubmit: async ({ value }) => {
-            if (!locationId() || !canEdit()) return;
-            updateMut.mutate(
-                {
-                    id: locationId(),
-                    data: {
-                        name: value.name,
-                        type: value.type as 'VIEW' | 'INTERNAL',
-                        barcode: value.barcode || null,
-                    },
+    const handleSubmit = async (data: LocationFormData) => {
+        if (!locationId() || !canEdit()) return;
+        try {
+            await updateMut.mutateAsync({
+                id: locationId(),
+                data: {
+                    name: data.name,
+                    type: data.type as 'VIEW' | 'INTERNAL',
+                    warehouse_id: data.warehouse_id ?? null,
+                    parent_id: data.parent_id ?? null,
                 },
-                {
-                    onSuccess: () => { toast.success('Ubicación actualizada'); navigateAway(); },
-                    onError: (err: any) => toast.error(err.message || 'Error al actualizar'),
-                },
-            );
-        },
-    }));
-
-    // Hydrate form when location data loads
-    createEffect(on(locationItem, (item) => {
-        if (item) {
-            form.setFieldValue('name', item.name);
-            form.setFieldValue('type', item.type as any);
-            form.setFieldValue('barcode', item.barcode ?? '');
-            form.setFieldValue('parent_id', item.parent_id as any);
+            });
+            toast.success('Ubicación actualizada');
+            navigateAway();
+        } catch (err: any) {
+            toast.error(err.message || 'Error al actualizar');
+            throw err;
         }
-    }));
-
-    const handleSubmit = () => { setHasAttemptedSubmit(true); form.handleSubmit(); };
+    };
 
     return (
         <Sheet
@@ -77,7 +59,13 @@ const LocationEditSheet: Component<LocationEditSheetProps> = (props) => {
                     <div class="flex-1" />
                     <Button variant="outline" onClick={close} disabled={updateMut.isPending}>Cancelar</Button>
                     <Show when={canEdit()}>
-                        <Button type="submit" form="location-edit-form" loading={updateMut.isPending} loadingText="Guardando..." icon={<FloppyDiskIcon />} onClick={handleSubmit}>
+                        <Button 
+                            type="submit" 
+                            form="location-edit-form" 
+                            loading={updateMut.isPending} 
+                            loadingText="Guardando..." 
+                            icon={<FloppyDiskIcon />}
+                        >
                             Guardar
                         </Button>
                     </Show>
@@ -88,9 +76,10 @@ const LocationEditSheet: Component<LocationEditSheetProps> = (props) => {
                 <Show when={!locationQuery.isLoading} fallback={<SkeletonLoader type="text" count={3} />}>
                     <Show when={locationItem()} fallback={<div class="py-12 text-center text-muted">Ubicación no encontrada</div>}>
                         <LocationForm
-                            form={form}
+                            location={locationItem()}
+                            onSubmit={handleSubmit}
+                            isSubmitting={updateMut.isPending}
                             formId="location-edit-form"
-                            hasAttemptedSubmit={hasAttemptedSubmit}
                             disabled={!canEdit()}
                             editingId={locationId()}
                         />

@@ -131,7 +131,7 @@ const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
                                             <InfoRow label="Ruta (ltree)" value={location().path} />
                                             <InfoRow label="Tipo" value={typeMeta()?.label ?? location().type} />
                                             <InfoRow label="Profundidad" value={String(location().depth)} />
-                                            <InfoRow label="Código de Barras" value={location().barcode ?? '—'} />
+                                            
                                             <InfoRow label="Bodega ID" value={location().warehouse_id ? String(location().warehouse_id) : 'Virtual (sin bodega)'} />
                                         </div>
                                     </div>

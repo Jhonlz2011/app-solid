@@ -18,7 +18,7 @@ const NotFound: Component = () => {
     );
 
     // Shared style for the gradient "4" digits
-    const digitClass = "text-[9rem] sm:text-[12rem] font-black leading-[0.7] tracking-tighter bg-gradient-to-br from-primary to-primary-strong bg-clip-text [-webkit-text-fill-color:transparent] select-none";
+    const digitClass = "text-[9rem] sm:text-[12rem] font-black leading-[0.7] tracking-tighter bg-linear-to-br from-primary to-primary-strong bg-clip-text [-webkit-text-fill-color:transparent] select-none";
 
     return (
         <div class="h-screen flex items-center justify-center bg-background overflow-hidden px-4">
@@ -31,7 +31,7 @@ const NotFound: Component = () => {
                     <div class="relative flex items-center justify-center shrink-0">
                         <div class="absolute size-36 sm:size-44 rounded-full bg-primary/20 blur-2xl" />
                         <div
-                            class="relative size-24 sm:size-32 rounded-full flex items-center justify-center border-3 bg-gradient-to-br from-card to-surface"
+                            class="relative size-24 sm:size-32 rounded-full flex items-center justify-center border-3 bg-linear-to-br from-card to-surface"
                             style={{
                                 'border-color': 'color-mix(in srgb, var(--color-primary) 35%, var(--color-border))',
                                 'box-shadow': '0 8px 32px color-mix(in srgb, var(--color-primary) 15%, transparent)',

@@ -38,7 +38,7 @@ const ProductsPage: Component = () => {
     const state = useProductsState();
 
     return (
-        <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
+        <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
             {/* Deep-Nested Routes (New/Show/Edit sheets) */}
             <Outlet />
 

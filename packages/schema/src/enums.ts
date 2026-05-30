@@ -173,7 +173,7 @@ export const RBAC_MODULES = [
     // CRM children
     'crm', 'clients', 'visits', 'budgets', 'invoices',
     // Catalog children
-    'products', 'services', 'categories', 'brands', 'families', 'uom', 'attributes',
+    'products', 'services', 'categories', 'brands', 'uom', 'attributes',
     // Warehouse children
     'inventory', 'movements', 'orders', 'locations', 'reception_materials', 'remission_guides',
     // Operations children

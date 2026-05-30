@@ -6,7 +6,7 @@
 import { Component, Show, Index } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import { FieldLabel } from '@shared/ui/TextField';
-import { CategorySelect, BrandSelect, FamilySelect } from '@shared/ui/selectors';
+import { CategorySelect, BrandSelect } from '@shared/ui/selectors';
 import {
     SegmentedControl, SegmentedControlIndicator,
     SegmentedControlItem, SegmentedControlItemInput, SegmentedControlItemLabel,
@@ -151,32 +151,7 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                 </div>
             </div>
 
-            {/* Row 3: Family */}
-            <div class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                    <FieldLabel>Familia de Producto</FieldLabel>
-                    <Link
-                        to="./families/new"
-                        preload="intent"
-                        class="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
-                        title="Crear nueva familia"
-                    >
-                        <PlusIcon class="size-3" />
-                        Nueva
-                    </Link>
-                </div>
-                <props.form.Field name="family_id">
-                    {(field: any) => {
-                        const f = field();
-                        return (
-                            <FamilySelect
-                                value={f.state.value}
-                                onChange={(id) => f.handleChange(id)}
-                            />
-                        );
-                    }}
-                </props.form.Field>
-            </div>
+
         </fieldset>
     );
 };

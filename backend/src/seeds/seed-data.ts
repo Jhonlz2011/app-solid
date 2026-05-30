@@ -132,10 +132,6 @@ export const PERMISSIONS = [
     parsePerm('brands.update', 'Editar marcas'),
     parsePerm('brands.delete', 'Eliminar marcas'),
 
-    // parsePerm('families.read', 'Ver familias de productos'),
-    // parsePerm('families.create', 'Crear familias de productos'),
-    // parsePerm('families.update', 'Editar familias de productos'),
-    // parsePerm('families.delete', 'Eliminar familias de productos'),
 
     parsePerm('uom.read', 'Ver unidades de medida'),
     parsePerm('uom.create', 'Crear unidades de medida'),
@@ -390,7 +386,7 @@ export const ROLE_PERMISSIONS: Record<string, (slug: string) => boolean> = {
             slug.startsWith('services.') ||
             slug.startsWith('categories.') ||
             slug.startsWith('brands.') ||
-            slug.startsWith('families.') ||
+
             slug.startsWith('uom.') ||
             slug.startsWith('attributes.') ||
             slug.startsWith('movements.') ||
@@ -480,7 +476,6 @@ export const MENU_ITEMS: MenuSeedItem[] = [
             { key: 'services', label: 'Servicios', path: '/services', permission_prefix: 'services', sort_order: 1, icon: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.1-3.1q.7-.4 1 .2a6 6 0 0 1-8.3 7l-7.9 8a1 1 0 0 1-3-3l8-8a6 6 0 0 1 7-8.2c.4.1.5.7.2 1z' },
             { key: 'categories', label: 'Categorias', path: '/categories', permission_prefix: 'categories', sort_order: 2, icon: 'M 7 1.75 C 6.3126052 1.75 5.75 2.3126052 5.75 3 L 5.75 9.171875 C 5.7501274 9.7684673 5.9882382 10.341881 6.4101562 10.763672 L 13.119141 17.472656 C 14.15362 18.515654 15.84638 18.515654 16.880859 17.472656 L 21.472656 12.880859 C 22.515654 11.84638 22.515654 10.15362 21.472656 9.1191406 L 14.763672 2.4101562 C 14.341881 1.988238 13.768467 1.7501274 13.171875 1.75 L 7 1.75 z M 7 2.25 L 13.171875 2.25 C 13.636062 2.2500991 14.081976 2.4353926 14.410156 2.7636719 L 21.119141 9.4726562 C 21.969253 10.315826 21.969253 11.684174 21.119141 12.527344 L 16.527344 17.119141 C 15.684174 17.969253 14.315826 17.969253 13.472656 17.119141 L 6.7636719 10.410156 C 6.4353926 10.081976 6.2500991 9.6360619 6.25 9.171875 L 6.25 3 C 6.25 2.5828253 6.5828253 2.25 7 2.25 z M 10.5 5.75 C 10.088748 5.75 9.75 6.0887476 9.75 6.5 C 9.75 6.9112524 10.088748 7.25 10.5 7.25 C 10.911252 7.25 11.25 6.9112524 11.25 6.5 C 11.25 6.0887476 10.911252 5.75 10.5 5.75 z M 2 6.75 A 0.25 0.25 0 0 0 1.75 7 L 1.75 13.171875 C 1.7501274 13.768467 1.9882381 14.341881 2.4101562 14.763672 L 9.1191406 21.472656 C 10.06707 22.427919 11.586427 22.519597 12.642578 21.685547 A 0.25 0.25 0 0 0 12.683594 21.333984 A 0.25 0.25 0 0 0 12.332031 21.292969 C 11.472237 21.971954 10.244348 21.896803 9.4726562 21.119141 L 2.7636719 14.410156 C 2.4353926 14.081976 2.2500991 13.636062 2.25 13.171875 L 2.25 7 A 0.25 0.25 0 0 0 2 6.75 z ' },
             { key: 'brands', label: 'Marcas', path: '/brands', permission_prefix: 'brands', sort_order: 3, icon: 'M7 3a2 2 0 0 0-2 2v15a1 1 0 0 0 1.5.9l4.5-2.6a2 2 0 0 1 2 0l4.5 2.6A1 1 0 0 0 19 20V5a2 2 0 0 0-2-2zm0 0h10a2 2 0 0 1 2 2v15a1 1 0 0 1-1.5.9L13 18.3a2 2 0 0 0-2 0l-4.5 2.6A1 1 0 0 1 5 20V5q.2-1.8 2-2' },
-            { key: 'families', label: 'Familias', path: '/families', permission_prefix: 'families', sort_order: 4, icon: 'm12 2-.9.1-8.5 4A1 1 0 0 0 2 7q0 .7.6 1l8.6 3.9a2 2 0 0 0 1.7 0l8.5-4q.7-.2.7-.9a1 1 0 0 0-.7-1L13 2.1zm0 0 .8.2 8.6 4q.6.2.6.8t-.6.9l-8.6 3.9a2 2 0 0 1-1.6 0l-8.6-4a1 1 0 0 1-.5-.8q0-.6.5-.9l8.6-3.9zM2 12q0 .7.6 1l8.6 3.9a2 2 0 0 0 1.7 0l8.5-4q.6-.2.7-.9H22q0 .6-.6.9l-8.6 3.9a2 2 0 0 1-1.6 0l-8.6-4a1 1 0 0 1-.5-.8zm0 5q0 .6.6 1l8.6 3.9a2 2 0 0 0 1.7 0l8.5-4q.6-.2.7-.9H22q0 .6-.6.9l-8.6 3.9a2 2 0 0 1-1.6 0l-8.6-4a1 1 0 0 1-.5-.8z' },
             { key: 'uom', label: 'Unidades de medidas', path: '/uom', permission_prefix: 'uom', sort_order: 5, icon: 'M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0ZM14.5 12.5l2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2' },
             { key: 'attributes', label: 'Atributos', path: '/attributes', permission_prefix: 'attributes', sort_order: 6, icon: 'M4 3a1 1 0 0 0-1 1v7q0 1 1 1h5q1 0 1-1V4q0-1-1-1zm11 0a1 1 0 0 0-1 1v3q0 1 1 1h5q1 0 1-1V4q0-1-1-1zm0 9a1 1 0 0 0-1 1v7q0 1 1 1h5q1 0 1-1v-7q0-1-1-1zM4 16a1 1 0 0 0-1 1v3q0 1 1 1h5q1 0 1-1v-3q0-1-1-1z' }
         ],

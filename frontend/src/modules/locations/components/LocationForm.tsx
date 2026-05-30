@@ -2,32 +2,46 @@
  * LocationForm — Shared form for Location create/edit.
  *
  * Features:
- * - Parent Autocomplete with tree-indent + breadcrumbs (like CategoryForm)
- * - Type selector with icon badges
- * - Barcode field (hidden for VIEW type — views don't get scanned)
- * - Smart warehouse inheritance from parent
+ * - Warehouse selector with clear support and smart inheritance
+ * - Visual indicators for warehouse parent inheritance with overriding support
+ * - No restrictions on warehouse for virtual (VIEW) locations
+ * - Parent selector using premium LocationSelect (INTERNAL only)
+ * - Type selector with premium horizontal SegmentedControl component
+ * - Strict 100% type-safety without generic 'any' escapes
  */
-import { Component, Show, createSignal, createMemo, createEffect } from 'solid-js';
-import { Dynamic } from 'solid-js/web';
+import { Component, Show, For, createMemo, createEffect, createSignal } from 'solid-js';
 import type { LocationType } from '@app/schema/enums';
 import { locationTypeOptions, LOCATION_TYPE_META } from '../data/locations.constants';
 import { useLocationList } from '../data/locations.queries';
 import type { LocationItem } from '../data/locations.api';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
-import { Autocomplete } from '@shared/ui/Autocomplete';
 import { FieldLabel } from '@shared/ui/TextField';
 import TextField from '@shared/ui/TextField';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import { MapPinIcon } from '@shared/ui/icons';
+import { WarehouseSelect, LocationSelect } from '@shared/ui/selectors';
+import {
+    SegmentedControl,
+    SegmentedControlIndicator,
+    SegmentedControlItem,
+    SegmentedControlItemInput,
+    SegmentedControlItemLabel,
+} from '@shared/ui/SegmentedControl';
 import { cn } from '@shared/lib/utils';
-
-type TypeOption = { value: string; label: string; icon: Component<any> };
+import { createForm } from '@tanstack/solid-form';
+import { valibotValidator } from '@tanstack/valibot-form-adapter';
+import { LocationFormSchema, type LocationFormData } from '@app/schema/frontend';
+import { ApiError } from '@shared/utils/api-errors';
 
 interface LocationFormProps {
-    form: any;
+    /** Existing location data for edit mode */
+    location?: LocationItem | null;
+    /** Submit handler returning a promise for loading/error coordination */
+    onSubmit: (data: LocationFormData) => Promise<void>;
+    /** Whether the form is currently submitting in the sheet */
+    isSubmitting: boolean;
+    /** HTML form element ID to connect submit button externally */
     formId: string;
-    hasAttemptedSubmit: () => boolean;
+    /** Disable all controls */
     disabled?: boolean;
     /** Pre-selected parent for "Add child" flow */
     defaultParentId?: number;
@@ -37,13 +51,59 @@ interface LocationFormProps {
 
 const LocationForm: Component<LocationFormProps> = (props) => {
     const isDisabled = () => props.disabled ?? false;
+    const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
 
-    // Query for parent autocomplete
+    // Query for parent details and inheritance
     const locationsQuery = useLocationList();
-    const [parentSearch, setParentSearch] = createSignal('');
+
+    // Build default values from existing location (edit) or props (create)
+    const initialValues = (): LocationFormData => {
+        if (props.location) {
+            return {
+                name: props.location.name,
+                type: props.location.type as 'VIEW' | 'INTERNAL',
+                parent_id: props.location.parent_id ?? null,
+                warehouse_id: props.location.warehouse_id ?? null,
+            };
+        }
+        return {
+            name: '',
+            type: 'INTERNAL',
+            parent_id: props.defaultParentId ?? null,
+            warehouse_id: null,
+        };
+    };
+
+    const form = createForm(() => ({
+        defaultValues: initialValues(),
+        validatorAdapter: valibotValidator(),
+        validators: { onChange: LocationFormSchema, onSubmit: LocationFormSchema },
+        onSubmit: async ({ value }) => {
+            try {
+                await props.onSubmit(value);
+            } catch (err) {
+                if (err instanceof ApiError && err.errors?.length) {
+                    for (const fieldErr of err.errors) {
+                        try {
+                            form.setFieldMeta(fieldErr.field as any, (prev) => ({
+                                ...prev,
+                                errorMap: { ...prev.errorMap, onSubmit: fieldErr.message },
+                            }));
+                        } catch { /* field not in form */ }
+                    }
+                }
+            }
+        },
+    }));
 
     // Current type value (reactive)
-    const currentType = props.form.useStore((s: any) => s.values.type);
+    const currentType = form.useStore((s) => s.values.type);
+
+    // Parent ID value (reactive)
+    const parentId = form.useStore((s) => s.values.parent_id);
+
+    // Selected warehouse value (reactive)
+    const selectedWarehouseId = form.useStore((s) => s.values.warehouse_id);
 
     // Parent options: exclude self and inactive (except current parent when editing)
     const parentOptions = createMemo(() => {
@@ -52,89 +112,88 @@ const LocationForm: Component<LocationFormProps> = (props) => {
         return flat.filter(l => l.id !== props.editingId && (l.is_active ?? true));
     });
 
-    // Filtered options for autocomplete search
-    const filteredParentOptions = createMemo(() => {
-        const search = parentSearch().toLowerCase().trim();
-        if (!search) return parentOptions();
-        return parentOptions().filter(l =>
-            l.name.toLowerCase().includes(search) ||
-            l.path.toLowerCase().includes(search)
-        );
-    });
-
-    // Depth map for indent in dropdown
-    const depthMap = createMemo(() => {
-        const map = new Map<number, number>();
-        const flat = (locationsQuery.data ?? []) as LocationItem[];
-        for (const l of flat) {
-            map.set(l.id, l.depth ?? 0);
+    // When parent changes, auto-inherit warehouse from parent
+    const handleParentSelect = (loc: LocationItem | null) => {
+        const currentPid = form.getFieldValue('parent_id');
+        const nextPid = loc ? loc.id : null;
+        if (nextPid !== currentPid) {
+            form.setFieldValue('warehouse_id', loc?.warehouse_id ?? null);
         }
-        return map;
-    });
-
-    // Children set for icon styling
-    const childrenSet = createMemo(() => {
-        const set = new Set<number>();
-        const flat = (locationsQuery.data ?? []) as LocationItem[];
-        for (const l of flat) {
-            if (l.parent_id) set.add(l.parent_id);
-        }
-        return set;
-    });
-
-    // Build breadcrumb path for a location
-    const getBreadcrumb = (id: number): string => {
-        const flatMap = new Map<number, LocationItem>();
-        for (const l of (locationsQuery.data ?? []) as LocationItem[]) {
-            flatMap.set(l.id, l);
-        }
-        const parts: string[] = [];
-        let current = flatMap.get(id);
-        if (current?.parent_id) {
-            current = flatMap.get(current.parent_id);
-        } else {
-            return '';
-        }
-        while (current) {
-            parts.unshift(current.name);
-            current = current.parent_id ? flatMap.get(current.parent_id) : undefined;
-        }
-        return parts.join(' › ');
     };
 
-    const getParentDisplayText = (parentId: number | undefined): string => {
-        if (!parentId) return '';
-        const loc = parentOptions().find(l => l.id === parentId);
-        if (!loc) return '';
-        const breadcrumb = getBreadcrumb(loc.id);
-        return breadcrumb ? `${loc.name} (${breadcrumb})` : loc.name;
-    };
-
+    let initializedDefault = false;
     // Set default parent on mount
     createEffect(() => {
-        if (props.defaultParentId) {
-            props.form.setFieldValue('parent_id', props.defaultParentId);
-            setParentSearch(getParentDisplayText(props.defaultParentId));
+        const defaultPid = props.defaultParentId;
+        if (defaultPid && !initializedDefault && parentOptions().length > 0) {
+            initializedDefault = true;
+            form.setFieldValue('parent_id', defaultPid);
+            // Also inherit warehouse from default parent
+            const parent = parentOptions().find(l => l.id === defaultPid);
+            if (parent?.warehouse_id) {
+                form.setFieldValue('warehouse_id', parent.warehouse_id);
+            }
             queueMicrotask(() => {
-                props.form.setFieldMeta('parent_id', (prev: any) => ({ ...prev, isTouched: false }));
+                form.setFieldMeta('parent_id', (prev) => ({ ...prev, isTouched: false }));
+                form.setFieldMeta('warehouse_id', (prev) => ({ ...prev, isTouched: false }));
             });
         }
     });
 
     return (
-        <FormSubmissionContext.Provider value={props.hasAttemptedSubmit}>
+        <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
             <form
                 id={props.formId}
                 onSubmit={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    props.form.handleSubmit();
+                    setHasAttemptedSubmit(true);
+                    form.handleSubmit();
                 }}
-                class="flex flex-col gap-5 py-2"
+                class="flex flex-col gap-4 py-2"
             >
-                {/* 1. Name */}
-                <props.form.Field name="name">
-                    {(field: any) => (
+                {/* 1. Type Select (Tipo) */}
+                <form.Field name="type">
+                    {(field) => (
+                        <div class="space-y-1.5 flex flex-col items-start w-full @container">
+                            <FieldLabel>Tipo *</FieldLabel>
+                            <SegmentedControl
+                                value={field().state.value as string}
+                                onChange={(val) => {
+                                    if (val) field().handleChange(val as LocationType);
+                                }}
+                                disabled={isDisabled()}
+                                class="w-full @sm:w-full"
+                            >
+                                <SegmentedControlIndicator />
+                                <For each={locationTypeOptions}>
+                                    {(opt) => (
+                                        <SegmentedControlItem value={opt.value}>
+                                            <SegmentedControlItemInput />
+                                            <SegmentedControlItemLabel class="flex items-center gap-2">
+                                                {(() => {
+                                                    const m = LOCATION_TYPE_META[opt.value];
+                                                    const Icon = m.icon;
+                                                    return <Icon class={cn("size-4 transition-colors", m.color.split(' ')[0])} />;
+                                                })()}
+                                                <span>{opt.label}</span>
+                                            </SegmentedControlItemLabel>
+                                        </SegmentedControlItem>
+                                    )}
+                                </For>
+                            </SegmentedControl>
+
+                            {/* Dynamic description of the selected type */}
+                            <span class="text-xs text-muted/70 ml-1 mt-0.5">
+                                {LOCATION_TYPE_META[currentType()]?.description}
+                            </span>
+                        </div>
+                    )}
+                </form.Field>
+
+                {/* 2. Name (Nombre) */}
+                <form.Field name="name">
+                    {(field) => (
                         <TextField.Root field={field()} disabled={isDisabled()}>
                             <TextField.Label>Nombre *</TextField.Label>
                             <TextField.Input
@@ -144,12 +203,12 @@ const LocationForm: Component<LocationFormProps> = (props) => {
                             <TextField.ErrorMessage />
                         </TextField.Root>
                     )}
-                </props.form.Field>
+                </form.Field>
 
-                {/* 2. Parent Autocomplete */}
-                <props.form.Field name="parent_id">
-                    {(field: any) => (
-                        <div class="space-y-1.5 flex flex-col items-start w-full min-w-0 max-w-full">
+                {/* 3. Parent Autocomplete (Ubicación Padre) */}
+                <form.Field name="parent_id">
+                    {(field) => (
+                        <div class="flex flex-col w-full min-w-0">
                             <Show
                                 when={!locationsQuery.isLoading}
                                 fallback={
@@ -159,143 +218,45 @@ const LocationForm: Component<LocationFormProps> = (props) => {
                                     </>
                                 }
                             >
-                                <Autocomplete.Root field={field()}>
-                                    <Autocomplete.Label>Ubicación Padre</Autocomplete.Label>
-                                    <Autocomplete.Input<LocationItem>
-                                        value={parentSearch()}
-                                        onInputChange={setParentSearch}
-                                        options={filteredParentOptions()}
-                                        optionValue={(loc) => String(loc.id)}
-                                        optionLabel={(loc) => loc.name}
-                                        placeholder="Buscar ubicación padre..."
-                                        hideEmptyState={false}
-                                        minLength={0}
-                                        disabled={isDisabled()}
-                                        onSelect={(loc) => {
-                                            if (loc) {
-                                                field().handleChange(loc.id);
-                                                const breadcrumb = getBreadcrumb(loc.id);
-                                                setParentSearch(breadcrumb ? `${loc.name} (${breadcrumb})` : loc.name);
-                                            } else {
-                                                field().handleChange(undefined);
-                                                setParentSearch('');
-                                            }
-                                        }}
-                                        itemRenderer={(loc) => {
-                                            const depth = depthMap().get(loc.id) ?? 0;
-                                            const hasKids = childrenSet().has(loc.id);
-                                            const breadcrumb = getBreadcrumb(loc.id);
-
-                                            return (
-                                                <div
-                                                    class="flex items-center gap-2.5 min-w-0 py-0.5"
-                                                    style={{ "padding-left": `${depth * 16}px` }}
-                                                >
-                                                    <MapPinIcon
-                                                        class={cn(
-                                                            "size-4 shrink-0",
-                                                            hasKids ? "text-blue-500" : "text-muted/40"
-                                                        )}
-                                                    />
-                                                    <div class="flex flex-col min-w-0">
-                                                        <span class="text-sm font-medium text-text truncate">
-                                                            {loc.name}
-                                                        </span>
-                                                        <Show when={breadcrumb}>
-                                                            <span class="text-[11px] text-muted/70 truncate leading-tight">
-                                                                {breadcrumb}
-                                                            </span>
-                                                        </Show>
-                                                    </div>
-                                                </div>
-                                            );
-                                        }}
-                                    />
-                                    <Autocomplete.ErrorMessage />
-                                    <Autocomplete.Description>
-                                        Deja vacío para crear como ubicación raíz
-                                    </Autocomplete.Description>
-                                </Autocomplete.Root>
-                            </Show>
-                        </div>
-                    )}
-                </props.form.Field>
-
-                {/* 3. Type Select */}
-                <props.form.Field name="type">
-                    {(field: any) => (
-                        <div class="space-y-1.5">
-                            <FieldLabel>Tipo *</FieldLabel>
-                            <Select
-                                value={locationTypeOptions.find(o => o.value === field().state.value)}
-                                onChange={(opt: any) => {
-                                    if (opt) field().handleChange(opt.value);
-                                }}
-                                options={locationTypeOptions}
-                                optionValue="value"
-                                optionTextValue="label"
-                                placeholder="Seleccionar tipo..."
-                                disabled={isDisabled()}
-                                itemComponent={(itemProps: any) => (
-                                    <SelectItem item={itemProps.item}>
-                                        <TypeOptionLabel
-                                            value={itemProps.item.rawValue.value}
-                                            label={itemProps.item.rawValue.label}
-                                        />
-                                    </SelectItem>
-                                )}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue<TypeOption>>
-                                        {(state: any) => {
-                                            const opt = state.selectedOption();
-                                            if (!opt) return <span class="text-muted">Seleccionar tipo...</span>;
-                                            return <TypeOptionLabel value={opt.value} label={opt.label} />;
-                                        }}
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent />
-                            </Select>
-                        </div>
-                    )}
-                </props.form.Field>
-
-                {/* 4. Barcode — only for INTERNAL type (VIEW locations don't get scanned) */}
-                <Show when={currentType() !== 'VIEW'}>
-                    <props.form.Field name="barcode">
-                        {(field: any) => (
-                            <TextField.Root field={field()} disabled={isDisabled()}>
-                                <TextField.Label>Código de Barras</TextField.Label>
-                                <TextField.Input
-                                    type="text"
-                                    placeholder="Escanear o ingresar código..."
-                                    class="font-mono"
-                                    maxLength={50}
+                                <LocationSelect
+                                    value={parentId()}
+                                    onChange={(id, loc) => {
+                                        field().handleChange(id);
+                                        handleParentSelect(loc);
+                                    }}
+                                    label="Ubicación Padre"
+                                    placeholder="Buscar ubicación padre..."
+                                    field={field()}
+                                    disabled={isDisabled()}
+                                    editingId={props.editingId}
                                 />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                        )}
-                    </props.form.Field>
-                </Show>
+                            </Show>
+                            <span class="text-xs text-muted/70 ml-1 mt-0.5">
+                                Deja vacío para crear como ubicación raíz
+                            </span>
+                        </div>
+                    )}
+                </form.Field>
+
+                {/* 4. Warehouse (Bodega) */}
+                <form.Field name="warehouse_id">
+                    {(field) => (
+                        <div class="flex flex-col gap-1 w-full">
+                            <WarehouseSelect
+                                value={selectedWarehouseId()}
+                                onChange={(id) => {
+                                    field().handleChange(id);
+                                }}
+                                label="Bodega"
+                                placeholder="Seleccionar bodega..."
+                                field={field()}
+                                disabled={isDisabled()}
+                            />
+                        </div>
+                    )}
+                </form.Field>
             </form>
         </FormSubmissionContext.Provider>
-    );
-};
-
-/** Renders a type option with its icon */
-const TypeOptionLabel: Component<{ value?: string; label?: string }> = (props) => {
-    const meta = () => props.value ? LOCATION_TYPE_META[props.value as LocationType] : null;
-
-    return (
-        <span class="flex items-center gap-2">
-            {(() => {
-                const m = meta();
-                if (!m) return null;
-                const Icon = m.icon;
-                return <Dynamic component={Icon} class={`size-4 ${m.color.split(' ')[0]}`} />;
-            })()}
-            <span>{props.label ?? props.value}</span>
-        </span>
     );
 };
 

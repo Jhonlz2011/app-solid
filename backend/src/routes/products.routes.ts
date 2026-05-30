@@ -42,7 +42,6 @@ const ProductBodySchema = t.Object({
     ]))),
     category_id: t.Number(),
     brand_id: t.Optional(t.Nullable(t.Number())),
-    family_id: t.Optional(t.Nullable(t.Number())),
     slug: t.String({ minLength: 1 }),
     name: t.String({ minLength: 1 }),
     description: t.Optional(t.Nullable(t.String())),

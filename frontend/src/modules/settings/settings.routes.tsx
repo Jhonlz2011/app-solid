@@ -3,20 +3,13 @@ import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
 
 // Data layer imports
-import { familiesApi } from './data/families.api';
-import { familyKeys } from './data/families.keys';
 import { warehousesApi } from './data/warehouses.api';
 import { warehouseKeys } from './data/warehouses.keys';
 
-// Route factories
-import { createFamilyModals, createWarehouseModals, createLocationModals } from '@shared/routes/settings.factory';
-
 // Lazy-loaded views
 const SettingsPage = lazyRouteComponent(() => import('./views/SettingsPage'));
-const FamilyList = lazyRouteComponent(() => import('./components/families/FamilyList'));
 
 const WarehouseList = lazyRouteComponent(() => import('./components/warehouses/WarehouseList'));
-const LocationList = lazyRouteComponent(() => import('./components/locations/LocationList'));
 
 export const createSettingsRoutes = (layoutRoute: any) => {
     // ── Parent layout route with sidebar ──
@@ -26,30 +19,12 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         pendingComponent: GlobalPageLoader,
         component: SettingsPage,
         beforeLoad: ({ location }) => {
-            // Redirect bare /settings to /settings/families
+            // Redirect bare /settings to /settings/warehouses
             if (location.pathname === '/settings' || location.pathname === '/settings/') {
-                throw redirect({ to: '/settings/families' });
+                throw redirect({ to: '/settings/warehouses' });
             }
         },
     });
-
-    const familiesRoute = createRoute({
-        getParentRoute: () => settingsRoute,
-        path: 'families',
-        loader: async () => {
-            await queryClient.prefetchQuery({
-                queryKey: familyKeys.all,
-                queryFn: () => familiesApi.list(),
-                staleTime: 1000 * 60 * 30,
-            });
-        },
-        component: FamilyList,
-    });
-
-    // Add family modals as children
-    familiesRoute.addChildren([
-        ...createFamilyModals(familiesRoute),
-    ]);
 
     // Redirect /settings/attributes → /attributes (standalone module)
     const attributesRedirectRoute = createRoute({
@@ -87,13 +62,13 @@ export const createSettingsRoutes = (layoutRoute: any) => {
     const warehouseLocationsRoute = createRoute({
         getParentRoute: () => warehouseBaseRoute,
         path: 'locations',
-        component: LocationList,
+        beforeLoad: ({ params }) => {
+            throw redirect({
+                to: '/locations',
+                search: { warehouseId: Number(params.warehouseId) },
+            });
+        },
     });
-
-    // Location modals within warehouse
-    warehouseLocationsRoute.addChildren([
-        ...createLocationModals(warehouseLocationsRoute),
-    ]);
 
     const warehouseNewRoute = createRoute({
         getParentRoute: () => warehousesRoute,
@@ -111,7 +86,6 @@ export const createSettingsRoutes = (layoutRoute: any) => {
 
     // ── Return single parent with children ──
     return settingsRoute.addChildren([
-        familiesRoute,
         attributesRedirectRoute,
         warehousesRoute,
     ]);

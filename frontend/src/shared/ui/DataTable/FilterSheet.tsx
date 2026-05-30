@@ -83,7 +83,7 @@ const FilterGroup: Component<FilterGroupProps> = (props) => {
                         placeholder={`Buscar ${props.title.toLowerCase()}...`}
                         value={search()}
                         onInput={(e) => setSearch(e.currentTarget.value)}
-                        class="flex-1 bg-transparent text-sm text-text placeholder:text-muted outline-none"
+                        class="flex-1 bg-transparent text-sm text-text placeholder:text-muted outline-none focus-visible:shadow-none"
                     />
                 </div>
             </Show>

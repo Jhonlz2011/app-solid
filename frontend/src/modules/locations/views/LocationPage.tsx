@@ -9,14 +9,14 @@ import { Outlet, useNavigate } from '@tanstack/solid-router';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { SearchInput } from '@shared/ui/SearchInput';
 import Button from '@shared/ui/Button';
-import { PlusIcon, MapPinIcon, CopyIcon, DownloadIcon, AlertCircleIcon, IdCardIcon } from '@shared/ui/icons';
+import { PlusIcon, ShelvesIcon, CopyIcon, Expand, Collapse, TrashIcon, RotateCcwIcon, ChevronsUpDownIcon } from '@shared/ui/icons';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
-import { WarehouseSelect } from '@shared/ui/selectors/WarehouseSelect';
-import { cn } from '@shared/lib/utils';
+import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
+import { DropdownMenu } from '@shared/ui/DropdownMenu';
 import LocationTable from '../components/LocationTable';
 import LocationDeleteDialog from '../components/LocationDeleteDialog';
+import ConfirmDialog from '@shared/ui/ConfirmDialog';
 import { useLocationState } from '../hooks/useLocationState';
-import { LOCATION_TYPE_META, locationTypeOptions } from '../data/locations.constants';
 import { toast } from 'solid-sonner';
 
 const LocationPage: Component = () => {
@@ -26,23 +26,23 @@ const LocationPage: Component = () => {
     const handleNewLocation = (parentId?: number) => {
         navigate({
             to: '/locations/new',
-            search: parentId ? ({ parentId: String(parentId) } as any) : undefined,
-        });
+            search: parentId ? { parentId: String(parentId) } : undefined,
+        } as any);
     };
 
     const handleShowLocation = (id: number) => {
-        navigate({ to: `/locations/${id}/show` });
+        navigate({ to: `/locations/${id}/show` } as any);
     };
 
     return (
-        <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
+        <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
             {/* Deep nested routing for Sheets/Panels */}
             <Outlet />
 
             {/* Header */}
-            <div class="flex-shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
+            <div class="shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
                 <PageHeader
-                    icon={<MapPinIcon />}
+                    icon={<ShelvesIcon />}
                     iconBg="linear-gradient(135deg, #8b5cf6, #7c3aed)"
                     title="Ubicaciones"
                     count={state.totalCount()}
@@ -57,104 +57,56 @@ const LocationPage: Component = () => {
                 />
 
                 {/* ─── Toolbar ─── */}
-                <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-                    {/* Search */}
-                    <SearchInput
-                        value={state.search()}
-                        onSearch={state.setSearch}
-                        placeholder="Buscar ubicación..."
-                        class="flex-1 w-full min-w-[150px] max-w-md"
-                    />
-
-                    {/* Warehouse filter */}
-                    <div class="w-[220px] min-w-[180px]">
-                        <WarehouseSelect
-                            value={state.warehouseFilter()}
-                            onChange={(id) => state.setWarehouseFilter(id)}
-                            placeholder="Todas las bodegas"
+                <div class="@container w-full">
+                    <div class="grid grid-cols-1 @md:grid-cols-2 gap-3 items-center w-full">  
+                        <div class="flex flex-row items-stretch @xs:items-center gap-2 w-full">
+                        <SearchInput
+                            value={state.search()}
+                            onSearch={state.setSearch}
+                            placeholder="Buscar ubicación..."
+                            /* flex-1 para que crezca y max-w-md para que no se descontrole en pantallas gigantes */
+                            class="flex-1 min-w-0 @sm:min-w-3xs max-w-md w-full"
                         />
+                        
+                        <Show when={state.tableInstance()}>
+                            <div class="flex items-center min-w-fit">
+                                <DataTableColumnVisibility table={state.tableInstance()} />
+                            </div>
+                        </Show>
                     </div>
-
-                    {/* Type filter chips */}
-                    <div class="flex items-center gap-1 bg-surface/50 rounded-lg p-0.5 border border-border/50">
-                        <button
-                            type="button"
-                            class={cn(
-                                "px-2.5 py-1 text-xs font-medium rounded-md transition-all",
-                                state.typeFilter() === null
-                                    ? "bg-card text-text shadow-sm"
-                                    : "text-muted hover:text-text"
-                            )}
-                            onClick={() => state.setTypeFilter(null)}
-                        >
-                            Todos
-                        </button>
-                        {locationTypeOptions.map(opt => (
-                            <button
-                                type="button"
-                                class={cn(
-                                    "px-2.5 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1",
-                                    state.typeFilter() === opt.value
-                                        ? "bg-card text-text shadow-sm"
-                                        : "text-muted hover:text-text"
-                                )}
-                                onClick={() => state.setTypeFilter(state.typeFilter() === opt.value ? null : opt.value)}
+                    <Show when={state.tableInstance()}>
+                    <div class="flex items-center gap-2 justify-end @md:justify-self-end w-full @md:w-auto">
+                            <Button
+                                variant="ghost"
+                                size="md" 
+                                radius="xl"
+                                onClick={() => state.tableInstance().toggleAllRowsExpanded(true)}
+                                title="Expandir todas"
+                                class="text-muted hover:text-text focus-within:text-text"
+                                icon={<Expand />}
                             >
-                                <span class={`size-1.5 rounded-full ${LOCATION_TYPE_META[opt.value as keyof typeof LOCATION_TYPE_META].color.split(' ')[0] === 'text-blue-500' ? 'bg-blue-500' : 'bg-purple-500'}`} />
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
+                                <span class="hidden @2xl:inline">Expandir</span>
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="md"
+                                radius="xl"
+                                onClick={() => state.tableInstance().toggleAllRowsExpanded(false)}
+                                title="Colapsar todas"
+                                class="text-muted hover:text-text focus-within:text-text"
+                                icon={<Collapse />}
+                            >
+                                <span class="hidden @2xl:inline">Colapsar</span>
+                            </Button>
+                                                </div>
 
-                    {/* Status filter */}
-                    <div class="flex items-center gap-1 bg-surface/50 rounded-lg p-0.5 border border-border/50">
-                        <button
-                            type="button"
-                            class={cn(
-                                "px-2.5 py-1 text-xs font-medium rounded-md transition-all",
-                                state.statusFilter() === 'active'
-                                    ? "bg-card text-text shadow-sm"
-                                    : "text-muted hover:text-text"
-                            )}
-                            onClick={() => state.setStatusFilter('active')}
-                        >
-                            Activos
-                        </button>
-                        <button
-                            type="button"
-                            class={cn(
-                                "px-2.5 py-1 text-xs font-medium rounded-md transition-all",
-                                state.statusFilter() === 'inactive'
-                                    ? "bg-card text-text shadow-sm"
-                                    : "text-muted hover:text-text"
-                            )}
-                            onClick={() => state.setStatusFilter('inactive')}
-                        >
-                            Inactivos
-                        </button>
-                        <button
-                            type="button"
-                            class={cn(
-                                "px-2.5 py-1 text-xs font-medium rounded-md transition-all",
-                                state.statusFilter() === 'all'
-                                    ? "bg-card text-text shadow-sm"
-                                    : "text-muted hover:text-text"
-                            )}
-                            onClick={() => state.setStatusFilter('all')}
-                        >
-                            Todos
-                        </button>
+                        </Show>
                     </div>
-
-                    {/* Export */}
-                    <Button variant="ghost" icon={<DownloadIcon />} onClick={() => toast.info('Exportación próximamente')}>
-                        <span class="hidden sm:inline">Exportar</span>
-                    </Button>
                 </div>
             </div>
 
             {/* Content — Tree Table */}
-            <div class="flex-1 min-h-0 px-3 pb-3 sm:px-4 sm:pb-4 overflow-hidden">
+            <div class="flex-1 min-h-0 px-3 pb-3 sm:px-4 sm:pb-4 overflow-visible">
                 <LocationTable
                     data={state.filteredList()}
                     rawData={(state.locationQuery.data ?? []) as any[]}
@@ -162,8 +114,12 @@ const LocationPage: Component = () => {
                     totalCount={state.filteredCount()}
                     onEdit={handleShowLocation}
                     onAddChild={handleNewLocation}
+                    onDelete={state.handleDelete}
+                    onRestore={state.handleRestore}
                     rowSelection={state.rowSelection()}
                     onRowSelectionChange={state.setRowSelection}
+                    filters={state.filters}
+                    tableRef={state.setTableInstance}
                 />
             </div>
 
@@ -171,7 +127,7 @@ const LocationPage: Component = () => {
             <DataTableSelectionBar
                 selectedCount={state.selectedCount()}
                 totalRows={state.filteredCount()}
-                onClearSelection={() => state.setRowSelection({})}
+                onClearSelection={() => state.clearSelection()}
             >
                 <SelectionBarAction
                     icon={<CopyIcon class="size-4" />}
@@ -181,17 +137,42 @@ const LocationPage: Component = () => {
                 />
                 <SelectionBarSeparator />
                 <Show when={state.canDelete()}>
-                    <SelectionBarAction
-                        icon={<AlertCircleIcon class="size-4" />}
-                        label="Desactivar"
-                        onClick={state.handleBatchDeactivate}
-                        variant="danger"
-                    />
-                    <SelectionBarAction
-                        icon={<IdCardIcon class="size-4" />}
-                        label="Restaurar"
-                        onClick={state.handleBatchRestore}
-                    />
+                    <Show when={state.selectedActiveCount() > 0 && state.selectedInactiveCount() === 0}>
+                        <SelectionBarAction
+                            icon={<TrashIcon class="size-4" />}
+                            label="Desactivar"
+                            onClick={state.handleBulkDelete}
+                            variant="danger"
+                        />
+                    </Show>
+                    <Show when={state.selectedInactiveCount() > 0 && state.selectedActiveCount() === 0}>
+                        <SelectionBarAction
+                            icon={<RotateCcwIcon class="size-4" />}
+                            label="Restaurar"
+                            variant="success"
+                            onClick={state.handleBulkRestore}
+                        />
+                    </Show>
+                    <Show when={state.selectedActiveCount() > 0 && state.selectedInactiveCount() > 0}>
+                        <DropdownMenu placement="top-start">
+                            <DropdownMenu.Trigger variant="ghost" size="sm" class="h-8 px-2.5 text-sm gap-1.5 focus-visible:ring-0">
+                                <span>Acciones</span>
+                                <ChevronsUpDownIcon class="size-3.5" />
+                            </DropdownMenu.Trigger>
+                            <DropdownMenu.Content class="min-w-45">
+                                <DropdownMenu.Item onSelect={state.handleBulkDelete} destructive>
+                                    <TrashIcon class="size-4 mr-2" />
+                                    <span class="flex-1 font-medium">Desactivar Activos</span>
+                                    <span class="bg-danger/20 text-danger font-bold text-xs px-1.5 py-0.5 rounded tabular-nums">{state.selectedActiveCount()}</span>
+                                </DropdownMenu.Item>
+                                <DropdownMenu.Item onSelect={state.handleBulkRestore}>
+                                    <RotateCcwIcon class="size-4 mr-2 text-emerald-500" />
+                                    <span class="flex-1 text-emerald-500 font-medium">Restaurar Inactivos</span>
+                                    <span class="bg-emerald-500/20 text-emerald-500 font-bold text-xs px-1.5 py-0.5 rounded tabular-nums">{state.selectedInactiveCount()}</span>
+                                </DropdownMenu.Item>
+                            </DropdownMenu.Content>
+                        </DropdownMenu>
+                    </Show>
                 </Show>
             </DataTableSelectionBar>
 
@@ -199,6 +180,33 @@ const LocationPage: Component = () => {
             <LocationDeleteDialog
                 location={state.deleteTarget()}
                 onClose={() => state.setDeleteTarget(null)}
+                onSuccess={() => {
+                    const target = state.deleteTarget();
+                    if (target) {
+                        state.clearSelection([target.id]);
+                    }
+                    toast.success('Ubicación procesada correctamente');
+                }}
+            />
+
+            <ConfirmDialog
+                isOpen={state.showBulkDeleteConfirm()}
+                onClose={() => state.setShowBulkDeleteConfirm(false)}
+                onConfirm={state.confirmBulkDelete}
+                title={`Desactivar ${state.selectedActiveCount()} ubicaciones`}
+                description="Las ubicaciones seleccionadas quedarán inactivas. Podrás restaurarlas en cualquier momento."
+                confirmLabel="Desactivar" variant="danger"
+                isLoading={state.bulkDeactivateMut.isPending}
+            />
+
+            <ConfirmDialog
+                isOpen={state.showBulkRestoreConfirm()}
+                onClose={() => state.setShowBulkRestoreConfirm(false)}
+                onConfirm={state.confirmBulkRestore}
+                title={`Restaurar ${state.selectedInactiveCount()} ubicaciones`}
+                description="Las ubicaciones seleccionadas volverán a estar activas."
+                confirmLabel="Restaurar" variant="success"
+                isLoading={state.bulkRestoreMut.isPending}
             />
         </div>
     );

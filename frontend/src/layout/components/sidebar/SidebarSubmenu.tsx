@@ -1,11 +1,11 @@
-import { Component, For, Accessor } from 'solid-js';
+import { Component, For, createMemo } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { MenuItem } from './types';
 import { useSidebar } from './SidebarContext';
 
 interface SidebarSubmenuProps {
     items: MenuItem[];
-    expanded: Accessor<boolean>;
+    expanded: boolean;
 }
 
 export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
@@ -15,8 +15,8 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
         <div
             class="grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
             classList={{
-                'grid-rows-[0fr]': !props.expanded(),
-                'grid-rows-[1fr]': props.expanded()
+                'grid-rows-[0fr]': !props.expanded,
+                'grid-rows-[1fr]': props.expanded
             }}
         >
             <div class="overflow-hidden">
@@ -29,7 +29,7 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
                     <ul role="menu" aria-label="Submenú" class="space-y-0.5">
                         <For each={props.items}>
                             {(child) => {
-                                const isChildActive = () => isActive(child.path);
+                                const isChildActive = createMemo(() => isActive(child.path));
 
                                 return (
                                     <li role="none" class="relative">
@@ -45,7 +45,7 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
                                         <Link
                                             to={child.path || '#'}
                                             role="menuitem"
-                                            tabIndex={props.expanded() ? 0 : -1}
+                                            tabIndex={props.expanded ? 0 : -1}
                                             data-active={isChildActive()}
                                             onClick={() => {
                                                 if (isMobileOpen()) setIsMobileOpen(false);

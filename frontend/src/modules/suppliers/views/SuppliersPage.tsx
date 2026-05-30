@@ -34,14 +34,14 @@ const SuppliersPage: Component = () => {
     const state = useSuppliersState();
 
     return (
-        <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
+        <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
             {/* Native Deep-Nested Routes */}
             <Outlet />
             {/* Header */}
-            <div class="flex-shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
+            <div class="shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
                 <PageHeader
                     icon={<UsersIcon />}
-                    iconBg="linear-gradient(135deg, #b97010ff, #966305)"
+                    iconBg="linear-gradient(135deg, #ffdb03, #a37014)"
                     title="Proveedores"
                     count={state.totalRows()}
                     info="Gestiona los proveedores de tu negocio. Puedes agregar, editar, eliminar y buscar proveedores."
@@ -69,7 +69,7 @@ const SuppliersPage: Component = () => {
                         value={state.search()}
                         onSearch={state.handleSearchInput}
                         placeholder="Buscar proveedores..."
-                        class="flex-1 w-full min-w-[150px] max-w-md"
+                        class="flex-1 w-full min-w-37.5 max-w-md"
                     />
                     <div class="flex items-center gap-2">
                         <Button variant="ghost" icon={<DownloadIcon />} onClick={() => toast.info('Exportación próximamente')}>

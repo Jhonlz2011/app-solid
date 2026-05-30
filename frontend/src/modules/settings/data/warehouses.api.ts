@@ -16,17 +16,6 @@ export interface WarehouseItem {
     locationCount: number;
 }
 
-export interface LocationItem {
-    id: number;
-    warehouse_id: number | null;
-    name: string;
-    path: string;
-    barcode: string | null;
-    type: 'VIEW' | 'INTERNAL';
-    depth: number;
-    is_active: boolean | null;
-}
-
 // =============================================================================
 // API Wrappers — Warehouses
 // =============================================================================
@@ -64,43 +53,6 @@ export const warehousesApi = {
 
     restore: async (id: number) => {
         const { data, error } = await (api.api.inventory.warehouses as any)({ id }).restore.patch();
-        if (error) throwApiError(error);
-        return data!;
-    },
-};
-
-// =============================================================================
-// API Wrappers — Locations
-// =============================================================================
-
-export const locationsApi = {
-    list: async (warehouseId?: number): Promise<LocationItem[]> => {
-        const query = warehouseId ? { warehouseId: String(warehouseId) } : {};
-        const { data, error } = await api.api.inventory.locations.get({ query });
-        if (error) throwApiError(error);
-        return data as LocationItem[];
-    },
-
-    create: async (body: { warehouse_id: number; name: string; parent_id?: number | null; barcode?: string | null; type?: 'VIEW' | 'INTERNAL' }) => {
-        const { data, error } = await api.api.inventory.locations.post(body as any);
-        if (error) throwApiError(error);
-        return data!;
-    },
-
-    update: async (id: number, body: Partial<{ name: string; barcode: string | null; type: 'VIEW' | 'INTERNAL'; is_active: boolean }>) => {
-        const { data, error } = await (api.api.inventory.locations as any)({ id }).put(body);
-        if (error) throwApiError(error);
-        return data!;
-    },
-
-    deactivate: async (id: number) => {
-        const { data, error } = await (api.api.inventory.locations as any)({ id }).deactivate.patch();
-        if (error) throwApiError(error);
-        return data!;
-    },
-
-    restore: async (id: number) => {
-        const { data, error } = await (api.api.inventory.locations as any)({ id }).restore.patch();
         if (error) throwApiError(error);
         return data!;
     },

@@ -13,7 +13,7 @@ export const createCategoriesRoutes = (layoutRoute: any) => {
         path: 'categories',
         beforeLoad: async () => {
             const { useAuth } = await import('@modules/auth/store/auth.store');
-            if (!useAuth().canRead('products')) {
+            if (!useAuth().canRead('categories')) {
                 throw redirect({ to: '/dashboard' });
             }
         },

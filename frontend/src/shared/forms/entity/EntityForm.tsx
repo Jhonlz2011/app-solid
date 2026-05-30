@@ -30,7 +30,7 @@ import TextField, { FieldLabel } from '@shared/ui/TextField';
 import Checkbox from '@shared/ui/Checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import { Autocomplete } from '@shared/ui/Autocomplete';
-import { CheckIcon, ChevronsUpDownIcon, EyeIcon, InfoIcon, MapPinIcon, PlusIcon, SearchIcon, TrashIcon, UsersIcon, BriefcaseIcon } from '@shared/ui/icons';
+import {  InfoIcon, MapPinIcon, PlusIcon, SearchIcon, TrashIcon, UsersIcon, BriefcaseIcon } from '@shared/ui/icons';
 import { useAuth } from '@modules/auth/store/auth.store';
 import Tooltip from '@shared/ui/Tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
@@ -140,7 +140,7 @@ const AddressRow: Component<AddressRowProps> = (props) => {
                                         <img
                                             src={city.bandera}
                                             alt={city.codigo}
-                                            class="size-5 rounded-sm object-cover shadow-sm flex-shrink-0"
+                                            class="size-5 rounded-sm object-cover shadow-sm shrink-0"
                                             loading="lazy"
                                         />
                                         <div class="flex flex-col min-w-0 flex-1">
@@ -738,12 +738,12 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                                 <div class="flex flex-col w-full gap-1 min-w-0">
                                                     <div class="flex w-full items-center justify-between gap-1 min-w-0">
                                                         <span class="font-medium text-text truncate max-w-[70%] flex-1 min-w-0">{opt.razonSocial}</span>
-                                                        <span class={`flex-shrink-0 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${opt.isActive ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'}`}>
+                                                        <span class={`shrink-0 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${opt.isActive ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'}`}>
                                                             {opt.isActive ? 'Activo' : 'Suspendido'}
                                                         </span>
                                                     </div>
                                                     <div class="flex w-full items-center gap-2 text-xs text-muted min-w-0">
-                                                        <span class="font-mono bg-surface-alt px-1.5 py-0.5 rounded border border-border flex-shrink-0">{opt.ruc}</span>
+                                                        <span class="font-mono bg-surface-alt px-1.5 py-0.5 rounded border border-border shrink-0">{opt.ruc}</span>
                                                         <Show when={opt.nombreComercial && opt.nombreComercial !== opt.razonSocial}>
                                                             <span class="truncate flex-1 min-w-0">({opt.nombreComercial})</span>
                                                         </Show>

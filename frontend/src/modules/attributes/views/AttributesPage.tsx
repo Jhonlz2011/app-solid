@@ -18,19 +18,18 @@ import Button from '@shared/ui/Button';
 
 // Icons
 import {
-    PlusIcon, DownloadIcon, CopyIcon, TagIcon,
+    PlusIcon, DownloadIcon, CopyIcon, LayoutIcon,
 } from '@shared/ui/icons';
 
 const AttributesPage: Component = () => {
     const state = useAttributeState();
     return (
-        <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
+        <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
             <Outlet />
-
             {/* Header */}
-            <div class="flex-shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
+            <div class="shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
                 <PageHeader
-                    icon={<TagIcon />}
+                    icon={<LayoutIcon />}
                     iconBg="linear-gradient(135deg, #8b5cf6, #7c3aed)"
                     title="Atributos"
                     count={state.totalRows()}
@@ -52,7 +51,7 @@ const AttributesPage: Component = () => {
                         value={state.search()}
                         onSearch={state.handleSearchInput}
                         placeholder="Buscar atributo..."
-                        class="flex-1 w-full min-w-[150px] max-w-md"
+                        class="flex-1 w-full min-w-xs max-w-md"
                     />
                     <div class="flex items-center gap-2">
                         <Button variant="ghost" icon={<DownloadIcon />} onClick={() => toast.info('Exportación próximamente')}>
@@ -97,7 +96,7 @@ const AttributesPage: Component = () => {
                         onColumnPinningChange={state.setColumnPinning}
                         enableVirtualization={false}
                         estimatedRowHeight={56}
-                        emptyIcon={<TagIcon />}
+                        emptyIcon={<LayoutIcon />}
                         emptyMessage="No hay atributos"
                         emptyDescription="Crea un nuevo atributo para comenzar"
                         tableRef={(table) => { state.setTableInstance(table); }}

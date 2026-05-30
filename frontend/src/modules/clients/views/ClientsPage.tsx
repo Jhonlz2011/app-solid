@@ -37,7 +37,7 @@ const ClientsPage: Component = () => {
 
 
     return (
-        <div class="h-full flex flex-col bg-gradient-to-br from-background via-background to-surface/20">
+        <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
 
             {/* Modals from Router (Sheets/Panels) */}
                 <Outlet />
@@ -73,7 +73,7 @@ const ClientsPage: Component = () => {
                         value={state.search()}
                         onSearch={state.handleSearchInput}
                         placeholder="Buscar clientes..."
-                        class="flex-1 w-full min-w-[150px] max-w-md"
+                        class="flex-1 w-full @sm:min-w-3xs max-w-md"
                     />
                     <div class="flex items-center gap-2">
                         <Button variant="ghost" icon={<DownloadIcon />} onClick={() => toast.info('Exportación próximamente')}>

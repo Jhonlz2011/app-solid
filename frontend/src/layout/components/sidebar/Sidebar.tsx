@@ -1,8 +1,9 @@
-import { Component, createSignal, Show, createEffect, createMemo } from 'solid-js';
+import { Component, createSignal, Show, createEffect, createMemo, untrack } from 'solid-js';
 import { useNavigate, useLocation } from '@tanstack/solid-router';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { useModules } from '@shared/store/modules.store';
 import { SidebarHeader } from './SidebarHeader';
+import { SidebarSearch } from './SidebarSearch';
 import { SidebarNav } from './SidebarNav';
 import { SidebarFooter } from './SidebarFooter';
 import { SidebarProvider } from './SidebarContext';
@@ -81,7 +82,10 @@ export const Sidebar: Component = () => {
 
     // Reset optimistic path
     createEffect(() => {
-        if (location().pathname === optimisticPath()) setOptimisticPath(null);
+        const currentPath = location().pathname;
+        if (currentPath === untrack(optimisticPath)) {
+            setOptimisticPath(null);
+        }
     });
 
     // --- CONTEXT VALUE ---
@@ -126,7 +130,7 @@ export const Sidebar: Component = () => {
             <aside
                 data-collapsed={effectiveCollapsed()}
                 data-mobile={isMobileOpen()}
-                class="fixed top-0 left-0 h-screen z-50 flex flex-col bg-surface border-r border-border
+                class="fixed top-0 left-0 h-dvh z-50 flex flex-col bg-surface border-r border-border
                        transition-[width,transform] duration-300 ease-[cubic-bezier(0.2,0,0,1)]
                        sm:static sm:z-auto
                        max-sm:pt-[env(safe-area-inset-top)] 
@@ -139,7 +143,9 @@ export const Sidebar: Component = () => {
             >
                 <SidebarHeader toggleCollapse={toggleCollapse} />
 
-                <SidebarNav items={menuItems} />
+                <SidebarSearch />
+
+                <SidebarNav items={menuItems()} />
 
                 <SidebarFooter
                     userName={auth.user()?.username || 'Usuario'}

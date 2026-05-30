@@ -15,18 +15,21 @@
     font-size: 0.875rem;
     line-height: 1.75;
     padding: 0.36rem 0.75rem;
-    border: 1px solid var(--color-border, hsl(220 13% 91%));
+    /* Corregido a las variables del @theme */
+    border: 1px solid var(--color-border);
     border-radius: 0.75rem;
-    background: var(--color-card-alt, hsl(220 20% 97%));
-    color: var(--color-text, hsl(220 20% 15%));
+    background: var(--color-card-alt);
+    color: var(--color-text);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
     overflow-y: auto;
 }
 
+/* Aplicando tu enfoque global de focus modificado para Quill */
 .ql-template-editor .ql-editor:focus {
     outline: none;
-    border-color: hsl(var(--primary, 220 80% 55%) / 0.65);
-    box-shadow: 0 0 0 3px hsl(var(--primary, 220 80% 55%) / 0.15);
+    border-color: var(--color-primary);
+    /* Usamos color-mix para dar opacidad del 50% al anillo manteniendo compatibilidad */
+    box-shadow: 0 0 0 1px var(--color-bg), 0 0 0 3px color-mix(in srgb, var(--color-primary) 50%, transparent);
 }
 
 /* Remove Quill default toolbar */
@@ -34,7 +37,7 @@
     display: none;
 }
 
-/* Remove Quill default container border (we style .ql-editor directly) */
+/* Remove Quill default container border */
 .ql-template-editor .ql-container {
     border: none;
     font-family: inherit;
@@ -44,7 +47,7 @@
 /* Placeholder text */
 .ql-template-editor .ql-editor.ql-blank::before {
     font-style: normal;
-    color: var(--color-muted, hsl(220 10% 55%));
+    color: var(--color-muted);
     opacity: 0.6;
     font-size: 0.875rem;
 }
@@ -66,15 +69,32 @@
     vertical-align: baseline;
     line-height: 1.5;
     transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
-    /* Primary color from design system */
-    background: hsl(var(--primary, 220 80% 55%) / 0.1);
-    color: hsl(var(--primary, 220 80% 55%));
-    border: 1px solid hsl(var(--primary, 220 80% 55%) / 0.25);
+    
+    /* Corregido con color-mix para opacidad del 10% y 25% */
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--color-primary);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
 }
 
+.ql-template-editor .ql-editor:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-card);
+}
+
+.ql-template-editor .ql-editor:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-primary) 65%, transparent);
+  
+  /* Implementación de tu anillo de enfoque global adaptado a la opacidad del botón */
+  box-shadow: 
+    0 0 0 1px var(--color-bg), 
+    0 0 0 4px color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+
 .ql-attribute-badge:hover {
-    background: hsl(var(--primary, 220 80% 55%) / 0.18);
-    border-color: hsl(var(--primary, 220 80% 55%) / 0.4);
+    background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
 }
 
 .ql-attribute-badge:active {
@@ -97,8 +117,8 @@
 /* ── DnD Drop Indicator ──────────────────────────────────────────── */
 
 .ql-template-editor .ql-editor.drop-target {
-    border-color: hsl(var(--primary, 220 80% 55%) / 0.65);
-    background: hsl(var(--primary, 220 80% 55%) / 0.03);
+    border-color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 3%, transparent);
 }
 
 /* ── Source Badge Panel ──────────────────────────────────────────── */
@@ -115,14 +135,15 @@
     cursor: grab;
     user-select: none;
     transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
-    background: hsl(var(--primary, 220 80% 55%) / 0.08);
-    color: hsl(var(--primary, 220 80% 55%));
-    border: 1px solid hsl(var(--primary, 220 80% 55%) / 0.2);
+    
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    color: var(--color-primary);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
 .template-badge-source:hover {
-    background: hsl(var(--primary, 220 80% 55%) / 0.14);
-    border-color: hsl(var(--primary, 220 80% 55%) / 0.35);
+    background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
 
 .template-badge-source:active {
@@ -131,7 +152,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
-/* Dragging state (while being dragged) */
+/* Dragging state */
 .template-badge-source[data-dragging="true"] {
     opacity: 0.4;
 }
@@ -143,8 +164,8 @@
     padding: 0 4px;
     border-radius: 4px;
     font-weight: 600;
-    background: hsl(var(--success, 140 60% 45%) / 0.1);
-    color: hsl(var(--success, 140 60% 45%));
+    background: color-mix(in srgb, var(--color-success) 10%, transparent);
+    color: var(--color-success);
 }
 
 .template-preview-badge-empty {
@@ -153,6 +174,6 @@
     border-radius: 4px;
     font-weight: 500;
     font-style: italic;
-    background: hsl(var(--warning, 40 90% 55%) / 0.1);
-    color: hsl(var(--warning, 40 90% 55%) / 0.7);
+    background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+    color: color-mix(in srgb, var(--color-warning) 70%, transparent);
 }

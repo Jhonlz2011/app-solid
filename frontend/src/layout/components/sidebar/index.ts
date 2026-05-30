@@ -1,6 +1,7 @@
 // Sidebar Components - Re-exports
 export { Sidebar } from './Sidebar';
 export { SidebarHeader } from './SidebarHeader';
+export { SidebarSearch } from './SidebarSearch';
 export { SidebarNav } from './SidebarNav';
 export { SidebarNavItem } from './SidebarNavItem';
 export { SidebarSubmenu } from './SidebarSubmenu';

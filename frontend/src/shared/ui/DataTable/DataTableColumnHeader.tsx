@@ -40,8 +40,8 @@ export function DataTableColumnHeader<TData, TValue>(
             <DropdownMenu placement="bottom-start" gutter={4}>
                 <DropdownMenu.Trigger
                     class={cn(
-                        'flex items-center gap-1 -ml-2 px-2 py-1 rounded-lg',
-                        'hover:bg-dropdown-hover data-[expanded]:bg-dropdown-hover',
+                        'flex items-center gap-1 -ml-1 px-2 py-1 rounded-lg',
+                        'hover:bg-dropdown-hover data-expanded:bg-dropdown-hover',
                         'transition-colors duration-150 cursor-pointer',
                         props.class
                     )}

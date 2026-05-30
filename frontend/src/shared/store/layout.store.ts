@@ -1,13 +1,26 @@
 import { createSignal, createRoot } from 'solid-js';
 
-const { isOpen, setOpen } = createRoot(() => {
+const { isMobileOpen, setMobileOpen, isSearchOpen, setSearchOpen } = createRoot(() => {
     const [isMobileSidebarOpen, setMobileSidebarOpen] = createSignal(false);
-    return { isOpen: isMobileSidebarOpen, setOpen: setMobileSidebarOpen };
+    const [isSearchPaletteOpen, setSearchPaletteOpen] = createSignal(false);
+    return { 
+        isMobileOpen: isMobileSidebarOpen, 
+        setMobileOpen: setMobileSidebarOpen,
+        isSearchOpen: isSearchPaletteOpen,
+        setSearchOpen: setSearchPaletteOpen
+    };
 });
 
 export const useMobileSidebar = () => ({
-    isOpen,
-    open: () => setOpen(true),
-    close: () => setOpen(false),
-    toggle: () => setOpen(v => !v),
+    isOpen: isMobileOpen,
+    open: () => setMobileOpen(true),
+    close: () => setMobileOpen(false),
+    toggle: () => setMobileOpen(v => !v),
+});
+
+export const useSearchPalette = () => ({
+    isOpen: isSearchOpen,
+    open: () => setSearchOpen(true),
+    close: () => setSearchOpen(false),
+    toggle: () => setSearchOpen(v => !v),
 });

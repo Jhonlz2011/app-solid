@@ -1,11 +1,13 @@
 /**
- * CategoryAttributesPicker — Multi-select to assign attributes to a category.
- * Displays assigned attributes as a sortable DnD list with required toggle.
- * Allows adding from available attribute_definitions.
+ * CategoryAttributesPicker — Multi-select + DnD list for category attributes.
  *
- * Uses @thisbeyond/solid-dnd for intuitive drag-and-drop reordering.
+ * Two-part UI:
+ * 1. AttributeSelect (Kobalte multi-select combobox) — for adding/removing attributes
+ * 2. Sortable DnD list — for reordering and toggling "required"
+ *
+ * Both parts share the same reactive source: the `value` prop (CategoryAttributeEntry[]).
  */
-import { Component, For, Show, createSignal, createMemo } from 'solid-js';
+import { Component, For, Show, createMemo } from 'solid-js';
 import {
     DragDropProvider,
     DragDropSensors,
@@ -16,26 +18,26 @@ import {
     DragOverlay,
     type DragEvent,
 } from '@thisbeyond/solid-dnd';
-import { type AttributeDef } from '@modules/settings/data/attributes.api';
-import { useAttributes } from '@modules/settings/data/attributes.queries'
-import { ATTRIBUTE_TYPE_LABELS } from '@modules/settings/data/attributes.constants';
+import { type AttributeItem } from '@modules/attributes/data/attributes.api';
+import { useAttributeList } from '@modules/attributes/data/attributes.queries';
+import { ATTRIBUTE_TYPE_LABELS } from '@modules/attributes/data/attributes.constants';
 import type { CategoryAttributeEntry } from '@app/schema/frontend';
-import Button from '@shared/ui/Button';
+import { AttributeSelect } from '@shared/ui/selectors/AttributeSelect';
 import Checkbox from '@shared/ui/Checkbox';
 import { Badge } from '@shared/ui/Badge';
-import { PlusIcon, CloseIcon, GripVerticalIcon } from '@shared/ui/icons';
+import { CloseIcon, GripVerticalIcon } from '@shared/ui/icons';
 
 interface CategoryAttributesPickerProps {
     value: CategoryAttributeEntry[];
     onChange: (value: CategoryAttributeEntry[]) => void;
+    onCreateNew?: () => void;
 }
 
 // ── Sortable Row Component ────────────────────────────────────────────
 const SortableAttributeRow: Component<{
     attributeDefId: number;
-    // We pass functions/memos to keep it reactive without re-mounting
     item: () => CategoryAttributeEntry;
-    def: () => AttributeDef | undefined;
+    def: () => AttributeItem | undefined;
     index: number;
     onToggleRequired: (id: number) => void;
     onRemove: (id: number) => void;
@@ -99,48 +101,59 @@ const SortableAttributeRow: Component<{
 
 // ── Main Component ────────────────────────────────────────────────────
 const CategoryAttributesPicker: Component<CategoryAttributesPickerProps> = (props) => {
-    const attrsQuery = useAttributes();
-    const [showPicker, setShowPicker] = createSignal(false);
+    const attrsQuery = useAttributeList();
 
-    // Assigned attribute IDs set for quick lookup
-    const assignedIds = createMemo(() => new Set(props.value.map(a => a.attributeDefId)));
+    // Assigned attribute IDs for the selector
+    const assignedIds = createMemo(() => props.value.map(a => a.attributeDefId));
 
-    // Available (unassigned, active) attributes
-    const available = createMemo(() => {
-        const all = (attrsQuery.data ?? []) as AttributeDef[];
-        return all.filter(a => a.is_active && !assignedIds().has(a.id));
-    });
-
-    // Sorted assigned attributes with their definitions
-    // Used strictly for looking up references in O(1) inside children
+    // Map for quick lookup of assigned items + definitions
     const assignedWithDefMap = createMemo(() => {
-        const allAttrs = (attrsQuery.data ?? []) as AttributeDef[];
+        const allAttrs = (attrsQuery.data ?? []) as AttributeItem[];
         const defMap = new Map(allAttrs.map(a => [a.id, a]));
-        const map = new Map<number, { item: CategoryAttributeEntry; def?: AttributeDef }>();
+        const map = new Map<number, { item: CategoryAttributeEntry; def?: AttributeItem }>();
         props.value.forEach(a => {
             map.set(a.attributeDefId, { item: a, def: defMap.get(a.attributeDefId) });
         });
         return map;
     });
 
-    // Instead of mapping objects, we sort the primitive IDs. 
-    // SolidJS <For> tracks primitives perfectly and won't remount DOM nodes!
+    // Sorted IDs for DnD — primitives for efficient <For> tracking
     const sortedIds = createMemo(() => {
         return [...props.value]
             .sort((a, b) => a.order - b.order)
             .map(a => a.attributeDefId);
     });
 
-    // Sortable IDs for DnD provider
-    const sortableIds = sortedIds;
-
-    const addAttribute = (attrId: number) => {
+    // ── Sync handler: reconcile selector changes with existing entries ──
+    const syncFromSelector = (newIds: number[]) => {
+        const existingMap = new Map(props.value.map(a => [a.attributeDefId, a]));
+        const newIdSet = new Set(newIds);
         const maxOrder = props.value.reduce((max, a) => Math.max(max, a.order), -1);
-        props.onChange([
-            ...props.value,
-            { attributeDefId: attrId, required: false, order: maxOrder + 1, specificOptions: null },
-        ]);
-        if (available().length <= 1) setShowPicker(false);
+
+        // Preserve existing entries, add new ones, remove deselected
+        let nextOrder = maxOrder + 1;
+        const result: CategoryAttributeEntry[] = [];
+
+        // Keep existing entries that are still selected (preserve order, required, specificOptions)
+        for (const entry of props.value) {
+            if (newIdSet.has(entry.attributeDefId)) {
+                result.push(entry);
+            }
+        }
+
+        // Add newly selected entries
+        for (const id of newIds) {
+            if (!existingMap.has(id)) {
+                result.push({
+                    attributeDefId: id,
+                    required: false,
+                    order: nextOrder++,
+                    specificOptions: null as any,
+                });
+            }
+        }
+
+        props.onChange(result);
     };
 
     const removeAttribute = (attrId: number) => {
@@ -167,7 +180,6 @@ const CategoryAttributesPicker: Component<CategoryAttributesPickerProps> = (prop
         const toIndex = sortedArgs.findIndex(a => a.attributeDefId === toId);
         if (fromIndex < 0 || toIndex < 0) return;
 
-        // Move item
         const [item] = sortedArgs.splice(fromIndex, 1);
         sortedArgs.splice(toIndex, 0, item);
 
@@ -182,20 +194,20 @@ const CategoryAttributesPicker: Component<CategoryAttributesPickerProps> = (prop
 
     return (
         <div class="space-y-3">
+            {/* Multi-select combobox */}
+            <AttributeSelect
+                value={assignedIds()}
+                onChange={syncFromSelector}
+                onCreateNew={props.onCreateNew}
+                placeholder="Buscar y agregar atributos..."
+            />
+
             {/* Assigned Attributes List with DnD */}
-            <Show
-                when={assignedWithDefMap().size > 0}
-                fallback={
-                    <div class="text-center py-6 bg-surface/30 rounded-xl border border-dashed border-border">
-                        <p class="text-sm text-muted">No hay atributos asignados.</p>
-                        <p class="text-xs text-muted mt-1">Agrega atributos para definir los campos de los productos en esta categoría.</p>
-                    </div>
-                }
-            >
+            <Show when={assignedWithDefMap().size > 0}>
                 <DragDropProvider onDragEnd={onDragEnd} collisionDetector={closestCenter}>
                     <DragDropSensors />
                     <div class="border border-border rounded-xl overflow-hidden divide-y divide-border/50">
-                        <SortableProvider ids={sortableIds()}>
+                        <SortableProvider ids={sortedIds()}>
                             <For each={sortedIds()}>
                                 {(id, index) => (
                                     <Show when={assignedWithDefMap().get(id)}>
@@ -230,53 +242,6 @@ const CategoryAttributesPicker: Component<CategoryAttributesPickerProps> = (prop
                         }}
                     </DragOverlay>
                 </DragDropProvider>
-            </Show>
-
-            {/* Add Attribute Picker */}
-            <Show
-                when={showPicker()}
-                fallback={
-                    <Show when={available().length > 0}>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setShowPicker(true)}>
-                            <PlusIcon /> Agregar atributo
-                        </Button>
-                    </Show>
-                }
-            >
-                <div class="border border-primary/30 rounded-xl p-3 bg-primary/5 space-y-2">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-semibold text-primary uppercase tracking-wider">Atributos disponibles</span>
-                        <button
-                            type="button"
-                            class="text-muted hover:text-text text-xs"
-                            onClick={() => setShowPicker(false)}
-                        >
-                            Cerrar
-                        </button>
-                    </div>
-                    <Show
-                        when={available().length > 0}
-                        fallback={<p class="text-xs text-muted py-2">Todos los atributos ya están asignados.</p>}
-                    >
-                        <div class="flex flex-wrap gap-2">
-                            <For each={available()}>
-                                {(attr) => (
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-lg text-sm hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer"
-                                        onClick={() => addAttribute(attr.id)}
-                                    >
-                                        <PlusIcon class="size-3.5" />
-                                        <span>{attr.label}</span>
-                                        <Badge variant="primary" class="text-[10px] px-1 py-0 ml-1">
-                                            {ATTRIBUTE_TYPE_LABELS[attr.type] ?? attr.type}
-                                        </Badge>
-                                    </button>
-                                )}
-                            </For>
-                        </div>
-                    </Show>
-                </div>
             </Show>
         </div>
     );

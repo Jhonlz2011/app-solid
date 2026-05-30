@@ -1,214 +1,311 @@
 /**
- * Location Tree Columns — Depth-aware with expand/collapse chevrons + checkbox selection.
- * Mirrors CategoryColumns + UomColumns select pattern.
+ * Location Tree Columns — Compact design with type badge integrated into name.
+ *
+ * Design decisions:
+ * - Removed redundant `path` column (tree indentation already shows hierarchy)
+ * - Merged `type` badge inline with the name column for compactness
+ * - Type filter moved to name column header
  */
-import { Show } from 'solid-js';
-import type { ColumnDef } from '@tanstack/solid-table';
-import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
-import { StatusBadge } from '@shared/ui/Badge';
-import Checkbox  from '@shared/ui/Checkbox';
-import ActionMenu from '@shared/ui/ActionMenu';
-import { ChevronRightIcon, ChevronDownIcon, PlusIcon, MapPinIcon } from '@shared/ui/icons';
-import { cn } from '@shared/lib/utils';
-import type { LocationNode } from './locations.api';
-import { LOCATION_TYPE_META } from './locations.constants';
-import type { LocationType } from '@app/schema/enums';
+import { Show } from "solid-js";
+import type { ColumnDef } from "@tanstack/solid-table";
+import { DataTableColumnHeader } from "@shared/ui/DataTable/DataTableColumnHeader";
+import type { FilterOption } from "@shared/ui/DataTable/DataTableColumnFilter";
+import { Badge, CounterBadge, StatusBadge } from "@shared/ui/Badge";
+import Checkbox from "@shared/ui/Checkbox";
+import ActionMenu from "@shared/ui/ActionMenu";
+import {
+  ChevronRightIcon,
+  ChevronDownIcon,
+  PlusIcon,
+  WarehouseIcon,
+  InboxIcon,
+  EyeIcon,
+} from "@shared/ui/icons";
+import { cn } from "@shared/lib/utils";
+import type { LocationNode } from "./locations.api";
+import { LOCATION_TYPE_META } from "./locations.constants";
+import type { LocationType } from "@app/schema/enums";
 
-interface LocationColumnHandlers {
-    onEdit: (id: number) => void;
-    onAddChild: (parentId: number) => void;
-    onDelete: (id: number) => void;
-    onRestore: (id: number) => void;
+export interface ColumnFilterConfig {
+  options: () => FilterOption[];
+  selected: () => string[];
+  onChange: (selected: string[]) => void;
+  isLoading: () => boolean;
 }
 
-export function createLocationColumns(handlers: LocationColumnHandlers): ColumnDef<LocationNode>[] {
-    return [
-        // ── Select Checkbox ──
-        {
-            id: 'select',
-            header: ({ table }) => (
-                <Checkbox
-                    indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={(checked) => table.toggleAllPageRowsSelected(checked)}
-                />
-            ),
-            cell: ({ row }) => (
-                <div onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                        checked={row.getIsSelected()}
-                        onChange={(checked) => row.toggleSelected(checked)}
-                    />
-                </div>
-            ),
-            size: 36,
-            enableSorting: false,
-            enableHiding: false,
-        },
+export interface LocationColumnHandlers {
+  onEdit: (id: number) => void;
+  onAddChild: (parentId: number) => void;
+  onDelete: (id: number) => void;
+  onRestore: (id: number) => void;
+  filters?: {
+    warehouse?: ColumnFilterConfig;
+    type?: ColumnFilterConfig;
+    status?: ColumnFilterConfig;
+  };
+}
 
-        // ── Name with tree indent + expand/collapse ──
-        {
-            id: 'name',
-            accessorKey: 'name',
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="Nombre" />
-            ),
-            meta: { title: 'Nombre' },
-            size: 380,
-            cell: ({ row }) => {
-                const depth = row.depth;
-                const hasChildren = row.getCanExpand();
-                const isExpanded = () => row.getIsExpanded();
-                const loc = row.original;
-                const typeMeta = LOCATION_TYPE_META[loc.type as LocationType];
+export function createLocationColumns(
+  handlers: LocationColumnHandlers,
+): ColumnDef<LocationNode>[] {
+  return [
+    // ── Select Checkbox ──
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          indeterminate={
+            table.getIsSomePageRowsSelected() &&
+            !table.getIsAllPageRowsSelected()
+          }
+          checked={table.getIsAllPageRowsSelected()}
+          onChange={(checked) => table.toggleAllPageRowsSelected(checked)}
+        />
+      ),
+      cell: ({ row }) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={row.getIsSelected()}
+            onChange={(checked) => row.toggleSelected(checked)}
+          />
+        </div>
+      ),
+      size: 36,
+      enableSorting: false,
+      enableHiding: false,
+    },
 
-                return (
-                    <div
-                        class="flex items-center gap-2 min-w-0"
-                        style={{ 'padding-left': `${depth * 20}px` }}
-                    >
-                        {/* Expand/Collapse chevron */}
-                        <Show
-                            when={hasChildren}
-                            fallback={
-                                <span class="size-6 shrink-0 flex items-center justify-center">
-                                    <span class="size-1.5 rounded-full bg-border/60" />
-                                </span>
-                            }
-                        >
-                            <button
-                                type="button"
-                                class={cn(
-                                    'size-6 shrink-0 flex items-center justify-center rounded-md',
-                                    'hover:bg-surface transition-colors text-muted hover:text-text',
-                                )}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    row.toggleExpanded();
-                                }}
-                                title={isExpanded() ? 'Colapsar' : 'Expandir'}
-                            >
-                                <Show
-                                    when={isExpanded()}
-                                    fallback={<ChevronRightIcon class="size-3.5" />}
-                                >
-                                    <ChevronDownIcon class="size-3.5" />
-                                </Show>
-                            </button>
-                        </Show>
+    // ── Name + Type badge + Children count (unified column) ──
+    {
+      id: "name",
+      accessorKey: "name",
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Nombre"
+          filterOptions={handlers.filters?.type?.options()}
+          selectedFilters={handlers.filters?.type?.selected()}
+          onFilterChange={handlers.filters?.type?.onChange}
+          isFilterLoading={handlers.filters?.type?.isLoading()}
+        />
+      ),
+      meta: { title: "Nombre" },
+      size: 400,
+      cell: ({ row }) => {
+        const depth = row.depth;
+        const hasChildren = row.getCanExpand();
+        const isExpanded = () => row.getIsExpanded();
+        const loc = row.original;
+        const isView = loc.type === "VIEW";
 
-                        {/* Location icon — color by type */}
-                        <MapPinIcon
-                            class={cn(
-                                'size-4 shrink-0 transition-colors',
-                                loc.type === 'VIEW'
-                                    ? 'text-purple-500'
-                                    : hasChildren
-                                        ? 'text-blue-500'
-                                        : 'text-muted/50',
-                            )}
-                        />
+        return (
+          <div
+            class="flex items-center gap-2 min-w-0 w-full h-full cursor-pointer select-none group/name "
+            style={{ "padding-left": `${depth * 1.5}rem` }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (hasChildren) {
+                row.toggleExpanded();
+              } else {
+                handlers.onEdit(loc.id);
+              }
+            }}
+          >
+            {/* Expand/Collapse chevron */}
+            <Show
+              when={hasChildren}
+              fallback={
+                <span class="size-5 shrink-0 flex items-center justify-center">
+                  <span
+                    class={cn(
+                      "size-1.5 rounded-full transition-transform duration-200 group-hover/name:scale-125",
+                      isView
+                        ? "bg-purple-400/40 group-hover/name:bg-purple-500"
+                        : "bg-blue-400/40 group-hover/name:bg-blue-500",
+                    )}
+                  />
+                </span>
+              }
+            >
+              <button
+                type="button"
+                class={cn(
+                  "size-5 shrink-0 flex items-center justify-center rounded-md cursor-pointer",
+                  "hover:bg-surface transition-colors text-muted hover:text-text",
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  row.toggleExpanded();
+                }}
+                title={isExpanded() ? "Colapsar" : "Expandir"}
+              >
+                <Show
+                  when={isExpanded()}
+                  fallback={
+                    <ChevronRightIcon stroke-width="3" class="size-3.5" />
+                  }
+                >
+                  <ChevronDownIcon stroke-width="3" class="size-3.5" />
+                </Show>
+              </button>
+            </Show>
 
-                        {/* Name + type badge */}
-                        <div class="flex flex-col min-w-0 gap-0.5">
-                            <div class="flex items-center gap-1.5 min-w-0">
-                                <span
-                                    class={cn(
-                                        'text-sm font-medium truncate',
-                                        !loc.is_active && 'line-through text-muted',
-                                    )}
-                                    title={loc.name}
-                                >
-                                    {loc.name}
-                                </span>
+            {/* Type icon — Rendered only for parent nodes (with children) */}
+            <Show when={hasChildren}>
+              <Show
+                when={isView}
+                fallback={
+                  <InboxIcon class="size-4 shrink-0 text-blue-500 group-hover/name:text-blue-600 transition-colors" />
+                }
+              >
+                <EyeIcon class="size-4 shrink-0 text-purple-500 group-hover/name:text-purple-600 transition-colors" />
+              </Show>
+            </Show>
 
-                                {/* Children count */}
-                                <Show when={hasChildren && loc.subRows?.length}>
-                                    <span class="text-[10px] font-mono text-muted bg-surface px-1 py-px rounded tabular-nums shrink-0">
-                                        {loc.subRows?.length}
-                                    </span>
-                                </Show>
+            {/* Name + type pill + children count */}
+            <div class="flex flex-col min-w-0 gap-0.5">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span
+                  class={cn(
+                    "text-sm font-medium truncate",
+                    !loc.is_active && "line-through text-muted",
+                  )}
+                  title={loc.name}
+                >
+                  {loc.name}
+                </span>
 
-                                {/* Type indicator */}
-                                <Show when={typeMeta}>
-                                    <span class={`text-[9px] font-bold px-1.5 py-px rounded-sm uppercase tracking-wider shrink-0 ${typeMeta.color}`}>
-                                        {typeMeta.label}
-                                    </span>
-                                </Show>
-                            </div>
+                {/* Children count */}
+                <Show when={hasChildren && loc.subRows?.length}>
+                  <CounterBadge
+                    count={loc.subRows?.length}
+                    variant="default"
+                    class="text-[10px] font-mono tabular-nums shrink-0 transition-colors group-hover/name:bg-surface/80"
+                  />
+                </Show>
+              </div>
+            </div>
+          </div>
+        );
+      },
+    },
 
-                            {/* Barcode as secondary text */}
-                            <Show when={loc.barcode}>
-                                <span class="text-[11px] text-muted/70 font-mono truncate leading-tight" title={loc.barcode!}>
-                                    {loc.barcode}
-                                </span>
-                            </Show>
-                        </div>
-                    </div>
-                );
-            },
-        },
+    // ── Warehouse ──
+    {
+      id: "warehouse",
+      accessorKey: "warehouse_name",
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Bodega"
+          filterOptions={handlers.filters?.warehouse?.options()}
+          selectedFilters={handlers.filters?.warehouse?.selected()}
+          onFilterChange={handlers.filters?.warehouse?.onChange}
+          isFilterLoading={handlers.filters?.warehouse?.isLoading()}
+        />
+      ),
+      meta: { title: "Bodega" },
+      size: 180,
+      cell: ({ row }) => {
+        const loc = row.original;
+        if (!loc.warehouse_name) {
+          return <span class="text-xs text-muted/40 italic">Sin bodega</span>;
+        }
+        return (
+          <div class="flex items-center gap-1.5 min-w-0">
+            <WarehouseIcon class="size-3.5 text-muted/60 shrink-0" />
+            <div class="flex flex-col min-w-0">
+              <span class="text-xs font-medium text-text truncate">
+                {loc.warehouse_name}
+              </span>
+              <Show when={loc.warehouse_code}>
+                <span class="text-[10px] text-muted font-mono leading-tight">
+                  {loc.warehouse_code}
+                </span>
+              </Show>
+            </div>
+          </div>
+        );
+      },
+    },
 
-        // ── Path ──
-        {
-            id: 'path',
-            accessorKey: 'path',
-            header: 'Ruta',
-            size: 200,
-            cell: ({ row }) => {
-                const segments = row.original.path.split('.');
-                return (
-                    <span class="flex items-center gap-0.5 text-[11px] text-muted font-mono truncate">
-                        {segments.map((seg, i) => (
-                            <>
-                                {i > 0 && <span class="text-border mx-0.5">›</span>}
-                                <span class="text-text/60">{seg}</span>
-                            </>
-                        ))}
-                    </span>
-                );
-            },
-        },
+    // ── Products Count ──
+    {
+      id: "products",
+      accessorKey: "product_count",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Productos" />
+      ),
+      meta: { title: "Productos" },
+      size: 110,
+      cell: ({ row }) => {
+        const count = row.original.product_count ?? 0;
+        return (
+          <div class="flex items-center gap-1.5 justify-start">
+            <Badge
+              variant={count > 0 ? "success" : "default"}
+              class="font-mono tabular-nums text-[11px]"
+            >
+              {count} {count === 1 ? "producto" : "productos"}
+            </Badge>
+          </div>
+        );
+      },
+    },
 
-        // ── Status ──
-        {
-            id: 'status',
-            accessorKey: 'is_active',
-            header: 'Estado',
-            size: 90,
-            cell: ({ row }) => <StatusBadge isActive={row.original.is_active ?? true} />,
-        },
+    // ── Status ──
+    {
+      id: "status",
+      accessorKey: "is_active",
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Estado"
+          filterOptions={handlers.filters?.status?.options()}
+          selectedFilters={handlers.filters?.status?.selected()}
+          onFilterChange={handlers.filters?.status?.onChange}
+          isFilterLoading={handlers.filters?.status?.isLoading()}
+        />
+      ),
+      meta: { title: "Estado" },
+      size: 118,
+      cell: ({ row }) => (
+        <StatusBadge isActive={row.original.is_active ?? true} />
+      ),
+    },
 
-        // ── Actions ──
-        {
-            id: 'actions',
-            header: '',
-            size: 50,
-            enableHiding: false,
-            enableSorting: false,
-            cell: ({ row }) => {
-                const loc = row.original;
-                return (
-                    <ActionMenu
-                        module="locations"
-                        isActive={loc.is_active ?? true}
-                        onDelete={() => handlers.onDelete(loc.id)}
-                        onRestore={() => handlers.onRestore(loc.id)}
-                    >
-                        {/* Add child location */}
-                        <Show when={loc.is_active ?? true}>
-                            <button
-                                type="button"
-                                class="flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-dropdown-hover transition-colors"
-                                onClick={() => handlers.onAddChild(loc.id)}
-                            >
-                                <PlusIcon class="size-4 text-muted" />
-                                <span>Agregar sub-ubicación</span>
-                            </button>
-                        </Show>
-                    </ActionMenu>
-                );
-            },
-        },
-    ];
+    // ── Actions ──
+    {
+      id: "actions",
+      header: "",
+      size: 50,
+      enableHiding: false,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const loc = row.original;
+        return (
+          <ActionMenu
+            module="locations"
+            isActive={loc.is_active ?? true}
+            showTo={`/locations/${loc.id}/show`}
+            editTo={`/locations/${loc.id}/edit`}
+            onDelete={() => handlers.onDelete(loc.id)}
+            onRestore={() => handlers.onRestore(loc.id)}
+          >
+            {/* Add child location */}
+            <Show when={loc.is_active ?? true}>
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-dropdown-hover transition-colors"
+                onClick={() => handlers.onAddChild(loc.id)}
+              >
+                <PlusIcon class="size-4 text-muted" />
+                <span>Agregar sub-ubicación</span>
+              </button>
+            </Show>
+          </ActionMenu>
+        );
+      },
+    },
+  ];
 }

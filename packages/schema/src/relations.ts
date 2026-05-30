@@ -112,7 +112,6 @@ export const productsRelations = relations(tables.products, ({ one, many }) => (
     company: one(tables.companies, { fields: [tables.products.company_id], references: [tables.companies.id] }),
     category: one(tables.categories, { fields: [tables.products.category_id], references: [tables.categories.id] }),
     brand: one(tables.brands, { fields: [tables.products.brand_id], references: [tables.brands.id] }),
-    family: one(tables.productFamilies, { fields: [tables.products.family_id], references: [tables.productFamilies.id] }),
     variants: many(tables.productVariants),
     components: many(tables.productComponents),
     uomConversions: many(tables.productUomConversions),
@@ -268,8 +267,6 @@ export const categoriesRelations = relations(tables.categories, ({ one, many }) 
     children: many(tables.categories, { relationName: 'parent_child_cat' }),
     products: many(tables.products),
     attributes: many(tables.categoryAttributes),
-    bomTemplates: many(tables.bomTemplates),
-    families: many(tables.productFamilies),
 }));
 
 export const categoryAttributesRelations = relations(tables.categoryAttributes, ({ one }) => ({
@@ -377,19 +374,6 @@ export const posSaleItemsRelations = relations(tables.posSaleItems, ({ one }) =>
 }));
 
 // =============================================================================
-// 9. Product Families
-// =============================================================================
-
-export const productFamiliesRelations = relations(tables.productFamilies, ({ one, many }) => ({
-    company: one(tables.companies, { fields: [tables.productFamilies.company_id], references: [tables.companies.id] }),
-    category: one(tables.categories, {
-        fields: [tables.productFamilies.category_id],
-        references: [tables.categories.id],
-    }),
-    products: many(tables.products),
-}));
-
-// =============================================================================
 // 10. Request Module
 // =============================================================================
 
@@ -429,10 +413,6 @@ export const materialRequestItemsRelations = relations(tables.materialRequestIte
     variant: one(tables.productVariants, {
         fields: [tables.materialRequestItems.variant_id],
         references: [tables.productVariants.id],
-    }),
-    family: one(tables.productFamilies, {
-        fields: [tables.materialRequestItems.family_id],
-        references: [tables.productFamilies.id],
     }),
     dispatches: many(tables.materialRequestDispatches),
 }));
@@ -586,7 +566,6 @@ export const companiesRelations = relations(tables.companies, ({ many }) => ({
     cashRegisters: many(tables.cashRegisters),
     brands: many(tables.brands),
     categories: many(tables.categories),
-    productFamilies: many(tables.productFamilies),
     bomTemplates: many(tables.bomTemplates),
     fiscalPeriods: many(tables.fiscalPeriods),
     receivables: many(tables.accountsReceivable),

@@ -1,7 +1,7 @@
 # 🧠 BRAIN.md — AI Context File
 
 > **Purpose:** Single source of truth for AI assistants. Read this FIRST before any task.  
-> **Last Updated:** 2026-04-30  
+> **Last Updated:** 2026-05-20  
 > **Runtime:** Bun · **Framework:** Elysia (backend) · SolidJS (frontend)
 
 ---
@@ -31,7 +31,7 @@ Monorepo using Bun workspaces. Fully typed end-to-end.
 app/
 ├── packages/
 │   └── schema/src/          ← SHARED: tables, enums, DTOs, relations
-│       ├── tables/          ← Drizzle pgTableV2 definitions (14 files)
+│       ├── tables/          ← Drizzle pgTableV2 definitions (15 files)
 │       ├── enums.ts         ← Single source of truth for all enum arrays
 │       ├── backend.ts       ← TypeBox schemas (Elysia route validation)
 │       ├── frontend.ts      ← Valibot schemas (TanStack Form validation)
@@ -52,7 +52,7 @@ app/
 │   ├── app.tsx              ← SolidJS entry
 │   ├── router.tsx           ← TanStack Router tree (root → layout → modules)
 │   ├── index.css            ← TailwindCSS v4 theme (CSS custom properties)
-│   ├── modules/             ← Feature modules (10 modules)
+│   ├── modules/             ← Feature modules (14 modules)
 │   ├── shared/              ← Shared code
 │   │   ├── ui/              ← Design system (33 components)
 │   │   ├── hooks/           ← Custom hooks (6)
@@ -60,7 +60,7 @@ app/
 │   │   ├── store/           ← Global stores (SSE, broadcast, modules, layout)
 │   │   ├── routes/          ← Route factory functions (6 files)
 │   │   ├── forms/           ← Complex forms (EntityForm)
-│   │   ├── selectors/       ← Reusable selector components (5)
+│   │   ├── selectors/       ← Reusable selector components (4)
 │   │   ├── constants/       ← App-wide constants
 │   │   └── utils/           ← Utility functions
 │   ├── layout/              ← MainLayout + Sidebar
@@ -210,13 +210,19 @@ export const brandsApi = {
 rootRoute
 ├── authRoute (login)
 └── layoutRoute (protected, loads sidebar)
+    ├── indexRoute (redirects to /dashboard)
     ├── dashboardRoute
+    ├── profileRoute
     ├── createUsersRoutes(layoutRoute)
-    ├── createSettingsRoutes(layoutRoute)
+    ├── createSettingsRoutes(layoutRoute) (focused on Warehouses)
     ├── createSuppliersRoutes(layoutRoute)
     ├── createClientsRoutes(layoutRoute)
     ├── createProductsRoutes(layoutRoute)
-    └── createCatalogsRoutes(layoutRoute)
+    ├── createCategoriesRoutes(layoutRoute)
+    ├── createBrandsRoutes(layoutRoute)
+    ├── createUomRoutes(layoutRoute)
+    ├── createAttributesRoutes(layoutRoute)
+    └── createLocationRoutes(layoutRoute)
 ```
 
 **Route factory pattern (for modal routes):**
@@ -352,13 +358,13 @@ All colors use `light-dark()` for automatic dark mode. Reference via TailwindCSS
 
 ## 7. Settings Module Pattern
 
-Settings uses a sidebar layout (`SettingsPage`) with child routes rendered via `<Outlet />`.
+Settings has been focused and simplified to primarily manage `warehouses`. Former settings child components like `brands`, `uoms` (`uom`), `attributes` and `locations` have been refactored into fully standalone top-level modules (e.g. `/brands`, `/uom`, `/attributes`, `/locations`) to improve chunking, clean up routing trees, and support dedicated `DataTable` integration.
 
 ### 7.1 SettingsTable<T>
-Generic table component for all settings lists. Eliminates boilerplate.
+Generic table component for simple configuration lists (e.g., warehouses) to eliminate boilerplate.
 ```tsx
-<SettingsTable<BrandItem>
-    title="Marcas"
+<SettingsTable<WarehouseItem>
+    title="Bodegas"
     data={query.data}
     isLoading={query.isPending}
     columns={[{ key: 'name', label: 'Nombre', render: (item) => item.name }]}
@@ -386,8 +392,10 @@ data/
 
 | Domain | Tables File | Key Tables |
 |--------|-------------|------------|
-| Config | `config.ts` | `companies`, `sriEstablishments`, `sriCertificates`, `uom`, `brands`, `categories`, `attributeDefinitions`, `categoryAttributes`, `productFamilies` |
-| Auth | `auth.ts` | `authUsers`, `authRoles`, `authPermissions`, `sessions`, `authMenuItems` |
+| Config | `config.ts` | `companies`, `sriEstablishments`, `sriCertificates`, `uom` |
+| Catalogs | `catalogs.ts` | `brands`, `categories`, `attributeDefinitions`, `categoryAttributes` |
+| SRI Lookup | `sri.ts` | `sriProduccion` (Ecuador RUC search database) |
+| Auth | `auth.ts` | `authUsers`, `authRoles`, `authPermissions`, `authRolePermissions`, `authUserRoles`, `sessions`, `authMenuItems` |
 | Entities | `entities.ts` | `entities`, `entityContacts`, `entityAddresses`, `employeeDetails`, `carrierVehicles`, `carrierDrivers` |
 | Products | `products.ts` | `products`, `productVariants`, `productComponents`, `productUomConversions`, `variantPriceHistory` |
 | Inventory | `inventory.ts` | `warehouses`, `warehouseLocations`, `inventoryStock` (with `quantity_reserved`), `inventoryDimensionalItems`, `inventoryMovements` |
@@ -407,6 +415,7 @@ data/
 - **Inventory**: `warehouses` → `warehouseLocations` (hierarchical via `ltree` for `path`). `inventoryStock` includes `quantity_reserved` for availability calculation.
 - **Movements**: Double-entry with `source_location_id` / `destination_location_id`.
 - **SRI Documents**: `electronicDocuments` (parent) → child tables per type: `invoices`, `creditNotes`, `debitNotes`, `purchaseLiquidations`, `withholdingReceipts`, `remissionGuides`.
+- **Note on Product Families**: The `productFamilies` table has been deprecated/removed from schemas and backend services. Product classifications are handled directly via Category structure and custom Attributes.
 
 ---
 
@@ -645,7 +654,7 @@ PermissionSlug = `${RbacModule}.${RbacAction}`
 Examples: 'suppliers.create', 'invoices.read', 'users.delete'
 ```
 
-**Modules**: `dashboard`, `crm`, `clients`, `visits`, `budgets`, `invoices`, `products`, `services`, `categories`, `brands`, `families`, `uom`, `attributes`, `inventory`, `movements`, `orders`, `locations`, `reception_materials`, `remission_guides`, `operations`, `work_orders`, `schedule`, `projects`, `production`, `planning`, `bom`, `dispatch_requests`, `materials`, `quality`, `suppliers`, `purchase_quotes`, `purchase_orders`, `purchase_invoices`, `retentions`, `pos_sell`, `pos_sessions`, `pos_history`, `documents`, `receivable`, `payable`, `hr`, `payroll`, `schedules`, `hours`, `system`, `config`, `users`, `audit`, `roles`, `permissions`, `manufacturing`, `pos`, `menu`, `companies`, `stock_taking`
+**Modules**: `dashboard`, `crm`, `clients`, `visits`, `budgets`, `invoices`, `products`, `services`, `categories`, `brands`, `uom`, `attributes`, `inventory`, `movements`, `orders`, `locations`, `reception_materials`, `remission_guides`, `operations`, `work_orders`, `schedule`, `projects`, `production`, `planning`, `bom`, `dispatch_requests`, `materials`, `quality`, `suppliers`, `purchase_quotes`, `purchase_orders`, `purchase_invoices`, `retentions`, `pos_sell`, `pos_sessions`, `pos_history`, `documents`, `receivable`, `payable`, `hr`, `payroll`, `schedules`, `hours`, `system`, `config`, `users`, `audit`, `roles`, `permissions`, `manufacturing`, `pos`, `menu`, `companies`, `stock_taking`
 
 **Actions** (10): `read`, `create`, `update`, `delete`, `restore`, `destroy`, `export`, `import`, `assign`, `unassign`
 
@@ -824,28 +833,36 @@ All enums defined in `packages/schema/src/enums.ts` as `const` arrays with deriv
 | Category | Enum Name | Values |
 |----------|-----------|--------|
 | **Entity** | `TAX_ID_TYPES` | RUC, CEDULA, PASAPORTE, CONSUMIDOR_FINAL, EXTERIOR |
+| | `TAX_ID_TYPES_FORM` | RUC, CEDULA, PASAPORTE, EXTERIOR |
 | | `PERSON_TYPES` | NATURAL, JURIDICA |
 | | `TAX_REGIME_TYPES` | RIMPE_NEGOCIO_POPULAR, RIMPE_EMPRENDEDOR, GENERAL |
-| **Document** | `DOCUMENT_TYPES` | INVOICE, CREDIT_NOTE, DEBIT_NOTE, REMISSION_GUIDE, PURCHASE_LIQUIDATION |
+| **Document** | `DOCUMENT_TYPES` | INVOICE, CREDIT_NOTE, DEBIT_NOTE, REMISSION_GUIDE, PURCHASE_LIQUIDATION, WITHHOLDING |
 | | `INVOICE_STATUSES` | DRAFT, SIGNED, SENDING, AUTHORIZED, ANNULLED, REJECTED |
 | | `QUOTATION_STATUSES` | DRAFT, SENT, APPROVED, REJECTED, CONVERTED_TO_WO |
+| | `PAYMENT_STATUSES` | PENDING, PARTIAL, PAID, OVERDUE, WRITTEN_OFF |
 | **Production** | `PRODUCTION_STATUSES` | PLANNED, IN_CUTTING, ASSEMBLY, COMPLETED, CANCELLED |
 | | `WORK_ORDER_STATUSES` | DRAFT, APPROVED, IN_PROGRESS, COMPLETED, INVOICED |
 | | `MATERIAL_REQUEST_STATUSES` | PENDING, APPROVED, IN_TRANSIT, RECEIVED, COMPLETED |
 | **Inventory** | `LOCATION_TYPES` | VIEW, INTERNAL |
 | | `CONDITIONS` | GOOD, DAMAGED, UNUSABLE |
 | | `MOVEMENT_TYPES` | PURCHASE, SALE, PRODUCTION_CONSUMPTION, PRODUCTION_OUTPUT, ADJUSTMENT, TRANSFER_OUT, TRANSFER_IN |
+| | `MOVEMENT_REFERENCE_TYPES` | INVOICE, PURCHASE_ORDER, MANUFACTURING_ORDER, MATERIAL_REQUEST, ADJUSTMENT, POS_SALE, RETURN |
 | | `UOM_GROUPS` | VOLUMEN, LONGITUD, PESO, AREA, CANTIDAD, TIEMPO, DATA |
 | **Product** | `PRODUCT_TYPES` | PRODUCTO, SERVICIO |
 | | `PRODUCT_SUBTYPES` | SIMPLE, COMPUESTO, FABRICADO |
 | | `ATTRIBUTE_DATA_TYPES` | TEXT, NUMBER, SELECT, BOOLEAN |
-| | `IVA_RATE_CODES` | 0 (0%), 2 (12%), 4 (15%) — Ecuador SRI |
+| | `IVA_RATE_CODES` | 0 (0%), 2 (12%), 3 (14%), 4 (15%), 6 (No objeto), 7 (Exento) — Ecuador SRI |
 | **Purchase** | `PURCHASE_ORDER_STATUSES` | DRAFT, SENT, PARTIAL, RECEIVED, CANCELLED |
+| | `PURCHASE_QUOTE_STATUSES` | DRAFT, SENT, APPROVED, REJECTED, CONVERTED_TO_PO |
 | **Other** | `BOM_CALCULATION_TYPES` | FIXED, AREA, PERIMETER, VOLUMEN |
 | | `TECHNICAL_VISIT_STATUSES` | SCHEDULED, COMPLETED, CANCELLED |
 | | `POS_SESSION_STATUSES` | OPEN, CLOSED, RECONCILED |
-| | `PAYMENT_METHODS_SRI` | 01, 16, 19, 20 |
+| | `PAYMENT_METHODS_SRI` | 01, 15, 16, 17, 18, 19, 20, 21 |
 | | `JUSTIFICATION_TYPES` | LIBRE, FALTA, IESS, VACACIONES, FERIADO, SAB, DOM |
+| | `PRICE_CHANGE_TYPES` | COST, SALE |
+| | `PRICE_CHANGE_SOURCES` | PURCHASE_ORDER, GOODS_RECEIPT, MANUAL, IMPORT |
+| | `BUSINESS_TYPES` | COMERCIO, OPTICA, CLINICA, TURISMO, MANUFACTURA, CONSTRUCCION, IMPORTADORA |
+| | `SAAS_PLANS` | free, starter, pro, enterprise |
 
 ---
 
@@ -871,7 +888,7 @@ return {
 
 ### 22.2 Simple List (Default for config entities)
 ```ts
-// Used by: brands, families, uom, warehouses, categories
+// Used by: brands, uom, warehouses, categories
 const result = await db.select().from(table).orderBy(table.name);
 return result;
 ```

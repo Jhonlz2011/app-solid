@@ -147,7 +147,7 @@ export const DataTableColumnFilter: Component<DataTableColumnFilterProps> = (pro
                         placeholder={props.title}
                         value={filterSearch()}
                         onInput={(e) => setFilterSearch(e.currentTarget.value)}
-                        class="flex-1 bg-transparent text-sm text-text placeholder:text-muted outline-none"
+                        class="flex-1 bg-transparent text-sm text-text placeholder:text-muted outline-none focus-visible:shadow-none"
                         autofocus
                     />
                 </div>

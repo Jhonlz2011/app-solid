@@ -1,14 +1,9 @@
 /**
- * CategoryTable — DataTable de TanStack con agrupamiento jerárquico basado en parent_id.
+ * CategoryTable — Tree DataTable with DnD reparenting, column pinning, row selection.
  *
- * Usa `getExpandedRowModel` + `getSubRows` de TanStack Table para manejar
- * el expand/collapse nativo por nodo padre.
- * 
- * Features:
- * - Drag & Drop con @thisbeyond/solid-dnd para reparentar categorías
- * - Auto-scroll durante drag hacia los bordes del contenedor
- * - Auto-expand de carpetas al hovear durante drag
- * - Root dropzone para mover a nivel raíz
+ * Uses shared `useTreeDnD` hook for all DnD logic (auto-scroll, hierarchy validation,
+ * expand-on-hover, cursor management). Module-specific: column definitions, overlay rendering,
+ * row styling, and the reparent mutation.
  */
 import {
     createSignal,
@@ -27,15 +22,19 @@ import {
     createDraggable,
     createDroppable,
     mostIntersecting,
-    type DragEvent,
+    useDragDropContext,
+    type CollisionDetector,
 } from '@thisbeyond/solid-dnd';
 import {
     createSolidTable,
     flexRender,
     getCoreRowModel,
     getExpandedRowModel,
+    getSortedRowModel,
     type Row,
-    type ExpandedState,
+    type RowSelectionState,
+    type ColumnPinningState,
+    type SortingState,
 } from '@tanstack/solid-table';
 import { toast } from 'solid-sonner';
 import {
@@ -49,499 +48,402 @@ import {
 import { Skeleton } from '@shared/ui/Skeleton';
 import { EmptyState } from '@shared/ui/EmptyState';
 import Button from '@shared/ui/Button';
-import { FolderIcon, GripVerticalIcon, Expand, Collapse } from '@shared/ui/icons';
+import { FolderIcon, GripVerticalIcon, Expand, Collapse, ArrowUpIcon } from '@shared/ui/icons';
 import { cn } from '@shared/lib/utils';
+import { useTreeDnD, buildSubRows } from '@shared/hooks/useTreeDnD';
+import { getHeaderPinningStyles, getCellPinningStyles } from '@shared/utils/column-pinning';
 import type { CategoryNode } from '../data/categories.api';
-
-import { useCategoriesFlat } from '../data/categories.queries';
-import {
-    useDeactivateCategory,
-    useRestoreCategory,
-    useUpdateCategory,
-    useReorderCategories
-} from '../data/categories.mutations';
-
-import { createCategoryColumns } from './CategoryColumns';
+import { createCategoryColumns, type CategoryColumnHandlers } from '../data/categories.columns';
+import { useReparentCategory } from '../data/categories.mutations';
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 interface CategoryTableProps {
+    data: CategoryNode[];
+    rawData: CategoryNode[];
+    isLoading: boolean;
     onEdit: (id: number) => void;
     onAddChild: (parentId: number) => void;
+    onDelete: (id: number) => void;
+    onRestore: (id: number) => void;
+    rowSelection: RowSelectionState;
+    onRowSelectionChange: (updater: RowSelectionState | ((prev: RowSelectionState) => RowSelectionState)) => void;
+    onTableReady?: (table: any) => void;
+    filters?: CategoryColumnHandlers['filters'];
 }
 
-const RootDropzoneToolbar: Component<{
-    active: boolean;
-    totalCount: number;
-    toggleAllRowsExpanded: (val: boolean) => void;
-}> = (props) => {
+
+
+// ─── Root Dropzone (Absolute Floating Overlay) ───────────────────────────────
+
+const RootDropzone: Component<{ active: boolean }> = (props) => {
     const rootDroppable = createDroppable('root-dropzone');
 
     return (
         <div
             ref={rootDroppable.ref}
             class={cn(
-                "px-4 py-3 border-b flex items-center justify-between flex-shrink-0 min-h-[58px] relative overflow-hidden",
-                props.active
-                    ? (rootDroppable.isActiveDroppable 
-                        ? "border-primary bg-primary/20 border-b-2 shadow-inner ring-inset ring-2 ring-primary/50" 
-                        : "border-primary/40 bg-primary/5 border-b-2")
-                    : "border-border bg-surface/30"
+                "absolute top-0 left-1/2 -translate-x-1/2 z-50 w-full h-12 transition-all duration-300",
+                props.active 
+                    ? "opacity-100 visible pointer-events-auto" 
+                    : "opacity-0 invisible pointer-events-none"
             )}
         >
-            <Show when={props.active} fallback={
-                <div class="flex items-center justify-between w-full opacity-100 animate-in fade-in">
-                    <div class="flex items-center gap-3">
-                        <div class="p-1.5 bg-card border border-border/50 rounded-lg shadow-sm">
-                            <FolderIcon class="size-4 text-amber-500" />
-                        </div>
-                        <span class="text-sm font-semibold text-text">
-                            Jerarquía de Categorías
-                        </span>
-                        <div class="px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary text-xs font-bold rounded-full tabular-nums">
-                            {props.totalCount} items
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => props.toggleAllRowsExpanded(true)} 
-                            title="Expandir todas las carpetas"
-                            class="h-8 text-xs text-muted hover:text-text"
-                            icon={<Expand />}
-                        >
-                            Expandir todo
-                        </Button>
-                        <span class="text-border text-lg font-light leading-none mb-1">|</span>
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => props.toggleAllRowsExpanded(false)} 
-                            title="Colapsar todas las carpetas"
-                            class="h-8 text-xs text-muted hover:text-text"
-                            icon={<Collapse />}
-                        >
-                            Colapsar todo
-                        </Button>
-                    </div>
-                </div>
-            }>
-                <div class="flex w-full items-center justify-center gap-3 animate-in fade-in zoom-in-95 duration-200">
-                    <FolderIcon class={cn(
-                        "size-5 ", 
-                        rootDroppable.isActiveDroppable ? "text-primary scale-125" : "text-primary/60"
-                    )} />
+            <div
+                class={cn(
+                    "w-full h-full rounded-t-2xl flex items-center justify-center gap-3.5 px-4 transition-all duration-300 ease-out transform pointer-events-auto relative",
+                    "backdrop-blur-xl border-b",
+                    props.active
+                        ? "translate-y-0 opacity-100"
+                        : "-translate-y-2 opacity-0",
+                    rootDroppable.isActiveDroppable
+                        ? "bg-linear-to-r from-primary/8 via-primary/[0.14] to-primary/8 border-primary text-primary shadow-[inset_0_-12px_32px_rgba(99,102,241,0.08),0_4px_24px_rgba(99,102,241,0.12)]"
+                        : "bg-surface/90 border-primary/15 text-muted-foreground hover:border-primary/35 animate-dropzone-pulse"
+                )}
+            >
+                <div class="flex items-center gap-2.5 min-w-0 max-w-full justify-center">
                     <span class={cn(
-                        "text-sm font-bold tracking-wide transition-colors duration-300",
-                        rootDroppable.isActiveDroppable ? "text-primary" : "text-primary/80"
+                        "px-2 py-0.5 rounded-md text-[9px] font-extrabold tracking-wider uppercase shrink-0 transition-all duration-300",
+                        rootDroppable.isActiveDroppable
+                            ? "bg-primary/20 border border-primary/40 text-primary shadow-sm"
+                            : "bg-primary/10 border border-primary/20 text-primary"
+                    )}>
+                        Raíz
+                    </span>
+                    <span class={cn(
+                        "text-xs font-semibold truncate transition-colors duration-200 tracking-wide",
+                        rootDroppable.isActiveDroppable 
+                            ? "text-primary font-bold drop-shadow-[0_0_8px_rgba(99,102,241,0.2)]" 
+                            : "text-foreground/90"
                     )}>
                         {rootDroppable.isActiveDroppable
-                            ? "¡Suelta aquí para Mover a Nivel Principal (Raíz)!"
-                            : "Arrastra la categoría hasta aquí para desligarla de su elemento Padre"}
+                            ? "¡Suelta para reubicar al nivel principal!"
+                            : "Arrastra hasta aquí para establecer como categoría de primer nivel"}
                     </span>
                 </div>
-            </Show>
+            </div>
         </div>
     );
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── DnD Active Scroll Handler Helper ────────────────────────────────────────
 
-/** Builds the hierarchical structure TanStack Table expects via `subRows`. */
-function buildSubRows(flat: CategoryNode[]): CategoryNode[] {
-    const map = new Map<number, CategoryNode & { subRows?: CategoryNode[] }>();
-    const roots: (CategoryNode & { subRows?: CategoryNode[] })[] = [];
-
-    // First pass: index every node
-    flat.forEach((n) => map.set(n.id, { ...n, subRows: [] }));
-
-    // Second pass: wire children
-    flat.forEach((n) => {
-        const node = map.get(n.id)!;
-        if (n.parent_id) {
-            const parent = map.get(n.parent_id);
-            if (parent) {
-                parent.subRows = parent.subRows ?? [];
-                parent.subRows.push(node);
-                return;
-            }
+const DndScrollHandler: Component<{
+    scrollContainer: () => HTMLDivElement | undefined;
+    active: () => boolean;
+}> = (props) => {
+    const dndContext = useDragDropContext();
+    
+    createEffect(() => {
+        const container = props.scrollContainer();
+        const isActive = props.active();
+        if (container && isActive && dndContext) {
+            const [, actions] = dndContext;
+            let ticking = false;
+            
+            const handleScroll = () => {
+                if (!ticking) {
+                    window.requestAnimationFrame(() => {
+                        actions.recomputeLayouts();
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            };
+            
+            container.addEventListener('scroll', handleScroll, { passive: true });
+            onCleanup(() => container.removeEventListener('scroll', handleScroll));
         }
-        roots.push(node);
     });
-
-    return roots as CategoryNode[];
-}
-
-/** Memoized lookup map for O(1) performance in hierarchy validation. */
-function buildHierarchyMap(flat: CategoryNode[]) {
-    return new Map(flat.map((n) => [n.id, n.parent_id]));
-}
-
-// ─── Auto-Scroll Constants ─────────────────────────────────────────────────
-const SCROLL_ZONE_PX = 70;  // Distance from edge to trigger scroll
-const SCROLL_SPEED = 10;    // Pixels per frame at max speed
+    
+    return null;
+};
 
 // ─── CategoryTable Component ──────────────────────────────────────────────────
 
 const CategoryTable: Component<CategoryTableProps> = (props) => {
-    const query = useCategoriesFlat();
-    const deactivate = useDeactivateCategory();
-    const restore = useRestoreCategory();
-    const updateCategory = useUpdateCategory();
-
-    const [expanded, setExpanded] = createSignal<ExpandedState>({});
-    const [activeItem, setActiveItem] = createSignal<number | null>(null);
-    let expandTimeout: ReturnType<typeof setTimeout> | null = null;
+    const reparentMut = useReparentCategory();
     let scrollContainerRef: HTMLDivElement | undefined;
-    let scrollRAF: number | null = null;
 
-    // ── Auto-scroll logic ──
-    const startAutoScroll = () => {
-        const handlePointerMove = (e: PointerEvent) => {
-            if (!scrollContainerRef || activeItem() === null) return;
-            
-            const rect = scrollContainerRef.getBoundingClientRect();
-            const y = e.clientY - rect.top;
+    // ── Shared DnD hook ──
+    const dnd = useTreeDnD<CategoryNode>({
+        rawData: () => props.rawData,
+        tableRef: () => table,
+        onReparent: (sourceId, targetParentId) => {
+            reparentMut.mutate(
+                { id: sourceId, parentId: targetParentId },
+                {
+                    onSuccess: () => toast.success(targetParentId === null ? 'Categoría movida a la raíz' : 'Categoría reubicada correctamente'),
+                    onError: (e: Error) => toast.error(e?.message ?? 'Error al reubicar categoría'),
+                },
+            );
+        },
+        circularErrorMessage: 'Acción inválida: No puedes mover un grupo dentro de sus propios subgrupos.',
+    });
 
-            // Cancel any pending RAF
-            if (scrollRAF !== null) {
-                cancelAnimationFrame(scrollRAF);
-                scrollRAF = null;
-            }
+    // Track pointer coordinates for custom collision detection
+    let currentPointerX = 0;
+    let currentPointerY = 0;
 
-            if (y < SCROLL_ZONE_PX) {
-                // Near top edge → scroll up
-                const intensity = 1 - (y / SCROLL_ZONE_PX); // 0..1
-                const speed = Math.ceil(SCROLL_SPEED * intensity);
-                const doScroll = () => {
-                    if (!scrollContainerRef || activeItem() === null) return;
-                    scrollContainerRef.scrollTop -= speed;
-                    scrollRAF = requestAnimationFrame(doScroll);
-                };
-                scrollRAF = requestAnimationFrame(doScroll);
-            } else if (y > rect.height - SCROLL_ZONE_PX) {
-                // Near bottom edge → scroll down
-                const intensity = 1 - ((rect.height - y) / SCROLL_ZONE_PX); // 0..1
-                const speed = Math.ceil(SCROLL_SPEED * intensity);
-                const doScroll = () => {
-                    if (!scrollContainerRef || activeItem() === null) return;
-                    scrollContainerRef.scrollTop += speed;
-                    scrollRAF = requestAnimationFrame(doScroll);
-                };
-                scrollRAF = requestAnimationFrame(doScroll);
-            }
-        };
-
-        document.addEventListener('pointermove', handlePointerMove);
-        return () => {
-            document.removeEventListener('pointermove', handlePointerMove);
-            if (scrollRAF !== null) {
-                cancelAnimationFrame(scrollRAF);
-                scrollRAF = null;
-            }
-        };
-    };
-
-    const handleDragStart = (event: DragEvent) => {
-        setActiveItem(Number(event.draggable.id));
-    };
-
-    // Wire up/tear down auto-scroll when drag starts/ends
-    let cleanupAutoScroll: (() => void) | null = null;
     createEffect(() => {
-        if (activeItem() !== null) {
-            cleanupAutoScroll = startAutoScroll();
-        } else {
-            cleanupAutoScroll?.();
-            cleanupAutoScroll = null;
-        }
-    });
-
-    onCleanup(() => {
-        cleanupAutoScroll?.();
-    });
-
-    const handleDragOver = (event: DragEvent) => {
-        const { droppable } = event;
-        
-        if (expandTimeout) {
-            clearTimeout(expandTimeout);
-            expandTimeout = null;
-        }
-
-        if (!droppable || droppable.id === 'root-dropzone') {
-            return;
-        }
-
-        const targetId = String(droppable.id);
-
-        const activeId = activeItem();
-        if (activeId !== null) {
-            const hierarchyMap = buildHierarchyMap(query.data ?? []);
-            
-            const isDescendant = (childId: number | null, parentId: number): boolean => {
-                if (childId === null) return false;
-                if (childId === parentId) return true;
-                const parentOfChild = hierarchyMap.get(childId);
-                if (parentOfChild === undefined) return false;
-                return isDescendant(parentOfChild, parentId);
+        if (dnd.activeItem() !== null) {
+            const handlePointerMove = (e: PointerEvent) => {
+                currentPointerX = e.clientX;
+                currentPointerY = e.clientY;
             };
-
-            // No interactuar ni expandir si es descendiente del elemento que estamos arrastrando
-            if (isDescendant(Number(targetId), activeId)) {
-                return;
-            }
-        }
-        
-        expandTimeout = setTimeout(() => {
-            try {
-                const row = table.getRow(targetId);
-                // Si la fila puede expandirse (es una carpeta) y no lo está
-                if (row && row.getCanExpand() && !row.getIsExpanded()) {
-                    setExpanded((prev: ExpandedState) => 
-                        prev === true ? true : { ...prev, [targetId]: true }
-                    );
+            const handleTouchMove = (e: TouchEvent) => {
+                if (e.touches.length > 0) {
+                    currentPointerX = e.touches[0].clientX;
+                    currentPointerY = e.touches[0].clientY;
                 }
-            } catch {
-                // Ignore silent errors
-            }
-        }, 700); // 700ms estable
-    };
-
-    const handleDragEnd = (event: DragEvent) => {
-        setActiveItem(null);
-        if (expandTimeout) clearTimeout(expandTimeout);
-        const { draggable, droppable } = event;
-
-        if (!draggable || !droppable) return;
-
-        const sourceId = Number(draggable.id);
-        // Custom identifier for "root" dropzone
-        const targetId = droppable.id === 'root-dropzone' ? null : Number(droppable.id);
-
-        if (sourceId === targetId) return;
-
-        // O(1) Validation: Prevent circular dependencies (dropping a parent inside its own descendant)
-        const hierarchyMap = buildHierarchyMap(query.data ?? []);
-        
-        const isDescendant = (childId: number | null, parentId: number): boolean => {
-            if (childId === null) return false;
-            if (childId === parentId) return true;
-            const parentOfChild = hierarchyMap.get(childId);
-            if (parentOfChild === undefined) return false;
-            return isDescendant(parentOfChild, parentId);
-        };
-
-        if (isDescendant(targetId, sourceId)) {
-            toast.error('Acción inválida: No puedes mover un grupo dentro de sus propios subgrupos.');
-            return;
-        }
-
-        // Prevent redundant drops on same parent
-        const currentParentId = hierarchyMap.get(sourceId) ?? null;
-        if (currentParentId === targetId) return;
-
-        updateCategory.mutate({
-            id: sourceId,
-            data: { parentId: targetId }
-        }, {
-            onSuccess: () => toast.success(targetId === null ? 'Categoría movida a la raíz' : 'Categoría reubicada correctamente'),
-            onError: (e: Error) => toast.error(e?.message ?? 'Error al reubicar categoría'),
-        });
-    };
-
-    const handleDelete = (id: number) => {
-        deactivate.mutate(id, {
-            onSuccess: () => toast.success('Categoría desactivada'),
-            onError: (e: Error) => toast.error(e?.message ?? 'Error al desactivar'),
-        });
-    };
-
-    const handleRestore = (id: number) => {
-        restore.mutate(id, {
-            onSuccess: () => toast.success('Categoría restaurada'),
-            onError: (e: Error) => toast.error(e?.message ?? 'Error al restaurar'),
-        });
-    };
-
-    // Enforce global grabbing cursor to override hover states during drag
-    createEffect(() => {
-        if (activeItem() !== null) {
-            document.body.style.setProperty('cursor', 'grabbing', 'important');
-        } else {
-            document.body.style.removeProperty('cursor');
+            };
+            
+            window.addEventListener('pointermove', handlePointerMove, { passive: true });
+            window.addEventListener('touchmove', handleTouchMove, { passive: true });
+            onCleanup(() => {
+                window.removeEventListener('pointermove', handlePointerMove);
+                window.removeEventListener('touchmove', handleTouchMove);
+                currentPointerX = 0;
+                currentPointerY = 0;
+            });
         }
     });
 
-    onCleanup(() => {
-        document.body.style.removeProperty('cursor');
+    // Custom collision detector prioritizing root dropzone
+    const customCollisionDetector: CollisionDetector = (draggable, droppables, context) => {
+        const rootDropzone = droppables.find((d) => d.id === 'root-dropzone');
+        
+        if (rootDropzone && rootDropzone.layout) {
+            const rootLayout = rootDropzone.layout;
+            const currentY = currentPointerY > 0 ? currentPointerY : (draggable.transformed?.center.y ?? 0);
+            const currentX = currentPointerX > 0 ? currentPointerX : (draggable.transformed?.center.x ?? 0);
+            
+            const isOverRootDropzone = currentY >= rootLayout.top - 15 && currentY <= rootLayout.bottom + 25;
+            
+            if (isOverRootDropzone) {
+                const isWithinX = currentX >= rootLayout.left - 10 && currentX <= rootLayout.right + 10;
+                if (isWithinX) {
+                    return rootDropzone;
+                }
+            }
+        }
+        
+        return mostIntersecting(draggable, droppables, context);
+    };
+
+    // ── Column pinning ──
+    const [columnPinning] = createSignal<ColumnPinningState>({
+        left: ['select'],
+        right: ['actions'],
     });
 
     const columns = createCategoryColumns({
         onEdit: props.onEdit,
         onAddChild: props.onAddChild,
-        onDelete: handleDelete,
-        onRestore: handleRestore,
+        onDelete: props.onDelete,
+        onRestore: props.onRestore,
+        filters: props.filters,
     });
 
-    // Build hierarchical rows from flat list
-    const hierarchicalData = createMemo(() =>
-        buildSubRows(query.data ?? [])
-    );
+    // Build hierarchical rows from flat filtered list
+    const hierarchicalData = createMemo(() => buildSubRows(props.data));
+    const totalCount = createMemo(() => props.data.length);
 
-    const totalCount = createMemo(() => (query.data ?? []).length);
+    const [sorting, setSorting] = createSignal<SortingState>([]);
 
     const table = createSolidTable({
         get data() { return hierarchicalData(); },
         columns,
         state: {
-            get expanded() { return expanded(); },
+            get expanded() { return dnd.expanded(); },
+            get rowSelection() { return props.rowSelection; },
+            get columnPinning() { return columnPinning(); },
+            get sorting() { return sorting(); },
         },
         onExpandedChange: (updater) =>
-            setExpanded((prev) =>
-                typeof updater === 'function' ? updater(prev) : updater
-            ),
+            dnd.setExpanded(typeof updater === 'function' ? updater(dnd.expanded()) : updater),
+        onRowSelectionChange: (updater) => {
+            const newVal = typeof updater === 'function' ? updater(props.rowSelection) : updater;
+            props.onRowSelectionChange(newVal);
+        },
+        onSortingChange: setSorting,
+        enableColumnPinning: true,
+        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
+        getSortedRowModel: getSortedRowModel(),
         getSubRows: (row) => (row as CategoryNode & { subRows?: CategoryNode[] }).subRows,
         getRowId: (row) => String(row.id),
-        // Expand all by default on first load
         autoResetExpanded: false,
     });
 
-    // Flatten expanded rows for rendering, wrapped in evaluate-once Memo
-    // This allows SolidJS reactivity graph to only trigger updates when TanStack returns new rows.
+    // Notify parent of table instance
+    createEffect(() => {
+        props.onTableReady?.(table);
+    });
+
     const rows = createMemo(() => table.getRowModel().rows);
 
     return (
         <DragDropProvider
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-            collisionDetector={mostIntersecting}
+            onDragStart={dnd.handleDragStart}
+            onDragOver={dnd.handleDragOver}
+            onDragEnd={dnd.handleDragEnd}
+            collisionDetector={customCollisionDetector}
         >
-        <DragDropSensors />
-        <div class="bg-card border border-border rounded-2xl shadow-card-soft overflow-hidden flex flex-col h-full relative">
-            {/* Custom Toolbar Dropzone */}
-            <RootDropzoneToolbar
-                active={activeItem() !== null}
-                totalCount={totalCount()}
-                toggleAllRowsExpanded={table.toggleAllRowsExpanded}
+            <DragDropSensors />
+            <DndScrollHandler
+                scrollContainer={() => scrollContainerRef}
+                active={() => dnd.activeItem() !== null}
             />
+            <div class="bg-card border border-border rounded-2xl shadow-card-soft overflow-hidden flex flex-col h-full relative">
 
-            {/* Table with scroll container ref for auto-scroll */}
-            <div class="flex-1 overflow-auto" ref={scrollContainerRef}>
-                <TableRoot>
-                    <TableHeader class="sticky top-0 z-[20] bg-card">
-                        <For each={table.getHeaderGroups()}>
-                            {(headerGroup) => (
-                                <TableRow>
-                                    <For each={headerGroup.headers}>
-                                        {(header) => (
-                                            <TableHead
-                                                class="text-xs tracking-wider text-muted font-semibold"
-                                                style={{ width: `${header.getSize()}px` }}
-                                            >
-                                                <Show when={!header.isPlaceholder}>
-                                                    {flexRender(
-                                                        header.column.columnDef.header,
-                                                        header.getContext(),
-                                                    )}
-                                                </Show>
-                                            </TableHead>
+                {/* Table with scroll */}
+                <div class="flex-1 overflow-auto" ref={(el) => { scrollContainerRef = el; dnd.setScrollContainerRef(el); }}>
+                    <TableRoot>
+                        <TableHeader class="sticky top-0 z-20 bg-card">
+                            <For each={table.getHeaderGroups()}>
+                                {(headerGroup) => (
+                                    <TableRow>
+                                        <For each={headerGroup.headers}>
+                                            {(header) => {
+                                                const { className: pinClasses, style: pinStyles } = getHeaderPinningStyles(header.column);
+                                                return (
+                                                    <TableHead
+                                                        class={cn(
+                                                            "text-xs tracking-wider text-muted font-semibold",
+                                                            pinClasses,
+                                                        )}
+                                                        style={pinStyles}
+                                                    >
+                                                        <Show when={!header.isPlaceholder}>
+                                                            {flexRender(
+                                                                header.column.columnDef.header,
+                                                                header.getContext(),
+                                                            )}
+                                                        </Show>
+                                                    </TableHead>
+                                                );
+                                            }}
+                                        </For>
+                                    </TableRow>
+                                )}
+                            </For>
+                        </TableHeader>
+
+                        <TableBody>
+                            {/* Loading skeleton */}
+                            <Show
+                                when={!props.isLoading}
+                                fallback={
+                                    <For each={Array(6).fill(0)}>
+                                        {() => (
+                                            <TableRow class="hover:bg-transparent">
+                                                <For each={table.getVisibleLeafColumns()}>
+                                                    {(col) => {
+                                                        const { className: pinClasses, style: pinStyles } = getCellPinningStyles(col);
+                                                        return (
+                                                            <TableCell
+                                                                class={cn(col.getIsPinned() && cn(pinClasses, 'bg-card'))}
+                                                                style={pinStyles}
+                                                            >
+                                                                <Skeleton class="h-5 w-full rounded-md" />
+                                                            </TableCell>
+                                                        );
+                                                    }}
+                                                </For>
+                                            </TableRow>
                                         )}
                                     </For>
-                                </TableRow>
-                            )}
-                        </For>
-                    </TableHeader>
-
-                    <TableBody>
-                        {/* Loading skeleton */}
-                        <Show
-                            when={!query.isPending}
-                            fallback={
-                                <For each={Array(6).fill(0)}>
-                                    {() => (
-                                        <TableRow class="hover:bg-transparent">
-                                            <For each={columns}>
-                                                {() => (
-                                                    <TableCell>
-                                                        <Skeleton class="h-5 w-full rounded-md" />
-                                                    </TableCell>
-                                                )}
-                                            </For>
-                                        </TableRow>
-                                    )}
-                                </For>
-                            }
-                        >
-                            {/* Empty state */}
-                            <Show
-                                when={rows().length > 0}
-                                fallback={
-                                    <TableRow>
-                                        <TableCell colSpan={columns.length} class="h-48">
-                                            <EmptyState
-                                                icon={<FolderIcon class="size-8" />}
-                                                message="No hay categorías"
-                                                description="Crea una nueva categoría para comenzar"
-                                            />
-                                        </TableCell>
-                                    </TableRow>
                                 }
                             >
-                                <For each={rows()}>
-                                    {(row) => <CategoryRow row={row} onEdit={props.onEdit} />}
-                                </For>
+                                {/* Empty state */}
+                                <Show
+                                    when={rows().length > 0}
+                                    fallback={
+                                        <TableRow>
+                                            <TableCell colSpan={table.getVisibleLeafColumns().length} class="h-48">
+                                                <EmptyState
+                                                    icon={<FolderIcon class="size-8" />}
+                                                    message="No hay categorías"
+                                                    description="Crea una nueva categoría para comenzar"
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    }
+                                >
+                                    <For each={rows()}>
+                                        {(row) => <CategoryRow row={row} onEdit={props.onEdit} isDragging={dnd.activeItem() !== null} />}
+                                    </For>
+                                </Show>
                             </Show>
-                        </Show>
-                    </TableBody>
-                </TableRoot>
-            </div>
-        </div>
+                        </TableBody>
+                    </TableRoot>
+                </div>
 
-        {/* Drag Overlay Premium - Libre pero pulido visualmente para sentirse nativo */}
-        <Portal>
-            <div class="fixed inset-0 pointer-events-none" style={{ "z-index": 2147483647 }}>
-                <DragOverlay style={{ "z-index": 2147483647 }}>
-                    <Show when={activeItem()}>
-                        {(id) => {
-                            const cat = query.data?.find(c => c.id === id());
-                            return cat ? (
-                                <div class="cursor-grabbing flex items-center gap-3 bg-card border border-primary/40 px-4 py-2.5 rounded-xl shadow-[0_15px_40px_-5px_rgba(0,0,0,0.2)] shrink-0 min-w-[280px] max-w-[400px] opacity-100 transform scale-105 pointer-events-none ring-1 ring-black/5 animate-in zoom-in-95 duration-100">
-                                    <div class="p-1.5 bg-surface rounded-md shrink-0">
-                                        <GripVerticalIcon class="size-5 text-primary" />
-                                    </div>
-                                    <FolderIcon class="size-5 text-amber-500 shrink-0" />
-                                    <div class="flex flex-col min-w-0">
-                                        <span class="text-[13px] font-semibold text-text truncate leading-tight">{cat.name}</span>
-                                    </div>
-                                </div>
-                            ) : null;
-                        }}
-                    </Show>
-                </DragOverlay>
+                {/* Root Dropzone — absolute floating overlay inside card */}
+                <RootDropzone active={dnd.activeItem() !== null} />
             </div>
-        </Portal>
-    </DragDropProvider>
+
+            {/* Drag Overlay — Glassmorphism */}
+            <Portal>
+                <div class="fixed inset-0 pointer-events-none" style={{ "z-index": 2147483647 }}>
+                    <DragOverlay style={{ "z-index": 2147483647 }}>
+                        <Show when={dnd.activeItem()}>
+                            {(id) => {
+                                const cat = props.rawData.find(c => c.id === id());
+                                const childCount = props.data.filter(c => c.parent_id === cat?.id).length;
+
+                                return cat ? (
+                                    <div class={cn(
+                                        "cursor-grabbing flex items-center gap-3 px-4 py-2 rounded-xl pointer-events-none",
+                                        "min-w-65 max-w-95",
+                                        "bg-card/95 backdrop-blur-xl",
+                                        "border border-primary/30",
+                                        "shadow-[0_20px_50px_-12px_rgba(0,0,0,0.25),0_0_15px_-3px_var(--color-primary-500,rgba(99,102,241,0.2))]",
+                                        "ring-1 ring-black/3",
+                                        "animate-in zoom-in-95 duration-150"
+                                    )}>
+                                        <div class="p-1 bg-surface/80 rounded-md shrink-0">
+                                            <GripVerticalIcon class="size-4 text-primary" />
+                                        </div>
+                                        <FolderIcon class="size-5 text-amber-500 shrink-0" />
+                                        <div class="flex flex-col min-w-0 gap-0.5">
+                                            <span class="text-[13px] font-semibold text-text truncate leading-tight">
+                                                {cat.name}
+                                            </span>
+                                            <Show when={childCount > 0}>
+                                                <span class="text-[10px] text-muted-foreground font-mono tabular-nums">
+                                                    {childCount} {childCount === 1 ? 'subgrupo' : 'subgrupos'}
+                                                </span>
+                                            </Show>
+                                        </div>
+                                    </div>
+                                ) : null;
+                            }}
+                        </Show>
+                    </DragOverlay>
+                </div>
+            </Portal>
+        </DragDropProvider>
     );
 };
 
-// ─── CategoryRow — Individual row with depth-aware styling ────────────────────
+// ─── CategoryRow — with DnD, depth-aware styling, column pinning ─────────────
 
 interface CategoryRowProps {
     row: Row<CategoryNode>;
     onEdit: (id: number) => void;
+    isDragging: boolean;
 }
 
 const CategoryRow: Component<CategoryRowProps> = (props) => {
     const isSelected = () => props.row.getIsSelected();
     const depth = () => props.row.depth;
 
-    const draggable = createDraggable(props.row.original.id, props.row.original);
-    const droppable = createDroppable(props.row.original.id, props.row.original);
+    const uniqueId = `${props.row.original.id}-${Math.random().toString(36).substring(2, 9)}`;
+    const draggable = createDraggable(uniqueId, props.row.original);
+    const droppable = createDroppable(uniqueId, props.row.original);
 
     return (
         <TableRow
@@ -550,53 +452,69 @@ const CategoryRow: Component<CategoryRowProps> = (props) => {
                 droppable.ref(el);
             }}
             class={cn(
-                'group relative transition-all duration-200',
+                'group relative',
                 isSelected()
-                    ? 'bg-row-selected hover:bg-row-selected-hover'
+                    ? 'row-selected bg-row-selected hover:bg-row-selected-hover'
                     : 'hover:bg-table-hover',
-                // Indentacion suave
-                depth() === 1 && 'bg-surface/10',
-                depth() >= 2 && 'bg-surface/30',
-
-                // Drop Target UI Premium: Linea lateral e indicador claro
-                droppable.isActiveDroppable && 'bg-primary/[0.08] shadow-[inset_3px_0_0_0_var(--color-primary-500)]',
-
-                // Ghost Row Origin UI: Fila arrastrada se atenua
-                draggable.isActiveDraggable && 'opacity-30 origin-center filter grayscale-[50%]'
+                depth() === 1 && !isSelected() && 'depth-1 bg-surface/10',
+                depth() >= 2 && !isSelected() && 'depth-2 bg-surface/30',
+                droppable.isActiveDroppable && 'dnd-row-droppable-active ring-1 ring-primary/30 ring-inset',
+                draggable.isActiveDraggable && 'dnd-row-draggable-active'
             )}
             onClick={() => props.onEdit(props.row.original.id)}
         >
             <For each={props.row.getVisibleCells()}>
-                {(cell) => (
-                    <TableCell
-                        class={cn(
-                            'bg-transparent',
-                            cell.column.id === 'actions' && 'cursor-default',
-                        )}
-                        onClick={(e) => {
-                            if (cell.column.id === 'actions') e.stopPropagation();
-                        }}
-                    >
-                        <Show
-                            when={cell.column.id === 'name'}
-                            fallback={flexRender(cell.column.columnDef.cell, cell.getContext())}
+                {(cell) => {
+                    const { className: pinClasses, style: pinStyles } = getCellPinningStyles(cell.column);
+                    const isPinned = () => cell.column.getIsPinned();
+
+                    return (
+                        <TableCell
+                            class={cn(
+                                'bg-transparent',
+                                (cell.column.id === 'actions' || cell.column.id === 'select' || cell.column.id === 'name') && 'cursor-default',
+                                isPinned() && cn(
+                                    pinClasses,
+                                    !props.isDragging ? cn(
+                                        'bg-card',
+                                        'group-[.row-selected]:bg-row-selected',
+                                        'group-[.row-selected]:group-hover:bg-row-selected-hover',
+                                        'group-[&:not(.row-selected)]:group-hover:bg-table-hover',
+                                        depth() === 1 && 'group-[&:not(.row-selected)]:bg-[color-mix(in_srgb,var(--color-surface)_10%,var(--color-card))]',
+                                        depth() >= 2 && 'group-[&:not(.row-selected)]:bg-[color-mix(in_srgb,var(--color-surface)_30%,var(--color-card))]'
+                                    ) : 'bg-transparent'
+                                )
+                            )}
+                            style={pinStyles}
+                            onClick={(e) => {
+                                if (cell.column.id === 'actions' || cell.column.id === 'select' || cell.column.id === 'name') e.stopPropagation();
+                            }}
                         >
-                            <div class="flex items-center min-w-0 h-full group/handle">
-                                <button
-                                    type="button"
-                                    class="cursor-grab active:cursor-grabbing text-muted/30 group-hover/handle:text-primary transition-colors touch-none p-2 -ml-3 mr-1 rounded-md hover:bg-surface/50"
-                                    {...draggable.dragActivators}
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <GripVerticalIcon class="size-4" />
-                                </button>
-                                <div class="flex-1 min-w-0">
-                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            <Show
+                                when={cell.column.id === 'name'}
+                                fallback={flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            >
+                                <div class="flex items-center min-w-0 h-full group/handle">
+                                    <button
+                                        type="button"
+                                        class={cn(
+                                            "touch-none p-2 -ml-1 mr-1 rounded-md transition-colors",
+                                            "cursor-grab active:cursor-grabbing",
+                                            "text-muted/30 group-hover/handle:text-primary hover:bg-surface/50"
+                                        )}
+                                        {...draggable.dragActivators}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <GripVerticalIcon class="size-4" />
+                                    </button>
+                                    <div class="flex-1 min-w-0">
+                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                    </div>
                                 </div>
-                            </div>
-                        </Show>
-                    </TableCell>
-                )}
+                            </Show>
+                        </TableCell>
+                    );
+                }}
             </For>
         </TableRow>
     );

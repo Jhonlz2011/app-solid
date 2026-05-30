@@ -112,15 +112,25 @@ export interface AutocompleteInputProps<T> {
     inputId?: string;
     onCreateNew?: () => void;
     createNewLabel?: string;
+    onBlur?: () => void;
 }
 
 const Input = <T,>(props: AutocompleteInputProps<T>) => {
     const context = useAutocompleteContext();
     let _lastSelectionTime = 0;
+    let isClickingDropdown = false;
     
-    let triggerRef: HTMLButtonElement | undefined;
+    let triggerRef: HTMLElement | undefined;
     const [triggerWidth, setTriggerWidth] = createSignal<number>(0);
     const [isSelectedState, setIsSelectedState] = createSignal<boolean>(!!props.value);
+    const [isFocused, setIsFocused] = createSignal<boolean>(false);
+    const [isOpen, setIsOpen] = createSignal<boolean>(false);
+    
+    createEffect(() => {
+        if (!isFocused()) {
+            setIsSelectedState(!!props.value);
+        }
+    });
     
     createEffect(() => {
         if (!triggerRef) return;
@@ -134,9 +144,9 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
 
     const dynamicOptions = createMemo(() => {
         const val = props.value;
-        const opts: Array<T | string> = [...props.options];
+        const opts: Array<T | string> = [...(props.options || [])];
         if (val) {
-            const exists = props.options.some(
+            const exists = (props.options || []).some(
                 opt => props.optionValue(opt) === val || props.optionLabel(opt) === val
             );
             if (!exists) {
@@ -146,10 +156,10 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         return opts;
     });
 
-    const selectedItem = createMemo(() => {
+    const selectedItem = createMemo<T | string | null>(() => {
         const val = props.value;
-        if (!val) return undefined;
-        const found = props.options.find(
+        if (!val) return null;
+        const found = (props.options || []).find(
             opt => props.optionValue(opt) === val || props.optionLabel(opt) === val
         );
         return found ?? val;
@@ -159,6 +169,19 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         <KCombobox<T | string>
             class={`flex flex-col gap-1.5 ${props.class ?? ''}`}
             options={dynamicOptions()}
+            validationState={context.validationState()}
+            open={isOpen()}
+            onOpenChange={(open) => {
+                if (!open) {
+                    setIsOpen(false);
+                    isClickingDropdown = false;
+                    setIsFocused(false);
+                } else {
+                    if (isFocused() || isClickingDropdown) {
+                        setIsOpen(true);
+                    }
+                }
+            }}
             onInputChange={(v) => {
                 if (Date.now() - _lastSelectionTime < 150) return;
                 if (props.value !== v) {
@@ -168,7 +191,15 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
             }}
             value={selectedItem()}
             onChange={(selected) => {
-                if (!selected) return;
+                isClickingDropdown = false;
+                if (!selected) {
+                    setIsSelectedState(false);
+                    props.onInputChange('');
+                    if (props.onSelect) {
+                        props.onSelect(null as any);
+                    }
+                    return;
+                }
                 if (typeof selected === 'string') {
                     props.onInputChange(selected);
                 } else {
@@ -203,7 +234,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                 return (
                     <KCombobox.Item 
                         item={itemProps.item}
-                        class="relative flex w-full min-w-0 overflow-hidden cursor-pointer select-none items-center justify-between rounded-lg px-3 py-2 text-sm outline-none transition-colors duration-150 text-text-secondary data-[highlighted]:bg-primary-soft data-[highlighted]:text-primary-strong data-[selected]:text-primary data-[selected]:font-medium"
+                        class="relative flex w-full min-w-0 overflow-hidden cursor-pointer select-none items-center justify-between rounded-lg p-2 text-sm outline-none transition-colors duration-150 text-text-secondary data-highlighted:bg-primary-soft data-highlighted:text-primary-strong data-selected:text-primary data-selected:font-medium"
                     >
                         <Show when={props.itemRenderer} fallback={
                             <div class="flex flex-col min-w-0 w-full">
@@ -219,83 +250,118 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                 );
             }}
         >
-            <KCombobox.Control>
-                <KCombobox.Trigger 
-                    ref={triggerRef}
-                    data-invalid={context.validationState() === 'invalid'}
-                    class="group flex w-full items-center justify-between cursor-pointer px-4 rounded-xl border transition-all duration-200 bg-card-alt border-border text-text hover:bg-card hover:border-border-strong has-[:focus-visible]:border-primary/65 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/25 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 data-[invalid=true]:border-red-500/50 data-[invalid=true]:has-[:focus-visible]:ring-red-500/25"
-                >
-                    <Show when={props.inputPrefix}>
-                        <div class="mr-2 flex-shrink-0">{props.inputPrefix}</div>
-                    </Show>
-                    <KCombobox.Input 
-                        id={props.inputId || context.id}
-                        placeholder={props.placeholder}
-                        readOnly={isSelectedState()}
-                        class={`flex-1 bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0 ${isSelectedState() ? 'cursor-default' : ''}`}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' && props.onSearchAction) {
-                                props.onSearchAction();
+            <KCombobox.Control
+                ref={triggerRef as any}
+                class="group flex w-full items-center justify-between cursor-text px-3 rounded-xl border transition-all duration-200 bg-card-alt border-border text-text hover:bg-card hover:border-border-strong focus-within:border-primary/65 focus-within:ring-2 focus-within:ring-primary/25 data-disabled:cursor-not-allowed data-disabled:opacity-50 data-invalid:border-red-500/50 data-invalid:focus-within:ring-red-500/25"
+            >
+                <Show when={props.inputPrefix}>
+                    <div class="mr-2 shrink-0">{props.inputPrefix}</div>
+                </Show>
+                <KCombobox.Input 
+                    id={props.inputId || context.id}
+                    placeholder={props.placeholder}
+                    class={`flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0 ${isSelectedState() ? 'cursor-default' : ''}`}
+                    onPointerDown={(e) => {
+                        e.stopPropagation();
+                        setIsSelectedState(false);
+                    }}
+                    onFocus={(e) => {
+                        isClickingDropdown = false;
+                        setIsFocused(true);
+                        e.currentTarget.select();
+                        setIsSelectedState(false);
+                    }}
+                    onBlur={() => {
+                        setTimeout(() => {
+                            if (isClickingDropdown) return;
+                            setIsFocused(false);
+                            if (props.onBlur) {
+                                props.onBlur();
                             }
-                        }}
-                    />
-                    <div class="ml-2 flex flex-shrink-0 items-center justify-center text-muted group-hover:text-text-secondary transition-colors h-full">
-                        <Show when={props.isLoading}>
-                            <svg class="animate-spin size-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                            setIsSelectedState(!!props.value);
+                        }, 150);
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && props.onSearchAction) {
+                            props.onSearchAction();
+                        }
+                    }}
+                />
+                <div class="ml-2 flex shrink-0 items-center justify-center gap-1.5 text-muted group-hover:text-text-secondary transition-colors h-full">
+                    <Show when={props.isLoading}>
+                        <svg class="animate-spin size-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </Show>
+                    <Show when={!props.isLoading}>
+                        <Show when={props.value}>
+                            <button 
+                                type="button"
+                                class="cursor-pointer hover:text-danger rounded-md p-0.5 transition-colors flex items-center justify-center border-0 bg-transparent outline-none focus:text-danger focus:ring-0"
+                                onPointerDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                }}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    isClickingDropdown = false;
+                                    setIsSelectedState(false);
+                                    setIsOpen(false);
+                                    props.onInputChange('');
+                                    if (props.onSelect) {
+                                        props.onSelect(null as any); 
+                                    }
+                                }}
+                                title="Limpiar"
+                            >
+                                <XIcon class="size-3.5" strokeWidth={3} />
+                            </button>
                         </Show>
-                        <Show when={!props.isLoading}>
-                            <Show when={props.value} fallback={
-                                <div 
-                                    classList={{ 'cursor-pointer hover:text-primary': !!props.onSearchAction }}
-                                    onClick={(e) => {
-                                        if (props.onSearchAction) {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            props.onSearchAction();
-                                        }
-                                    }}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                >
-                                    <SearchIcon class="size-4" />
-                                </div>
-                            }>
-                                <div 
-                                    class="cursor-pointer hover:text-danger rounded-md"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setIsSelectedState(false);
-                                        props.onInputChange('');
-                                        if (props.onSelect) {
-                                            props.onSelect(null as any); 
-                                        }
-                                    }}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    title="Limpiar"
-                                >
-                                    <XIcon class="size-3.5" strokeWidth={3} />
-                                </div>
+                        <KCombobox.Trigger 
+                            class="cursor-pointer hover:text-primary transition-colors flex items-center justify-center p-0.5 rounded-md border-0 bg-transparent"
+                            onPointerDown={() => {
+                                isClickingDropdown = true;
+                            }}
+                            onClick={(e) => {
+                                if (!props.value && props.onSearchAction) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    props.onSearchAction();
+                                }
+                            }}
+                        >
+                            <Show when={props.value} fallback={<SearchIcon class="size-4" />}>
+                                <KCombobox.Icon class="size-4 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="size-4 text-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </KCombobox.Icon>
                             </Show>
-                        </Show>
-                    </div>
-                </KCombobox.Trigger>
+                        </KCombobox.Trigger>
+                    </Show>
+                </div>
             </KCombobox.Control>
 
             <KCombobox.Portal>
                 <KCombobox.Content 
+                    ref={(el) => {
+                        if (el) {
+                            el.addEventListener('pointerdown', () => {
+                                isClickingDropdown = true;
+                            });
+                        }
+                    }}
                     class="relative z-[100] min-w-[8rem] overflow-hidden bg-card border border-border shadow-md rounded-xl p-1 transform-origin-var data-[expanded]:animate-in data-[expanded]:fade-in-0 data-[expanded]:zoom-in-95 data-[expanded]:slide-in-from-top-2 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:zoom-out-95 data-[closed]:slide-out-to-top-2"
-                    classList={{ 'hidden': isSelectedState() || (props.options.length === 0 && !props.onCreateNew && !props.isLoading && (props.hideEmptyState || (props.value?.length ?? 0) < (props.minLength ?? 3))) }}
+                    classList={{ 'hidden': ((props.options || []).length === 0 && !props.onCreateNew && !props.isLoading && (props.hideEmptyState || (props.value?.length ?? 0) < (props.minLength ?? 3))) }}
                     style={{
                         "width": triggerWidth() > 0 ? `${triggerWidth()}px` : "100%",
                         "max-width": triggerWidth() > 0 ? `${triggerWidth()}px` : "calc(100vw - 2rem)",
                     }}
                 >
                     <Show 
-                        when={props.options.length > 0} 
+                        when={(props.options || []).length > 0} 
                         fallback={
                             <div class="p-4 text-center text-sm text-muted">
                                 {props.isLoading ? (

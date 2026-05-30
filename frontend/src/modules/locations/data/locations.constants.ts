@@ -6,7 +6,7 @@
 import type { Component } from 'solid-js';
 import type { LocationType } from '@app/schema/enums';
 import type { IconProps } from '@shared/ui/icons';
-import { BoxIcon, EyeIcon } from '@shared/ui/icons';
+import { InboxIcon, EyeIcon } from '@shared/ui/icons';
 import { LOCATION_TYPES } from '@app/schema/enums';
 
 export interface LocationTypeMeta {
@@ -18,14 +18,14 @@ export interface LocationTypeMeta {
 
 export const LOCATION_TYPE_META: Record<LocationType, LocationTypeMeta> = {
     INTERNAL: {
-        label: 'Interna',
-        description: 'Ubicación física de almacenamiento',
-        icon: BoxIcon,
+        label: 'Contenedor',
+        description: 'Ubicación física donde se almacena stock',
+        icon: InboxIcon,
         color: 'text-blue-500 bg-blue-500/10',
     },
     VIEW: {
-        label: 'Vista',
-        description: 'Ubicación virtual de agrupación',
+        label: 'Visual',
+        description: 'Agrupación lógica (zona, área, sección)',
         icon: EyeIcon,
         color: 'text-purple-500 bg-purple-500/10',
     },

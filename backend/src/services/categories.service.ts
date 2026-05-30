@@ -1,9 +1,10 @@
-import { eq, asc } from '@app/schema';
+import { eq, and, asc, sql, inArray } from '@app/schema';
 import { db } from '../db';
-import { brands, productFamilies, categories, categoryAttributes, attributeDefinitions } from '@app/schema/tables';
+import { brands, categories, categoryAttributes, attributeDefinitions, products } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/sse';
+import { withAuditTransaction, type AuditContext } from './audit.service';
 
 // Helper: slugify for ltree path segments (ascii, lowercase, dots replaced)
 function slugifyPath(name: string): string {
@@ -37,6 +38,7 @@ async function computePathAndDepth(parentId: number | null, name: string): Promi
 
 // NOTE: UOM CRUD has been migrated to uom.service.ts (tenant-aware, integer PK)
 export interface CategoryPayload {
+    companyId: number;
     name: string;
     parentId?: number | null;
     description?: string | null;
@@ -55,17 +57,23 @@ export interface CategoryPayload {
 // CATEGORIES — Enhanced CRUD with attribute sync
 // =============================================================================
 
-export async function listCategoriesEnhanced(flat = false) {
-    return cacheService.getOrSet(`categories:enhanced:${flat}`, async () => {
-        const allCategories = await db.select().from(categories).orderBy(asc(categories.sort_order), asc(categories.name));
-        const allCatAttrs = await db
-            .select({
-                categoryId: categoryAttributes.category_id,
-                attributeDefId: categoryAttributes.attribute_def_id,
-                required: categoryAttributes.required,
-                order: categoryAttributes.order,
-            })
-            .from(categoryAttributes);
+export async function listCategoriesEnhanced(companyId: number, flat = false) {
+    return cacheService.getOrSet(`categories:c${companyId}:enhanced:${flat}`, async () => {
+        const allCategories = await db.select().from(categories)
+            .where(eq(categories.company_id, companyId))
+            .orderBy(asc(categories.sort_order), asc(categories.name));
+        const categoryIds = allCategories.map(c => c.id);
+        const allCatAttrs = categoryIds.length > 0
+            ? await db
+                .select({
+                    categoryId: categoryAttributes.category_id,
+                    attributeDefId: categoryAttributes.attribute_def_id,
+                    required: categoryAttributes.required,
+                    order: categoryAttributes.order,
+                })
+                .from(categoryAttributes)
+                .where(inArray(categoryAttributes.category_id, categoryIds))
+            : [];
 
         // Build a map of category_id → attribute count
         const attrCountMap = new Map<number, number>();
@@ -98,8 +106,9 @@ export async function listCategoriesEnhanced(flat = false) {
     }, 600);
 }
 
-export async function getCategoryEnhanced(id: number) {
-    const [category] = await db.select().from(categories).where(eq(categories.id, id));
+export async function getCategoryEnhanced(id: number, companyId: number) {
+    const [category] = await db.select().from(categories)
+        .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
     if (!category) throw new DomainError('Categoría no encontrada', 404);
 
     // Get attributes with their definitions
@@ -128,7 +137,7 @@ export async function getCategoryEnhanced(id: number) {
  * form-schema endpoint: Returns only what the product form needs
  * (attributes + name_template) for a given category
  */
-export async function getCategoryFormSchema(id: number) {
+export async function getCategoryFormSchema(id: number, companyId: number) {
     const [category] = await db
         .select({
             id: categories.id,
@@ -136,7 +145,7 @@ export async function getCategoryFormSchema(id: number) {
             nameTemplate: categories.name_template,
         })
         .from(categories)
-        .where(eq(categories.id, id));
+        .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
 
     if (!category) throw new DomainError('Categoría no encontrada', 404);
 
@@ -173,68 +182,24 @@ export async function getCategoryFormSchema(id: number) {
 export async function createCategoryEnhanced(data: CategoryPayload) {
     const { path, depth } = await computePathAndDepth(data.parentId ?? null, data.name);
 
-    const [created] = await db.insert(categories).values({
-        name: data.name,
-        parent_id: data.parentId ?? null,
-        description: data.description ?? null,
-        icon: data.icon ?? null,
-        name_template: data.nameTemplate ?? null,
-        sort_order: data.sortOrder ?? 0,
-        path,
-        depth,
-    }).returning();
+    const created = await db.transaction(async (tx) => {
+        const [row] = await tx.insert(categories).values({
+            company_id: data.companyId,
+            name: data.name,
+            parent_id: data.parentId ?? null,
+            description: data.description ?? null,
+            icon: data.icon ?? null,
+            name_template: data.nameTemplate ?? null,
+            sort_order: data.sortOrder ?? 0,
+            path,
+            depth,
+        }).returning();
 
-    // Sync attributes
-    if (data.attributes?.length) {
-        await db.insert(categoryAttributes).values(
-            data.attributes.map(a => ({
-                category_id: created.id,
-                attribute_def_id: a.attributeDefId,
-                required: a.required ?? false,
-                order: a.order ?? 0,
-                specific_options: a.specificOptions ?? null,
-            }))
-        );
-    }
-
-    cacheService.invalidate('categories:*');
-    broadcast('category:created', created, 'categories');
-    return created;
-}
-
-export async function updateCategoryEnhanced(id: number, data: Partial<CategoryPayload>) {
-    const updateValues: Record<string, any> = {};
-    if (data.name !== undefined) updateValues.name = data.name;
-    if (data.parentId !== undefined) updateValues.parent_id = data.parentId;
-    if (data.description !== undefined) updateValues.description = data.description;
-    if (data.icon !== undefined) updateValues.icon = data.icon;
-    if (data.nameTemplate !== undefined) updateValues.name_template = data.nameTemplate;
-    if (data.sortOrder !== undefined) updateValues.sort_order = data.sortOrder;
-
-    const [updated] = await db.update(categories)
-        .set(updateValues)
-        .where(eq(categories.id, id))
-        .returning();
-
-    if (!updated) throw new DomainError('Categoría no encontrada', 404);
-
-    // Recalculate path/depth if name or parentId changed
-    if (data.name !== undefined || data.parentId !== undefined) {
-        const newName = data.name ?? updated.name;
-        const newParentId = data.parentId !== undefined ? data.parentId : updated.parent_id;
-        const { path, depth } = await computePathAndDepth(newParentId ?? null, newName);
-        await db.update(categories)
-            .set({ path, depth })
-            .where(eq(categories.id, id));
-    }
-
-    // Sync attributes (DELETE ALL + INSERT ALL)
-    if (data.attributes !== undefined) {
-        await db.delete(categoryAttributes).where(eq(categoryAttributes.category_id, id));
-        if (data.attributes.length > 0) {
-            await db.insert(categoryAttributes).values(
+        // Sync attributes
+        if (data.attributes?.length) {
+            await tx.insert(categoryAttributes).values(
                 data.attributes.map(a => ({
-                    category_id: id,
+                    category_id: row.id,
                     attribute_def_id: a.attributeDefId,
                     required: a.required ?? false,
                     order: a.order ?? 0,
@@ -242,166 +207,302 @@ export async function updateCategoryEnhanced(id: number, data: Partial<CategoryP
                 }))
             );
         }
-    }
 
-    cacheService.invalidate('categories:*');
+        return row;
+    });
+
+    cacheService.invalidate(`categories:c${data.companyId}:*`);
+    broadcast('category:created', created, 'categories');
+    return created;
+}
+
+export async function updateCategoryEnhanced(id: number, data: Partial<CategoryPayload>, companyId: number) {
+    const updated = await db.transaction(async (tx) => {
+        // Verify ownership
+        const [existing] = await tx.select().from(categories)
+            .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
+        if (!existing) throw new DomainError('Categoría no encontrada', 404);
+
+        const updateValues: Record<string, any> = {};
+        if (data.name !== undefined) updateValues.name = data.name;
+        if (data.parentId !== undefined) updateValues.parent_id = data.parentId;
+        if (data.description !== undefined) updateValues.description = data.description;
+        if (data.icon !== undefined) updateValues.icon = data.icon;
+        if (data.nameTemplate !== undefined) updateValues.name_template = data.nameTemplate;
+        if (data.sortOrder !== undefined) updateValues.sort_order = data.sortOrder;
+
+        // Compute path/depth BEFORE update (single query optimization)
+        if (data.name !== undefined || data.parentId !== undefined) {
+            const newName = data.name ?? existing.name;
+            const newParentId = data.parentId !== undefined ? data.parentId : existing.parent_id;
+            const { path, depth } = await computePathAndDepth(newParentId ?? null, newName);
+            updateValues.path = path;
+            updateValues.depth = depth;
+        }
+
+        const [row] = await tx.update(categories)
+            .set(updateValues)
+            .where(eq(categories.id, id))
+            .returning();
+
+        // Sync attributes (DELETE ALL + INSERT ALL — atomic within TX)
+        if (data.attributes !== undefined) {
+            await tx.delete(categoryAttributes).where(eq(categoryAttributes.category_id, id));
+            if (data.attributes.length > 0) {
+                await tx.insert(categoryAttributes).values(
+                    data.attributes.map(a => ({
+                        category_id: id,
+                        attribute_def_id: a.attributeDefId,
+                        required: a.required ?? false,
+                        order: a.order ?? 0,
+                        specific_options: a.specificOptions ?? null,
+                    }))
+                );
+            }
+        }
+
+        return row;
+    });
+
+    cacheService.invalidate(`categories:c${companyId}:*`);
     broadcast('category:updated', updated, 'categories');
     return updated;
 }
 
-export async function deactivateCategory(id: number) {
-    // Check for children
-    const children = await db.select({ id: categories.id }).from(categories).where(eq(categories.parent_id, id));
-    if (children.length) {
-        throw new DomainError('No se puede desactivar categoría con subcategorías activas', 400);
-    }
+export async function deactivateCategory(id: number, companyId: number, clientId?: string, audit?: AuditContext) {
+    return withAuditTransaction(audit, async (tx) => {
+        const [existing] = await tx.select().from(categories)
+            .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
+        if (!existing) throw new DomainError('Categoría no encontrada', 404);
 
-    const [updated] = await db.update(categories)
-        .set({ is_active: false })
-        .where(eq(categories.id, id))
-        .returning();
-    if (!updated) throw new DomainError('Categoría no encontrada', 404);
-    cacheService.invalidate('categories:*');
-    broadcast('category:updated', updated, 'categories');
-    return updated;
+        // Cascade: deactivate this node + all descendants via ltree
+        await tx.execute(sql`
+            UPDATE categories
+            SET is_active = false
+            WHERE company_id = ${companyId}
+              AND path <@ ${existing.path}::ltree
+        `);
+
+        const [updated] = await tx.select().from(categories)
+            .where(eq(categories.id, id));
+
+        cacheService.invalidate(`categories:c${companyId}:*`);
+        broadcast('category:updated', updated, 'categories');
+        return updated;
+    });
 }
 
-export async function restoreCategory(id: number) {
-    const [updated] = await db.update(categories)
-        .set({ is_active: true })
-        .where(eq(categories.id, id))
-        .returning();
-    if (!updated) throw new DomainError('Categoría no encontrada', 404);
-    cacheService.invalidate('categories:*');
-    broadcast('category:updated', updated, 'categories');
-    return updated;
+export async function restoreCategory(id: number, companyId: number, clientId?: string, audit?: AuditContext) {
+    return withAuditTransaction(audit, async (tx) => {
+        const [existing] = await tx.select().from(categories)
+            .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
+        if (!existing) throw new DomainError('Categoría no encontrada', 404);
+
+        const [updated] = await tx.update(categories).set({ is_active: true })
+            .where(eq(categories.id, id)).returning();
+
+        cacheService.invalidate(`categories:c${companyId}:*`);
+        broadcast('category:updated', updated, 'categories');
+        return updated;
+    });
 }
 
 // =============================================================================
 // Reorder Categories (Bulk sort_order update)
 // =============================================================================
 
-export async function reorderCategories(items: Array<{ id: number; sort_order: number }>) {
+export async function reorderCategories(items: Array<{ id: number; sort_order: number }>, companyId: number) {
     if (items.length === 0) return { updated: 0 };
 
     await db.transaction(async (tx) => {
         for (const item of items) {
             await tx.update(categories)
                 .set({ sort_order: item.sort_order })
-                .where(eq(categories.id, item.id));
+                .where(and(eq(categories.id, item.id), eq(categories.company_id, companyId)));
         }
     });
 
-    cacheService.invalidate('categories:*');
+    cacheService.invalidate(`categories:c${companyId}:*`);
     broadcast('categories:reordered', { count: items.length }, 'categories');
     return { updated: items.length };
 }
 
-
-
-
-
-
-
-
 // =============================================================================
-// BRANDS
+// Reparent — Dedicated DnD endpoint
 // =============================================================================
 
+export async function reparentCategory(id: number, newParentId: number | null, companyId: number) {
+    const [node] = await db.select().from(categories)
+        .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
+    if (!node) throw new DomainError('Categoría no encontrada', 404);
 
+    // Skip if same parent
+    if (node.parent_id === newParentId) return node;
 
-export async function listBrands() {
-    return cacheService.getOrSet('catalogs:brands', async () => {
-        return db.select().from(brands).orderBy(asc(brands.name));
-    }, 3600);
-}
+    let newParentPath: string | null = null;
+    let newDepth = 0;
 
-export async function createBrand(data: { name: string; website?: string }) {
-    const [created] = await db.insert(brands).values(data).returning();
-    cacheService.invalidate('catalogs:brands');
-    broadcast('catalog:brand:created', created, 'catalogs');
-    return created;
-}
+    if (newParentId !== null) {
+        const [newParent] = await db.select().from(categories)
+            .where(and(eq(categories.id, newParentId), eq(categories.company_id, companyId)));
+        if (!newParent) throw new DomainError('Categoría padre no encontrada', 404);
 
-export async function updateBrand(id: number, data: Partial<{ name: string; website: string; is_active: boolean }>) {
-    const [updated] = await db.update(brands).set(data).where(eq(brands.id, id)).returning();
-    if (!updated) throw new DomainError('Marca no encontrada', 404);
-    cacheService.invalidate('catalogs:brands');
-    broadcast('catalog:brand:updated', updated, 'catalogs');
-    return updated;
-}
+        // Anti-circular: check the new parent is NOT a descendant of this node
+        const isDescendant = newParent.path.startsWith(node.path + '.');
+        if (isDescendant || newParentId === id) {
+            throw new DomainError('Acción inválida: no puedes mover una categoría dentro de sus propios descendientes', 400);
+        }
 
-export async function deactivateBrand(id: number) {
-    const [updated] = await db.update(brands).set({ is_active: false }).where(eq(brands.id, id)).returning();
-    if (!updated) throw new DomainError('Marca no encontrada', 404);
-    cacheService.invalidate('catalogs:brands');
-    return updated;
-}
+        newParentPath = newParent.path;
+        newDepth = newParent.depth + 1;
+    }
 
-export async function restoreBrand(id: number) {
-    const [updated] = await db.update(brands).set({ is_active: true }).where(eq(brands.id, id)).returning();
-    if (!updated) throw new DomainError('Marca no encontrada', 404);
-    cacheService.invalidate('catalogs:brands');
+    const oldPath = node.path;
+    const newPath = newParentPath ? `${newParentPath}.${slugifyPath(node.name)}` : slugifyPath(node.name);
+    const depthDiff = newDepth - node.depth;
+
+    // Update this node
+    const [updated] = await db.update(categories).set({
+        parent_id: newParentId,
+        path: newPath,
+        depth: newDepth,
+    }).where(eq(categories.id, id)).returning();
+
+    // Cascade to all descendants: update path prefix + adjust depth
+    await db.execute(sql`
+        UPDATE categories
+        SET path = (${newPath} || substr(path::text, ${oldPath.length + 1}))::ltree,
+            depth = depth + ${depthDiff}
+        WHERE path <@ ${oldPath}::ltree AND id != ${id}
+    `);
+
+    cacheService.invalidate(`categories:c${companyId}:*`);
+    broadcast('category:updated', updated, 'categories');
     return updated;
 }
 
 // =============================================================================
-// PRODUCT FAMILIES
+// Check References — for hard delete validation
 // =============================================================================
 
-export async function listFamilies() {
-    return cacheService.getOrSet('catalogs:families', async () => {
-        const rows = await db
-            .select({
-                id: productFamilies.id,
-                name: productFamilies.name,
-                category_id: productFamilies.category_id,
-                categoryName: categories.name,
-                description: productFamilies.description,
-                is_active: productFamilies.is_active,
-            })
-            .from(productFamilies)
-            .leftJoin(categories, eq(categories.id, productFamilies.category_id))
-            .orderBy(asc(productFamilies.name));
-        return rows;
-    }, 3600);
+export async function checkCategoryReferences(id: number, companyId: number) {
+    const [existing] = await db.select({ id: categories.id }).from(categories)
+        .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
+    if (!existing) throw new DomainError('Categoría no encontrada', 404);
+
+    const [productCountRow] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(products)
+        .where(eq(products.category_id, id));
+
+    const productCount = productCountRow?.count ?? 0;
+
+    return {
+        products: productCount,
+        total: productCount,
+    };
 }
 
-export async function createFamily(data: { name: string; categoryId?: number; description?: string }) {
-    const [created] = await db.insert(productFamilies).values({
-        name: data.name,
-        category_id: data.categoryId ?? null,
-        description: data.description ?? null,
-    }).returning();
-    cacheService.invalidate('catalogs:families');
-    broadcast('catalog:family:created', created, 'catalogs');
-    return created;
+// =============================================================================
+// Hard Delete — permanent removal
+// =============================================================================
+
+export async function hardDeleteCategory(id: number, companyId: number) {
+    const [existing] = await db.select().from(categories)
+        .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
+    if (!existing) throw new DomainError('Categoría no encontrada', 404);
+
+    const refs = await checkCategoryReferences(id, companyId);
+    if (refs.total > 0) throw new DomainError('No se puede eliminar: la categoría tiene productos vinculados', 409);
+
+    // Check for children
+    const children = await db.select({ id: categories.id }).from(categories)
+        .where(and(eq(categories.parent_id, id), eq(categories.company_id, companyId)));
+    if (children.length > 0) throw new DomainError('No se puede eliminar: la categoría tiene subcategorías', 409);
+
+    // Delete associated attributes first
+    await db.delete(categoryAttributes).where(eq(categoryAttributes.category_id, id));
+    // Delete the category
+    await db.delete(categories).where(eq(categories.id, id));
+
+    cacheService.invalidate(`categories:c${companyId}:*`);
+    broadcast('category:deleted', { id }, 'categories');
+    return { success: true };
 }
 
-export async function updateFamily(id: number, data: Partial<{ name: string; categoryId: number | null; description: string | null; is_active: boolean }>) {
-    const updateValues: Record<string, any> = {};
-    if (data.name !== undefined) updateValues.name = data.name;
-    if (data.categoryId !== undefined) updateValues.category_id = data.categoryId;
-    if (data.description !== undefined) updateValues.description = data.description;
-    if (data.is_active !== undefined) updateValues.is_active = data.is_active;
+// =============================================================================
+// Bulk Deactivate
+// =============================================================================
 
-    const [updated] = await db.update(productFamilies).set(updateValues).where(eq(productFamilies.id, id)).returning();
-    if (!updated) throw new DomainError('Familia no encontrada', 404);
-    cacheService.invalidate('catalogs:families');
-    broadcast('catalog:family:updated', updated, 'catalogs');
-    return updated;
+export async function bulkDeactivateCategories(ids: number[], companyId: number, audit?: AuditContext) {
+    if (ids.length === 0) return { success: true, count: 0 };
+
+    return withAuditTransaction(audit, async (tx) => {
+        const existing = await tx
+            .select({ id: categories.id, path: categories.path })
+            .from(categories)
+            .where(and(
+                eq(categories.company_id, companyId),
+                eq(categories.is_active, true),
+                inArray(categories.id, ids)
+            ));
+
+        if (existing.length === 0) {
+            throw new DomainError('No se encontraron categorías válidas para desactivar', 404);
+        }
+
+        // Cascade deactivation to each node + its descendants
+        for (const cat of existing) {
+            await tx.execute(sql`
+                UPDATE categories
+                SET is_active = false
+                WHERE company_id = ${companyId}
+                  AND path <@ ${cat.path}::ltree
+            `);
+        }
+
+        cacheService.invalidate(`categories:c${companyId}:*`);
+
+        // Broadcast for each item so frontend cache updates correctly
+        for (const cat of existing) {
+            broadcast('category:updated', { id: cat.id, is_active: false }, 'categories');
+        }
+
+        return { success: true, count: existing.length, deactivatedIds: existing.map(c => c.id) };
+    });
 }
 
-export async function deactivateFamily(id: number) {
-    const [updated] = await db.update(productFamilies).set({ is_active: false }).where(eq(productFamilies.id, id)).returning();
-    if (!updated) throw new DomainError('Familia no encontrada', 404);
-    cacheService.invalidate('catalogs:families');
-    return updated;
-}
+// =============================================================================
+// Bulk Restore
+// =============================================================================
 
-export async function restoreFamily(id: number) {
-    const [updated] = await db.update(productFamilies).set({ is_active: true }).where(eq(productFamilies.id, id)).returning();
-    if (!updated) throw new DomainError('Familia no encontrada', 404);
-    cacheService.invalidate('catalogs:families');
-    return updated;
+export async function bulkRestoreCategories(ids: number[], companyId: number, audit?: AuditContext) {
+    if (ids.length === 0) return { success: true, count: 0 };
+
+    return withAuditTransaction(audit, async (tx) => {
+        const existing = await tx
+            .select({ id: categories.id })
+            .from(categories)
+            .where(and(
+                eq(categories.company_id, companyId),
+                eq(categories.is_active, false),
+                inArray(categories.id, ids)
+            ));
+
+        if (existing.length === 0) {
+            throw new DomainError('No se encontraron categorías válidas para restaurar', 404);
+        }
+
+        const existingIds = existing.map(c => c.id);
+        await tx.update(categories)
+            .set({ is_active: true })
+            .where(inArray(categories.id, existingIds));
+
+        cacheService.invalidate(`categories:c${companyId}:*`);
+        for (const cat of existing) {
+            broadcast('category:updated', { id: cat.id, is_active: true }, 'categories');
+        }
+
+        return { success: true, count: existingIds.length, restoredIds: existingIds };
+    });
 }

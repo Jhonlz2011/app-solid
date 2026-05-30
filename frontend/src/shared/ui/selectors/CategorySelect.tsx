@@ -141,9 +141,12 @@ export const CategorySelect: Component<CategorySelectProps> = (props) => {
                     );
                 }}
             />
-            <Autocomplete.ErrorMessage />
-            <Show when={props.error}>
-                <small class="text-xs text-danger font-medium ml-1">{props.error}</small>
+            <Show when={props.field} fallback={
+                <Show when={props.error}>
+                    <small class="text-xs text-danger font-medium ml-1">{props.error}</small>
+                </Show>
+            }>
+                <Autocomplete.ErrorMessage />
             </Show>
         </Autocomplete.Root>
     );

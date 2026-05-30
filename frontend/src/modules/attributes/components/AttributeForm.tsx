@@ -369,7 +369,7 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
 
                 {/* ─── Section 3: Options (conditional) ─── */}
                 <Show when={showOptionsInput()}>
-                    <section class="animate-in fade-in slide-in-from-top-2 duration-300 mt-4 mb-4">
+                    <section class="animate-in fade-in slide-in-from-top-2 duration-300 mt-2 mb-4">
                         <fieldset class={`
                             rounded-xl border-2 bg-surface/10 pb-2 relative transition-colors
                            border-border/60 hover:border-border-strong

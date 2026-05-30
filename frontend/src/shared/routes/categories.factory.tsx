@@ -11,7 +11,7 @@ const LazyCategoryNewRoute = lazyRouteComponent(() => import('@modules/categorie
 /**
  * Creates deep nested modal routes for Categories.
  */
-export const createCategoryModals = (parentRoute: any, basePath = 'categories', fallbackRedirect: any = { to: '/categories' }) => {
+export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRedirect: any = { to: '/categories' }) => {
     const prefix = basePath ? `${basePath}/` : '';
 
     const newRoute = createRoute({

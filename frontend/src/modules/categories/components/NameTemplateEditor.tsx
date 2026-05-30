@@ -16,7 +16,7 @@
  * - Persisted value is a plain string with {key} placeholders
  * - Quill is only for editing UX — the stored value is NOT HTML/Delta
  */
-import { Component, For, Show, createEffect, createMemo, onMount, onCleanup } from 'solid-js';
+import { Component, For, Show, createEffect, createSignal, createMemo, onMount, onCleanup } from 'solid-js';
 import Quill from 'quill';
 import 'quill/dist/quill.core.css';
 import './name-template-editor.css';
@@ -69,6 +69,46 @@ Quill.register(AttributeBadgeBlot);
 
 // ── Serialization helpers ────────────────────────────────────────────
 
+interface TemplatePart {
+    type: 'text' | 'badge';
+    content: string;
+    key?: string;
+}
+
+/**
+ * Parses a template string into segments of text and attribute badges.
+ */
+function parseTemplate(template: string, attrMap: Map<string, { label: string }>): TemplatePart[] {
+    const parts: TemplatePart[] = [];
+    const regex = /\{(\w+)\}/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(template)) !== null) {
+        // Text before the match
+        if (match.index > lastIndex) {
+            parts.push({ type: 'text', content: template.slice(lastIndex, match.index) });
+        }
+        // The badge embed
+        const key = match[1];
+        const info = attrMap.get(key);
+        parts.push({
+            type: 'badge',
+            content: info?.label ?? key,
+            key,
+        });
+
+        lastIndex = regex.lastIndex;
+    }
+
+    // Remaining text after last match
+    if (lastIndex < template.length) {
+        parts.push({ type: 'text', content: template.slice(lastIndex) });
+    }
+
+    return parts;
+}
+
 /**
  * Convert Quill Delta ops → template string.
  * Text inserts become plain text; embed inserts become {key} placeholders.
@@ -93,34 +133,22 @@ function deltaToTemplate(ops: any[]): string {
  * Splits on {key} patterns and creates text/embed ops.
  */
 function templateToDelta(template: string, attrMap: Map<string, AttributeInfo>): any[] {
+    const parts = parseTemplate(template, attrMap);
     const ops: any[] = [];
-    const regex = /\{(\w+)\}/g;
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
 
-    while ((match = regex.exec(template)) !== null) {
-        // Text before the match
-        if (match.index > lastIndex) {
-            ops.push({ insert: template.slice(lastIndex, match.index) });
-        }
-        // The badge embed
-        const key = match[1];
-        const info = attrMap.get(key);
-        ops.push({
-            insert: {
-                'attribute-badge': {
-                    key,
-                    label: info?.label ?? key,
+    for (const part of parts) {
+        if (part.type === 'text') {
+            ops.push({ insert: part.content });
+        } else {
+            ops.push({
+                insert: {
+                    'attribute-badge': {
+                        key: part.key!,
+                        label: part.content,
+                    },
                 },
-            },
-        });
-
-        lastIndex = regex.lastIndex;
-    }
-
-    // Remaining text after last match
-    if (lastIndex < template.length) {
-        ops.push({ insert: template.slice(lastIndex) });
+            });
+        }
     }
 
     // Quill requires a trailing newline
@@ -132,7 +160,7 @@ function templateToDelta(template: string, attrMap: Map<string, AttributeInfo>):
 
 const NameTemplateEditor: Component<NameTemplateEditorProps> = (props) => {
     let editorRef: HTMLDivElement | undefined;
-    let quill: Quill | null = null;
+    const [quill, setQuill] = createSignal<Quill | null>(null);
     let isInternalChange = false;
     let textChangeHandler: (() => void) | null = null;
     let dragoverHandler: ((e: DragEvent) => void) | null = null;
@@ -152,7 +180,7 @@ const NameTemplateEditor: Component<NameTemplateEditorProps> = (props) => {
     onMount(() => {
         if (!editorRef) return;
 
-        quill = new Quill(editorRef, {
+        const q = new Quill(editorRef, {
             modules: {
                 toolbar: false, // No toolbar — plain text + badges only
             },
@@ -162,20 +190,20 @@ const NameTemplateEditor: Component<NameTemplateEditorProps> = (props) => {
         // Load initial value
         if (props.value) {
             const ops = templateToDelta(props.value, attrMap());
-            quill.setContents(ops as any, 'silent');
+            q.setContents(ops as any, 'silent');
         }
 
         // Listen for text changes
         textChangeHandler = () => {
             if (isInternalChange) return;
-            const ops = quill!.getContents().ops ?? [];
+            const ops = q.getContents().ops ?? [];
             const template = deltaToTemplate(ops);
             props.onChange(template || null);
         };
-        quill.on('text-change', textChangeHandler);
+        q.on('text-change', textChangeHandler);
 
         // ── DnD: Handle drops from external badge panel ──────────────
-        const editorElement = quill.root;
+        const editorElement = q.root;
 
         dragoverHandler = (e: DragEvent) => {
             e.preventDefault();
@@ -198,7 +226,7 @@ const NameTemplateEditor: Component<NameTemplateEditorProps> = (props) => {
             if (!attrKey || !attrLabel) return;
 
             // Calculate insertion index from drop position
-            let insertIndex = quill!.getLength() - 1;
+            let insertIndex = q.getLength() - 1;
 
             // Try to get cursor position from drop point
             if (document.caretRangeFromPoint) {
@@ -206,59 +234,64 @@ const NameTemplateEditor: Component<NameTemplateEditorProps> = (props) => {
                 if (range) {
                     const blot = Quill.find(range.startContainer, true) as any;
                     if (blot) {
-                        const index = quill!.getIndex(blot);
+                        const index = q.getIndex(blot);
                         insertIndex = index + range.startOffset;
                     }
                 }
             }
 
             // Insert the badge embed
-            quill!.insertEmbed(insertIndex, 'attribute-badge', {
+            q.insertEmbed(insertIndex, 'attribute-badge', {
                 key: attrKey,
                 label: attrLabel,
             }, 'user');
 
             // Move cursor after the inserted badge
-            quill!.setSelection(insertIndex + 1, 0, 'silent');
+            q.setSelection(insertIndex + 1, 0, 'silent');
         };
         editorElement.addEventListener('drop', dropHandler);
+
+        setQuill(q);
     });
 
     onCleanup(() => {
-        if (quill) {
-            if (textChangeHandler) quill.off('text-change', textChangeHandler);
-            const el = quill.root;
+        const q = quill();
+        if (q) {
+            if (textChangeHandler) q.off('text-change', textChangeHandler);
+            const el = q.root;
             if (dragoverHandler) el.removeEventListener('dragover', dragoverHandler);
             if (dragleaveHandler) el.removeEventListener('dragleave', dragleaveHandler);
             if (dropHandler) el.removeEventListener('drop', dropHandler);
-            quill = null;
+            setQuill(null);
         }
     });
 
     // Sync external value changes into Quill (e.g. form reset)
     createEffect(() => {
+        const q = quill();
+        if (!q) return;
         const value = props.value;
-        if (!quill) return;
 
-        const currentTemplate = deltaToTemplate(quill.getContents().ops ?? []);
+        const currentTemplate = deltaToTemplate(q.getContents().ops ?? []);
         if (currentTemplate === (value ?? '')) return;
 
         isInternalChange = true;
         if (value) {
             const ops = templateToDelta(value, attrMap());
-            quill.setContents(ops as any, 'silent');
+            q.setContents(ops as any, 'silent');
         } else {
-            quill.setText('', 'silent');
+            q.setText('', 'silent');
         }
         isInternalChange = false;
     });
 
     // Update badge labels when attributes change
     createEffect(() => {
+        const q = quill();
+        if (!q) return;
         const map = attrMap();
-        if (!quill) return;
 
-        const ops = quill.getContents().ops ?? [];
+        const ops = q.getContents().ops ?? [];
         let needsUpdate = false;
 
         for (const op of ops) {
@@ -275,7 +308,7 @@ const NameTemplateEditor: Component<NameTemplateEditorProps> = (props) => {
 
         if (needsUpdate) {
             isInternalChange = true;
-            quill.setContents(ops as any, 'silent');
+            q.setContents(ops as any, 'silent');
             isInternalChange = false;
         }
     });
@@ -294,45 +327,22 @@ const NameTemplateEditor: Component<NameTemplateEditorProps> = (props) => {
 
     // Insert badge on click (alternative to DnD)
     const insertBadge = (attr: AttributeInfo) => {
-        if (!quill) return;
-        const selection = quill.getSelection();
-        const index = selection ? selection.index : quill.getLength() - 1;
-        quill.insertEmbed(index, 'attribute-badge', {
+        const q = quill();
+        if (!q) return;
+        const selection = q.getSelection();
+        const index = selection ? selection.index : q.getLength() - 1;
+        q.insertEmbed(index, 'attribute-badge', {
             key: attr.key,
             label: attr.label,
         }, 'user');
-        quill.setSelection(index + 1, 0, 'silent');
+        q.setSelection(index + 1, 0, 'silent');
     };
 
     // Live preview of generated template
     const previewParts = createMemo(() => {
         const template = props.value ?? '';
         if (!template) return [];
-
-        const parts: Array<{ type: 'text' | 'badge'; content: string; key?: string }> = [];
-        const regex = /\{(\w+)\}/g;
-        let lastIndex = 0;
-        let match: RegExpExecArray | null;
-
-        while ((match = regex.exec(template)) !== null) {
-            if (match.index > lastIndex) {
-                parts.push({ type: 'text', content: template.slice(lastIndex, match.index) });
-            }
-            const key = match[1];
-            const info = attrMap().get(key);
-            parts.push({
-                type: 'badge',
-                content: info?.label ?? key,
-                key,
-            });
-            lastIndex = regex.lastIndex;
-        }
-
-        if (lastIndex < template.length) {
-            parts.push({ type: 'text', content: template.slice(lastIndex) });
-        }
-
-        return parts;
+        return parseTemplate(template, attrMap());
     });
 
     return (
