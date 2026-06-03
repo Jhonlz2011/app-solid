@@ -99,6 +99,8 @@ const app = new Elysia({ prefix: '/api', aot: false })
     }
   }))
   // Core plugins
+  // Health check — público, antes de auth guard (usado por OfflineBanner PWA)
+  .get('/health', () => ({ status: 'ok', ts: Date.now() }))
   .use(authRoutes)
   .use(rbac)
   .use(ssePlugin)
