@@ -20,6 +20,7 @@ import type { AttributeFormData, AttributeDataType } from '@app/schema/frontend'
 export function useCreateAttribute() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['attributes', 'create'],
         mutationFn: (body: AttributeFormData) => attributesApi.create(body),
         onMutate: async (newAttr: AttributeFormData) => {
             await qc.cancelQueries({ queryKey: attributeKeys.all });
@@ -57,6 +58,7 @@ export function useCreateAttribute() {
 export function useUpdateAttribute() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['attributes', 'update'],
         mutationFn: ({ id, data }: { id: number; data: AttributeFormData }) => attributesApi.update(id, data),
         onMutate: async ({ id, data }: { id: number; data: AttributeFormData }) => {
             await qc.cancelQueries({ queryKey: attributeKeys.all });

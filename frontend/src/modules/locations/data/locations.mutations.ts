@@ -16,6 +16,7 @@ import type { LocationType } from '@app/schema/enums';
 export function useCreateLocation() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['locations', 'create'],
         mutationFn: (body: { warehouse_id?: number | null; parent_id?: number | null; name: string; type?: LocationType; }) =>
             locationsApi.create(body),
         onSettled: () => qc.invalidateQueries({ queryKey: locationKeys.list() }),
@@ -29,6 +30,7 @@ export function useCreateLocation() {
 export function useUpdateLocation() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['locations', 'update'],
         mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; type: LocationType; warehouse_id: number | null; parent_id: number | null; is_active: boolean }> }) =>
             locationsApi.update(id, data),
         onSettled: () => qc.invalidateQueries({ queryKey: locationKeys.list() }),

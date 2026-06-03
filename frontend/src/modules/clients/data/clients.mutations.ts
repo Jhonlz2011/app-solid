@@ -45,6 +45,7 @@ function applyIsActiveToCache(
 export function useCreateClient() {
     const queryClient = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['clients', 'create'],
         mutationFn: async (body: EntityFormData) => {
             const { data, error } = await api.api.clients.post(body);
             if (error) throwApiError(error);
@@ -86,6 +87,7 @@ export function useCreateClient() {
 export function useUpdateClient() {
     const queryClient = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['clients', 'update'],
         mutationFn: async ({ id, data: body }: { id: number; data: Partial<EntityFormData> }) => {
             const { data, error } = await api.api.clients({ id }).put(body);
             if (error) throwApiError(error);

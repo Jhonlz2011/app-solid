@@ -2,6 +2,7 @@ import { Component, Show } from 'solid-js';
 import { useParams } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
+import { isNetworkError } from '@shared/utils/api-errors';
 import { useLocationList } from '../data/locations.queries';
 import { useUpdateLocation } from '../data/locations.mutations';
 import type { LocationItem } from '../data/locations.api';
@@ -43,6 +44,11 @@ const LocationEditSheet: Component<LocationEditSheetProps> = (props) => {
             toast.success('Ubicación actualizada');
             navigateAway();
         } catch (err: any) {
+            if (isNetworkError(err)) {
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
+                navigateAway();
+                return;
+            }
             toast.error(err.message || 'Error al actualizar');
             throw err;
         }

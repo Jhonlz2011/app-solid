@@ -72,9 +72,16 @@ export const connect = (token?: string | null) => {
         }
 
         newEs.onerror = () => {
-            console.log(`❌ SSE Disconnected - Navegador intentará reconectar automáticamente...`);
             setIsConnected(false);
-            // Confiar 100% en la reconexión nativa. No hacer close().
+            // Si no hay red, cerrar definitivamente para evitar spam de ERR_NAME_NOT_RESOLVED.
+            // MainLayout.tsx reconectará vía connectSSE() al detectar isOnline() === true.
+            if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                console.log('🔌 SSE: Offline detectado. Cerrando conexión SSE.');
+                newEs.close();
+                setEventSource(null);
+            } else {
+                console.log('⚠️ SSE: Error temporal. Navegador reintentará reconectar.');
+            }
         };
 
     } catch (error) {

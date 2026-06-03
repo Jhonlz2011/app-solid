@@ -16,6 +16,7 @@ import type { CategoryFormData, CategoryUpdateData } from '@app/schema/frontend'
 export function useCreateCategory() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['catalogs', 'categories', 'create'],
         mutationFn: (body: CategoryFormData) => categoriesApi.createCategory(body),
         onSettled: () => {
             qc.invalidateQueries({ queryKey: categorieKeys.categories });
@@ -30,6 +31,7 @@ export function useCreateCategory() {
 export function useUpdateCategory() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['catalogs', 'categories', 'update'],
         mutationFn: ({ id, data }: { id: number; data: CategoryUpdateData }) => categoriesApi.updateCategory(id, data),
         onSettled: (_d, _e, { id }) => {
             qc.invalidateQueries({ queryKey: categorieKeys.categories });

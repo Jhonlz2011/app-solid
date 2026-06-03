@@ -1,4 +1,4 @@
-import { Component, For, Show, createEffect } from 'solid-js';
+import { Component, For, Show, createEffect, onMount, onCleanup } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
 import { Sidebar } from './components/sidebar';
 import MobileHeader from './components/MobileHeader';
@@ -6,6 +6,7 @@ import { Skeleton } from '@shared/ui/Skeleton';
 import { useOnlineStatus } from '@shared/hooks/useOnlineStatus';
 import { OfflineBanner } from '@shared/ui/OfflineBanner';
 import { toast } from 'solid-sonner';
+import { useQueryClient } from '@tanstack/solid-query';
 import { connect as connectSSE, disconnect as disconnectSSE } from '@shared/store/sse.store';
 
 export const LayoutSkeleton: Component = () => {
@@ -70,6 +71,7 @@ export const LayoutSkeleton: Component = () => {
 
 const MainLayout: Component = () => {
     const isOnline = useOnlineStatus();
+    const queryClient = useQueryClient();
 
     // Sincronizar el EventSource de Server-Sent Events con el estado de conexión
     createEffect(() => {
@@ -100,6 +102,25 @@ const MainLayout: Component = () => {
         }
         return current;
     }, isOnline());
+
+    // Escuchar mensajes del Service Worker vía BroadcastChannel
+    onMount(() => {
+        const channel = new BroadcastChannel('app_sync');
+        channel.onmessage = (event: MessageEvent) => {
+            const { type, entity, count } = event.data || {};
+            if (type === 'offline:synced') {
+                console.log(`✅ Sync completado para: ${entity}`);
+                queryClient.invalidateQueries();
+                toast.success(`Datos sincronizados: ${entity}`);
+            }
+            if (type === 'offline:sync-failed') {
+                toast.error(`${count} operación(es) no pudieron sincronizarse. Verifica los datos e intenta de nuevo.`, {
+                    duration: 8000,
+                });
+            }
+        };
+        onCleanup(() => channel.close());
+    });
 
     return (
         <div class="flex h-dvh bg-background overflow-hidden relative">

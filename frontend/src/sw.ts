@@ -42,12 +42,15 @@ self.addEventListener('sync', (event: any) => {
   }
 });
 
+const MAX_RETRIES = 3;
+
 async function syncPendingTransactions() {
   console.log('🔄 SW: Iniciando sincronización en segundo plano...');
   const outbox: any[] = (await get('zelys-offline-outbox')) || [];
   if (outbox.length === 0) return;
 
   const remaining: any[] = [];
+  const failed: any[] = [];
   const broadcastChannel = new BroadcastChannel('app_sync');
 
   for (const item of outbox) {
@@ -60,11 +63,19 @@ async function syncPendingTransactions() {
           'Content-Type': 'application/json',
           ...item.headers,
         },
+        credentials: 'include',
         body: JSON.stringify(item.payload),
       });
 
       if (!response.ok) {
-        throw new Error(`Error en el servidor con estado: ${response.status}`);
+        // 4xx = error del cliente → no reintentar (validación, duplicado, etc.)
+        if (response.status >= 400 && response.status < 500) {
+          console.warn(`⛔ SW: Error ${response.status} no retentable para [${item.entity}]`);
+          failed.push(item);
+          continue;
+        }
+        // 5xx = error del servidor → reintentar
+        throw new Error(`Server error: ${response.status}`);
       }
 
       const result = await response.json();
@@ -78,12 +89,26 @@ async function syncPendingTransactions() {
       });
 
     } catch (err) {
-      console.error(`❌ SW: Error al sincronizar [${item.entity}]:`, err);
-      // Mantener en la cola para reintentar después
-      remaining.push(item);
+      const retryCount = (item.retryCount ?? 0) + 1;
+      if (retryCount >= MAX_RETRIES) {
+        console.error(`⛔ SW: Máximo de reintentos alcanzado para [${item.entity}]`);
+        failed.push(item);
+      } else {
+        console.warn(`🔁 SW: Reintento ${retryCount}/${MAX_RETRIES} para [${item.entity}]`);
+        remaining.push({ ...item, retryCount });
+      }
     }
   }
 
-  // Guardar elementos no sincronizados
+  // Guardar elementos pendientes de reintentar
   await set('zelys-offline-outbox', remaining);
+
+  // Notificar sobre items que fallaron permanentemente
+  if (failed.length > 0) {
+    broadcastChannel.postMessage({
+      type: 'offline:sync-failed',
+      count: failed.length,
+      items: failed.map((f: any) => ({ entity: f.entity, id: f.id })),
+    });
+  }
 }

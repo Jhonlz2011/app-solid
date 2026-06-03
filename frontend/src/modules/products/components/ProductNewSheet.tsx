@@ -10,7 +10,7 @@ import { toast } from 'solid-sonner';
 import { useCreateProduct } from '../data/products.mutations';
 import { ProductForm } from './ProductForm';
 import type { ProductFormData } from '@app/schema/frontend';
-import { ApiError } from '@shared/utils/api-errors';
+import { ApiError, isNetworkError } from '@shared/utils/api-errors';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
@@ -29,6 +29,11 @@ const ProductNewSheet: Component<ProductNewSheetProps> = (props) => {
             toast.success('Producto creado correctamente');
             close();
         } catch (error: any) {
+            if (isNetworkError(error)) {
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
+                close();
+                return;
+            }
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
             if (!hasFieldErrors) toast.error(error?.message || 'Error al crear producto');
             throw error;

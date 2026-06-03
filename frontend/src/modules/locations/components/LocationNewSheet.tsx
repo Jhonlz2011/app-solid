@@ -2,6 +2,7 @@ import { Component } from 'solid-js';
 import { useSearch, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
+import { isNetworkError } from '@shared/utils/api-errors';
 import { useCreateLocation } from '../data/locations.mutations';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import Sheet from '@shared/ui/Sheet';
@@ -33,6 +34,11 @@ const LocationNewSheet: Component<LocationNewSheetProps> = (props) => {
             toast.success('Ubicación creada correctamente');
             navigateAway();
         } catch (err: any) {
+            if (isNetworkError(err)) {
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
+                navigateAway();
+                return;
+            }
             toast.error(err.message || 'Error al crear ubicación');
             throw err;
         }

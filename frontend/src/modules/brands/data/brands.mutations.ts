@@ -24,6 +24,7 @@ function applyIsActiveToCache(qc: ReturnType<typeof useQueryClient>, ids: number
 export function useCreateBrand() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['brands', 'create'],
         mutationFn: (body: { name: string; website?: string }) => brandsApi.create(body),
         onSettled: brandOnSettled(qc),
     }));
@@ -32,6 +33,7 @@ export function useCreateBrand() {
 export function useUpdateBrand() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['brands', 'update'],
         mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; website: string }> }) =>
             brandsApi.update(id, data),
         onSettled: brandOnSettled(qc),

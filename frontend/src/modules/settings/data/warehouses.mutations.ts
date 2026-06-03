@@ -9,6 +9,7 @@ import { warehouseKeys } from './warehouses.keys';
 export function useCreateWarehouse() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['inventory', 'warehouses', 'create'],
         mutationFn: (body: { code: string; name: string; address?: string; is_mobile?: boolean; manager_id?: number }) =>
             warehousesApi.create(body),
         onSettled: () => {
@@ -20,6 +21,7 @@ export function useCreateWarehouse() {
 export function useUpdateWarehouse() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['inventory', 'warehouses', 'update'],
         mutationFn: ({ id, data }: { id: number; data: Parameters<typeof warehousesApi.update>[1] }) =>
             warehousesApi.update(id, data),
         onSettled: () => {

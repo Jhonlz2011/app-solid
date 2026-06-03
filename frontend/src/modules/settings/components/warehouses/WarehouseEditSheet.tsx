@@ -1,4 +1,5 @@
 import { Component, Show, createSignal, createEffect } from 'solid-js';
+import { isNetworkError } from '@shared/utils/api-errors';
 import { useParams } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
@@ -42,7 +43,10 @@ const WarehouseEditSheet: Component<WarehouseEditSheetProps> = (props) => {
                 { id: warehouseId(), data: { code: value.code.toUpperCase(), name: value.name, address: value.address || null, is_mobile: value.is_mobile } },
                 {
                     onSuccess: () => { toast.success('Bodega actualizada'); navigateAway(); },
-                    onError: (err: any) => toast.error(err.message || 'Error al actualizar'),
+                    onError: (err: any) => {
+                        if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
+                        toast.error(err.message || 'Error al actualizar');
+                    },
                 },
             );
         },
@@ -64,7 +68,10 @@ const WarehouseEditSheet: Component<WarehouseEditSheetProps> = (props) => {
         const isActive = w.is_active ?? true;
         (isActive ? deactivateMut : restoreMut).mutate(w.id, {
             onSuccess: () => { toast.success(isActive ? 'Bodega desactivada' : 'Bodega restaurada'); navigateAway(); },
-            onError: (err: any) => toast.error(err.message || 'Error'),
+            onError: (err: any) => {
+                if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
+                toast.error(err.message || 'Error');
+            },
         });
     };
 

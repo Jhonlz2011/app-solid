@@ -6,7 +6,7 @@ import { useSupplier } from '../data/suppliers.queries';
 import { useUpdateSupplier } from '../data/suppliers.mutations';
 import { EntityForm } from '@shared/forms/entity';
 import type { EntityFormData } from '@app/schema/frontend';
-import { ApiError } from '@shared/utils/api-errors';
+import { ApiError, isNetworkError } from '@shared/utils/api-errors';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
@@ -36,6 +36,11 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
             await updateMutation.mutateAsync({ id: supplierId(), data: updateData });
             toast.success('Proveedor actualizado correctamente');
         } catch (error: any) {
+            if (isNetworkError(error)) {
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
+                navigateAway();
+                return;
+            }
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
             if (!hasFieldErrors) {
                 toast.error(error?.message || 'Error al editar proveedor');

@@ -72,3 +72,18 @@ export class ApiError extends Error {
 export function throwApiError(edenError: unknown): never {
     throw new ApiError(parseApiError(edenError));
 }
+
+/**
+ * Detecta si un error es de red (sin conexión) vs un error de API del servidor.
+ * Útil para mostrar feedback diferenciado en formularios offline.
+ */
+export function isNetworkError(error: unknown): boolean {
+  if (error instanceof TypeError && error.message === 'Failed to fetch') return true;
+  if (error instanceof DOMException && error.name === 'AbortError') return true;
+  // Eden envuelve errores de red en un objeto con .value = TypeError
+  if (error && typeof error === 'object' && 'value' in error) {
+    const inner = (error as any).value;
+    if (inner instanceof TypeError && inner.message === 'Failed to fetch') return true;
+  }
+  return false;
+}

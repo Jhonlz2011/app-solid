@@ -5,7 +5,7 @@ import { toast } from 'solid-sonner';
 import { useCreateCategory } from '../data/categories.mutations';
 import CategoryForm from './CategoryForm';
 import type { CategoryFormData } from '@app/schema/frontend';
-import { ApiError } from '@shared/utils/api-errors';
+import { ApiError, isNetworkError } from '@shared/utils/api-errors';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
@@ -31,6 +31,11 @@ const CategoryNewSheet: Component<CategoryNewSheetProps> = (props) => {
             toast.success('Categoría creada correctamente');
             navigateAway();
         } catch (error: any) {
+            if (isNetworkError(error)) {
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
+                navigateAway();
+                return;
+            }
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
             if (!hasFieldErrors) toast.error(error?.message || 'Error al crear la categoría');
             throw error;

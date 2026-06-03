@@ -44,6 +44,7 @@ function applyIsActiveToCache(
 export function useCreateProduct() {
     const queryClient = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['products', 'create'],
         mutationFn: async (body: ProductFormData) => {
             const { data, error } = await api.api.products.post(body as any);
             if (error) throwApiError(error);
@@ -85,6 +86,7 @@ export function useCreateProduct() {
 export function useUpdateProduct() {
     const queryClient = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['products', 'update'],
         mutationFn: async ({ id, data: body }: { id: number; data: Partial<ProductFormData> }) => {
             const { data, error } = await api.api.products({ id }).put(body as any);
             if (error) throwApiError(error);

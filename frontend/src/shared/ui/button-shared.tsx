@@ -4,13 +4,13 @@ import { cn } from '../lib/utils';
 export const BUTTON_VARIANTS = {
   primary: "bg-primary text-on-primary hover:bg-primary/90 active:scale-[0.97] transition-all duration-200 border border-transparent shadow-lg shadow-primary/20",
   secondary: "bg-secondary text-on-secondary hover:bg-secondary active:scale-[0.97] transition-all duration-200 border border-transparent shadow-lg shadow-secondary/20",
-  outline: "bg-transparent border border-border text-text hover:bg-surface hover:border-border-strong active:bg-surface-3 active:scale-[0.97] transition-all duration-200",
-  ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 border border-transparent transition-all duration-200 active:scale-[0.97]",
+  outline: "bg-transparent border border-border text-text hover:bg-surface hover:border-border-strong active:bg-surface-3 active:scale-[0.97] transition-scale duration-200",
+  ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 border border-transparent transition-scale duration-200 active:scale-[0.97]",
   link: "bg-transparent text-primary hover:text-primary-strong hover:bg-primary-soft transition-colors",
-  danger: "bg-danger text-white hover:bg-danger/85 active:scale-[0.97] transition-all duration-200 border border-transparent shadow-lg shadow-danger/20",
-  destructive: "bg-destructive text-white hover:bg-destructive/85 active:scale-[0.97] transition-all duration-200 border border-transparent shadow-lg shadow-destructive/30",
-  warning: "bg-warning text-white hover:bg-warning/85 active:scale-[0.97] transition-all duration-200 border border-transparent shadow-lg shadow-warning/20",
-  success: "bg-success text-white hover:bg-success/85 active:scale-[0.97] transition-all duration-200 border border-transparent shadow-lg shadow-success/20",
+  danger: "bg-danger text-white hover:bg-danger/85 active:scale-[0.97] transition-scale duration-200 border border-transparent shadow-lg shadow-danger/20",
+  destructive: "bg-destructive text-white hover:bg-destructive/85 active:scale-[0.97] transition-scale duration-200 border border-transparent shadow-lg shadow-destructive/30",
+  warning: "bg-warning text-white hover:bg-warning/85 active:scale-[0.97] transition-scale duration-200 border border-transparent shadow-lg shadow-warning/20",
+  success: "bg-success text-white hover:bg-success/85 active:scale-[0.97] transition-scale duration-200 border border-transparent shadow-lg shadow-success/20",
 };
 
 export const BUTTON_SIZES = {

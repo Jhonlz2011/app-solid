@@ -11,7 +11,7 @@ import { useProduct } from '../data/products.queries';
 import { useUpdateProduct } from '../data/products.mutations';
 import { ProductForm } from './ProductForm';
 import type { ProductFormData } from '@app/schema/frontend';
-import { ApiError } from '@shared/utils/api-errors';
+import { ApiError, isNetworkError } from '@shared/utils/api-errors';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
@@ -40,6 +40,11 @@ const ProductEditSheet: Component<ProductEditSheetProps> = (props) => {
             toast.success('Producto actualizado correctamente');
             close();
         } catch (error: any) {
+            if (isNetworkError(error)) {
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
+                close();
+                return;
+            }
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
             if (!hasFieldErrors) {
                 toast.error(error?.message || 'Error al editar producto');

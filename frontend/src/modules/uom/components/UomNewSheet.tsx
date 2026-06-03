@@ -1,4 +1,5 @@
 import { Component, createSignal } from 'solid-js';
+import { isNetworkError } from '@shared/utils/api-errors';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { UomFormSchema, type UomFormData } from '@app/schema/frontend';
@@ -26,7 +27,10 @@ const UomNewSheet: Component<UomNewSheetProps> = (props) => {
                 { code: value.code.toUpperCase(), name: value.name, uom_group: value.uom_group, base_factor: value.base_factor ? String(value.base_factor).replace(',', '.') : undefined },
                 {
                     onSuccess: () => { toast.success('Unidad creada correctamente'); navigateAway(); },
-                    onError: (err: any) => toast.error(err.message || 'Error al crear unidad'),
+                    onError: (err: any) => {
+                        if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
+                        toast.error(err.message || 'Error al crear unidad');
+                    },
                 },
             );
         },

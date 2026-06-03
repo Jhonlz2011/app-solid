@@ -1,4 +1,5 @@
 import { Component, Show, createSignal, createEffect, on } from 'solid-js';
+import { isNetworkError } from '@shared/utils/api-errors';
 import { useParams } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
@@ -43,7 +44,10 @@ const UomEditSheet: Component<UomEditSheetProps> = (props) => {
                 { id: uomId(), data: { name: value.name, uom_group: value.uom_group, base_factor: value.base_factor ? String(value.base_factor).replace(',', '.') : undefined } },
                 {
                     onSuccess: () => { toast.success('Unidad actualizada'); navigateAway(); },
-                    onError: (err: any) => toast.error(err.message || 'Error al actualizar'),
+                    onError: (err: any) => {
+                        if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
+                        toast.error(err.message || 'Error al actualizar');
+                    },
                 },
             );
         },

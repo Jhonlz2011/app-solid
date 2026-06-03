@@ -34,6 +34,10 @@ export const persister = {
 
 import { brandsApi } from '@modules/brands/data/brands.api';
 import { warehousesApi } from '@modules/settings/data/warehouses.api';
+import { categoriesApi } from '@modules/categories/data/categories.api';
+import { locationsApi } from '@modules/locations/data/locations.api';
+import { attributesApi } from '@modules/attributes/data/attributes.api';
+import { uomApi } from '@modules/uom/data/uom.api';
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -61,11 +65,110 @@ export const queryClient = new QueryClient({
   },
 });
 
-// Registrar defaults de mutación estáticos para reanudación fuera de línea (hydration/resume)
-queryClient.setMutationDefaults(['settings', 'brands', 'create'], {
-  mutationFn: (variables: any) => brandsApi.create(variables),
+// =============================================================================
+// Mutation Defaults — Permite rehidratar mutationFn tras desconexión/recarga
+// Las keys DEBEN coincidir exactamente con los mutationKey de cada hook
+// =============================================================================
+
+// Brands
+queryClient.setMutationDefaults(['brands', 'create'], {
+  mutationFn: (vars: any) => brandsApi.create(vars),
+});
+queryClient.setMutationDefaults(['brands', 'update'], {
+  mutationFn: (vars: any) => brandsApi.update(vars.id, vars.data),
 });
 
-queryClient.setMutationDefaults(['settings', 'warehouses', 'create'], {
-  mutationFn: (variables: any) => warehousesApi.create(variables),
+// Clients (usa eden directamente porque clients.api.ts inline lo hace)
+queryClient.setMutationDefaults(['clients', 'create'], {
+  mutationFn: async (vars: any) => {
+    const { api } = await import('@shared/lib/eden');
+    const { data, error } = await api.api.clients.post(vars);
+    if (error) throw error;
+    return data!;
+  },
 });
+queryClient.setMutationDefaults(['clients', 'update'], {
+  mutationFn: async (vars: any) => {
+    const { api } = await import('@shared/lib/eden');
+    const { data, error } = await api.api.clients({ id: vars.id }).put(vars.data);
+    if (error) throw error;
+    return data!;
+  },
+});
+
+// Suppliers (misma estructura que clients)
+queryClient.setMutationDefaults(['suppliers', 'create'], {
+  mutationFn: async (vars: any) => {
+    const { api } = await import('@shared/lib/eden');
+    const { data, error } = await api.api.suppliers.post(vars);
+    if (error) throw error;
+    return data!;
+  },
+});
+queryClient.setMutationDefaults(['suppliers', 'update'], {
+  mutationFn: async (vars: any) => {
+    const { api } = await import('@shared/lib/eden');
+    const { data, error } = await api.api.suppliers({ id: vars.id }).put(vars.data);
+    if (error) throw error;
+    return data!;
+  },
+});
+
+// Products
+queryClient.setMutationDefaults(['products', 'create'], {
+  mutationFn: async (vars: any) => {
+    const { api } = await import('@shared/lib/eden');
+    const { data, error } = await api.api.products.post(vars);
+    if (error) throw error;
+    return data!;
+  },
+});
+queryClient.setMutationDefaults(['products', 'update'], {
+  mutationFn: async (vars: any) => {
+    const { api } = await import('@shared/lib/eden');
+    const { data, error } = await api.api.products({ id: vars.id }).put(vars.data);
+    if (error) throw error;
+    return data!;
+  },
+});
+
+// Categories
+queryClient.setMutationDefaults(['catalogs', 'categories', 'create'], {
+  mutationFn: (vars: any) => categoriesApi.create(vars),
+});
+queryClient.setMutationDefaults(['catalogs', 'categories', 'update'], {
+  mutationFn: (vars: any) => categoriesApi.update(vars.id, vars.data),
+});
+
+// Locations
+queryClient.setMutationDefaults(['locations', 'create'], {
+  mutationFn: (vars: any) => locationsApi.create(vars),
+});
+queryClient.setMutationDefaults(['locations', 'update'], {
+  mutationFn: (vars: any) => locationsApi.update(vars.id, vars.data),
+});
+
+// Attributes
+queryClient.setMutationDefaults(['attributes', 'create'], {
+  mutationFn: (vars: any) => attributesApi.create(vars),
+});
+queryClient.setMutationDefaults(['attributes', 'update'], {
+  mutationFn: (vars: any) => attributesApi.update(vars.id, vars.data),
+});
+
+// UOM
+queryClient.setMutationDefaults(['uom', 'create'], {
+  mutationFn: (vars: any) => uomApi.create(vars),
+});
+queryClient.setMutationDefaults(['uom', 'update'], {
+  mutationFn: (vars: any) => uomApi.update(vars.id, vars.data),
+});
+
+// Warehouses
+queryClient.setMutationDefaults(['inventory', 'warehouses', 'create'], {
+  mutationFn: (vars: any) => warehousesApi.create(vars),
+});
+queryClient.setMutationDefaults(['inventory', 'warehouses', 'update'], {
+  mutationFn: (vars: any) => warehousesApi.update(vars.id, vars.data),
+});
+

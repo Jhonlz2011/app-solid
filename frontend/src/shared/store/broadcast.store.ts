@@ -96,4 +96,6 @@ export const broadcast = {
 export const BroadcastEvents = {
     PROFILE_UPDATE: 'auth:profile_update',
     SESSIONS_REFRESH: 'sessions:refresh',
+    OFFLINE_SYNCED: 'offline:synced',
+    OFFLINE_SYNC_FAILED: 'offline:sync-failed',
 } as const;

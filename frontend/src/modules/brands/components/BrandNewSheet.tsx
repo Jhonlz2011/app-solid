@@ -4,6 +4,7 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { BrandFormSchema, type BrandFormData } from '@app/schema/frontend';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
+import { isNetworkError } from '@shared/utils/api-errors';
 import { useCreateBrand } from '../data/brands.mutations';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
@@ -27,7 +28,10 @@ const BrandNewSheet: Component<BrandNewSheetProps> = (props) => {
                 { name: value.name, website: value.website || undefined },
                 {
                     onSuccess: () => { toast.success('Marca creada correctamente'); navigateAway(); },
-                    onError: (err: any) => toast.error(err.message || 'Error al crear marca'),
+                    onError: (err: any) => {
+                        if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
+                        toast.error(err.message || 'Error al crear marca');
+                    },
                 },
             );
         },

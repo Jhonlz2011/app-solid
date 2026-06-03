@@ -25,6 +25,7 @@ type CreateUomInput = { code: string; name: string; uom_group: string; base_fact
 export function useCreateUom() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['uom', 'create'],
         mutationFn: (body: CreateUomInput) => uomApi.create(body),
         onMutate: async (newUom: CreateUomInput) => {
             await qc.cancelQueries({ queryKey: uomKeys.all });
@@ -63,6 +64,7 @@ export function useCreateUom() {
 export function useUpdateUom() {
     const qc = useQueryClient();
     return createMutation(() => ({
+        mutationKey: ['uom', 'update'],
         mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; uom_group: string; base_factor: string; is_active: boolean }> }) =>
             uomApi.update(id, data),
         onSettled: () => qc.invalidateQueries({ queryKey: uomKeys.all }),

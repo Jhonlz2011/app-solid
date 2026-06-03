@@ -6,7 +6,7 @@ import { useAttributeDetail } from '../data/attributes.queries';
 import { useUpdateAttribute } from '../data/attributes.mutations';
 import AttributeForm from './AttributeForm';
 import type { AttributeFormData } from '@app/schema/frontend';
-import { ApiError } from '@shared/utils/api-errors';
+import { ApiError, isNetworkError } from '@shared/utils/api-errors';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
@@ -39,6 +39,11 @@ const AttributeEditSheet: Component<AttributeEditSheetProps> = (props) => {
             toast.success('Atributo actualizado correctamente');
             navigateAway();
         } catch (error: any) {
+            if (isNetworkError(error)) {
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
+                navigateAway();
+                return;
+            }
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
             if (!hasFieldErrors) {
                 toast.error(error?.message || 'Error al editar atributo');
