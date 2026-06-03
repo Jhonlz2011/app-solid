@@ -4,6 +4,7 @@ import { brands, categories, categoryAttributes, attributeDefinitions, products 
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/sse';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from './audit.service';
 
 // Helper: slugify for ltree path segments (ascii, lowercase, dots replaced)
@@ -179,7 +180,7 @@ export async function getCategoryFormSchema(id: number, companyId: number) {
     return { category, attributes };
 }
 
-export async function createCategoryEnhanced(data: CategoryPayload) {
+export async function createCategoryEnhanced(data: CategoryPayload, clientId?: string) {
     const { path, depth } = await computePathAndDepth(data.parentId ?? null, data.name);
 
     const created = await db.transaction(async (tx) => {
@@ -212,11 +213,11 @@ export async function createCategoryEnhanced(data: CategoryPayload) {
     });
 
     cacheService.invalidate(`categories:c${data.companyId}:*`);
-    broadcast('category:created', created, 'categories');
+    broadcast(RealtimeEvents.ENTITY.CREATED, { id: created.id, entity: created, clientId }, 'categories');
     return created;
 }
 
-export async function updateCategoryEnhanced(id: number, data: Partial<CategoryPayload>, companyId: number) {
+export async function updateCategoryEnhanced(id: number, data: Partial<CategoryPayload>, companyId: number, clientId?: string) {
     const updated = await db.transaction(async (tx) => {
         // Verify ownership
         const [existing] = await tx.select().from(categories)
@@ -255,7 +256,7 @@ export async function updateCategoryEnhanced(id: number, data: Partial<CategoryP
                         attribute_def_id: a.attributeDefId,
                         required: a.required ?? false,
                         order: a.order ?? 0,
-                        specific_options: a.specificOptions ?? null,
+                        specific_options: a.specific_options ?? null,
                     }))
                 );
             }
@@ -265,7 +266,7 @@ export async function updateCategoryEnhanced(id: number, data: Partial<CategoryP
     });
 
     cacheService.invalidate(`categories:c${companyId}:*`);
-    broadcast('category:updated', updated, 'categories');
+    broadcast(RealtimeEvents.ENTITY.UPDATED, { id: updated.id, entity: updated, clientId }, 'categories');
     return updated;
 }
 
@@ -287,7 +288,7 @@ export async function deactivateCategory(id: number, companyId: number, clientId
             .where(eq(categories.id, id));
 
         cacheService.invalidate(`categories:c${companyId}:*`);
-        broadcast('category:updated', updated, 'categories');
+        broadcast(RealtimeEvents.ENTITY.UPDATED, { id: updated.id, entity: updated, clientId }, 'categories');
         return updated;
     });
 }
@@ -302,7 +303,7 @@ export async function restoreCategory(id: number, companyId: number, clientId?: 
             .where(eq(categories.id, id)).returning();
 
         cacheService.invalidate(`categories:c${companyId}:*`);
-        broadcast('category:updated', updated, 'categories');
+        broadcast(RealtimeEvents.ENTITY.UPDATED, { id: updated.id, entity: updated, clientId }, 'categories');
         return updated;
     });
 }
@@ -311,7 +312,7 @@ export async function restoreCategory(id: number, companyId: number, clientId?: 
 // Reorder Categories (Bulk sort_order update)
 // =============================================================================
 
-export async function reorderCategories(items: Array<{ id: number; sort_order: number }>, companyId: number) {
+export async function reorderCategories(items: Array<{ id: number; sort_order: number }>, companyId: number, clientId?: string) {
     if (items.length === 0) return { updated: 0 };
 
     await db.transaction(async (tx) => {
@@ -323,7 +324,7 @@ export async function reorderCategories(items: Array<{ id: number; sort_order: n
     });
 
     cacheService.invalidate(`categories:c${companyId}:*`);
-    broadcast('categories:reordered', { count: items.length }, 'categories');
+    broadcast(RealtimeEvents.ENTITY.UPDATED, { clientId }, 'categories');
     return { updated: items.length };
 }
 
@@ -331,7 +332,7 @@ export async function reorderCategories(items: Array<{ id: number; sort_order: n
 // Reparent — Dedicated DnD endpoint
 // =============================================================================
 
-export async function reparentCategory(id: number, newParentId: number | null, companyId: number) {
+export async function reparentCategory(id: number, newParentId: number | null, companyId: number, clientId?: string) {
     const [node] = await db.select().from(categories)
         .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
     if (!node) throw new DomainError('Categoría no encontrada', 404);
@@ -377,7 +378,7 @@ export async function reparentCategory(id: number, newParentId: number | null, c
     `);
 
     cacheService.invalidate(`categories:c${companyId}:*`);
-    broadcast('category:updated', updated, 'categories');
+    broadcast(RealtimeEvents.ENTITY.UPDATED, { id: updated.id, entity: updated, clientId }, 'categories');
     return updated;
 }
 
@@ -407,7 +408,7 @@ export async function checkCategoryReferences(id: number, companyId: number) {
 // Hard Delete — permanent removal
 // =============================================================================
 
-export async function hardDeleteCategory(id: number, companyId: number) {
+export async function hardDeleteCategory(id: number, companyId: number, clientId?: string) {
     const [existing] = await db.select().from(categories)
         .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
     if (!existing) throw new DomainError('Categoría no encontrada', 404);
@@ -426,7 +427,7 @@ export async function hardDeleteCategory(id: number, companyId: number) {
     await db.delete(categories).where(eq(categories.id, id));
 
     cacheService.invalidate(`categories:c${companyId}:*`);
-    broadcast('category:deleted', { id }, 'categories');
+    broadcast(RealtimeEvents.ENTITY.DELETED, { id, clientId }, 'categories');
     return { success: true };
 }
 
@@ -465,7 +466,11 @@ export async function bulkDeactivateCategories(ids: number[], companyId: number,
 
         // Broadcast for each item so frontend cache updates correctly
         for (const cat of existing) {
-            broadcast('category:updated', { id: cat.id, is_active: false }, 'categories');
+            broadcast(
+                RealtimeEvents.ENTITY.UPDATED,
+                { id: cat.id, entity: { is_active: false }, clientId: audit?.clientId },
+                'categories'
+            );
         }
 
         return { success: true, count: existing.length, deactivatedIds: existing.map(c => c.id) };
@@ -500,7 +505,11 @@ export async function bulkRestoreCategories(ids: number[], companyId: number, au
 
         cacheService.invalidate(`categories:c${companyId}:*`);
         for (const cat of existing) {
-            broadcast('category:updated', { id: cat.id, is_active: true }, 'categories');
+            broadcast(
+                RealtimeEvents.ENTITY.UPDATED,
+                { id: cat.id, entity: { is_active: true }, clientId: audit?.clientId },
+                'categories'
+            );
         }
 
         return { success: true, count: existingIds.length, restoredIds: existingIds };

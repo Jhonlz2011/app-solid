@@ -102,12 +102,12 @@ const Content: Component<DropdownMenuContentProps> = (props) => {
             <KobalteDropdownMenu.Content
                 class={cn(
                     // Base styles
-                    'z-50 min-w-[8rem] overflow-hidden rounded-xl p-1',
+                    'z-50 min-w-32 overflow-hidden rounded-xl p-1',
                     // Background and border - using design tokens
                     'bg-card border border-border shadow-card-soft',
                     // Animation
-                    'origin-[var(--kb-menu-content-transform-origin)]',
-                    'animate-in fade-in-0 zoom-in-95 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:zoom-out-95',
+                    'origin-(--kb-menu-content-transform-origin)',
+                    'animate-in fade-in-0 zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
                     'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2',
                     'data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2',
                     local.class
@@ -134,11 +134,11 @@ const Item: Component<DropdownMenuItemProps> = (props) => {
                 // Normal state - text color
                 'text-text',
                 // Hover/Focus state - using card-alt for visibility
-                'focus:bg-card-alt data-[highlighted]:bg-card-alt',
+                'focus:bg-card-alt data-highlighted:bg-card-alt',
                 // Disabled state
-                'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+                'data-disabled:pointer-events-none data-disabled:opacity-50',
                 // Destructive variant - using danger semantic colors
-                local.destructive && 'text-danger font-medium data-[highlighted]:bg-danger/10',
+                local.destructive && 'text-danger font-medium data-highlighted:bg-danger/10',
                 local.class
             )}
             onSelect={local.onSelect}

@@ -19,6 +19,7 @@ import { DropdownMenu } from '@shared/ui/DropdownMenu';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
 import UserDeleteDialog from '../components/UserDeleteDialog';
 
@@ -52,7 +53,7 @@ const UsersRolesPage: Component = () => {
             />
 
             {/* Header */}
-            <div class="flex-shrink-0 p-3 sm:p-4 space-y-4">
+            <div class="shrink-0 p-3 sm:p-4 space-y-4">
                 <PageHeader
                     icon={<UserKeyIcon />}
                     iconBg="linear-gradient(135deg, #6366f1, #9477d6ff)"
@@ -75,14 +76,9 @@ const UsersRolesPage: Component = () => {
                             </Tabs>
 
                             <Show when={state.activeTab() === 'users' && state.auth.canAdd('users')}>
-                                <Button
-                                    to="/users/new"
-                                    search={true}
-                                    preload="intent"
-                                    icon={<PlusIcon />}
-                                >
+                                <LinkButton to="/users/new" preload="intent" icon={<PlusIcon />}>
                                     <span class="hidden @md:inline">Nuevo</span>
-                                </Button>
+                                </LinkButton>
                             </Show>
                             <Show when={state.activeTab() === 'roles' && state.auth.canAdd('roles')}>
                                 <Button onClick={state.handleNewRole} icon={<PlusIcon />}>

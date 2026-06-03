@@ -19,6 +19,12 @@ export const createClientsModals = (parentRoute: any, basePath = '', fallbackRed
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
         path: `${prefix}new`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canAdd('clients')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         component: LazyClientNewRoute,
     });
 
@@ -56,6 +62,12 @@ export const createClientsModals = (parentRoute: any, basePath = '', fallbackRed
     const editRoute = createRoute({
         getParentRoute: () => baseRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('clients')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         loader: async ({ params }) => {
             const id = Number(params.clientId);
             await queryClient.prefetchQuery({ queryKey: clientKeys.detail(id), queryFn: () => clientsApi.get(id), staleTime: 1000 * 30 });
@@ -67,6 +79,12 @@ export const createClientsModals = (parentRoute: any, basePath = '', fallbackRed
     const nestedEditRoute = createRoute({
         getParentRoute: () => showRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('clients')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         component: function NestedEditWrapper() {
             const navigate = useNavigate();
             return <LazyClientEditRoute onBack={() => navigate({ to: '..', search: true })} />;

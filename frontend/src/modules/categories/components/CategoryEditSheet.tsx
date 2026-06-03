@@ -95,7 +95,7 @@ const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
                     </Button>
                     <Button
                         type="submit"
-                        form="category-form"
+                        form="category-edit-form"
                         loading={updateMutation.isPending}
                         loadingText="Guardando..."
                         icon={<FloppyDiskIcon/>}
@@ -138,6 +138,7 @@ const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
                             category={categoryQuery.data}
                             onSubmit={handleSubmit}
                             isSubmitting={updateMutation.isPending}
+                            formId="category-edit-form"
                         />
                     </Show>
                 </Show>

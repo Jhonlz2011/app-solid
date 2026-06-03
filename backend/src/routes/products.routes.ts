@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { rbac } from '../plugins/rbac';
 import {
     listProducts,
     getProduct,
@@ -59,6 +60,7 @@ const ProductBodySchema = t.Object({
 
 export const productRoutes = new Elysia({ prefix: '/products' })
     .use(authGuard)
+    .use(rbac)
 
     // ─── LIST (cursor + offset pagination) ───────────────────────
     .get('/', ({ query, currentCompanyId }) =>
@@ -89,6 +91,7 @@ export const productRoutes = new Elysia({ prefix: '/products' })
                 productType: t.Optional(t.String()),
                 isActive: t.Optional(t.String()),
             }),
+            permission: 'products.read',
         }
     )
 
@@ -113,6 +116,7 @@ export const productRoutes = new Elysia({ prefix: '/products' })
                 productType: t.Optional(t.String()),
                 isActive: t.Optional(t.String()),
             }),
+            permission: 'products.read',
         }
     )
 
@@ -127,17 +131,24 @@ export const productRoutes = new Elysia({ prefix: '/products' })
                 categoryId: t.Optional(t.Numeric()),
                 brandId: t.Optional(t.Numeric()),
             }),
+            permission: 'products.read',
         }
     )
 
     // ─── GET BY ID ───────────────────────────────────────────────
     .get('/:id', ({ params }) => getProduct(Number(params.id)),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'products.read',
+        }
     )
 
     // ─── CAN-DELETE CHECK ────────────────────────────────────────
     .get('/:id/can-delete', ({ params }) => checkProductReferences(Number(params.id)),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'products.read',
+        }
     )
 
     // ─── CREATE ──────────────────────────────────────────────────
@@ -145,7 +156,10 @@ export const productRoutes = new Elysia({ prefix: '/products' })
         const product = await createProduct(body as ProductPayload, currentUserId, currentCompanyId);
         set.status = 201;
         return product;
-    }, { body: ProductBodySchema })
+    }, {
+        body: ProductBodySchema,
+        permission: 'products.create',
+    })
 
     // ─── UPDATE ──────────────────────────────────────────────────
     .put('/:id', ({ params, body, currentUserId }) =>
@@ -153,35 +167,51 @@ export const productRoutes = new Elysia({ prefix: '/products' })
         {
             params: t.Object({ id: t.Numeric() }),
             body: t.Partial(ProductBodySchema),
+            permission: 'products.update',
         }
     )
 
     // ─── DEACTIVATE (Soft Delete) ────────────────────────────────
     .patch('/:id/deactivate', ({ params, currentUserId }) =>
         deactivateProduct(Number(params.id), currentUserId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'products.delete',
+        }
     )
 
     // ─── RESTORE ─────────────────────────────────────────────────
     .patch('/:id/restore', ({ params, currentUserId }) =>
         restoreProduct(Number(params.id), currentUserId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'products.restore',
+        }
     )
 
     // ─── HARD DELETE ─────────────────────────────────────────────
     .delete('/:id', async ({ params, set }) => {
         await hardDeleteProduct(Number(params.id));
         set.status = 204;
-    }, { params: t.Object({ id: t.Numeric() }) })
+    }, {
+        params: t.Object({ id: t.Numeric() }),
+        permission: 'products.destroy',
+    })
 
     // ─── BULK DEACTIVATE ─────────────────────────────────────────
     .post('/bulk/delete', ({ body, currentUserId }) =>
         bulkDeactivateProducts(body.ids, currentUserId),
-        { body: t.Object({ ids: t.Array(t.Number()) }) }
+        {
+            body: t.Object({ ids: t.Array(t.Number()) }),
+            permission: 'products.delete',
+        }
     )
 
     // ─── BULK RESTORE ────────────────────────────────────────────
     .patch('/bulk/restore', ({ body, currentUserId }) =>
         bulkRestoreProducts(body.ids, currentUserId),
-        { body: t.Object({ ids: t.Array(t.Number()) }) }
+        {
+            body: t.Object({ ids: t.Array(t.Number()) }),
+            permission: 'products.restore',
+        }
     );

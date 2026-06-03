@@ -726,7 +726,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                             <form.Field name="businessName">
                                 {(field) => (
                                     <Autocomplete.Root field={field()}>
-                                        <Autocomplete.Label>Razón Social (Búsqueda Autónoma SRI)</Autocomplete.Label>
+                                        <Autocomplete.Label>Razón Social (Búsqueda SRI)</Autocomplete.Label>
                                         <Autocomplete.Input<SriSupplierResponse>
                                             inputId="businessName-input"
                                             value={field().state.value}

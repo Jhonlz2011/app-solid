@@ -13,6 +13,8 @@ import type { FilterOption } from "@shared/ui/DataTable/DataTableColumnFilter";
 import { Badge, CounterBadge, StatusBadge } from "@shared/ui/Badge";
 import Checkbox from "@shared/ui/Checkbox";
 import ActionMenu from "@shared/ui/ActionMenu";
+import DropdownMenu from "@shared/ui/DropdownMenu";
+import { useAuth } from "@/modules/auth/store/auth.store";
 import {
   ChevronRightIcon,
   ChevronDownIcon,
@@ -283,25 +285,26 @@ export function createLocationColumns(
       enableSorting: false,
       cell: ({ row }) => {
         const loc = row.original;
+        const isPhysical = loc.type === 'INTERNAL' || loc.type === 'VIEW';
+        const auth = useAuth();
         return (
           <ActionMenu
             module="locations"
             isActive={loc.is_active ?? true}
             showTo={`/locations/${loc.id}/show`}
-            editTo={`/locations/${loc.id}/edit`}
-            onDelete={() => handlers.onDelete(loc.id)}
-            onRestore={() => handlers.onRestore(loc.id)}
+            editTo={isPhysical ? `/locations/${loc.id}/edit` : undefined}
+            onDelete={isPhysical ? () => handlers.onDelete(loc.id) : undefined}
+            onRestore={isPhysical ? () => handlers.onRestore(loc.id) : undefined}
           >
             {/* Add child location */}
-            <Show when={loc.is_active ?? true}>
-              <button
-                type="button"
-                class="flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-dropdown-hover transition-colors"
-                onClick={() => handlers.onAddChild(loc.id)}
+            <Show when={(loc.is_active ?? true) && isPhysical && auth.canAdd('locations')}>
+              <DropdownMenu.Item
+                to="/locations/new"
+                search={{ parentId: String(loc.id) }}
               >
-                <PlusIcon class="size-4 text-muted" />
+                <PlusIcon class="size-4 text-muted mr-2" />
                 <span>Agregar sub-ubicación</span>
-              </button>
+              </DropdownMenu.Item>
             </Show>
           </ActionMenu>
         );

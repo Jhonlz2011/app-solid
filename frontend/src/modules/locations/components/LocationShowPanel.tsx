@@ -8,16 +8,21 @@ import type { LocationItem } from '../data/locations.api';
 import { EditIcon, MapPinIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 import Sheet from '@shared/ui/Sheet';
 import { StatusBadge } from '@shared/ui/Badge';
 import { InfoRow } from '@shared/ui/InfoRow';
+import { useAuth } from '@modules/auth/store/auth.store';
+
 
 interface LocationShowPanelProps {
     locationId?: number;
     onClose?: () => void;
+    onBack?: () => void;
 }
 
 const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
+    const auth = useAuth();
     const params = useParams({ strict: false }) as () => { locationId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
     const locationId = () => {
@@ -34,6 +39,7 @@ const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
+            onBack={props.onBack}
             title="Detalles de la Ubicación"
             description="Información completa de esta ubicación"
             size="xl"
@@ -88,7 +94,7 @@ const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
                             return (
                                 <div class="flex flex-col gap-5 pt-5">
                                     {/* Header */}
-                                    <div class="flex items-start justify-between flex-shrink-0">
+                                    <div class="flex items-start justify-between shrink-0">
                                         <div class="flex gap-4 items-center">
                                             <div class="size-14 rounded-2xl bg-info/10 flex items-center justify-center text-info shadow-inner border border-info/20">
                                                 <MapPinIcon class="size-6" />
@@ -107,17 +113,18 @@ const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                            to={`./edit`}
-                                            disabled={!locationId()}
-                                        >
-                                            <EditIcon class="size-4 text-muted" />
-                                            Editar
-                                        </Button>
+                                        <Show when={auth.canEdit('locations')}>
+                                            <LinkButton
+                                                variant="outline"
+                                                size="sm"
+                                                class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
+                                                to={`./edit`}
+                                                disabled={!locationId()}
+                                            >
+                                                <EditIcon class="size-4 text-muted" />
+                                                Editar
+                                            </LinkButton>
+                                        </Show>
                                     </div>
 
                                     {/* Info Card */}
@@ -131,7 +138,7 @@ const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
                                             <InfoRow label="Ruta (ltree)" value={location().path} />
                                             <InfoRow label="Tipo" value={typeMeta()?.label ?? location().type} />
                                             <InfoRow label="Profundidad" value={String(location().depth)} />
-                                            
+
                                             <InfoRow label="Bodega ID" value={location().warehouse_id ? String(location().warehouse_id) : 'Virtual (sin bodega)'} />
                                         </div>
                                     </div>

@@ -12,7 +12,7 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { createVirtualizer } from "@tanstack/solid-virtual";
-import { XIcon, ChevronRightIcon } from "./icons";
+import { XIcon, ChevronRightIcon, TagIcon } from "./icons";
 import type { FieldLike } from "./form/form.types";
 import {
   hasFieldError,
@@ -29,6 +29,7 @@ export interface TreeSelectProps<T> {
   optionLabel: (item: T) => string;
   optionParentId: (item: T) => number | null;
   optionIsActive?: (item: T) => boolean;
+  parentSelectable?: boolean;
 
   label?: string;
   placeholder?: string;
@@ -372,11 +373,36 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     return ancestors;
   });
 
-  // Keep matching nodes and all of their ancestors visible
+  // Identify descendants of matching nodes to make them visible during search
+  const descendantsOfMatches = createMemo(() => {
+    if (!isSearching() || !inputValue().trim()) return new Set<number>();
+    const matches = matchingNodeIds();
+    const descendants = new Set<number>();
+
+    const collectDescendants = (nodeId: number) => {
+      const kids = treeStructure().childrenMap.get(nodeId) || [];
+      for (const kid of kids) {
+        const kidId = props.optionValue(kid);
+        if (!descendants.has(kidId)) {
+          descendants.add(kidId);
+          collectDescendants(kidId);
+        }
+      }
+    };
+
+    for (const matchId of Array.from(matches)) {
+      collectDescendants(matchId);
+    }
+
+    return descendants;
+  });
+
+  // Keep matching nodes, all of their ancestors, and all of their descendants visible
   const visibleNodeIdsInSearch = createMemo(() => {
     if (!isSearching() || !inputValue().trim()) return null;
     const matches = matchingNodeIds();
     const ancestors = ancestorsOfMatches();
+    const descendants = descendantsOfMatches();
 
     const visible = new Set<number>();
     for (const matchId of Array.from(matches)) {
@@ -384,6 +410,9 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     }
     for (const ancId of Array.from(ancestors)) {
       visible.add(ancId);
+    }
+    for (const descId of Array.from(descendants)) {
+      visible.add(descId);
     }
 
     return visible;
@@ -405,7 +434,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       for (const child of children) {
         const childId = props.optionValue(child);
 
-        // Visibility: during search, only show nodes in searchVisible set (matches + ancestors)
+        // Visibility: during search, only show nodes in searchVisible set (matches + ancestors + descendants)
         // Without search, all nodes at traversed levels are visible
         const isNodeVisible =
           !isSearchActive || searchVisible.has(childId);
@@ -414,10 +443,9 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
           result.push(child);
         }
 
-        // Expansion: during search, expand only ancestors of matches
-        // Without search, expand only manually expanded nodes
+        // Expansion: during search, expand ancestors of matches OR manually expanded nodes
         const shouldExpand = isSearchActive
-          ? ancestors.has(childId)
+          ? (ancestors.has(childId) || isExpanded(childId))
           : isExpanded(childId);
 
         if (shouldExpand && hasChildren(childId)) {
@@ -701,7 +729,12 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
         e.preventDefault();
         const opt = list[highlightedIndex()];
         if (opt) {
-          handleSelect(opt);
+          const oId = props.optionValue(opt);
+          if (props.parentSelectable === false && hasChildren(oId)) {
+            toggleExpand(oId);
+          } else {
+            handleSelect(opt);
+          }
         }
         break;
       }
@@ -783,7 +816,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       data-invalid={validationState() === "invalid"}
     >
       <Show when={props.label !== undefined}>
-        <label for={id} class="text-sm font-medium text-muted ml-1">
+        <label for={id} class="text-sm font-medium text-muted ml-1 w-fit">
           {props.label}
         </label>
       </Show>
@@ -961,7 +994,14 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
                           }}
                           onClick={() => {
                             const o = opt();
-                            if (o) handleSelect(o);
+                            if (o) {
+                              const oId = props.optionValue(o);
+                              if (props.parentSelectable === false && hasChildren(oId)) {
+                                toggleExpand(oId);
+                              } else {
+                                handleSelect(o);
+                              }
+                            }
                           }}
                           onMouseMove={() => {
                             if (Date.now() - lastKeyboardNavTime() < 150)
@@ -982,42 +1022,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
                           )}
                         >
                           <div class="flex items-center w-full min-w-0 pr-2 select-none relative self-stretch">
-                            {/* Visual Tree Guidelines — shadcn-style L/T connectors */}
-                            <Show when={depth() > 0}>
-                              <div class="absolute top-0 bottom-0 left-1 flex pointer-events-none z-0">
-                                <For each={ancestorIsLast()}>
-                                  {(isLastAtLevel, i) => {
-                                    const isConnectorColumn = () => i() === depth() - 1;
-                                    return (
-                                      <div
-                                        class="h-full shrink-0 relative"
-                                        style={{ width: "16px" }}
-                                      >
-                                        <Show
-                                          when={isConnectorColumn()}
-                                          fallback={
-                                            /* Pass-through columns: continuing vertical line
-                                               only if ancestor at this level has more siblings */
-                                            <Show when={!isLastAtLevel}>
-                                              <div class="w-px h-full bg-primary-strong absolute left-1/2 -translate-x-1/2" />
-                                            </Show>
-                                          }
-                                        >
-                                          {/* Connector column (last): L-shape if last child, T-shape if not */}
-                                          <div
-                                            class={cn(
-                                              "w-px bg-primary-strong absolute left-1/2 -translate-x-1/2 top-0",
-                                              isLastAtLevel ? "h-1/2" : "h-full",
-                                            )}
-                                          />
-                                          <div class="h-px w-1/2 bg-primary-strong absolute left-1/2 top-[calc(50%-1px)] " />
-                                        </Show>
-                                      </div>
-                                    );
-                                  }}
-                                </For>
-                              </div>
-                            </Show>
+                        
 
                             {/* Main Content Row indented dynamically */}
                             <div

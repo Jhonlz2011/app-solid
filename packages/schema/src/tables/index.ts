@@ -12,3 +12,4 @@ export * from './requests';
 export * from './documents';
 export * from './pos';
 export * from './finance';
+export * from './inventory_defaults';

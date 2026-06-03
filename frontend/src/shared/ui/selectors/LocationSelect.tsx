@@ -1,10 +1,11 @@
-import { Component, Show, createMemo, For } from 'solid-js';
+import { Component, Show, createMemo } from 'solid-js';
 import { useLocationList } from '@modules/locations/data/locations.queries';
 import { TreeSelect } from '@shared/ui/TreeSelect';
-import { WarehouseIcon, MapPinIcon, CloseIcon, ChevronRightIcon } from '@shared/ui/icons';
+import { WarehouseIcon, MapPinIcon, CloseIcon } from '@shared/ui/icons';
 import Button from '@shared/ui/Button';
 import type { LocationItem } from '@modules/locations/data/locations.api';
 import type { FieldLike } from '@shared/ui/form/form.types';
+import { SelectorBreadcrumbs, buildBreadcrumbs } from './SelectorBreadcrumbs';
 
 export interface LocationSelectProps {
     value: number | null | undefined;
@@ -47,20 +48,14 @@ export const LocationSelect: Component<LocationSelectProps> = (props) => {
     const breadcrumbs = createMemo(() => {
         const loc = selectedLocation();
         if (!loc) return [];
-        
-        const parts: string[] = [];
-        let current = flatList().find(l => l.id === loc.id);
-        if (current?.parent_id) {
-            current = flatList().find(l => l.id === current!.parent_id);
-        } else {
-            return [];
-        }
-        while (current) {
-            parts.unshift(current.name);
-            current = current.parent_id ? flatList().find(l => l.id === current!.parent_id) : undefined;
-        }
-        return parts;
+        return buildBreadcrumbs(loc.id, flatList(), {
+            getId: (l) => l.id,
+            getParentId: (l) => l.parent_id,
+            getName: (l) => l.name,
+            skipSelf: true,
+        });
     });
+
 
     return (
         <Show
@@ -138,7 +133,7 @@ export const LocationSelect: Component<LocationSelectProps> = (props) => {
             {(loc) => (
                 <div class="flex flex-col gap-1 w-full">
                     <Show when={props.label !== undefined}>
-                        <label class="text-sm font-medium text-muted ml-1">
+                        <label class="text-sm font-medium text-muted ml-1 w-fit">
                             {props.label}
                         </label>
                     </Show>
@@ -153,24 +148,7 @@ export const LocationSelect: Component<LocationSelectProps> = (props) => {
                             </div>
                            
 
-                            <Show when={breadcrumbs().length > 0}>
-                                <div class="flex items-center gap-1 overflow-x-auto custom-scrollbar-horizontal scroll-smooth min-w-0 max-w-full select-none text-text-secondary text-[11px] font-medium ml-6">
-                                    <For each={breadcrumbs()}>
-                                        {(part, i) => (
-                                            <div class="flex items-center shrink-0">
-                                                <span class="max-w-37.5 truncate text-primary-strong">
-                                                    {part}
-                                                </span>
-                                                <Show when={i() < breadcrumbs().length - 1}>
-                                                    <ChevronRightIcon 
-                                                    stroke-width={4}
-                                                    class="size-3 mx-1 text-secondary shrink-0" />
-                                                </Show>
-                                            </div>
-                                        )}
-                                    </For>
-                                </div>
-                            </Show>
+                            <SelectorBreadcrumbs items={breadcrumbs()} basePath="/locations" />
                         </div>
                         <Button
                             variant="ghost"

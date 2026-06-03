@@ -116,6 +116,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     }, {
       response: t.Object({
         id: t.Number(),
+        companyId: t.Number(),
         email: t.String(),
         username: t.String(),
         entityId: t.Union([t.Number(), t.Null()]),

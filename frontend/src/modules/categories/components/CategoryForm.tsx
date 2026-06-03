@@ -1,12 +1,14 @@
-import { Component, createSignal, createEffect, Show, createMemo, lazy } from 'solid-js';
+import { Component, createSignal, createEffect, Show, createMemo, lazy, For } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CategoryFormSchema } from '@app/schema/frontend';
-import type { CategoryFormData, CategoryAttributeEntry } from '@app/schema/frontend';
+import type { CategoryFormData } from '@app/schema/frontend';
 import TextField, { FieldLabel } from '@shared/ui/TextField';
-import { TreeSelect } from '@shared/ui/TreeSelect';
+import { CategorySelect, SelectorBreadcrumbs, buildBreadcrumbs } from '@shared/ui/selectors';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
+import { TagIcon, CloseIcon } from '@shared/ui/icons';
+import Button from '@shared/ui/Button';
 import CategoryAttributesPicker from './CategoryAttributesPicker';
 import NameTemplateEditor from './NameTemplateEditor';
 import {
@@ -18,16 +20,15 @@ import type { AttributeItem } from '@modules/attributes/data/attributes.api';
 
 const AttributeNewSheet = lazy(() => import('@modules/attributes/components/AttributeNewSheet'));
 
-
-
 export interface CategoryFormProps {
     category?: CategoryDetail | null;
     defaultParentId?: number;
     onSubmit: (data: CategoryFormData) => Promise<void>;
     isSubmitting: boolean;
+    formId?: string; // Prop opcional para ID único de formulario
 }
 
-const CategoryForm: Component<CategoryFormProps> = (props) => {
+export const CategoryForm: Component<CategoryFormProps> = (props) => {
     const isEditing = () => !!props.category;
     const categoryId = () => props.category?.id;
 
@@ -37,7 +38,6 @@ const CategoryForm: Component<CategoryFormProps> = (props) => {
 
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const [showNewAttr, setShowNewAttr] = createSignal(false);
-
 
 
     const form = createForm(() => ({
@@ -68,6 +68,25 @@ const CategoryForm: Component<CategoryFormProps> = (props) => {
     // form.getFieldValue() is NOT reactive in SolidJS. We MUST use useStore
     // to create a reactive subscription that triggers re-renders.
     const attributesValue = form.useStore((s) => s.values.attributes);
+    const parentIdValue = form.useStore((s) => s.values.parentId);
+
+    const flatList = createMemo(() => (categoriesFlat.data ?? []) as CategoryNode[]);
+    const selectedCategory = createMemo(() => {
+        const val = parentIdValue();
+        if (!val) return null;
+        return flatList().find(c => c.id === val) ?? null;
+    });
+
+    const breadcrumbs = createMemo(() => {
+        const cat = selectedCategory();
+        if (!cat) return [];
+        return buildBreadcrumbs(cat.id, flatList(), {
+            getId: (c) => c.id,
+            getParentId: (c) => c.parent_id,
+            getName: (c) => c.name,
+            skipSelf: true,
+        });
+    });
 
     // Set default parent for new categories AFTER mount, only if not already set
     createEffect(() => {
@@ -83,16 +102,16 @@ const CategoryForm: Component<CategoryFormProps> = (props) => {
     return (
         <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
             <form
-                id="category-form"
+                id={props.formId ?? 'category-form'}
                 onSubmit={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     setHasAttemptedSubmit(true);
                     form.handleSubmit();
                 }}
-                class="flex flex-col gap-6"
+                class="flex flex-col gap-4 py-4"
             >
-                <div class="flex flex-col gap-6">
+                <div class="flex flex-col gap-4">
                     <fieldset class="space-y-4">
                         <form.Field name="name">
                             {(field) => (
@@ -116,19 +135,55 @@ const CategoryForm: Component<CategoryFormProps> = (props) => {
                                     }
                                 >
                                     <div class="space-y-1">
-                                        <TreeSelect
-                                            value={field().state.value ?? null}
-                                            onChange={(id) => field().handleChange(id ?? undefined)}
-                                            options={(categoriesFlat.data ?? []) as CategoryNode[]}
-                                            optionValue={(c) => c.id}
-                                            optionLabel={(c) => c.name}
-                                            optionParentId={(c) => c.parent_id}
-                                            optionIsActive={(c) => c.is_active}
-                                            editingId={categoryId()}
-                                            label="Categoría Padre"
-                                            placeholder="Buscar categoría padre..."
-                                            field={field()}
-                                        />
+                                        <Show
+                                            when={selectedCategory()}
+                                            fallback={
+                                                <CategorySelect
+                                                    value={field().state.value ?? null}
+                                                    onChange={(id) => field().handleChange(id ?? undefined)}
+                                                    parentSelectable={true}
+                                                    editingId={categoryId()}
+                                                    label="Categoría Padre"
+                                                    placeholder="Buscar categoría padre..."
+                                                    field={field()}
+                                                    inputPrefix={<TagIcon class="size-4 text-muted" />}
+                                                />
+                                            }
+                                        >
+                                            {(cat) => (
+                                                <div class="flex flex-col gap-1 w-full">
+                                                    <label class="text-sm font-medium text-muted w-fit ml-1">
+                                                        Categoría Padre
+                                                    </label>
+                                                    <div class="flex items-center gap-2 p-1 pl-3 pr-2 rounded-xl bg-primary/5 border border-primary/20 hover:bg-primary/8 hover:border-primary/30 transition-all duration-200 shadow-sm min-h-9.5">
+                                                        <div class="flex-1 min-w-0">
+                                                            <div class="flex items-center gap-2">
+                                                                <TagIcon class="size-4 text-muted shrink-0" />
+                                                                <p class="text-sm font-semibold text-text truncate">
+                                                                    {cat().name}
+                                                                </p>
+                                                            </div>
+                                                            <SelectorBreadcrumbs 
+                                                                items={breadcrumbs()} 
+                                                                basePath="/categories" 
+                                                            />
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                field().handleChange(undefined);
+                                                            }}
+                                                            disabled={props.isSubmitting}
+                                                            class="text-muted hover:text-danger hover:bg-transparent p-1 rounded-lg shrink-0 cursor-pointer h-7"
+                                                            title="Desvincular categoría padre"
+                                                        >
+                                                            <CloseIcon class="size-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </Show>
                                         <p class="text-xs text-muted ml-1">
                                             Deja vacío para crear como categoría raíz
                                         </p>
@@ -149,7 +204,7 @@ const CategoryForm: Component<CategoryFormProps> = (props) => {
                     </fieldset>
 
                     {/* ─── Attributes Assignment ─── */}
-                    <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
+                    <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
                         <CategoryAttributesPicker
                             value={attributesValue() ?? []}
                             onChange={(attrs) => form.setFieldValue('attributes', attrs)}
@@ -163,10 +218,10 @@ const CategoryForm: Component<CategoryFormProps> = (props) => {
                     <fieldset class="space-y-4 bg-linear-to-br from-amber-500/5 to-orange-500/5 p-4 rounded-2xl border border-amber-500/20">
                         <div class="flex items-center gap-2">
                             <div class="w-1.5 h-4 bg-amber-500 rounded-full" />
-                            <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Plantillade Nombre</h3>
+                            <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Plantilla de Nombre</h3>
                         </div>
                         <p class="text-xs text-muted -mt-1">
-                            Arrastra atributos al editor o haz clic para insertarlos. El template genera automáticamente el nombre de los productos.
+                            Arrastra atributos al editor o haz clic para insertarlos. La plantilla genera automáticamente el nombre del producto con los atributos seleccionados.
                         </p>
                         <form.Field name="nameTemplate">
                             {(field) => {

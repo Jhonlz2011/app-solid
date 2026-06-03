@@ -18,7 +18,11 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         path: 'settings',
         pendingComponent: GlobalPageLoader,
         component: SettingsPage,
-        beforeLoad: ({ location }) => {
+        beforeLoad: async ({ location }) => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canRead('inventory')) {
+                throw redirect({ to: '/dashboard' });
+            }
             // Redirect bare /settings to /settings/warehouses
             if (location.pathname === '/settings' || location.pathname === '/settings/') {
                 throw redirect({ to: '/settings/warehouses' });
@@ -56,6 +60,12 @@ export const createSettingsRoutes = (layoutRoute: any) => {
     const warehouseEditRoute = createRoute({
         getParentRoute: () => warehouseBaseRoute,
         path: 'edit',
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('inventory')) {
+                throw redirect({ to: '/settings/warehouses' });
+            }
+        },
         component: lazyRouteComponent(() => import('./components/warehouses/WarehouseEditSheet')),
     });
 
@@ -73,6 +83,12 @@ export const createSettingsRoutes = (layoutRoute: any) => {
     const warehouseNewRoute = createRoute({
         getParentRoute: () => warehousesRoute,
         path: 'new',
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canAdd('inventory')) {
+                throw redirect({ to: '/settings/warehouses' });
+            }
+        },
         component: lazyRouteComponent(() => import('./components/warehouses/WarehouseNewSheet')),
     });
 

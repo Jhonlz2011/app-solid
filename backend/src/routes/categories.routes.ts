@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { rbac } from '../plugins/rbac';
 import {
     listCategoriesEnhanced,
     getCategoryEnhanced,
@@ -21,6 +22,7 @@ import { getIpAndUserAgent } from '../plugins/ip';
 
 export const categoryRoutes = new Elysia({ prefix: '/categories' })
     .use(authGuard)
+    .use(rbac)
     .get(
         '/',
         ({ query, currentCompanyId }) => listCategoriesEnhanced(currentCompanyId, query.flat === 'true'),
@@ -28,6 +30,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
             query: t.Object({
                 flat: t.Optional(t.String()),
             }),
+            permission: 'categories.read',
         }
     )
 
@@ -46,6 +49,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
             body: t.Object({
                 ids: t.Array(t.Number(), { minItems: 1 }),
             }),
+            permission: 'categories.delete',
         }
     )
     .patch(
@@ -62,41 +66,62 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
             body: t.Object({
                 ids: t.Array(t.Number(), { minItems: 1 }),
             }),
+            permission: 'categories.restore',
         }
     )
 
     .get(
         '/:id',
         ({ params, currentCompanyId }) => getCategoryEnhanced(Number(params.id), currentCompanyId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'categories.read',
+        }
     )
     .get(
         '/:id/form-schema',
         ({ params, currentCompanyId }) => getCategoryFormSchema(Number(params.id), currentCompanyId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'categories.read',
+        }
     )
     .get(
         '/:id/references',
         ({ params, currentCompanyId }) => checkCategoryReferences(Number(params.id), currentCompanyId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'categories.read',
+        }
     )
     .post(
         '/',
-        async ({ body, set, currentCompanyId }) => {
-            const category = await createCategoryEnhanced({ ...body, companyId: currentCompanyId } as CategoryPayload);
+        async ({ body, set, headers, currentCompanyId }) => {
+            const category = await createCategoryEnhanced(
+                { ...body, companyId: currentCompanyId } as CategoryPayload,
+                headers['x-client-id']
+            );
             set.status = 201;
             return category;
         },
         {
             body: CategoryBodySchema,
+            permission: 'categories.create',
         }
     )
     .put(
         '/:id',
-        ({ params, body, currentCompanyId }) => updateCategoryEnhanced(Number(params.id), body as Partial<CategoryPayload>, currentCompanyId),
+        ({ params, body, headers, currentCompanyId }) =>
+            updateCategoryEnhanced(
+                Number(params.id),
+                body as Partial<CategoryPayload>,
+                currentCompanyId,
+                headers['x-client-id']
+            ),
         {
             params: t.Object({ id: t.Numeric() }),
             body: CategoryUpdateSchema,
+            permission: 'categories.update',
         }
     )
     .patch(
@@ -110,7 +135,10 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
                 { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
             );
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'categories.delete',
+        }
     )
     .patch(
         '/:id/restore',
@@ -123,21 +151,32 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
                 { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
             );
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'categories.restore',
+        }
     )
     .patch(
         '/:id/reparent',
-        ({ params, body, currentCompanyId }) => reparentCategory(Number(params.id), body.parent_id, currentCompanyId),
+        ({ params, body, headers, currentCompanyId }) =>
+            reparentCategory(
+                Number(params.id),
+                body.parent_id,
+                currentCompanyId,
+                headers['x-client-id']
+            ),
         {
             params: t.Object({ id: t.Numeric() }),
             body: t.Object({
                 parent_id: t.Nullable(t.Number()),
             }),
+            permission: 'categories.update',
         }
     )
     .patch(
         '/reorder',
-        ({ body, currentCompanyId }) => reorderCategories(body.items, currentCompanyId),
+        ({ body, headers, currentCompanyId }) =>
+            reorderCategories(body.items, currentCompanyId, headers['x-client-id']),
         {
             body: t.Object({
                 items: t.Array(t.Object({
@@ -145,13 +184,17 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
                     sort_order: t.Number(),
                 })),
             }),
+            permission: 'categories.update',
         }
     )
     .delete(
         '/:id',
-        async ({ params, currentCompanyId }) => {
-            await hardDeleteCategory(Number(params.id), currentCompanyId);
+        async ({ params, headers, currentCompanyId }) => {
+            await hardDeleteCategory(Number(params.id), currentCompanyId, headers['x-client-id']);
             return { success: true } as const;
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'categories.destroy',
+        }
     );

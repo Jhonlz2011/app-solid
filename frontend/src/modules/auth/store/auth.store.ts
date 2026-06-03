@@ -163,6 +163,19 @@ export const actions = {
         }
     },
 
+    // Refresh user session/profile data from server (silently in background)
+    refreshSession: async (): Promise<boolean> => {
+        try {
+            const userData = await profileApi.getMe();
+            // Store is reactively updated, keeping the currentSessionId and authenticated status intact
+            setState('user', userData);
+            return true;
+        } catch (error) {
+            console.error('[Auth] Failed to refresh session:', error);
+            return false;
+        }
+    },
+
     // Initialize global listeners
     initStore: () => {
         if (typeof window === 'undefined') return;
@@ -192,6 +205,14 @@ export const actions = {
             // Granular update — SolidJS only re-renders components that read these specific fields
             if (username !== undefined) setState('user', 'username', username);
             if (email !== undefined) setState('user', 'email', email);
+        });
+
+        // WS: real-time RBAC/permissions update from the server
+        window.addEventListener('user:rbac_changed', (e: Event) => {
+            const { userId } = (e as CustomEvent).detail ?? {};
+            if (!state.user || state.user.id !== userId) return;
+            console.log('[Auth] RBAC permissions updated on server. Refreshing store in background...');
+            actions.refreshSession();
         });
 
         // Cross-tab sync via BroadcastChannel

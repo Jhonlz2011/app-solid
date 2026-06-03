@@ -33,6 +33,12 @@ export const createProductModals = (parentRoute: any, basePath = '', fallbackRed
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
         path: `${prefix}new`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canAdd('products')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         component: LazyProductNewRoute,
     });
 
@@ -78,6 +84,12 @@ export const createProductModals = (parentRoute: any, basePath = '', fallbackRed
     const editRoute = createRoute({
         getParentRoute: () => baseRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('products')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         loader: async ({ params }) => {
             const id = Number(params.productId);
             await queryClient.prefetchQuery({
@@ -100,6 +112,12 @@ export const createProductModals = (parentRoute: any, basePath = '', fallbackRed
     const nestedEditRoute = createRoute({
         getParentRoute: () => showRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('products')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         component: function NestedEditWrapper() {
             const navigate = useNavigate();
             return <LazyProductEditRoute onBack={() => navigate({ to: '..', search: true })} />;

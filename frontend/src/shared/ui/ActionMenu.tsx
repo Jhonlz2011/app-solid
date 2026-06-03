@@ -38,7 +38,7 @@ const ActionMenu: Component<ActionMenuProps> = (props) => {
     return (
         <div class="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <DropdownMenu placement="bottom-end">
-                <DropdownMenu.Trigger variant="ghost" class="size-8 p-0 data-[expanded]:bg-card-alt data-[expanded]:opacity-100" title="Acciones">
+                <DropdownMenu.Trigger variant="ghost" class="size-8 p-0 data-expanded:bg-card-alt data-expanded:opacity-100" title="Acciones">
                     <MoreVerticalIcon class="size-4" />
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Content class="min-w-[160px]">

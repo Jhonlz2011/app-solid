@@ -4,9 +4,8 @@
  * Extracts ~350 lines of logic from the God Component so the page only renders.
  */
 import { createSignal, createMemo, batch } from 'solid-js';
-import type { Updater, SortingState } from '@tanstack/solid-table';
 import { useQueryClient } from '@tanstack/solid-query';
-import { useNavigate, useSearch } from '@tanstack/solid-router';
+import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { copyToClipboard } from '@shared/utils/clipboard';
 import { buildFilterOptions } from '@shared/utils/facets.utils';
@@ -35,7 +34,6 @@ export function useSuppliersState() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const auth = useAuth();
-    const routerSearch = useSearch({ strict: false });
 
     // Filter sheet
     const [personTypeFilter, setPersonTypeFilter] = createSignal<string[]>([]);

@@ -7,6 +7,7 @@
 import { createMutation, useQueryClient } from '@tanstack/solid-query';
 import { locationsApi, type LocationItem } from './locations.api';
 import { locationKeys } from './locations.keys';
+import type { LocationType } from '@app/schema/enums';
 
 // =============================================================================
 // Create
@@ -15,7 +16,7 @@ import { locationKeys } from './locations.keys';
 export function useCreateLocation() {
     const qc = useQueryClient();
     return createMutation(() => ({
-        mutationFn: (body: { warehouse_id?: number | null; parent_id?: number | null; name: string; type?: 'VIEW' | 'INTERNAL'; }) =>
+        mutationFn: (body: { warehouse_id?: number | null; parent_id?: number | null; name: string; type?: LocationType; }) =>
             locationsApi.create(body),
         onSettled: () => qc.invalidateQueries({ queryKey: locationKeys.list() }),
     }));
@@ -28,7 +29,7 @@ export function useCreateLocation() {
 export function useUpdateLocation() {
     const qc = useQueryClient();
     return createMutation(() => ({
-        mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; type: 'VIEW' | 'INTERNAL'; warehouse_id: number | null; parent_id: number | null; is_active: boolean }> }) =>
+        mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; type: LocationType; warehouse_id: number | null; parent_id: number | null; is_active: boolean }> }) =>
             locationsApi.update(id, data),
         onSettled: () => qc.invalidateQueries({ queryKey: locationKeys.list() }),
     }));

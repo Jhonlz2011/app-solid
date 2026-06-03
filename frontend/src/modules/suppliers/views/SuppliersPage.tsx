@@ -18,6 +18,7 @@ import { DropdownMenu } from '@shared/ui/DropdownMenu';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
 import SupplierDeleteDialog from '../components/SupplierDeleteDialog';
 import { SupplierCardList } from '../components/SupplierCardList';
@@ -48,16 +49,12 @@ const SuppliersPage: Component = () => {
                     actions={
                         <div class="flex items-center gap-2">
                             <Button variant="outline" icon={<UploadIcon />} onClick={() => toast.info('Importación próximamente')}>
-                                <span class="hidden sm:inline">Importar</span>
+                                <span class="hidden @sm:inline">Importar</span>
                             </Button>
                             <Show when={state.auth.canAdd('suppliers')}>
-                                <Button
-                                    to="/suppliers/new"
-                                    preload="intent"
-                                    icon={<PlusIcon />}
-                                >
-                                    <span class="hidden sm:inline">Nuevo</span>
-                                </Button>
+                                <LinkButton to="/suppliers/new" preload="intent" icon={<PlusIcon />}>
+                                    <span class="hidden @sm:inline">Nuevo</span>
+                                </LinkButton>
                             </Show>
                         </div>
                     }
@@ -218,7 +215,7 @@ const SuppliersPage: Component = () => {
                 confirmLabel="Eliminar" variant="danger"
                 isLoading={state.bulkDeleteMutation.isPending}
             />
-            
+
             <ConfirmDialog
                 isOpen={state.showBulkRestoreConfirm()}
                 onClose={() => state.setShowBulkRestoreConfirm(false)}

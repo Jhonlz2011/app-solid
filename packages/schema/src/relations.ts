@@ -122,7 +122,7 @@ export const productsRelations = relations(tables.products, ({ one, many }) => (
 // Product Variants = the unified transactional entity (SKU)
 export const productVariantsRelations = relations(tables.productVariants, ({ one, many }) => ({
     product: one(tables.products, { fields: [tables.productVariants.product_id], references: [tables.products.id] }),
-    defaultLocation: one(tables.warehouseLocations, { fields: [tables.productVariants.default_location_id], references: [tables.warehouseLocations.id] }),
+    warehouseLocations: many(tables.productVariantWarehouseLocations),
 
     // Transactional relations (things that reference variant_id)
     supplierProducts: many(tables.supplierProducts),
@@ -130,6 +130,21 @@ export const productVariantsRelations = relations(tables.productVariants, ({ one
     dimensionalItems: many(tables.inventoryDimensionalItems),
     movements: many(tables.inventoryMovements),
     priceHistory: many(tables.variantPriceHistory),
+}));
+
+export const productVariantWarehouseLocationsRelations = relations(tables.productVariantWarehouseLocations, ({ one }) => ({
+    variant: one(tables.productVariants, {
+        fields: [tables.productVariantWarehouseLocations.variant_id],
+        references: [tables.productVariants.id],
+    }),
+    warehouse: one(tables.warehouses, {
+        fields: [tables.productVariantWarehouseLocations.warehouse_id],
+        references: [tables.warehouses.id],
+    }),
+    defaultLocation: one(tables.warehouseLocations, {
+        fields: [tables.productVariantWarehouseLocations.default_location_id],
+        references: [tables.warehouseLocations.id],
+    }),
 }));
 
 export const productComponentsRelations = relations(tables.productComponents, ({ one }) => ({
@@ -163,6 +178,7 @@ export const warehouseLocationsRelations = relations(tables.warehouseLocations, 
     warehouse: one(tables.warehouses, { fields: [tables.warehouseLocations.warehouse_id], references: [tables.warehouses.id] }),
     stock: many(tables.inventoryStock),
     dimensionalItems: many(tables.inventoryDimensionalItems),
+    warehouseDefaults: many(tables.productVariantWarehouseLocations),
 }));
 
 export const inventoryStockRelations = relations(tables.inventoryStock, ({ one }) => ({

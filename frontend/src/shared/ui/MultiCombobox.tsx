@@ -96,7 +96,7 @@ const Label = (props: { class?: string; children: JSX.Element }) => {
     return (
         <label
             for={context.id}
-            class={`text-sm font-medium text-muted ml-1 ${props.class ?? ''}`}
+            class={`text-sm font-medium text-muted ml-1 w-fit ${props.class ?? ''}`}
         >
             {props.children}
         </label>
@@ -346,7 +346,7 @@ const Input = <T,>(props: MultiComboboxInputProps<T>) => {
                             <Button
                                 type="button"
                                 variant="ghost"
-                                class="flex w-full items-center justify-start gap-2 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:text-primary-strong hover:bg-primary-soft transition-colors cursor-pointer"
+                                class="flex w-full items-center justify-start gap-2 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:text-primary-strong hover:bg-primary-soft  cursor-pointer"
                                 onPointerDown={(e) => e.preventDefault()}
                                 onClick={(e) => {
                                     e.preventDefault();

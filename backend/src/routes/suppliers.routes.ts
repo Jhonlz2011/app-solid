@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { rbac } from '../plugins/rbac';
 import { getIpAndUserAgent } from '../plugins/ip';
 import { suppliersService } from '../services/suppliers.service';
 import {
@@ -17,6 +18,7 @@ const parseArray = (val?: string) => val?.split(',').filter(Boolean);
 
 export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
     .use(authGuard)
+    .use(rbac)
     // List with cursor pagination
     .get(
         '/',
@@ -49,6 +51,7 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
                 isActive: t.Optional(t.String()),
                 businessName: t.Optional(t.String()),
             }),
+            permission: 'suppliers.read',
         }
     )
     // Get faceted filter values + counts (with cross-filtering)
@@ -71,12 +74,16 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
                 isActive: t.Optional(t.String()),
                 businessName: t.Optional(t.String()),
             }),
+            permission: 'suppliers.read',
         }
     )
     .get(
         '/:id',
         ({ params, currentCompanyId }) => suppliersService.get(Number(params.id), currentCompanyId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'suppliers.read',
+        }
     )
     .post(
         '/',
@@ -86,7 +93,10 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
             set.status = 201;
             return supplier;
         },
-        { body: SupplierBodySchema }
+        {
+            body: SupplierBodySchema,
+            permission: 'suppliers.create',
+        }
     )
     .put(
         '/:id',
@@ -97,6 +107,7 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
         {
             params: t.Object({ id: t.Numeric() }),
             body: SupplierUpdateSchema,
+            permission: 'suppliers.update',
         }
     )
     // Bulk deactivate (soft delete) — before /:id to avoid route conflict
@@ -109,7 +120,8 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
         {
             body: t.Object({
                 ids: t.Array(t.Number(), { minItems: 1 })
-            })
+            }),
+            permission: 'suppliers.delete',
         }
     )
     // Bulk restore
@@ -122,14 +134,18 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
         {
             body: t.Object({
                 ids: t.Array(t.Number(), { minItems: 1 })
-            })
+            }),
+            permission: 'suppliers.restore',
         }
     )
     // Pre-flight: check if entity has transactional references before hard delete
     .get(
         '/:id/can-delete',
         ({ params }) => suppliersService.checkReferences(Number(params.id)),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'suppliers.read',
+        }
     )
     // Soft delete (deactivate) — safe default, reversible
     .patch(
@@ -144,7 +160,10 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
             );
             set.status = 204;
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'suppliers.delete',
+        }
     )
     // Restore a soft-deleted supplier
     .patch(
@@ -153,7 +172,10 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
             const { ipAddress } = getIpAndUserAgent(request);
             return suppliersService.restore(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'suppliers.restore',
+        }
     )
     // Hard delete — permanent, guarded by suppliers:destroy permission
     .delete(
@@ -163,13 +185,19 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
             await suppliersService.hardDelete(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
             set.status = 204;
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'suppliers.destroy',
+        }
     )
     // Addresses
     .get(
         '/:id/addresses',
         ({ params }) => getAddresses(Number(params.id)),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'suppliers.read',
+        }
     )
     .post(
         '/:id/addresses',
@@ -190,13 +218,17 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
                 postalCode: t.Optional(t.String()),
                 isMain: t.Optional(t.Boolean()),
             }),
+            permission: 'suppliers.update',
         }
     )
     // Contacts
     .get(
         '/:id/contacts',
         ({ params }) => getContacts(Number(params.id)),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'suppliers.read',
+        }
     )
     .post(
         '/:id/contacts',
@@ -214,6 +246,7 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
                 phone: t.Optional(t.String()),
                 isPrimary: t.Optional(t.Boolean()),
             }),
+            permission: 'suppliers.update',
         }
     )
     .put(
@@ -230,6 +263,7 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
                     isPrimary: t.Boolean(),
                 })
             ),
+            permission: 'suppliers.update',
         }
     )
     .delete(
@@ -238,5 +272,8 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
             await deleteContact(Number(params.contactId));
             set.status = 204;
         },
-        { params: t.Object({ contactId: t.Numeric() }) }
+        {
+            params: t.Object({ contactId: t.Numeric() }),
+            permission: 'suppliers.update',
+        }
     );

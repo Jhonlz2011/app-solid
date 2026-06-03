@@ -1,4 +1,4 @@
-import { createRoute, lazyRouteComponent } from '@tanstack/solid-router';
+import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
 import { createAttributeModals } from '@shared/routes/attributes.factory';
@@ -11,6 +11,12 @@ export const createAttributesRoutes = (layoutRoute: any) => {
     const attributesRoute = createRoute({
         getParentRoute: () => layoutRoute,
         path: 'attributes',
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canRead('attributes')) {
+                throw redirect({ to: '/dashboard' });
+            }
+        },
         loader: async () => {
             await queryClient.prefetchQuery({
                 queryKey: attributeKeys.all,

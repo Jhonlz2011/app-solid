@@ -28,6 +28,15 @@ export const TaxRegimeTypeSchema = Type.Union([
     Type.Literal('GENERAL'),
 ]);
 
+export const LocationTypeSchema = Type.Union([
+    Type.Literal('VIEW'),
+    Type.Literal('INTERNAL'),
+    Type.Literal('SUPPLIER'),
+    Type.Literal('CUSTOMER'),
+    Type.Literal('ADJUSTMENT'),
+    Type.Literal('PRODUCTION'),
+]);
+
 // ============================================================================
 // ENTITY CRUD SCHEMAS
 // ============================================================================
@@ -208,6 +217,7 @@ export type AuthUpdateProfileDtoType = Static<typeof AuthUpdateProfileDto>;
 // Excludes sensitive fields like password_hash
 export const PublicUser = Type.Object({
     id: Type.Number(),
+    companyId: Type.Number(),
     username: Type.String(),
     email: Type.String(),
     isActive: Type.Union([Type.Boolean(), Type.Null()]),

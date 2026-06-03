@@ -9,6 +9,7 @@ import { Outlet, useNavigate } from '@tanstack/solid-router';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { SearchInput } from '@shared/ui/SearchInput';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 import { PlusIcon, ShelvesIcon, CopyIcon, Expand, Collapse, TrashIcon, RotateCcwIcon, ChevronsUpDownIcon } from '@shared/ui/icons';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
@@ -45,13 +46,13 @@ const LocationPage: Component = () => {
                     icon={<ShelvesIcon />}
                     iconBg="linear-gradient(135deg, #8b5cf6, #7c3aed)"
                     title="Ubicaciones"
-                    count={state.totalCount()}
+                    count={state.filteredCount()}
                     info="Organiza las ubicaciones de tus bodegas y zonas de almacenamiento."
                     actions={
                         <Show when={state.canCreate()}>
-                            <Button to="/locations/new" preload="intent" icon={<PlusIcon />}>
+                            <LinkButton to="/locations/new" preload="intent" icon={<PlusIcon />}>
                                 <span class="hidden sm:inline">Nueva Ubicación</span>
-                            </Button>
+                            </LinkButton>
                         </Show>
                     }
                 />

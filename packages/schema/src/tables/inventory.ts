@@ -1,4 +1,4 @@
-import { text, integer, boolean, numeric, timestamp, bigint, index, primaryKey, unique } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, numeric, timestamp, bigint, index, primaryKey, unique, foreignKey } from 'drizzle-orm/pg-core';
 import { pgTableV2, TZ } from '../utils';
 import { movementTypeEnum, movementReferenceTypeEnum, locationTypeEnum } from '../enums';
 import { entities } from './entities';
@@ -19,6 +19,7 @@ export const warehouses = pgTableV2("warehouses", {
     is_active: boolean("is_active").default(true),
 }, (t) => [
     unique("unq_warehouse_code_company").on(t.company_id, t.code),
+    unique("unq_warehouse_id_company").on(t.id, t.company_id),
     index("idx_warehouses_company").on(t.company_id),
 ]);
 
@@ -29,7 +30,7 @@ export const warehouseLocations = pgTableV2("warehouse_locations", {
     // Multi-tenant: required for virtual locations (warehouse_id=null) that can't inherit tenant from warehouse
     company_id: integer("company_id").references(() => companies.id).notNull(),
     // Nullable para ubicaciones virtuales (como Proveedores o Clientes) que no pertenecen a una bodega física
-    warehouse_id: integer("warehouse_id").references(() => warehouses.id),
+    warehouse_id: integer("warehouse_id"),
     // Self-reference para árbol jerárquico (FK via migración SQL: fk_location_parent)
     parent_id: integer("parent_id"),
     name: text("name").notNull(), // "Estante A1", "Scrap Zone", "Vendor X"
@@ -43,10 +44,16 @@ export const warehouseLocations = pgTableV2("warehouse_locations", {
     depth: integer("depth").default(0).notNull(),
     is_active: boolean("is_active").default(true),
 }, (t) => [
+    unique("unq_location_id_company").on(t.id, t.company_id),
     index("idx_locations_company").on(t.company_id),
     index("idx_locations_warehouse").on(t.warehouse_id),
     index("idx_locations_parent").on(t.parent_id),
     index("idx_locations_path_gist").using("gist", t.path),
+    foreignKey({
+        name: "fk_location_warehouse_tenant",
+        columns: [t.warehouse_id, t.company_id],
+        foreignColumns: [warehouses.id, warehouses.company_id],
+    }),
 ]);
 
 // Stock agrupado por UBICACIÓN + VARIANTE (la unidad transaccional)
@@ -93,9 +100,9 @@ export const inventoryDimensionalItems = pgTableV2("inventory_dimensional_items"
 export const inventoryMovements = pgTableV2("inventory_movements", {
     id: bigint("id", { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
     
-    // Double entry locations (nullable for external operations: purchase/sale)
-    source_location_id: integer("source_location_id").references(() => warehouseLocations.id),
-    destination_location_id: integer("destination_location_id").references(() => warehouseLocations.id),
+    // Double entry locations (strict double entry using virtual locations)
+    source_location_id: integer("source_location_id").references(() => warehouseLocations.id).notNull(),
+    destination_location_id: integer("destination_location_id").references(() => warehouseLocations.id).notNull(),
     
     variant_id: integer("variant_id").references(() => productVariants.id).notNull(),
     // Denormalized product_id for fast reporting without JOINs

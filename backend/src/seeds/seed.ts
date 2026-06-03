@@ -1,7 +1,7 @@
 // src/seeds/seed.ts
 // Run with: bun run db:seed
 import { db } from '../db';
-import { authPermissions, authRoles, authRolePermissions, authUserRoles, authUsers, uom, entities, companies, sriEstablishments, authMenuItems } from '@app/schema/tables';
+import { authPermissions, authRoles, authRolePermissions, authUserRoles, authUsers, uom, entities, companies, sriEstablishments, authMenuItems, warehouseLocations } from '@app/schema/tables';
 import { sql } from '@app/schema';
 import { PERMISSIONS, ROLES, ROLE_PERMISSIONS, UOM_DATA, DERIVED_UOM_DATA, MENU_ITEMS } from './seed-data';
 
@@ -199,6 +199,28 @@ async function seed() {
             })
             .returning();
         console.log(`   ✅ Entity created/verified: ${consumidorFinal.business_name}`);
+
+        // 7.5 Create dev company virtual locations
+        console.log('🏢 Seeding virtual locations for dev company...');
+        const devVirtuals = [
+            { name: 'Virtual: Proveedores', type: 'SUPPLIER' as const },
+            { name: 'Virtual: Clientes', type: 'CUSTOMER' as const },
+            { name: 'Virtual: Ajustes y Mermas', type: 'ADJUSTMENT' as const },
+            { name: 'Virtual: Consumo Producción', type: 'PRODUCTION' as const },
+        ];
+        for (const v of devVirtuals) {
+            await db.insert(warehouseLocations).values({
+                company_id: devCompany.id,
+                warehouse_id: null,
+                parent_id: null,
+                name: v.name,
+                path: '', // Trigger BEFORE INSERT recalculates and overrides this
+                type: v.type,
+                depth: 0,
+                is_active: true,
+            }).onConflictDoNothing();
+        }
+        console.log('   ✅ Virtual locations seeded/verified');
 
         // 8. Create Default Users
         console.log('👤 Creating default users...');

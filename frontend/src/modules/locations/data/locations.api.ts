@@ -1,5 +1,6 @@
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
+import type { LocationType } from '@app/schema/enums';
 
 // =============================================================================
 // Types
@@ -12,7 +13,7 @@ export interface LocationItem {
     parent_id: number | null;
     name: string;
     path: string;
-    type: 'VIEW' | 'INTERNAL';
+    type: LocationType;
     depth: number;
     is_active: boolean | null;
     // Joined from warehouses table
@@ -51,14 +52,14 @@ export const locationsApi = {
         warehouse_id?: number | null;
         parent_id?: number | null;
         name: string;
-        type?: 'VIEW' | 'INTERNAL';
+        type?: LocationType;
     }) => {
-        const { data, error } = await api.api.locations.post(body as any);
+        const { data, error } = await api.api.locations.post(body);
         if (error) throwApiError(error);
         return data!;
     },
 
-    update: async (id: number, body: Partial<{ name: string; type: 'VIEW' | 'INTERNAL'; warehouse_id: number | null; parent_id: number | null; is_active: boolean }>) => {
+    update: async (id: number, body: Partial<{ name: string; type: LocationType; warehouse_id: number | null; parent_id: number | null; is_active: boolean }>) => {
         const { data, error } = await (api.api.locations as any)({ id }).put(body);
         if (error) throwApiError(error);
         return data!;

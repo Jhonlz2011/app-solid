@@ -1,11 +1,13 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { rbac } from '../plugins/rbac';
 import { brandsService } from '../services/brands.service';
 
 const parseArray = (val?: string) => val?.split(',').filter(Boolean);
 
 export const brandRoutes = new Elysia({ prefix: '/brands' })
     .use(authGuard)
+    .use(rbac)
 
     // Paginated list
     .get(
@@ -33,11 +35,14 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
                 page: t.Optional(t.Numeric()),
                 isActive: t.Optional(t.String()),
             }),
+            permission: 'brands.read',
         }
     )
 
     // Simple list (for selectors)
-    .get('/all', ({ currentCompanyId }) => brandsService.listAll(currentCompanyId))
+    .get('/all', ({ currentCompanyId }) => brandsService.listAll(currentCompanyId), {
+        permission: 'brands.read',
+    })
 
     // Create
     .post(
@@ -52,6 +57,7 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
                 name: t.String({ maxLength: 100 }),
                 website: t.Optional(t.String({ maxLength: 255 })),
             }),
+            permission: 'brands.create',
         }
     )
 
@@ -66,6 +72,7 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
                 website: t.String({ maxLength: 255 }),
                 is_active: t.Boolean(),
             })),
+            permission: 'brands.update',
         }
     )
 
@@ -73,26 +80,38 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
     .patch(
         '/:id/deactivate',
         ({ params, currentCompanyId }) => brandsService.deactivate(Number(params.id), currentCompanyId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'brands.delete',
+        }
     )
 
     // Restore
     .patch(
         '/:id/restore',
         ({ params, currentCompanyId }) => brandsService.restore(Number(params.id), currentCompanyId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'brands.restore',
+        }
     )
 
     // Bulk deactivate
     .delete(
         '/bulk',
         ({ body, currentCompanyId }) => brandsService.bulkDeactivate(body.ids, currentCompanyId),
-        { body: t.Object({ ids: t.Array(t.Number(), { minItems: 1 }) }) }
+        {
+            body: t.Object({ ids: t.Array(t.Number(), { minItems: 1 }) }),
+            permission: 'brands.delete',
+        }
     )
 
     // Bulk restore
     .patch(
         '/bulk/restore',
         ({ body, currentCompanyId }) => brandsService.bulkRestore(body.ids, currentCompanyId),
-        { body: t.Object({ ids: t.Array(t.Number(), { minItems: 1 }) }) }
+        {
+            body: t.Object({ ids: t.Array(t.Number(), { minItems: 1 }) }),
+            permission: 'brands.restore',
+        }
     );

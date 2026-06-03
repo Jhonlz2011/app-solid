@@ -25,7 +25,7 @@ export const WORK_ORDER_STATUSES = ['DRAFT', 'APPROVED', 'IN_PROGRESS', 'COMPLET
 
 // Inventory enums
 export const CONDITIONS = ['GOOD', 'DAMAGED', 'UNUSABLE'] as const;
-export const LOCATION_TYPES = ['VIEW', 'INTERNAL'] as const;
+export const LOCATION_TYPES = ['VIEW', 'INTERNAL', 'SUPPLIER', 'CUSTOMER', 'ADJUSTMENT', 'PRODUCTION'] as const;
 
 export const MOVEMENT_TYPES = [
     'PURCHASE', 'SALE', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_OUTPUT',

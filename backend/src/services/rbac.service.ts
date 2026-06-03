@@ -329,6 +329,11 @@ export async function updateRolePermissions(roleId: number, permissionIds: numbe
 
     await Promise.all(usersWithRole.map(({ userId }) => invalidateUserRbacCache(userId)));
 
+    // Broadcast RBAC changed to all affected users privately
+    for (const { userId } of usersWithRole) {
+        broadcast(RealtimeEvents.USER.RBAC_CHANGED, { userId }, `user:${userId}`);
+    }
+
     if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_role_permissions', roleId, { permissionIds }, { permissionIds: oldPermIds });
 
     return { success: true };
@@ -665,6 +670,7 @@ export async function assignUserRoles(userId: number, roleIds: number[], current
 
     // Invalidate cache
     await invalidateUserRbacCache(userId);
+    broadcast(RealtimeEvents.USER.RBAC_CHANGED, { userId }, `user:${userId}`);
     broadcast(RealtimeEvents.USER.UPDATED, { id: userId }, RealtimeEvents.ROOMS.USERS);
 
     logAudit(currentUserId, 'UPDATE', 'auth_user_roles', userId, { roleIds }, { roleIds: oldRoleIds });

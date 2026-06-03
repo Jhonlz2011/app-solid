@@ -18,6 +18,12 @@ export const createAttributeModals = (parentRoute: any, basePath = '', fallbackR
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
         path: `${prefix}new`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canAdd('attributes')) {
+                throw redirect(fallbackRedirect);
+            }
+        },
         component: LazyAttributeNewRoute,
     });
 
@@ -50,6 +56,12 @@ export const createAttributeModals = (parentRoute: any, basePath = '', fallbackR
     const editRoute = createRoute({
         getParentRoute: () => baseRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('attributes')) {
+                throw redirect(fallbackRedirect);
+            }
+        },
         loader: async ({ params }) => {
             const id = Number(params.attributeId);
             if (isNaN(id)) return;
@@ -66,6 +78,12 @@ export const createAttributeModals = (parentRoute: any, basePath = '', fallbackR
     const nestedEditRoute = createRoute({
         getParentRoute: () => showRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('attributes')) {
+                throw redirect(fallbackRedirect);
+            }
+        },
         component: function NestedEditWrapper() {
             const navigate = useNavigate();
             return <LazyAttributeEditRoute onBack={() => navigate({ to: '..', search: true })} />;

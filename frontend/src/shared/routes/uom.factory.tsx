@@ -12,6 +12,12 @@ export const createUomModals = (parentRoute: any, basePath = '', fallbackRedirec
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
         path: `${prefix}new`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canAdd('uom')) {
+                throw redirect(fallbackRedirect);
+            }
+        },
         component: LazyUomNewRoute,
     });
 
@@ -29,6 +35,12 @@ export const createUomModals = (parentRoute: any, basePath = '', fallbackRedirec
     const editRoute = createRoute({
         getParentRoute: () => baseRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('uom')) {
+                throw redirect(fallbackRedirect);
+            }
+        },
         component: LazyUomEditRoute,
     });
 

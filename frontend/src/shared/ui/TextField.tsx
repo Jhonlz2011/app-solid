@@ -195,7 +195,7 @@ const Label = (props: TextFieldLabelProps) => {
     return (
         <label
             for={context.id}
-            class={`text-sm font-medium text-muted ml-1 ${local.class ?? ''}`}
+            class={`text-sm font-medium text-muted ml-1 w-fit ${local.class ?? ''}`}
             {...others}
         >
             {local.children}

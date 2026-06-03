@@ -6,10 +6,12 @@ import { productTypeLabels, productSubtypeLabels } from '../data/products.api';
 import type { Product } from '../data/products.api';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 import { Badge, StatusBadge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import { useAuth } from '@modules/auth/store/auth.store';
 
 interface ProductShowPanelProps {
     productId?: number;
@@ -17,6 +19,7 @@ interface ProductShowPanelProps {
 }
 
 const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
+    const auth = useAuth();
     const params = useParams({ strict: false }) as () => any;
     const { bindDismiss, navigateAway } = useSheetNavigation(props);
     const productId = () => props.productId ?? Number(params()?.productId);
@@ -42,9 +45,11 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
             footer={
                 <div class="flex items-center gap-2 w-full justify-end">
                     <Button variant="outline" onClick={navigateAway}>Cerrar</Button>
-                    <Button to={`/products/${productId()}/show/edit`} preload="intent">
-                        Editar
-                    </Button>
+                    <Show when={auth.canEdit('products')}>
+                        <LinkButton to={`/products/${productId()}/show/edit`} preload="intent">
+                            Editar
+                        </LinkButton>
+                    </Show>
                 </div>
             }
         >

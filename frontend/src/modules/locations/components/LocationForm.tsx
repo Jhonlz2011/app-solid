@@ -61,7 +61,7 @@ const LocationForm: Component<LocationFormProps> = (props) => {
         if (props.location) {
             return {
                 name: props.location.name,
-                type: props.location.type as 'VIEW' | 'INTERNAL',
+                type: props.location.type,
                 parent_id: props.location.parent_id ?? null,
                 warehouse_id: props.location.warehouse_id ?? null,
             };
@@ -166,7 +166,7 @@ const LocationForm: Component<LocationFormProps> = (props) => {
                                 class="w-full @sm:w-full"
                             >
                                 <SegmentedControlIndicator />
-                                <For each={locationTypeOptions}>
+                                <For each={locationTypeOptions.filter(opt => opt.value === 'INTERNAL' || opt.value === 'VIEW')}>
                                     {(opt) => (
                                         <SegmentedControlItem value={opt.value}>
                                             <SegmentedControlItemInput />

@@ -110,6 +110,7 @@ export function useLocationState() {
         let active = 0, inactive = 0;
 
         for (const loc of rawList()) {
+            if (loc.type !== 'INTERNAL' && loc.type !== 'VIEW') continue; // Exclude virtual system locations
             if (loc.warehouse_id) wh.set(loc.warehouse_id, (wh.get(loc.warehouse_id) ?? 0) + 1);
             type.set(loc.type, (type.get(loc.type) ?? 0) + 1);
             loc.is_active !== false ? active++ : inactive++;
@@ -145,7 +146,8 @@ export function useLocationState() {
 
     // ─── Filter Pipeline ─────────────────────────────────────────
     const filteredList = createMemo(() => {
-        let list = rawList();
+        // Exclude system virtual locations (SUPPLIER, CUSTOMER, ADJUSTMENT, PRODUCTION) from the visual list entirely
+        let list = rawList().filter(l => l.type === 'INTERNAL' || l.type === 'VIEW');
 
         const whs = warehouseFilter();
         if (whs.length > 0) {
@@ -176,7 +178,7 @@ export function useLocationState() {
         return list;
     });
 
-    const totalCount = createMemo(() => rawList().length);
+    const totalCount = createMemo(() => rawList().filter(l => l.type === 'INTERNAL' || l.type === 'VIEW').length);
     const filteredCount = createMemo(() => filteredList().length);
 
     // ─── Delete Dialog ───────────────────────────────────────────

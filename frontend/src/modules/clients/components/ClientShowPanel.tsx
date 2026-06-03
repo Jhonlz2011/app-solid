@@ -10,6 +10,7 @@ import { personTypeLabels, taxIdTypeLabels, taxRegimeTypeLabels } from '../model
 import { CounterBadge, StatusBadge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
+import { useAuth } from '@modules/auth/store/auth.store';
 
 interface ClientShowPanelProps {
     clientId?: number;
@@ -17,11 +18,10 @@ interface ClientShowPanelProps {
 }
 
 const ClientShowPanel: Component<ClientShowPanelProps> = (props) => {
+    const auth = useAuth();
     const navigate = useNavigate();
     const params = useParams({ strict: false }) as () => any;
-
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-
     const clientId = () => props.clientId ?? Number(params()?.clientId);
 
     const clientQuery = useClient(clientId);
@@ -105,16 +105,18 @@ const ClientShowPanel: Component<ClientShowPanelProps> = (props) => {
                                             </div>
                                         </div>
 
-                                        <Button
-                                            to={`./edit`}
-                                            variant="outline"
-                                            size="sm"
-                                            class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                            disabled={!clientId()}
-                                        >
-                                            <EditIcon class="size-4 text-muted" />
-                                            Editar
-                                        </Button>
+                                        <Show when={auth.canEdit('clients')}>
+                                            <Button
+                                                to={`./edit`}
+                                                variant="outline"
+                                                size="sm"
+                                                class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
+                                                disabled={!clientId()}
+                                            >
+                                                <EditIcon class="size-4 text-muted" />
+                                                Editar
+                                            </Button>
+                                        </Show>
                                     </div>
 
                                     {/* TabsList */}

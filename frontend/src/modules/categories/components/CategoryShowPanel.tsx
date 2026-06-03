@@ -5,17 +5,21 @@ import { useCategoryDetail, useCategoriesFlat } from '../data/categories.queries
 import { EditIcon, InfoIcon, TagIcon, ChevronRightIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 import Sheet from '@shared/ui/Sheet';
 import { StatusBadge, Badge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
+import { useAuth } from '@modules/auth/store/auth.store';
 
 interface CategoryShowPanelProps {
     categoryId?: number;
     onClose?: () => void;
+    onBack?: () => void;
 }
 
 const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
+    const auth = useAuth();
     const params = useParams({ strict: false }) as () => { categoryId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
     const categoryId = () => {
@@ -37,6 +41,7 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
+            onBack={props.onBack}
             title="Detalles de la Categoría"
             description="Información completa de jerarquía y propiedades"
             size="xxxl"
@@ -85,7 +90,7 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                         {(category) => (
                             <Tabs defaultValue="general" class="w-full flex flex-col h-full">
                                 <div class="sticky top-0 z-20 bg-card/95 backdrop-blur-md pt-5 flex flex-col gap-5">
-                                    <div class="flex items-start justify-between flex-shrink-0">
+                                    <div class="flex items-start justify-between shrink-0">
                                         <div class="flex gap-4 items-center">
                                             <div class="size-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl shadow-inner border border-primary/20">
                                                 {category().icon ?? '📁'}
@@ -101,16 +106,18 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                                             </div>
                                         </div>
 
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                            to={`./edit`}
-                                            disabled={!categoryId()}
-                                        >
-                                            <EditIcon class="size-4 text-muted" />
-                                            Editar
-                                        </Button>
+                                        <Show when={auth.canEdit('categories')}>
+                                            <LinkButton
+                                                variant="outline"
+                                                size="sm"
+                                                class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
+                                                to={`./edit`}
+                                                disabled={!categoryId()}
+                                            >
+                                                <EditIcon class="size-4 text-muted" />
+                                                Editar
+                                            </LinkButton>
+                                        </Show>
                                     </div>
 
                                     <div>
@@ -127,7 +134,7 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                                         <div class="bg-surface/30 rounded-2xl border border-border/40 overflow-hidden shadow-sm">
                                             <div class="bg-surface/50 px-5 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
                                                 <div class="size-1.5 rounded-full bg-primary"></div>
-                                                Información General
+                                                 General
                                             </div>
                                             <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-6">
                                                 <div class="sm:col-span-2">

@@ -245,7 +245,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                                 >
                                     <XIcon class="size-3" />
                                 </button>
-                                <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-1.5">
+                                <div class="absolute bottom-0 inset-x-0 bg-linear-to-t from-black/60 to-transparent p-1.5">
                                     <span class="text-[10px] text-white truncate block">{preview.file.name}</span>
                                 </div>
                             </div>

@@ -1,5 +1,5 @@
 import { Component } from 'solid-js';
-import { useSearch } from '@tanstack/solid-router';
+import { useSearch, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import { useCreateLocation } from '../data/locations.mutations';
@@ -26,7 +26,7 @@ const LocationNewSheet: Component<LocationNewSheetProps> = (props) => {
         try {
             await createMut.mutateAsync({
                 name: data.name,
-                type: data.type as 'VIEW' | 'INTERNAL',
+                type: data.type,
                 parent_id: data.parent_id ?? null,
                 warehouse_id: data.warehouse_id ?? null,
             });
@@ -63,6 +63,7 @@ const LocationNewSheet: Component<LocationNewSheetProps> = (props) => {
                 formId="location-form"
                 defaultParentId={defaultParentId()}
             />
+            <Outlet />
         </Sheet>
     );
 };

@@ -12,7 +12,7 @@ import {
     SegmentedControlItem, SegmentedControlItemInput, SegmentedControlItemLabel,
 } from '@shared/ui/SegmentedControl';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
-import { PlusIcon } from '@shared/ui/icons';
+import { PlusIcon, FolderIcon } from '@shared/ui/icons';
 import SectionHeader from '../ui/SectionHeader';
 
 const PRODUCT_TYPE_OPTIONS = [
@@ -116,8 +116,10 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                                 <CategorySelect
                                     value={f.state.value}
                                     onChange={(id) => f.handleChange(id ?? 0)}
-                                    required
-                                    error={hasFieldError(f, props.hasAttemptedSubmit()) ? getFieldError(f) : undefined}
+                                    parentSelectable={false}
+                                    field={f}
+                                    inputPrefix={<FolderIcon class="size-4 text-muted" />}
+                                    placeholder="Seleccionar categoría..."
                                 />
                             );
                         }}

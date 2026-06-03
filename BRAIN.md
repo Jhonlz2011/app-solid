@@ -398,7 +398,7 @@ data/
 | Auth | `auth.ts` | `authUsers`, `authRoles`, `authPermissions`, `authRolePermissions`, `authUserRoles`, `sessions`, `authMenuItems` |
 | Entities | `entities.ts` | `entities`, `entityContacts`, `entityAddresses`, `employeeDetails`, `carrierVehicles`, `carrierDrivers` |
 | Products | `products.ts` | `products`, `productVariants`, `productComponents`, `productUomConversions`, `variantPriceHistory` |
-| Inventory | `inventory.ts` | `warehouses`, `warehouseLocations`, `inventoryStock` (with `quantity_reserved`), `inventoryDimensionalItems`, `inventoryMovements` |
+| Inventory | `inventory.ts`, `inventory_defaults.ts` | `warehouses`, `warehouseLocations`, `productVariantWarehouseLocations`, `inventoryStock` (with `quantity_reserved`), `inventoryDimensionalItems`, `inventoryMovements` |
 | Documents | `documents.ts` | `electronicDocuments`, `invoices`, `creditNotes`, `debitNotes`, `purchaseLiquidations`, `withholdingReceipts`, `withholdingReceiptDetails`, `remissionGuides`, `invoiceItems`, `invoicePayments`, `taxRetentions`, `documentSequences` |
 | Manufacturing | `manufacturing.ts` | `workOrders`, `workOrderItems`, `manufacturingOrders`, `manufacturingOrderInputs`, `manufacturingLog`, `employeeWorkSchedules`, `bomTemplates`, `bomTemplateDetails`, `bomHeaders`, `bomDetails` |
 | Suppliers | `suppliers.ts` | `supplierProducts`, `purchaseOrders`, `purchaseOrderItems`, `goodsReceipts`, `goodsReceiptItems` |
@@ -412,8 +412,8 @@ data/
 - **Multi-tenant root**: `companies` → all transactional entities via `company_id`.
 - **Entity model**: Unified `entities` table with `is_client`, `is_supplier`, `is_employee`, `is_carrier` flags.
 - **Product model**: `products` → `productVariants` (1:many). Each variant = 1 SKU. `variantPriceHistory` tracks price changes via DB trigger.
-- **Inventory**: `warehouses` → `warehouseLocations` (hierarchical via `ltree` for `path`). `inventoryStock` includes `quantity_reserved` for availability calculation.
-- **Movements**: Double-entry with `source_location_id` / `destination_location_id`.
+- **Inventory**: `warehouses` → `warehouseLocations` (hierarchical via `ltree` for `path`, with automatic database trigger-based reparenting cascades). Stock is prohibited in abstract `VIEW` locations by DB triggers. Defaults are warehouse-specific via `productVariantWarehouseLocations`.
+- **Movements**: Perfect double-entry bookkeeping with mandatory (`notNull()`) `source_location_id` / `destination_location_id`. Utilizes system-level virtual locations (`SUPPLIER`, `CUSTOMER`, `ADJUSTMENT`, `PRODUCTION`) automatically seeded during tenant provisioning.
 - **SRI Documents**: `electronicDocuments` (parent) → child tables per type: `invoices`, `creditNotes`, `debitNotes`, `purchaseLiquidations`, `withholdingReceipts`, `remissionGuides`.
 - **Note on Product Families**: The `productFamilies` table has been deprecated/removed from schemas and backend services. Product classifications are handled directly via Category structure and custom Attributes.
 

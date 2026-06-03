@@ -5,7 +5,6 @@ import { productTypeEnum, productSubtypeEnum, priceChangeTypeEnum, priceChangeSo
 import { uom, companies } from './config';
 import { categories, brands } from './catalogs';
 import { authUsers } from './auth';
-import { warehouseLocations } from './inventory';
 
 // =============================================================================
 // 3. PRODUCTS — Parent merchandising entity
@@ -141,8 +140,6 @@ export const productVariants = pgTableV2("product_variants", {
     std_length_cm: numeric("std_length_cm", { precision: 12, scale: 4 }),
     std_width_cm: numeric("std_width_cm", { precision: 12, scale: 4 }),
 
-    // === LOGISTICS ===
-    default_location_id: integer("default_location_id").references(() => warehouseLocations.id),
 
     // === FLAGS ===
     // Default variant for search results and display

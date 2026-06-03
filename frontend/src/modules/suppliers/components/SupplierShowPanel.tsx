@@ -5,11 +5,13 @@ import { useSupplier } from '../data/suppliers.queries';
 import { EditIcon, UserIcon, InfoIcon, MapPinIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 import Sheet from '@shared/ui/Sheet';
 import { personTypeLabels, taxIdTypeLabels, taxRegimeTypeLabels } from '../models/supplier.types';
 import { StatusBadge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
+import { useAuth } from '@modules/auth/store/auth.store';
 
 interface SupplierShowPanelProps {
     supplierId?: number;
@@ -17,6 +19,7 @@ interface SupplierShowPanelProps {
 }
 
 const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
+    const auth = useAuth();
     const params = useParams({ strict: false }) as () => any;
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
     const supplierId = () => props.supplierId ?? Number(params()?.supplierId);
@@ -86,7 +89,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                 */}
                                 <div class="sticky top-0 z-20 bg-card/95 backdrop-blur-md pt-5 flex flex-col gap-5">
                                     {/* Header info */}
-                                    <div class="flex items-start justify-between flex-shrink-0">
+                                    <div class="flex items-start justify-between shrink-0">
                                         <div class="flex gap-4 items-center">
                                             <div class="size-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl shadow-inner border border-primary/20">
                                                 {supplier().business_name.substring(0, 2).toUpperCase()}
@@ -102,23 +105,25 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                            to={`./edit`}
-                                            disabled={!supplierId()}
-                                        >
-                                            <EditIcon class="size-4 text-muted" />
-                                            Editar
-                                        </Button>
+                                        
+                                        <Show when={auth.canEdit('suppliers')}>
+                                            <LinkButton
+                                                variant="outline"
+                                                size="sm"
+                                                class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
+                                                to={`./edit`}
+                                                disabled={!supplierId()}
+                                            >
+                                                <EditIcon class="size-4 text-muted" />
+                                                Editar
+                                            </LinkButton>
+                                        </Show>
                                     </div>
 
                                     {/* TabsList */}
                                     <div>
                                         <TabsList class="flex py-1.5 overflow-x-auto shadow-sm rounded-xl">
-                                            <TabsTrigger value="general"><InfoIcon /> Información General</TabsTrigger>
+                                            <TabsTrigger value="general"><InfoIcon /> General</TabsTrigger>
                                             <TabsTrigger value="contacts" count={supplier().contacts?.length || 0}><UserIcon class="size-4" /> Contactos</TabsTrigger>
                                             <TabsTrigger value="addresses" count={supplier().addresses?.length || 0}><MapPinIcon class="size-4" /> Direcciones</TabsTrigger>
                                         </TabsList>
@@ -245,7 +250,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                                             <div class="flex items-start justify-between border-b border-border/50 pb-3">
                                                                 <div class="flex items-start gap-3 flex-1 overflow-hidden">
                                                                     <div class="bg-primary/10 mt-0.5 size-8 flex items-center justify-center rounded-lg text-primary shrink-0 opacity-80">📍</div>
-                                                                    <div class="font-semibold text-text leading-snug break-words pr-2" title={address.address_line}>{address.address_line}</div>
+                                                                    <div class="font-semibold text-text leading-snug wrap-break-word pr-2" title={address.address_line}>{address.address_line}</div>
                                                                 </div>
                                                                 <Show when={address.is_main}>
                                                                     <span class="text-[10px] bg-primary/10 border border-primary/20 text-primary px-2.5 py-1 rounded-lg uppercase font-bold tracking-wider shrink-0 mt-0.5">

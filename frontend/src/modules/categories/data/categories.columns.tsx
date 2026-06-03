@@ -14,6 +14,8 @@ import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 import { Badge, StatusBadge, CounterBadge } from '@shared/ui/Badge';
 import Checkbox from '@shared/ui/Checkbox';
 import ActionMenu from '@shared/ui/ActionMenu';
+import DropdownMenu from '@shared/ui/DropdownMenu';
+import { useAuth } from '@/modules/auth/store/auth.store';
 import { ChevronRightIcon, ChevronDownIcon, PlusIcon, FolderIcon, FolderOpenIcon } from '@shared/ui/icons';
 import { cn } from '@shared/lib/utils';
 import type { CategoryNode } from './categories.api';
@@ -236,6 +238,7 @@ export function createCategoryColumns(handlers: CategoryColumnHandlers): ColumnD
             enableSorting: false,
             cell: ({ row }) => {
                 const cat = row.original;
+                const auth = useAuth();
                 return (
                     <ActionMenu
                         module="categories"
@@ -246,15 +249,14 @@ export function createCategoryColumns(handlers: CategoryColumnHandlers): ColumnD
                         onRestore={() => handlers.onRestore(cat.id)}
                     >
                         {/* Add subcategory */}
-                        <Show when={cat.is_active}>
-                            <button
-                                type="button"
-                                class="flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-dropdown-hover transition-colors"
-                                onClick={() => handlers.onAddChild(cat.id)}
+                        <Show when={cat.is_active && auth.canAdd('categories')}>
+                            <DropdownMenu.Item
+                                to="/categories/new"
+                                search={{ parentId: String(cat.id) }}
                             >
-                                <PlusIcon class="size-4 text-muted" />
+                                <PlusIcon class="size-4 text-muted mr-2" />
                                 <span>Agregar subcategoría</span>
-                            </button>
+                            </DropdownMenu.Item>
                         </Show>
                     </ActionMenu>
                 );

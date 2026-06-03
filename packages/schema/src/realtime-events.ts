@@ -17,6 +17,7 @@ export const RealtimeEvents = {
         PROFILE_UPDATED: 'user:profile_updated',
         SESSION_REVOKED: 'user:session_revoked',
         SESSION_CREATED: 'user:session_created',
+        RBAC_CHANGED: 'user:rbac_changed',
     },
     ROOMS: {
         SUPPLIERS: 'suppliers',
@@ -26,6 +27,7 @@ export const RealtimeEvents = {
         CARRIERS: 'carriers',
         USERS: 'users',
         LOCATIONS: 'locations',
+        CATEGORIES: 'categories',
     },
 } as const;
 

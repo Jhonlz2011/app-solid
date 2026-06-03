@@ -1,14 +1,18 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { rbac } from '../plugins/rbac';
 import { uomService } from '../services/uom.service';
 
 const UOM_GROUPS = ['VOLUMEN', 'LONGITUD', 'PESO', 'AREA', 'CANTIDAD', 'TIEMPO', 'DATA'] as const;
 
 export const uomRoutes = new Elysia({ prefix: '/uom' })
     .use(authGuard)
+    .use(rbac)
 
     // Simple catalog list (all system + tenant UOMs)
-    .get('/', ({ currentCompanyId }) => uomService.listUoms(currentCompanyId))
+    .get('/', ({ currentCompanyId }) => uomService.listUoms(currentCompanyId), {
+        permission: 'uom.read',
+    })
 
     // Create (tenant-scoped, never system)
     .post(
@@ -25,6 +29,7 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
                 uom_group: t.Union(UOM_GROUPS.map(g => t.Literal(g))),
                 base_factor: t.Optional(t.String()),
             }),
+            permission: 'uom.create',
         }
     )
 
@@ -40,6 +45,7 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
                 base_factor: t.String(),
                 is_active: t.Boolean(),
             })),
+            permission: 'uom.update',
         }
     )
 
@@ -58,6 +64,7 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
                 quoteItems: t.Number(),
                 total: t.Number(),
             }),
+            permission: 'uom.read',
         }
     )
 
@@ -68,14 +75,20 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
             await uomService.deactivate(params.id, currentCompanyId);
             set.status = 204;
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'uom.delete',
+        }
     )
 
     // Restore a soft-deleted UOM back to active
     .patch(
         '/:id/restore',
         ({ params, currentCompanyId }) => uomService.restore(params.id, currentCompanyId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'uom.restore',
+        }
     )
 
     // Hard delete (blocks system UOMs and UOMs with references)
@@ -88,5 +101,6 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
         {
             params: t.Object({ id: t.Numeric() }),
             response: t.Object({ success: t.Literal(true) }),
+            permission: 'uom.destroy',
         }
     );

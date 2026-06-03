@@ -14,6 +14,7 @@ import { SearchInput } from '@shared/ui/SearchInput';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
 
 // Icons
@@ -44,9 +45,9 @@ const BrandsPage: Component = () => {
                                 <span class="hidden sm:inline">Importar</span>
                             </Button>
                             <Show when={state.auth.canAdd('brands')}>
-                                <Button to="/brands/new" preload="intent" icon={<PlusIcon />}>
+                                <LinkButton to="/brands/new" preload="intent" icon={<PlusIcon />}>
                                     <span class="hidden sm:inline">Nueva Marca</span>
-                                </Button>
+                                </LinkButton>
                             </Show>
                         </div>
                     }

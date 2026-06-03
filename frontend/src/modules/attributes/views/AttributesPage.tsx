@@ -15,6 +15,7 @@ import { SearchInput } from '@shared/ui/SearchInput';
 import { DataTableSelectionBar, SelectionBarAction } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 
 // Icons
 import {
@@ -37,9 +38,9 @@ const AttributesPage: Component = () => {
                     actions={
                         <div class="flex items-center gap-2">
                             <Show when={state.canCreate()}>
-                                <Button to="/attributes/new" preload="intent" icon={<PlusIcon />}>
+                                <LinkButton to="/attributes/new" preload="intent" icon={<PlusIcon />}>
                                     <span class="hidden @sm:inline">Nuevo</span>
-                                </Button>
+                                </LinkButton>
                             </Show>
                         </div>
                     }

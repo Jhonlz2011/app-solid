@@ -35,7 +35,7 @@ const LocationEditSheet: Component<LocationEditSheetProps> = (props) => {
                 id: locationId(),
                 data: {
                     name: data.name,
-                    type: data.type as 'VIEW' | 'INTERNAL',
+                    type: data.type,
                     warehouse_id: data.warehouse_id ?? null,
                     parent_id: data.parent_id ?? null,
                 },

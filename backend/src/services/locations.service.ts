@@ -1,6 +1,6 @@
-import { eq, asc, sql, and, inArray } from '@app/schema';
+import { eq, asc, sql, and, inArray, type LocationType } from '@app/schema';
 import { db } from '../db';
-import { warehouses, warehouseLocations, productVariants, inventoryStock } from '@app/schema/tables';
+import { warehouses, warehouseLocations } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/sse';
@@ -21,16 +21,6 @@ async function invalidateAll(companyId: number, warehouseId?: number | null) {
         promises.push(cacheService.invalidate(locationCacheKey(companyId, warehouseId)));
     }
     await Promise.all(promises);
-}
-
-/** Build an ltree-safe slug from a name */
-function slugify(name: string): string {
-    return name.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
-}
-
-/** Build full ltree path from parent path + slug */
-function buildPath(parentPath: string | null, slug: string): string {
-    return parentPath ? `${parentPath}.${slug}` : slug;
 }
 
 export const locationsService = {
@@ -81,54 +71,50 @@ export const locationsService = {
      */
     async create(data: {
         name: string;
-        parent_id: number | null;
+        parent_id?: number | null;
         warehouse_id?: number | null;
-        type: 'VIEW' | 'INTERNAL';
+        type?: LocationType;
     }, companyId: number, clientId?: string) {
-        let parentPath: string | null = null;
-        let depth = 0;
-        let warehouseId = data.warehouse_id;
+        if (data.type && data.type !== 'INTERNAL' && data.type !== 'VIEW') {
+            throw new DomainError('No está permitido crear ubicaciones virtuales manualmente', 400);
+        }
 
         if (data.parent_id) {
             const [parent] = await db.select().from(warehouseLocations)
                 .where(and(eq(warehouseLocations.id, data.parent_id), eq(warehouseLocations.company_id, companyId)));
             if (!parent) throw new DomainError('Ubicación padre no encontrada', 404);
-            parentPath = parent.path;
-            depth = parent.depth + 1;
-            // Inherit warehouse from parent if not specified (undefined)
-            if (warehouseId === undefined) {
-                warehouseId = parent.warehouse_id;
-            }
-        } else if (warehouseId) {
+        } else if (data.warehouse_id) {
             const [wh] = await db.select().from(warehouses)
-                .where(and(eq(warehouses.id, warehouseId), eq(warehouses.company_id, companyId)));
+                .where(and(eq(warehouses.id, data.warehouse_id), eq(warehouses.company_id, companyId)));
             if (!wh) throw new DomainError('Bodega no encontrada', 404);
         }
 
-        const path = buildPath(parentPath, slugify(data.name));
-
+        // Just insert! The BEFORE trigger will automatically compute:
+        // - path: parent.path + slugified(name)
+        // - depth: parent.depth + 1
+        // - warehouse_id: parent.warehouse_id (if not explicitly provided)
         const [created] = await db.insert(warehouseLocations).values({
             company_id: companyId,
-            warehouse_id: warehouseId ?? null,
+            warehouse_id: data.warehouse_id ?? null,
             parent_id: data.parent_id ?? null,
             name: data.name,
-            path,
+            path: '', // Trigger overrides this, empty string avoids Drizzle notNull ts errors
             type: data.type ?? 'INTERNAL',
-            depth,
+            depth: 0, // Trigger overrides this
         }).returning();
 
-        await invalidateAll(companyId, warehouseId ?? null);
+        await invalidateAll(companyId, created.warehouse_id);
         broadcast(RealtimeEvents.ENTITY.CREATED, { id: created.id, entity: created, clientId }, 'locations');
         return created;
     },
 
     /**
      * Update a location by id.
-     * If name changes, rebuilds path for this node and cascades to descendants.
+     * Delegates all cascading path and warehouse updates to PostgreSQL trigger.
      */
     async update(id: number, data: Partial<{
         name: string;
-        type: 'VIEW' | 'INTERNAL';
+        type: LocationType;
         warehouse_id: number | null;
         parent_id: number | null;
         is_active: boolean;
@@ -137,66 +123,46 @@ export const locationsService = {
             .where(and(eq(warehouseLocations.id, id), eq(warehouseLocations.company_id, companyId)));
         if (!existing) throw new DomainError('Ubicación no encontrada', 404);
 
-        const updateValues: Record<string, any> = { ...data };
+        if (data.type && data.type !== 'INTERNAL' && data.type !== 'VIEW') {
+            throw new DomainError('No está permitido cambiar el tipo de una ubicación a un tipo virtual', 400);
+        }
 
-        // Handle reparenting if parent_id changed
+        if (existing.type !== 'INTERNAL' && existing.type !== 'VIEW') {
+            // It's a virtual location! Restrict modifications to maintain structural integrity.
+            if (data.type !== undefined) {
+                throw new DomainError('No se puede modificar el tipo de una ubicación del sistema', 400);
+            }
+            if (data.parent_id !== undefined && data.parent_id !== null) {
+                throw new DomainError('Las ubicaciones del sistema deben ser ubicaciones raíz (sin padre)', 400);
+            }
+            if (data.warehouse_id !== undefined && data.warehouse_id !== null) {
+                throw new DomainError('Las ubicaciones del sistema no pueden pertenecer a una bodega física', 400);
+            }
+        }
+
+        // Circular check if parent_id is being updated
         if (data.parent_id !== undefined && data.parent_id !== existing.parent_id) {
-            const reparented = await locationsService.reparent(id, data.parent_id, companyId, clientId);
-            existing.parent_id = reparented.parent_id;
-            existing.path = reparented.path;
-            existing.depth = reparented.depth;
-            existing.warehouse_id = reparented.warehouse_id;
-            delete updateValues.parent_id;
+            if (data.parent_id !== null) {
+                const [newParent] = await db.select().from(warehouseLocations)
+                    .where(and(eq(warehouseLocations.id, data.parent_id), eq(warehouseLocations.company_id, companyId)));
+                if (!newParent) throw new DomainError('Ubicación padre no encontrada', 404);
 
-            // If data.warehouse_id wasn't explicitly changed in the update body,
-            // align with the newly inherited warehouse from parent
-            if (data.warehouse_id === undefined) {
-                data.warehouse_id = reparented.warehouse_id;
-                updateValues.warehouse_id = reparented.warehouse_id;
+                const isDescendant = newParent.path.startsWith(existing.path + '.');
+                if (isDescendant || data.parent_id === id) {
+                    throw new DomainError('Acción inválida: no puedes mover una ubicación dentro de sus propios descendientes', 400);
+                }
             }
         }
 
-        // If warehouse_id is updated, cascade it to all descendants BEFORE changing paths
-        if (data.warehouse_id !== undefined && data.warehouse_id !== existing.warehouse_id) {
-            const newWarehouseId = data.warehouse_id;
-            const oldPath = existing.path;
-            if (newWarehouseId !== null) {
-                await db.execute(sql`
-                    UPDATE warehouse_locations 
-                    SET warehouse_id = ${newWarehouseId}
-                    WHERE path <@ ${oldPath}::ltree AND id != ${id}
-                `);
-            } else {
-                await db.execute(sql`
-                    UPDATE warehouse_locations 
-                    SET warehouse_id = NULL
-                    WHERE path <@ ${oldPath}::ltree AND id != ${id}
-                `);
-            }
-        }
-
-        // If name changed, rebuild this node's path segment
-        if (data.name && data.name !== existing.name) {
-            const parts = existing.path.split('.');
-            parts[parts.length - 1] = slugify(data.name);
-            const newPath = parts.join('.');
-            updateValues.path = newPath;
-
-            // Cascade path change to all descendants
-            const oldPath = existing.path;
-            await db.execute(sql`
-                UPDATE warehouse_locations 
-                SET path = (${newPath} || substr(path::text, ${oldPath.length + 1}))::ltree
-                WHERE path <@ ${oldPath}::ltree AND id != ${id}
-            `);
-        }
-
-        const [updated] = await db.update(warehouseLocations).set(updateValues)
+        const [updated] = await db.update(warehouseLocations).set(data)
             .where(and(eq(warehouseLocations.id, id), eq(warehouseLocations.company_id, companyId))).returning();
         
         await invalidateAll(companyId, existing.warehouse_id);
         if (data.warehouse_id !== undefined && data.warehouse_id !== existing.warehouse_id) {
             await invalidateAll(companyId, data.warehouse_id);
+        }
+        if (updated.warehouse_id !== existing.warehouse_id) {
+            await invalidateAll(companyId, updated.warehouse_id);
         }
         
         broadcast(RealtimeEvents.ENTITY.UPDATED, { id: updated.id, entity: updated, clientId }, 'locations');
@@ -206,7 +172,7 @@ export const locationsService = {
     /**
      * Reparent a location — move it under a new parent (or to root).
      * Validates against circular dependencies.
-     * Cascades path + depth + warehouse_id to all descendants.
+     * Relies on PostgreSQL trigger to cascade path and depth updates.
      */
     async reparent(id: number, newParentId: number | null, companyId: number, clientId?: string) {
         const [node] = await db.select().from(warehouseLocations)
@@ -215,10 +181,6 @@ export const locationsService = {
 
         // Skip if same parent
         if (node.parent_id === newParentId) return node;
-
-        let newParentPath: string | null = null;
-        let newDepth = 0;
-        let newWarehouseId: number | null = node.warehouse_id;
 
         if (newParentId !== null) {
             const [newParent] = await db.select().from(warehouseLocations)
@@ -230,46 +192,17 @@ export const locationsService = {
             if (isDescendant || newParentId === id) {
                 throw new DomainError('Acción inválida: no puedes mover una ubicación dentro de sus propios descendientes', 400);
             }
-
-            newParentPath = newParent.path;
-            newDepth = newParent.depth + 1;
-            newWarehouseId = newParent.warehouse_id;
         }
 
-        const oldPath = node.path;
-        const newPath = buildPath(newParentPath, slugify(node.name));
-        const depthDiff = newDepth - node.depth;
-
-        // Update this node via Drizzle ORM (handles NULL correctly)
+        // Just update parent_id. The trigger handles all path/depth cascades.
         const [updated] = await db.update(warehouseLocations).set({
             parent_id: newParentId,
-            path: newPath,
-            depth: newDepth,
-            warehouse_id: newWarehouseId,
         }).where(eq(warehouseLocations.id, id)).returning();
 
-        // Cascade to all descendants: update path prefix + adjust depth
-        // Use separate queries to avoid raw SQL NULL issues with warehouse_id
-        if (newWarehouseId !== null) {
-            await db.execute(sql`
-                UPDATE warehouse_locations 
-                SET path = (${newPath} || substr(path::text, ${oldPath.length + 1}))::ltree,
-                    depth = depth + ${depthDiff},
-                    warehouse_id = ${newWarehouseId}
-                WHERE path <@ ${oldPath}::ltree AND id != ${id}
-            `);
-        } else {
-            await db.execute(sql`
-                UPDATE warehouse_locations 
-                SET path = (${newPath} || substr(path::text, ${oldPath.length + 1}))::ltree,
-                    depth = depth + ${depthDiff},
-                    warehouse_id = NULL
-                WHERE path <@ ${oldPath}::ltree AND id != ${id}
-            `);
-        }
-
         await invalidateAll(companyId, node.warehouse_id);
-        if (newWarehouseId !== node.warehouse_id) await invalidateAll(companyId, newWarehouseId);
+        if (updated.warehouse_id !== node.warehouse_id) {
+            await invalidateAll(companyId, updated.warehouse_id);
+        }
         broadcast(RealtimeEvents.ENTITY.UPDATED, { id: updated.id, entity: updated, clientId }, 'locations');
         return updated;
     },
@@ -376,14 +309,14 @@ export const locationsService = {
     async bulkDeactivate(ids: number[], companyId: number, audit?: AuditContext) {
         if (ids.length === 0) return { success: true, count: 0 };
         return withAuditTransaction(audit, async (tx) => {
-            const existing = await tx
+            const existing = (await tx
                 .select({ id: warehouseLocations.id, path: warehouseLocations.path, warehouse_id: warehouseLocations.warehouse_id })
                 .from(warehouseLocations)
                 .where(and(
                     eq(warehouseLocations.company_id, companyId),
                     eq(warehouseLocations.is_active, true),
                     inArray(warehouseLocations.id, ids)
-                ));
+                ))) as Array<{ id: number; path: string; warehouse_id: number | null }>;
 
             if (existing.length === 0) {
                 throw new DomainError('No se encontraron ubicaciones válidas para desactivar', 404);
@@ -400,10 +333,10 @@ export const locationsService = {
             }
 
             // Invalidate all relevant caches
-            const warehouseIds = new Set(existing.map(l => l.warehouse_id).filter(Boolean));
+            const warehouseIds = new Set(existing.map(l => l.warehouse_id).filter((id): id is number => id !== null));
             await invalidateAll(companyId);
             for (const whId of warehouseIds) {
-                await invalidateAll(companyId, whId!);
+                await invalidateAll(companyId, whId);
             }
 
             // Broadcast for each item so frontend cache updates correctly
@@ -425,14 +358,14 @@ export const locationsService = {
     async bulkRestore(ids: number[], companyId: number, audit?: AuditContext) {
         if (ids.length === 0) return { success: true, count: 0 };
         return withAuditTransaction(audit, async (tx) => {
-            const existing = await tx
+            const existing = (await tx
                 .select({ id: warehouseLocations.id, warehouse_id: warehouseLocations.warehouse_id })
                 .from(warehouseLocations)
                 .where(and(
                     eq(warehouseLocations.company_id, companyId),
                     eq(warehouseLocations.is_active, false),
                     inArray(warehouseLocations.id, ids)
-                ));
+                ))) as Array<{ id: number; warehouse_id: number | null }>;
 
             if (existing.length === 0) {
                 throw new DomainError('No se encontraron ubicaciones válidas para restaurar', 404);
@@ -445,10 +378,10 @@ export const locationsService = {
                 .returning();
 
             // Invalidate caches
-            const warehouseIds = new Set(existing.map(l => l.warehouse_id).filter(Boolean));
+            const warehouseIds = new Set(existing.map(l => l.warehouse_id).filter((id): id is number => id !== null));
             await invalidateAll(companyId);
             for (const whId of warehouseIds) {
-                await invalidateAll(companyId, whId!);
+                await invalidateAll(companyId, whId);
             }
 
             // Broadcast each

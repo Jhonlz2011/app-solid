@@ -276,7 +276,7 @@ const LocationTable: Component<LocationTableProps> = (props) => {
         },
         onExpandedChange: (updater) =>
             dnd.setExpanded(typeof updater === 'function' ? updater(dnd.expanded()) : updater),
-        enableRowSelection: true,
+        enableRowSelection: (row) => row.original.type === 'INTERNAL' || row.original.type === 'VIEW',
         onRowSelectionChange: (updater) => {
             const newVal = typeof updater === 'function' ? updater(props.rowSelection) : updater;
             props.onRowSelectionChange(newVal);

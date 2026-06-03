@@ -11,6 +11,7 @@ import Sheet from '@shared/ui/Sheet';
 import { StatusBadge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
+import { useAuth } from '@modules/auth/store/auth.store';
 
 interface AttributeShowPanelProps {
     attributeId?: number;
@@ -18,6 +19,7 @@ interface AttributeShowPanelProps {
 }
 
 const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
+    const auth = useAuth();
     const params = useParams({ strict: false }) as () => { attributeId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
     const attributeId = () => {
@@ -98,16 +100,18 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                                             </div>
                                         </div>
 
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                            to={`./edit`}
-                                            disabled={!attributeId()}
-                                        >
-                                            <EditIcon class="size-4 text-muted" />
-                                            Editar
-                                        </Button>
+                                        <Show when={auth.canEdit('attributes')}>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
+                                                to={`./edit`}
+                                                disabled={!attributeId()}
+                                            >
+                                                <EditIcon class="size-4 text-muted" />
+                                                Editar
+                                            </Button>
+                                        </Show>
                                     </div>
 
                                     <div>

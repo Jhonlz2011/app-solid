@@ -66,7 +66,7 @@ const Label = (props: { class?: string; children: JSX.Element }) => {
     return (
         <label
             for={context.id}
-            class={`text-sm font-medium text-muted ml-1 ${props.class ?? ''}`}
+            class={`text-sm font-medium text-muted w-fit ml-1 ${props.class ?? ''}`}
         >
             {props.children}
         </label>
@@ -353,7 +353,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                             });
                         }
                     }}
-                    class="relative z-[100] min-w-[8rem] overflow-hidden bg-card border border-border shadow-md rounded-xl p-1 transform-origin-var data-[expanded]:animate-in data-[expanded]:fade-in-0 data-[expanded]:zoom-in-95 data-[expanded]:slide-in-from-top-2 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:zoom-out-95 data-[closed]:slide-out-to-top-2"
+                    class="relative z-100 min-w-32 overflow-hidden bg-card border border-border shadow-md rounded-xl p-1 transform-origin-var data-expanded:animate-in data-expanded:fade-in-0 data-expanded:zoom-in-95 data-expanded:slide-in-from-top-2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:slide-out-to-top-2"
                     classList={{ 'hidden': ((props.options || []).length === 0 && !props.onCreateNew && !props.isLoading && (props.hideEmptyState || (props.value?.length ?? 0) < (props.minLength ?? 3))) }}
                     style={{
                         "width": triggerWidth() > 0 ? `${triggerWidth()}px` : "100%",

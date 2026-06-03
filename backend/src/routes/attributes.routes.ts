@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { rbac } from '../plugins/rbac';
 import {
     listAttributes,
     getAttribute,
@@ -16,15 +17,21 @@ const AttributeTypeSchema = t.Union([t.Literal('TEXT'), t.Literal('NUMBER'), t.L
 
 export const attributeRoutes = new Elysia({ prefix: '/attributes' })
     .use(authGuard)
+    .use(rbac)
 
     // List all attributes for the current tenant
-    .get('/', ({ currentCompanyId }) => listAttributes(currentCompanyId))
+    .get('/', ({ currentCompanyId }) => listAttributes(currentCompanyId), {
+        permission: 'attributes.read',
+    })
 
     // Get single attribute with usedInCategories
     .get(
         '/:id',
         ({ params, currentCompanyId }) => getAttribute(params.id, currentCompanyId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'attributes.read',
+        }
     )
 
     // Create a new attribute
@@ -41,6 +48,7 @@ export const attributeRoutes = new Elysia({ prefix: '/attributes' })
                 type: AttributeTypeSchema,
                 defaultOptions: t.Optional(AttributeOptionSchema),
             }),
+            permission: 'attributes.create',
         }
     )
 
@@ -58,6 +66,7 @@ export const attributeRoutes = new Elysia({ prefix: '/attributes' })
                     renamedOptions: t.Array(t.Object({ from: t.String(), to: t.String() })),
                 })
             ),
+            permission: 'attributes.update',
         }
     )
 
@@ -71,6 +80,7 @@ export const attributeRoutes = new Elysia({ prefix: '/attributes' })
                 categories: t.Number(),
                 total: t.Number(),
             }),
+            permission: 'attributes.read',
         }
     )
 
@@ -81,14 +91,20 @@ export const attributeRoutes = new Elysia({ prefix: '/attributes' })
             await deactivateAttribute(params.id, currentCompanyId);
             set.status = 204;
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'attributes.delete',
+        }
     )
 
     // Restore a soft-deleted attribute
     .patch(
         '/:id/restore',
         ({ params, currentCompanyId }) => restoreAttribute(params.id, currentCompanyId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'attributes.restore',
+        }
     )
 
     // Hard delete (blocks if used by categories)
@@ -101,5 +117,6 @@ export const attributeRoutes = new Elysia({ prefix: '/attributes' })
         {
             params: t.Object({ id: t.Numeric() }),
             response: t.Object({ success: t.Literal(true) }),
+            permission: 'attributes.destroy',
         }
     );

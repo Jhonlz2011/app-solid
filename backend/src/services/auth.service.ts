@@ -13,6 +13,7 @@ import {
   seedCompanyRBAC,
   seedCompanyMenus,
   seedCompanyUOMs,
+  seedCompanyVirtualLocations,
 } from './tenant-provisioning.service';
 
 // --- CONSTANTS ---
@@ -204,6 +205,9 @@ export async function register(
 
     // 7.5 Seed UOMs (derived)
     await seedCompanyUOMs(tx, company.id);
+
+    // 7.6 Seed Virtual Locations (SUPPLIER, CUSTOMER, ADJUSTMENT, PRODUCTION)
+    await seedCompanyVirtualLocations(tx, company.id);
 
     // 8. Create session (auto-login)
     const sessionId = generateSessionToken();

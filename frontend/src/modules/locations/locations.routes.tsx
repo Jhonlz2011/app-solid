@@ -1,4 +1,4 @@
-import { createRoute, lazyRouteComponent } from '@tanstack/solid-router';
+import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
 import { createLocationModals } from '@shared/routes/locations.factory';
@@ -11,6 +11,12 @@ export const createLocationRoutes = (layoutRoute: any) => {
     const locationsRoute = createRoute({
         getParentRoute: () => layoutRoute,
         path: 'locations',
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canRead('locations')) {
+                throw redirect({ to: '/dashboard' });
+            }
+        },
         validateSearch: (search: Record<string, unknown>) => {
             return {
                 warehouseId: search.warehouseId ? Number(search.warehouseId) : undefined,

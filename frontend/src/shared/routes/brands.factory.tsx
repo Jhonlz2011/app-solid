@@ -12,6 +12,12 @@ export const createBrandModals = (parentRoute: any, basePath = '', fallbackRedir
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
         path: `${prefix}new`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canAdd('brands')) {
+                throw redirect(fallbackRedirect);
+            }
+        },
         component: LazyBrandNewRoute,
     });
 
@@ -29,6 +35,12 @@ export const createBrandModals = (parentRoute: any, basePath = '', fallbackRedir
     const editRoute = createRoute({
         getParentRoute: () => baseRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('brands')) {
+                throw redirect(fallbackRedirect);
+            }
+        },
         component: LazyBrandEditRoute,
     });
 

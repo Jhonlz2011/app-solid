@@ -9,6 +9,7 @@ import { Outlet, useNavigate } from '@tanstack/solid-router';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { SearchInput } from '@shared/ui/SearchInput';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 import { PlusIcon, TagIcon, CopyIcon, TrashIcon, RotateCcwIcon, ChevronsUpDownIcon, Expand, Collapse } from '@shared/ui/icons';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
@@ -45,13 +46,13 @@ const CategoryPage: Component = () => {
                     icon={<TagIcon />}
                     iconBg="linear-gradient(135deg, #f59e0b, #d97706)"
                     title="Categorías"
-                    count={state.totalCount()}
+                    count={state.filteredCount()}
                     info="Organiza las categorías de tus productos y define la estructura de tu catálogo."
                     actions={
                         <Show when={state.canCreate()}>
-                            <Button to="/categories/new" preload="intent" icon={<PlusIcon />}>
-                                <span class="hidden sm:inline">Nueva Categoría</span>
-                            </Button>
+                            <LinkButton to="/categories/new" preload="intent" icon={<PlusIcon />}>
+                                <span class="hidden @sm:inline">Nueva Categoría</span>
+                            </LinkButton>
                         </Show>
                     }
                 />

@@ -1,4 +1,4 @@
-import { createRoute, lazyRouteComponent } from '@tanstack/solid-router';
+import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
 import { createUomModals } from '@shared/routes/uom.factory';
@@ -11,6 +11,12 @@ export const createUomRoutes = (layoutRoute: any) => {
     const uomRoute = createRoute({
         getParentRoute: () => layoutRoute,
         path: 'uom',
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canRead('uom')) {
+                throw redirect({ to: '/dashboard' });
+            }
+        },
         loader: async () => {
             await queryClient.prefetchQuery({
                 queryKey: uomKeys.all,

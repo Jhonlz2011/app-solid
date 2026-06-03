@@ -11,7 +11,7 @@
 import type { Tx } from '../db';
 import {
     authRoles, authPermissions, authRolePermissions, authUserRoles,
-    authMenuItems,
+    authMenuItems, warehouseLocations,
 } from '@app/schema/tables';
 
 // Import seed data constants
@@ -165,6 +165,31 @@ export async function seedCompanyUOMs(tx: Tx, companyId: number) {
                 is_active: true,
             })
             .onConflictDoNothing();
+    }
+}
+
+/**
+ * Seeds required system virtual locations (SUPPLIER, CUSTOMER, ADJUSTMENT, PRODUCTION) for a new company.
+ */
+export async function seedCompanyVirtualLocations(tx: Tx, companyId: number) {
+    const virtuals = [
+        { name: 'Virtual: Proveedores', type: 'SUPPLIER' as const },
+        { name: 'Virtual: Clientes', type: 'CUSTOMER' as const },
+        { name: 'Virtual: Ajustes y Mermas', type: 'ADJUSTMENT' as const },
+        { name: 'Virtual: Consumo Producción', type: 'PRODUCTION' as const },
+    ];
+
+    for (const v of virtuals) {
+        await tx.insert(warehouseLocations).values({
+            company_id: companyId,
+            warehouse_id: null,
+            parent_id: null,
+            name: v.name,
+            path: '', // Trigger BEFORE INSERT recalculates and overrides this
+            type: v.type,
+            depth: 0,
+            is_active: true,
+        }).onConflictDoNothing();
     }
 }
 

@@ -23,6 +23,12 @@ export const createUserModals = (parentRoute: any, basePath = '', fallbackRedire
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
         path: `${prefix}new`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canAdd('users')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         component: LazyUserNewRoute,
     });
 
@@ -62,6 +68,12 @@ export const createUserModals = (parentRoute: any, basePath = '', fallbackRedire
     const editRoute = createRoute({
         getParentRoute: () => userBaseRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('users')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         loader: async ({ params }) => {
             const userId = Number(params.userId);
             await queryClient.prefetchQuery({ queryKey: rbacKeys.roles(), queryFn: () => usersApi.listRoles(), staleTime: 1000 * 60 * 5 });
@@ -74,6 +86,12 @@ export const createUserModals = (parentRoute: any, basePath = '', fallbackRedire
     const nestedEditRoute = createRoute({
         getParentRoute: () => showRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('users')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         loader: async ({ params }) => {
             const userId = Number(params.userId);
             await queryClient.prefetchQuery({ queryKey: rbacKeys.roles(), queryFn: () => usersApi.listRoles(), staleTime: 1000 * 60 * 5 });

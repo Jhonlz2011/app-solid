@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { rbac } from '../plugins/rbac';
 import { getIpAndUserAgent } from '../plugins/ip';
 import { clientsService } from '../services/clients.service';
 import {
@@ -17,6 +18,7 @@ const parseArray = (val?: string) => val?.split(',').filter(Boolean);
 
 export const clientRoutes = new Elysia({ prefix: '/clients' })
     .use(authGuard)
+    .use(rbac)
     // List with cursor pagination
     .get(
         '/',
@@ -49,6 +51,7 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
                 isActive: t.Optional(t.String()),
                 businessName: t.Optional(t.String()),
             }),
+            permission: 'clients.read',
         }
     )
     // Get faceted filter values + counts (with cross-filtering)
@@ -71,12 +74,16 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
                 isActive: t.Optional(t.String()),
                 businessName: t.Optional(t.String()),
             }),
+            permission: 'clients.read',
         }
     )
     .get(
         '/:id',
         ({ params, currentCompanyId }) => clientsService.get(Number(params.id), currentCompanyId),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'clients.read',
+        }
     )
     .post(
         '/',
@@ -86,7 +93,10 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
             set.status = 201;
             return client;
         },
-        { body: ClientBodySchema }
+        {
+            body: ClientBodySchema,
+            permission: 'clients.create',
+        }
     )
     .put(
         '/:id',
@@ -97,39 +107,45 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
         {
             params: t.Object({ id: t.Numeric() }),
             body: ClientUpdateSchema,
+            permission: 'clients.update',
         }
     )
     // Bulk deactivate (soft delete) — before /:id to avoid route conflict
     .delete(
         '/bulk',
-        async ({ body, headers, currentUserId, currentCompanyId, request }) => {
+        async ({ body, headers, currentUserId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
             return clientsService.bulkDelete(body.ids, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
         },
         {
             body: t.Object({
                 ids: t.Array(t.Number(), { minItems: 1 })
-            })
+            }),
+            permission: 'clients.delete',
         }
     )
     // Bulk restore
     .patch(
         '/bulk/restore',
-        async ({ body, headers, currentUserId, currentCompanyId, request }) => {
+        async ({ body, headers, currentUserId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
             return clientsService.bulkRestore(body.ids, { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] });
         },
         {
             body: t.Object({
                 ids: t.Array(t.Number(), { minItems: 1 })
-            })
+            }),
+            permission: 'clients.restore',
         }
     )
     // Pre-flight: check if entity has transactional references before hard delete
     .get(
         '/:id/can-delete',
         ({ params }) => clientsService.checkReferences(Number(params.id)),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'clients.read',
+        }
     )
     // Soft delete (deactivate) — safe default, reversible
     .patch(
@@ -144,7 +160,10 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
             );
             set.status = 204;
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'clients.delete',
+        }
     )
     // Restore a soft-deleted client
     .patch(
@@ -153,7 +172,10 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
             const { ipAddress } = getIpAndUserAgent(request);
             return clientsService.restore(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'clients.restore',
+        }
     )
     // Hard delete — permanent, guarded by clients:destroy permission
     .delete(
@@ -163,13 +185,19 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
             await clientsService.hardDelete(Number(params.id), { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }, currentCompanyId);
             set.status = 204;
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'clients.destroy',
+        }
     )
     // Addresses
     .get(
         '/:id/addresses',
         ({ params }) => getAddresses(Number(params.id)),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'clients.read',
+        }
     )
     .post(
         '/:id/addresses',
@@ -190,13 +218,17 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
                 postalCode: t.Optional(t.String()),
                 isMain: t.Optional(t.Boolean()),
             }),
+            permission: 'clients.update',
         }
     )
     // Contacts
     .get(
         '/:id/contacts',
         ({ params }) => getContacts(Number(params.id)),
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'clients.read',
+        }
     )
     .post(
         '/:id/contacts',
@@ -214,6 +246,7 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
                 phone: t.Optional(t.String()),
                 isPrimary: t.Optional(t.Boolean()),
             }),
+            permission: 'clients.update',
         }
     )
     .put(
@@ -230,6 +263,7 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
                     isPrimary: t.Boolean(),
                 })
             ),
+            permission: 'clients.update',
         }
     )
     .delete(
@@ -238,5 +272,8 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
             await deleteContact(Number(params.contactId));
             set.status = 204;
         },
-        { params: t.Object({ contactId: t.Numeric() }) }
+        {
+            params: t.Object({ contactId: t.Numeric() }),
+            permission: 'clients.update',
+        }
     );

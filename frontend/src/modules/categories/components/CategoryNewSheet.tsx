@@ -1,5 +1,5 @@
 import { Component } from 'solid-js';
-import { useSearch } from '@tanstack/solid-router';
+import { useSearch, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import { useCreateCategory } from '../data/categories.mutations';
@@ -52,7 +52,7 @@ const CategoryNewSheet: Component<CategoryNewSheetProps> = (props) => {
                     </Button>
                     <Button
                         type="submit"
-                        form="category-form"
+                        form="category-new-form"
                         loading={createMutation.isPending}
                         loadingText="Creando..."
                         icon={<FloppyDiskIcon />}
@@ -66,7 +66,9 @@ const CategoryNewSheet: Component<CategoryNewSheetProps> = (props) => {
                 onSubmit={handleSubmit}
                 isSubmitting={createMutation.isPending}
                 defaultParentId={defaultParentId()}
+                formId="category-new-form"
             />
+            <Outlet />
         </Sheet>
     );
 };

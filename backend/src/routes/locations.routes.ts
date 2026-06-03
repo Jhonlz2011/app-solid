@@ -1,12 +1,13 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../plugins/auth-guard';
+import { rbac } from '../plugins/rbac';
 import { getIpAndUserAgent } from '../plugins/ip';
 import { locationsService } from '../services/locations.service';
-
-const LOCATION_TYPES = ['VIEW', 'INTERNAL'] as const;
+import { LocationTypeSchema } from '@app/schema/backend';
 
 export const locationsRoutes = new Elysia({ prefix: '/locations' })
     .use(authGuard)
+    .use(rbac)
 
     // List all locations (optionally filtered by warehouse)
     .get(
@@ -19,6 +20,7 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
             query: t.Object({
                 warehouseId: t.Optional(t.String()),
             }),
+            permission: 'locations.read',
         }
     )
 
@@ -36,7 +38,8 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
         {
             body: t.Object({
                 ids: t.Array(t.Number(), { minItems: 1 })
-            })
+            }),
+            permission: 'locations.delete',
         }
     )
     // Bulk restore
@@ -53,7 +56,8 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
         {
             body: t.Object({
                 ids: t.Array(t.Number(), { minItems: 1 })
-            })
+            }),
+            permission: 'locations.restore',
         }
     )
 
@@ -70,8 +74,9 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
                 warehouse_id: t.Optional(t.Nullable(t.Number())),
                 parent_id: t.Optional(t.Nullable(t.Number())),
                 name: t.String({ maxLength: 100 }),
-                type: t.Optional(t.Union(LOCATION_TYPES.map(l => t.Literal(l)))),
+                type: t.Optional(LocationTypeSchema),
             }),
+            permission: 'locations.create',
         }
     )
 
@@ -84,12 +89,13 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
             body: t.Partial(
                 t.Object({
                     name: t.String({ maxLength: 100 }),
-                    type: t.Union(LOCATION_TYPES.map(l => t.Literal(l))),
+                    type: LocationTypeSchema,
                     warehouse_id: t.Nullable(t.Number()),
                     parent_id: t.Nullable(t.Number()),
                     is_active: t.Boolean(),
                 })
             ),
+            permission: 'locations.update',
         }
     )
 
@@ -102,6 +108,7 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
             body: t.Object({
                 parent_id: t.Nullable(t.Number()),
             }),
+            permission: 'locations.update',
         }
     )
 
@@ -111,6 +118,7 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
         ({ params, currentCompanyId }) => locationsService.checkReferences(params.id, currentCompanyId),
         {
             params: t.Object({ id: t.Numeric() }),
+            permission: 'locations.read',
         }
     )
 
@@ -127,7 +135,10 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
             );
             return { success: true };
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'locations.delete',
+        }
     )
 
     // Restore
@@ -142,7 +153,10 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
                 { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
             );
         },
-        { params: t.Object({ id: t.Numeric() }) }
+        {
+            params: t.Object({ id: t.Numeric() }),
+            permission: 'locations.restore',
+        }
     )
 
     // Hard delete
@@ -154,5 +168,6 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
         },
         {
             params: t.Object({ id: t.Numeric() }),
+            permission: 'locations.destroy',
         }
     );

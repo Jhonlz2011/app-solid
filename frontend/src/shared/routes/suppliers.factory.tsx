@@ -19,6 +19,12 @@ export const createSupplierModals = (parentRoute: any, basePath = '', fallbackRe
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
         path: `${prefix}new`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canAdd('suppliers')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         component: LazySupplierNewRoute,
     });
 
@@ -56,6 +62,12 @@ export const createSupplierModals = (parentRoute: any, basePath = '', fallbackRe
     const editRoute = createRoute({
         getParentRoute: () => baseRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('suppliers')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         loader: async ({ params }) => {
             const id = Number(params.supplierId);
             await queryClient.prefetchQuery({ queryKey: supplierKeys.detail(id), queryFn: () => suppliersApi.get(id), staleTime: 1000 * 30 });
@@ -67,6 +79,12 @@ export const createSupplierModals = (parentRoute: any, basePath = '', fallbackRe
     const nestedEditRoute = createRoute({
         getParentRoute: () => showRoute,
         path: `edit`,
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('suppliers')) {
+                throw redirect({ to: fallbackRedirect });
+            }
+        },
         component: function NestedEditWrapper() {
             const navigate = useNavigate();
             return <LazySupplierEditRoute onBack={() => navigate({ to: '..', search: true })} />;
