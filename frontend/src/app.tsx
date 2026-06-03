@@ -6,10 +6,11 @@ import 'solid-devtools';
 import './index.css';
 
 import { RouterApp } from './router';
-import { QueryClientProvider } from '@tanstack/solid-query';
-import { queryClient } from './shared/lib/queryClient';
+import { PersistQueryClientProvider } from '@tanstack/solid-query-persist-client';
+import { queryClient, persister } from './shared/lib/queryClient';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { Toaster } from 'solid-sonner';
+import { Toaster, toast } from 'solid-sonner';
+import { useRegisterSW } from 'virtual:pwa-register/solid';
 
 import { actions as authActions } from './modules/auth/store/auth.store';
 
@@ -27,42 +28,50 @@ authActions.initStore();
 // Mount the app with QueryClient and Router
 render(
     () => {
-        // 2. Registramos el Service Worker de forma segura cuando el cliente se monte
-        onMount(() => {
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker
-                        .register('/pwabuilder-sw.js')
-                        .then((reg) => console.log('🚀 Zelys SW registrado con éxito:', reg.scope))
-                        .catch((err) => console.error('❌ Error al registrar el SW:', err));
-                });
+        // Registro reactivo de Service Worker y detección de actualizaciones
+        const {
+            needRefresh: [needRefresh],
+            offlineReady: [offlineReady],
+            updateServiceWorker,
+        } = useRegisterSW({
+            onRegistered(r) {
+                console.log('🚀 Service Worker registrado con éxito en Zelys:', r?.scope);
+            },
+            onRegisterError(error) {
+                console.error('❌ Error al registrar el Service Worker:', error);
+            },
+        });
 
-                let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return;
-      refreshing = true;
-      
-      // Usando sonner o tu sistema de alertas:
-      toast.info("Zelys se ha actualizado", {
-        description: "Hay mejoras disponibles. Haz clic aquí para actualizar.",
-        action: {
-          label: "Recargar",
-          onClick: () => window.location.reload()
-        },
-        duration: Infinity // No desaparece hasta que actúe
-      });
-    });
+        // Disparar toasts reactivos basados en estados del SW
+        onMount(() => {
+            if (offlineReady()) {
+                toast.success('Zelys está listo para trabajar sin conexión.');
+            }
+
+            if (needRefresh()) {
+                toast.info('Nueva versión de Zelys disponible', {
+                    description: 'Se han realizado optimizaciones. Haz clic para actualizar.',
+                    duration: Infinity,
+                    action: {
+                        label: 'Actualizar',
+                        onClick: () => {
+                            updateServiceWorker(true);
+                        }
+                    }
+                });
             }
         });
 
-        // 3. Retornamos los providers exactamente como los tenías
         return (
-            <QueryClientProvider client={queryClient}>
+            <PersistQueryClientProvider 
+                client={queryClient} 
+                persistOptions={{ persister }}
+            >
                 <ThemeProvider>
                     <RouterApp />
                     <Toaster position="top-right" richColors />
                 </ThemeProvider>
-            </QueryClientProvider>
+            </PersistQueryClientProvider>
         );
     },
     root!
