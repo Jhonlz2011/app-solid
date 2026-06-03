@@ -15,6 +15,9 @@ export default defineConfig({
     compression({ algorithm: 'brotliCompress', ext: '.br' }), // Alta compresión Brotli
     compression({ algorithm: 'gzip', ext: '.gz' }), // Fallback Gzip
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'prompt',
       injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'icons/*.png'],
@@ -65,24 +68,6 @@ export default defineConfig({
             name: 'Ver Inventario',
             url: '/inventory',
             description: 'Acceso directo al control de stock'
-          }
-        ]
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api/],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365,
-              },
-            },
           }
         ]
       }

@@ -65,7 +65,21 @@ render(
         return (
             <PersistQueryClientProvider 
                 client={queryClient} 
-                persistOptions={{ persister }}
+                persistOptions={{ 
+                    persister,
+                    dehydrateOptions: {
+                        shouldDehydrateMutation: (mutation) => {
+                            // Solo persistir mutaciones que tengan un mutationKey estructurado
+                            return !!mutation.options.mutationKey;
+                        }
+                    },
+                    onSuccess: () => {
+                        // Al hidratar exitosamente la caché de IndexedDB, reanudar mutaciones en cola
+                        queryClient.resumePausedMutations().then(() => {
+                            queryClient.invalidateQueries();
+                        });
+                    }
+                }}
             >
                 <ThemeProvider>
                     <RouterApp />

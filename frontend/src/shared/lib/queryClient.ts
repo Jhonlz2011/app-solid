@@ -32,6 +32,9 @@ export const persister = {
   },
 };
 
+import { brandsApi } from '@modules/brands/data/brands.api';
+import { warehousesApi } from '@modules/settings/data/warehouses.api';
+
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: handleGlobalError,
@@ -49,9 +52,20 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       staleTime: 10 * 60 * 1000, 
       gcTime: 24 * 60 * 60 * 1000, 
+      networkMode: 'online', // Hace que las consultas esperen conexión en lugar de fallar
     },
     mutations: {
-      retry: 0,
+      retry: 1,
+      networkMode: 'online', // Pausa las mutaciones si estamos sin conexión
     },
   },
+});
+
+// Registrar defaults de mutación estáticos para reanudación fuera de línea (hydration/resume)
+queryClient.setMutationDefaults(['settings', 'brands', 'create'], {
+  mutationFn: (variables: any) => brandsApi.create(variables),
+});
+
+queryClient.setMutationDefaults(['settings', 'warehouses', 'create'], {
+  mutationFn: (variables: any) => warehousesApi.create(variables),
 });
