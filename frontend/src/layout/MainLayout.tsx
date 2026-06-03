@@ -1,8 +1,11 @@
-import { Component, For } from 'solid-js';
+import { Component, For, Show, createEffect } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
 import { Sidebar } from './components/sidebar';
 import MobileHeader from './components/MobileHeader';
 import { Skeleton } from '@shared/ui/Skeleton';
+import { useOnlineStatus } from '@shared/hooks/useOnlineStatus';
+import { OfflineBanner } from '@shared/ui/OfflineBanner';
+import { toast } from 'solid-sonner';
 
 export const LayoutSkeleton: Component = () => {
     return (
@@ -65,6 +68,27 @@ export const LayoutSkeleton: Component = () => {
 };
 
 const MainLayout: Component = () => {
+    const isOnline = useOnlineStatus();
+
+    // Notificaciones reactivas cuando la conexión cambia de estado
+    createEffect((prev) => {
+        const current = isOnline();
+        if (prev !== undefined && current !== prev) {
+            if (current) {
+                toast.success('Conexión restablecida', {
+                    description: 'Se ha recuperado el acceso a internet. Sincronizando datos con el servidor...',
+                    duration: 4000,
+                });
+            } else {
+                toast.error('Sin conexión a internet', {
+                    description: 'Zelys ha cambiado a modo local. Puedes seguir usando la app sin problemas.',
+                    duration: 5000,
+                });
+            }
+        }
+        return current;
+    }, isOnline());
+
     return (
         <div class="flex h-dvh bg-background overflow-hidden relative">
             <MobileHeader />
@@ -72,6 +96,9 @@ const MainLayout: Component = () => {
 
             <main class="flex-1 relative min-w-0 bg-background overflow-hidden">
                 <div class="flex flex-col h-full pt-14 sm:pt-0 overflow-hidden relative min-h-0">
+                    <Show when={!isOnline()}>
+                        <OfflineBanner />
+                    </Show>
                     <Outlet />
                 </div>
             </main>
