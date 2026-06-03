@@ -1,4 +1,5 @@
 import { createSignal, onMount, onCleanup } from 'solid-js';
+import { onlineManager } from '@tanstack/solid-query';
 
 // Signal global para compartir el estado de red entre todos los componentes
 const [isOnline, setIsOnline] = createSignal(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -8,8 +9,14 @@ const [isOnline, setIsOnline] = createSignal(typeof navigator !== 'undefined' ? 
  * Escucha los eventos globales del navegador y devuelve un Signal booleano.
  */
 export function useOnlineStatus() {
-  const handleOnline = () => setIsOnline(true);
-  const handleOffline = () => setIsOnline(false);
+  const handleOnline = () => {
+    setIsOnline(true);
+    onlineManager.setOnline(true);
+  };
+  const handleOffline = () => {
+    setIsOnline(false);
+    onlineManager.setOnline(false);
+  };
 
   onMount(() => {
     if (typeof window !== 'undefined') {
@@ -33,4 +40,5 @@ export function useOnlineStatus() {
  */
 export function setOnlineStatus(online: boolean) {
   setIsOnline(online);
+  onlineManager.setOnline(online);
 }

@@ -6,6 +6,7 @@ import { Skeleton } from '@shared/ui/Skeleton';
 import { useOnlineStatus } from '@shared/hooks/useOnlineStatus';
 import { OfflineBanner } from '@shared/ui/OfflineBanner';
 import { toast } from 'solid-sonner';
+import { connect as connectSSE, disconnect as disconnectSSE } from '@shared/store/sse.store';
 
 export const LayoutSkeleton: Component = () => {
     return (
@@ -69,6 +70,17 @@ export const LayoutSkeleton: Component = () => {
 
 const MainLayout: Component = () => {
     const isOnline = useOnlineStatus();
+
+    // Sincronizar el EventSource de Server-Sent Events con el estado de conexión
+    createEffect(() => {
+        if (isOnline()) {
+            console.log('🔌 MainLayout: Conexión online detectada. Conectando SSE...');
+            connectSSE();
+        } else {
+            console.log('🔌 MainLayout: Modo offline detectado. Cerrando SSE...');
+            disconnectSSE();
+        }
+    });
 
     // Notificaciones reactivas cuando la conexión cambia de estado
     createEffect((prev) => {

@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
 import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
 import { get, set } from 'idb-keyval';
@@ -11,10 +11,8 @@ cleanupOutdatedCaches();
 // Precachear todos los assets inyectados por Vite en el build
 precacheAndRoute(self.__WB_MANIFEST || []);
 
-// Estrategia para navegación global (App Shell)
-const navigationRoute = new NavigationRoute(new NetworkFirst({
-  cacheName: 'zelys-html-cache'
-}), {
+// Estrategia para navegación global (App Shell) - Servir index.html precacheado
+const navigationRoute = new NavigationRoute(createHandlerBoundToURL('index.html'), {
   denylist: [/^\/api/] // Ignorar llamadas al backend
 });
 registerRoute(navigationRoute);
