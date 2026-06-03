@@ -99,7 +99,9 @@ const MainLayout: Component = () => {
                     <Show when={!isOnline()}>
                         <OfflineBanner />
                     </Show>
-                    <Outlet />
+                    <div class="flex-1 min-h-0 relative">
+                        <Outlet />
+                    </div>
                 </div>
             </main>
         </div>

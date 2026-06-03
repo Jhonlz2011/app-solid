@@ -1,12 +1,13 @@
 import { createSignal, onMount, onCleanup } from 'solid-js';
 
+// Signal global para compartir el estado de red entre todos los componentes
+const [isOnline, setIsOnline] = createSignal(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
 /**
  * Hook reactivo para obtener el estado actual de la conexión de red (online/offline).
  * Escucha los eventos globales del navegador y devuelve un Signal booleano.
  */
 export function useOnlineStatus() {
-  const [isOnline, setIsOnline] = createSignal(typeof navigator !== 'undefined' ? navigator.onLine : true);
-
   const handleOnline = () => setIsOnline(true);
   const handleOffline = () => setIsOnline(false);
 
@@ -25,4 +26,11 @@ export function useOnlineStatus() {
   });
 
   return isOnline;
+}
+
+/**
+ * Permite cambiar el estado de conexión desde interceptores de red (p. ej., Eden Fetcher).
+ */
+export function setOnlineStatus(online: boolean) {
+  setIsOnline(online);
 }

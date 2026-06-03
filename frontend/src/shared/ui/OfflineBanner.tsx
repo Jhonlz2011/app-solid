@@ -4,10 +4,10 @@ export const OfflineBanner: Component = () => {
   return (
     <div 
       id="pwa-offline-banner"
-      class="w-full bg-warning/10 border-b border-warning/20 text-warning px-4 py-2.5 flex items-center justify-between text-sm transition-all duration-300 animate-in fade-in slide-in-from-top-4"
+      class="w-full bg-amber-500/10 border-b border-amber-500/20 text-amber-700 dark:text-amber-400 px-4 py-2.5 flex items-center justify-between text-sm transition-all duration-300 animate-in fade-in slide-in-from-top-4"
     >
       <div class="flex items-center gap-2.5">
-        <div class="flex items-center justify-center size-5 bg-warning/20 text-warning rounded-full shrink-0">
+        <div class="flex items-center justify-center size-5 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full shrink-0">
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
             class="size-3.5 animate-pulse" 
@@ -30,7 +30,7 @@ export const OfflineBanner: Component = () => {
       <button 
         type="button" 
         onClick={() => window.location.reload()} 
-        class="text-xs font-semibold underline hover:text-warning-strong transition-colors cursor-pointer ml-4 shrink-0"
+        class="text-xs font-semibold underline hover:text-amber-800 dark:hover:text-amber-300 transition-colors cursor-pointer ml-4 shrink-0"
       >
         Reintentar
       </button>
