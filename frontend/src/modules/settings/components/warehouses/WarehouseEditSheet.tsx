@@ -1,5 +1,6 @@
 import { Component, Show, createSignal, createEffect } from 'solid-js';
 import { isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { useParams } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
@@ -39,6 +40,12 @@ const WarehouseEditSheet: Component<WarehouseEditSheetProps> = (props) => {
         validators: { onChange: WarehouseFormSchema, onSubmit: WarehouseFormSchema },
         onSubmit: async ({ value }) => {
             if (warehouseId() === 0) return;
+            if (isOffline()) {
+                updateMut.mutate({ id: warehouseId(), data: { code: value.code.toUpperCase(), name: value.name, address: value.address || null, is_mobile: value.is_mobile } });
+                showOfflineSavedToast();
+                navigateAway();
+                return;
+            }
             updateMut.mutate(
                 { id: warehouseId(), data: { code: value.code.toUpperCase(), name: value.name, address: value.address || null, is_mobile: value.is_mobile } },
                 {
@@ -66,6 +73,12 @@ const WarehouseEditSheet: Component<WarehouseEditSheetProps> = (props) => {
         const w = warehouse();
         if (!w) return;
         const isActive = w.is_active ?? true;
+        if (isOffline()) {
+            (isActive ? deactivateMut : restoreMut).mutate(w.id);
+            showOfflineSavedToast();
+            navigateAway();
+            return;
+        }
         (isActive ? deactivateMut : restoreMut).mutate(w.id, {
             onSuccess: () => { toast.success(isActive ? 'Bodega desactivada' : 'Bodega restaurada'); navigateAway(); },
             onError: (err: any) => {

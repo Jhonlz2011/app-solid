@@ -3,6 +3,7 @@ import { useParams } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import { isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { useLocationList } from '../data/locations.queries';
 import { useUpdateLocation } from '../data/locations.mutations';
 import type { LocationItem } from '../data/locations.api';
@@ -31,6 +32,20 @@ const LocationEditSheet: Component<LocationEditSheetProps> = (props) => {
 
     const handleSubmit = async (data: LocationFormData) => {
         if (!locationId() || !canEdit()) return;
+        if (isOffline()) {
+            updateMut.mutate({
+                id: locationId(),
+                data: {
+                    name: data.name,
+                    type: data.type,
+                    warehouse_id: data.warehouse_id ?? null,
+                    parent_id: data.parent_id ?? null,
+                },
+            });
+            showOfflineSavedToast();
+            navigateAway();
+            return;
+        }
         try {
             await updateMut.mutateAsync({
                 id: locationId(),

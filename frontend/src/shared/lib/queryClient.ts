@@ -60,7 +60,7 @@ export const queryClient = new QueryClient({
     },
     mutations: {
       retry: 1,
-      networkMode: 'online', // Pausa las mutaciones si estamos sin conexión
+      networkMode: 'online', // Pausa mutaciones cuando offline → se reanudan con resumePausedMutations()
     },
   },
 });

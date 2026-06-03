@@ -12,6 +12,7 @@ import { StatusBadge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
 import { useAuth } from '@modules/auth/store/auth.store';
+import LinkButton from '@/shared/ui/LinkButton';
 
 interface AttributeShowPanelProps {
     attributeId?: number;
@@ -83,7 +84,7 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                         {(attribute) => (
                             <Tabs defaultValue="general" class="w-full flex flex-col h-full">
                                 <div class="sticky top-0 z-20 bg-card/95 backdrop-blur-md pt-5 flex flex-col gap-5">
-                                    <div class="flex items-start justify-between flex-shrink-0">
+                                    <div class="flex items-start justify-between shrink-0">
                                         <div class="flex gap-4 items-center">
                                             <div class="size-14 rounded-2xl bg-info/10 flex items-center justify-center text-info font-bold text-2xl shadow-inner border border-info/20">
                                                 {attribute().label.substring(0, 1).toUpperCase()}
@@ -101,7 +102,7 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                                         </div>
 
                                         <Show when={auth.canEdit('attributes')}>
-                                            <Button
+                                            <LinkButton
                                                 variant="outline"
                                                 size="sm"
                                                 class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
@@ -110,7 +111,7 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                                             >
                                                 <EditIcon class="size-4 text-muted" />
                                                 Editar
-                                            </Button>
+                                            </LinkButton>
                                         </Show>
                                     </div>
 

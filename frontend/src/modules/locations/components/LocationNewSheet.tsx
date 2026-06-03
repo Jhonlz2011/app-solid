@@ -3,6 +3,7 @@ import { useSearch, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import { isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { useCreateLocation } from '../data/locations.mutations';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import Sheet from '@shared/ui/Sheet';
@@ -24,6 +25,17 @@ const LocationNewSheet: Component<LocationNewSheetProps> = (props) => {
     };
 
     const handleSubmit = async (data: LocationFormData) => {
+        if (isOffline()) {
+            createMut.mutate({
+                name: data.name,
+                type: data.type,
+                parent_id: data.parent_id ?? null,
+                warehouse_id: data.warehouse_id ?? null,
+            });
+            showOfflineSavedToast();
+            navigateAway();
+            return;
+        }
         try {
             await createMut.mutateAsync({
                 name: data.name,

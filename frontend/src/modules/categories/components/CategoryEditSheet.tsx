@@ -7,6 +7,7 @@ import { useUpdateCategory, useDeactivateCategory, useRestoreCategory } from '..
 import CategoryForm from './CategoryForm';
 import type { CategoryFormData } from '@app/schema/frontend';
 import { ApiError, isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
@@ -36,6 +37,12 @@ const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
     const handleSubmit = async (data: CategoryFormData) => {
         if (categoryId() === 0) return;
 
+        if (isOffline()) {
+            updateMutation.mutate({ id: categoryId(), data });
+            showOfflineSavedToast();
+            navigateAway();
+            return;
+        }
         try {
             await updateMutation.mutateAsync({ id: categoryId(), data });
             toast.success('Categoría actualizada correctamente');
@@ -58,6 +65,13 @@ const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
         const id = categoryId();
         if (!id) return;
         const isActive = categoryQuery.data?.is_active;
+
+        if (isOffline()) {
+            (isActive ? deactivateMut : restoreMut).mutate(id);
+            showOfflineSavedToast();
+            navigateAway();
+            return;
+        }
 
         if (isActive) {
             deactivateMut.mutate(id, {

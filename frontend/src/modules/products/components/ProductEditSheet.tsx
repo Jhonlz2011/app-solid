@@ -12,6 +12,7 @@ import { useUpdateProduct } from '../data/products.mutations';
 import { ProductForm } from './ProductForm';
 import type { ProductFormData } from '@app/schema/frontend';
 import { ApiError, isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
@@ -35,6 +36,12 @@ const ProductEditSheet: Component<ProductEditSheetProps> = (props) => {
     const handleSubmit = async (data: ProductFormData) => {
         if (productId() === 0) return;
 
+        if (isOffline()) {
+            updateMutation.mutate({ id: productId(), data });
+            showOfflineSavedToast();
+            close();
+            return;
+        }
         try {
             await updateMutation.mutateAsync({ id: productId(), data });
             toast.success('Producto actualizado correctamente');

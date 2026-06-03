@@ -22,12 +22,13 @@ import { StatusBadge, Badge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import Button from '@shared/ui/Button';
 import { EditIcon, TrashIcon, RotateCcwIcon } from '@shared/ui/icons';
+import LinkButton from '@/shared/ui/LinkButton';
 
 const TYPE_COLORS: Record<AttributeDataType, string> = {
     TEXT: 'primary',
     NUMBER: 'info',
     SELECT: 'warning',
-    BOOLEAN: 'accent',
+    BOOLEAN: 'success',
 };
 
 export interface AttributeColumnHandlers {
@@ -184,12 +185,7 @@ export function createAttributeColumns(handlers: AttributeColumnHandlers): Colum
                 return (
                     <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100" onClick={(e) => e.stopPropagation()}>
                         <Show when={handlers.canEdit && isActive}>
-                            <Button
-                                to={`/attributes/${item.id}/edit`}
-                                preload="intent"
-                                variant="ghost"
-                                size="icon_md"
-                                icon={<EditIcon class="size-4" />}
+                            <LinkButton variant="ghost" size="icon_md" to={`/attributes/${item.id}/edit`} preload="intent" icon={<EditIcon class="size-4"/>}
                             />
                         </Show>
                         <Show when={handlers.canDelete && isActive}>

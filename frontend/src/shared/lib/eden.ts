@@ -41,9 +41,13 @@ export const api = treaty<App>(import.meta.env.VITE_API_URL || 'http://localhost
             
             return response;
         } catch (error) {
-            // Si ocurre un error de red (p. ej., ERR_FAILED o ERR_INTERNET_DISCONNECTED)
-            console.warn('⚠️ Fallo en la petición de red (API inalcanzable). Forzando estado offline.');
-            setOnlineStatus(false);
+            // Solo forzar estado offline si el navegador confirma que no hay red.
+            // Si navigator.onLine es true, es un error transitorio (DNS resolving, server down)
+            // y no debemos sobreescribir el estado nativo del navegador.
+            if (!navigator.onLine) {
+                console.warn('⚠️ Red desconectada (navigator.onLine=false). Forzando estado offline.');
+                setOnlineStatus(false);
+            }
             throw error;
         }
     }

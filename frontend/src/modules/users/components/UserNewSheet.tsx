@@ -7,6 +7,7 @@ import Button from '@shared/ui/Button';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import { useRoles, useEntitiesList } from '../data/users.queries';
 import { useCreateUser, useSetUserEntity } from '../data/users.mutations';
+import { ApiError, isNetworkError } from '@shared/utils/api-errors';
 import UserForm from './UserForm';
 import type { EntityOption } from './UserForm';
 
@@ -50,7 +51,15 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
             }
 
             toast.success(`Usuario "${values.username}" creado correctamente`);
+            close();
+
+
         } catch (err: any) {
+            if (isNetworkError(err)) {
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
+                close();
+                return;
+            }
             toast.error(err?.message || 'Error al crear usuario');
         }
     };

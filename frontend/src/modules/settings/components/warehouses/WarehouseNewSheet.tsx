@@ -1,5 +1,6 @@
 import { Component, createSignal } from 'solid-js';
 import { isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { WarehouseFormSchema, type WarehouseFormData } from '@app/schema/frontend';
@@ -25,6 +26,12 @@ const WarehouseNewSheet: Component<WarehouseNewSheetProps> = (props) => {
         validatorAdapter: valibotValidator(),
         validators: { onChange: WarehouseFormSchema, onSubmit: WarehouseFormSchema },
         onSubmit: async ({ value }) => {
+            if (isOffline()) {
+                createMut.mutate({ code: value.code.toUpperCase(), name: value.name, address: value.address || undefined, is_mobile: value.is_mobile });
+                showOfflineSavedToast();
+                navigateAway();
+                return;
+            }
             createMut.mutate(
                 { code: value.code.toUpperCase(), name: value.name, address: value.address || undefined, is_mobile: value.is_mobile },
                 {

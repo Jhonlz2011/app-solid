@@ -5,6 +5,7 @@ import { useCreateAttribute } from '../data/attributes.mutations';
 import AttributeForm from './AttributeForm';
 import type { AttributeFormData } from '@app/schema/frontend';
 import { ApiError, isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
@@ -18,6 +19,12 @@ const AttributeNewSheet: Component<AttributeNewSheetProps> = (props) => {
     const createMutation = useCreateAttribute();
 
     const handleSubmit = async (data: AttributeFormData) => {
+        if (isOffline()) {
+            createMutation.mutate(data);
+            showOfflineSavedToast();
+            navigateAway();
+            return;
+        }
         try {
             await createMutation.mutateAsync(data);
             toast.success('Atributo creado correctamente');

@@ -73,17 +73,17 @@ render(
                             return !!mutation.options.mutationKey;
                         }
                     },
-                    onSuccess: () => {
-                        // Al hidratar exitosamente la caché de IndexedDB, reanudar mutaciones en cola
-                        queryClient.resumePausedMutations().then(() => {
-                            queryClient.invalidateQueries();
-                        });
-                    }
+                }}
+                onSuccess={() => {
+                    // Al hidratar exitosamente la caché de IndexedDB, reanudar mutaciones en cola
+                    queryClient.resumePausedMutations().then(() => {
+                        queryClient.invalidateQueries();
+                    });
                 }}
             >
                 <ThemeProvider>
                     <RouterApp />
-                    <Toaster position="top-right" richColors />
+                    <Toaster offset={6} position="top-center" richColors />
                 </ThemeProvider>
             </PersistQueryClientProvider>
         );

@@ -11,6 +11,7 @@ import { useCreateProduct } from '../data/products.mutations';
 import { ProductForm } from './ProductForm';
 import type { ProductFormData } from '@app/schema/frontend';
 import { ApiError, isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
@@ -24,6 +25,12 @@ const ProductNewSheet: Component<ProductNewSheetProps> = (props) => {
     const createMutation = useCreateProduct();
 
     const handleSubmit = async (data: ProductFormData) => {
+        if (isOffline()) {
+            createMutation.mutate(data);
+            showOfflineSavedToast();
+            close();
+            return;
+        }
         try {
             await createMutation.mutateAsync(data);
             toast.success('Producto creado correctamente');

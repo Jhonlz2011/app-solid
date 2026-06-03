@@ -1,26 +1,56 @@
-import { Component, Show, createSignal } from 'solid-js';
+import { Component, Show, createSignal, onCleanup } from 'solid-js';
 import { setOnlineStatus } from '@shared/hooks/useOnlineStatus';
 import { toast } from 'solid-sonner';
 import { usePendingMutations } from '@shared/hooks/usePendingMutations';
+
+const AUTO_CHECK_INTERVAL = 10_000; // 10 segundos
 
 export const OfflineBanner: Component = () => {
   const [isChecking, setIsChecking] = createSignal(false);
   const pendingCount = usePendingMutations();
 
+  const checkConnectivity = async (): Promise<boolean> => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      // Usar timestamp para evitar cache del navegador
+      await fetch(`${apiUrl}/api/health?_t=${Date.now()}`, {
+        method: 'HEAD',
+        mode: 'no-cors',
+        cache: 'no-store',
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Reconexión manual (botón Reintentar)
   const handleRetry = async () => {
     if (isChecking()) return;
     setIsChecking(true);
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      await fetch(`${apiUrl}/api/health`, { method: 'HEAD', mode: 'no-cors' });
+    const isUp = await checkConnectivity();
+    if (isUp) {
       setOnlineStatus(true);
-      toast.success('Conexión restablecida. Sincronizando datos...');
-    } catch {
+    } else {
       toast.warning('Aún sin conexión. Inténtalo de nuevo más tarde.');
-    } finally {
-      setIsChecking(false);
     }
+    setIsChecking(false);
   };
+
+  // Auto-polling: verificar conectividad cada 10s en segundo plano
+  const intervalId = setInterval(async () => {
+    // No auto-check si ya se está verificando manualmente
+    if (isChecking()) return;
+    // Solo hacer auto-check si el navegador dice que hay red (puede que DNS ya resuelva)
+    if (!navigator.onLine) return;
+
+    const isUp = await checkConnectivity();
+    if (isUp) {
+      setOnlineStatus(true);
+    }
+  }, AUTO_CHECK_INTERVAL);
+
+  onCleanup(() => clearInterval(intervalId));
 
   return (
     <div 

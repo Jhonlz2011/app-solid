@@ -5,6 +5,7 @@ import { BrandFormSchema, type BrandFormData } from '@app/schema/frontend';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import { isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { useCreateBrand } from '../data/brands.mutations';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
@@ -24,12 +25,18 @@ const BrandNewSheet: Component<BrandNewSheetProps> = (props) => {
         validatorAdapter: valibotValidator(),
         validators: { onChange: BrandFormSchema, onSubmit: BrandFormSchema },
         onSubmit: async ({ value }) => {
+            if (isOffline()) {
+                createMut.mutate({ name: value.name, website: value.website || undefined });
+                showOfflineSavedToast();
+                navigateAway();
+                return;
+            }
             createMut.mutate(
                 { name: value.name, website: value.website || undefined },
                 {
                     onSuccess: () => { toast.success('Marca creada correctamente'); navigateAway(); },
                     onError: (err: any) => {
-                        if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
+                        if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway (); return; }
                         toast.error(err.message || 'Error al crear marca');
                     },
                 },

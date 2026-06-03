@@ -7,6 +7,7 @@ import { useUpdateAttribute } from '../data/attributes.mutations';
 import AttributeForm from './AttributeForm';
 import type { AttributeFormData } from '@app/schema/frontend';
 import { ApiError, isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
@@ -34,6 +35,12 @@ const AttributeEditSheet: Component<AttributeEditSheetProps> = (props) => {
     const handleSubmit = async (data: AttributeFormData) => {
         if (attributeId() === 0) return;
 
+        if (isOffline()) {
+            updateMutation.mutate({ id: attributeId(), data });
+            showOfflineSavedToast();
+            navigateAway();
+            return;
+        }
         try {
             await updateMutation.mutateAsync({ id: attributeId(), data });
             toast.success('Atributo actualizado correctamente');

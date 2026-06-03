@@ -7,6 +7,7 @@ import { useUpdateSupplier } from '../data/suppliers.mutations';
 import { EntityForm } from '@shared/forms/entity';
 import type { EntityFormData } from '@app/schema/frontend';
 import { ApiError, isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
@@ -29,16 +30,22 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
 
     const handleSubmit = async (data: EntityFormData) => {
         if (supplierId() === 0) return;
+        const { taxId, taxIdType, ...updateData } = data;
 
+        if (isOffline()) {
+            updateMutation.mutate({ id: supplierId(), data: updateData });
+            showOfflineSavedToast();
+            navigateAway();
+            return;
+        }
         try {
-            // Remove taxId and taxIdType as they are not allowed by SupplierUpdateSchema in backend
-            const { taxId, taxIdType, ...updateData } = data;
             await updateMutation.mutateAsync({ id: supplierId(), data: updateData });
             toast.success('Proveedor actualizado correctamente');
+            close();
         } catch (error: any) {
             if (isNetworkError(error)) {
                 toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
-                navigateAway();
+                close();
                 return;
             }
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;

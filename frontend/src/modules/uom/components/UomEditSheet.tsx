@@ -1,5 +1,6 @@
 import { Component, Show, createSignal, createEffect, on } from 'solid-js';
 import { isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { useParams } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
@@ -40,6 +41,12 @@ const UomEditSheet: Component<UomEditSheetProps> = (props) => {
         validators: { onChange: UomFormSchema, onSubmit: UomFormSchema },
         onSubmit: async ({ value }) => {
             if (!uomId() || !isEditable()) return;
+            if (isOffline()) {
+                updateMut.mutate({ id: uomId(), data: { name: value.name, uom_group: value.uom_group, base_factor: value.base_factor ? String(value.base_factor).replace(',', '.') : undefined } });
+                showOfflineSavedToast();
+                navigateAway();
+                return;
+            }
             updateMut.mutate(
                 { id: uomId(), data: { name: value.name, uom_group: value.uom_group, base_factor: value.base_factor ? String(value.base_factor).replace(',', '.') : undefined } },
                 {
