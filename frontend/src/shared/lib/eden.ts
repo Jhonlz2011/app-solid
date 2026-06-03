@@ -41,11 +41,9 @@ export const api = treaty<App>(import.meta.env.VITE_API_URL || 'http://localhost
             
             return response;
         } catch (error) {
-            // Solo forzar estado offline si el navegador confirma que no hay red.
-            // Si navigator.onLine es true, es un error transitorio (DNS resolving, server down)
-            // y no debemos sobreescribir el estado nativo del navegador.
-            if (!navigator.onLine) {
-                console.warn('⚠️ Red desconectada (navigator.onLine=false). Forzando estado offline.');
+            // fetch() solo llega al catch con errores de red (TypeError: Failed to fetch),
+            // nunca con errores HTTP (4xx/5xx). Es seguro marcar offline aquí.
+            if (error instanceof TypeError) {
                 setOnlineStatus(false);
             }
             throw error;

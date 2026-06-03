@@ -6,12 +6,20 @@ import { toast } from 'solid-sonner';
 // Signal global para compartir el estado de red entre todos los componentes
 const [isOnline, setIsOnline] = createSignal(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
+// Grace period: tras reconectar, ignorar intentos de marcar offline por unos segundos
+// (las queries refetching pueden fallar brevemente mientras DNS resuelve)
+let reconnectGraceUntil = 0;
+const GRACE_PERIOD_MS = 5_000; // 5 segundos
+
 /**
  * Hook reactivo para obtener el estado actual de la conexión de red (online/offline).
  * Escucha los eventos globales del navegador y devuelve un Signal booleano.
  */
 export function useOnlineStatus() {
   const handleOnline = () => {
+    // Activar grace period para evitar que eden re-marque offline inmediatamente
+    reconnectGraceUntil = Date.now() + GRACE_PERIOD_MS;
+
     setIsOnline(true);
     onlineManager.setOnline(true);
 
@@ -37,6 +45,7 @@ export function useOnlineStatus() {
     }
   };
   const handleOffline = () => {
+    reconnectGraceUntil = 0; // cancelar grace period
     setIsOnline(false);
     onlineManager.setOnline(false);
   };
@@ -60,8 +69,13 @@ export function useOnlineStatus() {
 
 /**
  * Permite cambiar el estado de conexión desde interceptores de red (p. ej., Eden Fetcher).
+ * Respeta el grace period post-reconexión para evitar flicker.
  */
 export function setOnlineStatus(online: boolean) {
+  // Si intentan marcar offline durante el grace period, ignorar
+  if (!online && Date.now() < reconnectGraceUntil) {
+    return;
+  }
   setIsOnline(online);
   onlineManager.setOnline(online);
 }
