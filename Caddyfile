@@ -1,9 +1,10 @@
-# Admin API off for production security
-admin off
+{
+    # Admin API off for production security
+    admin off
 
-# Global options
-auto_https off
-
+    # Global options - Desactiva HTTPS automático porque el Proxy de Coolify maneja los certificados
+    auto_https off
+}
 :80 {
     # Set root directory
     root * /usr/share/caddy
