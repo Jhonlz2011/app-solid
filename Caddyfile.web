@@ -14,8 +14,7 @@
 
     # Astro genera páginas estáticas, NO es un SPA
     # Solo redirige 404 reales, no todas las rutas
-    try_files {path} {path}/index.html
-
+    try_files {path} {path}/ {path}/index.html /404.html
     # Cache agresivo para assets con hash de Astro
     @static {
         file
