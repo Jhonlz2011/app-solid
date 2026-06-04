@@ -51,12 +51,44 @@ const allowedOrigins = new Set([
   'http://127.0.0.1:4173',
 ].filter(Boolean) as string[]);
 
+const baseDomain = (() => {
+  if (env.COOKIE_DOMAIN) {
+    return env.COOKIE_DOMAIN.replace(/^\./, '');
+  }
+  try {
+    const hostname = new URL(env.FRONTEND_URL).hostname;
+    if (hostname === 'localhost' || /^[0-9.]+$/.test(hostname)) {
+      return null;
+    }
+    const parts = hostname.split('.');
+    if (parts.length >= 2) {
+      return parts.slice(-2).join('.');
+    }
+    return null;
+  } catch {
+    return null;
+  }
+})();
+
+// Strictly match https://[optional subdomains].baseDomain (e.g. *.zelys.app or zelys.app)
+const corsRegex = baseDomain
+  ? new RegExp(`^https?:\\/\\/([a-z0-9-]+\\.)*${baseDomain.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}(:\\d+)?$`, 'i')
+  : null;
+
 const app = new Elysia({ prefix: '/api', aot: false })
   // CORS Configuration - dynamic origin validation
   .use(cors({
     origin: (request) => {
       const origin = request.headers.get('origin');
-      return origin ? allowedOrigins.has(origin) : false;
+      if (!origin) return false;
+      if (allowedOrigins.has(origin)) return true;
+
+      // Securely validate origin with regex pattern
+      if (corsRegex && corsRegex.test(origin)) {
+        return true;
+      }
+
+      return false;
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'X-Requested-With', 'x-client-id'],

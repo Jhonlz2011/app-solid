@@ -13,10 +13,18 @@ RUN bun install --frozen-lockfile
 COPY packages ./packages
 COPY web ./web
 
-# Set directory to web workspace and build static/hybrid Astro site
+# Build static Astro site
 WORKDIR /app/web
+ENV NODE_ENV=production
 RUN bun run build
 
-# Expose ports and preview the built site
-EXPOSE 4321
-CMD ["bun", "run", "preview", "--host", "0.0.0.0", "--port", "4321"]
+# ── Production Stage ─────────────────────────────────────────
+FROM caddy:alpine
+
+# Copy built static files
+COPY --from=builder /app/web/dist /usr/share/caddy
+
+# Copy Caddy configuration (dedicated for landing page)
+COPY Caddyfile.web /etc/caddy/Caddyfile
+EXPOSE 80
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

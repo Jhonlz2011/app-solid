@@ -6,7 +6,7 @@ COPY package.json bun.lock biome.json ./
 COPY packages/schema/package.json ./packages/schema/package.json
 COPY backend/package.json ./backend/package.json
 COPY frontend/package.json ./frontend/package.json
-
+COPY web/package.json ./web/package.json
 # Install dependencies (cached)
 RUN bun install
 
