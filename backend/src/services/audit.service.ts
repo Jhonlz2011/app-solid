@@ -1,5 +1,5 @@
 import { sql, inArray } from '@app/schema';
-import { db, listener } from '../db';
+import { db, adminDb, listener, tenantStorage } from '../db';
 import { auditQueue, auditLogs, actionEnum } from '@app/schema/tables';
 
 export interface AuditContext {
@@ -17,12 +17,18 @@ export async function withAuditTransaction<T>(
     operation: (tx: any) => Promise<T>
 ): Promise<T> {
     return await db.transaction(async (tx) => {
-        // Enforce the lifespan of the context to the current transaction (IS_LOCAL = true)
-        if (context?.userId) {
-            await tx.execute(sql`SELECT set_config('app.user_id', ${context.userId.toString()}, true)`);
+        // Tenant context (company_id) is now auto-injected by the db proxy
+        // from AsyncLocalStorage when the transaction starts.
+        // We only need to set user_id and ip_address here for audit triggers.
+        const store = tenantStorage.getStore();
+        const userId = context?.userId || store?.userId;
+        const ipAddress = context?.ipAddress || store?.ipAddress;
+
+        if (userId) {
+            await tx.execute(sql`SELECT set_config('app.user_id', ${userId.toString()}, true)`);
         }
-        if (context?.ipAddress) {
-            await tx.execute(sql`SELECT set_config('app.ip_address', ${context.ipAddress}, true)`);
+        if (ipAddress) {
+            await tx.execute(sql`SELECT set_config('app.ip_address', ${ipAddress}, true)`);
         }
 
         return await operation(tx);
@@ -62,7 +68,8 @@ export async function processAuditQueue() {
         let hasMore = true;
         while (hasMore) {
             // 1. Take a batch of up to 500 rows from the lightweight queue
-            const pendingLogs = await db.select().from(auditQueue).limit(BATCH_SIZE);
+            // Use adminDb to bypass RLS — this worker processes ALL tenants' audit logs
+            const pendingLogs = await adminDb.select().from(auditQueue).limit(BATCH_SIZE);
             
             if (pendingLogs.length === 0) {
                 hasMore = false;
@@ -89,7 +96,8 @@ export async function processAuditQueue() {
             });
 
             // 3. ACID transaction to move the batch safely
-            await db.transaction(async (tx) => {
+            // Use adminDb to bypass RLS — audit logs span all tenants
+            await adminDb.transaction(async (tx) => {
                 // Insert into the heavy, indexed destination table
                 await tx.insert(auditLogs).values(formattedLogs);
                 

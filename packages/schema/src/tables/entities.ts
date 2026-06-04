@@ -1,6 +1,6 @@
 import { text, integer, boolean, timestamp, numeric, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { pgTableV2, TZ } from '../utils';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { taxIdTypeEnum, personTypeEnum, taxRegimeTypeEnum } from '../enums';
 import { companies } from './config';
 
@@ -42,7 +42,8 @@ export const entities = pgTableV2("entities", {
     // Composite indexes for sorted pagination (column + id tiebreaker)
     index("idx_entities_business_name_id").on(t.business_name, t.id),
     index("idx_entities_created_at_id").on(t.created_at, t.id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 export const entityContacts = pgTableV2("entity_contacts", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),

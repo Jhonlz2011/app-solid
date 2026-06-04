@@ -148,6 +148,9 @@ export async function register(
       })
       .returning();
 
+    // Inject company_id context into the local transaction for PostgreSQL RLS policies
+    await tx.execute(sql`SELECT set_config('app.current_company_id', ${company.id.toString()}, true)`);
+
     // 2. Default SRI establishment
     await tx.insert(sriEstablishments).values({
       company_id: company.id,
@@ -246,6 +249,7 @@ export async function register(
       sessionId,
       user: {
         id: user.id,
+        companyId: company.id,
         username: user.username,
         email: user.email,
         isActive: user.is_active,

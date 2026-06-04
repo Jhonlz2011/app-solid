@@ -1,5 +1,5 @@
 import { text, integer, boolean, jsonb, foreignKey, index, unique, timestamp } from 'drizzle-orm/pg-core';
-import { pgTableV2, TZ } from '../utils';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { attributeDataTypeEnum } from '../enums';
 import { companies, ltree } from './config';
 
@@ -18,7 +18,8 @@ export const brands = pgTableV2("brands", {
 }, (t) => [
     unique("unq_brand_name_company").on(t.company_id, t.name),
     index("idx_brands_company").on(t.company_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // =============================================================================
 // ATTRIBUTE DEFINITIONS
@@ -37,7 +38,8 @@ export const attributeDefinitions = pgTableV2("attribute_definitions", {
 }, (t) => [
     unique("unq_attr_key_company").on(t.company_id, t.key),
     index("idx_attr_defs_company").on(t.company_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // =============================================================================
 // CATEGORIES — Hierarchical (ltree)
@@ -79,7 +81,8 @@ export const categories = pgTableV2("categories", {
     index("idx_categories_path_gist").using("gist", t.path),
     // Prevent duplicate category names at the same hierarchy level within a company
     unique("unq_category_name_parent").on(t.company_id, t.name, t.parent_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // Category ↔ Attribute bridge (what attributes to show for products in this category)
 // Stays as metadata catalog for form rendering — no longer referenced by transactional tables

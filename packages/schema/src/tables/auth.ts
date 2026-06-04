@@ -1,5 +1,6 @@
-import { customType, text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
-import { pgTableV2, TZ } from '../utils';
+import { customType, text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex, varchar, pgPolicy } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { entities } from './entities';
 import { companies } from './config';
 
@@ -28,7 +29,16 @@ export const authUsers = pgTableV2("auth_users", {
     uniqueIndex("idx_auth_users_username").on(t.company_id, t.username),
     uniqueIndex("idx_auth_users_email").on(t.company_id, t.email),
     index("idx_auth_users_company").on(t.company_id),
-]);
+    pgPolicy('tenant_isolation', {
+        as: 'permissive',
+        for: 'all',
+        to: 'public',
+        using: sql`company_id = current_setting('app.current_company_id', true)::integer
+            OR username = current_setting('app.current_username', true)
+            OR email = current_setting('app.current_username', true)`,
+        withCheck: sql`company_id = current_setting('app.current_company_id', true)::integer`,
+    }),
+]).enableRLS();
 
 export const sessions = pgTableV2("sessions", {
     id: varchar("id", { length: 64 }).primaryKey(),               // Random 32-byte token (base64url)
@@ -42,7 +52,15 @@ export const sessions = pgTableV2("sessions", {
     index("idx_sessions_user").on(t.user_id),
     index("idx_sessions_expires").on(t.expires_at),
     index("idx_sessions_company").on(t.company_id),
-]);
+    pgPolicy('tenant_isolation', {
+        as: 'permissive',
+        for: 'all',
+        to: 'public',
+        using: sql`company_id = current_setting('app.current_company_id', true)::integer
+            OR id = current_setting('app.current_session_id', true)`,
+        withCheck: sql`company_id = current_setting('app.current_company_id', true)::integer`,
+    }),
+]).enableRLS();
 
 export const authRoles = pgTableV2("auth_roles", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
@@ -55,7 +73,8 @@ export const authRoles = pgTableV2("auth_roles", {
 }, (t) => [
     uniqueIndex("idx_auth_roles_name").on(t.company_id, t.name),
     index("idx_auth_roles_company").on(t.company_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 export const authPermissions = pgTableV2("auth_permissions", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),

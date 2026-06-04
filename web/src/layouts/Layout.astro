@@ -1,0 +1,100 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { 
+  title = "Zelys ERP - Facturación Electrónica y Gestión Empresarial", 
+  description = "Acelera el crecimiento de tu negocio con Zelys ERP. Gestión de inventarios, POS, facturación automática SRI y contabilidad integrada 100% en la nube."
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/logo-blank-192x192.png" />
+    <meta name="generator" content={Astro.generator} />
+    
+    <!-- Primary Meta Tags -->
+    <title>{title}</title>
+    <meta name="title" content={title} />
+    <meta name="description" content={description} />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={Astro.url} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content={Astro.url} />
+    <meta property="twitter:title" content={title} />
+    <meta property="twitter:description" content={description} />
+  </head>
+  <body>
+    <!-- Obsidian Aura Sticky Header -->
+    <header class="glass" style="position: sticky; top: 0; z-index: 50; padding: 1.25rem 2rem; display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 16px 16px; margin: 0 auto; width: 100%; max-width: 1400px; border-top: none;">
+      <a href="/" style="display: flex; align-items: center; gap: 0.75rem;">
+        <!-- Logo Icon representing the Zelys blank logo -->
+        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-purple) 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);">
+          <span style="color: white; font-family: var(--font-display); font-weight: 900; font-size: 1.15rem;">Z</span>
+        </div>
+        <span style="font-family: var(--font-display); font-weight: 800; font-size: 1.4rem; letter-spacing: -0.03em; color: var(--text-primary);">
+          Zelys<span style="color: var(--brand-blue);">.</span>
+        </span>
+      </a>
+      <nav style="display: flex; gap: 2rem; align-items: center;">
+        <a href="#features" style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary);">Características</a>
+        <a href="#pricing" style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary);">Precios</a>
+        <a href="https://in.zelys.app" style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary); transition: color 0.2s;">Ingresar</a>
+        <a href="https://in.zelys.app/register" class="btn-primary" style="font-size: 0.85rem; padding: 0.6rem 1.25rem; border-radius: 8px; display: inline-block;">
+          Comenzar Gratis
+        </a>
+      </nav>
+    </header>
+
+    <!-- Page Content Slot -->
+    <main style="flex: 1; z-index: 10; position: relative;">
+      <slot />
+    </main>
+
+    <!-- Global Footer -->
+    <footer style="background-color: var(--bg-secondary); border-top: 1px solid var(--border-glass); padding: 5rem 2rem 3rem; margin-top: auto; border-radius: 24px 24px 0 0;">
+      <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 3rem;">
+        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 3rem;">
+          <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 320px;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <div style="width: 28px; height: 28px; background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-purple) 100%); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                <span style="color: white; font-family: var(--font-display); font-weight: 900; font-size: 1rem;">Z</span>
+              </div>
+              <span style="font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; color: var(--text-primary);">Zelys</span>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">La plataforma todo-en-uno de alto rendimiento diseñada para potenciar la gestión comercial, inventarios y facturación electrónica de las empresas en Ecuador.</p>
+          </div>
+          <div style="display: flex; gap: 5rem;">
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <h4 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); margin-bottom: 0.5rem;">Producto</h4>
+              <a href="#features" style="font-size: 0.85rem; color: var(--text-secondary);">Características</a>
+              <a href="#pricing" style="font-size: 0.85rem; color: var(--text-secondary);">Precios</a>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <h4 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); margin-bottom: 0.5rem;">Legal</h4>
+              <a href="/privacy" style="font-size: 0.85rem; color: var(--text-secondary);">Política de Privacidad</a>
+              <a href="/terms" style="font-size: 0.85rem; color: var(--text-secondary);">Términos y Condiciones</a>
+            </div>
+          </div>
+        </div>
+        <div style="border-top: 1px solid var(--border-glass); padding-top: 2rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-muted); flex-wrap: wrap; gap: 1rem;">
+          <span>&copy; {new Date().getFullYear()} Zelys ERP. Todos los derechos reservados.</span>
+          <span>Ecuador</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

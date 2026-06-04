@@ -1,5 +1,6 @@
-import { text, integer, boolean, numeric, timestamp, customType, index, unique } from 'drizzle-orm/pg-core';
-import { pgTableV2, TZ } from '../utils';
+import { text, integer, boolean, numeric, timestamp, customType, index, unique, pgPolicy } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { uomGroupEnum } from '../enums';
 
 // =============================================================================
@@ -71,7 +72,8 @@ export const sriEstablishments = pgTableV2("sri_establishments", {
 }, (t) => [
     unique("unq_sri_estab_code").on(t.company_id, t.code),
     index("idx_sri_estab_company").on(t.company_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // =============================================================================
 // SRI CERTIFICATES — Firma electrónica (.p12)
@@ -91,7 +93,8 @@ export const sriCertificates = pgTableV2("sri_certificates", {
 }, (t) => [
     index("idx_sri_certs_company").on(t.company_id),
     index("idx_sri_certs_active").on(t.company_id, t.is_active),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // =============================================================================
 // UOM — Global (ISO-standard, not per-company)
@@ -118,4 +121,12 @@ export const uom = pgTableV2("uom", {
     unique("unq_uom_code_company").on(t.code, t.company_id),
     index("idx_uom_company").on(t.company_id),
     index("idx_uom_code").on(t.code),
-]);
+    pgPolicy('tenant_isolation', {
+        as: 'permissive',
+        for: 'all',
+        to: 'public',
+        using: sql`company_id = current_setting('app.current_company_id', true)::integer
+            OR (company_id IS NULL AND is_system = true)`,
+        withCheck: sql`company_id = current_setting('app.current_company_id', true)::integer`,
+    }),
+]).enableRLS();

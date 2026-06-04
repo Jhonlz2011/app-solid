@@ -1,5 +1,5 @@
 import { text, integer, boolean, numeric, timestamp, bigint, index, primaryKey, unique, foreignKey } from 'drizzle-orm/pg-core';
-import { pgTableV2, TZ } from '../utils';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { movementTypeEnum, movementReferenceTypeEnum, locationTypeEnum } from '../enums';
 import { entities } from './entities';
 import { products, productVariants } from './products';
@@ -21,7 +21,8 @@ export const warehouses = pgTableV2("warehouses", {
     unique("unq_warehouse_code_company").on(t.company_id, t.code),
     unique("unq_warehouse_id_company").on(t.id, t.company_id),
     index("idx_warehouses_company").on(t.company_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // Ubicaciones jerárquicas dentro de una bodega (y ubicaciones virtuales)
 // Dual tracking: parent_id para tree rendering (frontend), ltree para queries jerárquicas (backend)
@@ -54,7 +55,8 @@ export const warehouseLocations = pgTableV2("warehouse_locations", {
         columns: [t.warehouse_id, t.company_id],
         foreignColumns: [warehouses.id, warehouses.company_id],
     }),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // Stock agrupado por UBICACIÓN + VARIANTE (la unidad transaccional)
 export const inventoryStock = pgTableV2("inventory_stock", {

@@ -4,6 +4,7 @@ if (!process.env.DATABASE_URL || !process.env.FRONTEND_URL || !process.env.SRI_D
 
 export const env = {
   DATABASE_URL: process.env.DATABASE_URL,
+  ADMIN_DATABASE_URL: process.env.ADMIN_DATABASE_URL || process.env.DATABASE_URL,
   SRI_DATABASE_URL: process.env.SRI_DATABASE_URL,
   FRONTEND_URL: process.env.FRONTEND_URL,
   PORT: process.env.PORT ? parseInt(process.env.PORT) : 3000,

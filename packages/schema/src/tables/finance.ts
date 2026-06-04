@@ -1,5 +1,5 @@
 import { text, integer, boolean, timestamp, numeric, date, index, unique } from 'drizzle-orm/pg-core';
-import { pgTableV2, TZ } from '../utils';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { paymentStatusEnum, purchaseQuoteStatusEnum } from '../enums';
 import { companies } from './config';
 import { entities } from './entities';
@@ -39,7 +39,8 @@ export const accountsReceivable = pgTableV2("accounts_receivable", {
     index("idx_ar_status").on(t.company_id, t.status),
     index("idx_ar_due_date").on(t.company_id, t.due_date),
     index("idx_ar_document").on(t.document_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // =============================================================================
 // ACCOUNTS PAYABLE — Cuentas por Pagar
@@ -70,7 +71,8 @@ export const accountsPayable = pgTableV2("accounts_payable", {
     index("idx_ap_status").on(t.company_id, t.status),
     index("idx_ap_due_date").on(t.company_id, t.due_date),
     index("idx_ap_po").on(t.purchase_order_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // =============================================================================
 // FISCAL PERIODS — Control de cierres mensuales
@@ -88,7 +90,8 @@ export const fiscalPeriods = pgTableV2("fiscal_periods", {
 }, (t) => [
     unique("unq_fiscal_period").on(t.company_id, t.year, t.month),
     index("idx_fiscal_company").on(t.company_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // =============================================================================
 // PURCHASE QUOTES — Cotización de Compra
@@ -119,7 +122,8 @@ export const purchaseQuotes = pgTableV2("purchase_quotes", {
     index("idx_pq_company").on(t.company_id),
     index("idx_pq_supplier").on(t.supplier_id),
     index("idx_pq_status").on(t.status),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 export const purchaseQuoteItems = pgTableV2("purchase_quote_items", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),

@@ -1,0 +1,22 @@
+FROM oven/bun:1 AS base
+WORKDIR /app
+
+# Copy dependency configuration files for root and workspaces to cache layers
+COPY package.json bun.lock biome.json ./
+COPY packages/schema/package.json ./packages/schema/package.json
+COPY web/package.json ./web/package.json
+
+# Install dependencies using Bun workspaces caching
+RUN bun install --frozen-lockfile
+
+# Copy shared code packages and Astro workspace files
+COPY packages ./packages
+COPY web ./web
+
+# Set directory to web workspace and build static/hybrid Astro site
+WORKDIR /app/web
+RUN bun run build
+
+# Expose ports and preview the built site
+EXPOSE 4321
+CMD ["bun", "run", "preview", "--host", "0.0.0.0", "--port", "4321"]

@@ -1,6 +1,6 @@
 import { text, integer, timestamp, numeric, date, index, unique, jsonb } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { pgTableV2, TZ } from '../utils';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { documentTypeEnum, invoiceStatusEnum, paymentMethodSriEnum, retentionTypeEnum, paymentStatusEnum } from '../enums';
 import { entities } from './entities';
 import { workOrders } from './manufacturing';
@@ -58,7 +58,8 @@ export const electronicDocuments = pgTableV2("electronic_documents", {
     index("idx_docs_status").on(t.status),
     index("idx_docs_company").on(t.company_id),
     index("idx_docs_company_type").on(t.company_id, t.type, t.issue_date),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // --- HIJO: INVOICES (Facturas & Liquidaciones) ---
 export const invoices = pgTableV2("invoices", {
@@ -242,4 +243,5 @@ export const documentSequences = pgTableV2("document_sequences", {
     current_value: integer("current_value").default(0).notNull(),
 }, (t) => [
     unique("unq_seq").on(t.company_id, t.establishment, t.emission_point, t.document_type),
-]);
+    tenantPolicy(),
+]).enableRLS();

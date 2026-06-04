@@ -1,5 +1,5 @@
 import { text, integer, boolean, timestamp, numeric, date, index, unique, jsonb, bigint } from 'drizzle-orm/pg-core';
-import { pgTableV2, TZ } from '../utils';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { workOrderStatusEnum, productionStatusEnum, justificationTypeEnum, bomCalculationTypeEnum } from '../enums';
 import { entities } from './entities';
 import { quotations } from './visits';
@@ -29,7 +29,8 @@ export const workOrders = pgTableV2("work_orders", {
     index("idx_wo_client").on(t.client_id),
     index("idx_wo_dates").on(t.start_date, t.delivery_date),
     index("idx_wo_company").on(t.company_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // Define QUÉ se va a fabricar (conceptual — stays at product level)
 // Specific variant resolution happens in manufacturing_orders
@@ -178,7 +179,8 @@ export const bomTemplates = pgTableV2("bom_templates", {
 }, (t) => [
     index("idx_bom_templates_category").on(t.category_id),
     index("idx_bom_templates_company").on(t.company_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // BOM Template Details — components at PRODUCT level (generic)
 export const bomTemplateDetails = pgTableV2("bom_template_details", {

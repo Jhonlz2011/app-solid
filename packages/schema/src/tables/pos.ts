@@ -1,5 +1,5 @@
 import { text, integer, boolean, timestamp, numeric, index } from 'drizzle-orm/pg-core';
-import { pgTableV2, TZ } from '../utils';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { posSessionStatusEnum, paymentMethodSriEnum } from '../enums';
 import { warehouses, warehouseLocations } from './inventory';
 import { authUsers } from './auth';
@@ -22,7 +22,8 @@ export const cashRegisters = pgTableV2("cash_registers", {
     is_active: boolean("is_active").default(true),
 }, (t) => [
     index("idx_cash_registers_company").on(t.company_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // POS Sessions (daily opening/closing)
 export const posSessions = pgTableV2("pos_sessions", {

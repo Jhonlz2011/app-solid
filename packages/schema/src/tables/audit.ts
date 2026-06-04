@@ -1,6 +1,7 @@
 import { 
-  pgTable, timestamp, jsonb, index, varchar, uuid, pgEnum, customType, integer, text, primaryKey
+  pgTable, timestamp, jsonb, index, varchar, uuid, pgEnum, customType, integer, text, primaryKey, pgPolicy
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid'; // Generación de UUIDv7 en Bun
 import { authUsers } from './auth';
 import { companies } from './config';
@@ -44,7 +45,14 @@ export const auditLogs = pgTable("audit_logs", {
     index("idx_audit_company").on(t.company_id),
     
     // Índice para filtrar por rangos de fecha rápidos
-]);
+    pgPolicy('tenant_isolation', {
+        as: 'permissive',
+        for: 'all',
+        to: 'public',
+        using: sql`company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer`,
+        withCheck: sql`company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer`,
+    }),
+]).enableRLS();
 
 // Esta es la tabla temporal ultraligera
 export const auditQueue = pgTable("_audit_queue", {

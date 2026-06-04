@@ -2,7 +2,7 @@ import { Elysia } from 'elysia';
 import { UnauthorizedError } from '../services/errors';
 import { validateSession } from '../services/auth.service';
 import { COOKIE_OPTIONS } from '../config/auth';
-import { db } from '../db';
+import { db, tenantStorage } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 
@@ -73,9 +73,23 @@ export const authGuard = (app: Elysia) => app
         });
       }
 
+      const resolvedCompanyId = hostCompanyId || session.company_id;
+      const ipAddress = request.headers.get('x-forwarded-for')
+        || request.headers.get('x-real-ip')
+        || undefined;
+
+      // Set tenant context in AsyncLocalStorage for the entire request lifecycle.
+      // This enables auto-injection of set_config('app.current_company_id', ...)
+      // inside every db.transaction() call, enforcing RLS policies automatically.
+      tenantStorage.enterWith({
+        companyId: resolvedCompanyId,
+        userId: session.user_id,
+        ipAddress: ipAddress || undefined,
+      });
+
       return {
         currentUserId: session.user_id,
-        currentCompanyId: hostCompanyId || session.company_id, // Host subdomain overrides, fallback to session
+        currentCompanyId: resolvedCompanyId,
         currentSessionId: sessionId,
         currentRoles: roles,
         currentPermissions: permissions,

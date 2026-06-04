@@ -2,13 +2,19 @@
     "name": "app-monorepo",
     "private": true,
     "scripts": {
+        "dev:web": "bun --filter web dev",
+        "dev:backend": "bun --filter backend dev",
+        "dev:frontend": "bun --filter frontend dev",
+        "build:web": "bun --filter web build",
+        "build:backend": "bun --filter backend build",
+        "build:frontend": "bun --filter frontend build",
         "lint": "biome check .",
         "format": "biome check --write ."
     },
     "workspaces": [
         "packages/*",
         "backend",
-        "frontend"
-
+        "frontend",
+        "web"
     ]
 }

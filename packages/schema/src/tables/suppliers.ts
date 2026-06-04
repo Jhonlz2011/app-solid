@@ -1,6 +1,6 @@
 import { text, integer, boolean, numeric, date, timestamp, index, unique } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { pgTableV2, TZ } from '../utils';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { purchaseOrderStatusEnum } from '../enums';
 import { entities } from './entities';
 import { products, productVariants } from './products';
@@ -69,7 +69,8 @@ export const purchaseOrders = pgTableV2("purchase_orders", {
     index("idx_po_status").on(t.status),
     index("idx_po_wo").on(t.work_order_id),
     index("idx_po_company").on(t.company_id),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // Purchase order items — buy SPECIFIC variants (= SKUs)
 export const purchaseOrderItems = pgTableV2("purchase_order_items", {

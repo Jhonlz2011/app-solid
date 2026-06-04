@@ -57,6 +57,7 @@ coverage/
 **/*.tgz
 **/*.log
 package-lock.json
+skills-lock.json
 **/*.bun
 .agent
 .agents

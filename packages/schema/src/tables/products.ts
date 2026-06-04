@@ -1,6 +1,6 @@
 import { text, integer, boolean, timestamp, numeric, jsonb, index, unique, check } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { pgTableV2, TZ } from '../utils';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { productTypeEnum, productSubtypeEnum, priceChangeTypeEnum, priceChangeSourceEnum } from '../enums';
 import { uom, companies } from './config';
 import { categories, brands } from './catalogs';
@@ -71,7 +71,8 @@ export const products = pgTableV2("products", {
     index("idx_products_brand").on(t.brand_id),
     index("idx_products_cat_active").on(t.category_id, t.is_active),
     check("chk_iva_rate_code", sql`iva_rate_code IN (0, 2, 3, 4, 6, 7)`),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // =============================================================================
 // 3.1 PRODUCT VARIANTS — The transactional SKU entity (UNIFIED)
