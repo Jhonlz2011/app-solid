@@ -72,6 +72,17 @@ const runMigration = async () => {
       console.log('ℹ️ No triggers.sql found (skipping)');
     }
 
+    // Execute enable-rls.sql
+    const rlsPath = path.join(process.cwd(), 'src', 'migrations', 'enable-rls.sql');
+    if (fs.existsSync(rlsPath)) {
+      console.log('⏳ Applying Row-Level Security (RLS) policies...');
+      const rlsSql = fs.readFileSync(rlsPath, 'utf8');
+      await connection.unsafe(rlsSql);
+      console.log('✅ RLS policies applied successfully');
+    } else {
+      console.log('ℹ️ No enable-rls.sql found (skipping)');
+    }
+
     // Ensure partitions are created dynamically
     await ensureAuditPartitions(connection);
 

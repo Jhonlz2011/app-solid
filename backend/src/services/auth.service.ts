@@ -61,19 +61,22 @@ export async function validateSession(sessionId: string) {
 
   // Check cache first
   let cachedData = await cacheService.getOrSet(cacheKey, async () => {
-    const [s] = await db
-      .select()
-      .from(sessions)
-      .where(eq(sessions.id, sessionId));
-    if (!s) return null;
-    
-    // Also fetch roles and permissions here to cache them together
-    const [roles, permissions] = await Promise.all([
-      getUserRoles(s.user_id),
-      getUserPermissions(s.user_id)
-    ]);
-    
-    return { session: s, roles, permissions };
+    return await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT set_config('app.current_session_id', ${sessionId}, true)`);
+      const [s] = await db
+        .select()
+        .from(sessions)
+        .where(eq(sessions.id, sessionId));
+      if (!s) return null;
+      
+      // Also fetch roles and permissions here to cache them together
+      const [roles, permissions] = await Promise.all([
+        getUserRoles(s.user_id),
+        getUserPermissions(s.user_id)
+      ]);
+      
+      return { session: s, roles, permissions };
+    });
   }, SESSION_EXPIRE_DAYS * 24 * 60 * 60); // Max TTL 
 
   if (!cachedData) return null;
@@ -258,9 +261,12 @@ export async function register(
 
 export async function login(email: string, password: string, userAgent?: string, ipAddress?: string) {
   // 1. Fetch user + entity in one query
-  const user = await db.query.authUsers.findFirst({
-    where: or(eq(users.email, email), eq(users.username, email)),
-    with: { entity: true },
+  const user = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('app.current_username', ${email}, true)`);
+    return await db.query.authUsers.findFirst({
+      where: or(eq(users.email, email), eq(users.username, email)),
+      with: { entity: true },
+    });
   });
 
   // 2. Timing attack protection

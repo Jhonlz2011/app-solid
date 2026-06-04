@@ -56,6 +56,39 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     params: t.Object({ ruc: t.String() }),
     response: t.Object({ available: t.Boolean() }),
   })
+  .get('/check-domain', async ({ query, set }) => {
+    const domain = query.domain;
+    if (!domain) {
+      set.status = 400;
+      return 'domain query parameter is required';
+    }
+
+    const parts = domain.split('.');
+    const slug = parts[0];
+
+    if (slug === 'api' || parts.length < 3) {
+      set.status = 400;
+      return 'System domain or main domain bypass';
+    }
+
+    const [existing] = await db
+      .select({ id: companies.id })
+      .from(companies)
+      .where(eq(companies.slug, slug))
+      .limit(1);
+
+    if (!existing) {
+      set.status = 404;
+      return 'Domain not registered';
+    }
+
+    set.status = 200;
+    return 'OK';
+  }, {
+    query: t.Object({
+      domain: t.String(),
+    }),
+  })
   .post(
     '/login',
     async ({ body, cookie, request }) => {

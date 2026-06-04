@@ -1,16 +1,14 @@
-{
-    # Admin API off for production security
-    admin off
-    # Global options
-    auto_https off
-}
+# Admin API off for production security
+admin off
+
+# Global options
+auto_https off
 
 :80 {
     # Set root directory
     root * /usr/share/caddy
 
     # Enable Zstandard (zstd) and Gzip compression
-    # Zstd is significantly faster and better compressing than Brotli/Gzip
     encode zstd gzip
 
     # Serve static files
@@ -28,10 +26,19 @@
     }
     header @static Cache-Control "public, max-age=31536000, immutable"
 
-    # Security Headers (Modern Best Practices)
+    # Robust Security Headers (Blindaje contra XSS, Clickjacking y Spoofing)
     header {
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
         Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # 1. HSTS (Fuerza HTTPS por 2 años, incluyendo subdominios)
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        
+        # 2. Permissions Policy (Apaga hardware del cliente innecesario)
+        Permissions-Policy "microphone=(), usb=()"
+        
+        # 3. Content Security Policy (Asegura tus orígenes legítimos y llamadas a tu API)
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.zelys.app;"
     }
 }

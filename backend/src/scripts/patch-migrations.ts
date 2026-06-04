@@ -36,6 +36,36 @@ CREATE TABLE IF NOT EXISTS "audit_logs_default" PARTITION OF "audit_logs" DEFAUL
     return patched;
   });
 
+  // Look for other tables with company_id to inject RLS policies
+  const tableCreateRegex = /CREATE TABLE (?:IF NOT EXISTS )?"([^"]+)" \([\s\S]*?\)\s*;/g;
+
+  content = content.replace(tableCreateRegex, (match, tableName) => {
+    if (!match.includes('"company_id"') || tableName === 'companies') {
+      return match; // No direct RLS required or already system/root
+    }
+
+    // Skip if already patched for RLS
+    if (content.includes(`ALTER TABLE "${tableName}" ENABLE ROW LEVEL SECURITY`)) {
+      return match;
+    }
+
+    let policySql = '';
+    if (tableName === 'uom') {
+      policySql = `CREATE POLICY tenant_policy ON "uom" USING (company_id = current_setting('app.current_company_id', true)::integer OR (company_id IS NULL AND is_system = true));`;
+    } else if (tableName === 'auth_users') {
+      policySql = `CREATE POLICY tenant_policy ON "auth_users" USING (company_id = current_setting('app.current_company_id', true)::integer OR username = current_setting('app.current_username', true) OR email = current_setting('app.current_username', true));`;
+    } else if (tableName === 'sessions') {
+      policySql = `CREATE POLICY tenant_policy ON "sessions" USING (company_id = current_setting('app.current_company_id', true)::integer OR id = current_setting('app.current_session_id', true));`;
+    } else {
+      policySql = `CREATE POLICY tenant_policy ON "${tableName}" USING (company_id = current_setting('app.current_company_id', true)::integer);`;
+    }
+
+    console.log(`🔒 Patched table "${tableName}" in ${file} to enable Row-Level Security.`);
+    patchedFile = true;
+
+    return match + `\n\nALTER TABLE "${tableName}" ENABLE ROW LEVEL SECURITY;\nALTER TABLE "${tableName}" FORCE ROW LEVEL SECURITY;\n${policySql}`;
+  });
+
   if (patchedFile) {
     fs.writeFileSync(filePath, content, 'utf8');
   }

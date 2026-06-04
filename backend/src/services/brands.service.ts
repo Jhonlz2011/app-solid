@@ -1,5 +1,5 @@
 import { and, eq, ilike, or, sql, lt, gt, asc, desc, inArray, type AnyColumn } from '@app/schema';
-import { db } from '../db';
+import { db, withTenantContext } from '../db';
 import { brands } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
@@ -96,74 +96,90 @@ function buildWhereConditions(companyId: number, filters: BrandListFilters) {
 export const brandsService = {
     /** Paginated list with cursor or offset pagination */
     async list(filters: BrandListFilters, companyId: number) {
-        const { sortBy } = filters;
-        if (sortBy && sortBy !== 'id' && SORTABLE_COLUMNS[sortBy]) {
-            return listBrandsSorted(filters, companyId);
-        }
-        return listBrandsCursor(filters, companyId);
+        return withTenantContext({ companyId }, async () => {
+            const { sortBy } = filters;
+            if (sortBy && sortBy !== 'id' && SORTABLE_COLUMNS[sortBy]) {
+                return listBrandsSorted(filters, companyId);
+            }
+            return listBrandsCursor(filters, companyId);
+        });
     },
 
     /** Simple list (all brands, for selectors/autocomplete) */
     async listAll(companyId: number) {
         return cacheService.getOrSet(`brands:c${companyId}:all`, async () => {
-            return db.select().from(brands)
-                .where(and(eq(brands.company_id, companyId), eq(brands.is_active, true)))
-                .orderBy(asc(brands.name));
+            return withTenantContext({ companyId }, async () => {
+                return db.select().from(brands)
+                    .where(and(eq(brands.company_id, companyId), eq(brands.is_active, true)))
+                    .orderBy(asc(brands.name));
+            });
         }, 3600);
     },
 
     async create(data: { name: string; website?: string }, companyId: number) {
-        const [created] = await db.insert(brands).values({ ...data, company_id: companyId }).returning();
-        await cacheService.invalidate(`brands:c${companyId}:*`);
-        broadcast('catalog:brand:created', created, 'brands');
-        return created;
+        return withTenantContext({ companyId }, async () => {
+            const [created] = await db.insert(brands).values({ ...data, company_id: companyId }).returning();
+            await cacheService.invalidate(`brands:c${companyId}:*`);
+            broadcast('catalog:brand:created', created, 'brands');
+            return created;
+        });
     },
 
     async update(id: number, data: Partial<{ name: string; website: string; is_active: boolean }>, companyId: number) {
-        const [updated] = await db.update(brands).set(data)
-            .where(and(eq(brands.id, id), eq(brands.company_id, companyId))).returning();
-        if (!updated) throw new DomainError('Marca no encontrada', 404);
-        await cacheService.invalidate(`brands:c${companyId}:*`);
-        broadcast('catalog:brand:updated', updated, 'brands');
-        return updated;
+        return withTenantContext({ companyId }, async () => {
+            const [updated] = await db.update(brands).set(data)
+                .where(and(eq(brands.id, id), eq(brands.company_id, companyId))).returning();
+            if (!updated) throw new DomainError('Marca no encontrada', 404);
+            await cacheService.invalidate(`brands:c${companyId}:*`);
+            broadcast('catalog:brand:updated', updated, 'brands');
+            return updated;
+        });
     },
 
     async deactivate(id: number, companyId: number) {
-        const [updated] = await db.update(brands).set({ is_active: false })
-            .where(and(eq(brands.id, id), eq(brands.company_id, companyId))).returning();
-        if (!updated) throw new DomainError('Marca no encontrada', 404);
-        await cacheService.invalidate(`brands:c${companyId}:*`);
-        broadcast('catalog:brand:updated', updated, 'brands');
-        return updated;
+        return withTenantContext({ companyId }, async () => {
+            const [updated] = await db.update(brands).set({ is_active: false })
+                .where(and(eq(brands.id, id), eq(brands.company_id, companyId))).returning();
+            if (!updated) throw new DomainError('Marca no encontrada', 404);
+            await cacheService.invalidate(`brands:c${companyId}:*`);
+            broadcast('catalog:brand:updated', updated, 'brands');
+            return updated;
+        });
     },
 
     async restore(id: number, companyId: number) {
-        const [updated] = await db.update(brands).set({ is_active: true })
-            .where(and(eq(brands.id, id), eq(brands.company_id, companyId))).returning();
-        if (!updated) throw new DomainError('Marca no encontrada', 404);
-        await cacheService.invalidate(`brands:c${companyId}:*`);
-        broadcast('catalog:brand:updated', updated, 'brands');
-        return updated;
+        return withTenantContext({ companyId }, async () => {
+            const [updated] = await db.update(brands).set({ is_active: true })
+                .where(and(eq(brands.id, id), eq(brands.company_id, companyId))).returning();
+            if (!updated) throw new DomainError('Marca no encontrada', 404);
+            await cacheService.invalidate(`brands:c${companyId}:*`);
+            broadcast('catalog:brand:updated', updated, 'brands');
+            return updated;
+        });
     },
 
     async bulkDeactivate(ids: number[], companyId: number) {
         if (ids.length === 0) return { success: true, count: 0 };
-        const updated = await db.update(brands).set({ is_active: false })
-            .where(and(eq(brands.company_id, companyId), eq(brands.is_active, true), inArray(brands.id, ids)))
-            .returning();
-        await cacheService.invalidate(`brands:c${companyId}:*`);
-        for (const b of updated) broadcast('catalog:brand:updated', b, 'brands');
-        return { success: true, count: updated.length };
+        return withTenantContext({ companyId }, async () => {
+            const updated = await db.update(brands).set({ is_active: false })
+                .where(and(eq(brands.company_id, companyId), eq(brands.is_active, true), inArray(brands.id, ids)))
+                .returning();
+            await cacheService.invalidate(`brands:c${companyId}:*`);
+            for (const b of updated) broadcast('catalog:brand:updated', b, 'brands');
+            return { success: true, count: updated.length };
+        });
     },
 
     async bulkRestore(ids: number[], companyId: number) {
         if (ids.length === 0) return { success: true, count: 0 };
-        const updated = await db.update(brands).set({ is_active: true })
-            .where(and(eq(brands.company_id, companyId), eq(brands.is_active, false), inArray(brands.id, ids)))
-            .returning();
-        await cacheService.invalidate(`brands:c${companyId}:*`);
-        for (const b of updated) broadcast('catalog:brand:updated', b, 'brands');
-        return { success: true, count: updated.length };
+        return withTenantContext({ companyId }, async () => {
+            const updated = await db.update(brands).set({ is_active: true })
+                .where(and(eq(brands.company_id, companyId), eq(brands.is_active, false), inArray(brands.id, ids)))
+                .returning();
+            await cacheService.invalidate(`brands:c${companyId}:*`);
+            for (const b of updated) broadcast('catalog:brand:updated', b, 'brands');
+            return { success: true, count: updated.length };
+        });
     },
 };
 

@@ -1,9 +1,19 @@
-import { drizzlePostgres as drizzle } from '@app/schema';
+import { drizzlePostgres as drizzle, sql } from '@app/schema';
 import postgres from 'postgres';
 import { env } from './config/env';
 import { cacheService } from './services/cache.service';
 import { broadcast } from './plugins/sse';
 import * as schema from '@app/schema';
+import { AsyncLocalStorage } from 'async_hooks';
+
+export interface TenantContext {
+  companyId?: number;
+  userId?: number;
+  ipAddress?: string;
+  tx?: any;
+}
+
+export const tenantStorage = new AsyncLocalStorage<TenantContext>();
 
 const queryClient = postgres(env.DATABASE_URL, {
   max: 10,
@@ -47,10 +57,54 @@ listener.listen('db_change', (payload: string) => {
 });
 
 
-export const db = drizzle(queryClient, {
+const rawDb = drizzle(queryClient, {
   schema,
   logger: env.NODE_ENV === 'development',
 });
 
-export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export const db = new Proxy(rawDb, {
+  get(target, prop, receiver) {
+    if (prop === 'transaction') {
+      return (originalFn: any, config: any) => {
+        return target.transaction(async (tx) => {
+          const store = tenantStorage.getStore() || {};
+          return await tenantStorage.run({ ...store, tx }, () => originalFn(tx));
+        }, config);
+      };
+    }
+    const store = tenantStorage.getStore();
+    const activeClient = store?.tx || target;
+    const value = Reflect.get(activeClient, prop, receiver);
+    if (typeof value === 'function') {
+      return value.bind(activeClient);
+    }
+    return value;
+  }
+});
+
+export type Tx = Parameters<Parameters<typeof rawDb.transaction>[0]>[0];
+
+export async function withTenantContext<T>(
+  context: { companyId: number; userId?: number; ipAddress?: string },
+  operation: () => Promise<T>
+): Promise<T> {
+  const store = tenantStorage.getStore();
+  
+  if (store?.tx) {
+    return await operation();
+  }
+
+  return await rawDb.transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('app.current_company_id', ${context.companyId.toString()}, true)`);
+    if (context.userId) {
+      await tx.execute(sql`SELECT set_config('app.user_id', ${context.userId.toString()}, true)`);
+    }
+    if (context.ipAddress) {
+      await tx.execute(sql`SELECT set_config('app.ip_address', ${context.ipAddress}, true)`);
+    }
+
+    return await tenantStorage.run({ ...context, tx }, operation);
+  });
+}
+
 

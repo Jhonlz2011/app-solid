@@ -2,10 +2,41 @@ import { Elysia } from 'elysia';
 import { UnauthorizedError } from '../services/errors';
 import { validateSession } from '../services/auth.service';
 import { COOKIE_OPTIONS } from '../config/auth';
+import { db } from '../db';
+import { companies } from '@app/schema/tables';
+import { eq } from '@app/schema';
 
 export const authGuard = (app: Elysia) => app
   .derive(
-    async ({ cookie, set }) => {
+    async ({ cookie, set, request }) => {
+      // 1. Resolve host and check subdomain
+      const host = request.headers.get('host') || '';
+      let slug: string | null = null;
+      let hostCompanyId: number | null = null;
+
+      if (host.includes('zelys.app')) {
+        const parts = host.split('.');
+        if (parts.length > 2 && parts[0] !== 'api') {
+          slug = parts[0];
+        }
+      } else {
+        const parts = host.split('.');
+        if (parts.length > 1 && !host.startsWith('localhost') && !host.startsWith('127.0.0.1')) {
+          slug = parts[0];
+        }
+      }
+
+      if (slug) {
+        const [comp] = await db
+          .select({ id: companies.id })
+          .from(companies)
+          .where(eq(companies.slug, slug))
+          .limit(1);
+        if (comp) {
+          hostCompanyId = comp.id;
+        }
+      }
+
       const sessionId = cookie.session?.value as string | undefined;
 
       if (!sessionId) {
@@ -28,6 +59,12 @@ export const authGuard = (app: Elysia) => app
 
       const { session, roles, permissions, shouldRefreshCookie } = result;
 
+      // Strict validation: check that user session matches the requested subdomain
+      if (hostCompanyId && session.company_id !== hostCompanyId) {
+        set.status = 403;
+        throw new UnauthorizedError('Acceso denegado a este inquilino');
+      }
+
       // Rolling session: update cookie expiry if session was extended
       if (shouldRefreshCookie) {
         cookie.session.set({
@@ -38,7 +75,7 @@ export const authGuard = (app: Elysia) => app
 
       return {
         currentUserId: session.user_id,
-        currentCompanyId: session.company_id,
+        currentCompanyId: hostCompanyId || session.company_id, // Host subdomain overrides, fallback to session
         currentSessionId: sessionId,
         currentRoles: roles,
         currentPermissions: permissions,

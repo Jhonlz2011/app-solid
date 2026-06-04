@@ -51,6 +51,8 @@ CREATE TRIGGER audit_entities_outbox_trigger
 AFTER INSERT OR UPDATE OR DELETE ON entities
 FOR EACH ROW EXECUTE FUNCTION process_audit_outbox();
 
+DROP TRIGGER IF EXISTS audit_users_outbox_trigger ON auth_users;
+
 CREATE TRIGGER audit_users_outbox_trigger
 AFTER INSERT OR UPDATE OR DELETE ON auth_users
 FOR EACH ROW EXECUTE FUNCTION process_audit_outbox();
