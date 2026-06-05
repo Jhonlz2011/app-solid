@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { UnauthorizedError } from '../services/errors';
+import { UnauthorizedError, ForbiddenError } from '../services/errors';
 import { validateSession } from '../services/auth.service';
 import { COOKIE_OPTIONS } from '../config/auth';
 import { db, tenantStorage } from '../db';
@@ -77,6 +77,17 @@ export const authGuard = (app: Elysia) => app
       const ipAddress = request.headers.get('x-forwarded-for')
         || request.headers.get('x-real-ip')
         || undefined;
+
+      // Seguridad Perimetral: Si el email no está verificado, bloquear acceso a recursos
+      // excepto las rutas básicas de auth y reenvío de correo
+      const isAuthUtility = request.url.includes('/api/auth/me') ||
+                            request.url.includes('/api/auth/logout') ||
+                            request.url.includes('/api/auth/resend-verification');
+                            
+      if (!result.emailVerified && !isAuthUtility) {
+        set.status = 403;
+        throw new ForbiddenError('Debes verificar tu correo electrónico para acceder a los servicios.');
+      }
 
       // Set tenant context in AsyncLocalStorage for the entire request lifecycle.
       // This enables auto-injection of set_config('app.current_company_id', ...)

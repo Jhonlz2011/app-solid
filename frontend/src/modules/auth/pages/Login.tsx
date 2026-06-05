@@ -1,10 +1,11 @@
-import { Component, onMount } from 'solid-js';
+import { Component, onMount, Show } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { AuthLoginSchema } from '@app/schema/frontend';
 import { actions } from '@modules/auth/store/auth.store';
+import { useBranding } from '../store/branding.store';
 import { AuthError } from '@modules/auth/types/auth.types';
 import Input from '@shared/ui/Input';
 import Button from '@shared/ui/Button';
@@ -20,6 +21,7 @@ const getFieldError = (errors: unknown[]): string | undefined => {
 const Login: Component = () => {
   const navigate = useNavigate();
   const search = useSearch({ strict: false });
+  const branding = useBranding();
 
   // Phase 2 of logout: clean up stale user/modules data.
   // By onMount, the old route's components (sidebar, layout) are fully unmounted,
@@ -60,9 +62,35 @@ const Login: Component = () => {
   }));
 
   return (
-    <div class="w-full p-8 bg-card border border-border shadow-card-soft rounded-2xl shadow-lg">
-      <h2 class="text-3xl font-bold mb-2 text-dark">Iniciar sesión</h2>
-      <p class="text-muted text-sm mb-6">Ingresa tus credenciales para continuar</p>
+    <div class="w-full p-8 bg-card border border-border shadow-card-soft rounded-2xl shadow-lg transition-all duration-300">
+      {/* Sección del Logotipo Dinámico */}
+      <div class="flex flex-col items-center mb-6">
+        <Show 
+          when={branding.tenant()?.logoUrl} 
+          fallback={
+            <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 hover:scale-105">
+              <span class="text-primary font-bold text-2xl">Z</span>
+            </div>
+          }
+        >
+          <img 
+            src={branding.tenant()?.logoUrl!} 
+            alt="Logo Empresa" 
+            class="max-h-16 object-contain mb-4 transition-transform duration-300 hover:scale-105"
+          />
+        </Show>
+        
+        <h2 class="text-3xl font-bold mb-1 text-heading text-center">
+          <Show when={branding.tenant()} fallback="Iniciar sesión">
+            {branding.tenant()?.tradeName || branding.tenant()?.businessName}
+          </Show>
+        </h2>
+        <p class="text-muted text-sm text-center">
+          <Show when={branding.tenant()} fallback="Ingresa tus credenciales para continuar">
+            Portal Corporativo de Acceso
+          </Show>
+        </p>
+      </div>
 
       <form
         onSubmit={(e) => {
@@ -128,13 +156,15 @@ const Login: Component = () => {
           )}
         />
 
-        <div class="text-sm text-muted mt-2 text-center">
-          ¿No tienes cuenta?{' '}
-          <a href="/register" class="text-primary hover:underline font-medium"
-             onClick={(e) => { e.preventDefault(); navigate({ to: '/register' }); }}>
-            Regístrate
-          </a>
-        </div>
+        <Show when={!branding.tenant()}>
+          <div class="text-sm text-muted mt-4 text-center">
+            ¿No tienes cuenta?{' '}
+            <a href="/register" class="text-primary hover:underline font-medium"
+               onClick={(e) => { e.preventDefault(); navigate({ to: '/register' }); }}>
+              Regístrate
+            </a>
+          </div>
+        </Show>
       </form>
     </div>
   );

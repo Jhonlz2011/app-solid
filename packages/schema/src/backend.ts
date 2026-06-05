@@ -223,6 +223,7 @@ export const PublicUser = Type.Object({
     isActive: Type.Union([Type.Boolean(), Type.Null()]),
     lastLogin: Type.Union([Type.Date(), Type.Null()]),
     entityId: Type.Union([Type.Number(), Type.Null()]),
+    emailVerifiedAt: Type.Union([Type.Date(), Type.Null(), Type.String()]),
 });
 
 // We need to extend it to include relations that are not in the base table schema but returned by service
@@ -313,4 +314,18 @@ export const EntityPickerItemSchema = Type.Object({
 });
 
 export type EntityPickerItemType = Static<typeof EntityPickerItemSchema>;
+
+// --- TENANT BRANDING DTOs ---
+export const TenantBrandingResponseDto = Type.Object({
+    id: Type.Number(),
+    slug: Type.String(),
+    businessName: Type.String(),
+    tradeName: Type.Union([Type.String(), Type.Null()]),
+    logoUrl: Type.Union([Type.String(), Type.Null()]),
+    primaryColor: Type.String(),
+    secondaryColor: Type.String(),
+    loginBgUrl: Type.Union([Type.String(), Type.Null()]),
+});
+
+export type TenantBrandingResponseDtoType = Static<typeof TenantBrandingResponseDto>;
 

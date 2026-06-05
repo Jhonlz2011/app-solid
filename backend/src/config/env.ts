@@ -12,4 +12,7 @@ export const env = {
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   GEONAMES_USERNAME: process.env.GEONAMES_USERNAME || 'Jhonlz2011',
   COOKIE_DOMAIN: process.env.COOKIE_DOMAIN,
+  AWS_REGION: process.env.AWS_REGION || 'us-east-2',
+  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || '',
+  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || '',
 };

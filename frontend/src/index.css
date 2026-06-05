@@ -54,14 +54,19 @@
   --table-hover: light-dark(#f4f7fc, #0c1222);
   --dropdown-hover: light-dark(#f4f7fb, #1f2937);
 
-  --primary: light-dark(#2563eb, #60a5fa);
-  --primary-strong: light-dark(#1d4ed8, #93c5fd);
-  --primary-soft: light-dark(#2563eb26, #5b8dff2e);
+  /* Colores base por defecto */
+  --primary-default: light-dark(#2563eb, #60a5fa);
+  --primary: var(--primary-default);
+  
+  /* Variaciones dinámicas calculadas automáticamente en el cliente en 2026 */
+  --primary-strong: color-mix(in srgb, var(--primary) 85%, black);
+  --primary-soft: color-mix(in srgb, var(--primary) 15%, transparent);
   --on-primary: light-dark(#f8fafc, #fff);
 
-  --secondary: light-dark(#64748b, #94a3b8);
-  --secondary-strong: light-dark(#475569, #e2e8f0);
-  --secondary-soft: light-dark(#64748b26, #94a3b82e);
+  --secondary-default: light-dark(#64748b, #94a3b8);
+  --secondary: var(--secondary-default);
+  --secondary-strong: color-mix(in srgb, var(--secondary) 85%, black);
+  --secondary-soft: color-mix(in srgb, var(--secondary) 15%, transparent);
   --on-secondary: light-dark(#f8fafc, #0f172a);
 
   --row-selected: light-dark(#e0e9fc, #1a2744);

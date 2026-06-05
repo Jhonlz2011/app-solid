@@ -33,6 +33,12 @@ export const authApi = {
         return data!;
     },
 
+    getTenantInfo: async (slug?: string) => {
+        const { data, error } = await api.api.auth['tenant-info'].get({ query: { slug } });
+        if (error) throw new AuthError(error.value, 'Error al obtener información corporativa');
+        return data!;
+    },
+
     logout: async (signal?: AbortSignal): Promise<void> => {
         try {
             await api.api.auth.logout.post({}, { fetch: { signal } });

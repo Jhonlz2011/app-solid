@@ -120,3 +120,15 @@ export const authMenuItems = pgTableV2("auth_menu_items", {
     index("idx_menu_order").on(t.parent_id, t.sort_order),
     index("idx_menu_active").on(t.is_active),
 ]);
+
+export const authVerificationTokens = pgTableV2("auth_verification_tokens", {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    user_id: integer("user_id").references(() => authUsers.id, { onDelete: 'cascade' }).notNull(),
+    token_hash: text("token_hash").notNull(),
+    expires_at: timestamp("expires_at", TZ).notNull(),
+    created_at: timestamp("created_at", TZ).defaultNow().notNull(),
+}, (t) => [
+    index("idx_auth_verif_tokens_user").on(t.user_id),
+    index("idx_auth_verif_tokens_hash").on(t.token_hash),
+]);
+

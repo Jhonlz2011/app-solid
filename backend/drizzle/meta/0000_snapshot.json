@@ -1,5 +1,5 @@
 {
-  "id": "6b375ba6-6b7c-43e3-bffa-d0c511770a2e",
+  "id": "3d0daf5b-33e0-40e6-aac3-e2616e1b66af",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -589,9 +589,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.entity_addresses": {
       "name": "entity_addresses",
@@ -1120,9 +1131,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.sri_establishments": {
       "name": "sri_establishments",
@@ -1233,9 +1255,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.uom": {
       "name": "uom",
@@ -1376,9 +1409,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer\n            OR (company_id IS NULL AND is_system = true)",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.attribute_definitions": {
       "name": "attribute_definitions",
@@ -1497,9 +1541,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.brands": {
       "name": "brands",
@@ -1605,9 +1660,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.categories": {
       "name": "categories",
@@ -1803,9 +1869,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.category_attributes": {
       "name": "category_attributes",
@@ -2350,9 +2427,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.auth_user_roles": {
       "name": "auth_user_roles",
@@ -2604,6 +2692,117 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer\n            OR username = current_setting('app.current_username', true)\n            OR email = current_setting('app.current_username', true)",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.auth_verification_tokens": {
+      "name": "auth_verification_tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "auth_verification_tokens_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_auth_verif_tokens_user": {
+          "name": "idx_auth_verif_tokens_user",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_auth_verif_tokens_hash": {
+          "name": "idx_auth_verif_tokens_hash",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "auth_verification_tokens_user_id_auth_users_id_fk": {
+          "name": "auth_verification_tokens_user_id_auth_users_id_fk",
+          "tableFrom": "auth_verification_tokens",
+          "tableTo": "auth_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -2733,9 +2932,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer\n            OR id = current_setting('app.current_session_id', true)",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.audit_logs": {
       "name": "audit_logs",
@@ -2895,9 +3105,20 @@
         }
       },
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public._audit_queue": {
       "name": "_audit_queue",
@@ -3294,12 +3515,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "default_location_id": {
-          "name": "default_location_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "is_default": {
           "name": "is_default",
           "type": "boolean",
@@ -3389,19 +3604,6 @@
           "tableTo": "uom",
           "columnsFrom": [
             "sale_uom_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "product_variants_default_location_id_warehouse_locations_id_fk": {
-          "name": "product_variants_default_location_id_warehouse_locations_id_fk",
-          "tableFrom": "product_variants",
-          "tableTo": "warehouse_locations",
-          "columnsFrom": [
-            "default_location_id"
           ],
           "columnsTo": [
             "id"
@@ -3765,14 +3967,25 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {
         "chk_iva_rate_code": {
           "name": "chk_iva_rate_code",
           "value": "iva_rate_code IN (0, 2, 3, 4, 6, 7)"
         }
       },
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.variant_price_history": {
       "name": "variant_price_history",
@@ -4645,9 +4858,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.supplier_products": {
       "name": "supplier_products",
@@ -5001,13 +5225,13 @@
           "name": "source_location_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "destination_location_id": {
           "name": "destination_location_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "variant_id": {
           "name": "variant_id",
@@ -5444,12 +5668,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "barcode": {
-          "name": "barcode",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "type": {
           "name": "type",
           "type": "location_type",
@@ -5549,15 +5767,17 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "warehouse_locations_warehouse_id_warehouses_id_fk": {
-          "name": "warehouse_locations_warehouse_id_warehouses_id_fk",
+        "fk_location_warehouse_tenant": {
+          "name": "fk_location_warehouse_tenant",
           "tableFrom": "warehouse_locations",
           "tableTo": "warehouses",
           "columnsFrom": [
-            "warehouse_id"
+            "warehouse_id",
+            "company_id"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "company_id"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -5565,18 +5785,29 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "unq_location_barcode_company": {
-          "name": "unq_location_barcode_company",
+        "unq_location_id_company": {
+          "name": "unq_location_id_company",
           "nullsNotDistinct": false,
           "columns": [
-            "company_id",
-            "barcode"
+            "id",
+            "company_id"
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.warehouses": {
       "name": "warehouses",
@@ -5698,11 +5929,30 @@
             "company_id",
             "code"
           ]
+        },
+        "unq_warehouse_id_company": {
+          "name": "unq_warehouse_id_company",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "company_id"
+          ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.quotation_items": {
       "name": "quotation_items",
@@ -6657,9 +6907,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.employee_work_schedules": {
       "name": "employee_work_schedules",
@@ -7756,9 +8017,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.material_request_dispatches": {
       "name": "material_request_dispatches",
@@ -8797,9 +9069,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.electronic_documents": {
       "name": "electronic_documents",
@@ -9109,9 +9392,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.invoice_items": {
       "name": "invoice_items",
@@ -10164,9 +10458,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.pos_sale_items": {
       "name": "pos_sale_items",
@@ -11001,9 +11306,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.accounts_receivable": {
       "name": "accounts_receivable",
@@ -11230,9 +11546,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.fiscal_periods": {
       "name": "fiscal_periods",
@@ -11357,9 +11684,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.purchase_quote_items": {
       "name": "purchase_quote_items",
@@ -11728,6 +12066,96 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.product_variant_warehouse_locations": {
+      "name": "product_variant_warehouse_locations",
+      "schema": "",
+      "columns": {
+        "variant_id": {
+          "name": "variant_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "warehouse_id": {
+          "name": "warehouse_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "default_location_id": {
+          "name": "default_location_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "product_variant_warehouse_locations_variant_id_product_variants_id_fk": {
+          "name": "product_variant_warehouse_locations_variant_id_product_variants_id_fk",
+          "tableFrom": "product_variant_warehouse_locations",
+          "tableTo": "product_variants",
+          "columnsFrom": [
+            "variant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "product_variant_warehouse_locations_warehouse_id_warehouses_id_fk": {
+          "name": "product_variant_warehouse_locations_warehouse_id_warehouses_id_fk",
+          "tableFrom": "product_variant_warehouse_locations",
+          "tableTo": "warehouses",
+          "columnsFrom": [
+            "warehouse_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "product_variant_warehouse_locations_default_location_id_warehouse_locations_id_fk": {
+          "name": "product_variant_warehouse_locations_default_location_id_warehouse_locations_id_fk",
+          "tableFrom": "product_variant_warehouse_locations",
+          "tableTo": "warehouse_locations",
+          "columnsFrom": [
+            "default_location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "product_variant_warehouse_locations_variant_id_warehouse_id_pk": {
+          "name": "product_variant_warehouse_locations_variant_id_warehouse_id_pk",
+          "columns": [
+            "variant_id",
+            "warehouse_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -11805,7 +12233,11 @@
       "schema": "public",
       "values": [
         "VIEW",
-        "INTERNAL"
+        "INTERNAL",
+        "SUPPLIER",
+        "CUSTOMER",
+        "ADJUSTMENT",
+        "PRODUCTION"
       ]
     },
     "public.material_request_status": {

@@ -25,6 +25,7 @@ import { ProfilePendingComponent } from './modules/profile/views/ProfilePage';
 const Dashboard = lazyRouteComponent(() => import('./modules/dashboard/views/Dashboard'));
 const NotFound = lazyRouteComponent(() => import('./shared/pages/NotFound'));
 const ProfilePage = lazyRouteComponent(() => import('./modules/profile/views/ProfilePage'));
+const VerifyEmailPage = lazyRouteComponent(() => import('./modules/auth/pages/VerifyEmail'));
 
 // --- ROOT ---
 const rootRoute = createRootRoute({
@@ -34,6 +35,12 @@ const rootRoute = createRootRoute({
 
 // --- AUTH ROUTES (login) ---
 const authRoute = createAuthRoutes(rootRoute);
+
+const verifyEmailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'verify-email',
+  component: VerifyEmailPage,
+});
 
 // --- PROTECTED LAYOUT ---
 const ProtectedLayout: Component = () => {
@@ -52,7 +59,12 @@ const layoutRoute = createRoute({
     const auth = useAuth();
 
     // Fast path: already authenticated in memory
-    if (auth.isAuthenticated()) return;
+    if (auth.isAuthenticated()) {
+      if (auth.user() && !auth.user()?.emailVerifiedAt) {
+        throw redirect({ to: '/verify-email' });
+      }
+      return;
+    }
 
     // Fast path: no session flag → redirect to login instantly (zero API calls)
     if (!localStorage.getItem('hasSession')) {
@@ -61,7 +73,12 @@ const layoutRoute = createRoute({
 
     // Session flag exists but state not initialized → validate with server
     const restored = await actions.initSession();
-    if (restored) return;
+    if (restored) {
+      if (auth.user() && !auth.user()?.emailVerifiedAt) {
+        throw redirect({ to: '/verify-email' });
+      }
+      return;
+    }
 
     throw redirect({ to: '/login', search: { redirect: location.href } });
   },
@@ -105,6 +122,7 @@ const profileRoute = createRoute({
 // --- ROUTE TREE ---
 const routeTree = rootRoute.addChildren([
   authRoute,
+  verifyEmailRoute,
   layoutRoute.addChildren([
     indexRoute,
     dashboardRoute,

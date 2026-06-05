@@ -4,7 +4,7 @@ CREATE TYPE "public"."condition" AS ENUM('GOOD', 'DAMAGED', 'UNUSABLE');--> stat
 CREATE TYPE "public"."document_type" AS ENUM('INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'REMISSION_GUIDE', 'PURCHASE_LIQUIDATION', 'WITHHOLDING');--> statement-breakpoint
 CREATE TYPE "public"."invoice_status" AS ENUM('DRAFT', 'SIGNED', 'SENDING', 'AUTHORIZED', 'ANNULLED', 'REJECTED');--> statement-breakpoint
 CREATE TYPE "public"."justification_type" AS ENUM('LIBRE', 'FALTA', 'IESS', 'VACACIONES', 'FERIADO', 'SAB', 'DOM');--> statement-breakpoint
-CREATE TYPE "public"."location_type" AS ENUM('VIEW', 'INTERNAL');--> statement-breakpoint
+CREATE TYPE "public"."location_type" AS ENUM('VIEW', 'INTERNAL', 'SUPPLIER', 'CUSTOMER', 'ADJUSTMENT', 'PRODUCTION');--> statement-breakpoint
 CREATE TYPE "public"."material_request_status" AS ENUM('PENDING', 'APPROVED', 'IN_TRANSIT', 'RECEIVED', 'COMPLETED');--> statement-breakpoint
 CREATE TYPE "public"."movement_reference_type" AS ENUM('INVOICE', 'PURCHASE_ORDER', 'MANUFACTURING_ORDER', 'MATERIAL_REQUEST', 'ADJUSTMENT', 'POS_SALE', 'RETURN');--> statement-breakpoint
 CREATE TYPE "public"."movement_type" AS ENUM('PURCHASE', 'SALE', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_OUTPUT', 'ADJUSTMENT', 'TRANSFER_OUT', 'TRANSFER_IN');--> statement-breakpoint
@@ -79,6 +79,7 @@ CREATE TABLE "entities" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "entities" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "entity_addresses" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "entity_addresses_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"entity_id" integer NOT NULL,
@@ -140,6 +141,7 @@ CREATE TABLE "sri_certificates" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "sri_certificates" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "sri_establishments" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "sri_establishments_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -152,6 +154,7 @@ CREATE TABLE "sri_establishments" (
 	CONSTRAINT "unq_sri_estab_code" UNIQUE("company_id","code")
 );
 --> statement-breakpoint
+ALTER TABLE "sri_establishments" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "uom" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "uom_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"code" text NOT NULL,
@@ -166,6 +169,7 @@ CREATE TABLE "uom" (
 	CONSTRAINT "unq_uom_code_company" UNIQUE("code","company_id")
 );
 --> statement-breakpoint
+ALTER TABLE "uom" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "attribute_definitions" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "attribute_definitions_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -179,6 +183,7 @@ CREATE TABLE "attribute_definitions" (
 	CONSTRAINT "unq_attr_key_company" UNIQUE("company_id","key")
 );
 --> statement-breakpoint
+ALTER TABLE "attribute_definitions" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "brands" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "brands_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -190,6 +195,7 @@ CREATE TABLE "brands" (
 	CONSTRAINT "unq_brand_name_company" UNIQUE("company_id","name")
 );
 --> statement-breakpoint
+ALTER TABLE "brands" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "categories" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "categories_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -206,6 +212,7 @@ CREATE TABLE "categories" (
 	CONSTRAINT "unq_category_name_parent" UNIQUE("company_id","name","parent_id")
 );
 --> statement-breakpoint
+ALTER TABLE "categories" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "category_attributes" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "category_attributes_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"category_id" integer NOT NULL,
@@ -254,6 +261,7 @@ CREATE TABLE "auth_roles" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "auth_roles" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "auth_user_roles" (
 	"user_id" integer NOT NULL,
 	"role_id" integer NOT NULL,
@@ -274,6 +282,15 @@ CREATE TABLE "auth_users" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "auth_users" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "auth_verification_tokens" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "auth_verification_tokens_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"user_id" integer NOT NULL,
+	"token_hash" text NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "sessions" (
 	"id" varchar(64) PRIMARY KEY NOT NULL,
 	"user_id" integer NOT NULL,
@@ -284,6 +301,7 @@ CREATE TABLE "sessions" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "sessions" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "audit_logs" (
 	"id" uuid NOT NULL,
 	"company_id" integer,
@@ -300,6 +318,7 @@ CREATE TABLE "audit_logs" (
 
 CREATE TABLE IF NOT EXISTS "audit_logs_default" PARTITION OF "audit_logs" DEFAULT;
 --> statement-breakpoint
+ALTER TABLE "audit_logs" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "_audit_queue" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "_audit_queue_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1 CYCLE),
 	"company_id" integer,
@@ -348,7 +367,6 @@ CREATE TABLE "product_variants" (
 	"image_urls" text[],
 	"std_length_cm" numeric(12, 4),
 	"std_width_cm" numeric(12, 4),
-	"default_location_id" integer,
 	"is_default" boolean DEFAULT false,
 	"is_active" boolean DEFAULT true,
 	"sort_order" integer DEFAULT 0,
@@ -383,6 +401,7 @@ CREATE TABLE "products" (
 	CONSTRAINT "chk_iva_rate_code" CHECK (iva_rate_code IN (0, 2, 3, 4, 6, 7))
 );
 --> statement-breakpoint
+ALTER TABLE "products" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "variant_price_history" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "variant_price_history_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"variant_id" integer NOT NULL,
@@ -448,6 +467,7 @@ CREATE TABLE "purchase_orders" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "purchase_orders" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "supplier_products" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "supplier_products_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"supplier_id" integer NOT NULL,
@@ -480,8 +500,8 @@ CREATE TABLE "inventory_dimensional_items" (
 --> statement-breakpoint
 CREATE TABLE "inventory_movements" (
 	"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "inventory_movements_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),
-	"source_location_id" integer,
-	"destination_location_id" integer,
+	"source_location_id" integer NOT NULL,
+	"destination_location_id" integer NOT NULL,
 	"variant_id" integer NOT NULL,
 	"product_id" integer,
 	"dimensional_item_id" integer,
@@ -514,13 +534,13 @@ CREATE TABLE "warehouse_locations" (
 	"parent_id" integer,
 	"name" text NOT NULL,
 	"path" "ltree" NOT NULL,
-	"barcode" text,
 	"type" "location_type" DEFAULT 'INTERNAL' NOT NULL,
 	"depth" integer DEFAULT 0 NOT NULL,
 	"is_active" boolean DEFAULT true,
-	CONSTRAINT "unq_location_barcode_company" UNIQUE("company_id","barcode")
+	CONSTRAINT "unq_location_id_company" UNIQUE("id","company_id")
 );
 --> statement-breakpoint
+ALTER TABLE "warehouse_locations" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "warehouses" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "warehouses_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -530,9 +550,11 @@ CREATE TABLE "warehouses" (
 	"is_mobile" boolean DEFAULT false,
 	"manager_id" integer,
 	"is_active" boolean DEFAULT true,
-	CONSTRAINT "unq_warehouse_code_company" UNIQUE("company_id","code")
+	CONSTRAINT "unq_warehouse_code_company" UNIQUE("company_id","code"),
+	CONSTRAINT "unq_warehouse_id_company" UNIQUE("id","company_id")
 );
 --> statement-breakpoint
+ALTER TABLE "warehouses" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "quotation_items" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "quotation_items_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"quotation_id" integer NOT NULL,
@@ -615,6 +637,7 @@ CREATE TABLE "bom_templates" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "bom_templates" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "employee_work_schedules" (
 	"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "employee_work_schedules_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),
 	"employee_id" integer NOT NULL,
@@ -707,6 +730,7 @@ CREATE TABLE "work_orders" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "work_orders" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "material_request_dispatches" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "material_request_dispatches_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"request_item_id" integer NOT NULL,
@@ -797,6 +821,7 @@ CREATE TABLE "document_sequences" (
 	CONSTRAINT "unq_seq" UNIQUE("company_id","establishment","emission_point","document_type")
 );
 --> statement-breakpoint
+ALTER TABLE "document_sequences" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "electronic_documents" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "electronic_documents_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -823,6 +848,7 @@ CREATE TABLE "electronic_documents" (
 	CONSTRAINT "unq_document_identity" UNIQUE("company_id","establishment","emission_point","sequential","type")
 );
 --> statement-breakpoint
+ALTER TABLE "electronic_documents" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "invoice_items" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "invoice_items_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"invoice_id" integer NOT NULL,
@@ -937,6 +963,7 @@ CREATE TABLE "cash_registers" (
 	"is_active" boolean DEFAULT true
 );
 --> statement-breakpoint
+ALTER TABLE "cash_registers" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "pos_sale_items" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "pos_sale_items_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"sale_id" integer NOT NULL,
@@ -1004,6 +1031,7 @@ CREATE TABLE "accounts_payable" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "accounts_payable" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "accounts_receivable" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "accounts_receivable_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -1019,6 +1047,7 @@ CREATE TABLE "accounts_receivable" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "accounts_receivable" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "fiscal_periods" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "fiscal_periods_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -1031,6 +1060,7 @@ CREATE TABLE "fiscal_periods" (
 	CONSTRAINT "unq_fiscal_period" UNIQUE("company_id","year","month")
 );
 --> statement-breakpoint
+ALTER TABLE "fiscal_periods" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "purchase_quote_items" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "purchase_quote_items_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"quote_id" integer NOT NULL,
@@ -1061,6 +1091,14 @@ CREATE TABLE "purchase_quotes" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "purchase_quotes" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "product_variant_warehouse_locations" (
+	"variant_id" integer NOT NULL,
+	"warehouse_id" integer NOT NULL,
+	"default_location_id" integer NOT NULL,
+	CONSTRAINT "product_variant_warehouse_locations_variant_id_warehouse_id_pk" PRIMARY KEY("variant_id","warehouse_id")
+);
+--> statement-breakpoint
 ALTER TABLE "carrier_drivers" ADD CONSTRAINT "carrier_drivers_carrier_id_entities_id_fk" FOREIGN KEY ("carrier_id") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "carrier_vehicles" ADD CONSTRAINT "carrier_vehicles_carrier_id_entities_id_fk" FOREIGN KEY ("carrier_id") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "employee_details" ADD CONSTRAINT "employee_details_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1084,6 +1122,7 @@ ALTER TABLE "auth_user_roles" ADD CONSTRAINT "auth_user_roles_user_id_auth_users
 ALTER TABLE "auth_user_roles" ADD CONSTRAINT "auth_user_roles_role_id_auth_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."auth_roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_users" ADD CONSTRAINT "auth_users_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_users" ADD CONSTRAINT "auth_users_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "auth_verification_tokens" ADD CONSTRAINT "auth_verification_tokens_user_id_auth_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."auth_users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_auth_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."auth_users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1095,7 +1134,6 @@ ALTER TABLE "product_uom_conversions" ADD CONSTRAINT "product_uom_conversions_fr
 ALTER TABLE "product_uom_conversions" ADD CONSTRAINT "product_uom_conversions_to_uom_uom_id_fk" FOREIGN KEY ("to_uom") REFERENCES "public"."uom"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_variants" ADD CONSTRAINT "product_variants_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_variants" ADD CONSTRAINT "product_variants_sale_uom_id_uom_id_fk" FOREIGN KEY ("sale_uom_id") REFERENCES "public"."uom"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "product_variants" ADD CONSTRAINT "product_variants_default_location_id_warehouse_locations_id_fk" FOREIGN KEY ("default_location_id") REFERENCES "public"."warehouse_locations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_brand_id_brands_id_fk" FOREIGN KEY ("brand_id") REFERENCES "public"."brands"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1132,7 +1170,7 @@ ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_created_by
 ALTER TABLE "inventory_stock" ADD CONSTRAINT "inventory_stock_location_id_warehouse_locations_id_fk" FOREIGN KEY ("location_id") REFERENCES "public"."warehouse_locations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory_stock" ADD CONSTRAINT "inventory_stock_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "warehouse_locations" ADD CONSTRAINT "warehouse_locations_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "warehouse_locations" ADD CONSTRAINT "warehouse_locations_warehouse_id_warehouses_id_fk" FOREIGN KEY ("warehouse_id") REFERENCES "public"."warehouses"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "warehouse_locations" ADD CONSTRAINT "fk_location_warehouse_tenant" FOREIGN KEY ("warehouse_id","company_id") REFERENCES "public"."warehouses"("id","company_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "warehouses" ADD CONSTRAINT "warehouses_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "warehouses" ADD CONSTRAINT "warehouses_manager_id_entities_id_fk" FOREIGN KEY ("manager_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "quotation_items" ADD CONSTRAINT "quotation_items_quotation_id_quotations_id_fk" FOREIGN KEY ("quotation_id") REFERENCES "public"."quotations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1235,6 +1273,9 @@ ALTER TABLE "purchase_quotes" ADD CONSTRAINT "purchase_quotes_company_id_compani
 ALTER TABLE "purchase_quotes" ADD CONSTRAINT "purchase_quotes_supplier_id_entities_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "purchase_quotes" ADD CONSTRAINT "purchase_quotes_converted_po_id_purchase_orders_id_fk" FOREIGN KEY ("converted_po_id") REFERENCES "public"."purchase_orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "purchase_quotes" ADD CONSTRAINT "purchase_quotes_created_by_auth_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."auth_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "product_variant_warehouse_locations_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "product_variant_warehouse_locations_warehouse_id_warehouses_id_fk" FOREIGN KEY ("warehouse_id") REFERENCES "public"."warehouses"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "product_variant_warehouse_locations_default_location_id_warehouse_locations_id_fk" FOREIGN KEY ("default_location_id") REFERENCES "public"."warehouse_locations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idx_carrier_drivers_carrier_id" ON "carrier_drivers" USING btree ("carrier_id");--> statement-breakpoint
 CREATE INDEX "idx_carrier_vehicles_carrier_id" ON "carrier_vehicles" USING btree ("carrier_id");--> statement-breakpoint
 CREATE INDEX "idx_active_vehicles_plate" ON "carrier_vehicles" USING btree ("license_plate") WHERE "carrier_vehicles"."is_active" = true;--> statement-breakpoint
@@ -1271,6 +1312,8 @@ CREATE INDEX "idx_user_roles_by_role" ON "auth_user_roles" USING btree ("role_id
 CREATE UNIQUE INDEX "idx_auth_users_username" ON "auth_users" USING btree ("company_id","username");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_auth_users_email" ON "auth_users" USING btree ("company_id","email");--> statement-breakpoint
 CREATE INDEX "idx_auth_users_company" ON "auth_users" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_auth_verif_tokens_user" ON "auth_verification_tokens" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "idx_auth_verif_tokens_hash" ON "auth_verification_tokens" USING btree ("token_hash");--> statement-breakpoint
 CREATE INDEX "idx_sessions_user" ON "sessions" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "idx_sessions_expires" ON "sessions" USING btree ("expires_at");--> statement-breakpoint
 CREATE INDEX "idx_sessions_company" ON "sessions" USING btree ("company_id");--> statement-breakpoint
@@ -1384,4 +1427,32 @@ CREATE INDEX "idx_pqi_quote" ON "purchase_quote_items" USING btree ("quote_id");
 CREATE INDEX "idx_pqi_variant" ON "purchase_quote_items" USING btree ("variant_id");--> statement-breakpoint
 CREATE INDEX "idx_pq_company" ON "purchase_quotes" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_pq_supplier" ON "purchase_quotes" USING btree ("supplier_id");--> statement-breakpoint
-CREATE INDEX "idx_pq_status" ON "purchase_quotes" USING btree ("status");
+CREATE INDEX "idx_pq_status" ON "purchase_quotes" USING btree ("status");--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "entities" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "sri_certificates" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "sri_establishments" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "uom" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer
+            OR (company_id IS NULL AND is_system = true)) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "attribute_definitions" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "brands" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "categories" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "auth_roles" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "auth_users" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer
+            OR username = current_setting('app.current_username', true)
+            OR email = current_setting('app.current_username', true)) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "sessions" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer
+            OR id = current_setting('app.current_session_id', true)) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "audit_logs" AS PERMISSIVE FOR ALL TO public USING (company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "products" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "purchase_orders" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "warehouse_locations" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "warehouses" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "bom_templates" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "work_orders" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "document_sequences" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "electronic_documents" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "cash_registers" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "accounts_payable" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "accounts_receivable" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "fiscal_periods" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "purchase_quotes" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);

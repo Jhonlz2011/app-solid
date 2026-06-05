@@ -1,5 +1,5 @@
-import { db } from '../db';
-import { authUsers as users, sessions, companies, sriEstablishments, entities, authUserRoles, authRoles } from '@app/schema/tables';
+import { db, adminDb, withTenantContext } from '../db';
+import { authUsers as users, sessions, companies, sriEstablishments, entities, authUserRoles, authRoles, authVerificationTokens } from '@app/schema/tables';
 import { eq, and, gt, inArray, or, sql } from '@app/schema';
 import type { Entity } from '@app/schema/types';
 import { getUserRoles, getUserPermissions } from './rbac.service';
@@ -15,6 +15,9 @@ import {
   seedCompanyUOMs,
   seedCompanyVirtualLocations,
 } from './tenant-provisioning.service';
+import { emailService } from './email.service';
+import { env } from '../config/env';
+
 
 // --- CONSTANTS ---
 const SESSION_REFRESH_THRESHOLD_DAYS = Math.floor(SESSION_EXPIRE_DAYS / 2);
@@ -52,6 +55,13 @@ export function generateSessionToken(): string {
   return Buffer.from(bytes).toString('base64url');
 }
 
+function hashToken(token: string): string {
+  const bytes = new TextEncoder().encode(token);
+  const hasher = new Bun.SHA256();
+  hasher.update(bytes);
+  return hasher.digest('hex');
+}
+
 /**
  * Validate session by ID. Returns session + user data, or null if invalid/expired.
  * Implements rolling sessions: extends expiry when past the refresh threshold.
@@ -69,19 +79,20 @@ export async function validateSession(sessionId: string) {
         .where(eq(sessions.id, sessionId));
       if (!s) return null;
       
-      // Also fetch roles and permissions here to cache them together
-      const [roles, permissions] = await Promise.all([
+      // Also fetch roles, permissions, and verification status here to cache them together
+      const [roles, permissions, [user]] = await Promise.all([
         getUserRoles(s.user_id),
-        getUserPermissions(s.user_id)
+        getUserPermissions(s.user_id),
+        db.select({ emailVerifiedAt: users.email_verified_at }).from(users).where(eq(users.id, s.user_id)).limit(1)
       ]);
       
-      return { session: s, roles, permissions };
+      return { session: s, roles, permissions, emailVerified: !!user?.emailVerifiedAt };
     });
   }, SESSION_EXPIRE_DAYS * 24 * 60 * 60); // Max TTL 
 
   if (!cachedData) return null;
   
-  let { session, roles, permissions } = cachedData;
+  let { session, roles, permissions, emailVerified } = cachedData;
 
   // Re-hydrate dates
   if (typeof session.expires_at === 'string') session.expires_at = new Date(session.expires_at);
@@ -109,7 +120,7 @@ export async function validateSession(sessionId: string) {
     cacheService.invalidate(cacheKey); // force cache refresh on next request
   }
 
-  return { session, roles, permissions, shouldRefreshCookie };
+  return { session, roles, permissions, shouldRefreshCookie, emailVerified };
 }
 
 // --- AUTH FUNCTIONS ---
@@ -215,6 +226,28 @@ export async function register(
     // 7.6 Seed Virtual Locations (SUPPLIER, CUSTOMER, ADJUSTMENT, PRODUCTION)
     await seedCompanyVirtualLocations(tx, company.id);
 
+    // 7.7 Generar Token de Verificación (Seguridad Extrema)
+    const rawToken = generateSessionToken();
+    const tokenHash = hashToken(rawToken);
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 Horas
+    
+    await tx.insert(authVerificationTokens).values({
+      user_id: user.id,
+      token_hash: tokenHash,
+      expires_at: tokenExpiry,
+    });
+
+    // 7.8 Enviar Correo de Verificación por AWS SES (Asincrónico controlado)
+    const baseHost = env.NODE_ENV === 'development' 
+      ? `${company.slug}.localhost:5173` 
+      : `${company.slug}.zelys.app`;
+    
+    const verificationLink = `${env.NODE_ENV === 'development' ? 'http' : 'https'}://${baseHost}/verify-email?token=${rawToken}`;
+    
+    emailService.sendVerificationEmail(user.email, verificationLink, data.fullName).catch(err => {
+      console.error('Failed to send verification email during registration:', err);
+    });
+
     // 8. Create session (auto-login)
     const sessionId = generateSessionToken();
     const expiresAt = new Date(Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
@@ -255,6 +288,7 @@ export async function register(
         isActive: user.is_active,
         lastLogin: user.last_login,
         entityId: user.entity_id,
+        emailVerifiedAt: user.email_verified_at,
         roles,
         permissions,
         entity: mapEntity(ownerEntity),
@@ -333,6 +367,7 @@ export async function login(email: string, password: string, userAgent?: string,
       isActive: user.is_active,
       lastLogin: user.last_login,
       entityId: user.entity_id,
+      emailVerifiedAt: user.email_verified_at,
       roles,
       permissions,
       entity: mapEntity(user.entity),
@@ -421,6 +456,7 @@ export async function getMe(userId: number) {
       entity_id: true,
       is_active: true,
       last_login: true,
+      email_verified_at: true,
     },
     with: { entity: true },
   });
@@ -440,6 +476,7 @@ export async function getMe(userId: number) {
     entityId: user.entity_id,
     isActive: user.is_active,
     lastLogin: user.last_login,
+    emailVerifiedAt: user.email_verified_at,
     roles,
     permissions,
     entity: mapEntity(user.entity),
@@ -495,4 +532,104 @@ export async function updateProfile(
     broadcast(RealtimeEvents.USER.PROFILE_UPDATED, { id: userId, ...updateData }, `user:${userId}`);
 
   return { success: true, user: updated } as const;
+}
+
+export async function verifyEmail(token: string) {
+  const tokenHash = hashToken(token);
+
+  // 1. Usar adminDb para saltarse RLS y buscar el token de manera pública global
+  const [tokenRecord] = await adminDb
+    .select()
+    .from(authVerificationTokens)
+    .where(eq(authVerificationTokens.token_hash, tokenHash))
+    .limit(1);
+
+  if (!tokenRecord) {
+    throw new AuthError('Enlace de verificación inválido o expirado', 400);
+  }
+
+  if (new Date(tokenRecord.expires_at) < new Date()) {
+    await adminDb.delete(authVerificationTokens).where(eq(authVerificationTokens.id, tokenRecord.id));
+    throw new AuthError('El enlace de verificación ha expirado', 400);
+  }
+
+  // 2. Obtener el usuario relacionado para saber su empresa
+  const [user] = await adminDb
+    .select({ id: users.id, companyId: users.company_id })
+    .from(users)
+    .where(eq(users.id, tokenRecord.user_id))
+    .limit(1);
+
+  if (!user) {
+    throw new AuthError('Usuario no encontrado', 404);
+  }
+
+  // 3. Ejecutar la actualización RLS-Safe
+  await withTenantContext({ companyId: user.companyId }, async () => {
+    await db
+      .update(users)
+      .set({ email_verified_at: new Date() })
+      .where(eq(users.id, user.id));
+
+    // Eliminar el token consumido
+    await db
+      .delete(authVerificationTokens)
+      .where(eq(authVerificationTokens.id, tokenRecord.id));
+  });
+
+  // 4. Invalidar todas las sesiones en Redis para forzar lectura de sesión verificada
+  const activeSessions = await adminDb
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(eq(sessions.user_id, user.id));
+
+  for (const s of activeSessions) {
+    await cacheService.invalidate(`session:${s.id}`);
+  }
+
+  // 5. Notificar a las pestañas abiertas vía SSE
+  broadcast('user:rbac_changed', { userId: user.id }, `user:${user.id}`);
+
+  return { success: true };
+}
+
+export async function resendVerification(userId: number, companyId: number) {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.id, userId), eq(users.company_id, companyId)))
+    .limit(1);
+
+  if (!user) throw new AuthError('Usuario no encontrado');
+  if (user.email_verified_at) throw new AuthError('El correo ya ha sido verificado', 400);
+
+  // Limpiar tokens anteriores del usuario
+  await db.delete(authVerificationTokens).where(eq(authVerificationTokens.user_id, userId));
+
+  // Generar nuevo token
+  const rawToken = generateSessionToken();
+  const tokenHash = hashToken(rawToken);
+  const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+  await db.insert(authVerificationTokens).values({
+    user_id: userId,
+    token_hash: tokenHash,
+    expires_at: tokenExpiry,
+  });
+
+  const [company] = await db
+    .select({ slug: companies.slug, businessName: companies.business_name })
+    .from(companies)
+    .where(eq(companies.id, companyId))
+    .limit(1);
+
+  const baseHost = env.NODE_ENV === 'development' 
+    ? `${company.slug}.localhost:5173` 
+    : `${company.slug}.zelys.app`;
+  
+  const verificationLink = `${env.NODE_ENV === 'development' ? 'http' : 'https'}://${baseHost}/verify-email?token=${rawToken}`;
+
+  await emailService.sendVerificationEmail(user.email, verificationLink, user.username);
+
+  return { success: true };
 }
