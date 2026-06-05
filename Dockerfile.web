@@ -2,10 +2,14 @@
 FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
-# Copy dependency configuration files for root and workspaces to cache layers
+# 1. Copiar archivos base de la raíz
 COPY package.json bun.lock biome.json ./
+
+# 2. COPIAR TODOS LOS PACKAGES.JSON DEL MONOREPO (Evita el error de Workspace not found)
 COPY packages/schema/package.json ./packages/schema/package.json
 COPY web/package.json ./web/package.json
+COPY backend/package.json ./backend/package.json
+COPY frontend/package.json ./frontend/package.json
 
 # Install dependencies using Bun workspaces caching
 RUN bun install --frozen-lockfile
