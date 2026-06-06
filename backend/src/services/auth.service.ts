@@ -4,7 +4,7 @@ import { eq, and, gt, inArray, or, sql } from '@app/schema';
 import type { Entity } from '@app/schema/types';
 import { getUserRoles, getUserPermissions } from './rbac.service';
 import { broadcast } from '../plugins/sse';
-import { SESSION_EXPIRE_DAYS } from '../config/auth';
+import { SESSION_EXPIRE_DAYS, getVerificationLink } from '../config/auth';
 import { cacheService } from './cache.service';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import geoip from 'geoip-lite';
@@ -239,11 +239,7 @@ export async function register(
     });
 
     // 7.8 Enviar Correo de Verificación por AWS SES (Asincrónico controlado)
-    const baseHost = env.NODE_ENV === 'development' 
-      ? `${company.slug}.localhost:5173` 
-      : `${company.slug}.zelys.app`;
-    
-    const verificationLink = `${env.NODE_ENV === 'development' ? 'http' : 'https'}://${baseHost}/verify-email?token=${rawToken}`;
+    const verificationLink = getVerificationLink(company.slug, rawToken);
     
     emailService.sendVerificationEmail(user.email, verificationLink, data.fullName).catch(err => {
       console.error('Failed to send verification email during registration:', err);
@@ -624,11 +620,7 @@ export async function resendVerification(userId: number, companyId: number) {
     .where(eq(companies.id, companyId))
     .limit(1);
 
-  const baseHost = env.NODE_ENV === 'development' 
-    ? `${company.slug}.localhost:5173` 
-    : `${company.slug}.zelys.app`;
-  
-  const verificationLink = `${env.NODE_ENV === 'development' ? 'http' : 'https'}://${baseHost}/verify-email?token=${rawToken}`;
+  const verificationLink = getVerificationLink(company.slug, rawToken);
 
   try {
     await emailService.sendVerificationEmail(user.email, verificationLink, user.username);
