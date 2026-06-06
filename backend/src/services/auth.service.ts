@@ -630,7 +630,14 @@ export async function resendVerification(userId: number, companyId: number) {
   
   const verificationLink = `${env.NODE_ENV === 'development' ? 'http' : 'https'}://${baseHost}/verify-email?token=${rawToken}`;
 
-  await emailService.sendVerificationEmail(user.email, verificationLink, user.username);
+  try {
+    await emailService.sendVerificationEmail(user.email, verificationLink, user.username);
+  } catch (err) {
+    console.error('Failed to send verification email during resend:', err);
+    if (env.NODE_ENV !== 'development') {
+      throw new DomainError('Error enviando el correo de verificación. Inténtalo más tarde.', 500);
+    }
+  }
 
   return { success: true };
 }
