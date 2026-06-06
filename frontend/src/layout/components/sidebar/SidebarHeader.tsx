@@ -2,6 +2,7 @@ import { Component, Show } from 'solid-js';
 import ThemeToggle from '../ThemeToggle';
 import { useSidebar } from './SidebarContext';
 import { SidebarCollapseIcon, CloseIcon } from '@shared/ui/icons';
+import { useBranding } from '@modules/auth/store/branding.store';
 
 interface SidebarHeaderProps {
     toggleCollapse: () => void;
@@ -9,6 +10,7 @@ interface SidebarHeaderProps {
 
 export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
     const { collapsed, setIsMobileOpen } = useSidebar();
+    const branding = useBranding();
 
     return (
         <header
@@ -17,9 +19,15 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
         >
             {/* Logo Layer - Always visible */}
             <div class="absolute inset-0 flex items-center px-4 sm:pl-5 pointer-events-none">
-                <div class="size-10 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shrink-0">
-                    <span class="text-white font-bold text-lg">A</span>
-                </div>
+                <Show when={branding.tenant()?.logoUrl} fallback={
+                    <div class="size-10 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shrink-0">
+                        <span class="text-white font-bold text-lg">
+                            {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'A').substring(0, 1).toUpperCase()}
+                        </span>
+                    </div>
+                }>
+                    <img src={branding.tenant()?.logoUrl!} class="size-10 rounded-xl object-contain shrink-0" />
+                </Show>
             </div>
 
             {/* Collapsed Content - Expand button on hover */}
@@ -60,8 +68,12 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="size-10 shrink-0 opacity-0" /> {/* Spacer */}
                     <div class="flex flex-col justify-center overflow-hidden">
-                        <h2 class="font-bold text-lg whitespace-nowrap">App</h2>
-                        <p class="text-muted text-xs whitespace-nowrap">Dashboard</p>
+                        <h2 class="font-bold text-base whitespace-nowrap truncate max-w-[120px]">
+                            {branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}
+                        </h2>
+                        <p class="text-muted text-[10px] whitespace-nowrap truncate max-w-[120px]">
+                            {branding.tenant()?.tradeName ? branding.tenant()?.businessName : 'Dashboard'}
+                        </p>
                     </div>
                 </div>
 

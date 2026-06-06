@@ -25,6 +25,14 @@ registerRoute(
   })
 );
 
+// Cachear manifiesto dinámico por tenant
+registerRoute(
+  ({ url }) => url.pathname.includes('/auth/tenant-manifest'),
+  new NetworkFirst({
+    cacheName: 'tenant-manifest-cache',
+  })
+);
+
 // Escuchar evento de actualización del Service Worker
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {

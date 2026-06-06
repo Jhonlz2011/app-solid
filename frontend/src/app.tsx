@@ -13,6 +13,7 @@ import { Toaster, toast } from 'solid-sonner';
 import { useRegisterSW } from 'virtual:pwa-register/solid';
 
 import { actions as authActions } from './modules/auth/store/auth.store';
+import { brandingActions } from './modules/auth/store/branding.store';
 
 const root = document.getElementById('root');
 
@@ -44,6 +45,7 @@ render(
 
         // Disparar toasts reactivos basados en estados del SW
         onMount(() => {
+            brandingActions.loadBranding();
             if (offlineReady()) {
                 toast.success('Zelys está listo para trabajar sin conexión.');
             }

@@ -23,6 +23,9 @@ import {
     HashIcon,
     LockIcon,
     ChevronDownIcon,
+    PaintBrushIcon,
+    BriefcaseIcon,
+    ShieldIcon,
 } from '@shared/ui/icons';
 
 // ── Page header icon ──
@@ -53,6 +56,21 @@ interface SectionGroup {
 // ── Grouped sections data ──
 const SECTION_GROUPS: SectionGroup[] = [
     {
+        key: 'company_group',
+        label: 'Empresa',
+        sections: [
+            { key: 'company', path: '/settings/company', label: 'Perfil Comercial', icon: BriefcaseIcon, available: true },
+            { key: 'fiscal_settings', path: '/settings/fiscal', label: 'Datos Fiscales', icon: ShieldIcon, available: true },
+        ],
+    },
+    {
+        key: 'appearance',
+        label: 'Apariencia',
+        sections: [
+            { key: 'branding', path: '/settings/branding', label: 'Colores de Marca', icon: PaintBrushIcon, available: true },
+        ],
+    },
+    {
         key: 'warehouse',
         label: 'Almacen',
         sections: [
@@ -60,7 +78,7 @@ const SECTION_GROUPS: SectionGroup[] = [
         ],
     },
     {
-        key: 'fiscal',
+        key: 'fiscal_group',
         label: 'Fiscal',
         sections: [
             { key: 'taxes', path: '/settings/taxes', label: 'Impuestos', icon: PercentIcon, available: false },
@@ -79,7 +97,7 @@ const SettingsPage: Component = () => {
     const activeSection = () => {
         const pathname = matches().at(-1)?.pathname ?? '';
         const section = ALL_SECTIONS.find(s => pathname.startsWith(s.path));
-        return section?.key ?? 'warehouses';
+        return section?.key ?? 'company';
     };
 
     // Get the "new" action + label for the current section
@@ -89,7 +107,7 @@ const SettingsPage: Component = () => {
     return (
         <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
             {/* Header */}
-            <div class="flex-shrink-0 p-3 sm:p-4">
+            <div class="shrink-0 p-3 sm:p-4">
                 <PageHeader
                     icon={<GearIcon />}
                     iconBg="linear-gradient(135deg, #6366f1, #4f46e5)"
@@ -233,9 +251,9 @@ const SidebarItem: Component<{ section: Section; isActive: boolean }> = (props) 
             to={props.section.path as any}
             preload="intent"
             class={cn(
-                'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all text-left',
+                'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-left',
                 props.isActive
-                    ? 'bg-primary/10 text-primary font-semibold border border-primary/20 shadow-sm'
+                    ? 'bg-on-primary text-primary font-semibold border border-on-primary/20 shadow-sm'
                     : 'text-text hover:bg-surface/50 hover:text-heading border border-transparent',
             )}
         >

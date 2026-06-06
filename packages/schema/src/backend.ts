@@ -329,3 +329,24 @@ export const TenantBrandingResponseDto = Type.Object({
 
 export type TenantBrandingResponseDtoType = Static<typeof TenantBrandingResponseDto>;
 
+export const CompanySettingsBodySchema = Type.Object({
+    logoUrl: Type.Union([Type.String(), Type.Null()]),
+    loginBgUrl: Type.Union([Type.String(), Type.Null()]),
+    primaryColor: Type.String({ minLength: 4 }),
+    secondaryColor: Type.String({ minLength: 4 }),
+    businessName: Type.String({ minLength: 3 }),
+    tradeName: Type.Union([Type.String(), Type.Null()]),
+    ruc: Type.String({ minLength: 13, maxLength: 13 }),
+    mainAddress: Type.String({ minLength: 5 }),
+    businessType: Type.Union([Type.String(), Type.Null()]),
+    email: Type.Union([Type.String(), Type.Null()]),
+    phone: Type.Union([Type.String(), Type.Null()]),
+    obligadoContabilidad: Type.Boolean(),
+    contribuyenteEspecial: Type.Union([Type.String(), Type.Null()]),
+    agenteRetencion: Type.Union([Type.String(), Type.Null()]),
+    rimpeType: Type.Union([Type.String(), Type.Null()]),
+    sriEnvironment: Type.Union([Type.Literal('1'), Type.Literal('2')]),
+});
+
+export type CompanySettingsBodyType = Static<typeof CompanySettingsBodySchema>;
+

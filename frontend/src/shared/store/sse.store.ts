@@ -3,7 +3,14 @@ import { api, clientId } from '../lib/eden';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 
 // --- CONFIGURATION ---
-const SSE_URL = import.meta.env.VITE_SSE_URL || 'http://localhost:3000/api/sse';
+const SSE_URL = import.meta.env.VITE_SSE_URL || (() => {
+    if (typeof window !== 'undefined') {
+        const protocol = window.location.protocol;
+        const hostname = window.location.hostname;
+        return `${protocol}//${hostname}:3000/api/sse`;
+    }
+    return 'http://localhost:3000/api/sse';
+})();
 // --- GLOBAL STATE ---
 const [eventSource, setEventSource] = createSignal<EventSource | null>(null);
 const [isConnected, setIsConnected] = createSignal(false);

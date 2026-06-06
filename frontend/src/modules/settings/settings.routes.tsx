@@ -8,8 +8,10 @@ import { warehouseKeys } from './data/warehouses.keys';
 
 // Lazy-loaded views
 const SettingsPage = lazyRouteComponent(() => import('./views/SettingsPage'));
-
 const WarehouseList = lazyRouteComponent(() => import('./components/warehouses/WarehouseList'));
+const BrandingSettings = lazyRouteComponent(() => import('./views/BrandingSettings'));
+const CompanyProfileSettings = lazyRouteComponent(() => import('./views/CompanyProfileSettings'));
+const FiscalSettings = lazyRouteComponent(() => import('./views/FiscalSettings'));
 
 export const createSettingsRoutes = (layoutRoute: any) => {
     // ── Parent layout route with sidebar ──
@@ -23,9 +25,9 @@ export const createSettingsRoutes = (layoutRoute: any) => {
             if (!useAuth().canRead('inventory')) {
                 throw redirect({ to: '/dashboard' });
             }
-            // Redirect bare /settings to /settings/warehouses
+            // Redirect bare /settings to /settings/company
             if (location.pathname === '/settings' || location.pathname === '/settings/') {
-                throw redirect({ to: '/settings/warehouses' });
+                throw redirect({ to: '/settings/company' });
             }
         },
     });
@@ -100,9 +102,30 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         ]),
     ]);
 
+    const companyRoute = createRoute({
+        getParentRoute: () => settingsRoute,
+        path: 'company',
+        component: CompanyProfileSettings,
+    });
+
+    const brandingRoute = createRoute({
+        getParentRoute: () => settingsRoute,
+        path: 'branding',
+        component: BrandingSettings,
+    });
+
+    const fiscalRoute = createRoute({
+        getParentRoute: () => settingsRoute,
+        path: 'fiscal',
+        component: FiscalSettings,
+    });
+
     // ── Return single parent with children ──
     return settingsRoute.addChildren([
         attributesRedirectRoute,
         warehousesRoute,
+        companyRoute,
+        brandingRoute,
+        fiscalRoute,
     ]);
 };

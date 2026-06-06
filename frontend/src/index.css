@@ -42,32 +42,32 @@
   color-scheme: light dark;
   
   /* Evitamos nombres idénticos para no causar recursión en el CSS */
-  --bg: light-dark(#f4f7fb, #020617);
-  --surface: light-dark(#fff, #0f172a);
-  --card: light-dark(#fff, #111827);
-  --card-alt: light-dark(#eef2ff, #1f2937);
+  --bg: light-dark(var(--bg-light-val, #f1f5f9), var(--bg-dark-val, #0f172a));
+  --surface: light-dark(var(--surface-light-val, #ffffff), var(--surface-dark-val, #1e293b));
+  --card: light-dark(var(--card-light-val, #ffffff), var(--card-dark-val, #1e293b));
+  --card-alt: light-dark(var(--card-alt-light-val, #eef2ff), var(--card-alt-dark-val, #1f2937));
   --text: light-dark(#0f172a, #f8fafc);
   --heading: light-dark(#0b1220, #f8fafc);
   --muted: light-dark(#475569, #94a3b8);
-  --border: light-dark(#e7eff8, #1f2533);
-  --border-strong: light-dark(#d0d7e5, #222c3c);
-  --table-hover: light-dark(#f4f7fc, #0c1222);
-  --dropdown-hover: light-dark(#f4f7fb, #1f2937);
+  --border: light-dark(var(--border-light-val, #e2e8f0), var(--border-dark-val, #334155));
+  --border-strong: light-dark(var(--border-strong-light-val, #d0d7e5), var(--border-strong-dark-val, #222c3c));
+  --table-hover: light-dark(var(--table-hover-light-val, #f4f7fc), var(--table-hover-dark-val, #0c1222));
+  --dropdown-hover: light-dark(var(--dropdown-hover-light-val, #f4f7fb), var(--dropdown-hover-dark-val, #1f2937));
 
   /* Colores base por defecto */
   --primary-default: light-dark(#2563eb, #60a5fa);
   --primary: var(--primary-default);
   
   /* Variaciones dinámicas calculadas automáticamente en el cliente en 2026 */
-  --primary-strong: color-mix(in srgb, var(--primary) 85%, black);
+  --primary-strong: color-mix(in srgb, var(--primary) 85%, light-dark(black, white));
   --primary-soft: color-mix(in srgb, var(--primary) 15%, transparent);
-  --on-primary: light-dark(#f8fafc, #fff);
+  --on-primary: light-dark(#ffffff, #ffffff);
 
   --secondary-default: light-dark(#64748b, #94a3b8);
   --secondary: var(--secondary-default);
-  --secondary-strong: color-mix(in srgb, var(--secondary) 85%, black);
+  --secondary-strong: color-mix(in srgb, var(--secondary) 85%, light-dark(black, white));
   --secondary-soft: color-mix(in srgb, var(--secondary) 15%, transparent);
-  --on-secondary: light-dark(#f8fafc, #0f172a);
+  --on-secondary: light-dark(#ffffff, #0f172a);
 
   --row-selected: light-dark(#e0e9fc, #1a2744);
   --row-selected-hover: light-dark(#d0dffa, #1f3055);
