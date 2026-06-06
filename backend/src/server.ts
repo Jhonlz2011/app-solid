@@ -26,6 +26,7 @@ import { entityRoutes } from './routes/entities.routes';
 import { uploadsRoutes } from './routes/uploads.routes';
 import { inventoryRoutes } from './routes/inventory.routes';
 import { locationsRoutes } from './routes/locations.routes';
+import { companyRoutes } from './routes/company.routes';
 
 // Plugins
 import { rateLimit } from './plugins/rate-limit';
@@ -167,6 +168,7 @@ const app = new Elysia({ prefix: '/api', aot: false })
   .use(uploadsRoutes)
   .use(inventoryRoutes)
   .use(locationsRoutes)
+  .use(companyRoutes)
   .use(staticPlugin({ assets: 'public', prefix: '/' }))
 
 // Server configuration with optional Unix Socket support

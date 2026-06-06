@@ -14,14 +14,20 @@ export const authGuard = (app: Elysia) => app
       let slug: string | null = null;
       let hostCompanyId: number | null = null;
 
-      if (host.includes('zelys.app')) {
-        const parts = host.split('.');
+      const hostWithoutPort = host.split(':')[0];
+      const ipRegex = /^[0-9.]+$/;
+      const isIpOrLocal = ipRegex.test(hostWithoutPort) || 
+                          hostWithoutPort === 'localhost' || 
+                          hostWithoutPort === '127.0.0.1';
+
+      if (hostWithoutPort.includes('zelys.app')) {
+        const parts = hostWithoutPort.split('.');
         if (parts.length > 2 && parts[0] !== 'api') {
           slug = parts[0];
         }
-      } else {
-        const parts = host.split('.');
-        if (parts.length > 1 && !host.startsWith('localhost') && !host.startsWith('127.0.0.1')) {
+      } else if (!isIpOrLocal) {
+        const parts = hostWithoutPort.split('.');
+        if (parts.length > 1) {
           slug = parts[0];
         }
       }

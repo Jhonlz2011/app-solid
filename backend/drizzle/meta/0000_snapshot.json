@@ -1,5 +1,5 @@
 {
-  "id": "3d0daf5b-33e0-40e6-aac3-e2616e1b66af",
+  "id": "5557c025-5102-47b9-8fae-0d1f764c297a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -906,6 +906,26 @@
         },
         "logo_url": {
           "name": "logo_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "primary_color": {
+          "name": "primary_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'#2563eb'"
+        },
+        "secondary_color": {
+          "name": "secondary_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'#64748b'"
+        },
+        "login_bg_url": {
+          "name": "login_bg_url",
           "type": "text",
           "primaryKey": false,
           "notNull": false

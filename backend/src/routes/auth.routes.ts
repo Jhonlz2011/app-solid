@@ -153,11 +153,22 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     
     if (!slug) {
       const host = request.headers.get('host') || '';
-      const parts = host.split('.');
-      if (host.includes('zelys.app') && parts.length > 2 && parts[0] !== 'api') {
-        slug = parts[0];
-      } else if (!host.startsWith('localhost') && !host.startsWith('127.0.0.1') && parts.length > 1) {
-        slug = parts[0];
+      const hostWithoutPort = host.split(':')[0];
+      const ipRegex = /^[0-9.]+$/;
+      const isIpOrLocal = ipRegex.test(hostWithoutPort) || 
+                          hostWithoutPort === 'localhost' || 
+                          hostWithoutPort === '127.0.0.1';
+
+      if (hostWithoutPort.includes('zelys.app')) {
+        const parts = hostWithoutPort.split('.');
+        if (parts.length > 2 && parts[0] !== 'api') {
+          slug = parts[0];
+        }
+      } else if (!isIpOrLocal) {
+        const parts = hostWithoutPort.split('.');
+        if (parts.length > 1) {
+          slug = parts[0];
+        }
       }
     }
 
@@ -208,11 +219,22 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     const host = request.headers.get('host') || '';
     
     if (!slug) {
-      const parts = host.split('.');
-      if (host.includes('zelys.app') && parts.length > 2 && parts[0] !== 'api') {
-        slug = parts[0];
-      } else if (!host.startsWith('localhost') && !host.startsWith('127.0.0.1') && parts.length > 1) {
-        slug = parts[0];
+      const hostWithoutPort = host.split(':')[0];
+      const ipRegex = /^[0-9.]+$/;
+      const isIpOrLocal = ipRegex.test(hostWithoutPort) || 
+                          hostWithoutPort === 'localhost' || 
+                          hostWithoutPort === '127.0.0.1';
+
+      if (hostWithoutPort.includes('zelys.app')) {
+        const parts = hostWithoutPort.split('.');
+        if (parts.length > 2 && parts[0] !== 'api') {
+          slug = parts[0];
+        }
+      } else if (!isIpOrLocal) {
+        const parts = hostWithoutPort.split('.');
+        if (parts.length > 1) {
+          slug = parts[0];
+        }
       }
     }
 

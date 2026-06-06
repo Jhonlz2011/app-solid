@@ -212,6 +212,7 @@ export async function register(
         email: users.email,
         is_active: users.is_active,
         last_login: users.last_login,
+        email_verified_at: users.email_verified_at,
       });
 
     // 6. Seed RBAC (roles + permissions + assign superadmin)
