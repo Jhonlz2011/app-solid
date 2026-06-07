@@ -33,8 +33,9 @@
 
     # 3. Proxy SPA navigation routes to backend for dynamic tenant branding
     handle {
-        reverse_proxy backend:3000 {
-            header_up Host {host}
+        reverse_proxy {$BACKEND_URL:https://api.zelys.app} {
+            header_up Host {$BACKEND_HOST:api.zelys.app}
+            header_up X-Original-Host {host}
             header_up X-Real-IP {remote_host}
         }
     }

@@ -155,8 +155,8 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
         return { error: 'Not Found', details: 'Endpoint not registered under /api' };
     }
     
-    const host = request.headers.get('host') || '';
-    const slug = resolveSlugFromHost(host, query.slug);
+    const originalHost = request.headers.get('x-original-host') || request.headers.get('host') || '';
+    const slug = resolveSlugFromHost(originalHost, query.slug);
     
     let html = await getRawHtml();
     
