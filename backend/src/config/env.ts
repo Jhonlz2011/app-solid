@@ -7,6 +7,7 @@ export const env = {
   ADMIN_DATABASE_URL: process.env.ADMIN_DATABASE_URL || process.env.DATABASE_URL,
   SRI_DATABASE_URL: process.env.SRI_DATABASE_URL,
   FRONTEND_URL: process.env.FRONTEND_URL,
+  FRONTEND_INTERNAL_URL: process.env.FRONTEND_INTERNAL_URL || '',
   PORT: process.env.PORT ? parseInt(process.env.PORT) : 3000,
   NODE_ENV: (process.env.NODE_ENV || 'development') as 'development' | 'production' | 'test',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',

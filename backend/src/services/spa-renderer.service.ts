@@ -2,6 +2,7 @@ import { adminDb } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import type { TenantBrandingResponseDtoType } from '@app/schema/backend';
+import { env } from '../config/env';
 
 // Cache in-memory in production
 let cachedHtml: string | null = null;
@@ -117,24 +118,32 @@ const THEME_PRESETS: Record<string, {
 };
 
 // Fetch index.html from frontend server (decoupled, zero disk volume sharing needed)
-async function getRawHtml(): Promise<string> {
-    if (cachedHtml && process.env.NODE_ENV === 'production') {
+async function getRawHtml(requestHost?: string): Promise<string> {
+    if (cachedHtml && env.NODE_ENV === 'production') {
         return cachedHtml;
     }
     
-    // In production Docker networks, the frontend container is accessible internally.
-    // Falls back to VITE_API_URL / FRONTEND_URL or dev localhost.
-    const frontendUrl = process.env.FRONTEND_INTERNAL_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
+    let baseUrl = env.FRONTEND_INTERNAL_URL;
+    
+    if (!baseUrl && requestHost) {
+        const hostWithoutPort = requestHost.split(':')[0];
+        const protocol = hostWithoutPort.includes('localhost') || /^[0-9.]+$/.test(hostWithoutPort) ? 'http' : 'https';
+        baseUrl = `${protocol}://${requestHost}`;
+    }
+    
+    if (!baseUrl) {
+        baseUrl = env.FRONTEND_URL || 'http://localhost:5173';
+    }
     
     try {
-        const response = await fetch(`${frontendUrl}/index.html`, {
+        const response = await fetch(`${baseUrl}/index.html`, {
             headers: { 'X-Raw-Request': 'true' }
         });
         if (!response.ok) {
-            throw new Error(`Failed to fetch raw index.html: ${response.statusText}`);
+            throw new Error(`Failed to fetch raw index.html from ${baseUrl}/index.html: ${response.statusText}`);
         }
         const html = await response.text();
-        if (process.env.NODE_ENV === 'production') {
+        if (env.NODE_ENV === 'production') {
             cachedHtml = html;
         }
         return html;
@@ -158,7 +167,7 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
     const originalHost = request.headers.get('x-original-host') || request.headers.get('host') || '';
     const slug = resolveSlugFromHost(originalHost, query.slug);
     
-    let html = await getRawHtml();
+    let html = await getRawHtml(originalHost);
     
     if (slug) {
         try {
