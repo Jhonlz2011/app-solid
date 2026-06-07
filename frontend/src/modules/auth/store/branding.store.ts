@@ -8,35 +8,6 @@ interface BrandingState {
     error: string | null;
 }
 
-const getInitialTenant = (): TenantBrandingResponseDtoType | null => {
-    if (typeof window === 'undefined') return null;
-    const serverDataElement = document.getElementById("tenant-data");
-    if (serverDataElement) {
-        try {
-            return JSON.parse(serverDataElement.textContent || "");
-        } catch (e) {
-            console.error("Error parsing server-injected tenant-data:", e);
-        }
-    }
-    const slug = getSubdomain();
-    if (!slug) return null;
-    const cached = localStorage.getItem(`branding:${slug}`);
-    if (cached) {
-        try {
-            return JSON.parse(cached);
-        } catch {
-            return null;
-        }
-    }
-    return null;
-};
-
-const [state, setState] = createStore<BrandingState>({
-    tenant: getInitialTenant(),
-    loading: false,
-    error: null,
-});
-
 export const getSubdomain = (): string | null => {
     const host = window.location.hostname;
     
@@ -154,6 +125,35 @@ const THEME_PRESETS: Record<string, {
         borderDark: '#334155',
     }
 };
+
+const getInitialTenant = (): TenantBrandingResponseDtoType | null => {
+    if (typeof window === 'undefined') return null;
+    const serverDataElement = document.getElementById("tenant-data");
+    if (serverDataElement) {
+        try {
+            return JSON.parse(serverDataElement.textContent || "");
+        } catch (e) {
+            console.error("Error parsing server-injected tenant-data:", e);
+        }
+    }
+    const slug = getSubdomain();
+    if (!slug) return null;
+    const cached = localStorage.getItem(`branding:${slug}`);
+    if (cached) {
+        try {
+            return JSON.parse(cached);
+        } catch {
+            return null;
+        }
+    }
+    return null;
+};
+
+const [state, setState] = createStore<BrandingState>({
+    tenant: getInitialTenant(),
+    loading: false,
+    error: null,
+});
 
 export const applyBranding = (tenant: TenantBrandingResponseDtoType | null) => {
     const updateDOM = () => {
