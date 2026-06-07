@@ -319,15 +319,15 @@ const BrandingSettings: Component = () => {
                                                         <img src={logoPreviewUrl()!} class="size-5 rounded-md object-cover" />
                                                     </Show>
                                                     <span class="font-bold text-heading truncate max-w-[50px] leading-tight">
-                                                        {form.getFieldValue('tradeName') || form.getFieldValue('businessName') || 'Zelys'}
+                                                        {form.state.values.tradeName || form.state.values.businessName || 'Zelys'}
                                                     </span>
                                                 </div>
-
+ 
                                                 {/* Sidebar Items */}
                                                 <div class="flex flex-col gap-1">
                                                     <div 
                                                         class="flex items-center gap-1.5 px-2 py-1 rounded-md text-white font-semibold shadow-xs"
-                                                        style={{ "background-color": form.getFieldValue('primaryColor') }}
+                                                        style={{ "background-color": form.state.values.primaryColor }}
                                                     >
                                                         <span class="size-3 border border-white/50 rounded-full" />
                                                         <span>Inicio</span>
@@ -342,7 +342,7 @@ const BrandingSettings: Component = () => {
                                                     </div>
                                                 </div>
                                             </div>
-
+ 
                                             {/* Dashboard Page Mockup */}
                                             <div class="flex-1 bg-surface p-3 overflow-y-auto space-y-3">
                                                 <div class="flex items-center justify-between border-b border-border/40 pb-2">
@@ -350,15 +350,15 @@ const BrandingSettings: Component = () => {
                                                     <span 
                                                         class="px-2 py-0.5 rounded-full text-[8px] font-semibold"
                                                         style={{ 
-                                                            "background-color": `${form.getFieldValue('primaryColor')}15`, 
-                                                            "color": form.getFieldValue('primaryColor'),
-                                                            "border": `1px solid ${form.getFieldValue('primaryColor')}30`
+                                                            "background-color": `${form.state.values.primaryColor}15`, 
+                                                            "color": form.state.values.primaryColor,
+                                                            "border": `1px solid ${form.state.values.primaryColor}30`
                                                         }}
                                                     >
                                                         Pro Plan
                                                     </span>
                                                 </div>
-
+ 
                                                 <div class="grid grid-cols-2 gap-2">
                                                     <div class="bg-card border border-border p-2 rounded-xl">
                                                         <span class="text-muted text-[8px] block">Ingresos</span>
@@ -369,11 +369,11 @@ const BrandingSettings: Component = () => {
                                                         <span class="font-bold text-heading mt-0.5 block">142</span>
                                                     </div>
                                                 </div>
-
+ 
                                                 <button 
                                                     type="button" 
                                                     class="w-full py-1.5 px-3 rounded-lg text-white font-semibold text-center shadow-md shadow-primary/10 cursor-default"
-                                                    style={{ "background-color": form.getFieldValue('primaryColor') }}
+                                                    style={{ "background-color": form.state.values.primaryColor }}
                                                 >
                                                     Nueva Factura
                                                 </button>
@@ -389,5 +389,5 @@ const BrandingSettings: Component = () => {
         </div>
     );
 };
-
+ 
 export default BrandingSettings;

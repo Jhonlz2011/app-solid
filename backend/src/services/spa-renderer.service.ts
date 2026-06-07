@@ -4,8 +4,30 @@ import { eq } from '@app/schema';
 import type { TenantBrandingResponseDtoType } from '@app/schema/backend';
 import { env } from '../config/env';
 
-// Cache in-memory in production
+// Cache in-memory in production with a TTL (e.g., 5 minutes)
 let cachedHtml: string | null = null;
+let lastHtmlFetchTime = 0;
+const HTML_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+// Database query caching for companies by slug
+interface TenantCacheEntry {
+    company: any | null;
+    timestamp: number;
+}
+const tenantCache = new Map<string, TenantCacheEntry>();
+const TENANT_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutos
+
+// Helper to escape HTML tags and characters
+function escapeHtml(str: string): string {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+const isHexColor = (color: string) => /^#[0-9a-fA-F]{3,8}$/.test(color);
 
 // Subdomain and tenant resolver
 export function resolveSlugFromHost(host: string, querySlug?: string | null): string | null {
@@ -119,7 +141,8 @@ const THEME_PRESETS: Record<string, {
 
 // Fetch index.html from frontend server (decoupled, zero disk volume sharing needed)
 async function getRawHtml(requestHost?: string): Promise<string> {
-    if (cachedHtml && env.NODE_ENV === 'production') {
+    const now = Date.now();
+    if (cachedHtml && env.NODE_ENV === 'production' && (now - lastHtmlFetchTime < HTML_CACHE_TTL_MS)) {
         return cachedHtml;
     }
     
@@ -145,6 +168,7 @@ async function getRawHtml(requestHost?: string): Promise<string> {
         const html = await response.text();
         if (env.NODE_ENV === 'production') {
             cachedHtml = html;
+            lastHtmlFetchTime = now;
         }
         return html;
     } catch (err: any) {
@@ -180,26 +204,41 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
     
     if (slug) {
         try {
-            const [company] = await adminDb
-                .select({
-                    id: companies.id,
-                    slug: companies.slug,
-                    businessName: companies.business_name,
-                    tradeName: companies.trade_name,
-                    logoUrl: companies.logo_url,
-                    primaryColor: companies.primary_color,
-                    secondaryColor: companies.secondary_color,
-                    loginBgUrl: companies.login_bg_url,
-                    isActive: companies.is_active,
-                })
-                .from(companies)
-                .where(eq(companies.slug, slug))
-                .limit(1);
+            const now = Date.now();
+            const cached = tenantCache.get(slug);
+            let company;
+
+            if (cached && (now - cached.timestamp < TENANT_CACHE_TTL_MS)) {
+                company = cached.company;
+            } else {
+                const [dbCompany] = await adminDb
+                    .select({
+                        id: companies.id,
+                        slug: companies.slug,
+                        businessName: companies.business_name,
+                        tradeName: companies.trade_name,
+                        logoUrl: companies.logo_url,
+                        primaryColor: companies.primary_color,
+                        secondaryColor: companies.secondary_color,
+                        loginBgUrl: companies.login_bg_url,
+                        isActive: companies.is_active,
+                    })
+                    .from(companies)
+                    .where(eq(companies.slug, slug))
+                    .limit(1);
+
+                company = dbCompany || null;
+                tenantCache.set(slug, { company, timestamp: now });
+            }
 
             if (company && company.isActive) {
-                const theme = THEME_PRESETS[company.secondaryColor] || THEME_PRESETS['#64748b'];
-                const onPrimary = getContrastColor(company.primaryColor);
-                const onSecondary = getContrastColor(company.secondaryColor);
+                // Strict hex color check
+                const primCol = isHexColor(company.primaryColor) ? company.primaryColor : '#2563eb';
+                const secCol = isHexColor(company.secondaryColor) ? company.secondaryColor : '#64748b';
+
+                const theme = THEME_PRESETS[secCol] || THEME_PRESETS['#64748b'];
+                const onPrimary = getContrastColor(primCol);
+                const onSecondary = getContrastColor(secCol);
                 
                 let headInjections = '\n<!-- Pre-inyectado por Elysia SPA Renderer -->';
                 
@@ -207,9 +246,9 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                 headInjections += `
 <style id="tenant-branding">
   :root {
-    --primary: ${company.primaryColor} !important;
+    --primary: ${primCol} !important;
     --on-primary: ${onPrimary} !important;
-    --secondary: ${company.secondaryColor} !important;
+    --secondary: ${secCol} !important;
     --on-secondary: ${onSecondary} !important;
     --bg-light-val: ${theme.bgLight} !important;
     --bg-dark-val: ${theme.bgDark} !important;
@@ -232,14 +271,19 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                     businessName: company.businessName,
                     tradeName: company.tradeName || company.businessName,
                     logoUrl: company.logoUrl,
-                    primaryColor: company.primaryColor,
-                    secondaryColor: company.secondaryColor,
+                    primaryColor: primCol,
+                    secondaryColor: secCol,
                     loginBgUrl: company.loginBgUrl,
                 };
                 
+                // Escape < and > to prevent XSS script closing injections
+                const safeJsonString = JSON.stringify(tenantData)
+                    .replace(/</g, '\\u003c')
+                    .replace(/>/g, '\\u003e');
+
                 headInjections += `
 <script id="tenant-data" type="application/json">
-  ${JSON.stringify(tenantData)}
+  ${safeJsonString}
 </script>
 `;
                 
@@ -257,28 +301,25 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                 }
                 const apiUrl = `${apiProtocol}://${apiDomain}`;
                 
-                headInjections += `
-<link rel="manifest" crossorigin="use-credentials" href="${apiUrl}/api/auth/tenant-manifest?slug=${company.slug}" />
-`;
+                headInjections += `\n<link rel="manifest" crossorigin="use-credentials" href="${apiUrl}/api/auth/tenant-manifest?slug=${company.slug}" />`;
                 
-                // 4. Favicon and shortcut icons
+                // 4. Favicon and shortcut icons (html escaped to prevent attribute breakouts)
                 if (company.logoUrl) {
+                    const escapedLogoUrl = escapeHtml(company.logoUrl);
                     headInjections += `
-<link rel="shortcut icon" href="${company.logoUrl}">
-<link rel="icon" type="image/png" sizes="192x192" href="${company.logoUrl}">
-<link rel="apple-touch-icon" href="${company.logoUrl}">
+<link rel="shortcut icon" href="${escapedLogoUrl}">
+<link rel="icon" type="image/png" sizes="192x192" href="${escapedLogoUrl}">
+<link rel="apple-touch-icon" href="${escapedLogoUrl}">
 `;
                 } else {
-                    headInjections += `
-<link rel="shortcut icon" href="/favicon.ico">
-`;
+                    headInjections += `\n<link rel="shortcut icon" href="/favicon.ico">`;
                 }
                 
                 // Inyectamos todo en el head del index.html
                 html = html.replace('</head>', `${headInjections}\n</head>`);
                 
-                // 5. Title tag dynamic replacement
-                const titleText = `${company.tradeName || company.businessName} - Iniciar Sesión`;
+                // 5. Title tag dynamic replacement (escaped to prevent injection)
+                const titleText = escapeHtml(`${company.tradeName || company.businessName} - Iniciar Sesión`);
                 html = html.replace(/<title>.*?<\/title>/, `<title>${titleText}</title>`);
             } else {
                 // Tenant not found or inactive, fall back to default manifest

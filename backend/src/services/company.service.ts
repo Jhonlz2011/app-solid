@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
+import { invalidateTenantCache } from './spa-renderer.service';
 
 export const companyService = {
   getBranding: async (companyId: number) => {
@@ -61,7 +62,14 @@ export const companyService = {
       .where(eq(companies.id, companyId))
       .returning();
 
+    // Invalidate backend SPA cache for this tenant
+    if (updated.slug) {
+      invalidateTenantCache(updated.slug);
+    }
+
     return {
+      id: updated.id,
+      slug: updated.slug,
       logoUrl: updated.logo_url,
       loginBgUrl: updated.login_bg_url,
       primaryColor: updated.primary_color,
