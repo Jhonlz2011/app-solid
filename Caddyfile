@@ -66,6 +66,6 @@
         Permissions-Policy "microphone=(), usb=()"
         
         # 3. Content Security Policy (Asegura tus orígenes legítimos y llamadas a tu API)
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.zelys.app http://localhost:3000;"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.zelys.app http://localhost:3000; manifest-src 'self' https://api.zelys.app http://localhost:3000;"
     }
 }

@@ -147,10 +147,19 @@ async function getRawHtml(requestHost?: string): Promise<string> {
             cachedHtml = html;
         }
         return html;
-    } catch (err) {
+    } catch (err: any) {
         console.error('❌ Error fetching index.html template from frontend:', err);
-        // Serve a minimal emergency fallback HTML rather than crashing
-        return `<!DOCTYPE html><html><head><title>Zelys - Error</title></head><body><p>Error de conexión con el frontend. Por favor recarga la página.</p></body></html>`;
+        // Serve a minimal emergency fallback HTML with descriptive debug details
+        return `<!DOCTYPE html><html><head><title>Zelys - Error de Conexión</title></head><body style="font-family: sans-serif; padding: 2rem; background: #0f172a; color: #f1f5f9;">
+            <div style="max-width: 600px; margin: 0 auto; background: #1e293b; padding: 2rem; border-radius: 8px; border: 1px solid #334155;">
+                <h1 style="color: #ef4444; margin-top: 0; font-size: 1.5rem;">Error de conexión con el frontend</h1>
+                <p>El backend de Elysia no pudo descargar el template <code>index.html</code> original.</p>
+                <hr style="border: 0; border-top: 1px solid #334155; margin: 1.5rem 0;" />
+                <p><strong>Intentando conectar a:</strong> <code style="background: #0f172a; padding: 0.2rem 0.4rem; border-radius: 4px; color: #38bdf8; font-size: 0.9rem;">${baseUrl}/index.html</code></p>
+                <p><strong>Detalle del error:</strong> <code style="color: #fca5a5; font-size: 0.9rem;">${err.message || err}</code></p>
+                <p style="font-size: 0.875rem; color: #94a3b8; margin-top: 1.5rem; margin-bottom: 0;">Tip: Verifica si configuraste correctamente la variable <code>FRONTEND_INTERNAL_URL</code> en Coolify (ej: <code>http://&lt;uuid&gt;:80</code>) y que ambos contenedores estén en la misma red de Docker.</p>
+            </div>
+        </body></html>`;
     }
 }
 
@@ -234,10 +243,22 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
 </script>
 `;
                 
-                // 3. Dynamic manifest link (crossorigin API endpoint)
-                const apiUrl = process.env.VITE_API_URL || 'http://localhost:3000';
+                // 3. Dynamic manifest link (crossorigin API endpoint resolved dynamically)
+                const hostWithoutPort = originalHost.split(':')[0];
+                let apiDomain = 'localhost:3000';
+                let apiProtocol = 'http';
+                if (!hostWithoutPort.includes('localhost') && !/^[0-9.]+$/.test(hostWithoutPort)) {
+                    apiProtocol = 'https';
+                    const parts = hostWithoutPort.split('.');
+                    if (parts.length >= 2) {
+                        const baseDomain = parts.slice(-2).join('.');
+                        apiDomain = `api.${baseDomain}`;
+                    }
+                }
+                const apiUrl = `${apiProtocol}://${apiDomain}`;
+                
                 headInjections += `
-<link rel="manifest" crossorigin="use-credentials" href="${apiUrl}/auth/tenant-manifest?slug=${company.slug}" />
+<link rel="manifest" crossorigin="use-credentials" href="${apiUrl}/api/auth/tenant-manifest?slug=${company.slug}" />
 `;
                 
                 // 4. Favicon and shortcut icons
