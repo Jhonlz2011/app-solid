@@ -39,6 +39,7 @@ import { errorHandlerPlugin } from './plugins/error-handler';
 import { env } from './config/env';
 import { initSSERedisAdapter } from './plugins/sse';
 import { startAuditWorker } from './services/audit.service';
+import { serveSpa } from './services/spa-renderer.service';
 
 const allowedOrigins = new Set([
   env.FRONTEND_URL,
@@ -76,7 +77,7 @@ const corsRegex = baseDomain
   ? new RegExp(`^https?:\\/\\/([a-z0-9-]+\\.)*${baseDomain.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}(:\\d+)?$`, 'i')
   : null;
 
-const app = new Elysia({ prefix: '/api', aot: false })
+const apiApp = new Elysia({ prefix: '/api', aot: false })
   // CORS Configuration - dynamic origin validation
   .use(cors({
     origin: (request) => {
@@ -169,7 +170,7 @@ const app = new Elysia({ prefix: '/api', aot: false })
   .use(inventoryRoutes)
   .use(locationsRoutes)
   .use(companyRoutes)
-  .use(staticPlugin({ assets: 'public', prefix: '/' }))
+  .use(staticPlugin({ assets: 'public', prefix: '/' }));
 
 // Server configuration with optional Unix Socket support
 const serverConfig = {
@@ -177,6 +178,9 @@ const serverConfig = {
   hostname: '0.0.0.0'
 };
 
+const app = new Elysia()
+  .use(apiApp)
+  .get('*', serveSpa);
 
 app.listen(serverConfig);
 

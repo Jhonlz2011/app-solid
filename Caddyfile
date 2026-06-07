@@ -12,13 +12,38 @@
     # Enable Zstandard (zstd) and Gzip compression
     encode zstd gzip
 
-    # Serve static files
-    file_server {
-        precompressed br gzip
+    # 1. Internal request from backend fetching raw index.html template
+    @raw_request {
+        header X-Raw-Request "true"
+    }
+    handle @raw_request {
+        rewrite * /index.html
+        file_server
     }
 
-    # SPA Routing: Redirect all 404s to index.html
-    try_files {path} /index.html
+    # 2. Serve static files if they physically exist
+    @static_assets {
+        file
+    }
+    handle @static_assets {
+        file_server {
+            precompressed br gzip
+        }
+    }
+
+    # 3. Proxy SPA navigation routes to backend for dynamic tenant branding
+    handle {
+        reverse_proxy backend:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # 4. Fallback: serve local static index.html if backend is offline/error
+    handle_errors {
+        rewrite * /index.html
+        file_server
+    }
 
     # Cache Control for Static Assets (Vite hashed files)
     @static {
@@ -40,6 +65,6 @@
         Permissions-Policy "microphone=(), usb=()"
         
         # 3. Content Security Policy (Asegura tus orígenes legítimos y llamadas a tu API)
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.zelys.app;"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.zelys.app http://localhost:3000;"
     }
 }

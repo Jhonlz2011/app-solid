@@ -119,7 +119,7 @@ const CompanyProfileSettings: Component = () => {
                                 icon={<FloppyDiskIcon />}
                                 class="shadow-lg shadow-primary/25 cursor-pointer"
                             >
-                                Guardar Perfil
+                                Guardar
                             </Button>
                         </div>
 
