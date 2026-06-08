@@ -17,6 +17,10 @@ interface TenantCacheEntry {
 const tenantCache = new Map<string, TenantCacheEntry>();
 const TENANT_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutos
 
+export function invalidateTenantCache(slug: string): void {
+    tenantCache.delete(slug);
+}
+
 // Helper to escape HTML tags and characters
 function escapeHtml(str: string): string {
     return str
