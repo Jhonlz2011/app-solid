@@ -1,4 +1,4 @@
-import { db } from '../db';
+import { db, adminDb } from '../db';
 import { authUserRoles, authRoles, authRolePermissions, authPermissions, authUsers, auditLogs, sessions, entities } from '@app/schema/tables';
 import { eq, sql, count, and, inArray, ilike, or, asc, desc } from '@app/schema';
 import { redis } from '../config/redis';
@@ -711,6 +711,7 @@ export async function createUser(data: { username: string; email: string; passwo
             email: data.email,
             password_hash,
             is_active: true,
+            email_verified_at: null,
         })
         .returning({ id: authUsers.id, username: authUsers.username, email: authUsers.email });
 

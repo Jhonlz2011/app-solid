@@ -385,7 +385,21 @@ const Login: Component = () => {
 
           {/* Form fields */}
           {/* Si no es global, mostramos el email también. Si es global, lo dejamos oculto */}
-          <Show when={!isGlobalLogin}>
+          <Show 
+            when={!isGlobalLogin}
+            fallback={
+              <form.Field
+                name="email"
+                children={(field) => (
+                  <input
+                    type="hidden"
+                    name="email"
+                    value={field().state.value}
+                  />
+                )}
+              />
+            }
+          >
             <form.Field
               name="email"
               children={(field) => (

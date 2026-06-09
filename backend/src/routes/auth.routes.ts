@@ -112,7 +112,42 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       if (process.env.NODE_ENV !== 'production') {
         console.log('Login attempt:', { email: body.email, userAgent, ipAddress });
       }
-      const { user, sessionId: newSessionId } = await login(body.email, body.password, userAgent, ipAddress, body.companyId);
+
+      let companyId = body.companyId;
+      if (!companyId) {
+        const host = request.headers.get('host') || '';
+        const hostWithoutPort = host.split(':')[0];
+        const ipRegex = /^[0-9.]+$/;
+        const isIpOrLocal = ipRegex.test(hostWithoutPort) || 
+                            hostWithoutPort === 'localhost' || 
+                            hostWithoutPort === '127.0.0.1';
+
+        let slug: string | undefined;
+        if (hostWithoutPort.includes('zelys.app')) {
+          const parts = hostWithoutPort.split('.');
+          if (parts.length > 2 && parts[0] !== 'api') {
+            slug = parts[0];
+          }
+        } else if (!isIpOrLocal) {
+          const parts = hostWithoutPort.split('.');
+          if (parts.length > 1) {
+            slug = parts[0];
+          }
+        }
+
+        if (slug) {
+          const [company] = await adminDb
+            .select({ id: companies.id })
+            .from(companies)
+            .where(eq(companies.slug, slug))
+            .limit(1);
+          if (company) {
+            companyId = company.id;
+          }
+        }
+      }
+
+      const { user, sessionId: newSessionId } = await login(body.email, body.password, userAgent, ipAddress, companyId);
 
       // Reset rate limit on success
       await resetLoginAttempts(request);
