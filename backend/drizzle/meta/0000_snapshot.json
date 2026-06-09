@@ -1,5 +1,5 @@
 {
-  "id": "7fc3205b-bebe-434c-8610-04ffba9f1292",
+  "id": "d7816e0e-a84f-4817-be4a-276ca25e2589",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2270,6 +2270,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {
@@ -2278,6 +2284,21 @@
           "columns": [
             {
               "expression": "permission_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_role_perms_company": {
+          "name": "idx_role_perms_company",
+          "columns": [
+            {
+              "expression": "company_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2315,6 +2336,19 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "auth_role_permissions_company_id_companies_id_fk": {
+          "name": "auth_role_permissions_company_id_companies_id_fk",
+          "tableFrom": "auth_role_permissions",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -2327,9 +2361,20 @@
         }
       },
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.auth_roles": {
       "name": "auth_roles",
@@ -2477,6 +2522,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {
@@ -2485,6 +2536,21 @@
           "columns": [
             {
               "expression": "role_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_user_roles_company": {
+          "name": "idx_user_roles_company",
+          "columns": [
+            {
+              "expression": "company_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2522,6 +2588,19 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "auth_user_roles_company_id_companies_id_fk": {
+          "name": "auth_user_roles_company_id_companies_id_fk",
+          "tableFrom": "auth_user_roles",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -2534,9 +2613,20 @@
         }
       },
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.auth_users": {
       "name": "auth_users",

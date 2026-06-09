@@ -45,7 +45,7 @@ const setSessionFlag = (active: boolean) => {
 // --- ACTIONS ---
 
 export const actions = {
-    login: async (credentials: { email: string; password: string }) => {
+    login: async (credentials: { email: string; password: string; companyId?: number }) => {
         setState('status', 'loading');
         try {
             const data = await authApi.login(credentials);

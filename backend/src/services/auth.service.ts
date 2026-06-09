@@ -309,12 +309,16 @@ export async function register(
   });
 }
 
-export async function login(email: string, password: string, userAgent?: string, ipAddress?: string) {
+export async function login(email: string, password: string, userAgent?: string, ipAddress?: string, companyId?: number) {
   // 1. Fetch user + entity in one query
   const user = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT set_config('app.current_username', ${email}, true)`);
+    const conditions = [or(eq(users.email, email), eq(users.username, email))];
+    if (companyId !== undefined) {
+      conditions.push(eq(users.company_id, companyId));
+    }
     return await db.query.authUsers.findFirst({
-      where: or(eq(users.email, email), eq(users.username, email)),
+      where: and(...conditions),
       with: { entity: true },
     });
   });
@@ -647,4 +651,25 @@ export async function resendVerification(userId: number, companyId: number) {
   }
 
   return { success: true };
+}
+
+export async function discoverUserTenants(email: string) {
+  // Query all active companies where the user has an active account using adminDb to bypass RLS
+  const userTenants = await adminDb
+    .select({
+      id: companies.id,
+      slug: companies.slug,
+      businessName: companies.business_name,
+      tradeName: companies.trade_name,
+      logoUrl: companies.logo_url,
+    })
+    .from(users)
+    .innerJoin(companies, eq(users.company_id, companies.id))
+    .where(and(
+      or(eq(users.email, email), eq(users.username, email)),
+      eq(users.is_active, true),
+      eq(companies.is_active, true)
+    ));
+
+  return userTenants;
 }

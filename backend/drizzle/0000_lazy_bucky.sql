@@ -251,9 +251,11 @@ CREATE TABLE "auth_permissions" (
 CREATE TABLE "auth_role_permissions" (
 	"role_id" integer NOT NULL,
 	"permission_id" integer NOT NULL,
+	"company_id" integer NOT NULL,
 	CONSTRAINT "auth_role_permissions_role_id_permission_id_pk" PRIMARY KEY("role_id","permission_id")
 );
 --> statement-breakpoint
+ALTER TABLE "auth_role_permissions" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "auth_roles" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "auth_roles_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -268,9 +270,11 @@ ALTER TABLE "auth_roles" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "auth_user_roles" (
 	"user_id" integer NOT NULL,
 	"role_id" integer NOT NULL,
+	"company_id" integer NOT NULL,
 	CONSTRAINT "auth_user_roles_user_id_role_id_pk" PRIMARY KEY("user_id","role_id")
 );
 --> statement-breakpoint
+ALTER TABLE "auth_user_roles" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "auth_users" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "auth_users_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -1120,9 +1124,11 @@ ALTER TABLE "category_attributes" ADD CONSTRAINT "category_attributes_attribute_
 ALTER TABLE "auth_menu_items" ADD CONSTRAINT "auth_menu_items_parent_id_auth_menu_items_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."auth_menu_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_role_permissions" ADD CONSTRAINT "auth_role_permissions_role_id_auth_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."auth_roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_role_permissions" ADD CONSTRAINT "auth_role_permissions_permission_id_auth_permissions_id_fk" FOREIGN KEY ("permission_id") REFERENCES "public"."auth_permissions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "auth_role_permissions" ADD CONSTRAINT "auth_role_permissions_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_roles" ADD CONSTRAINT "auth_roles_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_user_roles" ADD CONSTRAINT "auth_user_roles_user_id_auth_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."auth_users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_user_roles" ADD CONSTRAINT "auth_user_roles_role_id_auth_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."auth_roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "auth_user_roles" ADD CONSTRAINT "auth_user_roles_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_users" ADD CONSTRAINT "auth_users_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_users" ADD CONSTRAINT "auth_users_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_verification_tokens" ADD CONSTRAINT "auth_verification_tokens_user_id_auth_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."auth_users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1309,9 +1315,11 @@ CREATE INDEX "idx_menu_active" ON "auth_menu_items" USING btree ("is_active");--
 CREATE UNIQUE INDEX "idx_perm_module_action" ON "auth_permissions" USING btree ("module","action");--> statement-breakpoint
 CREATE INDEX "idx_perm_module" ON "auth_permissions" USING btree ("module");--> statement-breakpoint
 CREATE INDEX "idx_role_perms_by_perm" ON "auth_role_permissions" USING btree ("permission_id");--> statement-breakpoint
+CREATE INDEX "idx_role_perms_company" ON "auth_role_permissions" USING btree ("company_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_auth_roles_name" ON "auth_roles" USING btree ("company_id","name");--> statement-breakpoint
 CREATE INDEX "idx_auth_roles_company" ON "auth_roles" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_user_roles_by_role" ON "auth_user_roles" USING btree ("role_id");--> statement-breakpoint
+CREATE INDEX "idx_user_roles_company" ON "auth_user_roles" USING btree ("company_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_auth_users_username" ON "auth_users" USING btree ("company_id","username");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_auth_users_email" ON "auth_users" USING btree ("company_id","email");--> statement-breakpoint
 CREATE INDEX "idx_auth_users_company" ON "auth_users" USING btree ("company_id");--> statement-breakpoint
@@ -1439,7 +1447,9 @@ CREATE POLICY "tenant_isolation" ON "uom" AS PERMISSIVE FOR ALL TO public USING 
 CREATE POLICY "tenant_isolation" ON "attribute_definitions" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "brands" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "categories" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "auth_role_permissions" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "auth_roles" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "auth_user_roles" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "auth_users" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer
             OR username = current_setting('app.current_username', true)
             OR email = current_setting('app.current_username', true)) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint

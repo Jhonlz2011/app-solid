@@ -42,20 +42,20 @@
   color-scheme: light dark;
   
   /* Evitamos nombres idénticos para no causar recursión en el CSS */
-  --bg: light-dark(var(--bg-light-val, #f1f5f9), var(--bg-dark-val, #0f172a));
-  --surface: light-dark(var(--surface-light-val, #ffffff), var(--surface-dark-val, #1e293b));
-  --card: light-dark(var(--card-light-val, #ffffff), var(--card-dark-val, #1e293b));
+  --bg: light-dark(var(--bg-light-val, #f1f5f9), var(--bg-dark-val, #020617));
+  --surface: light-dark(var(--surface-light-val, #fff), var(--surface-dark-val, #0f172a));
+  --card: light-dark(var(--card-light-val, #ffffff), var(--card-dark-val, #111827));
   --card-alt: light-dark(var(--card-alt-light-val, #eef2ff), var(--card-alt-dark-val, #1f2937));
   --text: light-dark(#0f172a, #f8fafc);
   --heading: light-dark(#0b1220, #f8fafc);
   --muted: light-dark(#475569, #94a3b8);
-  --border: light-dark(var(--border-light-val, #e2e8f0), var(--border-dark-val, #334155));
+  --border: light-dark(var(--border-light-val, #e7eff8), var(--border-dark-val, #1f2533));
   --border-strong: light-dark(var(--border-strong-light-val, #d0d7e5), var(--border-strong-dark-val, #222c3c));
   --table-hover: light-dark(var(--table-hover-light-val, #f4f7fc), var(--table-hover-dark-val, #0c1222));
   --dropdown-hover: light-dark(var(--dropdown-hover-light-val, #f4f7fb), var(--dropdown-hover-dark-val, #1f2937));
 
   /* Colores base por defecto */
-  --primary-default: light-dark(#2563eb, #60a5fa);
+  --primary-default: light-dark(#1f86c2, #60dbfa);
   --primary: var(--primary-default);
   
   /* Variaciones dinámicas calculadas automáticamente en el cliente en 2026 */
@@ -122,7 +122,7 @@
     /* ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg */
     box-shadow: 
       0 0 0 1px var(--color-bg), 
-      0 0 0 3px rgba(96, 165, 250, 0.5); /* Usa el canal alfa del color primary */
+      0 0 0 3px var(--primary); /* Usa el canal alfa del color primary */
   }
 }
 

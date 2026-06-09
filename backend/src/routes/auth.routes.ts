@@ -10,8 +10,9 @@ import {
   revokeSession,
   verifyEmail,
   resendVerification,
+  discoverUserTenants,
 } from '../services/auth.service';
-import { AuthRegisterDto, AuthLoginDto, AuthChangePasswordDto, AuthUpdateProfileDto, AuthResponseDto, TenantBrandingResponseDto } from '@app/schema/backend';
+import { AuthRegisterDto, AuthLoginDto, AuthChangePasswordDto, AuthUpdateProfileDto, AuthResponseDto, TenantBrandingResponseDto, DiscoverTenantsResponseDto } from '@app/schema/backend';
 import { authGuard } from '../plugins/auth-guard';
 import { loginRateLimit, resetLoginAttempts } from '../plugins/login-rate-limit';
 import { registerRateLimit } from '../plugins/register-rate-limit';
@@ -91,6 +92,19 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       domain: t.String(),
     }),
   })
+  .get('/discover-tenants', async ({ query, set }) => {
+    const email = query.email;
+    if (!email) {
+      set.status = 400;
+      throw new Error('El correo electrónico es requerido');
+    }
+    return await discoverUserTenants(email);
+  }, {
+    query: t.Object({
+      email: t.String(),
+    }),
+    response: DiscoverTenantsResponseDto,
+  })
   .post(
     '/login',
     async ({ body, cookie, request }) => {
@@ -98,7 +112,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       if (process.env.NODE_ENV !== 'production') {
         console.log('Login attempt:', { email: body.email, userAgent, ipAddress });
       }
-      const { user, sessionId: newSessionId } = await login(body.email, body.password, userAgent, ipAddress);
+      const { user, sessionId: newSessionId } = await login(body.email, body.password, userAgent, ipAddress, body.companyId);
 
       // Reset rate limit on success
       await resetLoginAttempts(request);

@@ -53,7 +53,7 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
                                             class="group flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm
                                                    text-muted transition-all duration-200
                                                    hover:text-heading hover:bg-primary/8
-                                                   focus:outline-none focus-visible:ring-3 focus-visible:ring-primary focus-visible:ring-inset
+                                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset
                                                    data-[active=true]:text-primary-strong data-[active=true]:font-medium data-[active=true]:bg-primary/10 focus-visible:text-heading"
                                         >
                                             {/* Icon */}

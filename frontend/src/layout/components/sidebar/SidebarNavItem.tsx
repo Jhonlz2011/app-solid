@@ -126,7 +126,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
     const baseClasses = `group w-full flex items-center gap-3 h-11 px-4 rounded-xl relative
         text-muted transition-colors duration-200
         hover:bg-primary/8 hover:text-heading
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent focus-visible:text-text`;
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg focus-visible:text-text`;
 
     const activeClasses = `data-[state=active]:bg-primary/12 data-[state=active]:text-primary-strong data-[state=active]:font-semibold
         data-[state=active]:shadow-[inset_3px_0_0_var(--color-primary-strong)]
@@ -217,7 +217,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                 <Portal>
                     <div
                         ref={tooltipRef}
-                        class="fixed z-[9999] min-w-[180px] p-2 bg-surface backdrop-blur-lg border border-border/80 rounded-xl shadow-2xl
+                        class="fixed z-9999 min-w-[180px] p-2 bg-surface backdrop-blur-lg border border-border/80 rounded-xl shadow-2xl
                                animate-in fade-in slide-in-from-left-2 duration-150"
                         style={{ top: `${tooltipRect()?.top}px`, left: `${tooltipRect()?.left}px`, transform: 'translateY(-50%)' }}
                         onMouseEnter={() => clearTimeout(hoverTimeout)}
@@ -275,7 +275,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                                                     itemRef?.focus();
                                                 }
                                             }}
-                                            class="flex items-center gap-2 px-2 py-2 rounded-lg text-sm transition-all hover:bg-primary/10 hover:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent focus-visible:text-heading"
+                                            class="flex z-100 items-center gap-2 px-2 py-2 rounded-lg text-sm transition-all hover:bg-primary/10 hover:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset focus-visible:text-heading"
                                             classList={{
                                                 'bg-primary/10 text-primary-strong font-medium': isActive(child.path),
                                                 'text-muted': !isActive(child.path)
@@ -293,7 +293,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                         </Show>
 
                         {/* Arrow indicator */}
-                        <div class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1.5 w-3 h-3 bg-surface border-l border-b border-border/80 rotate-45" />
+                        <div class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1.5 w-3 h-3 bg-surface border-l border-b border-border/80 rotate-45 z-0" />
                     </div>
                 </Portal>
             </Show>

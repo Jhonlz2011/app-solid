@@ -196,6 +196,7 @@ export const AuthRegisterDto = Type.Object({
 export const AuthLoginDto = Type.Object({
     email: Type.String(), // Can be email or username
     password: Type.String(),
+    companyId: Type.Optional(Type.Number()),
 });
 
 export const AuthChangePasswordDto = Type.Object({
@@ -349,4 +350,19 @@ export const CompanySettingsBodySchema = Type.Object({
 });
 
 export type CompanySettingsBodyType = Static<typeof CompanySettingsBodySchema>;
+
+// --- TENANT DISCOVERY DTOs ---
+export const DiscoverTenantItem = Type.Object({
+    id: Type.Number(),
+    slug: Type.String(),
+    businessName: Type.String(),
+    tradeName: Type.Union([Type.String(), Type.Null()]),
+    logoUrl: Type.Union([Type.String(), Type.Null()]),
+});
+
+export type DiscoverTenantItemType = Static<typeof DiscoverTenantItem>;
+
+export const DiscoverTenantsResponseDto = Type.Array(DiscoverTenantItem);
+export type DiscoverTenantsResponseDtoType = Static<typeof DiscoverTenantsResponseDto>;
+
 

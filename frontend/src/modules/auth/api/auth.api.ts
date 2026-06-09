@@ -9,9 +9,15 @@ import { AuthError } from '../types/auth-error';
 import type { AuthRegisterDtoType } from '@app/schema/backend';
 
 export const authApi = {
-    login: async (credentials: { email: string; password: string }, signal?: AbortSignal) => {
+    login: async (credentials: { email: string; password: string; companyId?: number }, signal?: AbortSignal) => {
         const { data, error } = await api.api.auth.login.post(credentials, { fetch: { signal } });
         if (error) throw new AuthError(error.value, 'Login fallido');
+        return data!;
+    },
+
+    discoverTenants: async (email: string, signal?: AbortSignal) => {
+        const { data, error } = await (api.api.auth as any)['discover-tenants'].get({ query: { email } }, { fetch: { signal } });
+        if (error) throw new AuthError(error.value, 'Error al buscar empresas asociadas');
         return data!;
     },
 
