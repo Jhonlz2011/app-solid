@@ -310,35 +310,81 @@ export async function register(
 }
 
 export async function login(email: string, password: string, userAgent?: string, ipAddress?: string, companyId?: number) {
-  // 1. Fetch user + entity in one query
-  const user = await db.transaction(async (tx) => {
+  // 1. Fetch user records matching email/username (limit to at most 5 matched companies for security)
+  const matchedUsers = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT set_config('app.current_username', ${email}, true)`);
     const conditions = [or(eq(users.email, email), eq(users.username, email))];
     if (companyId !== undefined) {
       conditions.push(eq(users.company_id, companyId));
     }
-    return await db.query.authUsers.findFirst({
+    return await tx.query.authUsers.findMany({
       where: and(...conditions),
       with: { entity: true },
+      limit: 5,
     });
   });
 
-  // 2. Timing attack protection
-  const DUMMY_HASH = '$argon2id$v=19$m=65536,t=2,p=1$njOSfwJnFaGrpYbhNmtmmyTeQ3Zr/vK+n+vYhtMpGxw$xEeAHQScZ8hNn2xngO0I8o0jgQX7wfinz+WEIsxiuoE';
-  const targetHash = user?.password_hash ?? DUMMY_HASH;
-  const validPassword = await Bun.password.verify(password, targetHash);
-
-  if (!user || !validPassword) {
+  // 2. Timing attack protection if email doesn't exist
+  if (matchedUsers.length === 0) {
+    const DUMMY_HASH = '$argon2id$v=19$m=65536,t=2,p=1$njOSfwJnFaGrpYbhNmtmmyTeQ3Zr/vK+n+vYhtMpGxw$xEeAHQScZ8hNn2xngO0I8o0jgQX7wfinz+WEIsxiuoE';
+    await Bun.password.verify(password, DUMMY_HASH);
     throw new AuthError('Credenciales inválidas');
   }
 
-  if (!user.is_active) throw new AuthError('Usuario desactivado', 403);
+  // Verify passwords for all matched users in parallel (Bun thread pool)
+  const verificationPromises = matchedUsers.map(async (u) => {
+    const valid = await Bun.password.verify(password, u.password_hash);
+    return { user: u, valid };
+  });
 
-  // 3. Fetch roles/permissions in parallel
-  const [roles, permissions] = await Promise.all([
+  const results = await Promise.all(verificationPromises);
+  const verifiedUsers = results.filter(r => r.valid).map(r => r.user);
+
+  if (verifiedUsers.length === 0) {
+    throw new AuthError('Credenciales inválidas');
+  }
+
+  // Filter out deactivated users
+  const activeVerifiedUsers = verifiedUsers.filter(u => u.is_active);
+  if (activeVerifiedUsers.length === 0) {
+    throw new AuthError('Usuario desactivado', 403);
+  }
+
+  // If there are multiple active verified users (and no companyId was specified), return selection info
+  if (activeVerifiedUsers.length > 1 && companyId === undefined) {
+    const companyIds = activeVerifiedUsers.map(u => u.company_id);
+    const verifiedCompanies = await adminDb
+      .select({
+        id: companies.id,
+        slug: companies.slug,
+        businessName: companies.business_name,
+        tradeName: companies.trade_name,
+        logoUrl: companies.logo_url,
+      })
+      .from(companies)
+      .where(inArray(companies.id, companyIds));
+
+    return {
+      requiresTenantSelection: true as const,
+      tenants: verifiedCompanies,
+    };
+  }
+
+  // Choose the single active verified user
+  const user = activeVerifiedUsers[0];
+
+  // 3. Fetch roles/permissions and company slug in parallel
+  const [roles, permissions, [company]] = await Promise.all([
     getUserRoles(user.id),
     getUserPermissions(user.id),
+    adminDb
+      .select({ slug: companies.slug })
+      .from(companies)
+      .where(eq(companies.id, user.company_id))
+      .limit(1),
   ]);
+
+  const companySlug = company?.slug;
 
   // 4. Create session
   const sessionId = generateSessionToken();
@@ -378,6 +424,7 @@ export async function login(email: string, password: string, userAgent?: string,
     user: {
       id: user.id,
       companyId: user.company_id,
+      companySlug,
       email: user.email,
       username: user.username,
       isActive: user.is_active,

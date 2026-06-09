@@ -132,19 +132,23 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         }
       }
 
-      const { user, sessionId: newSessionId } = await login(body.email, body.password, userAgent, ipAddress, companyId);
+          const loginResult = await login(body.email, body.password, userAgent, ipAddress, companyId);
+
+      if ('requiresTenantSelection' in loginResult && loginResult.requiresTenantSelection) {
+        return loginResult;
+      }
 
       // Reset rate limit on success
       await resetLoginAttempts(request);
 
       // Set session cookie (httpOnly — browser sends automatically)
       cookie.session.set({
-        value: newSessionId,
+        value: loginResult.sessionId,
         ...COOKIE_OPTIONS,
       });
 
       // Notification is now handled internally by login() service
-      return { user, sessionId: newSessionId };
+      return loginResult;
     },
     {
       body: AuthLoginDto,

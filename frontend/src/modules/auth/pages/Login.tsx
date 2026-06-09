@@ -68,45 +68,13 @@ const Login: Component = () => {
     }
   };
 
-  const handleNextStep = async () => {
+  const handleNextStep = () => {
     const emailValue = form.getFieldValue('email');
     if (!emailValue || emailValue.trim() === '') {
       toast.error('Por favor, ingresa tu usuario o correo.');
       return;
     }
-    
-    setLoadingTenants(true);
-    try {
-      const tenants = await authApi.discoverTenants(emailValue);
-      setDiscoveredTenants(tenants);
-      
-      if (!tenants || tenants.length === 0) {
-        toast.error('No se encontraron empresas activas asociadas a este correo.');
-      } else if (tenants.length === 1) {
-        const tenant = tenants[0];
-        setSelectedTenant(tenant);
-        
-        // Cargar y aplicar branding dinámico para el inquilino único
-        try {
-          const tenantInfo = await authApi.getTenantInfo(tenant.slug);
-          applyBranding(tenantInfo);
-        } catch (brandingErr) {
-          console.warn('No se pudo cargar el branding del tenant:', brandingErr);
-        }
-        
-        setStep('password');
-      } else {
-        setStep('tenants');
-      }
-    } catch (err) {
-      let msg = 'Error al buscar empresas';
-      if (err instanceof AuthError || err instanceof Error) {
-        msg = err.message;
-      }
-      toast.error(msg);
-    } finally {
-      setLoadingTenants(false);
-    }
+    setStep('password');
   };
 
   const handleSelectTenant = async (tenant: DiscoverTenantItemType) => {
@@ -116,31 +84,24 @@ const Login: Component = () => {
       // Cargar y aplicar branding dinámico para el inquilino seleccionado
       const tenantInfo = await authApi.getTenantInfo(tenant.slug);
       applyBranding(tenantInfo);
-      setStep('password');
     } catch (err) {
       console.warn('No se pudo cargar el branding del tenant:', err);
-      // Even if branding fails, we proceed to password step
-      setStep('password');
     } finally {
       setLoadingTenants(false);
     }
+    // Enviar el formulario para completar el login
+    form.handleSubmit();
   };
 
   const handleBack = () => {
     if (step() === 'password') {
-      if (discoveredTenants().length > 1) {
-        setStep('tenants');
-      } else {
-        setStep('email');
-        setDiscoveredTenants([]);
-        setSelectedTenant(null);
-      }
-      applyBranding(null);
-    } else if (step() === 'tenants') {
       setStep('email');
       setDiscoveredTenants([]);
       setSelectedTenant(null);
       applyBranding(null);
+    } else if (step() === 'tenants') {
+      setStep('password');
+      setSelectedTenant(null);
     }
   };
 
@@ -163,7 +124,18 @@ const Login: Component = () => {
           payload.companyId = selectedTenant()!.id;
         }
 
-        await actions.login(payload);
+        const res = await actions.login(payload);
+
+        // Si requiere selección de inquilino (múltiples cuentas activas verificadas)
+        if (res && 'requiresTenantSelection' in res && res.requiresTenantSelection) {
+          setDiscoveredTenants(res.tenants);
+          setStep('tenants');
+          return;
+        }
+
+        // Clic en login exitoso
+        const successRes = res as { user: any };
+        const companySlug = successRes?.user?.companySlug;
 
         // Read redirect from TanStack search params (signal accessor) or fallback to raw URL
         const searchParams = typeof search === 'function' ? search() : search;
@@ -175,8 +147,8 @@ const Login: Component = () => {
             ? redirectTo
             : '/dashboard';
 
-        if (isGlobalLogin && selectedTenant()) {
-          const slug = selectedTenant()!.slug;
+        if (isGlobalLogin && (selectedTenant() || companySlug)) {
+          const slug = selectedTenant()?.slug || companySlug;
           handleRedirect(slug, safePath);
         } else {
           navigate({ to: safePath, replace: true });

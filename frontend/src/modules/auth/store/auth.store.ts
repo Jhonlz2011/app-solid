@@ -49,10 +49,17 @@ export const actions = {
         setState('status', 'loading');
         try {
             const data = await authApi.login(credentials);
-            // Server set httpOnly cookie — zero token management needed
-            currentSessionId = data.sessionId ?? null;
-            // Merge sessionId into user to match ProfileDto shape
-            const user: User = { ...data.user, sessionId: data.sessionId };
+            
+            // Check if backend requires tenant selection
+            if ('requiresTenantSelection' in data && data.requiresTenantSelection) {
+                setState('status', 'unauthenticated');
+                return data;
+            }
+
+            // Normal login success path
+            const successData = data as { user: User; sessionId: string };
+            currentSessionId = successData.sessionId ?? null;
+            const user: User = { ...successData.user, sessionId: successData.sessionId };
             batch(() => {
                 setState('user', user);
                 setState('status', 'authenticated');
@@ -68,7 +75,7 @@ export const actions = {
                 authChannel.postMessage({ type: 'LOGIN', user: sanitizeUser(user), sessionId: currentSessionId });
             }
 
-            return data;
+            return successData;
         } catch (error) {
             setState('status', 'unauthenticated');
             throw error;

@@ -232,6 +232,7 @@ export const PublicUser = Type.Object({
 export const AuthUserResponse = Type.Composite([
     PublicUser,
     Type.Object({
+        companySlug: Type.Optional(Type.String()),
         roles: Type.Array(Type.String()),
         permissions: Type.Array(Type.String()),
         entity: Type.Optional(Type.Object({
@@ -244,10 +245,30 @@ export const AuthUserResponse = Type.Composite([
     })
 ]);
 
-export const AuthResponseDto = Type.Object({
-    user: AuthUserResponse,
-    sessionId: Type.String(),
+// --- TENANT DISCOVERY DTOs ---
+export const DiscoverTenantItem = Type.Object({
+    id: Type.Number(),
+    slug: Type.String(),
+    businessName: Type.String(),
+    tradeName: Type.Union([Type.String(), Type.Null()]),
+    logoUrl: Type.Union([Type.String(), Type.Null()]),
 });
+
+export type DiscoverTenantItemType = Static<typeof DiscoverTenantItem>;
+
+export const DiscoverTenantsResponseDto = Type.Array(DiscoverTenantItem);
+export type DiscoverTenantsResponseDtoType = Static<typeof DiscoverTenantsResponseDto>;
+
+export const AuthResponseDto = Type.Union([
+    Type.Object({
+        user: AuthUserResponse,
+        sessionId: Type.String(),
+    }),
+    Type.Object({
+        requiresTenantSelection: Type.Literal(true),
+        tenants: Type.Array(DiscoverTenantItem),
+    })
+]);
 
 export type PublicUserType = Static<typeof PublicUser>;
 export type AuthUserResponseType = Static<typeof AuthUserResponse>;
@@ -351,18 +372,6 @@ export const CompanySettingsBodySchema = Type.Object({
 
 export type CompanySettingsBodyType = Static<typeof CompanySettingsBodySchema>;
 
-// --- TENANT DISCOVERY DTOs ---
-export const DiscoverTenantItem = Type.Object({
-    id: Type.Number(),
-    slug: Type.String(),
-    businessName: Type.String(),
-    tradeName: Type.Union([Type.String(), Type.Null()]),
-    logoUrl: Type.Union([Type.String(), Type.Null()]),
-});
-
-export type DiscoverTenantItemType = Static<typeof DiscoverTenantItem>;
-
-export const DiscoverTenantsResponseDto = Type.Array(DiscoverTenantItem);
-export type DiscoverTenantsResponseDtoType = Static<typeof DiscoverTenantsResponseDto>;
+// Tenant Discovery DTOs moved up to prevent reference errors
 
 

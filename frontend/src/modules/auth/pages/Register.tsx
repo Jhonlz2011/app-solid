@@ -179,9 +179,10 @@ const Register: Component = () => {
                 taxRegime: s2.taxRegime || undefined,
             });
             // Direct session injection — no redundant GET /me
+            const registerSuccess = result as { user: any; sessionId: string };
             actions.setSession(
-                { ...result.user, sessionId: result.sessionId } as any,
-                result.sessionId,
+                { ...registerSuccess.user, sessionId: registerSuccess.sessionId },
+                registerSuccess.sessionId,
             );
             toast.success('¡Cuenta creada exitosamente!');
             navigate({ to: '/dashboard', replace: true });

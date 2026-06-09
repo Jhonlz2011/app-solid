@@ -20,6 +20,7 @@ export interface ProfileEntityDto {
 export interface ProfileDto {
     id: number;
     companyId: number;
+    companySlug?: string;
     email: string;
     username: string;
     entityId: number | null;
