@@ -155,7 +155,7 @@ const THEME_PRESETS: Record<string, {
     },
     '#64748b': {
         bgLight: '#f4f7fb',
-        bgDark: '#0f172a',
+        bgDark: '#020617',
         surfaceLight: '#fff',
         surfaceDark: '#0f172a',
         cardLight: '#fff',

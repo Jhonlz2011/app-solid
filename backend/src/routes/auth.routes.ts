@@ -356,6 +356,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         entityId: t.Union([t.Number(), t.Null()]),
         isActive: t.Union([t.Boolean(), t.Null()]),
         lastLogin: t.Union([t.Date(), t.Null()]),
+        emailVerifiedAt: t.Union([t.Date(), t.Null()]),
         roles: t.Array(t.String()),
         permissions: t.Array(t.String()),
         entity: t.Optional(t.Object({
