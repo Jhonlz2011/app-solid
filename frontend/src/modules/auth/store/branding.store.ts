@@ -74,59 +74,122 @@ const getContrastColor = (hex: string): string => {
     }
 };
 
+// const THEME_PRESETS: Record<string, {
+//     bgLight: string;
+//     bgDark: string;
+//     surfaceLight: string;
+//     surfaceDark: string;
+//     cardAltLight: string;
+//     cardAltDark: string;
+//     borderLight: string;
+//     borderDark: string;
+// }> = {
+//     // Cool Blue (#3b82f6)
+//     '#3b82f6': {
+//         bgLight: '#f4f7fb',
+//         bgDark: '#020617',
+//         surfaceLight: '#ffffff',
+//         surfaceDark: '#0f172a',
+//         cardAltLight: '#eef2ff',
+//         cardAltDark: '#1e293b',
+//         borderLight: '#e7eff8',
+//         borderDark: '#1f2533',
+//     },
+//     // Eco Green (#10b981)
+//     '#10b981': {
+//         bgLight: '#f0f7f4',
+//         bgDark: '#051c14',
+//         surfaceLight: '#ffffff',
+//         surfaceDark: '#0c2c20',
+//         cardAltLight: '#e2efe9',
+//         cardAltDark: '#112d24',
+//         borderLight: '#e2efe9',
+//         borderDark: '#183f31',
+//     },
+//     // Warm Sand (#f59e0b)
+//     '#f59e0b': {
+//         bgLight: '#faf8f5',
+//         bgDark: '#1c1917',
+//         surfaceLight: '#ffffff',
+//         surfaceDark: '#292524',
+//         cardAltLight: '#f1ebe1',
+//         cardAltDark: '#383330',
+//         borderLight: '#f1ebe1',
+//         borderDark: '#44403c',
+//     },
+//     // Slate (#64748b - default)
+//     '#64748b': {
+//         bgLight: '#f1f5f9',
+//         bgDark: '#0f172a',
+//         surfaceLight: '#ffffff',
+//         surfaceDark: '#1e293b',
+//         cardAltLight: '#e2e8f0',
+//         cardAltDark: '#1f2937',
+//         borderLight: '#e2e8f0',
+//         borderDark: '#334155',
+//     }
+// };
+
+
 const THEME_PRESETS: Record<string, {
     bgLight: string;
     bgDark: string;
     surfaceLight: string;
     surfaceDark: string;
+    cardLight: string;
+    cardDark: string;
     cardAltLight: string;
     cardAltDark: string;
     borderLight: string;
     borderDark: string;
 }> = {
-    // Cool Blue (#3b82f6)
     '#3b82f6': {
         bgLight: '#f4f7fb',
         bgDark: '#020617',
         surfaceLight: '#ffffff',
         surfaceDark: '#0f172a',
+        cardLight: '#ffffff',
+        cardDark: '#111827',
         cardAltLight: '#eef2ff',
         cardAltDark: '#1e293b',
         borderLight: '#e7eff8',
         borderDark: '#1f2533',
     },
-    // Eco Green (#10b981)
     '#10b981': {
         bgLight: '#f0f7f4',
         bgDark: '#051c14',
         surfaceLight: '#ffffff',
         surfaceDark: '#0c2c20',
+        cardLight: '#ffffff',
+        cardDark: '#111827',
         cardAltLight: '#e2efe9',
         cardAltDark: '#112d24',
         borderLight: '#e2efe9',
         borderDark: '#183f31',
     },
-    // Warm Sand (#f59e0b)
     '#f59e0b': {
         bgLight: '#faf8f5',
         bgDark: '#1c1917',
         surfaceLight: '#ffffff',
         surfaceDark: '#292524',
+        cardLight: '#ffffff',
+        cardDark: '#111827',
         cardAltLight: '#f1ebe1',
         cardAltDark: '#383330',
         borderLight: '#f1ebe1',
         borderDark: '#44403c',
     },
-    // Slate (#64748b - default)
     '#64748b': {
-        bgLight: '#f1f5f9',
-        bgDark: '#0f172a',
-        surfaceLight: '#ffffff',
-        surfaceDark: '#1e293b',
-        cardAltLight: '#e2e8f0',
+        bgLight: '#f4f7fb',
+        bgDark: '#020617',
+        surfaceLight: '#fff',
+        surfaceDark: '#0f172a',
+        cardLight: '#fff',
+        cardDark: '#111827',
+        cardAltLight: '#eef2ff',
         cardAltDark: '#1f2937',
-        borderLight: '#e2e8f0',
-        borderDark: '#334155',
+        borderLight: '#e7eff8',
+        borderDark: '#1f2533',
     }
 };
 
@@ -175,8 +238,8 @@ export const applyBranding = (tenant: TenantBrandingResponseDtoType | null) => {
             root.style.setProperty('--bg-dark-val', theme.bgDark);
             root.style.setProperty('--surface-light-val', theme.surfaceLight);
             root.style.setProperty('--surface-dark-val', theme.surfaceDark);
-            root.style.setProperty('--card-light-val', theme.surfaceLight);
-            root.style.setProperty('--card-dark-val', theme.surfaceDark);
+            root.style.setProperty('--card-light-val', theme.cardLight);
+            root.style.setProperty('--card-dark-val', theme.cardDark);
             root.style.setProperty('--card-alt-light-val', theme.cardAltLight);
             root.style.setProperty('--card-alt-dark-val', theme.cardAltDark);
             root.style.setProperty('--border-light-val', theme.borderLight);

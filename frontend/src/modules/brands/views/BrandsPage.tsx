@@ -32,7 +32,7 @@ const BrandsPage: Component = () => {
             <Outlet />
 
             {/* Header */}
-            <div class="flex-shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
+            <div class="shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
                 <PageHeader
                     icon={<BookmarkIcon />}
                     iconBg="linear-gradient(135deg, #e11d48, #be123c)"
