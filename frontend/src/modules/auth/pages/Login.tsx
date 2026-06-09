@@ -48,6 +48,7 @@ const Login: Component = () => {
       // In development: use query param slug
       const url = new URL(window.location.origin + path);
       url.searchParams.set('slug', slug);
+      url.searchParams.set('session', 'true');
       window.location.href = url.toString();
     } else {
       // In production or wildcard subdomains: use subdomain prefix
@@ -60,7 +61,9 @@ const Login: Component = () => {
       }
       
       const portStr = port ? `:${port}` : '';
-      const finalUrl = `${protocol}//${slug}.${baseDomain}${portStr}${path}`;
+      const separator = path.includes('?') ? '&' : '?';
+      const pathWithSession = `${path}${separator}session=true`;
+      const finalUrl = `${protocol}//${slug}.${baseDomain}${portStr}${pathWithSession}`;
       window.location.href = finalUrl;
     }
   };

@@ -68,26 +68,40 @@ export function resolveSlugFromHost(host: string, querySlug?: string | null): st
 
 // Contrast color calculation (luminance-based)
 function getContrastColor(hex: string): string {
-    try {
-        const cleanHex = hex.replace('#', '');
-        const r = parseInt(cleanHex.substring(0, 2), 16);
-        const g = parseInt(cleanHex.substring(2, 4), 16);
-        const b = parseInt(cleanHex.substring(4, 6), 16);
-        
-        if (isNaN(r) || isNaN(g) || isNaN(b)) {
-            return '#ffffff';
-        }
+    // 1. Limpiar el string eliminando espacios y el símbolo '#'
+    let cleanHex = hex.replace('#', '').trim();
 
-        const toLinear = (c: number) => {
-            const s = c / 255;
-            return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-        };
-        
-        const l = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-        return l > 0.179 ? '#0f172a' : '#ffffff';
-    } catch {
+    // 2. Expandir formatos cortos como 'FFF' o 'FFFA' a 'FFFFFF' o 'FFFFFFAA'
+    if (cleanHex.length === 3 || cleanHex.length === 4) {
+        cleanHex = cleanHex.split('').map(char => char + char).join('');
+    }
+
+    // 3. Validar que la longitud sea correcta (6 caracteres o 8 si tiene canal alfa)
+    if (cleanHex.length !== 6 && cleanHex.length !== 8) {
+        return '#ffffff'; // Fallback seguro
+    }
+
+    // 4. Extraer canales R, G y B (ignorando el canal alfa si existe)
+    const r = parseInt(cleanHex.substring(0, 2), 16);
+    const g = parseInt(cleanHex.substring(2, 4), 16);
+    const b = parseInt(cleanHex.substring(4, 6), 16);
+
+    // Validar que los valores parseados sean números válidos
+    if (isNaN(r) || isNaN(g) || isNaN(b)) {
         return '#ffffff';
     }
+
+    // 5. Convertir canales a valores lineales según WCAG 2.0
+    const toLinear = (c: number) => {
+        const s = c / 255;
+        return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+
+    const l = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+
+    // 6. Retornar color oscuro para fondos claros y blanco para fondos oscuros
+    // El umbral de 0.179 es el estándar recomendado basado en la raíz cuadrada de 0.05 * 1.05
+    return l > 0.179 ? '#0f172a' : '#ffffff';
 }
 
 // Background theme presets
@@ -96,6 +110,8 @@ const THEME_PRESETS: Record<string, {
     bgDark: string;
     surfaceLight: string;
     surfaceDark: string;
+    cardLight: string;
+    cardDark: string;
     cardAltLight: string;
     cardAltDark: string;
     borderLight: string;
@@ -106,6 +122,8 @@ const THEME_PRESETS: Record<string, {
         bgDark: '#020617',
         surfaceLight: '#ffffff',
         surfaceDark: '#0f172a',
+        cardLight: '#ffffff',
+        cardDark: '#111827',
         cardAltLight: '#eef2ff',
         cardAltDark: '#1e293b',
         borderLight: '#e7eff8',
@@ -116,6 +134,8 @@ const THEME_PRESETS: Record<string, {
         bgDark: '#051c14',
         surfaceLight: '#ffffff',
         surfaceDark: '#0c2c20',
+        cardLight: '#ffffff',
+        cardDark: '#111827',
         cardAltLight: '#e2efe9',
         cardAltDark: '#112d24',
         borderLight: '#e2efe9',
@@ -126,20 +146,24 @@ const THEME_PRESETS: Record<string, {
         bgDark: '#1c1917',
         surfaceLight: '#ffffff',
         surfaceDark: '#292524',
+        cardLight: '#ffffff',
+        cardDark: '#111827',
         cardAltLight: '#f1ebe1',
         cardAltDark: '#383330',
         borderLight: '#f1ebe1',
         borderDark: '#44403c',
     },
     '#64748b': {
-        bgLight: '#f1f5f9',
+        bgLight: '#f4f7fb',
         bgDark: '#0f172a',
-        surfaceLight: '#ffffff',
-        surfaceDark: '#1e293b',
-        cardAltLight: '#e2e8f0',
+        surfaceLight: '#fff',
+        surfaceDark: '#0f172a',
+        cardLight: '#fff',
+        cardDark: '#111827',
+        cardAltLight: '#eef2ff',
         cardAltDark: '#1f2937',
-        borderLight: '#e2e8f0',
-        borderDark: '#334155',
+        borderLight: '#e7eff8',
+        borderDark: '#1f2533',
     }
 };
 
@@ -250,20 +274,20 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                 headInjections += `
 <style id="tenant-branding">
   :root {
-    --primary: ${primCol} !important;
-    --on-primary: ${onPrimary} !important;
-    --secondary: ${secCol} !important;
-    --on-secondary: ${onSecondary} !important;
-    --bg-light-val: ${theme.bgLight} !important;
-    --bg-dark-val: ${theme.bgDark} !important;
-    --surface-light-val: ${theme.surfaceLight} !important;
-    --surface-dark-val: ${theme.surfaceDark} !important;
-    --card-light-val: ${theme.surfaceLight} !important;
-    --card-dark-val: ${theme.surfaceDark} !important;
-    --card-alt-light-val: ${theme.cardAltLight} !important;
-    --card-alt-dark-val: ${theme.cardAltDark} !important;
-    --border-light-val: ${theme.borderLight} !important;
-    --border-dark-val: ${theme.borderDark} !important;
+    --primary: ${primCol};
+    --on-primary: ${onPrimary};
+    --secondary: ${secCol};
+    --on-secondary: ${onSecondary};
+    --bg-light-val: ${theme.bgLight};
+    --bg-dark-val: ${theme.bgDark};
+    --surface-light-val: ${theme.surfaceLight};
+    --surface-dark-val: ${theme.surfaceDark};
+    --card-light-val: ${theme.cardLight};
+    --card-dark-val: ${theme.cardDark};
+    --card-alt-light-val: ${theme.cardAltLight};
+    --card-alt-dark-val: ${theme.cardAltDark};
+    --border-light-val: ${theme.borderLight};
+    --border-dark-val: ${theme.borderDark};
   }
 </style>
 `;

@@ -15,6 +15,18 @@ import { useRegisterSW } from 'virtual:pwa-register/solid';
 import { actions as authActions } from './modules/auth/store/auth.store';
 import { brandingActions } from './modules/auth/store/branding.store';
 
+// --- REDIRECT SESSION HANDLER FOR CROSS-SUBDOMAIN LOCAL STORAGE ---
+if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('session') === 'true') {
+        localStorage.setItem('hasSession', 'true');
+        params.delete('session');
+        const newSearch = params.toString();
+        const cleanUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
+    }
+}
+
 const root = document.getElementById('root');
 
 if (import.meta.env.DEV && !(root instanceof HTMLElement)) {

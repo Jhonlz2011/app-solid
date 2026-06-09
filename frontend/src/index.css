@@ -42,7 +42,7 @@
   color-scheme: light dark;
   
   /* Evitamos nombres idénticos para no causar recursión en el CSS */
-  --bg: light-dark(var(--bg-light-val, #f1f5f9), var(--bg-dark-val, #020617));
+  --bg: light-dark(var(--bg-light-val, #f4f7fb), var(--bg-dark-val, #020617));
   --surface: light-dark(var(--surface-light-val, #fff), var(--surface-dark-val, #0f172a));
   --card: light-dark(var(--card-light-val, #ffffff), var(--card-dark-val, #111827));
   --card-alt: light-dark(var(--card-alt-light-val, #eef2ff), var(--card-alt-dark-val, #1f2937));
