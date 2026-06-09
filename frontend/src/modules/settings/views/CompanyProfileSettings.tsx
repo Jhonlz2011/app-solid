@@ -107,7 +107,7 @@ const CompanyProfileSettings: Component = () => {
                         class="flex-1 flex flex-col min-h-0"
                     >
                         {/* Header */}
-                        <div class="flex items-center justify-between border-b border-border pb-4 mb-5 flex-shrink-0">
+                        <div class="flex items-center justify-between border-b border-border pb-4 mb-5 shrink-0">
                             <div>
                                 <h2 class="text-xl font-bold text-heading">Perfil Comercial</h2>
                                 <p class="text-xs text-muted mt-0.5">Controla la información comercial y el logotipo de tu empresa</p>

@@ -5,32 +5,16 @@ import { COOKIE_OPTIONS } from '../config/auth';
 import { db, tenantStorage } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
+import { resolveSlugFromHost } from '../utils/resolve-host';
+import { getIpAndUserAgent } from './ip';
 
 export const authGuard = (app: Elysia) => app
   .derive(
     async ({ cookie, set, request }) => {
       // 1. Resolve host and check subdomain
       const host = request.headers.get('host') || '';
-      let slug: string | null = null;
+      const slug = resolveSlugFromHost(host);
       let hostCompanyId: number | null = null;
-
-      const hostWithoutPort = host.split(':')[0];
-      const ipRegex = /^[0-9.]+$/;
-      const isIpOrLocal = ipRegex.test(hostWithoutPort) || 
-                          hostWithoutPort === 'localhost' || 
-                          hostWithoutPort === '127.0.0.1';
-
-      if (hostWithoutPort.includes('zelys.app')) {
-        const parts = hostWithoutPort.split('.');
-        if (parts.length > 2 && parts[0] !== 'api') {
-          slug = parts[0];
-        }
-      } else if (!isIpOrLocal) {
-        const parts = hostWithoutPort.split('.');
-        if (parts.length > 1) {
-          slug = parts[0];
-        }
-      }
 
       if (slug) {
         const [comp] = await db
@@ -80,9 +64,7 @@ export const authGuard = (app: Elysia) => app
       }
 
       const resolvedCompanyId = hostCompanyId || session.company_id;
-      const ipAddress = request.headers.get('x-forwarded-for')
-        || request.headers.get('x-real-ip')
-        || undefined;
+      const { ipAddress } = getIpAndUserAgent(request);
 
       // Seguridad Perimetral: Si el email no está verificado, bloquear acceso a recursos
       // excepto las rutas básicas de auth y reenvío de correo

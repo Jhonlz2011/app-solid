@@ -192,7 +192,7 @@ const Login: Component = () => {
   }));
 
   return (
-    <div class="w-full p-8 bg-card border border-border shadow-card-soft rounded-2xl shadow-lg transition-all duration-300">
+    <div class="w-full p-8 bg-card border border-border rounded-2xl shadow-lg transition-all duration-300">
       {/* Sección del Logotipo Dinámico */}
       <div class="flex flex-col items-center mb-6">
         <Show 
@@ -296,7 +296,7 @@ const Login: Component = () => {
                     onClick={() => handleSelectTenant(tenant)}
                     class="flex items-center gap-4 p-3 rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/50 text-left transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-md cursor-pointer group"
                   >
-                    <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden flex-shrink-0 group-hover:bg-primary/20 transition-colors duration-300">
+                    <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 group-hover:bg-primary/20 transition-colors duration-300">
                       <Show
                         when={tenant.logoUrl}
                         fallback={
@@ -309,7 +309,7 @@ const Login: Component = () => {
                       </Show>
                     </div>
                     
-                    <div class="flex-grow min-w-0">
+                    <div class="grow min-w-0">
                       <h4 class="font-semibold text-heading truncate group-hover:text-primary transition-colors duration-300">
                         {tenant.tradeName || tenant.businessName}
                       </h4>
@@ -355,7 +355,7 @@ const Login: Component = () => {
                 </button>
               </div>
               <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded bg-primary/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div class="w-6 h-6 rounded bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
                   <Show
                     when={selectedTenant()?.logoUrl}
                     fallback={

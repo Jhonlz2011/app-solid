@@ -76,7 +76,7 @@ export const TabsTrigger: Component<TabsTriggerProps> = (props) => {
                     variant={local.countVariant ?? (isPills() ? "tab-pill" : "tab")} 
                     class={cn(
                         isPills() ? "ml-0.5" : "px-1.5 py-0.5",
-                        local.hasError && "group-[&:not([data-selected])]:animate-pulse group-[&:not([data-selected])]:!bg-danger/15 group-[&:not([data-selected])]:!text-danger group-[&:not([data-selected])]:!border-danger/30"
+                        local.hasError && "group-[&:not([data-selected])]:animate-pulse group-[&:not([data-selected])]:bg-danger/15! group-[&:not([data-selected])]:text-danger! group-[&:not([data-selected])]:border-danger/30!"
                     )} 
                 />
             </Show>

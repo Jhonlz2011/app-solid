@@ -21,6 +21,7 @@ import { ipPlugin, getIpAndUserAgent } from '../plugins/ip';
 import { db, adminDb } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
+import { resolveSlugFromHost } from '../utils/resolve-host';
 
 export const authRoutes = new Elysia({ prefix: '/auth' })
   .use(ipPlugin)
@@ -104,6 +105,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       email: t.String(),
     }),
     response: DiscoverTenantsResponseDto,
+    beforeHandle: loginRateLimit as any,
   })
   .post(
     '/login',
@@ -116,24 +118,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       let companyId = body.companyId;
       if (!companyId) {
         const host = request.headers.get('host') || '';
-        const hostWithoutPort = host.split(':')[0];
-        const ipRegex = /^[0-9.]+$/;
-        const isIpOrLocal = ipRegex.test(hostWithoutPort) || 
-                            hostWithoutPort === 'localhost' || 
-                            hostWithoutPort === '127.0.0.1';
-
-        let slug: string | undefined;
-        if (hostWithoutPort.includes('zelys.app')) {
-          const parts = hostWithoutPort.split('.');
-          if (parts.length > 2 && parts[0] !== 'api') {
-            slug = parts[0];
-          }
-        } else if (!isIpOrLocal) {
-          const parts = hostWithoutPort.split('.');
-          if (parts.length > 1) {
-            slug = parts[0];
-          }
-        }
+        const slug = resolveSlugFromHost(host);
 
         if (slug) {
           const [company] = await adminDb
@@ -198,28 +183,8 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     response: t.Object({ success: t.Boolean() }),
   })
   .get('/tenant-info', async ({ query, request, set }) => {
-    let slug = query.slug;
-    
-    if (!slug) {
-      const host = request.headers.get('host') || '';
-      const hostWithoutPort = host.split(':')[0];
-      const ipRegex = /^[0-9.]+$/;
-      const isIpOrLocal = ipRegex.test(hostWithoutPort) || 
-                          hostWithoutPort === 'localhost' || 
-                          hostWithoutPort === '127.0.0.1';
-
-      if (hostWithoutPort.includes('zelys.app')) {
-        const parts = hostWithoutPort.split('.');
-        if (parts.length > 2 && parts[0] !== 'api') {
-          slug = parts[0];
-        }
-      } else if (!isIpOrLocal) {
-        const parts = hostWithoutPort.split('.');
-        if (parts.length > 1) {
-          slug = parts[0];
-        }
-      }
-    }
+    const host = request.headers.get('host') || '';
+    const slug = query.slug || resolveSlugFromHost(host);
 
     if (!slug) {
       set.status = 400;
@@ -264,28 +229,8 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     response: TenantBrandingResponseDto,
   })
   .get('/tenant-manifest', async ({ query, request, set }) => {
-    let slug = query.slug;
     const host = request.headers.get('host') || '';
-    
-    if (!slug) {
-      const hostWithoutPort = host.split(':')[0];
-      const ipRegex = /^[0-9.]+$/;
-      const isIpOrLocal = ipRegex.test(hostWithoutPort) || 
-                          hostWithoutPort === 'localhost' || 
-                          hostWithoutPort === '127.0.0.1';
-
-      if (hostWithoutPort.includes('zelys.app')) {
-        const parts = hostWithoutPort.split('.');
-        if (parts.length > 2 && parts[0] !== 'api') {
-          slug = parts[0];
-        }
-      } else if (!isIpOrLocal) {
-        const parts = hostWithoutPort.split('.');
-        if (parts.length > 1) {
-          slug = parts[0];
-        }
-      }
-    }
+    const slug = query.slug || resolveSlugFromHost(host);
 
     let companyName = 'Zelys ERP';
     let shortName = 'Zelys';

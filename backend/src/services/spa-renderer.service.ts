@@ -3,6 +3,7 @@ import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import type { TenantBrandingResponseDtoType } from '@app/schema/backend';
 import { env } from '../config/env';
+import { resolveSlugFromHost } from '../utils/resolve-host';
 
 // Cache in-memory in production with a TTL (e.g., 5 minutes)
 let cachedHtml: string | null = null;
@@ -33,38 +34,7 @@ function escapeHtml(str: string): string {
 
 const isHexColor = (color: string) => /^#[0-9a-fA-F]{3,8}$/.test(color);
 
-// Subdomain and tenant resolver
-export function resolveSlugFromHost(host: string, querySlug?: string | null): string | null {
-    const hostWithoutPort = host.split(':')[0];
-    
-    const ipRegex = /^[0-9.]+$/;
-    const isIpOrLocal = ipRegex.test(hostWithoutPort) || 
-                        hostWithoutPort === 'localhost' || 
-                        hostWithoutPort === '127.0.0.1';
-    
-    if (isIpOrLocal) {
-        return querySlug || null;
-    }
-    
-    const parts = hostWithoutPort.split('.');
-    
-    if (hostWithoutPort.includes('zelys.app')) {
-        if (parts.length > 2 && parts[0] !== 'api' && parts[0] !== 'in' && parts[0] !== 'www') {
-            return parts[0];
-        }
-        return null;
-    }
-    
-    if (parts.length > 1 && parts[parts.length - 1] === 'localhost') {
-        return parts[0];
-    }
-    
-    if (parts.length > 2) {
-        return parts[0];
-    }
-    
-    return null;
-}
+// Subdomain and tenant resolver is imported from resolve-host utility
 
 // Contrast color calculation (luminance-based)
 function getContrastColor(hex: string): string {

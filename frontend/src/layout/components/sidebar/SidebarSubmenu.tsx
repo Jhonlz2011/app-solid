@@ -13,7 +13,7 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
 
     return (
         <div
-            class="grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            class="grid transition-[grid-template-rows] duration-300 ease-in-out"
             classList={{
                 'grid-rows-[0fr]': !props.expanded,
                 'grid-rows-[1fr]': props.expanded

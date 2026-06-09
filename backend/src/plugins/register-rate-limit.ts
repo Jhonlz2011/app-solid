@@ -1,4 +1,5 @@
 import { redis } from '../config/redis';
+import { getIpAndUserAgent } from './ip';
 
 const MAX_ATTEMPTS = 3;
 const WINDOW_SECONDS = 60; // 1 minute
@@ -8,11 +9,8 @@ const WINDOW_SECONDS = 60; // 1 minute
  * 3 attempts per minute per IP — prevents mass account creation.
  */
 export const registerRateLimit = async ({ request, set }: { request: any, set: any }) => {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        request.headers.get('x-real-ip') ||
-        'unknown';
-
-    const key = `rate:register:${ip}`;
+    const { ipAddress: ip } = getIpAndUserAgent(request);
+    const key = `rate:register:${ip || 'unknown'}`;
     const attempts = await redis.incr(key);
 
     if (attempts === 1) {
