@@ -90,18 +90,24 @@ export const authPermissions = pgTableV2("auth_permissions", {
 export const authRolePermissions = pgTableV2("auth_role_permissions", {
     role_id: integer("role_id").references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
     permission_id: integer("permission_id").references(() => authPermissions.id, { onDelete: 'cascade' }).notNull(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
 }, (t) => [
     primaryKey({ columns: [t.role_id, t.permission_id] }),
     index("idx_role_perms_by_perm").on(t.permission_id),
-]);
+    index("idx_role_perms_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 export const authUserRoles = pgTableV2("auth_user_roles", {
     user_id: integer("user_id").references(() => authUsers.id, { onDelete: 'cascade' }).notNull(),
     role_id: integer("role_id").references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
 }, (t) => [
     primaryKey({ columns: [t.user_id, t.role_id] }),
     index("idx_user_roles_by_role").on(t.role_id),
-]);
+    index("idx_user_roles_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // --- 9. MENU SYSTEM (Dynamic Menus) ---
 export const authMenuItems = pgTableV2("auth_menu_items", {

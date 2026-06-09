@@ -159,7 +159,7 @@ async function seed() {
                 for (const permissionId of permissionsForRole) {
                     await db
                         .insert(authRolePermissions)
-                        .values({ role_id: roleId, permission_id: permissionId })
+                        .values({ role_id: roleId, permission_id: permissionId, company_id: devCompany.id })
                         .onConflictDoNothing();
                 }
 
@@ -280,7 +280,7 @@ async function seed() {
                 if (roleId) {
                     await db
                         .insert(authUserRoles)
-                        .values({ user_id: userId, role_id: roleId })
+                        .values({ user_id: userId, role_id: roleId, company_id: devCompany.id })
                         .onConflictDoNothing();
                     console.log(`   🔗 Assigned role ${userData.role} to ${userData.username}`);
                 } else {

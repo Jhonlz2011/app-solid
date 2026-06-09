@@ -62,7 +62,7 @@ export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: nu
         for (const permissionId of permIds) {
             await tx
                 .insert(authRolePermissions)
-                .values({ role_id: roleId, permission_id: permissionId })
+                .values({ role_id: roleId, permission_id: permissionId, company_id: companyId })
                 .onConflictDoNothing();
         }
     }
@@ -72,7 +72,7 @@ export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: nu
     if (superadminRoleId) {
         await tx
             .insert(authUserRoles)
-            .values({ user_id: ownerUserId, role_id: superadminRoleId })
+            .values({ user_id: ownerUserId, role_id: superadminRoleId, company_id: companyId })
             .onConflictDoNothing();
     }
 

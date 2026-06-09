@@ -316,6 +316,7 @@ export async function updateRolePermissions(roleId: number, permissionIds: numbe
                 permissionIds.map(permissionId => ({
                     role_id: roleId,
                     permission_id: permissionId,
+                    company_id: role.company_id,
                 }))
             );
         }
@@ -663,6 +664,7 @@ export async function assignUserRoles(userId: number, roleIds: number[], current
                 roleIds.map(roleId => ({
                     user_id: userId,
                     role_id: roleId,
+                    company_id: user.company_id,
                 }))
             );
         }
@@ -718,6 +720,7 @@ export async function createUser(data: { username: string; email: string; passwo
             data.roleIds.map(roleId => ({
                 user_id: user.id,
                 role_id: roleId,
+                company_id: companyId!,
             }))
         );
     }

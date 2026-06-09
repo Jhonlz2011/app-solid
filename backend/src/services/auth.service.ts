@@ -71,23 +71,38 @@ export async function validateSession(sessionId: string) {
 
   // Check cache first
   let cachedData = await cacheService.getOrSet(cacheKey, async () => {
-    return await db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT set_config('app.current_session_id', ${sessionId}, true)`);
-      const [s] = await db
-        .select()
-        .from(sessions)
-        .where(eq(sessions.id, sessionId));
-      if (!s) return null;
+    // Direct select via adminDb, bypassing RLS and avoiding transaction / set_config overhead
+    const [s] = await adminDb
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, sessionId));
+    if (!s) return null;
+    
+    // Fetch roles, permissions, and email verification status bypass RLS using adminDb queries directly
+    const txRoles = await adminDb
+      .select({ roleName: authRoles.name })
+      .from(authUserRoles)
+      .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
+      .where(eq(authUserRoles.user_id, s.user_id));
+
+    const txPermissions = await adminDb.execute(sql`
+      SELECT DISTINCT ap.slug
+      FROM auth_user_roles ur
+      JOIN auth_role_permissions rp ON ur.role_id = rp.role_id
+      JOIN auth_permissions ap ON rp.permission_id = ap.id
+      WHERE ur.user_id = ${s.user_id}
+    `);
+
+    const [user] = await adminDb
+      .select({ emailVerifiedAt: users.email_verified_at })
+      .from(users)
+      .where(eq(users.id, s.user_id))
+      .limit(1);
+
+    const roles = txRoles.map(r => r.roleName);
+    const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
       
-      // Also fetch roles, permissions, and verification status here to cache them together
-      const [roles, permissions, [user]] = await Promise.all([
-        getUserRoles(s.user_id),
-        getUserPermissions(s.user_id),
-        db.select({ emailVerifiedAt: users.email_verified_at }).from(users).where(eq(users.id, s.user_id)).limit(1)
-      ]);
-      
-      return { session: s, roles, permissions, emailVerified: !!user?.emailVerifiedAt };
-    });
+    return { session: s, roles, permissions, emailVerified: !!user?.emailVerifiedAt };
   }, SESSION_EXPIRE_DAYS * 24 * 60 * 60); // Max TTL 
 
   if (!cachedData) return null;
