@@ -14,7 +14,6 @@ import { uomRoutes } from './routes/uom.routes';
 import { categoryRoutes } from './routes/categories.routes';
 import { attributeRoutes } from './routes/attributes.routes';
 import { invoiceRoutes } from './routes/invoices.routes';
-import { materialRoutes } from './routes/materials.routes';
 import { modulesRoutes } from './routes/modules.routes';
 import { sriRoutes } from './routes/sri.routes';
 import { geonamesRoutes } from './routes/geonames.routes';
