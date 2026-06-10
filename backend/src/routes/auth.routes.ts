@@ -118,7 +118,22 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       let companyId = body.companyId;
       if (!companyId) {
         const host = request.headers.get('host') || '';
-        const slug = resolveSlugFromHost(host);
+        let slug = resolveSlugFromHost(host);
+
+        // Fallback: Si el host no devolvió un slug de tenant (ej. es el endpoint api.zelys.app),
+        // resolvemos a partir de la URL de origen en el header Referer
+        if (!slug) {
+          const referer = request.headers.get('referer');
+          if (referer) {
+            try {
+              const refUrl = new URL(referer);
+              const querySlug = refUrl.searchParams.get('slug');
+              slug = resolveSlugFromHost(refUrl.host, querySlug);
+            } catch (e) {
+              // Ignorar URLs inválidas
+            }
+          }
+        }
 
         if (slug) {
           const [company] = await adminDb

@@ -122,6 +122,8 @@ const Login: Component = () => {
         };
         if (isGlobalLogin && selectedTenant()) {
           payload.companyId = selectedTenant()!.id;
+        } else if (!isGlobalLogin && branding.tenant()) {
+          payload.companyId = branding.tenant()!.id;
         }
 
         const res = await actions.login(payload);
