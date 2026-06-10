@@ -45,10 +45,6 @@ export class AuthError extends DomainError {
 
 // --- SESSION HELPERS ---
 
-// export function generateSessionToken(): string {
-//   return randomBytes(32).toString('base64url');
-// }
-
 export function generateSessionToken(): string {
   const bytes = new Uint8Array(32);
   globalThis.crypto.getRandomValues(bytes);
@@ -78,26 +74,26 @@ export async function validateSession(sessionId: string) {
       .where(eq(sessions.id, sessionId));
     if (!s) return null;
     
-    // Fetch roles, permissions, and email verification status bypass RLS using adminDb queries directly
-    const txRoles = await adminDb
-      .select({ roleName: authRoles.name })
-      .from(authUserRoles)
-      .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-      .where(eq(authUserRoles.user_id, s.user_id));
-
-    const txPermissions = await adminDb.execute(sql`
-      SELECT DISTINCT ap.slug
-      FROM auth_user_roles ur
-      JOIN auth_role_permissions rp ON ur.role_id = rp.role_id
-      JOIN auth_permissions ap ON rp.permission_id = ap.id
-      WHERE ur.user_id = ${s.user_id}
-    `);
-
-    const [user] = await adminDb
-      .select({ emailVerifiedAt: users.email_verified_at })
-      .from(users)
-      .where(eq(users.id, s.user_id))
-      .limit(1);
+    // Fetch roles, permissions, and email verification status in parallel (OPT-01)
+    const [txRoles, txPermissions, [user]] = await Promise.all([
+      adminDb
+        .select({ roleName: authRoles.name })
+        .from(authUserRoles)
+        .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
+        .where(eq(authUserRoles.user_id, s.user_id)),
+      adminDb.execute(sql`
+        SELECT DISTINCT ap.slug
+        FROM auth_user_roles ur
+        JOIN auth_role_permissions rp ON ur.role_id = rp.role_id
+        JOIN auth_permissions ap ON rp.permission_id = ap.id
+        WHERE ur.user_id = ${s.user_id}
+      `),
+      adminDb
+        .select({ emailVerifiedAt: users.email_verified_at })
+        .from(users)
+        .where(eq(users.id, s.user_id))
+        .limit(1),
+    ]);
 
     const roles = txRoles.map(r => r.roleName);
     const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
@@ -698,25 +694,4 @@ export async function resendVerification(userId: number, companyId: number) {
   }
 
   return { success: true };
-}
-
-export async function discoverUserTenants(email: string) {
-  // Query all active companies where the user has an active account using adminDb to bypass RLS
-  const userTenants = await adminDb
-    .select({
-      id: companies.id,
-      slug: companies.slug,
-      businessName: companies.business_name,
-      tradeName: companies.trade_name,
-      logoUrl: companies.logo_url,
-    })
-    .from(users)
-    .innerJoin(companies, eq(users.company_id, companies.id))
-    .where(and(
-      or(eq(users.email, email), eq(users.username, email)),
-      eq(users.is_active, true),
-      eq(companies.is_active, true)
-    ));
-
-  return userTenants;
 }

@@ -8,6 +8,8 @@
         ".": "./src/index.ts",
         "./errors": "./src/errors.ts",
         "./tables": "./src/tables/index.ts",
+        "./utils": "./src/utils/index.ts",
+        "./utils/*": "./src/utils/*.ts",
         "./backend": "./src/backend.ts",
         "./frontend": "./src/frontend.ts",
         "./types": "./src/types.ts",
@@ -25,6 +27,12 @@
             ],
             "tables": [
                 "./src/tables/index.ts"
+            ],
+            "utils": [
+                "./src/utils/index.ts"
+            ],
+            "utils/*": [
+                "./src/utils/*.ts"
             ],
             "frontend": [
                 "./src/frontend.ts"

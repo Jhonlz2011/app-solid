@@ -13,7 +13,7 @@ export const getIpAndUserAgent = (request: Request) => {
     const isPrivateIP = !ipAddress || ipAddress === '::1' || ipAddress === '127.0.0.1' || ipAddress.startsWith('192.168.') || ipAddress.startsWith('10.');
 
     if (isPrivateIP && process.env.NODE_ENV !== 'production') {
-        ipAddress = '157.100.108.123'; // Public IP for testing location (Guayaquil)
+        ipAddress = '198.51.100.1'; // RFC 5737 documentation IP (TEST-NET-2)
     }
 
     return { ipAddress, userAgent };

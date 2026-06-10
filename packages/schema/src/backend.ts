@@ -194,7 +194,7 @@ export const AuthRegisterDto = Type.Object({
 });
 
 export const AuthLoginDto = Type.Object({
-    email: Type.String(), // Can be email or username
+    email: Type.String({ minLength: 1, maxLength: 255 }), // Can be email or username
     password: Type.String(),
     companyId: Type.Optional(Type.Number()),
 });
@@ -256,8 +256,8 @@ export const DiscoverTenantItem = Type.Object({
 
 export type DiscoverTenantItemType = Static<typeof DiscoverTenantItem>;
 
-export const DiscoverTenantsResponseDto = Type.Array(DiscoverTenantItem);
-export type DiscoverTenantsResponseDtoType = Static<typeof DiscoverTenantsResponseDto>;
+// DiscoverTenantsResponseDto removed — discover-tenants endpoint eliminated (SEC-01)
+// DiscoverTenantItem is still used within AuthResponseDto for post-auth tenant selection
 
 export const AuthResponseDto = Type.Union([
     Type.Object({

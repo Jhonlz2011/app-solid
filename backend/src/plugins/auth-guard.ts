@@ -2,10 +2,10 @@ import { Elysia } from 'elysia';
 import { UnauthorizedError, ForbiddenError } from '../services/errors';
 import { validateSession } from '../services/auth.service';
 import { COOKIE_OPTIONS } from '../config/auth';
-import { db, tenantStorage } from '../db';
+import { db, adminDb, tenantStorage } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
-import { resolveSlugFromHost } from '../utils/resolve-host';
+import { resolveSlugFromHost } from '@app/schema/utils';
 import { getIpAndUserAgent } from './ip';
 
 export const authGuard = (app: Elysia) => app
@@ -17,7 +17,7 @@ export const authGuard = (app: Elysia) => app
       let hostCompanyId: number | null = null;
 
       if (slug) {
-        const [comp] = await db
+        const [comp] = await adminDb
           .select({ id: companies.id })
           .from(companies)
           .where(eq(companies.slug, slug))

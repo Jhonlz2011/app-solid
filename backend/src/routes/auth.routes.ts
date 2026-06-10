@@ -10,9 +10,8 @@ import {
   revokeSession,
   verifyEmail,
   resendVerification,
-  discoverUserTenants,
 } from '../services/auth.service';
-import { AuthRegisterDto, AuthLoginDto, AuthChangePasswordDto, AuthUpdateProfileDto, AuthResponseDto, TenantBrandingResponseDto, DiscoverTenantsResponseDto } from '@app/schema/backend';
+import { AuthRegisterDto, AuthLoginDto, AuthChangePasswordDto, AuthUpdateProfileDto, AuthResponseDto, AuthUserResponse, TenantBrandingResponseDto } from '@app/schema/backend';
 import { authGuard } from '../plugins/auth-guard';
 import { loginRateLimit, resetLoginAttempts } from '../plugins/login-rate-limit';
 import { registerRateLimit } from '../plugins/register-rate-limit';
@@ -21,7 +20,7 @@ import { ipPlugin, getIpAndUserAgent } from '../plugins/ip';
 import { db, adminDb } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
-import { resolveSlugFromHost } from '../utils/resolve-host';
+import { resolveSlugFromHost } from '@app/schema/utils';
 
 export const authRoutes = new Elysia({ prefix: '/auth' })
   .use(ipPlugin)
@@ -52,6 +51,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   }, {
     params: t.Object({ slug: t.String() }),
     response: t.Object({ available: t.Boolean() }),
+    beforeHandle: registerRateLimit as any,
   })
   .get('/check-ruc/:ruc', async ({ params }) => {
     const [existing] = await db.select({ id: companies.id }).from(companies).where(eq(companies.ruc, params.ruc)).limit(1);
@@ -59,6 +59,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   }, {
     params: t.Object({ ruc: t.String() }),
     response: t.Object({ available: t.Boolean() }),
+    beforeHandle: registerRateLimit as any,
   })
   .get('/check-domain', async ({ query, set }) => {
     const domain = query.domain;
@@ -92,21 +93,9 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     query: t.Object({
       domain: t.String(),
     }),
+    beforeHandle: registerRateLimit as any,
   })
-  .get('/discover-tenants', async ({ query, set }) => {
-    const email = query.email;
-    if (!email) {
-      set.status = 400;
-      throw new Error('El correo electrónico es requerido');
-    }
-    return await discoverUserTenants(email);
-  }, {
-    query: t.Object({
-      email: t.String(),
-    }),
-    response: DiscoverTenantsResponseDto,
-    beforeHandle: loginRateLimit as any,
-  })
+  // SEC-01: discover-tenants endpoint REMOVED — tenant selection now happens post-auth
   .post(
     '/login',
     async ({ body, cookie, request }) => {
@@ -312,26 +301,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       const user = await getMe(currentUserId);
       return { ...user, sessionId: currentSessionId };
     }, {
-      response: t.Object({
-        id: t.Number(),
-        companyId: t.Number(),
-        email: t.String(),
-        username: t.String(),
-        entityId: t.Union([t.Number(), t.Null()]),
-        isActive: t.Union([t.Boolean(), t.Null()]),
-        lastLogin: t.Union([t.Date(), t.Null()]),
-        emailVerifiedAt: t.Union([t.Date(), t.Null()]),
-        roles: t.Array(t.String()),
-        permissions: t.Array(t.String()),
-        entity: t.Optional(t.Object({
-          id: t.Number(),
-          businessName: t.String(),
-          isClient: t.Boolean(),
-          isSupplier: t.Boolean(),
-          isEmployee: t.Boolean(),
-        })),
-        sessionId: t.String(),
-      }),
+      response: t.Composite([AuthUserResponse, t.Object({ sessionId: t.String() })]),
     })
     .post('/resend-verification', async ({ currentUserId, currentCompanyId }) => {
       return await resendVerification(currentUserId, currentCompanyId);

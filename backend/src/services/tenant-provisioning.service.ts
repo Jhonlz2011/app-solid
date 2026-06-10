@@ -26,13 +26,11 @@ import { uom } from '@app/schema/tables';
  */
 export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: number) {
     // 1. Insert permissions (global — NOT company-scoped)
-    // Permissions are global and shared; we only need to ensure they exist
-    for (const perm of PERMISSIONS) {
-        await tx
-            .insert(authPermissions)
-            .values(perm)
-            .onConflictDoNothing({ target: authPermissions.slug });
-    }
+    // Permissions are global and shared; batch insert ensures they exist
+    await tx
+        .insert(authPermissions)
+        .values(PERMISSIONS)
+        .onConflictDoNothing({ target: authPermissions.slug });
 
     // 2. Insert roles scoped to this company
     const roleMap = new Map<string, number>();
@@ -49,7 +47,7 @@ export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: nu
     const allPermissions = await tx.select().from(authPermissions);
     const permMap = new Map(allPermissions.map(p => [p.slug, p.id]));
 
-    // 4. Assign permissions to roles using filter functions
+    // 4. Assign permissions to roles using filter functions (batched per role)
     for (const [roleName, checkFn] of Object.entries(ROLE_PERMISSIONS) as [string, (slug: string) => boolean][]) {
         const roleId = roleMap.get(roleName);
         if (!roleId) continue;
@@ -59,10 +57,10 @@ export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: nu
             .map((p: { slug: string }) => permMap.get(p.slug))
             .filter((id: number | undefined): id is number => id !== undefined);
 
-        for (const permissionId of permIds) {
+        if (permIds.length > 0) {
             await tx
                 .insert(authRolePermissions)
-                .values({ role_id: roleId, permission_id: permissionId, company_id: companyId })
+                .values(permIds.map(permissionId => ({ role_id: roleId, permission_id: permissionId, company_id: companyId })))
                 .onConflictDoNothing();
         }
     }

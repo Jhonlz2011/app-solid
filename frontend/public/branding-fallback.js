@@ -1,0 +1,88 @@
+// @sync-with packages/schema/src/utils/theme-presets.ts
+// This script MUST stay in sync with the shared THEME_PRESETS.
+// It runs BEFORE Vite/SolidJS loads, so it cannot import ES modules.
+// Purpose: Apply cached tenant branding instantly to prevent FOUC (Flash of Unstyled Content).
+(function() {
+  if (document.getElementById('tenant-branding')) return;
+
+  var host = window.location.hostname;
+  var slug = null;
+  var ipRegex = /^[0-9.]+$/;
+
+  if (ipRegex.test(host) || host === 'localhost' || host === '127.0.0.1') {
+    var params = new URLSearchParams(window.location.search);
+    slug = params.get('slug');
+  } else {
+    var parts = host.split('.');
+    if (host.includes('zelys.app')) {
+      if (parts.length > 2 && parts[0] !== 'api' && parts[0] !== 'in' && parts[0] !== 'www') {
+        slug = parts[0];
+      }
+    } else if (parts.length > 1 && parts[parts.length - 1] === 'localhost') {
+      slug = parts[0];
+    } else if (parts.length > 2) {
+      slug = parts[0];
+    }
+  }
+
+  if (!slug) return;
+
+  try {
+    var cached = localStorage.getItem('branding:' + slug);
+    if (!cached) return;
+
+    var company = JSON.parse(cached);
+    var style = document.createElement('style');
+    style.id = 'tenant-branding';
+
+    // @sync-with packages/schema/src/utils/theme-presets.ts
+    var themePresets = {
+      '#3b82f6': { bgLight: '#f4f7fb', bgDark: '#020617', surfaceLight: '#ffffff', surfaceDark: '#0f172a', cardLight: '#ffffff', cardDark: '#111827', cardAltLight: '#eef2ff', cardAltDark: '#1e293b', borderLight: '#e7eff8', borderDark: '#1f2533' },
+      '#10b981': { bgLight: '#f0f7f4', bgDark: '#051c14', surfaceLight: '#ffffff', surfaceDark: '#0c2c20', cardLight: '#ffffff', cardDark: '#111827', cardAltLight: '#e2efe9', cardAltDark: '#112d24', borderLight: '#e2efe9', borderDark: '#183f31' },
+      '#f59e0b': { bgLight: '#faf8f5', bgDark: '#1c1917', surfaceLight: '#ffffff', surfaceDark: '#292524', cardLight: '#ffffff', cardDark: '#111827', cardAltLight: '#f1ebe1', cardAltDark: '#383330', borderLight: '#f1ebe1', borderDark: '#44403c' },
+      '#64748b': { bgLight: '#f4f7fb', bgDark: '#020617', surfaceLight: '#fff', surfaceDark: '#0f172a', cardLight: '#fff', cardDark: '#111827', cardAltLight: '#eef2ff', cardAltDark: '#1f2937', borderLight: '#e7eff8', borderDark: '#1f2533' }
+    };
+
+    var theme = themePresets[company.secondaryColor] || themePresets['#64748b'];
+
+    // @sync-with packages/schema/src/utils/color.ts — getContrastColor
+    var getContrastColor = function(hex) {
+      var cleanHex = hex.replace('#', '');
+      if (cleanHex.length === 3) {
+        cleanHex = cleanHex.split('').map(function(c) { return c + c; }).join('');
+      }
+      var r = parseInt(cleanHex.substring(0, 2), 16);
+      var g = parseInt(cleanHex.substring(2, 4), 16);
+      var b = parseInt(cleanHex.substring(4, 6), 16);
+      var toLinear = function(c) {
+        var s = c / 255;
+        return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+      };
+      var l = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+      return l > 0.179 ? '#0f172a' : '#ffffff';
+    };
+
+    style.textContent =
+      ':root {' +
+      '--primary: ' + company.primaryColor + ' !important;' +
+      '--on-primary: ' + getContrastColor(company.primaryColor) + ' !important;' +
+      '--secondary: ' + company.secondaryColor + ' !important;' +
+      '--on-secondary: ' + getContrastColor(company.secondaryColor) + ' !important;' +
+      '--bg-light-val: ' + theme.bgLight + ' !important;' +
+      '--bg-dark-val: ' + theme.bgDark + ' !important;' +
+      '--surface-light-val: ' + theme.surfaceLight + ' !important;' +
+      '--surface-dark-val: ' + theme.surfaceDark + ' !important;' +
+      '--card-light-val: ' + theme.cardLight + ' !important;' +
+      '--card-dark-val: ' + theme.cardDark + ' !important;' +
+      '--card-alt-light-val: ' + theme.cardAltLight + ' !important;' +
+      '--card-alt-dark-val: ' + theme.cardAltDark + ' !important;' +
+      '--border-light-val: ' + theme.borderLight + ' !important;' +
+      '--border-dark-val: ' + theme.borderDark + ' !important;' +
+      '}';
+
+    document.head.appendChild(style);
+    document.title = (company.tradeName || company.businessName) + ' - Iniciar Sesión';
+  } catch(e) {
+    console.error('Error in branding fallback:', e);
+  }
+})();

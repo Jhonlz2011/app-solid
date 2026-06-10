@@ -63,9 +63,9 @@
         Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
         
         # 2. Permissions Policy (Apaga hardware del cliente innecesario)
-        Permissions-Policy "microphone=(), usb=()"
+        Permissions-Policy "microphone=(), usb=(), camera=(self), geolocation=(self), payment=(self), display-capture=(self)"
         
         # 3. Content Security Policy (Asegura tus orígenes legítimos y llamadas a tu API)
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.zelys.app http://localhost:3000; manifest-src 'self' https://api.zelys.app http://localhost:3000;"
+        Content-Security-Policy "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.zelys.app http://localhost:3000; manifest-src 'self' https://api.zelys.app http://localhost:3000;"
     }
 }

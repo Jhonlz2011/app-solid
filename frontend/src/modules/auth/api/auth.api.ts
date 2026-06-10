@@ -15,11 +15,6 @@ export const authApi = {
         return data!;
     },
 
-    discoverTenants: async (email: string, signal?: AbortSignal) => {
-        const { data, error } = await (api.api.auth as any)['discover-tenants'].get({ query: { email } }, { fetch: { signal } });
-        if (error) throw new AuthError(error.value, 'Error al buscar empresas asociadas');
-        return data!;
-    },
 
     register: async (payload: AuthRegisterDtoType, signal?: AbortSignal) => {
         const { data, error } = await api.api.auth.register.post(payload, { fetch: { signal } });

@@ -1,6 +1,10 @@
 import { createStore } from "solid-js/store";
 import { authApi } from "../api/auth.api";
 import type { TenantBrandingResponseDtoType } from '@app/schema/backend';
+import { getContrastColor } from '@app/schema/utils/color';
+import { THEME_PRESETS } from '@app/schema/utils';
+import { resolveSlugFromHost } from '@app/schema/utils';
+
 
 interface BrandingState {
     tenant: TenantBrandingResponseDtoType | null;
@@ -8,190 +12,11 @@ interface BrandingState {
     error: string | null;
 }
 
-export const getSubdomain = (): string | null => {
-    const host = window.location.hostname;
-    
-    // 1. Excluir IPs de desarrollo (IPv4 como 192.168.x.x o 127.0.0.1)
-    const ipRegex = /^[0-9.]+$/;
-    if (ipRegex.test(host)) {
-        const params = new URLSearchParams(window.location.search);
-        return params.get('slug') || null;
-    }
-    
-    // 2. Comportamiento estándar de localhost
-    if (host === 'localhost') {
-        const params = new URLSearchParams(window.location.search);
-        return params.get('slug') || null;
-    }
-    
-    const parts = host.split('.');
-    
-    // 3. Producción en zelys.app (*.zelys.app)
-    if (host.includes('zelys.app')) {
-        if (parts.length > 2 && parts[0] !== 'api' && parts[0] !== 'in' && parts[0] !== 'www') {
-            return parts[0];
-        }
-        return null;
-    }
-    
-    // 4. Desarrollo local con subdominios (ej: acme.localhost)
-    if (parts.length > 1 && parts[parts.length - 1] === 'localhost') {
-        return parts[0];
-    }
-    
-    // 5. Otros dominios
-    if (parts.length > 2) {
-        return parts[0];
-    }
-    
-    return null;
-};
-
-const getContrastColor = (hex: string): string => {
-    try {
-        let cleanHex = hex.replace('#', '').trim();
-        if (cleanHex.length === 3 || cleanHex.length === 4) {
-            cleanHex = cleanHex.split('').map(char => char + char).join('');
-        }
-        
-        const r = parseInt(cleanHex.substring(0, 2), 16);
-        const g = parseInt(cleanHex.substring(2, 4), 16);
-        const b = parseInt(cleanHex.substring(4, 6), 16);
-        
-        if (isNaN(r) || isNaN(g) || isNaN(b)) {
-            return '#ffffff';
-        }
-
-        const toLinear = (c: number) => {
-            const s = c / 255;
-            return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-        };
-        
-        const l = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-        return l > 0.179 ? '#0f172a' : '#ffffff';
-    } catch {
-        return '#ffffff';
-    }
-};
-
-// const THEME_PRESETS: Record<string, {
-//     bgLight: string;
-//     bgDark: string;
-//     surfaceLight: string;
-//     surfaceDark: string;
-//     cardAltLight: string;
-//     cardAltDark: string;
-//     borderLight: string;
-//     borderDark: string;
-// }> = {
-//     // Cool Blue (#3b82f6)
-//     '#3b82f6': {
-//         bgLight: '#f4f7fb',
-//         bgDark: '#020617',
-//         surfaceLight: '#ffffff',
-//         surfaceDark: '#0f172a',
-//         cardAltLight: '#eef2ff',
-//         cardAltDark: '#1e293b',
-//         borderLight: '#e7eff8',
-//         borderDark: '#1f2533',
-//     },
-//     // Eco Green (#10b981)
-//     '#10b981': {
-//         bgLight: '#f0f7f4',
-//         bgDark: '#051c14',
-//         surfaceLight: '#ffffff',
-//         surfaceDark: '#0c2c20',
-//         cardAltLight: '#e2efe9',
-//         cardAltDark: '#112d24',
-//         borderLight: '#e2efe9',
-//         borderDark: '#183f31',
-//     },
-//     // Warm Sand (#f59e0b)
-//     '#f59e0b': {
-//         bgLight: '#faf8f5',
-//         bgDark: '#1c1917',
-//         surfaceLight: '#ffffff',
-//         surfaceDark: '#292524',
-//         cardAltLight: '#f1ebe1',
-//         cardAltDark: '#383330',
-//         borderLight: '#f1ebe1',
-//         borderDark: '#44403c',
-//     },
-//     // Slate (#64748b - default)
-//     '#64748b': {
-//         bgLight: '#f1f5f9',
-//         bgDark: '#0f172a',
-//         surfaceLight: '#ffffff',
-//         surfaceDark: '#1e293b',
-//         cardAltLight: '#e2e8f0',
-//         cardAltDark: '#1f2937',
-//         borderLight: '#e2e8f0',
-//         borderDark: '#334155',
-//     }
-// };
-
-
-const THEME_PRESETS: Record<string, {
-    bgLight: string;
-    bgDark: string;
-    surfaceLight: string;
-    surfaceDark: string;
-    cardLight: string;
-    cardDark: string;
-    cardAltLight: string;
-    cardAltDark: string;
-    borderLight: string;
-    borderDark: string;
-}> = {
-    '#3b82f6': {
-        bgLight: '#f4f7fb',
-        bgDark: '#020617',
-        surfaceLight: '#ffffff',
-        surfaceDark: '#0f172a',
-        cardLight: '#ffffff',
-        cardDark: '#111827',
-        cardAltLight: '#eef2ff',
-        cardAltDark: '#1e293b',
-        borderLight: '#e7eff8',
-        borderDark: '#1f2533',
-    },
-    '#10b981': {
-        bgLight: '#f0f7f4',
-        bgDark: '#051c14',
-        surfaceLight: '#ffffff',
-        surfaceDark: '#0c2c20',
-        cardLight: '#ffffff',
-        cardDark: '#111827',
-        cardAltLight: '#e2efe9',
-        cardAltDark: '#112d24',
-        borderLight: '#e2efe9',
-        borderDark: '#183f31',
-    },
-    '#f59e0b': {
-        bgLight: '#faf8f5',
-        bgDark: '#1c1917',
-        surfaceLight: '#ffffff',
-        surfaceDark: '#292524',
-        cardLight: '#ffffff',
-        cardDark: '#111827',
-        cardAltLight: '#f1ebe1',
-        cardAltDark: '#383330',
-        borderLight: '#f1ebe1',
-        borderDark: '#44403c',
-    },
-    '#64748b': {
-        bgLight: '#f4f7fb',
-        bgDark: '#020617',
-        surfaceLight: '#fff',
-        surfaceDark: '#0f172a',
-        cardLight: '#fff',
-        cardDark: '#111827',
-        cardAltLight: '#eef2ff',
-        cardAltDark: '#1f2937',
-        borderLight: '#e7eff8',
-        borderDark: '#1f2533',
-    }
-};
+export const getSubdomain = (): string | null =>
+    resolveSlugFromHost(
+        window.location.hostname,
+        new URLSearchParams(window.location.search).get('slug'),
+    );
 
 const getInitialTenant = (): TenantBrandingResponseDtoType | null => {
     if (typeof window === 'undefined') return null;

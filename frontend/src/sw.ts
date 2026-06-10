@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
-import { registerRoute, NavigationRoute } from 'workbox-routing';
-import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { registerRoute } from 'workbox-routing';
+import { NetworkFirst, CacheFirst } from 'workbox-strategies';
 import { get, set } from 'idb-keyval';
 
 declare const self: ServiceWorkerGlobalScope;
@@ -11,11 +11,15 @@ cleanupOutdatedCaches();
 // Precachear todos los assets inyectados por Vite en el build
 precacheAndRoute(self.__WB_MANIFEST || []);
 
-// Estrategia para navegación global (App Shell) - Servir index.html precacheado
-const navigationRoute = new NavigationRoute(createHandlerBoundToURL('index.html'), {
-  denylist: [/^\/api/] // Ignorar llamadas al backend
-});
-registerRoute(navigationRoute);
+// OPT-05: Use NetworkFirst for navigation routes so the backend can inject
+// dynamic tenant branding into index.html. Falls back to cache when offline.
+registerRoute(
+  ({ request }) => request.mode === 'navigate' && !new URL(request.url).pathname.startsWith('/api'),
+  new NetworkFirst({
+    cacheName: 'branded-navigation',
+    networkTimeoutSeconds: 3,
+  })
+);
 
 // Cachear fuentes externas
 registerRoute(
