@@ -1,9 +1,8 @@
 import { Elysia } from 'elysia';
 import { Webhook } from 'svix';
 import { env } from '../config/env';
-import { db } from '../config/db';
+import { db } from '../db';
 import { emailLogs } from '@app/schema/tables';
-import { eq, and } from '@app/schema';
 
 // Singleton: instanciar una sola vez al cargar el módulo (OPT-01)
 const wh = env.RESEND_WEBHOOK_SECRET ? new Webhook(env.RESEND_WEBHOOK_SECRET) : null;
