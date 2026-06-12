@@ -1,28 +1,13 @@
-/* Obsidian Aura - Theme Stylesheet for Zelys ERP Landing Page */
+/* ═══════════════════════════════════════════════════════════
+   Zelys ERP — Estilos Globales
+   ═══════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+/* Imports */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import './tokens.css';
+@import './typography.css';
 
-:root {
-  /* Color Variables */
-  --bg-primary: #020617; /* Obsidian Dark */
-  --bg-secondary: #0b0f19; /* Card & Section Background */
-  --bg-glow: rgba(59, 130, 246, 0.08);
-  
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #475569;
-  
-  --brand-blue: #3b82f6; /* Electric Blue */
-  --brand-purple: #7c3aed; /* Royal Purple */
-  
-  --border-glass: rgba(255, 255, 255, 0.06);
-  --border-glass-active: rgba(96, 165, 250, 0.25);
-  
-  --font-display: 'Outfit', sans-serif;
-  --font-sans: 'Plus Jakarta Sans', sans-serif;
-}
-
-/* CSS Reset */
+/* Reset */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -30,11 +15,12 @@
 }
 
 html {
-  font-family: var(--font-sans);
-  background-color: var(--bg-primary);
+  font-family: var(--font-body);
+  background-color: var(--bg-base);
   color: var(--text-primary);
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -43,138 +29,196 @@ body {
   flex-direction: column;
   overflow-x: hidden;
   position: relative;
-  
-  /* Radial aura gradients in background */
-  background-image: 
-    radial-gradient(circle at 10% 15%, rgba(59, 130, 246, 0.12) 0%, transparent 40%),
-    radial-gradient(circle at 90% 70%, rgba(124, 58, 237, 0.10) 0%, transparent 45%);
+  /* Glows de fondo coherentes con el logo */
+  background-image:
+    radial-gradient(ellipse 700px 500px at 90% 5%, rgba(0, 192, 232, 0.06), transparent),
+    radial-gradient(ellipse 500px 600px at -5% 60%, rgba(30, 114, 212, 0.04), transparent);
   background-attachment: fixed;
 }
 
-/* Subtle tech grid pattern overlay */
+/* Patrón de grid sutil tipo circuito */
 body::before {
   content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 192, 232, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 192, 232, 0.015) 1px, transparent 1px);
   background-size: 60px 60px;
   pointer-events: none;
   z-index: 0;
 }
 
-/* Typography styles */
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-  line-height: 1.15;
-}
-
-p {
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
+/* Links */
 a {
   color: inherit;
   text-decoration: none;
-  transition: all 0.2s ease-in-out;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
-/* Scrollbar customization */
+a:hover {
+  color: var(--accent-primary);
+}
+
+/* Imágenes */
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* Listas */
+ul, ol {
+  list-style: none;
+}
+
+/* Accesibilidad — Focus visible */
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Reducir movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scrollbar oscuro */
 @media (hover: hover) and (pointer: fine) {
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   ::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(122, 168, 212, 0.2);
     border-radius: 10px;
-    border: 2px solid var(--bg-primary);
+    border: 2px solid var(--bg-base);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--brand-blue);
+    background-color: var(--accent-primary);
   }
   ::-webkit-scrollbar-track {
     background-color: transparent;
   }
 }
 
-/* Glassmorphism layouts */
-.glass {
-  background: rgba(11, 15, 25, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-glass);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
-}
+/* ─── Utilidades ────────────────────────────────────────── */
 
-.glass:hover {
-  border-color: var(--border-glass-active);
-  box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.08);
-}
-
-.glass-interactive:hover {
-  transform: translateY(-4px);
-}
-
-/* Text Gradient Effect */
-.gradient-text {
-  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* Custom premium button style */
-.btn-primary {
-  background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-purple) 100%);
-  color: white;
-  border: none;
-  font-weight: 600;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.25);
+.section {
+  padding: 6rem 2rem;
   position: relative;
-  overflow: hidden;
-  z-index: 1;
 }
 
-.btn-primary::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, var(--brand-purple) 0%, var(--brand-blue) 100%);
-  opacity: 0;
-  z-index: -1;
-  transition: opacity 0.3s ease;
+.section--alt {
+  background-color: var(--bg-surface);
+}
+
+.container {
+  max-width: var(--max-w);
+  margin: 0 auto;
+}
+
+.section-title {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.section-subtitle {
+  text-align: center;
+  max-width: 550px;
+  margin: 0 auto;
+  color: var(--text-secondary);
+  font-size: var(--text-lg);
+}
+
+/* Botón primario global */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--accent-primary);
+  color: #0C1728;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  padding: 0.7rem 1.5rem;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 20px rgba(0, 192, 232, 0.2);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 6px 28px rgba(0, 192, 232, 0.35);
+  color: #0C1728;
 }
 
-.btn-primary:hover::before {
-  opacity: 1;
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  padding: 0.7rem 1.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
-/* Glow highlights */
-.glow-spot {
-  position: absolute;
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
-  filter: blur(40px);
-  pointer-events: none;
+.btn-secondary:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
+  color: var(--text-primary);
+}
+
+.btn-lg {
+  padding: 0.9rem 2.25rem;
+  font-size: var(--text-base);
+}
+
+/* Checkmark mint */
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.check-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.check-list li::before {
+  content: "✓";
+  color: var(--accent-mint);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.cross-list li::before {
+  content: "✗";
+  color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .section {
+    padding: 4rem 1.25rem;
+  }
 }

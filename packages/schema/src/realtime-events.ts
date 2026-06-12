@@ -18,6 +18,7 @@ export const RealtimeEvents = {
         SESSION_REVOKED: 'user:session_revoked',
         SESSION_CREATED: 'user:session_created',
         RBAC_CHANGED: 'user:rbac_changed',
+        EMAIL_VERIFIED: 'user:email_verified',
     },
     ROOMS: {
         SUPPLIERS: 'suppliers',

@@ -21,6 +21,7 @@ import { db, adminDb } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
+import { getTenantBySlug } from '../services/spa-renderer.service';
 
 export const authRoutes = new Elysia({ prefix: '/auth' })
   .use(ipPlugin)
@@ -199,21 +200,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       throw new Error('No tenant slug resolved from query or Host header');
     }
 
-    const [company] = await adminDb
-      .select({
-        id: companies.id,
-        slug: companies.slug,
-        businessName: companies.business_name,
-        tradeName: companies.trade_name,
-        logoUrl: companies.logo_url,
-        primaryColor: companies.primary_color,
-        secondaryColor: companies.secondary_color,
-        loginBgUrl: companies.login_bg_url,
-        isActive: companies.is_active,
-      })
-      .from(companies)
-      .where(eq(companies.slug, slug))
-      .limit(1);
+    const company = await getTenantBySlug(slug);
 
     if (!company || !company.isActive) {
       set.status = 404;
@@ -246,16 +233,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     let logoUrl = '/android-chrome-192x192.png';
 
     if (slug) {
-      const [company] = await adminDb
-        .select({
-          businessName: companies.business_name,
-          tradeName: companies.trade_name,
-          logoUrl: companies.logo_url,
-          primaryColor: companies.primary_color,
-        })
-        .from(companies)
-        .where(eq(companies.slug, slug))
-        .limit(1);
+      const company = await getTenantBySlug(slug);
 
       if (company) {
         companyName = company.businessName;
@@ -306,7 +284,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     .post('/resend-verification', async ({ currentUserId, currentCompanyId }) => {
       return await resendVerification(currentUserId, currentCompanyId);
     }, {
-      response: t.Object({ success: t.Boolean() }),
+      response: t.Object({ success: t.Boolean(), retryAfter: t.Optional(t.Number()) }),
     })
     .post(
       '/change-password',

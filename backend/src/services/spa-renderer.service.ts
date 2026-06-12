@@ -24,6 +24,35 @@ export function invalidateTenantCache(slug: string): void {
     tenantCache.delete(slug);
 }
 
+/** Shared tenant branding query with in-memory TTL cache. Used by serveSpa, tenant-info, and tenant-manifest. */
+export async function getTenantBySlug(slug: string) {
+    const now = Date.now();
+    const cached = tenantCache.get(slug);
+    if (cached && (now - cached.timestamp < TENANT_CACHE_TTL_MS)) {
+        return cached.company;
+    }
+
+    const [dbCompany] = await adminDb
+        .select({
+            id: companies.id,
+            slug: companies.slug,
+            businessName: companies.business_name,
+            tradeName: companies.trade_name,
+            logoUrl: companies.logo_url,
+            primaryColor: companies.primary_color,
+            secondaryColor: companies.secondary_color,
+            loginBgUrl: companies.login_bg_url,
+            isActive: companies.is_active,
+        })
+        .from(companies)
+        .where(eq(companies.slug, slug))
+        .limit(1);
+
+    const company = dbCompany || null;
+    tenantCache.set(slug, { company, timestamp: now });
+    return company;
+}
+
 // Helper to escape HTML tags and characters
 function escapeHtml(str: string): string {
     return str
@@ -99,32 +128,7 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
 
     if (slug) {
         try {
-            const now = Date.now();
-            const cached = tenantCache.get(slug);
-            let company;
-
-            if (cached && (now - cached.timestamp < TENANT_CACHE_TTL_MS)) {
-                company = cached.company;
-            } else {
-                const [dbCompany] = await adminDb
-                    .select({
-                        id: companies.id,
-                        slug: companies.slug,
-                        businessName: companies.business_name,
-                        tradeName: companies.trade_name,
-                        logoUrl: companies.logo_url,
-                        primaryColor: companies.primary_color,
-                        secondaryColor: companies.secondary_color,
-                        loginBgUrl: companies.login_bg_url,
-                        isActive: companies.is_active,
-                    })
-                    .from(companies)
-                    .where(eq(companies.slug, slug))
-                    .limit(1);
-
-                company = dbCompany || null;
-                tenantCache.set(slug, { company, timestamp: now });
-            }
+            const company = await getTenantBySlug(slug);
 
             if (company && company.isActive) {
                 // Strict hex color check

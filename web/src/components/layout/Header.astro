@@ -1,0 +1,221 @@
+---
+/* Header sticky con blur — Zelys ERP */
+---
+
+<header class="site-header" id="site-header">
+  <div class="header-inner">
+    <!-- Logo -->
+    <a href="/" class="logo-link">
+      <div class="logo-icon">
+        <span>Z</span>
+      </div>
+      <span class="logo-text">Zelys<span class="logo-dot">.</span></span>
+    </a>
+
+    <!-- Nav desktop -->
+    <nav class="nav-desktop">
+      <a href="#features">Características</a>
+      <a href="#pricing">Precios</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://in.zelys.app" class="nav-login">Ingresar</a>
+      <a href="https://in.zelys.app/register" class="btn-primary">Registrar empresa</a>
+    </nav>
+
+    <!-- Hamburger mobile -->
+    <button class="hamburger" id="hamburger" aria-label="Menú de navegación" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+
+  <!-- Drawer mobile -->
+  <div class="mobile-drawer" id="mobile-drawer">
+    <nav class="nav-mobile">
+      <a href="#features">Características</a>
+      <a href="#pricing">Precios</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://in.zelys.app">Ingresar</a>
+      <a href="https://in.zelys.app/register" class="btn-primary" style="width:100%; text-align:center;">Registrar empresa</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 0 2rem;
+    transition: background-color 0.3s ease, backdrop-filter 0.3s ease;
+  }
+
+  .site-header.scrolled {
+    background-color: rgba(12, 23, 40, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .header-inner {
+    max-width: var(--max-w-wide);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--header-h);
+  }
+
+  /* Logo */
+  .logo-link {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .logo-link:hover { color: var(--text-primary); }
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--accent-deep) 0%, var(--accent-primary) 100%);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 14px rgba(0, 192, 232, 0.2);
+  }
+
+  .logo-icon span {
+    color: #fff;
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .logo-text {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.35rem;
+    letter-spacing: -0.03em;
+    color: var(--text-primary);
+  }
+
+  .logo-dot { color: var(--accent-primary); }
+
+  /* Nav desktop */
+  .nav-desktop {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .nav-desktop a {
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: color 0.2s;
+  }
+  .nav-desktop a:hover { color: var(--text-primary); }
+
+  .nav-login {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+  }
+
+  /* Hamburger */
+  .hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  .hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background-color: var(--text-primary);
+    border-radius: 2px;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+
+  .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .hamburger.open span:nth-child(2) { opacity: 0; }
+  .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* Drawer mobile */
+  .mobile-drawer {
+    display: none;
+    position: absolute;
+    top: var(--header-h);
+    left: 0;
+    right: 0;
+    background: rgba(12, 23, 40, 0.96);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 1.5rem 2rem;
+    transform: translateY(-10px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+
+  .mobile-drawer.open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .nav-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .nav-mobile a {
+    font-size: var(--text-base);
+    font-weight: 500;
+    color: var(--text-secondary);
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  @media (max-width: 768px) {
+    .nav-desktop { display: none; }
+    .hamburger { display: flex; }
+    .mobile-drawer { display: block; }
+  }
+</style>
+
+<script>
+  /* Scroll detection for header blur */
+  const header = document.getElementById('site-header');
+  if (header) {
+    const onScroll = () => {
+      header.classList.toggle('scrolled', window.scrollY > 20);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  /* Hamburger toggle */
+  const hamburger = document.getElementById('hamburger');
+  const drawer = document.getElementById('mobile-drawer');
+  if (hamburger && drawer) {
+    hamburger.addEventListener('click', () => {
+      const isOpen = hamburger.classList.toggle('open');
+      drawer.classList.toggle('open', isOpen);
+      hamburger.setAttribute('aria-expanded', String(isOpen));
+    });
+    /* Cerrar al hacer click en un link del drawer */
+    drawer.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        hamburger.classList.remove('open');
+        drawer.classList.remove('open');
+        hamburger.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
+</script>

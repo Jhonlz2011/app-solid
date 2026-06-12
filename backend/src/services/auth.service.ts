@@ -17,11 +17,13 @@ import {
 } from './tenant-provisioning.service';
 import { emailService } from './email.service';
 import { env } from '../config/env';
+import { redis } from '../config/redis';
 
 
 // --- CONSTANTS ---
 const SESSION_REFRESH_THRESHOLD_DAYS = Math.floor(SESSION_EXPIRE_DAYS / 2);
 const MAX_SESSIONS = 5;
+const RESEND_COOLDOWN_SECONDS = 60;
 
 // --- HELPERS ---
 
@@ -249,7 +251,7 @@ export async function register(
       expires_at: tokenExpiry,
     });
 
-    // 7.8 Enviar Correo de Verificación por AWS SES (Asincrónico controlado)
+    // 7.8 Enviar Correo de Verificación vía Resend (Asincrónico controlado)
     const verificationLink = getVerificationLink(company.slug, rawToken);
     
     emailService.sendVerificationEmail(user.email, verificationLink, data.fullName).catch(err => {
@@ -522,14 +524,20 @@ export async function getMe(userId: number) {
 
   if (!user) throw new AuthError('Usuario no encontrado');
 
-  const [roles, permissions] = await Promise.all([
+  const [roles, permissions, [company]] = await Promise.all([
     getUserRoles(user.id),
     getUserPermissions(user.id),
+    adminDb
+      .select({ slug: companies.slug })
+      .from(companies)
+      .where(eq(companies.id, user.company_id))
+      .limit(1),
   ]);
 
   return {
     id: user.id,
     companyId: user.company_id,
+    companySlug: company?.slug ?? null,
     email: user.email,
     username: user.username,
     entityId: user.entity_id,
@@ -642,17 +650,23 @@ export async function verifyEmail(token: string) {
     .from(sessions)
     .where(eq(sessions.user_id, user.id));
 
-  for (const s of activeSessions) {
-    await cacheService.invalidate(`session:${s.id}`);
-  }
+  await Promise.all(activeSessions.map(s => cacheService.invalidate(`session:${s.id}`)));
 
   // 5. Notificar a las pestañas abiertas vía SSE
-  broadcast('user:rbac_changed', { userId: user.id }, `user:${user.id}`);
+  broadcast(RealtimeEvents.USER.EMAIL_VERIFIED, { userId: user.id }, `user:${user.id}`);
 
   return { success: true };
 }
 
 export async function resendVerification(userId: number, companyId: number) {
+  // 1. Cooldown enforcement vía Redis TTL (anti-spam)
+  const cooldownKey = `resend_cooldown:${userId}`;
+  const ttl = await redis.ttl(cooldownKey);
+  if (ttl > 0) {
+    return { success: false, retryAfter: ttl };
+  }
+
+  // 2. Validar usuario
   const [user] = await db
     .select()
     .from(users)
@@ -662,10 +676,10 @@ export async function resendVerification(userId: number, companyId: number) {
   if (!user) throw new AuthError('Usuario no encontrado');
   if (user.email_verified_at) throw new AuthError('El correo ya ha sido verificado', 400);
 
-  // Limpiar tokens anteriores del usuario
+  // 3. Limpiar tokens anteriores del usuario
   await db.delete(authVerificationTokens).where(eq(authVerificationTokens.user_id, userId));
 
-  // Generar nuevo token
+  // 4. Generar nuevo token
   const rawToken = generateSessionToken();
   const tokenHash = hashToken(rawToken);
   const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
@@ -693,5 +707,8 @@ export async function resendVerification(userId: number, companyId: number) {
     }
   }
 
-  return { success: true };
+  // 5. Activar cooldown en Redis
+  await redis.set(cooldownKey, '1', 'EX', RESEND_COOLDOWN_SECONDS);
+
+  return { success: true, retryAfter: RESEND_COOLDOWN_SECONDS };
 }

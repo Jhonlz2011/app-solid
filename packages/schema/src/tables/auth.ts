@@ -127,6 +127,11 @@ export const authMenuItems = pgTableV2("auth_menu_items", {
     index("idx_menu_active").on(t.is_active),
 ]);
 
+/**
+ * Verification tokens are intentionally NOT RLS-scoped.
+ * verifyEmail() uses adminDb to look up tokens globally,
+ * since the user might not have an active tenant context yet.
+ */
 export const authVerificationTokens = pgTableV2("auth_verification_tokens", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     user_id: integer("user_id").references(() => authUsers.id, { onDelete: 'cascade' }).notNull(),

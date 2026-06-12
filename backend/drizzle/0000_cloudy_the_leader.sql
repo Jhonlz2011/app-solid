@@ -1106,6 +1106,20 @@ CREATE TABLE "product_variant_warehouse_locations" (
 	CONSTRAINT "product_variant_warehouse_locations_variant_id_warehouse_id_pk" PRIMARY KEY("variant_id","warehouse_id")
 );
 --> statement-breakpoint
+CREATE TABLE "email_logs" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "email_logs_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"user_id" integer,
+	"to_email" varchar(255) NOT NULL,
+	"subject" varchar(255) NOT NULL,
+	"status" varchar(50) NOT NULL,
+	"event_type" varchar(100),
+	"resend_id" varchar(255),
+	"metadata" jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "unq_email_logs_resend_event" UNIQUE("resend_id","event_type")
+);
+--> statement-breakpoint
 ALTER TABLE "carrier_drivers" ADD CONSTRAINT "carrier_drivers_carrier_id_entities_id_fk" FOREIGN KEY ("carrier_id") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "carrier_vehicles" ADD CONSTRAINT "carrier_vehicles_carrier_id_entities_id_fk" FOREIGN KEY ("carrier_id") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "employee_details" ADD CONSTRAINT "employee_details_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1285,6 +1299,7 @@ ALTER TABLE "purchase_quotes" ADD CONSTRAINT "purchase_quotes_created_by_auth_us
 ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "product_variant_warehouse_locations_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "product_variant_warehouse_locations_warehouse_id_warehouses_id_fk" FOREIGN KEY ("warehouse_id") REFERENCES "public"."warehouses"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "product_variant_warehouse_locations_default_location_id_warehouse_locations_id_fk" FOREIGN KEY ("default_location_id") REFERENCES "public"."warehouse_locations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "email_logs" ADD CONSTRAINT "email_logs_user_id_auth_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."auth_users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idx_carrier_drivers_carrier_id" ON "carrier_drivers" USING btree ("carrier_id");--> statement-breakpoint
 CREATE INDEX "idx_carrier_vehicles_carrier_id" ON "carrier_vehicles" USING btree ("carrier_id");--> statement-breakpoint
 CREATE INDEX "idx_active_vehicles_plate" ON "carrier_vehicles" USING btree ("license_plate") WHERE "carrier_vehicles"."is_active" = true;--> statement-breakpoint
@@ -1439,6 +1454,9 @@ CREATE INDEX "idx_pqi_variant" ON "purchase_quote_items" USING btree ("variant_i
 CREATE INDEX "idx_pq_company" ON "purchase_quotes" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_pq_supplier" ON "purchase_quotes" USING btree ("supplier_id");--> statement-breakpoint
 CREATE INDEX "idx_pq_status" ON "purchase_quotes" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_email_logs_resend_id" ON "email_logs" USING btree ("resend_id");--> statement-breakpoint
+CREATE INDEX "idx_email_logs_to_email" ON "email_logs" USING btree ("to_email");--> statement-breakpoint
+CREATE INDEX "idx_email_logs_status" ON "email_logs" USING btree ("status");--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "entities" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "sri_certificates" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "sri_establishments" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint

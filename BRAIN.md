@@ -1,8 +1,8 @@
 # 🧠 BRAIN.md — AI Context File
 
 > **Purpose:** Single source of truth for AI assistants. Read this FIRST before any task.  
-> **Last Updated:** 2026-05-20  
-> **Runtime:** Bun · **Framework:** Elysia (backend) · SolidJS (frontend)
+> **Last Updated:** 2026-06-11  
+> **Runtime:** Bun · **Framework:** Elysia (backend) · SolidJS (frontend) · Astro (landing)
 
 ---
 
@@ -15,9 +15,10 @@ Monorepo using Bun workspaces. Fully typed end-to-end.
 |-------|------|---------|
 | **Backend** | Elysia v1 + TypeBox | Bun |
 | **Frontend** | SolidJS + TanStack (Router, Query, Form, Table, Virtual) | Vite |
+| **Landing** | Astro 6.x (static, CSS puro) | Node |
 | **Schema** | Drizzle ORM (shared package) | — |
 | **DB** | PostgreSQL + Redis (SSE pub/sub) | — |
-| **Styling** | TailwindCSS v4 + CSS custom properties | — |
+| **Styling** | TailwindCSS v4 + CSS custom properties (app) · CSS puro (landing) | — |
 | **Validation** | TypeBox (backend) · Valibot (frontend) | — |
 | **Linting** | Biome | — |
 | **Language** | TypeScript (strict) | — |
@@ -42,8 +43,12 @@ app/
 ├── backend/src/
 │   ├── server.ts            ← Elysia app + plugin registration
 │   ├── config/env.ts        ← Environment variables
+│   ├── config/auth.ts       ← JWT + session config constants
 │   ├── routes/              ← Elysia route handlers (25 files)
 │   ├── services/            ← Business logic + DB queries (25 files)
+│   │   ├── auth.service.ts      ← Login, register, verify, getMe, sessions
+│   │   ├── spa-renderer.service.ts ← SPA serving + tenant branding SSR injection
+│   │   └── tenant-provisioning.service.ts ← New company setup + seeding
 │   ├── plugins/             ← Middleware (auth, RBAC, SSE, rate-limit, errors)
 │   ├── seeds/               ← Database seeders
 │   └── drizzle/             ← SQL migrations
@@ -53,6 +58,8 @@ app/
 │   ├── router.tsx           ← TanStack Router tree (root → layout → modules)
 │   ├── index.css            ← TailwindCSS v4 theme (CSS custom properties)
 │   ├── modules/             ← Feature modules (14 modules)
+│   │   ├── auth/            ← Login, Register, VerifyEmail, branding store
+│   │   └── ...              ← dashboard, products, suppliers, clients, etc.
 │   ├── shared/              ← Shared code
 │   │   ├── ui/              ← Design system (33 components)
 │   │   ├── hooks/           ← Custom hooks (6)
@@ -64,7 +71,27 @@ app/
 │   │   ├── constants/       ← App-wide constants
 │   │   └── utils/           ← Utility functions
 │   ├── layout/              ← MainLayout + Sidebar
-│   └── contexts/            ← SolidJS contexts
+│   ├── contexts/            ← SolidJS contexts
+│   └── public/
+│       └── branding-fallback.js ← Externalized branding script (CSP safe)
+│
+├── web/                     ← LANDING PAGE (Astro 6.x, static)
+│   ├── astro.config.mjs
+│   ├── src/
+│   │   ├── layouts/Base.astro
+│   │   ├── pages/index.astro
+│   │   ├── components/
+│   │   │   ├── layout/      ← Header.astro, Footer.astro
+│   │   │   └── sections/    ← Hero, Logos, Problem, Features, Invoicing,
+│   │   │                       HowItWorks, Pricing, FAQ, CTA
+│   │   └── styles/
+│   │       ├── tokens.css   ← Design tokens (derived from Z logo palette)
+│   │       ├── typography.css
+│   │       └── global.css
+│   └── public/              ← Static assets
+│
+├── Caddyfile                ← Reverse proxy + CSP headers (production)
+└── docker-compose.yml
 ```
 
 ---
@@ -141,6 +168,38 @@ export const exampleService = {
 - `plugins/auth-guard.ts` — validates JWT, attaches `store.user`.
 - `plugins/rbac.ts` — permission checking via `store.user.permissions`.
 - Global 401 interceptor in `eden.ts` + `queryClient.ts`.
+- `getMe()` returns `companySlug` (from `companies` table join) for frontend routing.
+- `authVerificationTokens` intentionally does NOT use RLS (tokens must be verifiable pre-login).
+
+### 4.5 Multi-Tenant Branding & SPA Rendering
+
+The system serves a branded SPA for each tenant subdomain (`{slug}.zelys.app`).
+
+**Architecture:**
+```
+1. Request → Caddy (reverse proxy) → Elysia backend
+2. serveSpa() resolves tenant slug from Host header or ?slug= param
+3. getTenantBySlug(slug) — shared helper with 2-minute TTL cache
+4. SSR injects into index.html <head>:
+   a. <style id="tenant-branding"> — CSS custom properties (colors, theme)
+   b. <script id="tenant-data" type="application/json"> — branding JSON
+   c. <link rel="manifest"> — dynamic PWA manifest from API
+   d. <link rel="icon"> — tenant logo favicon
+   e. <title> — dynamic page title
+5. SolidJS hydrates branding from #tenant-data JSON on client side
+```
+
+**Key files:**
+- `backend/src/services/spa-renderer.service.ts` — `serveSpa()`, `getTenantBySlug()`, `getRawHtml()`
+- `frontend/src/modules/auth/store/branding.store.ts` — SolidJS branding store (hydrates from SSR JSON)
+- `frontend/public/branding-fallback.js` — Pre-JS branding (reads localStorage, applies theme before SolidJS loads)
+- `backend/src/routes/auth.routes.ts` — `/api/auth/tenant-info`, `/api/auth/tenant-manifest`
+
+**CSP Policy (Caddyfile):**
+- `script-src 'self'` — NO `unsafe-inline` (branding script externalized to `branding-fallback.js`)
+- `style-src 'self' 'unsafe-inline'` — Required for SSR-injected `<style id="tenant-branding">`
+
+**Theme presets:** Both `branding-fallback.js` and `spa-renderer.service.ts` share `THEME_PRESETS` (annotated with `@sync-with` comments). Presets generate `--bg-*`, `--surface-*`, `--card-*`, `--border-*` CSS vars from the tenant's secondary color.
 
 ---
 
@@ -495,7 +554,30 @@ Tab B → broadcast.on('type', handler) → re-fetch
 ### Docker
 - `Dockerfile.backend` — Bun runtime
 - `Dockerfile.frontend` — Vite build → Caddy serve
-- `Caddyfile` — Reverse proxy config
+- `Caddyfile` — Reverse proxy + CSP headers
+
+### Domains (Production)
+- `zelys.app` — Landing page (Astro static)
+- `in.zelys.app` — Default login/register entry point
+- `{slug}.zelys.app` — Tenant-branded SPA (wildcard DNS `*.zelys.app`)
+- `api.zelys.app` — Backend API
+
+---
+
+## 11.5 Landing Page (Astro)
+
+Static marketing site at `web/` built with Astro 6.x and pure CSS (no Tailwind).
+
+**Design system:** Palette derived from the Zelys Z logo (navy #0C1728 → cyan #00C0E8 → mint #00E8CC). Tokens in `web/src/styles/tokens.css`.
+
+**Sections:** Hero (with CSS dashboard mockup), Business Types (infinite scroll), Problem (3 pain cards), Features (CSS-only tabs for 6 modules), Invoicing (animated flow diagram), How It Works (4 steps), Pricing ($15/$35/Enterprise), FAQ (details/summary), CTA.
+
+**Fonts:** Plus Jakarta Sans (display), Inter (body), JetBrains Mono (stats/mono).
+
+**Key URLs in landing:**
+- Register: `https://in.zelys.app/register`
+- Login: `https://in.zelys.app`
+- Support: `soporte@zelys.app`
 
 ---
 
@@ -673,14 +755,33 @@ SYSTEM_ROLES = { SUPERADMIN: 'superadmin', ADMIN: 'admin' }
 ```
 The `rbac` plugin macro resolves `currentRoles` and `currentPermissions` from `authGuard.derive()`.
 
-### 16.4 Auth Flow
+### 16.4 Auth Flow (Multi-Tenant)
 ```
-1. Login → POST /api/auth/login → JWT set in HttpOnly cookie
-2. authGuard.derive() → validates cookie → resolves user + roles + permissions
-3. store.currentUserId, store.currentRoles, store.currentPermissions
-4. Frontend: layoutRoute.beforeLoad → auth.store.initSession() → redirect if invalid
-5. 401 interceptor in eden.ts + queryClient.ts → auto-redirect to /login
-6. Rolling sessions: cookie expiry auto-extended on activity
+1. User visits {slug}.zelys.app → serveSpa() SSR-injects branding into index.html
+2. branding-fallback.js applies theme before JS loads (from localStorage cache)
+3. SolidJS branding.store hydrates from <script id="tenant-data"> JSON
+4. Login → POST /api/auth/login { email, password }
+   a. If user belongs to 1 company → returns { user, sessionId }
+   b. If user belongs to N companies → returns { requiresTenantSelection, tenants[] }
+   c. User selects tenant → POST /api/auth/select-tenant { tenantId }
+5. JWT set in HttpOnly cookie (credentials: 'include')
+6. getMe() returns user + roles + permissions + companySlug
+7. Frontend redirects to {companySlug}.zelys.app if not already on correct subdomain
+8. authGuard.derive() validates cookie → resolves user + roles + permissions per request
+9. 401 interceptor in eden.ts + queryClient.ts → auto-redirect to /login
+10. Rolling sessions: cookie expiry auto-extended on activity
+```
+
+**Frontend auth module structure:**
+```
+modules/auth/
+├── pages/Login.tsx       ← Multi-step: email → password → tenant select
+├── pages/Register.tsx    ← Company registration with RUC
+├── pages/VerifyEmail.tsx ← Email verification with typed search params
+├── store/auth.store.ts   ← Auth signals (user, isAuthenticated, initSession)
+├── store/branding.store.ts ← Tenant branding (hydrates from SSR JSON)
+├── auth.routes.tsx       ← TanStack Router definitions
+└── types/auth-error.ts   ← Typed auth error handling
 ```
 
 ---

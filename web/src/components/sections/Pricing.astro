@@ -1,0 +1,197 @@
+---
+/* Pricing — Planes reales de Zelys ERP */
+---
+
+<section class="section" id="pricing">
+  <div class="container">
+    <h2 class="section-title">
+      Precios que crecen contigo,<br/>no contra ti.
+    </h2>
+    <p class="section-subtitle" style="margin-bottom: 3.5rem;">
+      14 días gratis · Sin tarjeta de crédito · Tu subdominio incluido
+    </p>
+
+    <div class="pricing-grid">
+      <!-- Plan Emprendedor -->
+      <div class="pricing-card">
+        <div class="pricing-header">
+          <h3>Emprendedor</h3>
+          <p class="pricing-desc">Para pequeños comercios y profesionales independientes.</p>
+        </div>
+        <div class="pricing-price">
+          <span class="price-amount mono">$15</span>
+          <span class="price-period">/ mes</span>
+        </div>
+        <ul class="check-list pricing-features">
+          <li>Hasta 100 facturas mensuales</li>
+          <li>Facturación SRI completa</li>
+          <li>1 usuario + 1 bodega</li>
+          <li>Inventario básico</li>
+          <li>Soporte por correo</li>
+        </ul>
+        <ul class="check-list cross-list pricing-features">
+          <li>POS</li>
+          <li>Manufactura</li>
+        </ul>
+        <a href="https://in.zelys.app/register" class="btn-secondary" style="width: 100%; text-align: center;">
+          Registrar mi empresa
+        </a>
+      </div>
+
+      <!-- Plan Pro (destacado) -->
+      <div class="pricing-card pricing-card--featured">
+        <div class="pricing-header">
+          <div class="pricing-title-row">
+            <h3>Negocio / Pro</h3>
+            <span class="popular-badge">RECOMENDADO</span>
+          </div>
+          <p class="pricing-desc">Para empresas en crecimiento y distribuidoras.</p>
+        </div>
+        <div class="pricing-price">
+          <span class="price-amount mono">$35</span>
+          <span class="price-period">/ mes</span>
+        </div>
+        <ul class="check-list pricing-features">
+          <li>Facturas mensuales ILIMITADAS</li>
+          <li>Todos los módulos incluidos</li>
+          <li>Múltiples usuarios</li>
+          <li>Múltiples bodegas y sucursales</li>
+          <li>Inventarios avanzados con stock reservado</li>
+          <li>Reportes SRI incluidos</li>
+          <li>Soporte prioritario</li>
+        </ul>
+        <a href="https://in.zelys.app/register" class="btn-primary" style="width: 100%; text-align: center;">
+          Comenzar prueba gratis
+        </a>
+      </div>
+
+      <!-- Plan Enterprise -->
+      <div class="pricing-card">
+        <div class="pricing-header">
+          <h3>Enterprise</h3>
+          <p class="pricing-desc">Solución a medida para grandes distribuidoras y cadenas.</p>
+        </div>
+        <div class="pricing-price">
+          <span class="price-amount" style="font-size: var(--text-2xl);">Personalizado</span>
+        </div>
+        <ul class="check-list pricing-features">
+          <li>Todo lo del plan Pro</li>
+          <li>Usuarios y bodegas ilimitados</li>
+          <li>API REST para integraciones</li>
+          <li>Servidor y base de datos exclusivos</li>
+          <li>Ejecutor de cuenta dedicado</li>
+          <li>SLA garantizado 99.9%</li>
+        </ul>
+        <a href="mailto:soporte@zelys.app" class="btn-secondary" style="width: 100%; text-align: center;">
+          Contactar soporte
+        </a>
+      </div>
+    </div>
+
+    <p class="pricing-note">
+      Todos los planes incluyen: SSL · Backups diarios · Subdominio {'{'} empresa {'}'}.zelys.app ·
+      Cumplimiento normativa SRI · Actualización continua sin costos extra
+    </p>
+  </div>
+</section>
+
+<style>
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .pricing-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .pricing-card--featured {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 40px rgba(0, 192, 232, 0.08);
+    position: relative;
+  }
+
+  .pricing-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .pricing-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .pricing-card h3 {
+    font-size: var(--text-xl);
+    font-weight: 700;
+  }
+
+  .pricing-desc {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .popular-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 99px;
+    background: var(--accent-primary-dim);
+    color: var(--accent-primary);
+    border: 1px solid var(--border-active);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .pricing-price {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+  }
+
+  .price-amount {
+    font-size: var(--text-4xl);
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+
+  .price-period {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+  }
+
+  .pricing-features {
+    flex: 1;
+  }
+
+  .pricing-note {
+    text-align: center;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin-top: 3rem;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  @media (max-width: 768px) {
+    .pricing-grid {
+      grid-template-columns: 1fr;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+  }
+</style>

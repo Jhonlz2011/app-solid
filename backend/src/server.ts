@@ -26,6 +26,7 @@ import { uploadsRoutes } from './routes/uploads.routes';
 import { inventoryRoutes } from './routes/inventory.routes';
 import { locationsRoutes } from './routes/locations.routes';
 import { companyRoutes } from './routes/company.routes';
+import { webhooksRoutes } from './routes/webhooks.routes';
 
 // Plugins
 import { rateLimit } from './plugins/rate-limit';
@@ -42,14 +43,16 @@ import { serveSpa } from './services/spa-renderer.service';
 
 const allowedOrigins = new Set([
   env.FRONTEND_URL,
-  'http://192.168.100.50:5173',
-  'http://192.168.100.50:4173',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:4173',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5174',
-  'http://127.0.0.1:4173',
+  ...(env.NODE_ENV !== 'production' ? [
+    'http://192.168.100.50:5173',
+    'http://192.168.100.50:4173',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:4173',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:4173',
+  ] : []),
 ].filter(Boolean) as string[]);
 
 const baseDomain = (() => {
@@ -135,6 +138,7 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
   // Health check — público, antes de auth guard (usado por OfflineBanner PWA)
   .get('/health', () => ({ status: 'ok', ts: Date.now() }))
   .use(authRoutes)
+  .use(webhooksRoutes) // Webhooks van ANTES de rbac (no requieren autenticación)
   .use(rbac)
   .use(ssePlugin)
   // Rate limiting

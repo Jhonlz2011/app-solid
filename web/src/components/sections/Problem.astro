@@ -1,0 +1,121 @@
+---
+/* Problema — Pain points del mercado ecuatoriano */
+---
+
+<section class="section section--alt" id="problem">
+  <div class="container">
+    <h2 class="section-title">
+      La realidad de gestionar una empresa<br/>sin el sistema correcto
+    </h2>
+    <p class="section-subtitle" style="margin-bottom: 3.5rem;">
+      Si alguno de estos problemas te suena familiar, no estás solo.
+    </p>
+
+    <div class="pain-grid">
+      <!-- Card 1: Facturas rechazadas SRI -->
+      <div class="pain-card">
+        <div class="pain-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="var(--error)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 2H8a2 2 0 00-2 2v24a2 2 0 002 2h16a2 2 0 002-2V10z"/>
+            <polyline points="18 2 18 10 26 10"/>
+            <line x1="12" y1="18" x2="20" y2="24"/>
+            <line x1="20" y1="18" x2="12" y2="24"/>
+          </svg>
+        </div>
+        <h3>Facturas que el SRI rechaza</h3>
+        <p>
+          Pierdes tiempo re-emitiendo comprobantes porque tu sistema actual
+          no valida contra el esquema XSD del SRI antes de enviar.
+        </p>
+      </div>
+
+      <!-- Card 2: Sistemas desconectados -->
+      <div class="pain-card">
+        <div class="pain-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="var(--warning)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="10" height="8" rx="1.5"/>
+            <rect x="20" y="4" width="10" height="8" rx="1.5"/>
+            <rect x="11" y="20" width="10" height="8" rx="1.5"/>
+            <path d="M7 12v4" stroke-dasharray="2 2"/>
+            <path d="M25 12v4" stroke-dasharray="2 2"/>
+            <path d="M16 16v4" stroke-dasharray="2 2"/>
+          </svg>
+        </div>
+        <h3>Cinco programas distintos para una sola operación</h3>
+        <p>
+          Facturación en un lado, inventario en Excel, contabilidad en otro sistema.
+          Nada se sincroniza. Cada dato se ingresa 3 veces.
+        </p>
+      </div>
+
+      <!-- Card 3: Sin control de inventario -->
+      <div class="pain-card">
+        <div class="pain-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="var(--accent-secondary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 28V10l12-6 12 6v18"/>
+            <path d="M4 10l12 6 12-6"/>
+            <line x1="16" y1="16" x2="16" y2="28"/>
+            <circle cx="24" cy="22" r="4" stroke="var(--warning)" fill="none"/>
+            <text x="22.5" y="24.5" font-size="6" fill="var(--warning)" font-weight="700" stroke="none">?</text>
+          </svg>
+        </div>
+        <h3>Sin control real de tu inventario</h3>
+        <p>
+          No sabes cuánto stock tienes en cada bodega. Los pedidos se cruzan,
+          las reservas no se descuentan y al final del mes los números no cuadran.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .pain-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+
+  .pain-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: border-color 0.25s ease;
+  }
+
+  .pain-card:hover {
+    border-color: var(--border-active);
+  }
+
+  .pain-icon {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+  }
+
+  .pain-card h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  .pain-card p {
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 768px) {
+    .pain-grid {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+  }
+</style>

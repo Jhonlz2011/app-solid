@@ -44,5 +44,14 @@ export const createAuthRoutes = (rootRoute: any) => {
         component: lazyRouteComponent(() => import('./pages/Register')),
     });
 
-    return authRoute.addChildren([loginRoute, registerRoute]);
+    const verifyEmailRoute = createRoute({
+        getParentRoute: () => authRoute,
+        path: 'verify-email',
+        validateSearch: (search: Record<string, unknown>) => ({
+            token: (search.token as string) || undefined,
+        }),
+        component: lazyRouteComponent(() => import('./pages/VerifyEmail')),
+    });
+
+    return authRoute.addChildren([loginRoute, registerRoute, verifyEmailRoute]);
 };

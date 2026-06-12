@@ -222,6 +222,14 @@ export const actions = {
             actions.refreshSession();
         });
 
+        // WS: real-time email verification from another device
+        window.addEventListener('user:email_verified', (e: Event) => {
+            const { userId } = (e as CustomEvent).detail ?? {};
+            if (!state.user || state.user.id !== userId) return;
+            console.log('[Auth] Email verified on another device. Refreshing store in background...');
+            actions.refreshSession();
+        });
+
         // Cross-tab sync via BroadcastChannel
         if (authChannel) {
             authChannel.onmessage = (e) => {

@@ -13,3 +13,4 @@ export * from './documents';
 export * from './pos';
 export * from './finance';
 export * from './inventory_defaults';
+export * from './email_logs';

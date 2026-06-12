@@ -1,0 +1,253 @@
+---
+/* Features — Módulos reales de Zelys ERP con tabs CSS-only */
+
+const modules = [
+  {
+    id: 'facturacion',
+    label: 'Facturación SRI',
+    stat: '< 1 segundo',
+    statLabel: 'de autorización',
+    features: [
+      'Facturas, notas de crédito, notas de débito, retenciones, liquidaciones de compra y guías de remisión',
+      'Firma electrónica integrada — sin tokens físicos',
+      'Validación contra esquema XSD del SRI antes de enviar',
+      'Secuencias de documentos por establecimiento (001-001-XXXXXXXXX)',
+      'Soporte para IVA 0%, 12%, 14%, 15%, exento y no objeto',
+    ],
+  },
+  {
+    id: 'inventario',
+    label: 'Inventario',
+    stat: 'Multi-bodega',
+    statLabel: 'en tiempo real',
+    features: [
+      'Multi-bodega con ubicaciones jerárquicas y trazabilidad completa',
+      'Stock reservado automáticamente al facturar — evita sobre-venta',
+      'Movimientos de doble entrada: compra, venta, transferencia, ajuste, producción',
+      'Alertas de stock mínimo por producto y ubicación',
+      'Valoración: FIFO, LIFO o Costo Promedio',
+    ],
+  },
+  {
+    id: 'pos',
+    label: 'POS',
+    stat: 'Caja lista',
+    statLabel: 'en segundos',
+    features: [
+      'Sesiones de caja con arqueo y conciliación',
+      'Múltiples métodos de pago SRI (efectivo, transferencia, tarjeta, cheque)',
+      'Integración directa con facturación electrónica y stock',
+      'Historial de ventas POS con búsqueda avanzada',
+    ],
+  },
+  {
+    id: 'productos',
+    label: 'Productos',
+    stat: 'Variantes y BOM',
+    statLabel: 'sin límites',
+    features: [
+      'Productos simples, compuestos y fabricados con variantes ilimitadas',
+      'Historial de precios con trazabilidad automática',
+      'Atributos personalizables por categoría (texto, número, select, boolean)',
+      'Conversiones de unidades de medida por producto',
+    ],
+  },
+  {
+    id: 'compras',
+    label: 'Compras',
+    stat: 'Del pedido',
+    statLabel: 'al inventario',
+    features: [
+      'Cotizaciones, órdenes de compra y recepciones de mercadería integradas',
+      'Retenciones en la fuente e IVA generadas automáticamente',
+      'Historial de precios por proveedor',
+      'Productos vinculados a proveedores con precios preferenciales',
+    ],
+  },
+  {
+    id: 'manufactura',
+    label: 'Manufactura',
+    stat: 'Producción',
+    statLabel: 'trazada',
+    features: [
+      'Órdenes de trabajo: Borrador → Aprobado → En Progreso → Completado → Facturado',
+      'Lista de materiales (BOM) con templates reutilizables',
+      'Solicitudes de material con despacho controlado',
+      'Movimientos automáticos de inventario al producir',
+    ],
+  },
+];
+---
+
+<section class="section" id="features">
+  <div class="container">
+    <h2 class="section-title">
+      Todo lo que tu empresa necesita,<br/>en un solo lugar.
+    </h2>
+    <p class="section-subtitle" style="margin-bottom: 3rem;">
+      Módulos integrados que trabajan en conjunto. Sin apps externas, sin plugins costosos.
+    </p>
+
+    <div class="features-tabs">
+      <!-- Radio inputs ocultos -->
+      {modules.map((m, i) => (
+        <input
+          type="radio"
+          name="feature-tab"
+          id={`tab-${m.id}`}
+          class="tab-radio"
+          checked={i === 0 ? true : undefined}
+        />
+      ))}
+
+      <!-- Labels de tabs -->
+      <div class="tab-labels">
+        {modules.map((m) => (
+          <label for={`tab-${m.id}`} class="tab-label">{m.label}</label>
+        ))}
+      </div>
+
+      <!-- Select mobile -->
+      <select class="tab-select" id="feature-select" aria-label="Seleccionar módulo">
+        {modules.map((m) => (
+          <option value={m.id}>{m.label}</option>
+        ))}
+      </select>
+
+      <!-- Paneles de contenido -->
+      {modules.map((m) => (
+        <div class={`tab-panel panel-${m.id}`}>
+          <div class="tab-panel-inner">
+            <div class="tab-stat">
+              <span class="stat-value">{m.stat}</span>
+              <span class="stat-label">{m.statLabel}</span>
+            </div>
+            <ul class="check-list">
+              {m.features.map((f) => (
+                <li>{f}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .features-tabs {
+    position: relative;
+  }
+
+  .tab-radio { display: none; }
+
+  /* Labels de tabs — desktop */
+  .tab-labels {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 2.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tab-labels::-webkit-scrollbar { display: none; }
+
+  .tab-label {
+    padding: 0.75rem 1.25rem;
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.2s, border-color 0.2s;
+    margin-bottom: -1px;
+  }
+  .tab-label:hover { color: var(--text-secondary); }
+
+  /* Select mobile */
+  .tab-select {
+    display: none;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    margin-bottom: 2rem;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  /* Paneles — todos ocultos por defecto */
+  .tab-panel { display: none; }
+
+  .tab-panel-inner {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 3rem;
+    align-items: start;
+  }
+
+  .tab-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 2rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    min-width: 200px;
+  }
+
+  .stat-label {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+  }
+
+  /* CSS-only tab activation — un selector por cada tab */
+  #tab-facturacion:checked ~ .tab-labels label[for="tab-facturacion"],
+  #tab-inventario:checked ~ .tab-labels label[for="tab-inventario"],
+  #tab-pos:checked ~ .tab-labels label[for="tab-pos"],
+  #tab-productos:checked ~ .tab-labels label[for="tab-productos"],
+  #tab-compras:checked ~ .tab-labels label[for="tab-compras"],
+  #tab-manufactura:checked ~ .tab-labels label[for="tab-manufactura"] {
+    color: var(--text-primary);
+    border-bottom-color: var(--accent-primary);
+  }
+
+  #tab-facturacion:checked ~ .panel-facturacion,
+  #tab-inventario:checked ~ .panel-inventario,
+  #tab-pos:checked ~ .panel-pos,
+  #tab-productos:checked ~ .panel-productos,
+  #tab-compras:checked ~ .panel-compras,
+  #tab-manufactura:checked ~ .panel-manufactura {
+    display: block;
+  }
+
+  @media (max-width: 768px) {
+    .tab-labels { display: none; }
+    .tab-select { display: block; }
+    .tab-panel-inner {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+    .tab-stat { min-width: auto; }
+  }
+</style>
+
+<script>
+  /* Cambiar tab desde el select en mobile */
+  const sel = document.getElementById('feature-select') as HTMLSelectElement;
+  if (sel) {
+    sel.addEventListener('change', () => {
+      const radio = document.getElementById(`tab-${sel.value}`) as HTMLInputElement;
+      if (radio) radio.checked = true;
+    });
+  }
+</script>

@@ -4,13 +4,15 @@ import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { AuthLoginSchema } from '@app/schema/frontend';
-import type { DiscoverTenantItemType } from '@app/schema/backend';
+import type { DiscoverTenantItemType, AuthUserResponseType } from '@app/schema/backend';
 import { actions } from '@modules/auth/store/auth.store';
 import { authApi } from '../api/auth.api';
 import { useBranding, getSubdomain, applyBranding } from '../store/branding.store';
 import { AuthError } from '@modules/auth/types/auth.types';
 import Input from '@shared/ui/Input';
 import Button from '@shared/ui/Button';
+
+const BASE_DOMAIN = import.meta.env.VITE_BASE_DOMAIN || 'zelys.app';
 
 // Extract field error without `as any`
 const getFieldError = (errors: unknown[]): string | undefined => {
@@ -53,9 +55,9 @@ const Login: Component = () => {
     } else {
       // In production or wildcard subdomains: use subdomain prefix
       const domainParts = host.split('.');
-      let baseDomain = 'zelys.app';
-      if (host.includes('zelys.app')) {
-        baseDomain = 'zelys.app';
+      let baseDomain = BASE_DOMAIN;
+      if (host.includes(BASE_DOMAIN)) {
+        baseDomain = BASE_DOMAIN;
       } else {
         baseDomain = domainParts.slice(-2).join('.');
       }
@@ -136,7 +138,7 @@ const Login: Component = () => {
         }
 
         // Clic en login exitoso
-        const successRes = res as { user: any };
+        const successRes = res as { user: AuthUserResponseType & { companySlug?: string }; sessionId: string };
         const companySlug = successRes?.user?.companySlug;
 
         // Read redirect from TanStack search params (signal accessor) or fallback to raw URL
@@ -151,11 +153,17 @@ const Login: Component = () => {
 
         if (isGlobalLogin && (selectedTenant() || companySlug)) {
           const slug = selectedTenant()?.slug || companySlug;
-          handleRedirect(slug, safePath);
+          if (slug) {
+            handleRedirect(slug, safePath);
+          } else {
+            navigate({ to: safePath, replace: true });
+          }
         } else {
           navigate({ to: safePath, replace: true });
         }
       } catch (err) {
+        setDiscoveredTenants([]);
+        setSelectedTenant(null);
         let msg = 'Error al iniciar sesión';
         if (err instanceof AuthError || err instanceof Error) {
           msg = err.message;

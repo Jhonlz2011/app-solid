@@ -1,0 +1,210 @@
+---
+/* Invoicing — Sección destacada de facturación electrónica SRI */
+---
+
+<section class="invoicing-section" id="invoicing">
+  <!-- Línea decorativa con gradiente de marca -->
+  <div class="brand-line" aria-hidden="true"></div>
+
+  <div class="container">
+    <div class="invoicing-grid">
+      <!-- Columna izquierda: diagrama de flujo -->
+      <div class="flow-diagram" aria-hidden="true">
+        <div class="flow-node">
+          <div class="flow-circle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="1.8"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 7h8M8 11h5"/></svg>
+          </div>
+          <span class="flow-label">Tu empresa — Zelys ERP</span>
+        </div>
+
+        <div class="flow-line"><div class="flow-line-inner"></div></div>
+
+        <div class="flow-node">
+          <div class="flow-circle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-secondary)" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>
+          </div>
+          <span class="flow-label">Genera XML firmado electrónicamente</span>
+        </div>
+
+        <div class="flow-line"><div class="flow-line-inner"></div></div>
+
+        <div class="flow-node">
+          <div class="flow-circle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-mint)" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <span class="flow-label">SRI — Autorización en tiempo real</span>
+        </div>
+
+        <div class="flow-line"><div class="flow-line-inner"></div></div>
+
+        <div class="flow-node">
+          <div class="flow-circle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="1.8"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>
+          </div>
+          <span class="flow-label">Cliente — Recibe PDF + XML por email</span>
+        </div>
+      </div>
+
+      <!-- Columna derecha: copy -->
+      <div class="invoicing-content">
+        <span class="eyebrow">FACTURACIÓN ELECTRÓNICA · CERTIFICADO SRI</span>
+
+        <h2>
+          Emite cualquier comprobante<br/>electrónico en segundos.
+        </h2>
+
+        <ul class="check-list">
+          <li>Facturas (nacionales y de exportación)</li>
+          <li>Notas de crédito y débito</li>
+          <li>Retenciones en la fuente e IVA</li>
+          <li>Liquidaciones de compra de bienes</li>
+          <li>Guías de remisión</li>
+        </ul>
+
+        <div class="invoicing-highlight">
+          <span class="highlight-icon">📋</span>
+          <div>
+            <strong>Incluye firma electrónica integrada.</strong>
+            Sin tokens físicos. Sin configuraciones complejas. Lista desde el primer día.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .invoicing-section {
+    padding: 6rem 2rem;
+    position: relative;
+    background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-base) 100%);
+  }
+
+  .brand-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--gradient-brand);
+    opacity: 0.5;
+  }
+
+  .invoicing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5rem;
+    align-items: center;
+  }
+
+  /* Diagrama de flujo */
+  .flow-diagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .flow-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    text-align: center;
+  }
+
+  .flow-circle {
+    width: 56px;
+    height: 56px;
+    border: 1.5px solid var(--accent-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-elevated);
+    position: relative;
+  }
+
+  .flow-label {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    font-weight: 500;
+    max-width: 200px;
+  }
+
+  .flow-line {
+    width: 2px;
+    height: 40px;
+    position: relative;
+    overflow: hidden;
+    background: var(--border-subtle);
+  }
+
+  .flow-line-inner {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, var(--accent-primary), var(--accent-mint));
+    animation: flow-pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes flow-pulse {
+    0% { transform: translateY(-100%); }
+    50% { transform: translateY(0); }
+    100% { transform: translateY(100%); }
+  }
+
+  /* Copy */
+  .invoicing-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .eyebrow {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--accent-primary);
+    text-transform: uppercase;
+  }
+
+  .invoicing-content h2 {
+    text-align: left;
+  }
+
+  .invoicing-highlight {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    background: var(--accent-primary-dim);
+    border: 1px solid var(--border-active);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    line-height: 1.5;
+    align-items: flex-start;
+  }
+
+  .invoicing-highlight strong {
+    color: var(--text-primary);
+  }
+
+  .highlight-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  @media (max-width: 768px) {
+    .invoicing-grid {
+      grid-template-columns: 1fr;
+      gap: 3rem;
+    }
+    .flow-diagram {
+      order: 2;
+    }
+    .invoicing-content {
+      order: 1;
+    }
+  }
+</style>

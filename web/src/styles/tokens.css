@@ -1,0 +1,67 @@
+/* ═══════════════════════════════════════════════════════════
+   Zelys ERP — Design Tokens
+   Derivados del logotipo Z (navy → cyan → mint)
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── FONDOS — extraídos del bg del logo ─────────────────── */
+  --bg-base:      #0C1728;
+  --bg-surface:   #0F1E38;
+  --bg-elevated:  #172848;
+
+  /* ─── ACENTO PRIMARIO — cyan de la punta de la Z ─────────── */
+  --accent-primary:     #00C0E8;
+  --accent-primary-dim: rgba(0, 192, 232, 0.07);
+  --accent-primary-mid: rgba(0, 192, 232, 0.19);
+
+  /* ─── ACENTO SECUNDARIO — azul del cuerpo de la Z ────────── */
+  --accent-secondary:   #1E72D4;
+  --accent-deep:        #1A3870;
+
+  /* ─── GRADIENTE DE MARCA ──────────────────────────────────── */
+  --gradient-brand: linear-gradient(135deg,
+    #1A3870 0%,
+    #1E72D4 45%,
+    #00C0E8 75%,
+    #00E8CC 100%
+  );
+
+  /* ─── ACENTO MINT — punta más clara de la Z ──────────────── */
+  --accent-mint:     #00E8CC;
+  --accent-mint-dim: rgba(0, 232, 204, 0.07);
+
+  /* ─── TEXTO ───────────────────────────────────────────────── */
+  --text-primary:   #EEF4FF;
+  --text-secondary: #7AA8D4;
+  --text-muted:     #374D6B;
+
+  /* ─── BORDES ──────────────────────────────────────────────── */
+  --border-subtle:  #172848;
+  --border-default: #1F3860;
+  --border-active:  rgba(0, 192, 232, 0.19);
+  --border-brand:   rgba(26, 56, 112, 0.25);
+
+  /* ─── SEMÁNTICOS ─────────────────────────────────────────── */
+  --success: #00E8CC;
+  --warning: #F0A020;
+  --error:   #EF4444;
+  --info:    #1E72D4;
+
+  /* ─── RADIOS ──────────────────────────────────────────────── */
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  20px;
+  --radius-2xl: 32px;
+
+  /* ─── SOMBRAS ─────────────────────────────────────────────── */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px var(--border-subtle);
+  --shadow-glow: 0 0 40px rgba(0, 200, 150, 0.12);
+  --shadow-glow-cyan: 0 0 60px rgba(0, 192, 232, 0.08);
+
+  /* ─── LAYOUT ──────────────────────────────────────────────── */
+  --max-w:        1200px;
+  --max-w-narrow: 800px;
+  --max-w-wide:   1280px;
+  --header-h:     64px;
+}

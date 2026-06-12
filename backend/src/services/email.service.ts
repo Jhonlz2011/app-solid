@@ -1,48 +1,39 @@
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+import { Resend } from 'resend';
 import { env } from '../config/env';
 
-const sesClient = new SESClient({
-  region: env.AWS_REGION,
-  credentials: {
-    accessKeyId: env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+// Solo instanciamos si tenemos la API key, en desarrollo podríamos no tenerla configurada
+const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+const SENDER_EMAIL = 'Zelys ERP <no-reply@zelys.app>';
 
 export const emailService = {
   /**
-   * Envía un correo electrónico genérico a través de Amazon SES.
+   * Envía un correo electrónico genérico a través de Resend.
    */
   sendEmail: async (to: string, subject: string, htmlContent: string) => {
-    const sender = 'Zelys ERP <no-reply@mail.zelys.app>'; 
-
-    const command = new SendEmailCommand({
-      Source: sender,
-      Destination: {
-        ToAddresses: [to],
-      },
-      Message: {
-        Subject: {
-          Data: subject,
-          Charset: 'UTF-8',
-        },
-        Body: {
-          Html: {
-            Data: htmlContent,
-            Charset: 'UTF-8',
-          },
-        },
-      },
-    });
+    if (!resend) {
+      console.warn('⚠️ RESEND_API_KEY no configurada. Saltando envío de correo a:', to);
+      return { id: 'mock-id' };
+    }
 
     try {
-      const response = await sesClient.send(command);
-      if (env.NODE_ENV !== 'production') {
-        console.log(`✉️ Correo enviado a ${to}. MessageId: ${response.MessageId}`);
+      const { data, error } = await resend.emails.send({
+        from: SENDER_EMAIL,
+        to: [to],
+        subject: subject,
+        html: htmlContent,
+      });
+
+      if (error) {
+        console.error('❌ Error desde la API de Resend:', error);
+        throw error;
       }
-      return response;
+
+      if (env.NODE_ENV !== 'production') {
+        console.log(`✉️ Correo enviado a ${to}. ID Resend: ${data?.id}`);
+      }
+      return data;
     } catch (error) {
-      console.error('❌ Error enviando correo vía AWS SES:', error);
+      console.error('❌ Excepción enviando correo vía Resend:', error);
       throw error;
     }
   },

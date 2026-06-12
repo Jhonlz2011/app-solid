@@ -1,0 +1,133 @@
+---
+/* FAQ — Preguntas frecuentes con <details>/<summary> */
+const faqs = [
+  {
+    q: '¿Necesito instalar algo en mi computadora?',
+    a: 'No. Zelys ERP es 100% web. Funciona en cualquier navegador moderno desde Windows, Mac, Linux o tablet. Tus datos están en servidores seguros con backups automáticos.',
+  },
+  {
+    q: '¿Qué es el subdominio {mi-empresa}.zelys.app?',
+    a: 'Es tu espacio exclusivo. Al registrarte, tu empresa recibe su propia URL personalizada con tu logo y colores de marca. Tus empleados ingresan directamente a tu empresa desde ahí.',
+  },
+  {
+    q: '¿Qué tipos de comprobantes electrónicos soporta?',
+    a: 'Facturas, notas de crédito, notas de débito, retenciones en la fuente e IVA, liquidaciones de compra y guías de remisión. Todos firmados electrónicamente y autorizados por el SRI.',
+  },
+  {
+    q: '¿Qué pasa si el SRI tiene problemas y no autoriza?',
+    a: 'Emitimos el comprobante en modo contingencia y lo enviamos al SRI automáticamente cuando sus servicios se restablezcan. Tu operación nunca se detiene.',
+  },
+  {
+    q: '¿Puedo manejar múltiples bodegas y sucursales?',
+    a: 'Sí. El sistema soporta múltiples bodegas con ubicaciones jerárquicas, transferencias entre bodegas y stock reservado automático. Cada establecimiento SRI se configura con su secuencia de documentos.',
+  },
+  {
+    q: '¿Cuánto tiempo toma empezar a usarlo?',
+    a: 'Puedes registrarte y emitir tu primera factura en menos de 15 minutos. La importación de datos existentes (productos, clientes) se hace con archivos Excel guiados por el sistema.',
+  },
+  {
+    q: '¿Funciona para manufactura y producción?',
+    a: 'Sí. Incluye órdenes de trabajo, listas de materiales (BOM), consumo de insumos y salida de productos terminados con movimientos automáticos de inventario.',
+  },
+  {
+    q: '¿Puedo cancelar en cualquier momento?',
+    a: 'Sí. Sin penalizaciones ni contratos de permanencia. Si cancelas, tus datos están disponibles para exportar por 60 días.',
+  },
+];
+---
+
+<section class="section section--alt" id="faq">
+  <div class="container" style="max-width: var(--max-w-narrow);">
+    <h2 class="section-title">
+      Preguntas que siempre hacen<br/>antes de registrarse.
+    </h2>
+    <p class="section-subtitle" style="margin-bottom: 3rem;">
+      Si no encuentras tu respuesta, escríbenos a soporte@zelys.app
+    </p>
+
+    <div class="faq-list">
+      {faqs.map((faq) => (
+        <details class="faq-item">
+          <summary class="faq-question">
+            <span>{faq.q}</span>
+            <span class="faq-icon" aria-hidden="true"></span>
+          </summary>
+          <p class="faq-answer">{faq.a}</p>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .faq-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .faq-item {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .faq-question {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 0;
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--text-primary);
+    list-style: none;
+    transition: color 0.2s;
+  }
+
+  .faq-question::-webkit-details-marker { display: none; }
+
+  .faq-question:hover { color: var(--accent-primary); }
+
+  .faq-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .faq-icon::before,
+  .faq-icon::after {
+    content: '';
+    position: absolute;
+    background: var(--text-secondary);
+    border-radius: 1px;
+    transition: transform 0.25s ease;
+  }
+
+  .faq-icon::before {
+    width: 14px; height: 2px;
+    top: 9px; left: 3px;
+  }
+
+  .faq-icon::after {
+    width: 2px; height: 14px;
+    top: 3px; left: 9px;
+  }
+
+  details[open] .faq-icon::after {
+    transform: rotate(90deg);
+    opacity: 0;
+  }
+
+  details[open] .faq-icon::before {
+    background: var(--accent-primary);
+  }
+
+  .faq-answer {
+    padding: 0 0 1.25rem;
+    font-size: var(--text-sm);
+    line-height: 1.65;
+    color: var(--text-secondary);
+    max-width: 600px;
+  }
+</style>
