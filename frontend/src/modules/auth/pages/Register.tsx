@@ -129,6 +129,8 @@ const Register: Component = () => {
         },
     }));
 
+    const taxRegime = step2Form.useStore((s) => s.values.taxRegime);
+
     // ─── Slug debounce ───
     let slugTimer: ReturnType<typeof setTimeout>;
     onCleanup(() => clearTimeout(slugTimer));
@@ -225,7 +227,7 @@ const Register: Component = () => {
                             </TextField.Root>
                         )} />
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                         <step1Form.Field name="email" children={(f) => (
                             <TextField.Root field={f()}>
                                 <TextField.Label>Correo electrónico</TextField.Label>
@@ -424,7 +426,7 @@ const Register: Component = () => {
                                 <SegmentedControl
                                     value={f().state.value ? 'true' : 'false'}
                                     onChange={(val) => f().handleChange(val === 'true')}
-                                    disabled={step2Form.state.values.taxRegime === 'RIMPE_NEGOCIO_POPULAR'}
+                                    disabled={taxRegime() === 'RIMPE_NEGOCIO_POPULAR'}
                                 >
                                     <SegmentedControlIndicator />
                                     <SegmentedControlItem value="false">
@@ -447,7 +449,7 @@ const Register: Component = () => {
                     <step2Form.Field name="contribuyenteEspecial" children={(f) => (
                         <TextField.Root 
                             field={f()}
-                            disabled={step2Form.state.values.taxRegime === 'RIMPE_NEGOCIO_POPULAR' || step2Form.state.values.taxRegime === 'RIMPE_EMPRENDEDOR'}
+                            disabled={taxRegime() === 'RIMPE_NEGOCIO_POPULAR' || taxRegime() === 'RIMPE_EMPRENDEDOR'}
                         >
                             <TextField.Label>Contribuyente Especial (opcional)</TextField.Label>
                             <TextField.Input type="text" placeholder="Nro. Resolución" />
