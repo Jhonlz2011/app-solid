@@ -39,6 +39,16 @@ const authRoute = createAuthRoutes(rootRoute);
 const verifyEmailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'verify-email',
+  validateSearch: (search: Record<string, unknown>) => ({
+    token: (search.token as string) || undefined,
+  }),
+  beforeLoad: async () => {
+    const { useAuth } = await import('./modules/auth/store/auth.store');
+    const auth = useAuth();
+    if (auth.isAuthenticated() && auth.user()?.emailVerifiedAt) {
+      throw redirect({ to: '/dashboard' });
+    }
+  },
   component: VerifyEmailPage,
 });
 
