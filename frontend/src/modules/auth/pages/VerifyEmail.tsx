@@ -193,6 +193,7 @@ const VerifyEmail: Component = () => {
                 <Button
                   onClick={handleResend}
                   loading={resending()}
+                  loadingText="Reenviando..."
                   disabled={isResendDisabled()}
                   icon={<MailIcon class="size-4" />}
                 >
@@ -203,7 +204,7 @@ const VerifyEmail: Component = () => {
                 </Button>
 
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={handleLogout}
                   icon={<LogoutIcon class="size-4" />}

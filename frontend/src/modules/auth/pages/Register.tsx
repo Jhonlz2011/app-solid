@@ -10,6 +10,7 @@ import { actions } from '@modules/auth/store/auth.store';
 import TextField from '@shared/ui/TextField';
 import { FieldLabel } from '@shared/ui/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
+import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem, SegmentedControlItemInput, SegmentedControlItemLabel } from '@shared/ui/SegmentedControl';
 import Button from '@shared/ui/Button';
 import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 
@@ -21,9 +22,9 @@ const businessTypeOptions: SelectOption[] = [...BUSINESS_TYPES].map(bt => ({
 }));
 
 const taxRegimeOptions: SelectOption[] = [
+    { value: 'GENERAL', label: 'Régimen General' },
     { value: 'RIMPE_NEGOCIO_POPULAR', label: 'RIMPE - Negocio Popular' },
     { value: 'RIMPE_EMPRENDEDOR', label: 'RIMPE - Emprendedor' },
-    { value: 'GENERAL', label: 'General' },
 ];
 
 // ─── Step Indicator ───
@@ -99,7 +100,7 @@ const Register: Component = () => {
     // ─── STEP 1 FORM ───
     const step1Form = createForm(() => ({
         defaultValues: {
-            fullName: '', email: '', emailConfirm: '', password: '', passwordConfirm: '',
+            fullName: '', email: '', password: '',
             phone: undefined as string | undefined,
             cedula: undefined as string | undefined,
         },
@@ -117,8 +118,8 @@ const Register: Component = () => {
             tradeName: undefined as string | undefined,
             businessType: '',
             mainAddress: undefined as string | undefined,
-            taxRegime: undefined as typeof TAX_REGIME_TYPES[number] | undefined,
-            obligadoContabilidad: undefined as boolean | undefined,
+            taxRegime: 'GENERAL' as typeof TAX_REGIME_TYPES[number] | undefined,
+            obligadoContabilidad: false,
             contribuyenteEspecial: undefined as string | undefined,
         },
         validatorAdapter: valibotValidator(),
@@ -192,7 +193,7 @@ const Register: Component = () => {
     };
 
     return (
-        <div class="w-full p-8 bg-card border border-border shadow-card-soft rounded-2xl shadow-lg">
+        <div class="w-full p-8 bg-card border border-border rounded-2xl shadow-lg">
             <Stepper current={step()} />
 
             {/* ─── STEP 1: User ─── */}
@@ -209,41 +210,6 @@ const Register: Component = () => {
                         </TextField.Root>
                     )} />
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <step1Form.Field name="email" children={(f) => (
-                            <TextField.Root field={f()}>
-                                <TextField.Label>Correo electrónico</TextField.Label>
-                                <TextField.Input type="email" placeholder="correo@ejemplo.com" autocomplete="email" />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                        )} />
-                        <step1Form.Field name="emailConfirm" children={(f) => (
-                            <TextField.Root field={f()}>
-                                <TextField.Label>Confirmar correo</TextField.Label>
-                                <TextField.Input type="email" placeholder="Repite tu correo" autocomplete="email" />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                        )} />
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <step1Form.Field name="password" children={(f) => (
-                            <div class="flex flex-col gap-1">
-                                <TextField.Root field={f()}>
-                                    <TextField.Label>Contraseña</TextField.Label>
-                                    <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
-                                    <TextField.ErrorMessage />
-                                </TextField.Root>
-                                <PasswordStrength password={f().state.value} />
-                            </div>
-                        )} />
-                        <step1Form.Field name="passwordConfirm" children={(f) => (
-                            <TextField.Root field={f()}>
-                                <TextField.Label>Confirmar contraseña</TextField.Label>
-                                <TextField.PasswordInput placeholder="Repite tu contraseña" autocomplete="new-password" />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                        )} />
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <step1Form.Field name="phone" children={(f) => (
                             <TextField.Root field={f()}>
                                 <TextField.Label>Teléfono (opcional)</TextField.Label>
@@ -257,6 +223,25 @@ const Register: Component = () => {
                                 <TextField.Input type="text" placeholder="0912345678" />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
+                        )} />
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <step1Form.Field name="email" children={(f) => (
+                            <TextField.Root field={f()}>
+                                <TextField.Label>Correo electrónico</TextField.Label>
+                                <TextField.Input type="email" placeholder="correo@ejemplo.com" autocomplete="email" />
+                                <TextField.ErrorMessage />
+                            </TextField.Root>
+                        )} />
+                          <step1Form.Field name="password" children={(f) => (
+                            <div class="flex flex-col gap-1">
+                                <TextField.Root field={f()}>
+                                    <TextField.Label>Contraseña</TextField.Label>
+                                    <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+                                    <TextField.ErrorMessage />
+                                </TextField.Root>
+                                <PasswordStrength password={f().state.value} />
+                            </div>
                         )} />
                     </div>
                     <step1Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting, isDirty: s.isDirty })}
@@ -404,7 +389,16 @@ const Register: Component = () => {
                                 <FieldLabel>Régimen Tributario (opcional)</FieldLabel>
                                 <Select
                                     value={taxRegimeOptions.find(o => o.value === f().state.value)}
-                                    onChange={(opt) => f().handleChange(opt?.value as any)}
+                                    onChange={(opt) => {
+                                        const val = opt?.value;
+                                        f().handleChange(val as any);
+                                        if (val === 'RIMPE_NEGOCIO_POPULAR') {
+                                            step2Form.setFieldValue('obligadoContabilidad', false);
+                                            step2Form.setFieldValue('contribuyenteEspecial', '');
+                                        } else if (val === 'RIMPE_EMPRENDEDOR') {
+                                            step2Form.setFieldValue('contribuyenteEspecial', '');
+                                        }
+                                    }}
                                     options={taxRegimeOptions}
                                     optionValue="value"
                                     optionTextValue="label"
@@ -427,33 +421,34 @@ const Register: Component = () => {
                         <step2Form.Field name="obligadoContabilidad" children={(f) => (
                             <div class="flex flex-col gap-1.5">
                                 <FieldLabel>¿Lleva contabilidad?</FieldLabel>
-                                <Select
-                                    value={f().state.value ? { value: 'true', label: 'Sí' } : { value: 'false', label: 'No' }}
-                                    onChange={(opt) => opt && f().handleChange(opt.value === 'true')}
-                                    options={[{ value: 'false', label: 'No' }, { value: 'true', label: 'Sí' }]}
-                                    optionValue="value"
-                                    optionTextValue="label"
-                                    placeholder="Seleccione..."
-                                    itemComponent={(itemProps) => (
-                                        <SelectItem item={itemProps.item}>
-                                            {itemProps.item.rawValue.label}
-                                        </SelectItem>
-                                    )}
+                                <SegmentedControl
+                                    value={f().state.value ? 'true' : 'false'}
+                                    onChange={(val) => f().handleChange(val === 'true')}
+                                    disabled={step2Form.state.values.taxRegime === 'RIMPE_NEGOCIO_POPULAR'}
                                 >
-                                    <SelectTrigger>
-                                        <SelectValue<SelectOption>>
-                                            {(state) => state.selectedOption()?.label}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent />
-                                </Select>
+                                    <SegmentedControlIndicator />
+                                    <SegmentedControlItem value="false">
+                                        <SegmentedControlItemInput />
+                                        <SegmentedControlItemLabel>No</SegmentedControlItemLabel>
+                                    </SegmentedControlItem>
+                                    <SegmentedControlItem value="true">
+                                        <SegmentedControlItemInput />
+                                        <SegmentedControlItemLabel>Sí</SegmentedControlItemLabel>
+                                    </SegmentedControlItem>
+                                </SegmentedControl>
+                                <Show when={step2Submitted() && hasFieldError(f())}>
+                                    <small class="text-xs text-danger font-medium ml-1">{getFieldError(f())}</small>
+                                </Show>
                             </div>
                         )} />
                     </div>
 
                     {/* Contribuyente Especial */}
                     <step2Form.Field name="contribuyenteEspecial" children={(f) => (
-                        <TextField.Root field={f()}>
+                        <TextField.Root 
+                            field={f()}
+                            disabled={step2Form.state.values.taxRegime === 'RIMPE_NEGOCIO_POPULAR' || step2Form.state.values.taxRegime === 'RIMPE_EMPRENDEDOR'}
+                        >
                             <TextField.Label>Contribuyente Especial (opcional)</TextField.Label>
                             <TextField.Input type="text" placeholder="Nro. Resolución" />
                         </TextField.Root>

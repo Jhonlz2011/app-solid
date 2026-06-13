@@ -1,7 +1,7 @@
 import { text, integer, boolean, numeric, timestamp, customType, index, unique, pgPolicy } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
-import { uomGroupEnum } from '../enums';
+import { uomGroupEnum, taxRegimeTypeEnum } from '../enums';
 
 // =============================================================================
 // Custom PostgreSQL Types
@@ -41,7 +41,7 @@ export const companies = pgTableV2("companies", {
     obligado_contabilidad: boolean("obligado_contabilidad").default(false).notNull(),
     contribuyente_especial: text("contribuyente_especial"),  // Resolución SRI (null = no es)
     agente_retencion: text("agente_retencion"),               // Resolución SRI (null = no es)
-    rimpe_type: text("rimpe_type"),                           // 'NEGOCIO_POPULAR' | 'EMPRENDEDOR' | null
+    rimpe_type: taxRegimeTypeEnum("rimpe_type"),
     // SRI environment (1=Pruebas, 2=Producción)
     sri_environment: text("sri_environment").default('2').notNull(),
     logo_url: text("logo_url"),

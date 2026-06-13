@@ -19,6 +19,7 @@ export const entities = pgTableV2("entities", {
     is_supplier: boolean("is_supplier").default(false),
     is_employee: boolean("is_employee").default(false),
     is_carrier: boolean("is_carrier").default(false),
+    is_system: boolean("is_system").default(false),
     tax_regime_type: taxRegimeTypeEnum("tax_regime_type").default('GENERAL'),
     is_retention_agent: boolean("is_retention_agent").default(false),
     is_special_contributor: boolean("is_special_contributor").default(false),

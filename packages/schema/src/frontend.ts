@@ -298,33 +298,13 @@ export type AuthLoginDto = InferInput<typeof AuthLoginSchema>;
 
 // --- REGISTRATION STEP SCHEMAS ---
 
-export const RegisterStep1Schema = pipe(
-    object({
-        fullName: pipe(string(), trim(), minLength(3, 'Mínimo 3 caracteres')),
-        email: pipe(string(), trim(), email('Email inválido')),
-        emailConfirm: pipe(string(), trim(), email('Email inválido')),
-        password: pipe(string(), minLength(8, 'Mínimo 8 caracteres')),
-        passwordConfirm: pipe(string(), minLength(1, 'Confirma tu contraseña')),
-        phone: optional(pipe(string(), regex(/^09\d{8}$/, 'Celular ecuatoriano inválido (09XXXXXXXX)'))),
-        cedula: optional(string()),
-    }),
-    forward(
-        partialCheck(
-            [['email'], ['emailConfirm']],
-            (input) => input.email === input.emailConfirm,
-            'Los correos no coinciden'
-        ),
-        ['emailConfirm']
-    ),
-    forward(
-        partialCheck(
-            [['password'], ['passwordConfirm']],
-            (input) => input.password === input.passwordConfirm,
-            'Las contraseñas no coinciden'
-        ),
-        ['passwordConfirm']
-    )
-);
+export const RegisterStep1Schema = object({
+    fullName: pipe(string(), trim(), minLength(3, 'Mínimo 3 caracteres')),
+    email: pipe(string(), trim(), email('Email inválido')),
+    password: pipe(string(), minLength(8, 'Mínimo 8 caracteres')),
+    phone: optional(pipe(string(), regex(/^09\d{8}$/, 'Celular inválido (09XXXXXXXX)'))),
+    cedula: optional(pipe(string(), regex(/^\d{10}$/, 'La cédula debe tener 10 dígitos numéricos'))),
+});
 
 export const RegisterStep2Schema = object({
     slug: pipe(string(), trim(), minLength(3, 'Mínimo 3 caracteres'), maxLength(30, 'Máximo 30 caracteres'),
@@ -426,7 +406,7 @@ export const CompanySettingsFormSchema = object({
     obligadoContabilidad: boolean(),
     contribuyenteEspecial: optional(nullable(string())),
     agenteRetencion: optional(nullable(string())),
-    rimpeType: optional(nullable(picklist(['NEGOCIO_POPULAR', 'EMPRENDEDOR', 'GENERAL', ''] as any))),
+    rimpeType: optional(nullable(TaxRegimeTypeSchema)),
     sriEnvironment: picklist(['1', '2']),
 });
 

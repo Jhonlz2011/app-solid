@@ -2,6 +2,7 @@ import { db, adminDb, withTenantContext } from '../db';
 import { authUsers as users, sessions, companies, sriEstablishments, entities, authUserRoles, authRoles, authVerificationTokens } from '@app/schema/tables';
 import { eq, and, gt, inArray, or, sql } from '@app/schema';
 import type { Entity } from '@app/schema/types';
+import type { TaxRegimeType } from '@app/schema/enums';
 import { getUserRoles, getUserPermissions } from './rbac.service';
 import { broadcast } from '../plugins/sse';
 import { SESSION_EXPIRE_DAYS, getVerificationLink } from '../config/auth';
@@ -169,6 +170,7 @@ export async function register(
         business_type: data.businessType || null,
         obligado_contabilidad: data.obligadoContabilidad ?? false,
         contribuyente_especial: data.contribuyenteEspecial || null,
+        rimpe_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
       })
       .returning();
 
@@ -192,6 +194,7 @@ export async function register(
       person_type: 'NATURAL',
       business_name: 'CONSUMIDOR FINAL',
       is_client: true,
+      is_system: true,
     });
 
     // 4. Owner entity (personal data from Step 1)
@@ -204,6 +207,7 @@ export async function register(
       phone: data.phone || null,
       email_billing: data.email,
       is_employee: true,
+      tax_regime_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
     }).returning();
 
     // 5. Create owner user linked to entity

@@ -35,7 +35,7 @@ const CompanyProfileSettings: Component = () => {
             obligadoContabilidad: false,
             contribuyenteEspecial: '',
             agenteRetencion: '',
-            rimpeType: '',
+            rimpeType: 'GENERAL',
             sriEnvironment: '2',
         } as CompanySettingsFormData,
         validatorAdapter: valibotValidator(),

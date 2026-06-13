@@ -366,7 +366,7 @@ export const CompanySettingsBodySchema = Type.Object({
     obligadoContabilidad: Type.Boolean(),
     contribuyenteEspecial: Type.Union([Type.String(), Type.Null()]),
     agenteRetencion: Type.Union([Type.String(), Type.Null()]),
-    rimpeType: Type.Union([Type.String(), Type.Null()]),
+    rimpeType: Type.Union([TaxRegimeTypeSchema, Type.Null()]),
     sriEnvironment: Type.Union([Type.Literal('1'), Type.Literal('2')]),
 });
 

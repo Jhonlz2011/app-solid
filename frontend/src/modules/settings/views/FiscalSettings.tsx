@@ -14,9 +14,9 @@ import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 
 const RIMPE_OPTIONS = [
-    { value: '', label: 'No aplica (Régimen General)' },
-    { value: 'NEGOCIO_POPULAR', label: 'Rimpe - Negocio Popular' },
-    { value: 'EMPRENDEDOR', label: 'Rimpe - Emprendedor' },
+    { value: 'GENERAL', label: 'No aplica (Régimen General)' },
+    { value: 'RIMPE_NEGOCIO_POPULAR', label: 'Rimpe - Negocio Popular' },
+    { value: 'RIMPE_EMPRENDEDOR', label: 'Rimpe - Emprendedor' },
 ];
 
 const SRI_ENV_OPTIONS = [
@@ -46,7 +46,7 @@ const FiscalSettings: Component = () => {
             obligadoContabilidad: false,
             contribuyenteEspecial: '',
             agenteRetencion: '',
-            rimpeType: '',
+            rimpeType: 'GENERAL',
             sriEnvironment: '2',
         } as CompanySettingsFormData,
         validatorAdapter: valibotValidator(),
@@ -133,7 +133,7 @@ const FiscalSettings: Component = () => {
                                                 <label class="text-sm font-medium text-muted ml-1">Régimen RIMPE</label>
                                                 <Select
                                                     value={RIMPE_OPTIONS.find(o => o.value === field().state.value)}
-                                                    onChange={(opt: any) => field().handleChange(opt ? opt.value : '')}
+                                                    onChange={(opt: any) => field().handleChange(opt ? opt.value : 'GENERAL')}
                                                     options={RIMPE_OPTIONS}
                                                     optionValue="value"
                                                     optionTextValue="label"
