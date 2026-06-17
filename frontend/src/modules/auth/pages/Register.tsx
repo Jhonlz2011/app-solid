@@ -13,6 +13,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem, SegmentedControlItemInput, SegmentedControlItemLabel } from '@shared/ui/SegmentedControl';
 import Button from '@shared/ui/Button';
 import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
+import Turnstile from '@shared/ui/Turnstile';
 
 // ─── Option types for Select ───
 interface SelectOption { value: string; label: string }
@@ -87,6 +88,9 @@ const Register: Component = () => {
     const [step, setStep] = createSignal(0);
     const [step1Submitted, setStep1Submitted] = createSignal(false);
     const [step2Submitted, setStep2Submitted] = createSignal(false);
+
+    // Turnstile token — captured in step 3 (confirmation)
+    const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
 
     // Slug availability
     const [slugAvailable, setSlugAvailable] = createSignal<boolean | null>(null);
@@ -180,6 +184,7 @@ const Register: Component = () => {
                 obligadoContabilidad: s2.obligadoContabilidad || undefined,
                 contribuyenteEspecial: s2.contribuyenteEspecial || undefined,
                 taxRegime: s2.taxRegime || undefined,
+                turnstileToken: turnstileToken() ?? undefined,
             });
             // Direct session injection — no redundant GET /me
             const registerSuccess = result as { user: any; sessionId: string };
@@ -190,6 +195,8 @@ const Register: Component = () => {
             toast.success('¡Cuenta creada exitosamente!');
             navigate({ to: '/dashboard', replace: true });
         } catch (err: any) {
+            // Reset token on failure — widget will auto-refresh
+            setTurnstileToken(null);
             toast.error(err?.message || 'Error al registrar');
         } finally { setSubmitting(false); }
     };
@@ -509,7 +516,13 @@ const Register: Component = () => {
                         </div>
                     </div>
                 </div>
-                <div class="flex gap-3 mt-5">
+                {/* Cloudflare Turnstile — rendered just before final submit */}
+                <Turnstile
+                    onToken={(token) => setTurnstileToken(token)}
+                    onExpire={() => setTurnstileToken(null)}
+                    onError={() => setTurnstileToken(null)}
+                />
+                <div class="flex gap-3 mt-3">
                     <Button variant="outline" type="button" onClick={() => setStep(1)}>Atrás</Button>
                     <Button fullWidth loading={submitting()} loadingText="Creando cuenta…"
                         onClick={handleFinalSubmit} disabled={submitting()}>

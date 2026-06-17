@@ -19,6 +19,7 @@ import {
 import { emailService } from './email.service';
 import { env } from '../config/env';
 import { redis } from '../config/redis';
+import { verifyTurnstileToken } from './turnstile.service';
 
 
 // --- CONSTANTS ---
@@ -146,10 +147,14 @@ export async function register(
     slug: string; ruc: string; businessName: string; tradeName?: string;
     businessType?: string; mainAddress?: string;
     obligadoContabilidad?: boolean; contribuyenteEspecial?: string; taxRegime?: string;
+    turnstileToken?: string;
   },
   userAgent?: string,
   ipAddress?: string
 ) {
+  // Verify Turnstile before any DB work
+  await verifyTurnstileToken(data.turnstileToken, ipAddress);
+
   return await db.transaction(async (tx) => {
     // 0. Verify slug + ruc uniqueness (descriptive errors vs opaque PG constraint violations)
     const [existingSlug] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.slug, data.slug)).limit(1);
@@ -311,7 +316,10 @@ export async function register(
   });
 }
 
-export async function login(email: string, password: string, userAgent?: string, ipAddress?: string, companyId?: number) {
+export async function login(email: string, password: string, userAgent?: string, ipAddress?: string, companyId?: number, turnstileToken?: string) {
+  // Verify Turnstile before password hashing to avoid unnecessary compute on bot traffic
+  await verifyTurnstileToken(turnstileToken, ipAddress);
+
   // 1. Fetch user records matching email/username (limit to at most 5 matched companies for security)
   const matchedUsers = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT set_config('app.current_username', ${email}, true)`);

@@ -191,12 +191,16 @@ export const AuthRegisterDto = Type.Object({
     obligadoContabilidad: Type.Optional(Type.Boolean()),
     contribuyenteEspecial: Type.Optional(Type.String()),
     taxRegime: Type.Optional(Type.String()),
+    // Cloudflare Turnstile — anti-bot challenge token
+    turnstileToken: Type.Optional(Type.String()),
 });
 
 export const AuthLoginDto = Type.Object({
     email: Type.String({ minLength: 1, maxLength: 255 }), // Can be email or username
     password: Type.String(),
     companyId: Type.Optional(Type.Number()),
+    // Cloudflare Turnstile — anti-bot challenge token
+    turnstileToken: Type.Optional(Type.String()),
 });
 
 export const AuthChangePasswordDto = Type.Object({

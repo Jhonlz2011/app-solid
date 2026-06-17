@@ -137,7 +137,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         }
       }
 
-          const loginResult = await login(body.email, body.password, userAgent, ipAddress, companyId);
+          const loginResult = await login(body.email, body.password, userAgent, ipAddress, companyId, body.turnstileToken);
 
       if ('requiresTenantSelection' in loginResult && loginResult.requiresTenantSelection) {
         return loginResult;

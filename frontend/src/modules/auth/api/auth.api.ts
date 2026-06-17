@@ -9,7 +9,7 @@ import { AuthError } from '../types/auth-error';
 import type { AuthRegisterDtoType } from '@app/schema/backend';
 
 export const authApi = {
-    login: async (credentials: { email: string; password: string; companyId?: number }, signal?: AbortSignal) => {
+    login: async (credentials: { email: string; password: string; companyId?: number; turnstileToken?: string }, signal?: AbortSignal) => {
         const { data, error } = await api.api.auth.login.post(credentials, { fetch: { signal } });
         if (error) throw new AuthError(error.value, 'Login fallido');
         return data!;

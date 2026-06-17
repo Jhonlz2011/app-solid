@@ -24,4 +24,6 @@ export const env = {
   // Resend (Email Service)
   RESEND_API_KEY: process.env.RESEND_API_KEY || '',
   RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET || '',
+  TURNSTILE_SITE_KEY: process.env.TURNSTILE_SITE_KEY || '',
+  TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || '',
 };

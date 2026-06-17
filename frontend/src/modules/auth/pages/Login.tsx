@@ -11,10 +11,10 @@ import { useBranding, getSubdomain, applyBranding } from '../store/branding.stor
 import { AuthError } from '@modules/auth/types/auth.types';
 import Input from '@shared/ui/Input';
 import Button from '@shared/ui/Button';
+import Turnstile from '@shared/ui/Turnstile';
 
 const BASE_DOMAIN = import.meta.env.VITE_BASE_DOMAIN || 'zelys.app';
 
-// Extract field error without `as any`
 const getFieldError = (errors: unknown[]): string | undefined => {
     if (!errors.length) return undefined;
     const e = errors[0];
@@ -30,144 +30,103 @@ const Login: Component = () => {
   const subdomain = getSubdomain();
   const isGlobalLogin = !subdomain;
 
-  const [step, setStep] = createSignal<'email' | 'tenants' | 'password'>(isGlobalLogin ? 'email' : 'password');
+  // UI state
+  const [showTenants, setShowTenants] = createSignal(false);
   const [discoveredTenants, setDiscoveredTenants] = createSignal<DiscoverTenantItemType[]>([]);
-  const [selectedTenant, setSelectedTenant] = createSignal<DiscoverTenantItemType | null>(null);
   const [loadingTenants, setLoadingTenants] = createSignal(false);
 
-  // Phase 2 of logout: clean up stale user/modules data.
-  // By onMount, the old route's components (sidebar, layout) are fully unmounted,
-  // so clearing user and modules here is guaranteed to be flash-free.
+  // Turnstile token state
+  const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
+
   onMount(() => actions.cleanupStaleSession());
 
   const handleRedirect = (slug: string, path: string) => {
     const host = window.location.hostname;
     const port = window.location.port;
     const protocol = window.location.protocol;
-    
+
     const ipRegex = /^[0-9.]+$/;
     if (host === 'localhost' || ipRegex.test(host)) {
-      // In development: use query param slug
       const url = new URL(window.location.origin + path);
       url.searchParams.set('slug', slug);
       url.searchParams.set('session', 'true');
       window.location.href = url.toString();
     } else {
-      // In production or wildcard subdomains: use subdomain prefix
       const domainParts = host.split('.');
-      let baseDomain = BASE_DOMAIN;
-      if (host.includes(BASE_DOMAIN)) {
-        baseDomain = BASE_DOMAIN;
-      } else {
-        baseDomain = domainParts.slice(-2).join('.');
-      }
-      
+      const baseDomain = host.includes(BASE_DOMAIN) ? BASE_DOMAIN : domainParts.slice(-2).join('.');
       const portStr = port ? `:${port}` : '';
       const separator = path.includes('?') ? '&' : '?';
-      const pathWithSession = `${path}${separator}session=true`;
-      const finalUrl = `${protocol}//${slug}.${baseDomain}${portStr}${pathWithSession}`;
-      window.location.href = finalUrl;
+      window.location.href = `${protocol}//${slug}.${baseDomain}${portStr}${path}${separator}session=true`;
     }
-  };
-
-  const handleNextStep = () => {
-    const emailValue = form.getFieldValue('email');
-    if (!emailValue || emailValue.trim() === '') {
-      toast.error('Por favor, ingresa tu usuario o correo.');
-      return;
-    }
-    setStep('password');
   };
 
   const handleSelectTenant = async (tenant: DiscoverTenantItemType) => {
-    setSelectedTenant(tenant);
     setLoadingTenants(true);
     try {
-      // Cargar y aplicar branding dinámico para el inquilino seleccionado
       const tenantInfo = await authApi.getTenantInfo(tenant.slug);
       applyBranding(tenantInfo);
-    } catch (err) {
-      console.warn('No se pudo cargar el branding del tenant:', err);
+    } catch {
+      // Non-critical: branding fallback is fine
     } finally {
       setLoadingTenants(false);
     }
-    // Enviar el formulario para completar el login
+    form.setFieldValue('companyId', tenant.id);
     form.handleSubmit();
-  };
-
-  const handleBack = () => {
-    if (step() === 'password') {
-      setStep('email');
-      setDiscoveredTenants([]);
-      setSelectedTenant(null);
-      applyBranding(null);
-    } else if (step() === 'tenants') {
-      setStep('password');
-      setSelectedTenant(null);
-    }
   };
 
   const form = createForm(() => ({
     defaultValues: {
       email: '',
       password: '',
+      companyId: undefined as number | undefined,
     },
     validatorAdapter: valibotValidator(),
-    validators: {
-      onSubmit: AuthLoginSchema,
-    },
+    validators: { onSubmit: AuthLoginSchema },
     onSubmit: async ({ value }) => {
       try {
-        const payload: { email: string; password: string; companyId?: number } = {
+        const payload: { email: string; password: string; companyId?: number; turnstileToken?: string } = {
           email: value.email,
           password: value.password,
+          turnstileToken: turnstileToken() ?? undefined,
         };
-        if (isGlobalLogin && selectedTenant()) {
-          payload.companyId = selectedTenant()!.id;
+
+        if (value.companyId) {
+          payload.companyId = value.companyId;
         } else if (!isGlobalLogin && branding.tenant()) {
           payload.companyId = branding.tenant()!.id;
         }
 
         const res = await actions.login(payload);
 
-        // Si requiere selección de inquilino (múltiples cuentas activas verificadas)
         if (res && 'requiresTenantSelection' in res && res.requiresTenantSelection) {
           setDiscoveredTenants(res.tenants);
-          setStep('tenants');
+          setShowTenants(true);
           return;
         }
 
-        // Clic en login exitoso
         const successRes = res as { user: AuthUserResponseType & { companySlug?: string }; sessionId: string };
         const companySlug = successRes?.user?.companySlug;
 
-        // Read redirect from TanStack search params (signal accessor) or fallback to raw URL
         const searchParams = typeof search === 'function' ? search() : search;
         const redirectTo = (searchParams as any)?.redirect
             ?? new URLSearchParams(window.location.search).get('redirect');
-
-        // Security: only allow relative paths (prevents open redirect)
         const safePath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
             ? redirectTo
             : '/dashboard';
 
-        if (isGlobalLogin && (selectedTenant() || companySlug)) {
-          const slug = selectedTenant()?.slug || companySlug;
-          if (slug) {
-            handleRedirect(slug, safePath);
-          } else {
-            navigate({ to: safePath, replace: true });
-          }
+        if (companySlug) {
+          handleRedirect(companySlug, safePath);
         } else {
           navigate({ to: safePath, replace: true });
         }
       } catch (err) {
+        setShowTenants(false);
         setDiscoveredTenants([]);
-        setSelectedTenant(null);
+        form.setFieldValue('companyId', undefined);
+        // Reset token on failure — widget will auto-refresh
+        setTurnstileToken(null);
         let msg = 'Error al iniciar sesión';
-        if (err instanceof AuthError || err instanceof Error) {
-          msg = err.message;
-        }
+        if (err instanceof AuthError || err instanceof Error) msg = err.message;
         toast.error(msg);
       }
     },
@@ -175,237 +134,70 @@ const Login: Component = () => {
 
   return (
     <div class="w-full p-8 bg-card border border-border rounded-2xl shadow-lg transition-all duration-300">
-      {/* Sección del Logotipo Dinámico */}
+      {/* Logo / Brand */}
       <div class="flex flex-col items-center mb-6">
-        <Show 
-          when={branding.tenant()?.logoUrl} 
+        <Show
+          when={branding.tenant()?.logoUrl}
           fallback={
-            <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 hover:scale-105">
-              <span class="text-primary font-bold text-2xl">
-                <Show when={selectedTenant()} fallback="Z">
-                  {(() => {
-                    const tenant = selectedTenant();
-                    if (!tenant) return 'Z';
-                    return (tenant.tradeName || tenant.businessName || 'Z').charAt(0);
-                  })()}
-                </Show>
-              </span>
+            <div class="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-3 transition-transform duration-300 hover:scale-105">
+              <span class="text-primary font-bold text-2xl">Z</span>
             </div>
           }
         >
-          <img 
-            src={branding.tenant()?.logoUrl!} 
-            alt="Logo Empresa" 
-            class="max-h-16 object-contain mb-4 transition-transform duration-300 hover:scale-105"
+          <img
+            src={branding.tenant()?.logoUrl!}
+            alt="Logo"
+            class="max-h-14 object-contain mb-3 transition-transform duration-300 hover:scale-105"
           />
         </Show>
-        
-        <h2 class="text-3xl font-bold mb-1 text-heading text-center">
-          <Show 
-            when={branding.tenant()} 
-            fallback={
-              <Show when={selectedTenant()} fallback="Iniciar sesión">
-                {(() => {
-                  const tenant = selectedTenant();
-                  return tenant ? (tenant.tradeName || tenant.businessName) : '';
-                })()}
-              </Show>
-            }
-          >
+
+        <h2 class="text-2xl font-bold text-heading text-center">
+          <Show when={branding.tenant()} fallback="Iniciar sesión">
             {branding.tenant()?.tradeName || branding.tenant()?.businessName}
           </Show>
         </h2>
-        <p class="text-muted text-sm text-center">
-          <Show when={branding.tenant() || selectedTenant()} fallback="Ingresa tus credenciales para continuar">
+        <p class="text-muted text-sm text-center mt-1">
+          <Show when={branding.tenant()} fallback="Ingresa tus credenciales para continuar">
             Portal Corporativo de Acceso
           </Show>
         </p>
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (step() === 'email') {
-            handleNextStep();
-          } else if (step() === 'password') {
+      {/* ── Main Login Form ── */}
+      <Show when={!showTenants()}>
+        <form
+          id="login-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             form.handleSubmit();
-          }
-        }}
-        class="flex flex-col gap-1"
-        aria-labelledby="login-form"
-        novalidate
-      >
-        {/* Step 1: Email Input */}
-        <Show when={step() === 'email'}>
+          }}
+          class="flex flex-col gap-3"
+          novalidate
+        >
           <form.Field
             name="email"
             children={(field) => (
               <Input
-                id="email"
+                id="login-email"
                 label="Usuario o correo electrónico"
                 type="text"
                 value={field().state.value}
                 onBlur={field().handleBlur}
                 onInput={(e) => field().handleChange(e.target.value)}
                 required
-                placeholder="nombre de usuario o correo"
+                placeholder="nombre@empresa.com"
                 autocomplete="username"
                 error={getFieldError(field().state.meta.errors)}
               />
             )}
           />
 
-          <Button
-            class="mt-4 w-full"
-            type="submit"
-            loading={loadingTenants()}
-            loadingText="Buscando empresas…"
-          >
-            Siguiente
-          </Button>
-        </Show>
-
-        {/* Step 2: Tenant Selector */}
-        <Show when={step() === 'tenants'}>
-          <div class="flex flex-col gap-3 my-4">
-            <p class="text-sm text-muted mb-1 font-medium">Selecciona la empresa para acceder:</p>
-            <div class="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
-              <For each={discoveredTenants()}>
-                {(tenant) => (
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTenant(tenant)}
-                    class="flex items-center gap-4 p-3 rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/50 text-left transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-md cursor-pointer group"
-                  >
-                    <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 group-hover:bg-primary/20 transition-colors duration-300">
-                      <Show
-                        when={tenant.logoUrl}
-                        fallback={
-                          <span class="text-primary font-bold text-lg uppercase">
-                            {(tenant.tradeName || tenant.businessName).charAt(0)}
-                          </span>
-                        }
-                      >
-                        <img src={tenant.logoUrl!} alt="Logo" class="w-full h-full object-contain" />
-                      </Show>
-                    </div>
-                    
-                    <div class="grow min-w-0">
-                      <h4 class="font-semibold text-heading truncate group-hover:text-primary transition-colors duration-300">
-                        {tenant.tradeName || tenant.businessName}
-                      </h4>
-                      <p class="text-xs text-muted truncate">
-                        {tenant.slug}.zelys.app
-                      </p>
-                    </div>
-                    
-                    <div class="text-muted group-hover:text-primary transition-colors duration-300">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                      </svg>
-                    </div>
-                  </button>
-                )}
-              </For>
-            </div>
-          </div>
-
-          <Button
-            class="w-full mt-2"
-            variant="outline"
-            type="button"
-            onClick={handleBack}
-          >
-            Regresar
-          </Button>
-        </Show>
-
-        {/* Step 3: Password Input */}
-        <Show when={step() === 'password'}>
-          {/* Si es login global, mostramos un badge del usuario e inquilino seleccionado */}
-          <Show when={isGlobalLogin && selectedTenant()}>
-            <div class="flex flex-col gap-2 p-3 bg-muted/30 rounded-xl mb-4 border border-border">
-              <div class="flex justify-between items-center text-xs text-muted">
-                <span>Accediendo a:</span>
-                <button 
-                  type="button" 
-                  onClick={handleBack} 
-                  class="text-primary hover:underline font-semibold"
-                >
-                  Cambiar
-                </button>
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
-                  <Show
-                    when={selectedTenant()?.logoUrl}
-                    fallback={
-                      <span class="text-primary font-bold text-xs uppercase">
-                        {(() => {
-                          const tenant = selectedTenant();
-                          return tenant ? (tenant.tradeName || tenant.businessName || 'Z').charAt(0) : 'Z';
-                        })()}
-                      </span>
-                    }
-                  >
-                    <img src={selectedTenant()?.logoUrl || undefined} alt="Logo" class="w-full h-full object-contain" />
-                  </Show>
-                </div>
-                <span class="text-sm font-semibold text-heading truncate">
-                  {selectedTenant()?.tradeName || selectedTenant()?.businessName || ''}
-                </span>
-              </div>
-              <div class="border-t border-border/50 pt-2 flex justify-between items-center">
-                <span class="text-xs text-muted">Usuario:</span>
-                <span class="text-xs font-medium text-heading truncate max-w-[200px]">
-                  {form.getFieldValue('email')}
-                </span>
-              </div>
-            </div>
-          </Show>
-
-          {/* Form fields */}
-          {/* Si no es global, mostramos el email también. Si es global, lo dejamos oculto */}
-          <Show 
-            when={!isGlobalLogin}
-            fallback={
-              <form.Field
-                name="email"
-                children={(field) => (
-                  <input
-                    type="hidden"
-                    name="email"
-                    value={field().state.value}
-                  />
-                )}
-              />
-            }
-          >
-            <form.Field
-              name="email"
-              children={(field) => (
-                <Input
-                  id="email"
-                  label="Usuario o correo electrónico"
-                  type="text"
-                  value={field().state.value}
-                  onBlur={field().handleBlur}
-                  onInput={(e) => field().handleChange(e.target.value)}
-                  required
-                  placeholder="nombre de usuario o correo"
-                  autocomplete="username"
-                  error={getFieldError(field().state.meta.errors)}
-                />
-              )}
-            />
-          </Show>
-
           <form.Field
             name="password"
             children={(field) => (
               <Input
-                id="password"
+                id="login-password"
                 label="Contraseña"
                 type="password"
                 value={field().state.value}
@@ -419,47 +211,101 @@ const Login: Component = () => {
             )}
           />
 
+          {/* Cloudflare Turnstile widget */}
+          <Turnstile
+            onToken={(token) => setTurnstileToken(token)}
+            onExpire={() => setTurnstileToken(null)}
+            onError={() => {
+              setTurnstileToken(null);
+              console.warn('[Login] Turnstile error — widget will retry automatically');
+            }}
+          />
+
           <form.Subscribe
-            selector={(state) => ({
-              isSubmitting: state.isSubmitting,
-              isDirty: state.isDirty,
-            })}
+            selector={(state) => ({ isSubmitting: state.isSubmitting })}
             children={(state) => (
-              <div class="flex flex-col gap-2 mt-2">
-                <Button
-                  type="submit"
-                  disabled={!state().isDirty || state().isSubmitting}
-                  loading={state().isSubmitting}
-                  loadingText="Accediendo…"
-                >
-                  Iniciar sesión
-                </Button>
-                
-                <Show when={isGlobalLogin}>
-                  <Button
-                    variant="outline"
-                    type="button"
-                    onClick={handleBack}
-                    disabled={state().isSubmitting}
-                  >
-                    Regresar
-                  </Button>
-                </Show>
-              </div>
+              <Button
+                class="mt-1 w-full"
+                type="submit"
+                disabled={state().isSubmitting}
+                loading={state().isSubmitting}
+                loadingText="Accediendo…"
+              >
+                Iniciar sesión
+              </Button>
             )}
           />
-        </Show>
 
-        <Show when={!branding.tenant() && !selectedTenant()}>
-          <div class="text-sm text-muted mt-4 text-center">
-            ¿No tienes cuenta?{' '}
-            <a href="/register" class="text-primary hover:underline font-medium"
-               onClick={(e) => { e.preventDefault(); navigate({ to: '/register' }); }}>
-              Regístrate
-            </a>
+          <Show when={!branding.tenant()}>
+            <p class="text-sm text-muted text-center mt-2">
+              ¿No tienes cuenta?{' '}
+              <a
+                href="/register"
+                class="text-primary hover:underline font-medium"
+                onClick={(e) => { e.preventDefault(); navigate({ to: '/register' }); }}
+              >
+                Regístrate
+              </a>
+            </p>
+          </Show>
+        </form>
+      </Show>
+
+      {/* ── Tenant Selector (post-auth multi-empresa) ── */}
+      <Show when={showTenants()}>
+        <div class="flex flex-col gap-3">
+          <p class="text-sm text-muted font-medium mb-1">
+            Tu usuario pertenece a varias empresas. Selecciona para continuar:
+          </p>
+          <div class="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+            <For each={discoveredTenants()}>
+              {(tenant) => (
+                <button
+                  type="button"
+                  disabled={loadingTenants()}
+                  onClick={() => handleSelectTenant(tenant)}
+                  class="flex items-center gap-4 p-3 rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/50 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div class="w-11 h-11 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 group-hover:bg-primary/20 transition-colors duration-300">
+                    <Show
+                      when={tenant.logoUrl}
+                      fallback={
+                        <span class="text-primary font-bold text-lg uppercase">
+                          {(tenant.tradeName || tenant.businessName).charAt(0)}
+                        </span>
+                      }
+                    >
+                      <img src={tenant.logoUrl!} alt="Logo" class="w-full h-full object-contain" />
+                    </Show>
+                  </div>
+                  <div class="grow min-w-0">
+                    <h4 class="font-semibold text-heading truncate group-hover:text-primary transition-colors duration-300">
+                      {tenant.tradeName || tenant.businessName}
+                    </h4>
+                    <p class="text-xs text-muted truncate">{tenant.slug}.zelys.app</p>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-muted group-hover:text-primary transition-colors duration-300 shrink-0">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </button>
+              )}
+            </For>
           </div>
-        </Show>
-      </form>
+
+          <Button
+            class="w-full mt-1"
+            variant="outline"
+            type="button"
+            onClick={() => {
+              setShowTenants(false);
+              setDiscoveredTenants([]);
+              form.setFieldValue('companyId', undefined);
+            }}
+          >
+            Regresar
+          </Button>
+        </div>
+      </Show>
     </div>
   );
 };
