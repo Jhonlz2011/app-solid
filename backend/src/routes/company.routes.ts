@@ -3,6 +3,9 @@ import { authGuard } from '../plugins/auth-guard';
 import { companyService } from '../services/company.service';
 import { publicStorageService } from '../services/public-storage.service';
 import { CompanySettingsBodySchema } from '@app/schema/backend';
+import { db } from '../db';
+import { companies } from '@app/schema/tables';
+import { eq } from '@app/schema';
 
 export const companyRoutes = new Elysia({ prefix: '/settings/company' })
   .use(authGuard)
@@ -30,8 +33,13 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    // Fetch stable slug for R2 key
+    const [company] = await db.select({ slug: companies.slug })
+      .from(companies).where(eq(companies.id, currentCompanyId)).limit(1);
+    if (!company) { set.status = 404; return { message: 'Empresa no encontrada' }; }
+
     const logoUrl = await publicStorageService.optimizeAndUploadLogo({
-      tenantId: currentCompanyId.toString(),
+      slug: company.slug,
       rawFileBuffer: buffer,
     });
 
@@ -57,8 +65,13 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    // Fetch stable slug for R2 key
+    const [company] = await db.select({ slug: companies.slug })
+      .from(companies).where(eq(companies.id, currentCompanyId)).limit(1);
+    if (!company) { set.status = 404; return { message: 'Empresa no encontrada' }; }
+
     const bgUrl = await publicStorageService.optimizeAndUploadLoginBg({
-      tenantId: currentCompanyId.toString(),
+      slug: company.slug,
       rawFileBuffer: buffer,
     });
 

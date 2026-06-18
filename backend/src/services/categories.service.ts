@@ -1,6 +1,6 @@
 import { eq, and, asc, sql, inArray } from '@app/schema';
 import { db } from '../db';
-import { brands, categories, categoryAttributes, attributeDefinitions, products } from '@app/schema/tables';
+import { categories, categoryAttributes, attributeDefinitions, products } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/sse';
@@ -256,7 +256,6 @@ export async function updateCategoryEnhanced(id: number, data: Partial<CategoryP
                         attribute_def_id: a.attributeDefId,
                         required: a.required ?? false,
                         order: a.order ?? 0,
-                        specific_options: a.specific_options ?? null,
                     }))
                 );
             }
@@ -492,7 +491,7 @@ export async function bulkRestoreCategories(ids: number[], companyId: number, au
                 eq(categories.company_id, companyId),
                 eq(categories.is_active, false),
                 inArray(categories.id, ids)
-            ));
+            )) as Array<{ id: number; }>;
 
         if (existing.length === 0) {
             throw new DomainError('No se encontraron categorías válidas para restaurar', 404);

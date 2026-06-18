@@ -1,5 +1,6 @@
 ---
 /* Pricing — Planes reales de Zelys ERP */
+import ContactForm from './ContactForm.astro';
 ---
 
 <section class="section" id="pricing">
@@ -82,9 +83,32 @@
           <li>Ejecutor de cuenta dedicado</li>
           <li>SLA garantizado 99.9%</li>
         </ul>
-        <a href="mailto:soporte@zelys.app" class="btn-secondary" style="width: 100%; text-align: center;">
-          Contactar soporte
-        </a>
+        <button
+          type="button"
+          id="open-enterprise-form"
+          class="btn-secondary"
+          style="width: 100%; text-align: center; cursor: pointer; border: none; font-family: inherit;"
+          aria-expanded="false"
+          aria-controls="enterprise-contact-section"
+        >
+          Contactar Enterprise ↓
+        </button>
+      </div>
+    </div>
+
+    <!-- Enterprise Contact Form (expandable, below pricing grid) -->
+    <div
+      id="enterprise-contact-section"
+      class="enterprise-section"
+      aria-hidden="true"
+      style="display: none;"
+    >
+      <div class="enterprise-inner">
+        <div class="enterprise-header">
+          <h3>Cuéntanos sobre tu empresa</h3>
+          <p>Nuestro equipo de ventas te contactará en menos de 24 horas hábiles con una propuesta personalizada.</p>
+        </div>
+        <ContactForm />
       </div>
     </div>
 
@@ -194,4 +218,68 @@
       margin: 0 auto;
     }
   }
+
+  /* ── Enterprise expandable section ── */
+  .enterprise-section {
+    margin-top: 2.5rem;
+    border-top: 1px solid var(--border-active);
+    padding-top: 2.5rem;
+    animation: fadeSlideIn 0.35s ease both;
+  }
+
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .enterprise-inner {
+    max-width: 680px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .enterprise-header {
+    text-align: center;
+  }
+
+  .enterprise-header h3 {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .enterprise-header p {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
 </style>
+
+<script>
+  const btn = document.getElementById('open-enterprise-form');
+  const section = document.getElementById('enterprise-contact-section');
+
+  if (btn && section) {
+    btn.addEventListener('click', () => {
+      const isOpen = section.style.display !== 'none';
+      if (isOpen) {
+        section.style.display = 'none';
+        section.setAttribute('aria-hidden', 'true');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.textContent = 'Contactar Enterprise ↓';
+      } else {
+        section.style.display = 'block';
+        section.setAttribute('aria-hidden', 'false');
+        btn.setAttribute('aria-expanded', 'true');
+        btn.textContent = 'Cerrar formulario ↑';
+        // Smooth scroll to form
+        setTimeout(() => {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
+      }
+    });
+  }
+</script>

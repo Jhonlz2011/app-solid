@@ -90,7 +90,7 @@ export const applyBranding = (tenant: TenantBrandingResponseDtoType | null) => {
             }
             link.setAttribute('crossorigin', 'use-credentials');
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-            link.href = `${apiUrl}/auth/tenant-manifest?slug=${tenant.slug}`;
+            link.href = `${apiUrl}/api/auth/tenant-manifest?slug=${tenant.slug}`;
             
         } else {
             root.style.removeProperty('--primary');
@@ -169,6 +169,25 @@ export const brandingActions = {
             applyBranding(null);
         } finally {
             setState('loading', false);
+        }
+    },
+
+    /**
+     * Load branding for a specific slug (post-login sync).
+     * Used when a user logs in via zelys.app (no subdomain) and we know their
+     * companySlug from getMe(). Allows the sidebar to show the tenant's logo.
+     */
+    loadBrandingForSlug: async (slug: string) => {
+        // Skip if already loaded for this slug
+        if (state.tenant?.slug === slug) return;
+
+        try {
+            const tenantInfo = await authApi.getTenantInfo(slug);
+            setState({ tenant: tenantInfo, error: null });
+            localStorage.setItem(`branding:${slug}`, JSON.stringify(tenantInfo));
+            applyBranding(tenantInfo);
+        } catch (err: any) {
+            console.warn('Branding sync for slug failed:', err);
         }
     }
 };

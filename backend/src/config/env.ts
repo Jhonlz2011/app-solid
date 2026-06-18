@@ -13,9 +13,10 @@ export const env = {
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   GEONAMES_USERNAME: process.env.GEONAMES_USERNAME || '',
   COOKIE_DOMAIN: process.env.COOKIE_DOMAIN || '',
-  AWS_REGION: process.env.AWS_REGION || 'us-east-2',
-  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || '',
-  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || '',
+  // LEGACY — AWS credentials no longer used (migrated to Cloudflare R2)
+  // AWS_REGION: process.env.AWS_REGION || 'us-east-2',
+  // AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || '',
+  // AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || '',
   R2_ENDPOINT: process.env.R2_ENDPOINT || '',
   R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID || '',
   R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY || '',

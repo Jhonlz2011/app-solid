@@ -2,6 +2,7 @@ import { db } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { invalidateTenantCache } from './spa-renderer.service';
+import type { CompanySettingsBodyType } from '@app/schema/backend';
 
 export const companyService = {
   getBranding: async (companyId: number) => {
@@ -37,7 +38,7 @@ export const companyService = {
     return company;
   },
 
-  updateBranding: async (companyId: number, data: any) => {
+  updateBranding: async (companyId: number, data: CompanySettingsBodyType) => {
     const [updated] = await db
       .update(companies)
       .set({

@@ -26,7 +26,12 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                         </span>
                     </div>
                 }>
-                    <img src={branding.tenant()?.logoUrl!} class="size-10 rounded-xl object-contain shrink-0" />
+                    <img
+                        src={branding.tenant()?.logoUrl!}
+                        alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Empresa'}`}
+                        loading="eager"
+                        class="size-10 rounded-xl object-contain shrink-0"
+                    />
                 </Show>
             </div>
 

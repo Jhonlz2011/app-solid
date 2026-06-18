@@ -82,6 +82,19 @@
 
     document.head.appendChild(style);
     document.title = (company.tradeName || company.businessName) + ' - Iniciar Sesión';
+
+    // Apply cached favicon to prevent flash of default favicon
+    if (company.logoUrl) {
+      var link = document.querySelector("link[rel*='icon']");
+      if (link) {
+        link.href = company.logoUrl;
+      } else {
+        link = document.createElement('link');
+        link.rel = 'shortcut icon';
+        link.href = company.logoUrl;
+        document.head.appendChild(link);
+      }
+    }
   } catch(e) {
     console.error('Error in branding fallback:', e);
   }

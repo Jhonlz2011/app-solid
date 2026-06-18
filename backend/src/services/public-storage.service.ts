@@ -12,8 +12,16 @@ const r2Client = new S3Client({
   forcePathStyle: true,
 });
 
+// Max upload size limits
+const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_BG_SIZE = 10 * 1024 * 1024; // 10MB
+
 export const publicStorageService = {
-  optimizeAndUploadLogo: async ({ tenantId, rawFileBuffer }: { tenantId: string; rawFileBuffer: Buffer }) => {
+  optimizeAndUploadLogo: async ({ slug, rawFileBuffer }: { slug: string; rawFileBuffer: Buffer }) => {
+    if (rawFileBuffer.length > MAX_LOGO_SIZE) {
+      throw new Error('El archivo del logo excede el límite de 5MB');
+    }
+
     // Sharp Pipeline: resize max width 400px (withoutEnlargement), strip EXIF, convert to webp quality 85
     const optimizedBuffer = await sharp(rawFileBuffer)
       .resize({
@@ -24,7 +32,7 @@ export const publicStorageService = {
       .toBuffer();
 
     const bucketName = env.R2_BUCKET_NAME;
-    const key = `tenants/${tenantId}/public/logo_login.webp`;
+    const key = `t/${slug}/logo.webp`;
 
     await r2Client.send(
       new PutObjectCommand({
@@ -41,7 +49,11 @@ export const publicStorageService = {
     return `${cdnUrl}/${key}?t=${timestamp}`;
   },
 
-  optimizeAndUploadLoginBg: async ({ tenantId, rawFileBuffer }: { tenantId: string; rawFileBuffer: Buffer }) => {
+  optimizeAndUploadLoginBg: async ({ slug, rawFileBuffer }: { slug: string; rawFileBuffer: Buffer }) => {
+    if (rawFileBuffer.length > MAX_BG_SIZE) {
+      throw new Error('La imagen de fondo excede el límite de 10MB');
+    }
+
     // Sharp Pipeline: resize max width 1920px (withoutEnlargement), strip EXIF, convert to webp quality 80
     const optimizedBuffer = await sharp(rawFileBuffer)
       .resize({
@@ -52,7 +64,7 @@ export const publicStorageService = {
       .toBuffer();
 
     const bucketName = env.R2_BUCKET_NAME;
-    const key = `tenants/${tenantId}/public/login_bg.webp`;
+    const key = `t/${slug}/login-bg.webp`;
 
     await r2Client.send(
       new PutObjectCommand({

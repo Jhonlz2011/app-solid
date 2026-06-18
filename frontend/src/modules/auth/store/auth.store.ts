@@ -7,6 +7,7 @@ import type { User } from "../types/auth.types";
 import type { RbacModule, PermissionSlug } from '@app/schema/enums';
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
+import { brandingActions } from "./branding.store";
 
 // Prevent multiple initStore() calls
 let storeInitialized = false;
@@ -73,6 +74,11 @@ export const actions = {
             // Notify other tabs
             if (authChannel) {
                 authChannel.postMessage({ type: 'LOGIN', user: sanitizeUser(user), sessionId: currentSessionId });
+            }
+
+            // Sync branding if user has a companySlug (for domain-less login via zelys.app)
+            if ((successData.user as any).companySlug) {
+                brandingActions.loadBrandingForSlug((successData.user as any).companySlug);
             }
 
             return successData;
@@ -160,6 +166,11 @@ export const actions = {
             // WebSocket
             enableReconnect();
             connect(currentSessionId);
+
+            // Sync branding for sidebar (if entering via zelys.app without subdomain)
+            if (userData.companySlug) {
+                brandingActions.loadBrandingForSlug(userData.companySlug);
+            }
 
             return true;
         } catch {

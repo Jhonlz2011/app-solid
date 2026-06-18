@@ -140,13 +140,15 @@ const Login: Component = () => {
           when={branding.tenant()?.logoUrl}
           fallback={
             <div class="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-3 transition-transform duration-300 hover:scale-105">
-              <span class="text-primary font-bold text-2xl">Z</span>
+              <span class="text-primary font-bold text-2xl">
+                {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Z').charAt(0).toUpperCase()}
+              </span>
             </div>
           }
         >
           <img
             src={branding.tenant()?.logoUrl!}
-            alt="Logo"
+            alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}`}
             class="max-h-14 object-contain mb-3 transition-transform duration-300 hover:scale-105"
           />
         </Show>

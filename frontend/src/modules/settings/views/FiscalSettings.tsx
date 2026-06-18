@@ -1,10 +1,5 @@
-import { Component, createSignal, createEffect, untrack, Show } from 'solid-js';
-import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
-import { CompanySettingsFormSchema, type CompanySettingsFormData } from '@app/schema/frontend';
-import { toast } from 'solid-sonner';
-import { useCompanyBranding } from '../data/branding.queries';
-import { useUpdateCompanyBranding } from '../data/branding.mutations';
+import { Component, Show } from 'solid-js';
+import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
 import TextField from '@shared/ui/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import Switch from '@shared/ui/Switch';
@@ -25,71 +20,10 @@ const SRI_ENV_OPTIONS = [
 ];
 
 const FiscalSettings: Component = () => {
-    const brandingQuery = useCompanyBranding();
-    const updateBrandingMut = useUpdateCompanyBranding();
-
-    const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
-
-    const form = createForm(() => ({
-        defaultValues: {
-            logoUrl: null,
-            loginBgUrl: null,
-            primaryColor: '#6366f1',
-            secondaryColor: '#64748b',
-            businessName: '',
-            tradeName: '',
-            ruc: '',
-            mainAddress: '',
-            businessType: 'COMERCIO',
-            email: '',
-            phone: '',
-            obligadoContabilidad: false,
-            contribuyenteEspecial: '',
-            agenteRetencion: '',
-            rimpeType: 'GENERAL',
-            sriEnvironment: '2',
-        } as CompanySettingsFormData,
-        validatorAdapter: valibotValidator(),
-        validators: {
-            onChange: CompanySettingsFormSchema,
-            onSubmit: CompanySettingsFormSchema,
-        },
-        onSubmit: async ({ value }) => {
-            updateBrandingMut.mutate(value, {
-                onSuccess: () => {
-                    toast.success('Configuración fiscal guardada correctamente');
-                },
-                onError: (err: any) => {
-                    toast.error(err.message || 'Error al guardar la configuración fiscal');
-                }
-            });
-        },
-    }));
-
-    // Sincronizar datos de la query al formulario
-    createEffect(() => {
-        const data = brandingQuery.data;
-        if (data) {
-            untrack(() => {
-                form.setFieldValue('logoUrl', data.logoUrl);
-                form.setFieldValue('loginBgUrl', data.loginBgUrl);
-                form.setFieldValue('primaryColor', data.primaryColor);
-                form.setFieldValue('secondaryColor', data.secondaryColor);
-                form.setFieldValue('businessName', data.businessName);
-                form.setFieldValue('tradeName', data.tradeName);
-                form.setFieldValue('ruc', data.ruc);
-                form.setFieldValue('mainAddress', data.mainAddress);
-                form.setFieldValue('businessType', data.businessType);
-                form.setFieldValue('email', data.email);
-                form.setFieldValue('phone', data.phone);
-                form.setFieldValue('obligadoContabilidad', data.obligadoContabilidad);
-                form.setFieldValue('contribuyenteEspecial', data.contribuyenteEspecial);
-                form.setFieldValue('agenteRetencion', data.agenteRetencion);
-                form.setFieldValue('rimpeType', data.rimpeType);
-                form.setFieldValue('sriEnvironment', data.sriEnvironment);
-            });
-        }
-    });
+    const {
+        form, brandingQuery, updateBrandingMut,
+        hasAttemptedSubmit, setHasAttemptedSubmit,
+    } = useCompanySettingsForm({ onSuccessMessage: 'Configuración fiscal guardada correctamente' });
 
     return (
         <div class="h-full flex flex-col">
