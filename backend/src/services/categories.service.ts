@@ -256,6 +256,7 @@ export async function updateCategoryEnhanced(id: number, data: Partial<CategoryP
                         attribute_def_id: a.attributeDefId,
                         required: a.required ?? false,
                         order: a.order ?? 0,
+                        specific_options: a.specific_options ?? null,
                     }))
                 );
             }

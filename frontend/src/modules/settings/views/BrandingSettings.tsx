@@ -46,7 +46,7 @@ const BrandingSettings: Component = () => {
                         class="flex-1 flex flex-col min-h-0"
                     >
                         {/* Header */}
-                        <div class="flex items-center justify-between border-b border-border pb-4 mb-5 flex-shrink-0">
+                        <div class="flex items-center justify-between border-b border-border pb-4 mb-5 shrink-0">
                             <div>
                                 <h2 class="text-xl font-bold text-heading">Colores y Apariencia</h2>
                                 <p class="text-xs text-muted mt-0.5">Controla la paleta de colores y el fondo de la plataforma</p>
@@ -219,7 +219,7 @@ const BrandingSettings: Component = () => {
                                                 <div class="flex items-center gap-1.5 px-1 py-1">
                                                     <Show when={logoPreviewUrl()} fallback={
                                                         <div class="size-5 rounded-md bg-primary-soft text-primary font-bold flex items-center justify-center text-[10px]">
-                                                            Z
+                                                            {(form.state.values.tradeName || form.state.values.businessName || 'Z').charAt(0).toUpperCase()}
                                                         </div>
                                                     }>
                                                         <img src={logoPreviewUrl()!} class="size-5 rounded-md object-cover" />

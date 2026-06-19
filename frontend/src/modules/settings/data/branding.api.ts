@@ -10,37 +10,19 @@ export const brandingApi = {
     },
 
     uploadLogo: async (file: File): Promise<string> => {
-        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch(`${apiBase}/api/settings/company/upload-logo`, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include',
+        const { data, error } = await (api.api.settings.company as any)['upload-logo'].post({
+            file,
         });
-        if (!res.ok) {
-            const errText = await res.text();
-            throw new Error(`Error al subir el logo: ${errText}`);
-        }
-        const data = await res.json();
-        return data.url;
+        if (error) throwApiError(error);
+        return (data as { url: string }).url;
     },
 
     uploadLoginBg: async (file: File): Promise<string> => {
-        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch(`${apiBase}/api/settings/company/upload-bg`, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include',
+        const { data, error } = await (api.api.settings.company as any)['upload-bg'].post({
+            file,
         });
-        if (!res.ok) {
-            const errText = await res.text();
-            throw new Error(`Error al subir el fondo de pantalla: ${errText}`);
-        }
-        const data = await res.json();
-        return data.url;
+        if (error) throwApiError(error);
+        return (data as { url: string }).url;
     },
 
     update: async (body: CompanySettingsFormData): Promise<CompanySettingsFormData> => {

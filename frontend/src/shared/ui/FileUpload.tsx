@@ -59,8 +59,8 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
     
     // Cropper State
     const [cropImageSrc, setCropImageSrc] = createSignal<string | null>(null);
-    const [cropFileName, setCropFileName] = createSignal<string>('image.png');
-    const [cropFileType, setCropFileType] = createSignal<string>('image/png');
+    const [cropFileName, setCropFileName] = createSignal<string>('image.webp');
+    const [cropFileType, setCropFileType] = createSignal<string>('image/webp');
     const [isCropping, setIsCropping] = createSignal(false);
 
     let fileInputRef!: HTMLInputElement;
@@ -407,9 +407,17 @@ interface ImageCropperDialogProps {
 const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
     const cropperId = createUniqueId();
 
+    // Close on Escape key
+    const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') props.onClose();
+    };
+
     return (
         <Portal>
-            <div class="fixed inset-0 z-100 flex items-center justify-center p-4">
+            <div
+                class="fixed inset-0 z-100 flex items-center justify-center p-4"
+                onKeyDown={onKeyDown}
+            >
                 {/* Backdrop */}
                 <div 
                     class="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity animate-in fade-in duration-200" 
@@ -417,152 +425,164 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                 />
 
                 {/* Dialog Container */}
-                <div class="relative w-full max-w-xl bg-card border border-border shadow-2xl rounded-3xl overflow-hidden z-10 transform scale-95 animate-in zoom-in-95 duration-200 flex flex-col">
+                <div class="relative w-full max-w-lg bg-card border border-border shadow-2xl rounded-3xl overflow-hidden z-10 transform scale-95 animate-in zoom-in-95 duration-200 flex flex-col">
                     {/* Header */}
-                    <div class="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/10">
+                    <div class="flex items-center justify-between px-5 py-3.5 border-b border-border bg-card-alt/30">
                         <div>
-                            <h3 class="text-lg font-bold text-heading">Ajustar Imagen</h3>
-                            <p class="text-xs text-muted mt-0.5">Arrastra el recuadro para recortar la imagen</p>
+                            <h3 class="text-base font-bold text-heading">Ajustar Imagen</h3>
+                            <p class="text-[11px] text-muted mt-0.5">Arrastra y ajusta el área de recorte</p>
                         </div>
                         <button
                             type="button"
                             onClick={props.onClose}
-                            class="p-2 rounded-xl hover:bg-surface text-muted hover:text-text transition-all cursor-pointer"
+                            class="p-1.5 rounded-lg hover:bg-surface text-muted hover:text-text transition-all cursor-pointer"
+                            aria-label="Cerrar"
                         >
                             <XIcon class="size-4" />
                         </button>
                     </div>
 
-                    {/* Cropper Viewport Area */}
-                    <div class="p-6 flex justify-center items-center bg-black/5 border-b border-border min-h-[300px]">
-                        <ImageCropper.Root
-                            id={cropperId}
-                            aspectRatio={props.cropAspectRatio}
-                            cropShape={props.cropShape ?? 'rectangle'}
-                            class="w-full max-w-[360px]"
-                        >
-                            <ImageCropper.Viewport class="relative overflow-hidden w-full aspect-square bg-card rounded-2xl border border-border flex items-center justify-center shadow-inner">
-                                <ImageCropper.Image src={props.src} crossOrigin="anonymous" class="max-w-full max-h-full object-contain select-none pointer-events-none" />
-                                <ImageCropper.Selection class={cn(
-                                    "absolute border-2 border-white ring-1 ring-black/30 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] cursor-move outline-hidden select-none",
-                                    props.cropShape === 'circle' && "rounded-full"
-                                )}>
-                                    {/* Thirds Grid Helper */}
-                                    <ImageCropper.Grid axis="horizontal" class="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 border border-white/20 after:content-[''] after:absolute after:inset-y-0 after:left-1/3 after:right-1/3 after:border-x after:border-white/20 before:content-[''] before:absolute before:inset-x-0 before:top-1/3 before:bottom-1/3 before:border-y before:border-white/20" />
-                                    
-                                    {/* Corner Handles */}
-                                    <ImageCropper.Handle position="nw" class="absolute size-3.5 bg-white border-2 border-primary rounded-full -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-110 active:scale-95 transition-transform" />
-                                    <ImageCropper.Handle position="ne" class="absolute size-3.5 bg-white border-2 border-primary rounded-full translate-x-1/2 -translate-y-1/2 cursor-nesw-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-110 active:scale-95 transition-transform" />
-                                    <ImageCropper.Handle position="sw" class="absolute size-3.5 bg-white border-2 border-primary rounded-full -translate-x-1/2 translate-y-1/2 cursor-nesw-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-110 active:scale-95 transition-transform" />
-                                    <ImageCropper.Handle position="se" class="absolute size-3.5 bg-white border-2 border-primary rounded-full translate-x-1/2 translate-y-1/2 cursor-nwse-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-110 active:scale-95 transition-transform" />
-                                </ImageCropper.Selection>
-                            </ImageCropper.Viewport>
+                    {/* Cropper: Root wraps viewport + sliders + footer so Context works */}
+                    <ImageCropper.Root
+                        id={cropperId}
+                        aspectRatio={props.cropAspectRatio}
+                        cropShape={props.cropShape ?? 'rectangle'}
+                    >
+                        {/* Viewport Area */}
+                        <div class="px-5 py-4 flex justify-center items-center bg-black/5 dark:bg-black/20 border-b border-border/50">
+                            <div class="w-full max-w-[340px]">
+                                <ImageCropper.Viewport class="relative overflow-hidden w-full aspect-square bg-card rounded-xl border border-border/60 flex items-center justify-center shadow-inner">
+                                    <ImageCropper.Image src={props.src} crossOrigin="anonymous" class="max-w-full max-h-full object-contain select-none pointer-events-none" />
+                                    <ImageCropper.Selection class={cn(
+                                        "absolute border-2 border-white ring-1 ring-black/30 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] cursor-move outline-hidden select-none",
+                                        props.cropShape === 'circle' && "rounded-full"
+                                    )}>
+                                        {/* Thirds Grid Helper — hidden for circle crops */}
+                                        <Show when={props.cropShape !== 'circle'}>
+                                            <ImageCropper.Grid axis="horizontal" class="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 border border-white/20 after:content-[''] after:absolute after:inset-y-0 after:left-1/3 after:right-1/3 after:border-x after:border-white/20 before:content-[''] before:absolute before:inset-x-0 before:top-1/3 before:bottom-1/3 before:border-y before:border-white/20" />
+                                        </Show>
+                                        
+                                        {/* Corner Handles */}
+                                        <ImageCropper.Handle position="nw" class="absolute size-3 bg-white border-2 border-primary rounded-full -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-125 active:scale-95 transition-transform" />
+                                        <ImageCropper.Handle position="ne" class="absolute size-3 bg-white border-2 border-primary rounded-full translate-x-1/2 -translate-y-1/2 cursor-nesw-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-125 active:scale-95 transition-transform" />
+                                        <ImageCropper.Handle position="sw" class="absolute size-3 bg-white border-2 border-primary rounded-full -translate-x-1/2 translate-y-1/2 cursor-nesw-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-125 active:scale-95 transition-transform" />
+                                        <ImageCropper.Handle position="se" class="absolute size-3 bg-white border-2 border-primary rounded-full translate-x-1/2 translate-y-1/2 cursor-nwse-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-125 active:scale-95 transition-transform" />
+                                    </ImageCropper.Selection>
+                                </ImageCropper.Viewport>
 
-                            {/* State-driven controls using Ark UI context */}
-                            <ImageCropper.Context>
-                                {(api) => (
-                                    <div class="flex flex-col gap-4 mt-6">
-                                        {/* Zoom Control */}
-                                        <div class="flex items-center gap-3">
-                                            <span class="text-xs font-semibold text-muted w-10">Zoom</span>
-                                            <input
-                                                type="range"
-                                                min={1}
-                                                max={5}
-                                                step={0.01}
-                                                value={api().zoom}
-                                                onInput={(e) => api().setZoom(parseFloat(e.currentTarget.value))}
-                                                class="flex-1 accent-primary bg-muted rounded-lg h-1.5 appearance-none cursor-pointer"
-                                            />
-                                            <span class="text-xs font-mono text-muted w-10 text-right">
-                                                {(api().zoom * 100).toFixed(0)}%
-                                            </span>
-                                        </div>
-
-                                        {/* Rotation Control */}
-                                        <div class="flex items-center gap-3">
-                                            <span class="text-xs font-semibold text-muted w-10">Girar</span>
-                                            <input
-                                                type="range"
-                                                min={0}
-                                                max={360}
-                                                step={1}
-                                                value={api().rotation}
-                                                onInput={(e) => api().setRotation(parseInt(e.currentTarget.value))}
-                                                class="flex-1 accent-primary bg-muted rounded-lg h-1.5 appearance-none cursor-pointer"
-                                            />
-                                            <span class="text-xs font-mono text-muted w-10 text-right">
-                                                {api().rotation}°
-                                            </span>
-                                        </div>
-
-                                        {/* Flip, Rotate buttons and Action Buttons */}
-                                        <div class="flex items-center justify-between gap-4 mt-2 border-t border-border/60 pt-4">
-                                            <div class="flex items-center gap-1.5">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => api().flipHorizontally()}
-                                                    class="p-2 rounded-xl hover:bg-muted text-muted hover:text-text transition-colors cursor-pointer"
-                                                    title="Reflejar horizontalmente"
-                                                >
-                                                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => api().flipVertically()}
-                                                    class="p-2 rounded-xl hover:bg-muted text-muted hover:text-text transition-colors cursor-pointer"
-                                                    title="Reflejar verticalmente"
-                                                >
-                                                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 8v12m0 0l-4-4m4 4l-4-4m6 0V4m0 0l4 4m-4-4l4-4" />
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => api().rotateBy(90)}
-                                                    class="p-2 rounded-xl hover:bg-muted text-muted hover:text-text transition-colors cursor-pointer"
-                                                    title="Girar 90°"
-                                                >
-                                                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89" />
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => api().reset()}
-                                                    class="text-xs font-semibold text-muted hover:text-text px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer ml-1"
-                                                >
-                                                    Restaurar
-                                                </button>
+                                {/* Sliders inside the viewport area */}
+                                <ImageCropper.Context>
+                                    {(api) => (
+                                        <div class="flex flex-col gap-3 mt-4">
+                                            {/* Zoom Control */}
+                                            <div class="flex items-center gap-3">
+                                                <span class="text-[11px] font-semibold text-muted w-9">Zoom</span>
+                                                <input
+                                                    type="range"
+                                                    min={1}
+                                                    max={5}
+                                                    step={0.01}
+                                                    value={api().zoom}
+                                                    onInput={(e) => api().setZoom(parseFloat(e.currentTarget.value))}
+                                                    class="flex-1 accent-primary bg-muted rounded-lg h-1.5 appearance-none cursor-pointer"
+                                                />
+                                                <span class="text-[11px] font-mono text-muted w-10 text-right">
+                                                    {(api().zoom * 100).toFixed(0)}%
+                                                </span>
                                             </div>
 
-                                            <div class="flex gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={props.onClose}
-                                                    class="px-4 py-2 text-sm font-semibold text-muted hover:bg-muted rounded-xl transition-all cursor-pointer"
-                                                >
-                                                    Cancelar
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={async () => {
-                                                        const blob = await api().getCroppedImage({ output: 'blob', type: 'image/png' });
-                                                        props.onConfirm(blob as Blob | null);
-                                                    }}
-                                                    class="px-4 py-2 text-sm font-bold bg-primary text-white hover:bg-primary-strong rounded-xl shadow-lg shadow-primary/10 transition-all cursor-pointer"
-                                                >
-                                                    Aplicar Recorte
-                                                </button>
+                                            {/* Rotation Control */}
+                                            <div class="flex items-center gap-3">
+                                                <span class="text-[11px] font-semibold text-muted w-9">Girar</span>
+                                                <input
+                                                    type="range"
+                                                    min={0}
+                                                    max={360}
+                                                    step={1}
+                                                    value={api().rotation}
+                                                    onInput={(e) => api().setRotation(parseInt(e.currentTarget.value))}
+                                                    class="flex-1 accent-primary bg-muted rounded-lg h-1.5 appearance-none cursor-pointer"
+                                                />
+                                                <span class="text-[11px] font-mono text-muted w-10 text-right">
+                                                    {api().rotation}°
+                                                </span>
                                             </div>
                                         </div>
+                                    )}
+                                </ImageCropper.Context>
+                            </div>
+                        </div>
+
+                        {/* Footer Actions — inside Root so Context works */}
+                        <ImageCropper.Context>
+                            {(api) => (
+                                <div class="flex items-center justify-between px-5 py-3.5 bg-card">
+                                    {/* Left: Transform tools */}
+                                    <div class="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => api().flipHorizontally()}
+                                            class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer"
+                                            title="Reflejar horizontalmente"
+                                        >
+                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => api().flipVertically()}
+                                            class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer"
+                                            title="Reflejar verticalmente"
+                                        >
+                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M7 8v12m0 0l-4-4m4 4l-4-4m6 0V4m0 0l4 4m-4-4l4-4" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => api().rotateBy(90)}
+                                            class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer"
+                                            title="Girar 90°"
+                                        >
+                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89" />
+                                            </svg>
+                                        </button>
+                                        <div class="w-px h-5 bg-border mx-1" />
+                                        <button
+                                            type="button"
+                                            onClick={() => api().reset()}
+                                            class="text-[11px] font-semibold text-muted hover:text-text px-2 py-1.5 rounded-lg hover:bg-card-alt transition-colors cursor-pointer"
+                                        >
+                                            Restaurar
+                                        </button>
                                     </div>
-                                )}
-                            </ImageCropper.Context>
-                        </ImageCropper.Root>
-                    </div>
+
+                                    {/* Right: Cancel / Apply */}
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={props.onClose}
+                                            class="px-3 py-1.5 text-xs font-semibold text-muted hover:text-text hover:bg-card-alt rounded-lg transition-all cursor-pointer"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                const blob = await api().getCroppedImage({ output: 'blob', type: 'image/webp' });
+                                                props.onConfirm(blob as Blob | null);
+                                            }}
+                                            class="px-4 py-1.5 text-xs font-bold bg-primary text-white hover:bg-primary-strong rounded-lg shadow-md shadow-primary/15 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                                        >
+                                            Aplicar Recorte
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </ImageCropper.Context>
+                    </ImageCropper.Root>
                 </div>
             </div>
         </Portal>
