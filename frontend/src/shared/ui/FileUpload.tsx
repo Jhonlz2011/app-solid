@@ -451,8 +451,12 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                         {/* Viewport Area */}
                         <div class="px-5 py-4 flex justify-center items-center bg-black/5 dark:bg-black/20 border-b border-border/50">
                             <div class="w-full max-w-[340px]">
-                                <ImageCropper.Viewport class="relative overflow-hidden w-full aspect-square bg-card rounded-xl border border-border/60 flex items-center justify-center shadow-inner">
-                                    <ImageCropper.Image src={props.src} crossOrigin="anonymous" class="max-w-full max-h-full object-contain select-none pointer-events-none" />
+                                <ImageCropper.Viewport class="relative overflow-hidden w-full aspect-square bg-black/90 rounded-xl border border-border/60 shadow-inner">
+                                    <ImageCropper.Image
+                                        src={props.src}
+                                        {...(props.src.startsWith('http') ? { crossOrigin: 'anonymous' } : {})}
+                                        class="select-none"
+                                    />
                                     <ImageCropper.Selection class={cn(
                                         "absolute border-2 border-white ring-1 ring-black/30 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] cursor-move outline-hidden select-none",
                                         props.cropShape === 'circle' && "rounded-full"
