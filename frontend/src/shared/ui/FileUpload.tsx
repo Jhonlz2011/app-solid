@@ -404,28 +404,107 @@ interface ImageCropperDialogProps {
     onConfirm: (blob: Blob | null) => void;
 }
 
+/**
+ * Styles for the Ark UI ImageCropper.
+ * Uses `data-scope` / `data-part` selectors to avoid conflicting
+ * with the inline styles that zag-js applies for positioning & transforms.
+ */
+const CROPPER_STYLES = `
+  .cropper-viewport {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    aspect-ratio: 1;
+    background: #0a0a0a;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    touch-action: none;
+  }
+  .cropper-viewport img {
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  .cropper-selection {
+    border: 2px solid white;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
+    cursor: move;
+    outline: none;
+    user-select: none;
+  }
+  .cropper-selection[data-crop-shape="circle"] {
+    border-radius: 9999px;
+  }
+  .cropper-handle {
+    position: absolute;
+    z-index: 1;
+  }
+  .cropper-handle > div {
+    width: 12px;
+    height: 12px;
+    background: white;
+    border: 2px solid var(--color-primary, #6366f1);
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+  }
+  .cropper-handle:hover > div {
+    transform: scale(1.3);
+  }
+  .cropper-grid[data-axis="horizontal"] {
+    position: absolute;
+    inset: 33.33% 0;
+    border-top: 1px solid rgba(255,255,255,0.3);
+    border-bottom: 1px solid rgba(255,255,255,0.3);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .cropper-grid[data-axis="vertical"] {
+    position: absolute;
+    inset: 0 33.33%;
+    border-left: 1px solid rgba(255,255,255,0.3);
+    border-right: 1px solid rgba(255,255,255,0.3);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .cropper-grid[data-dragging],
+  .cropper-grid[data-panning] {
+    opacity: 1;
+  }
+`;
+
 const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
     const cropperId = createUniqueId();
 
-    // Close on Escape key
-    const onKeyDown = (e: KeyboardEvent) => {
+    // Lock body scroll while cropper is open
+    document.body.style.overflow = 'hidden';
+    onCleanup(() => { document.body.style.overflow = ''; });
+
+    // Global Escape key listener
+    const onEscape = (e: KeyboardEvent) => {
         if (e.key === 'Escape') props.onClose();
     };
+    window.addEventListener('keydown', onEscape);
+    onCleanup(() => window.removeEventListener('keydown', onEscape));
 
     return (
         <Portal>
-            <div
-                class="fixed inset-0 z-100 flex items-center justify-center p-4"
-                onKeyDown={onKeyDown}
-            >
+            {/* Inject scoped styles */}
+            <style>{CROPPER_STYLES}</style>
+
+            <div class="fixed inset-0 z-100 flex items-center justify-center p-4">
                 {/* Backdrop */}
-                <div 
-                    class="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity animate-in fade-in duration-200" 
-                    onClick={props.onClose} 
+                <div
+                    class="fixed inset-0 bg-black/80 backdrop-blur-md"
+                    onClick={props.onClose}
                 />
 
-                {/* Dialog Container */}
-                <div class="relative w-full max-w-lg bg-card border border-border shadow-2xl rounded-3xl overflow-hidden z-10 transform scale-95 animate-in zoom-in-95 duration-200 flex flex-col">
+                {/* Dialog */}
+                <div
+                    class="relative w-full max-w-lg bg-card border border-border shadow-2xl rounded-3xl overflow-hidden z-10 flex flex-col"
+                    onClick={(e) => e.stopPropagation()}
+                >
                     {/* Header */}
                     <div class="flex items-center justify-between px-5 py-3.5 border-b border-border bg-card-alt/30">
                         <div>
@@ -442,43 +521,40 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                         </button>
                     </div>
 
-                    {/* Cropper: Root wraps viewport + sliders + footer so Context works */}
+                    {/* ━━━ Ark UI ImageCropper ━━━ */}
                     <ImageCropper.Root
                         id={cropperId}
                         aspectRatio={props.cropAspectRatio}
                         cropShape={props.cropShape ?? 'rectangle'}
                     >
-                        {/* Viewport Area */}
-                        <div class="px-5 py-4 flex justify-center items-center bg-black/5 dark:bg-black/20 border-b border-border/50">
+                        {/* Viewport area */}
+                        <div class="px-5 py-4 bg-black/5 dark:bg-black/20 border-b border-border/50 flex justify-center">
                             <div class="w-full max-w-[340px]">
-                                <ImageCropper.Viewport class="relative overflow-hidden w-full aspect-square bg-black/90 rounded-xl border border-border/60 shadow-inner">
+                                <ImageCropper.Viewport class="cropper-viewport">
                                     <ImageCropper.Image
                                         src={props.src}
-                                        {...(props.src.startsWith('http') ? { crossOrigin: 'anonymous' } : {})}
-                                        class="select-none"
+                                        alt="Imagen a recortar"
                                     />
-                                    <ImageCropper.Selection class={cn(
-                                        "absolute border-2 border-white ring-1 ring-black/30 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] cursor-move outline-hidden select-none",
-                                        props.cropShape === 'circle' && "rounded-full"
-                                    )}>
-                                        {/* Thirds Grid Helper — hidden for circle crops */}
-                                        <Show when={props.cropShape !== 'circle'}>
-                                            <ImageCropper.Grid axis="horizontal" class="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 border border-white/20 after:content-[''] after:absolute after:inset-y-0 after:left-1/3 after:right-1/3 after:border-x after:border-white/20 before:content-[''] before:absolute before:inset-x-0 before:top-1/3 before:bottom-1/3 before:border-y before:border-white/20" />
-                                        </Show>
-                                        
-                                        {/* Corner Handles */}
-                                        <ImageCropper.Handle position="nw" class="absolute size-3 bg-white border-2 border-primary rounded-full -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-125 active:scale-95 transition-transform" />
-                                        <ImageCropper.Handle position="ne" class="absolute size-3 bg-white border-2 border-primary rounded-full translate-x-1/2 -translate-y-1/2 cursor-nesw-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-125 active:scale-95 transition-transform" />
-                                        <ImageCropper.Handle position="sw" class="absolute size-3 bg-white border-2 border-primary rounded-full -translate-x-1/2 translate-y-1/2 cursor-nesw-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-125 active:scale-95 transition-transform" />
-                                        <ImageCropper.Handle position="se" class="absolute size-3 bg-white border-2 border-primary rounded-full translate-x-1/2 translate-y-1/2 cursor-nwse-resize focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:scale-125 active:scale-95 transition-transform" />
+                                    <ImageCropper.Selection
+                                        class="cropper-selection"
+                                        data-crop-shape={props.cropShape ?? 'rectangle'}
+                                    >
+                                        <For each={ImageCropper.handles}>
+                                            {(position) => (
+                                                <ImageCropper.Handle position={position} class="cropper-handle">
+                                                    <div />
+                                                </ImageCropper.Handle>
+                                            )}
+                                        </For>
+                                        <ImageCropper.Grid axis="horizontal" class="cropper-grid" />
+                                        <ImageCropper.Grid axis="vertical" class="cropper-grid" />
                                     </ImageCropper.Selection>
                                 </ImageCropper.Viewport>
 
-                                {/* Sliders inside the viewport area */}
+                                {/* Zoom & Rotation sliders */}
                                 <ImageCropper.Context>
                                     {(api) => (
                                         <div class="flex flex-col gap-3 mt-4">
-                                            {/* Zoom Control */}
                                             <div class="flex items-center gap-3">
                                                 <span class="text-[11px] font-semibold text-muted w-9">Zoom</span>
                                                 <input
@@ -494,8 +570,6 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                     {(api().zoom * 100).toFixed(0)}%
                                                 </span>
                                             </div>
-
-                                            {/* Rotation Control */}
                                             <div class="flex items-center gap-3">
                                                 <span class="text-[11px] font-semibold text-muted w-9">Girar</span>
                                                 <input
@@ -517,11 +591,11 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                             </div>
                         </div>
 
-                        {/* Footer Actions — inside Root so Context works */}
+                        {/* Footer actions */}
                         <ImageCropper.Context>
                             {(api) => (
                                 <div class="flex items-center justify-between px-5 py-3.5 bg-card">
-                                    {/* Left: Transform tools */}
+                                    {/* Transform tools */}
                                     <div class="flex items-center gap-1">
                                         <button
                                             type="button"
@@ -563,7 +637,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                         </button>
                                     </div>
 
-                                    {/* Right: Cancel / Apply */}
+                                    {/* Apply / Cancel */}
                                     <div class="flex items-center gap-2">
                                         <button
                                             type="button"
@@ -594,3 +668,4 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
 };
 
 export default FileUploadDropzone;
+
