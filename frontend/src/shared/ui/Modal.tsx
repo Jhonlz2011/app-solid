@@ -4,9 +4,11 @@ import { Portal } from 'solid-js/web';
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title: JSX.Element | string;
+  description?: JSX.Element | string;
   children: JSX.Element;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  class?: string;
 }
 
 const Modal: Component<ModalProps> = (props) => {
@@ -15,6 +17,7 @@ const Modal: Component<ModalProps> = (props) => {
     md: 'max-w-2xl',
     lg: 'max-w-4xl',
     xl: 'max-w-6xl',
+    full: 'max-w-[calc(100vw-2rem)]',
   };
 
   createEffect(() => {
@@ -55,12 +58,17 @@ const Modal: Component<ModalProps> = (props) => {
           {/* Modal */}
           <div class="flex min-h-full items-center justify-center p-4">
             <div
-              class={`relative w-full ${sizeClasses[props.size || 'md']} bg-card border border-border shadow-card-soft rounded-2xl shadow-2xl transform transition-all`}
+              class={`relative w-full ${sizeClasses[props.size || 'md']} bg-card border border-border shadow-card-soft rounded-3xl shadow-2xl transform transition-all flex flex-col ${props.class || ''}`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div class="flex items-center justify-between px-6 py-4 border-b border-surface">
-                <h3 class="text-xl font-semibold">{props.title}</h3>
+              <div class="flex items-center justify-between px-6 py-4 border-b border-surface bg-card-alt/30">
+                <div>
+                  <h3 class="text-xl font-semibold">{props.title}</h3>
+                  <Show when={props.description}>
+                    <p class="text-sm text-muted mt-1">{props.description}</p>
+                  </Show>
+                </div>
                 <button
                   onClick={props.onClose}
                   class="text-muted hover:bg-card-alt hover:text-text transition-colors p-2 rounded-lg"

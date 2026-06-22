@@ -549,6 +549,30 @@ export const BoxIcon: Component<IconProps> = (props) => (
     </BaseIcon>
 );
 
+export const XIcon: Component<IconProps> = (props) => (
+    <svg class={props.class} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+);
+
+export const RectangleHorizontalIcon: Component<IconProps> = (props) => (
+    <svg class={props.class} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect width="20" height="12" x="2" y="6" rx="2" />
+    </svg>
+);
+
+export const SquareIcon: Component<IconProps> = (props) => (
+    <svg class={props.class} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect width="18" height="18" x="3" y="3" rx="2" />
+    </svg>
+);
+
+export const RectangleVerticalIcon: Component<IconProps> = (props) => (
+    <svg class={props.class} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect width="12" height="20" x="6" y="2" rx="2" />
+    </svg>
+);
+
 export const ClockIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>
         <circle cx="12" cy="12" r="10" />

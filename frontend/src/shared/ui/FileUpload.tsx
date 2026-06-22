@@ -5,10 +5,10 @@
  * Updated: Integrated with Ark UI Image Cropper for advanced cropping before uploading.
  */
 import { Component, For, Show, splitProps, JSX, createSignal, onCleanup, createUniqueId } from 'solid-js';
-import { Portal } from 'solid-js/web';
 import { ImageCropper } from '@ark-ui/solid';
+import Modal from './Modal';
 import { cn } from '../lib/utils';
-import { XIcon } from './icons';
+import { XIcon, RectangleHorizontalIcon, SquareIcon, RectangleVerticalIcon } from './icons';
 
 // ============================================================================
 // TYPES
@@ -474,63 +474,61 @@ const CROPPER_STYLES = `
   }
 `;
 
+const ASPECTS = [
+    { label: '16:9', value: 16 / 9, icon: RectangleHorizontalIcon },
+    { label: '1:1', value: 1, icon: SquareIcon },
+    { label: '9:16', value: 9 / 16, icon: RectangleVerticalIcon },
+];
+
 const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
     const cropperId = createUniqueId();
-
-    // Lock body scroll while cropper is open
-    document.body.style.overflow = 'hidden';
-    onCleanup(() => { document.body.style.overflow = ''; });
-
-    // Global Escape key listener
-    const onEscape = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') props.onClose();
-    };
-    window.addEventListener('keydown', onEscape);
-    onCleanup(() => window.removeEventListener('keydown', onEscape));
+    const [aspectRatio, setAspectRatio] = createSignal(props.cropAspectRatio ?? (16 / 9));
 
     return (
-        <Portal>
+        <Modal
+            isOpen={true}
+            onClose={props.onClose}
+            title="Ajustar Imagen"
+            description="Arrastra y ajusta el área de recorte"
+            size="md"
+            class="max-w-[420px]"
+        >
             {/* Inject scoped styles */}
             <style>{CROPPER_STYLES}</style>
 
-            <div class="fixed inset-0 z-100 flex items-center justify-center p-4">
-                {/* Backdrop */}
-                <div
-                    class="fixed inset-0 bg-black/80 backdrop-blur-md"
-                    onClick={props.onClose}
-                />
-
-                {/* Dialog */}
-                <div
-                    class="relative w-full max-w-lg bg-card border border-border shadow-2xl rounded-3xl overflow-hidden z-10 flex flex-col"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {/* Header */}
-                    <div class="flex items-center justify-between px-5 py-3.5 border-b border-border bg-card-alt/30">
-                        <div>
-                            <h3 class="text-base font-bold text-heading">Ajustar Imagen</h3>
-                            <p class="text-[11px] text-muted mt-0.5">Arrastra y ajusta el área de recorte</p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={props.onClose}
-                            class="p-1.5 rounded-lg hover:bg-surface text-muted hover:text-text transition-all cursor-pointer"
-                            aria-label="Cerrar"
-                        >
-                            <XIcon class="size-4" />
-                        </button>
+            {/* Content area */}
+            <div class="px-5 py-4 bg-surface/30 border-b border-border/50">
+                <Show when={props.cropShape !== 'circle'}>
+                    <div class="flex items-center gap-1 mb-5 bg-card border border-border p-1 rounded-xl w-fit mx-auto shadow-sm">
+                        <For each={ASPECTS}>
+                            {(aspect) => (
+                                <button
+                                    type="button"
+                                    onClick={() => setAspectRatio(aspect.value)}
+                                    class={cn(
+                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer",
+                                        aspectRatio() === aspect.value 
+                                            ? "bg-primary text-white shadow-md scale-105" 
+                                            : "text-muted hover:text-text hover:bg-card-alt"
+                                    )}
+                                >
+                                    <aspect.icon class="size-3.5" />
+                                    {aspect.label}
+                                </button>
+                            )}
+                        </For>
                     </div>
+                </Show>
 
-                    {/* ━━━ Ark UI ImageCropper ━━━ */}
-                    <ImageCropper.Root
-                        id={cropperId}
-                        aspectRatio={props.cropAspectRatio}
-                        cropShape={props.cropShape ?? 'rectangle'}
-                    >
-                        {/* Viewport area */}
-                        <div class="px-5 py-4 bg-black/5 dark:bg-black/20 border-b border-border/50 flex justify-center">
-                            <div class="w-full max-w-[340px]">
-                                <ImageCropper.Viewport class="cropper-viewport">
+                {/* ━━━ Ark UI ImageCropper ━━━ */}
+                <ImageCropper.Root
+                    id={cropperId}
+                    aspectRatio={aspectRatio()}
+                >
+                    {/* Viewport area */}
+                    <div class="flex justify-center w-full">
+                        <div class="w-full max-w-[320px]">
+                            <ImageCropper.Viewport class="cropper-viewport">
                                     <ImageCropper.Image
                                         src={props.src}
                                         alt="Imagen a recortar"
@@ -649,8 +647,13 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                         <button
                                             type="button"
                                             onClick={async () => {
-                                                const blob = await api().getCroppedImage({ output: 'blob', type: 'image/webp' });
-                                                props.onConfirm(blob as Blob | null);
+                                                try {
+                                                    const blob = await api().getCroppedImage({ type: 'image/webp' });
+                                                    props.onConfirm(blob ? new Blob([blob], { type: 'image/webp' }) : null);
+                                                } catch (err) {
+                                                    console.error("Error cropping image:", err);
+                                                    props.onConfirm(null);
+                                                }
                                             }}
                                             class="px-4 py-1.5 text-xs font-bold bg-primary text-white hover:bg-primary-strong rounded-lg shadow-md shadow-primary/15 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                                         >
@@ -661,9 +664,8 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                             )}
                         </ImageCropper.Context>
                     </ImageCropper.Root>
-                </div>
             </div>
-        </Portal>
+        </Modal>
     );
 };
 
