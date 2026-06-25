@@ -214,7 +214,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                 onDragOver={onDragOver}
                 onDrop={onDrop}
                 class={cn(
-                    "relative flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer group",
+                    "relative flex flex-col items-center justify-center gap-3 p-6 min-h-[160px] rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer group",
                     "bg-card-alt/50 border-border hover:border-primary/40 hover:bg-primary/5",
                     isDragging() && "border-primary bg-primary/10 scale-[1.02]",
                     props.disabled && "opacity-50 cursor-not-allowed",
@@ -426,9 +426,8 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
             title="Ajustar Imagen"
             description="Arrastra y ajusta el área de recorte"
             size="md"
-            class="max-w-[420px]"
         >
-            <div class="px-5 py-6 border-b border-white/5">
+            <div class="px-5 py-6 border-b border-border/50">
                 <Show when={props.cropShape !== 'circle'}>
                     <div class="flex justify-center mb-6">
                         <SegmentedControl
@@ -459,7 +458,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                     <div class="flex justify-center w-full">
                         <div class="w-full">
                             {/* Viewport */}
-                            <ImageCropper.Viewport class="relative overflow-hidden w-full aspect-square bg-black/40 dark:bg-black/80 rounded-xl border border-white/10 touch-none shadow-inner">
+                            <ImageCropper.Viewport class="relative overflow-hidden w-full aspect-square bg-card-alt rounded-xl border border-border/80 touch-none shadow-sm">
                                     <ImageCropper.Image
                                         src={props.src}
                                         alt="Imagen a recortar"
@@ -522,7 +521,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                 {/* Zoom & Rotation sliders */}
                                 <ImageCropper.Context>
                                     {(api) => (
-                                        <div class="flex flex-col gap-3 mt-6 p-4 rounded-xl bg-black/5 dark:bg-white/5 border border-white/5 shadow-inner">
+                                        <div class="flex flex-col gap-3 mt-6 p-4 rounded-xl bg-card-alt/50 border border-border/50 shadow-sm">
                                             <div class="flex items-center gap-3">
                                                 <span class="text-[10px] font-bold text-muted w-9 uppercase tracking-widest">Zoom</span>
                                                 <input
@@ -562,7 +561,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                         {/* Footer actions */}
                         <ImageCropper.Context>
                             {(api) => (
-                                <div class="flex items-center justify-between px-5 py-4 bg-black/10 dark:bg-white/5 border-t border-white/5 rounded-b-[1.25rem] mt-6">
+                                <div class="flex items-center justify-between px-5 py-4 bg-card-alt/30 border-t border-border/50 rounded-b-[1.25rem] mt-6">
                                     {/* Transform tools */}
                                     <div class="flex items-center gap-1">
                                         <For each={[
@@ -574,7 +573,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                 <button
                                                     type="button"
                                                     onClick={tool.action}
-                                                    class="p-2 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-muted hover:text-text transition-colors cursor-pointer"
+                                                    class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer"
                                                     title={tool.label}
                                                 >
                                                     <svg class="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
@@ -587,7 +586,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                         <button
                                             type="button"
                                             onClick={() => api().reset()}
-                                            class="text-[11px] font-bold text-muted hover:text-text px-2.5 py-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer uppercase tracking-wider"
+                                            class="text-[11px] font-bold text-muted hover:text-text px-2.5 py-1.5 rounded-lg hover:bg-card-alt transition-colors cursor-pointer uppercase tracking-wider"
                                         >
                                             Restaurar
                                         </button>
@@ -598,7 +597,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                         <button
                                             type="button"
                                             onClick={props.onClose}
-                                            class="px-4 py-2 text-xs font-bold text-muted hover:text-text hover:bg-black/10 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"
+                                            class="px-4 py-2 text-xs font-bold text-muted hover:text-text hover:bg-card-alt rounded-xl transition-all cursor-pointer"
                                         >
                                             Cancelar
                                         </button>
