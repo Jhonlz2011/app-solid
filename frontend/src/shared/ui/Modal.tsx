@@ -51,18 +51,18 @@ const Modal: Component<ModalProps> = (props) => {
         <div class="fixed inset-0 z-50 overflow-y-auto">
           {/* Overlay */}
           <div
-            class="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+            class="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity"
             onClick={props.onClose}
           />
 
           {/* Modal */}
           <div class="flex min-h-full items-center justify-center p-4">
             <div
-              class={`relative w-full ${sizeClasses[props.size || 'md']} bg-card border border-border  rounded-2xl shadow-2xl transform transition-all flex flex-col ${props.class || ''}`}
+              class={`relative w-full ${sizeClasses[props.size || 'md']} bg-card/95 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-[1.25rem] shadow-[0_8px_32px_rgba(0,0,0,0.24)] transform transition-all flex flex-col overflow-hidden ${props.class || ''}`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div class="flex items-center justify-between px-6 py-4 border-b border-surface bg-card-alt/30">
+              <div class="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-black/5 dark:bg-white/5">
                 <div>
                   <h3 class="text-xl font-semibold">{props.title}</h3>
                   <Show when={props.description}>
@@ -71,7 +71,7 @@ const Modal: Component<ModalProps> = (props) => {
                 </div>
                 <button
                   onClick={props.onClose}
-                  class="text-muted hover:bg-card-alt hover:text-text transition-colors p-2 rounded-lg"
+                  class="text-muted hover:bg-black/10 dark:hover:bg-white/10 hover:text-text transition-colors p-2 rounded-lg"
                   aria-label="Cerrar"
                 >
                   <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

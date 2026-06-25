@@ -9,6 +9,7 @@ import { ImageCropper } from '@ark-ui/solid';
 import Modal from './Modal';
 import { cn } from '../lib/utils';
 import { XIcon, RectangleHorizontalIcon, SquareIcon, RectangleVerticalIcon } from './icons';
+import { SegmentedControl, SegmentedControlItem, SegmentedControlItemLabel, SegmentedControlIndicator, SegmentedControlItemInput } from './SegmentedControl';
 
 // ============================================================================
 // TYPES
@@ -407,85 +408,16 @@ interface ImageCropperDialogProps {
     onConfirm: (blob: Blob | null) => void;
 }
 
-/**
- * Styles for the Ark UI ImageCropper.
- * Uses `data-scope` / `data-part` selectors to avoid conflicting
- * with the inline styles that zag-js applies for positioning & transforms.
- */
-const CROPPER_STYLES = `
-  .cropper-viewport {
-    position: relative;
-    overflow: hidden;
-    width: 100%;
-    aspect-ratio: 1;
-    background: #0a0a0a;
-    border-radius: 0.75rem;
-    border: 1px solid rgba(255,255,255,0.08);
-    touch-action: none;
-  }
-  .cropper-viewport img {
-    user-select: none;
-    -webkit-user-drag: none;
-  }
-  .cropper-selection {
-    border: 2px solid white;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
-    cursor: move;
-    outline: none;
-    user-select: none;
-  }
-  .cropper-selection[data-crop-shape="circle"] {
-    border-radius: 9999px;
-  }
-  .cropper-handle {
-    position: absolute;
-    z-index: 1;
-  }
-  .cropper-handle > div {
-    width: 12px;
-    height: 12px;
-    background: white;
-    border: 2px solid var(--color-primary, #6366f1);
-    border-radius: 9999px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    transition: transform 0.1s;
-  }
-  .cropper-handle:hover > div {
-    transform: scale(1.3);
-  }
-  .cropper-grid[data-axis="horizontal"] {
-    position: absolute;
-    inset: 33.33% 0;
-    border-top: 1px solid rgba(255,255,255,0.3);
-    border-bottom: 1px solid rgba(255,255,255,0.3);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-  .cropper-grid[data-axis="vertical"] {
-    position: absolute;
-    inset: 0 33.33%;
-    border-left: 1px solid rgba(255,255,255,0.3);
-    border-right: 1px solid rgba(255,255,255,0.3);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-  .cropper-grid[data-dragging],
-  .cropper-grid[data-panning] {
-    opacity: 1;
-  }
-`;
-
 const ASPECTS = [
-    { label: '16:9', value: 16 / 9, icon: RectangleHorizontalIcon },
-    { label: '1:1', value: 1, icon: SquareIcon },
-    { label: '9:16', value: 9 / 16, icon: RectangleVerticalIcon },
+    { label: '16:9', value: '1.777', num: 16 / 9, icon: RectangleHorizontalIcon },
+    { label: '1:1', value: '1', num: 1, icon: SquareIcon },
+    { label: '9:16', value: '0.562', num: 9 / 16, icon: RectangleVerticalIcon },
 ];
 
 const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
     const cropperId = createUniqueId();
-    const [aspectRatio, setAspectRatio] = createSignal(props.cropAspectRatio ?? (16 / 9));
+    // Use SegmentedControl value as string
+    const [aspectRatio, setAspectRatio] = createSignal(props.cropAspectRatio ? String(props.cropAspectRatio) : '1.777');
 
     return (
         <Modal
@@ -493,73 +425,106 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
             onClose={props.onClose}
             title="Ajustar Imagen"
             description="Arrastra y ajusta el área de recorte"
-            size="md"
+            size="xl"
             class="max-w-[420px]"
         >
-            {/* Inject scoped styles */}
-            <style>{CROPPER_STYLES}</style>
-
-            {/* Content area */}
-            <div class="px-5 py-4 bg-surface/30 border-b border-border/50">
+            <div class="px-5 py-6 border-b border-white/5">
                 <Show when={props.cropShape !== 'circle'}>
-                    <div class="flex items-center gap-1 mb-5 bg-card border border-border p-1 rounded-xl w-fit mx-auto shadow-sm">
-                        <For each={ASPECTS}>
-                            {(aspect) => (
-                                <button
-                                    type="button"
-                                    onClick={() => setAspectRatio(aspect.value)}
-                                    class={cn(
-                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer",
-                                        aspectRatio() === aspect.value 
-                                            ? "bg-primary text-white shadow-md scale-105" 
-                                            : "text-muted hover:text-text hover:bg-card-alt"
-                                    )}
-                                >
-                                    <aspect.icon class="size-3.5" />
-                                    {aspect.label}
-                                </button>
-                            )}
-                        </For>
+                    <div class="flex justify-center mb-6">
+                        <SegmentedControl
+                            value={aspectRatio()}
+                            onChange={setAspectRatio}
+                        >
+                            <SegmentedControlIndicator />
+                            <For each={ASPECTS}>
+                                {(aspect) => (
+                                    <SegmentedControlItem value={aspect.value}>
+                                        <SegmentedControlItemInput />
+                                        <SegmentedControlItemLabel>
+                                            <aspect.icon class="size-3.5" />
+                                            {aspect.label}
+                                        </SegmentedControlItemLabel>
+                                    </SegmentedControlItem>
+                                )}
+                            </For>
+                        </SegmentedControl>
                     </div>
                 </Show>
 
                 {/* ━━━ Ark UI ImageCropper ━━━ */}
                 <ImageCropper.Root
                     id={cropperId}
-                    aspectRatio={aspectRatio()}
+                    aspectRatio={Number(aspectRatio())}
                 >
-                    {/* Viewport area */}
                     <div class="flex justify-center w-full">
                         <div class="w-full max-w-[320px]">
-                            <ImageCropper.Viewport class="cropper-viewport">
+                            {/* Viewport */}
+                            <ImageCropper.Viewport class="relative overflow-hidden w-full aspect-square bg-black/40 dark:bg-black/80 rounded-xl border border-white/10 touch-none shadow-inner">
                                     <ImageCropper.Image
                                         src={props.src}
                                         alt="Imagen a recortar"
                                         // @ts-ignore
                                         crossorigin={null}
+                                        class="absolute top-0 left-0 w-full h-full object-contain origin-center select-none pointer-events-none [backface-visibility:hidden]"
                                     />
                                     <ImageCropper.Selection
-                                        class="cropper-selection"
-                                        data-crop-shape={props.cropShape ?? 'rectangle'}
+                                        class={cn(
+                                            "box-content outline-none cursor-move [backface-visibility:hidden]",
+                                            "shadow-[0_0_0_9999px_rgba(0,0,0,0.65)]",
+                                            "border-[1.5px] border-white/50 focus-visible:border-primary",
+                                            "data-[dragging]:cursor-grabbing data-[dragging]:border-white/80",
+                                            props.cropShape === 'circle' && "rounded-full"
+                                        )}
                                     >
+                                        {/* Handles */}
                                         <For each={ImageCropper.handles}>
                                             {(position) => (
-                                                <ImageCropper.Handle position={position} class="cropper-handle">
-                                                    <div />
+                                                <ImageCropper.Handle 
+                                                    position={position} 
+                                                    class={cn(
+                                                        "group absolute flex items-center justify-center touch-none w-6 h-6",
+                                                        "data-[disabled]:hidden",
+                                                        // Corners
+                                                        "[&>div]:transition-all [&>div]:duration-150",
+                                                        "data-[position=top-left]:cursor-nwse-resize",
+                                                        "data-[position=top-right]:cursor-nesw-resize",
+                                                        "data-[position=bottom-right]:cursor-nwse-resize",
+                                                        "data-[position=bottom-left]:cursor-nesw-resize",
+                                                        // Edges
+                                                        "data-[position=top]:cursor-ns-resize",
+                                                        "data-[position=bottom]:cursor-ns-resize",
+                                                        "data-[position=left]:cursor-ew-resize",
+                                                        "data-[position=right]:cursor-ew-resize",
+                                                    )}
+                                                >
+                                                    <div class={cn(
+                                                        // Base
+                                                        "bg-card shadow-[0_1px_3px_rgba(0,0,0,0.3)]",
+                                                        // Corners (L-shapes)
+                                                        "group-data-[position=top-left]:w-3.5 group-data-[position=top-left]:h-3.5 group-data-[position=top-left]:border-l-[3px] group-data-[position=top-left]:border-t-[3px] group-data-[position=top-left]:border-primary hover:group-data-[position=top-left]:scale-110",
+                                                        "group-data-[position=top-right]:w-3.5 group-data-[position=top-right]:h-3.5 group-data-[position=top-right]:border-r-[3px] group-data-[position=top-right]:border-t-[3px] group-data-[position=top-right]:border-primary hover:group-data-[position=top-right]:scale-110",
+                                                        "group-data-[position=bottom-right]:w-3.5 group-data-[position=bottom-right]:h-3.5 group-data-[position=bottom-right]:border-r-[3px] group-data-[position=bottom-right]:border-b-[3px] group-data-[position=bottom-right]:border-primary hover:group-data-[position=bottom-right]:scale-110",
+                                                        "group-data-[position=bottom-left]:w-3.5 group-data-[position=bottom-left]:h-3.5 group-data-[position=bottom-left]:border-l-[3px] group-data-[position=bottom-left]:border-b-[3px] group-data-[position=bottom-left]:border-primary hover:group-data-[position=bottom-left]:scale-110",
+                                                        // Edges (Dots)
+                                                        "group-data-[position=top]:w-1.5 group-data-[position=top]:h-1.5 group-data-[position=top]:bg-primary group-data-[position=top]:rounded-full group-data-[position=top]:opacity-0 hover:group-data-[position=top]:opacity-100",
+                                                        "group-data-[position=bottom]:w-1.5 group-data-[position=bottom]:h-1.5 group-data-[position=bottom]:bg-primary group-data-[position=bottom]:rounded-full group-data-[position=bottom]:opacity-0 hover:group-data-[position=bottom]:opacity-100",
+                                                        "group-data-[position=left]:w-1.5 group-data-[position=left]:h-1.5 group-data-[position=left]:bg-primary group-data-[position=left]:rounded-full group-data-[position=left]:opacity-0 hover:group-data-[position=left]:opacity-100",
+                                                        "group-data-[position=right]:w-1.5 group-data-[position=right]:h-1.5 group-data-[position=right]:bg-primary group-data-[position=right]:rounded-full group-data-[position=right]:opacity-0 hover:group-data-[position=right]:opacity-100",
+                                                    )} />
                                                 </ImageCropper.Handle>
                                             )}
                                         </For>
-                                        <ImageCropper.Grid axis="horizontal" class="cropper-grid" />
-                                        <ImageCropper.Grid axis="vertical" class="cropper-grid" />
+                                        <ImageCropper.Grid axis="horizontal" class="absolute inset-y-[33.33%] inset-x-0 border-y border-white/40 pointer-events-none opacity-0 transition-opacity duration-200 data-[dragging]:opacity-100 data-[panning]:opacity-100" />
+                                        <ImageCropper.Grid axis="vertical" class="absolute inset-x-[33.33%] inset-y-0 border-x border-white/40 pointer-events-none opacity-0 transition-opacity duration-200 data-[dragging]:opacity-100 data-[panning]:opacity-100" />
                                     </ImageCropper.Selection>
                                 </ImageCropper.Viewport>
 
                                 {/* Zoom & Rotation sliders */}
                                 <ImageCropper.Context>
                                     {(api) => (
-                                        <div class="flex flex-col gap-3 mt-4">
+                                        <div class="flex flex-col gap-3 mt-6 p-4 rounded-xl bg-black/5 dark:bg-white/5 border border-white/5 shadow-inner">
                                             <div class="flex items-center gap-3">
-                                                <span class="text-[11px] font-semibold text-muted w-9">Zoom</span>
+                                                <span class="text-[10px] font-bold text-muted w-9 uppercase tracking-widest">Zoom</span>
                                                 <input
                                                     type="range"
                                                     min={1}
@@ -567,14 +532,14 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                     step={0.01}
                                                     value={api().zoom}
                                                     onInput={(e) => api().setZoom(parseFloat(e.currentTarget.value))}
-                                                    class="flex-1 accent-primary bg-muted rounded-lg h-1.5 appearance-none cursor-pointer"
+                                                    class="flex-1 accent-primary bg-surface/50 rounded-lg h-1.5 appearance-none cursor-pointer"
                                                 />
-                                                <span class="text-[11px] font-mono text-muted w-10 text-right">
+                                                <span class="text-[11px] font-mono text-muted w-10 text-right font-medium">
                                                     {(api().zoom * 100).toFixed(0)}%
                                                 </span>
                                             </div>
                                             <div class="flex items-center gap-3">
-                                                <span class="text-[11px] font-semibold text-muted w-9">Girar</span>
+                                                <span class="text-[10px] font-bold text-muted w-9 uppercase tracking-widest">Girar</span>
                                                 <input
                                                     type="range"
                                                     min={0}
@@ -582,9 +547,9 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                     step={1}
                                                     value={api().rotation}
                                                     onInput={(e) => api().setRotation(parseInt(e.currentTarget.value))}
-                                                    class="flex-1 accent-primary bg-muted rounded-lg h-1.5 appearance-none cursor-pointer"
+                                                    class="flex-1 accent-primary bg-surface/50 rounded-lg h-1.5 appearance-none cursor-pointer"
                                                 />
-                                                <span class="text-[11px] font-mono text-muted w-10 text-right">
+                                                <span class="text-[11px] font-mono text-muted w-10 text-right font-medium">
                                                     {api().rotation}°
                                                 </span>
                                             </div>
@@ -597,7 +562,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                         {/* Footer actions */}
                         <ImageCropper.Context>
                             {(api) => (
-                                <div class="flex items-center justify-between px-5 py-3.5 bg-card">
+                                <div class="flex items-center justify-between px-5 py-4 bg-black/10 dark:bg-white/5 border-t border-white/5 rounded-b-[1.25rem] mt-6">
                                     {/* Transform tools */}
                                     <div class="flex items-center gap-1">
                                         <For each={[
@@ -609,31 +574,31 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                 <button
                                                     type="button"
                                                     onClick={tool.action}
-                                                    class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer"
+                                                    class="p-2 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-muted hover:text-text transition-colors cursor-pointer"
                                                     title={tool.label}
                                                 >
-                                                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
+                                                    <svg class="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
                                                         <path stroke-linecap="round" stroke-linejoin="round" d={tool.icon} />
                                                     </svg>
                                                 </button>
                                             )}
                                         </For>
-                                        <div class="w-px h-5 bg-border mx-1" />
+                                        <div class="w-px h-5 bg-border mx-1.5" />
                                         <button
                                             type="button"
                                             onClick={() => api().reset()}
-                                            class="text-[11px] font-semibold text-muted hover:text-text px-2 py-1.5 rounded-lg hover:bg-card-alt transition-colors cursor-pointer"
+                                            class="text-[11px] font-bold text-muted hover:text-text px-2.5 py-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer uppercase tracking-wider"
                                         >
                                             Restaurar
                                         </button>
                                     </div>
 
                                     {/* Apply / Cancel */}
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex items-center gap-3">
                                         <button
                                             type="button"
                                             onClick={props.onClose}
-                                            class="px-3 py-1.5 text-xs font-semibold text-muted hover:text-text hover:bg-card-alt rounded-lg transition-all cursor-pointer"
+                                            class="px-4 py-2 text-xs font-bold text-muted hover:text-text hover:bg-black/10 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"
                                         >
                                             Cancelar
                                         </button>
@@ -648,7 +613,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                     props.onConfirm(null);
                                                 }
                                             }}
-                                            class="px-4 py-1.5 text-xs font-bold bg-primary text-white hover:bg-primary-strong rounded-lg shadow-md shadow-primary/15 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                                            class="px-5 py-2 text-xs font-bold bg-primary text-white hover:bg-primary-strong rounded-xl shadow-[0_4px_14px_0_rgba(var(--color-primary),0.39)] transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
                                         >
                                             Aplicar Recorte
                                         </button>

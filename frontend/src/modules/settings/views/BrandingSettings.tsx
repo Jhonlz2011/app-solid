@@ -58,7 +58,7 @@ const BrandingSettings: Component = () => {
                                 icon={<FloppyDiskIcon />}
                                 class="shadow-lg shadow-primary/25 cursor-pointer"
                             >
-                                Guardar Apariencia
+                                Guardar
                             </Button>
                         </div>
 
