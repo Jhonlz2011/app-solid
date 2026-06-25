@@ -58,7 +58,7 @@ const Modal: Component<ModalProps> = (props) => {
           {/* Modal */}
           <div class="flex min-h-full items-center justify-center p-4">
             <div
-              class={`relative w-full ${sizeClasses[props.size || 'md']} bg-card border border-border shadow-card-soft rounded-3xl shadow-2xl transform transition-all flex flex-col ${props.class || ''}`}
+              class={`relative w-full ${sizeClasses[props.size || 'md']} bg-card border border-border  rounded-2xl shadow-2xl transform transition-all flex flex-col ${props.class || ''}`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}

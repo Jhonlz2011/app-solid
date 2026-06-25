@@ -62,6 +62,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
     const [cropFileName, setCropFileName] = createSignal<string>('image.webp');
     const [cropFileType, setCropFileType] = createSignal<string>('image/webp');
     const [isCropping, setIsCropping] = createSignal(false);
+    const [isOwnCropUrl, setIsOwnCropUrl] = createSignal(false);
 
     let fileInputRef!: HTMLInputElement;
     let dragCounter = 0;
@@ -73,7 +74,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
     // Cleanup object URLs on unmount
     onCleanup(() => {
         pendingPreviews().forEach(p => URL.revokeObjectURL(p.url));
-        if (cropImageSrc()) {
+        if (cropImageSrc() && isOwnCropUrl()) {
             URL.revokeObjectURL(cropImageSrc()!);
         }
     });
@@ -91,13 +92,14 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
             }
             
             // Clean up previous crop image source if it exists
-            if (cropImageSrc()) {
+            if (cropImageSrc() && isOwnCropUrl()) {
                 URL.revokeObjectURL(cropImageSrc()!);
             }
 
             setCropFileName(file.name);
             setCropFileType(file.type);
             setCropImageSrc(URL.createObjectURL(file));
+            setIsOwnCropUrl(true);
             setIsCropping(true);
             return;
         }
@@ -264,6 +266,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                                             setCropFileName(file?.name || 'logo.png');
                                             setCropFileType(file?.type || 'image/png');
                                             setCropImageSrc(url);
+                                            setIsOwnCropUrl(false);
                                             setIsCropping(true);
                                         }}
                                         class="p-2 rounded-xl bg-primary text-white shadow-sm hover:bg-primary-strong transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
@@ -360,17 +363,17 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                         cropAspectRatio={props.cropAspectRatio}
                         onClose={() => {
                             setIsCropping(false);
-                            if (cropImageSrc()) {
+                            if (cropImageSrc() && isOwnCropUrl()) {
                                 URL.revokeObjectURL(cropImageSrc()!);
-                                setCropImageSrc(null);
                             }
+                            setCropImageSrc(null);
                         }}
                         onConfirm={(croppedBlob) => {
                             setIsCropping(false);
-                            if (cropImageSrc()) {
+                            if (cropImageSrc() && isOwnCropUrl()) {
                                 URL.revokeObjectURL(cropImageSrc()!);
-                                setCropImageSrc(null);
                             }
+                            setCropImageSrc(null);
 
                             if (croppedBlob) {
                                 const croppedFile = new File([croppedBlob], cropFileName(), { type: cropFileType() });
@@ -532,6 +535,8 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                     <ImageCropper.Image
                                         src={props.src}
                                         alt="Imagen a recortar"
+                                        crossorigin={undefined}
+                                        class="w-full h-full object-contain"
                                     />
                                     <ImageCropper.Selection
                                         class="cropper-selection"
@@ -595,36 +600,24 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                 <div class="flex items-center justify-between px-5 py-3.5 bg-card">
                                     {/* Transform tools */}
                                     <div class="flex items-center gap-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => api().flipHorizontally()}
-                                            class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer"
-                                            title="Reflejar horizontalmente"
-                                        >
-                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                            </svg>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => api().flipVertically()}
-                                            class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer"
-                                            title="Reflejar verticalmente"
-                                        >
-                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M7 8v12m0 0l-4-4m4 4l-4-4m6 0V4m0 0l4 4m-4-4l4-4" />
-                                            </svg>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => api().rotateBy(90)}
-                                            class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer"
-                                            title="Girar 90°"
-                                        >
-                                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89" />
-                                            </svg>
-                                        </button>
+                                        <For each={[
+                                            { label: "Reflejar horizontalmente", icon: "M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4", action: () => api().flipHorizontally() },
+                                            { label: "Reflejar verticalmente", icon: "M7 8v12m0 0l-4-4m4 4l-4 4m6 0V4m0 0l4 4m-4-4l4-4", action: () => api().flipVertically() },
+                                            { label: "Girar 90°", icon: "M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89", action: () => api().rotateBy(90) },
+                                        ]}>
+                                            {(tool) => (
+                                                <button
+                                                    type="button"
+                                                    onClick={tool.action}
+                                                    class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer"
+                                                    title={tool.label}
+                                                >
+                                                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d={tool.icon} />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </For>
                                         <div class="w-px h-5 bg-border mx-1" />
                                         <button
                                             type="button"
