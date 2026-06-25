@@ -254,8 +254,8 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                             />
                             {/* Overlay on hover */}
                             <div class="absolute inset-0 bg-black/40 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2.5 rounded-2xl">
-                                <span class="px-2.5 py-1.5 rounded-xl bg-white/95 text-text text-[11px] font-bold shadow-sm">
-                                    Cambiar
+                                <span class="px-3 py-1.5 rounded-xl bg-surface text-text text-[11px] font-bold shadow-sm border border-border">
+                                    Cambiar Imagen
                                 </span>
                                 <Show when={props.crop}>
                                     <button
@@ -270,7 +270,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                                             setIsOwnCropUrl(false);
                                             setIsCropping(true);
                                         }}
-                                        class="p-2 rounded-xl bg-primary text-white shadow-sm hover:bg-primary-strong transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
+                                        class="p-2 rounded-xl bg-primary text-on-primary shadow-sm hover:bg-primary-strong transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
                                         title="Recortar / Ajustar"
                                     >
                                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width={2}>
@@ -288,7 +288,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                                             removePending(0);
                                         }
                                     }}
-                                    class="p-2 rounded-xl bg-danger text-white shadow-sm hover:bg-danger-strong transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
+                                    class="p-2 rounded-xl bg-danger text-white shadow-sm hover:bg-destructive transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
                                     title="Eliminar"
                                 >
                                     <XIcon class="size-4" />
@@ -481,15 +481,12 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                 <ImageCropper.Handle 
                                                     position={position} 
                                                     class={cn(
-                                                        "group absolute flex items-center justify-center touch-none w-6 h-6",
-                                                        "data-disabled:hidden",
-                                                        // Corners
-                                                        "[&>div]:transition-all [&>div]:duration-150",
+                                                        "group absolute flex items-center justify-center touch-none w-7 h-7",
+                                                        "data-[disabled]:hidden",
                                                         "data-[position=top-left]:cursor-nwse-resize",
                                                         "data-[position=top-right]:cursor-nesw-resize",
                                                         "data-[position=bottom-right]:cursor-nwse-resize",
                                                         "data-[position=bottom-left]:cursor-nesw-resize",
-                                                        // Edges
                                                         "data-[position=top]:cursor-ns-resize",
                                                         "data-[position=bottom]:cursor-ns-resize",
                                                         "data-[position=left]:cursor-ew-resize",
@@ -497,18 +494,17 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                     )}
                                                 >
                                                     <div class={cn(
-                                                        // Base
-                                                        "bg-card shadow-[0_1px_3px_rgba(0,0,0,0.3)]",
-                                                        // Corners (L-shapes)
-                                                        "group-data-[position=top-left]:w-3.5 group-data-[position=top-left]:h-3.5 group-data-[position=top-left]:border-l-[3px] group-data-[position=top-left]:border-t-[3px] group-data-[position=top-left]:border-primary hover:group-data-[position=top-left]:scale-110",
-                                                        "group-data-[position=top-right]:w-3.5 group-data-[position=top-right]:h-3.5 group-data-[position=top-right]:border-r-[3px] group-data-[position=top-right]:border-t-[3px] group-data-[position=top-right]:border-primary hover:group-data-[position=top-right]:scale-110",
-                                                        "group-data-[position=bottom-right]:w-3.5 group-data-[position=bottom-right]:h-3.5 group-data-[position=bottom-right]:border-r-[3px] group-data-[position=bottom-right]:border-b-[3px] group-data-[position=bottom-right]:border-primary hover:group-data-[position=bottom-right]:scale-110",
-                                                        "group-data-[position=bottom-left]:w-3.5 group-data-[position=bottom-left]:h-3.5 group-data-[position=bottom-left]:border-l-[3px] group-data-[position=bottom-left]:border-b-[3px] group-data-[position=bottom-left]:border-primary hover:group-data-[position=bottom-left]:scale-110",
-                                                        // Edges (Dots)
-                                                        "group-data-[position=top]:w-1.5 group-data-[position=top]:h-1.5 group-data-[position=top]:bg-primary group-data-[position=top]:rounded-full group-data-[position=top]:opacity-0 hover:group-data-[position=top]:opacity-100",
-                                                        "group-data-[position=bottom]:w-1.5 group-data-[position=bottom]:h-1.5 group-data-[position=bottom]:bg-primary group-data-[position=bottom]:rounded-full group-data-[position=bottom]:opacity-0 hover:group-data-[position=bottom]:opacity-100",
-                                                        "group-data-[position=left]:w-1.5 group-data-[position=left]:h-1.5 group-data-[position=left]:bg-primary group-data-[position=left]:rounded-full group-data-[position=left]:opacity-0 hover:group-data-[position=left]:opacity-100",
-                                                        "group-data-[position=right]:w-1.5 group-data-[position=right]:h-1.5 group-data-[position=right]:bg-primary group-data-[position=right]:rounded-full group-data-[position=right]:opacity-0 hover:group-data-[position=right]:opacity-100",
+                                                        "transition-all duration-150 group-hover:scale-125",
+                                                        // L-Shape corners (transparent background)
+                                                        "group-data-[position=top-left]:w-3.5 group-data-[position=top-left]:h-3.5 group-data-[position=top-left]:border-l-[3px] group-data-[position=top-left]:border-t-[3px] group-data-[position=top-left]:border-primary",
+                                                        "group-data-[position=top-right]:w-3.5 group-data-[position=top-right]:h-3.5 group-data-[position=top-right]:border-r-[3px] group-data-[position=top-right]:border-t-[3px] group-data-[position=top-right]:border-primary",
+                                                        "group-data-[position=bottom-right]:w-3.5 group-data-[position=bottom-right]:h-3.5 group-data-[position=bottom-right]:border-r-[3px] group-data-[position=bottom-right]:border-b-[3px] group-data-[position=bottom-right]:border-primary",
+                                                        "group-data-[position=bottom-left]:w-3.5 group-data-[position=bottom-left]:h-3.5 group-data-[position=bottom-left]:border-l-[3px] group-data-[position=bottom-left]:border-b-[3px] group-data-[position=bottom-left]:border-primary",
+                                                        // Edge dots
+                                                        "group-data-[position=top]:w-1.5 group-data-[position=top]:h-1.5 group-data-[position=top]:bg-primary group-data-[position=top]:rounded-full",
+                                                        "group-data-[position=bottom]:w-1.5 group-data-[position=bottom]:h-1.5 group-data-[position=bottom]:bg-primary group-data-[position=bottom]:rounded-full",
+                                                        "group-data-[position=left]:w-1.5 group-data-[position=left]:h-1.5 group-data-[position=left]:bg-primary group-data-[position=left]:rounded-full",
+                                                        "group-data-[position=right]:w-1.5 group-data-[position=right]:h-1.5 group-data-[position=right]:bg-primary group-data-[position=right]:rounded-full"
                                                     )} />
                                                 </ImageCropper.Handle>
                                             )}
