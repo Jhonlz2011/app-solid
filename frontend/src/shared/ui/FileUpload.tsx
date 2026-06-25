@@ -535,8 +535,8 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                     <ImageCropper.Image
                                         src={props.src}
                                         alt="Imagen a recortar"
-                                        crossorigin={undefined}
-                                        class="w-full h-full object-contain"
+                                        // @ts-ignore
+                                        crossorigin={null}
                                     />
                                     <ImageCropper.Selection
                                         class="cropper-selection"

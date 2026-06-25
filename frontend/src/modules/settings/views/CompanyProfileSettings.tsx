@@ -133,7 +133,7 @@ const CompanyProfileSettings: Component = () => {
                                                 maxFiles={1}
                                                 accept={['image/png', 'image/jpeg', 'image/webp']}
                                                 crop={true}
-                                                cropShape="circle"
+                                                cropShape="square"
                                                 cropAspectRatio={1}
                                                 existingUrls={logoPreviewUrl() ? [logoPreviewUrl()!] : []}
                                                 onFilesChange={(files) => {

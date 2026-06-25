@@ -143,7 +143,7 @@ export function useDataTableSSE<TEntity extends { id: string | number } = SseEnt
                 const idsToRemove = eventData?.ids || (eventData?.id ? [eventData.id] : []);
                 if (idsToRemove.length === 0) return;
                 
-                queryClient.setQueriesData<any>({ queryKey: options.queryKey }, (old) => {
+                queryClient.setQueriesData<any>({ queryKey: options.queryKey }, (old: any) => {
                     if (!old) return old;
                     if (Array.isArray(old)) {
                         const idSet = new Set(idsToRemove);

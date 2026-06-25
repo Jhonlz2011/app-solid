@@ -71,7 +71,7 @@ const layoutRoute = createRoute({
     // Fast path: already authenticated in memory
     if (auth.isAuthenticated()) {
       if (auth.user() && !auth.user()?.emailVerifiedAt) {
-        throw redirect({ to: '/verify-email' });
+        throw redirect({ to: '/verify-email', search: {} });
       }
       return;
     }
@@ -85,7 +85,7 @@ const layoutRoute = createRoute({
     const restored = await actions.initSession();
     if (restored) {
       if (auth.user() && !auth.user()?.emailVerifiedAt) {
-        throw redirect({ to: '/verify-email' });
+        throw redirect({ to: '/verify-email', search: {} });
       }
       return;
     }
