@@ -425,7 +425,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
             onClose={props.onClose}
             title="Ajustar Imagen"
             description="Arrastra y ajusta el área de recorte"
-            size="xl"
+            size="md"
             class="max-w-[420px]"
         >
             <div class="px-5 py-6 border-b border-white/5">
@@ -457,7 +457,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                     aspectRatio={Number(aspectRatio())}
                 >
                     <div class="flex justify-center w-full">
-                        <div class="w-full max-w-[320px]">
+                        <div class="w-full">
                             {/* Viewport */}
                             <ImageCropper.Viewport class="relative overflow-hidden w-full aspect-square bg-black/40 dark:bg-black/80 rounded-xl border border-white/10 touch-none shadow-inner">
                                     <ImageCropper.Image
@@ -483,7 +483,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                     position={position} 
                                                     class={cn(
                                                         "group absolute flex items-center justify-center touch-none w-6 h-6",
-                                                        "data-[disabled]:hidden",
+                                                        "data-disabled:hidden",
                                                         // Corners
                                                         "[&>div]:transition-all [&>div]:duration-150",
                                                         "data-[position=top-left]:cursor-nwse-resize",
