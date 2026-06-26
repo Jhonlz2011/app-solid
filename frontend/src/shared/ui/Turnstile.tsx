@@ -7,7 +7,8 @@
  * Usage:
  *   <Turnstile onToken={(token) => setTurnstileToken(token)} onExpire={() => setTurnstileToken(null)} />
  */
-import { Component, onMount, onCleanup, createSignal } from 'solid-js';
+import { Component, onMount, onCleanup, createSignal, Show } from 'solid-js';
+import { Skeleton } from './Skeleton';
 
 // Extend Window with Turnstile API
 declare global {
@@ -88,6 +89,7 @@ function loadTurnstileScript(onReady: () => void) {
 const Turnstile: Component<TurnstileProps> = (props) => {
   let containerRef: HTMLDivElement | undefined;
   let widgetId: string | undefined;
+  const [isReady, setIsReady] = createSignal(false);
 
   const siteKey = () =>
     props.siteKey ?? import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '';
@@ -108,6 +110,8 @@ const Turnstile: Component<TurnstileProps> = (props) => {
         'expired-callback': () => props.onExpire?.(),
         'error-callback': () => props.onError?.(),
       });
+      // Allow a brief moment for the iframe to inject before removing the skeleton
+      setTimeout(() => setIsReady(true), 500);
     });
   });
 
@@ -119,11 +123,18 @@ const Turnstile: Component<TurnstileProps> = (props) => {
   });
 
   return (
-    <div
-      ref={containerRef}
-      class="flex justify-center mt-1"
-      aria-label="Verificación de seguridad Cloudflare"
-    />
+    <div class="relative flex justify-center mt-1 min-h-[65px] items-center w-full">
+      <Show when={!isReady()}>
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <Skeleton class="h-[65px] w-[300px] rounded-lg" />
+        </div>
+      </Show>
+      <div
+        ref={containerRef}
+        class="z-10 relative"
+        aria-label="Verificación de seguridad Cloudflare"
+      />
+    </div>
   );
 };
 
