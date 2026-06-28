@@ -46,7 +46,7 @@ export const companies = pgTableV2("companies", {
     sri_environment: text("sri_environment").default('2').notNull(),
     logo_url: text("logo_url"),
     primary_color: text("primary_color").default("#2563eb").notNull(),
-    secondary_color: text("secondary_color").default("#64748b").notNull(),
+    theme_color: text("theme_color").default("#64748b").notNull(),
     login_bg_url: text("login_bg_url"),
     email: text("email"),
     phone: text("phone"),

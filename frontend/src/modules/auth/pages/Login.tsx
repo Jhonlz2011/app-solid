@@ -229,7 +229,7 @@ const Login: Component = () => {
               <Button
                 class="mt-1 w-full"
                 type="submit"
-                disabled={state().isSubmitting}
+                disabled={state().isSubmitting || !turnstileToken()}
                 loading={state().isSubmitting}
                 loadingText="Accediendo…"
               >

@@ -1,13 +1,9 @@
-import { ParentComponent, onMount } from 'solid-js';
+import { ParentComponent } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
-import { brandingActions, useBranding } from '../modules/auth/store/branding.store';
+import { useBranding } from '../modules/auth/store/branding.store';
 
 const AuthLayout: ParentComponent = () => {
     const branding = useBranding();
-
-    onMount(() => {
-        brandingActions.loadBranding();
-    });
 
     return (
         <div 

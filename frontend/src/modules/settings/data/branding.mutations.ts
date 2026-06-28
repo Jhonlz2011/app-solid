@@ -26,7 +26,7 @@ export function useUpdateCompanyBranding() {
                 tradeName: data.tradeName,
                 logoUrl: data.logoUrl,
                 primaryColor: data.primaryColor,
-                secondaryColor: data.secondaryColor,
+                themeColor: data.themeColor,
                 loginBgUrl: data.loginBgUrl,
             };
 

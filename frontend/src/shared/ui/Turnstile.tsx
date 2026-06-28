@@ -106,12 +106,16 @@ const Turnstile: Component<TurnstileProps> = (props) => {
         sitekey: siteKey(),
         theme: props.theme ?? 'auto',
         language: 'es',
-        callback: (token: string) => props.onToken(token),
+        callback: (token: string) => {
+          setIsReady(true);
+          props.onToken(token);
+        },
         'expired-callback': () => props.onExpire?.(),
         'error-callback': () => props.onError?.(),
+        'after-interactive-callback': () => setIsReady(true),
       });
-      // Allow a brief moment for the iframe to inject before removing the skeleton
-      setTimeout(() => setIsReady(true), 500);
+      // Fallback: if no callback fires within 3s, show the widget anyway
+      setTimeout(() => setIsReady(true), 3000);
     });
   });
 

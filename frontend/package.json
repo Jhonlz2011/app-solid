@@ -6,6 +6,8 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "generate:branding-fallback": "bun run ../scripts/generate-branding-fallback.ts",
+    "prebuild": "bun run generate:branding-fallback",
     "build": "vite build",
     "serve": "vite preview"
   },

@@ -54,11 +54,11 @@ export const applyBranding = (tenant: TenantBrandingResponseDtoType | null) => {
         if (tenant) {
             root.style.setProperty('--primary', tenant.primaryColor);
             root.style.setProperty('--on-primary', getContrastColor(tenant.primaryColor));
-            root.style.setProperty('--secondary', tenant.secondaryColor);
-            root.style.setProperty('--on-secondary', getContrastColor(tenant.secondaryColor));
+            root.style.setProperty('--secondary', tenant.themeColor);
+            root.style.setProperty('--on-secondary', getContrastColor(tenant.themeColor));
 
             // Apply background theme variables based on secondary color
-            const theme = THEME_PRESETS[tenant.secondaryColor] || THEME_PRESETS['#64748b'];
+            const theme = THEME_PRESETS[tenant.themeColor] || THEME_PRESETS['#64748b'];
             root.style.setProperty('--bg-light-val', theme.bgLight);
             root.style.setProperty('--bg-dark-val', theme.bgDark);
             root.style.setProperty('--surface-light-val', theme.surfaceLight);

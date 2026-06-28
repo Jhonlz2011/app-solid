@@ -1,4 +1,4 @@
-import { Component, For, Show } from 'solid-js';
+import { Component, For, Show, createEffect } from 'solid-js';
 import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
 import { FileUploadDropzone } from '@shared/ui/FileUpload';
 import TextField from '@shared/ui/TextField';
@@ -7,8 +7,9 @@ import { cn } from '@shared/lib/utils';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
+import { THEME_PRESETS } from '@app/schema/utils/theme-presets';
 
-const COLOR_PRESETS = [
+const PRIMARY_COLOR_PRESETS = [
     { name: 'Índigo (Por defecto)', hex: '#6366f1' },
     { name: 'Esmeralda', hex: '#10b981' },
     { name: 'Violeta', hex: '#8b5cf6' },
@@ -19,7 +20,7 @@ const COLOR_PRESETS = [
     { name: 'Teal', hex: '#14b8a6' },
 ];
 
-const THEME_OPTIONS = [
+const INTERFACE_THEME_OPTIONS = [
     { name: 'Pizarra / Slate', hex: '#64748b', desc: 'Gris neutro clásico (Recomendado)', bgPreview: 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800' },
     { name: 'Tecnológico / Cool Blue', hex: '#3b82f6', desc: 'Fondo con matiz azul suave', bgPreview: 'bg-blue-50 dark:bg-slate-950 border-blue-100 dark:border-slate-900' },
     { name: 'Orgánico / Eco Green', hex: '#10b981', desc: 'Fondo con matiz verde natural', bgPreview: 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-100/50 dark:border-emerald-950/40' },
@@ -32,6 +33,25 @@ const BrandingSettings: Component = () => {
         hasAttemptedSubmit, setHasAttemptedSubmit,
         logoPreviewUrl, loginBgPreviewUrl,
     } = useCompanySettingsForm({ onSuccessMessage: 'Apariencia guardada correctamente' });
+
+    // Live preview: apply theme CSS variables to the mockup container in real-time
+    let mockupRef: HTMLDivElement | undefined;
+    createEffect(() => {
+        const themeKey = form.state.values.themeColor;
+        const theme = THEME_PRESETS[themeKey] || THEME_PRESETS['#64748b'];
+        if (mockupRef) {
+            mockupRef.style.setProperty('--bg-light-val', theme.bgLight);
+            mockupRef.style.setProperty('--bg-dark-val', theme.bgDark);
+            mockupRef.style.setProperty('--surface-light-val', theme.surfaceLight);
+            mockupRef.style.setProperty('--surface-dark-val', theme.surfaceDark);
+            mockupRef.style.setProperty('--card-light-val', theme.cardLight);
+            mockupRef.style.setProperty('--card-dark-val', theme.cardDark);
+            mockupRef.style.setProperty('--card-alt-light-val', theme.cardAltLight);
+            mockupRef.style.setProperty('--card-alt-dark-val', theme.cardAltDark);
+            mockupRef.style.setProperty('--border-light-val', theme.borderLight);
+            mockupRef.style.setProperty('--border-dark-val', theme.borderDark);
+        }
+    });
 
     return (
         <div class="h-full flex flex-col">
@@ -79,7 +99,7 @@ const BrandingSettings: Component = () => {
                                                 <div class="space-y-4">
                                                     {/* Presets Grid */}
                                                     <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                                                        <For each={COLOR_PRESETS}>
+                                                        <For each={PRIMARY_COLOR_PRESETS}>
                                                             {(preset) => (
                                                                 <button
                                                                     type="button"
@@ -127,10 +147,10 @@ const BrandingSettings: Component = () => {
                                             <p class="text-xs text-muted mt-0.5">Elige una de nuestras paletas de colores de fondo optimizadas con alto contraste y soporte de modo oscuro.</p>
                                         </div>
 
-                                        <form.Field name="secondaryColor">
+                                        <form.Field name="themeColor">
                                             {(field) => (
                                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    <For each={THEME_OPTIONS}>
+                                                    <For each={INTERFACE_THEME_OPTIONS}>
                                                         {(opt) => (
                                                             <button
                                                                 type="button"
@@ -198,7 +218,7 @@ const BrandingSettings: Component = () => {
                                     <p class="text-xs text-muted">Así se verá el entorno de tu ERP en tiempo real según el logo y color que elijas:</p>
                                     
                                     {/* Mockup Container */}
-                                    <div class="border border-border/80 bg-surface rounded-2xl overflow-hidden shadow-2xl aspect-[4/3] flex flex-col text-[11px] select-none">
+                                    <div ref={mockupRef} class="border border-border/80 bg-surface rounded-2xl overflow-hidden shadow-2xl aspect-[4/3] flex flex-col text-[11px] select-none">
                                         {/* Browser TopBar */}
                                         <div class="bg-card px-4 py-2 border-b border-border/60 flex items-center gap-2 shrink-0">
                                             <div class="flex gap-1">

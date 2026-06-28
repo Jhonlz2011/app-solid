@@ -27,7 +27,7 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
             logoUrl: null,
             loginBgUrl: null,
             primaryColor: '#6366f1',
-            secondaryColor: '#64748b',
+            themeColor: '#64748b',
             businessName: '',
             tradeName: '',
             ruc: '',
@@ -66,7 +66,7 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
                 form.setFieldValue('logoUrl', data.logoUrl);
                 form.setFieldValue('loginBgUrl', data.loginBgUrl);
                 form.setFieldValue('primaryColor', data.primaryColor);
-                form.setFieldValue('secondaryColor', data.secondaryColor);
+                form.setFieldValue('themeColor', data.themeColor);
                 form.setFieldValue('businessName', data.businessName);
                 form.setFieldValue('tradeName', data.tradeName);
                 form.setFieldValue('ruc', data.ruc);

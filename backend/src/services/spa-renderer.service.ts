@@ -40,7 +40,7 @@ export async function getTenantBySlug(slug: string) {
             tradeName: companies.trade_name,
             logoUrl: companies.logo_url,
             primaryColor: companies.primary_color,
-            secondaryColor: companies.secondary_color,
+            themeColor: companies.theme_color,
             loginBgUrl: companies.login_bg_url,
             isActive: companies.is_active,
         })
@@ -133,7 +133,7 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
             if (company && company.isActive) {
                 // Strict hex color check
                 const primCol = isHexColor(company.primaryColor) ? company.primaryColor : '#2563eb';
-                const secCol = isHexColor(company.secondaryColor) ? company.secondaryColor : '#64748b';
+                const secCol = isHexColor(company.themeColor) ? company.themeColor : '#64748b';
 
                 const theme = THEME_PRESETS[secCol] || THEME_PRESETS['#64748b'];
                 const onPrimary = getContrastColor(primCol);
@@ -171,7 +171,7 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                     tradeName: company.tradeName || company.businessName,
                     logoUrl: company.logoUrl,
                     primaryColor: primCol,
-                    secondaryColor: secCol,
+                    themeColor: secCol,
                     loginBgUrl: company.loginBgUrl,
                 };
 

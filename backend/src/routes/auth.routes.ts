@@ -214,7 +214,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       tradeName: company.tradeName,
       logoUrl: company.logoUrl,
       primaryColor: company.primaryColor,
-      secondaryColor: company.secondaryColor,
+      themeColor: company.themeColor,
       loginBgUrl: company.loginBgUrl,
     };
   }, {

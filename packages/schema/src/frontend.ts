@@ -393,7 +393,7 @@ export const CompanySettingsFormSchema = object({
     logoUrl: optional(nullable(any())),
     loginBgUrl: optional(nullable(any())),
     primaryColor: pipe(string(), minLength(4, 'Color primario inválido')),
-    secondaryColor: pipe(string(), minLength(4, 'Color secundario inválido')),
+    themeColor: pipe(string(), minLength(4, 'Color de tema inválido')),
     // Datos de Empresa
     businessName: pipe(string(), minLength(3, 'Razón social requerida')),
     tradeName: optional(nullable(string())),

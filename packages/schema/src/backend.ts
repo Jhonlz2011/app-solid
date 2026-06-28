@@ -349,7 +349,7 @@ export const TenantBrandingResponseDto = Type.Object({
     tradeName: Type.Union([Type.String(), Type.Null()]),
     logoUrl: Type.Union([Type.String(), Type.Null()]),
     primaryColor: Type.String(),
-    secondaryColor: Type.String(),
+    themeColor: Type.String(),
     loginBgUrl: Type.Union([Type.String(), Type.Null()]),
 });
 
@@ -359,7 +359,7 @@ export const CompanySettingsBodySchema = Type.Object({
     logoUrl: Type.Union([Type.String(), Type.Null()]),
     loginBgUrl: Type.Union([Type.String(), Type.Null()]),
     primaryColor: Type.String({ minLength: 4 }),
-    secondaryColor: Type.String({ minLength: 4 }),
+    themeColor: Type.String({ minLength: 4 }),
     businessName: Type.String({ minLength: 3 }),
     tradeName: Type.Union([Type.String(), Type.Null()]),
     ruc: Type.String({ minLength: 13, maxLength: 13 }),
