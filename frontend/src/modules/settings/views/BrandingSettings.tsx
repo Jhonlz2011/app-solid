@@ -132,7 +132,7 @@ const BrandingSettings: Component = () => {
                                                             <span class="text-[10px] text-muted font-mono">{field().state.value}</span>
                                                         </div>
                                                         <TextField.Root value={field().state.value} onChange={(val) => field().handleChange(val)} class="w-28">
-                                                            <TextField.Input type="text" maxLength={7} class="font-mono text-xs text-center !py-1 !px-2 uppercase" />
+                                                            <TextField.Input type="text" maxLength={7} class="font-mono text-xs text-center py-1 px-2 uppercase" />
                                                         </TextField.Root>
                                                     </div>
                                                 </div>
@@ -218,7 +218,7 @@ const BrandingSettings: Component = () => {
                                     <p class="text-xs text-muted">Así se verá el entorno de tu ERP en tiempo real según el logo y color que elijas:</p>
                                     
                                     {/* Mockup Container */}
-                                    <div ref={mockupRef} class="border border-border/80 bg-surface rounded-2xl overflow-hidden shadow-2xl aspect-[4/3] flex flex-col text-[11px] select-none">
+                                    <div ref={mockupRef} class="border border-border/80 bg-surface rounded-2xl overflow-hidden shadow-2xl aspect-4/3 flex flex-col text-[11px] select-none">
                                         {/* Browser TopBar */}
                                         <div class="bg-card px-4 py-2 border-b border-border/60 flex items-center gap-2 shrink-0">
                                             <div class="flex gap-1">

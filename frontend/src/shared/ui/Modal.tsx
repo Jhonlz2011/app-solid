@@ -58,7 +58,7 @@ const Modal: Component<ModalProps> = (props) => {
           {/* Modal */}
           <div class="flex min-h-full items-center justify-center p-4">
             <div
-              class={`relative w-full ${sizeClasses[props.size || 'md']} bg-card/95 backdrop-blur-xl border border-border/80 rounded-[1.25rem] shadow-[var(--shadow-card)] transform transition-all flex flex-col overflow-hidden ${props.class || ''}`}
+              class={`relative w-full ${sizeClasses[props.size || 'md']} bg-card/95 backdrop-blur-xl border border-border/80 rounded-[1.25rem] shadow-card transform transition-all flex flex-col overflow-hidden ${props.class || ''}`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}

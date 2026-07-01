@@ -123,8 +123,7 @@ const Login: Component = () => {
         setShowTenants(false);
         setDiscoveredTenants([]);
         form.setFieldValue('companyId', undefined);
-        // Reset token on failure — widget will auto-refresh
-        setTurnstileToken(null);
+        // Turnstile token stays valid for retries — only Turnstile itself invalidates it via expired-callback
         let msg = 'Error al iniciar sesión';
         if (err instanceof AuthError || err instanceof Error) msg = err.message;
         toast.error(msg);

@@ -464,14 +464,14 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                         alt="Imagen a recortar"
                                         // @ts-ignore
                                         crossorigin={null}
-                                        class="absolute top-0 left-0 w-full h-full object-contain origin-center select-none pointer-events-none [backface-visibility:hidden]"
+                                        class="absolute top-0 left-0 w-full h-full object-contain origin-center select-none pointer-events-none backface-hidden"
                                     />
                                     <ImageCropper.Selection
                                         class={cn(
-                                            "box-content outline-none cursor-move [backface-visibility:hidden]",
+                                            "box-content outline-none cursor-move backface-hidden",
                                             "shadow-[0_0_0_9999px_rgba(0,0,0,0.65)]",
                                             "border-[1.5px] border-white/50 focus-visible:border-primary",
-                                            "data-[dragging]:cursor-grabbing data-[dragging]:border-white/80",
+                                            "data-dragging:cursor-grabbing data-dragging:border-white/80",
                                             props.cropShape === 'circle' && "rounded-full"
                                         )}
                                     >
@@ -482,7 +482,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                     position={position} 
                                                     class={cn(
                                                         "group absolute flex items-center justify-center touch-none w-7 h-7",
-                                                        "data-[disabled]:hidden",
+                                                        "data-disabled:hidden",
                                                         "data-[position=top-left]:cursor-nwse-resize",
                                                         "data-[position=top-right]:cursor-nesw-resize",
                                                         "data-[position=bottom-right]:cursor-nwse-resize",
@@ -509,8 +509,8 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                 </ImageCropper.Handle>
                                             )}
                                         </For>
-                                        <ImageCropper.Grid axis="horizontal" class="absolute inset-y-[33.33%] inset-x-0 border-y border-white/40 pointer-events-none opacity-0 transition-opacity duration-200 data-[dragging]:opacity-100 data-[panning]:opacity-100" />
-                                        <ImageCropper.Grid axis="vertical" class="absolute inset-x-[33.33%] inset-y-0 border-x border-white/40 pointer-events-none opacity-0 transition-opacity duration-200 data-[dragging]:opacity-100 data-[panning]:opacity-100" />
+                                        <ImageCropper.Grid axis="horizontal" class="absolute inset-y-[33.33%] inset-x-0 border-y border-white/40 pointer-events-none opacity-0 transition-opacity duration-200 data-dragging:opacity-100 data-panning:opacity-100" />
+                                        <ImageCropper.Grid axis="vertical" class="absolute inset-x-[33.33%] inset-y-0 border-x border-white/40 pointer-events-none opacity-0 transition-opacity duration-200 data-dragging:opacity-100 data-panning:opacity-100" />
                                     </ImageCropper.Selection>
                                 </ImageCropper.Viewport>
 
