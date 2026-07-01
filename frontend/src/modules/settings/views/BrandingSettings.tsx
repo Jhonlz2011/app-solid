@@ -34,23 +34,23 @@ const BrandingSettings: Component = () => {
         logoPreviewUrl, loginBgPreviewUrl,
     } = useCompanySettingsForm({ onSuccessMessage: 'Apariencia guardada correctamente' });
 
-    // Live preview: apply theme CSS variables to the mockup container in real-time
+    // Live preview: override intermediate CSS variables directly on the mockup container.
+    // We must override --bg, --surface, --card, --card-alt, --border (not the *-val leaves)
+    // because Tailwind v4 @theme resolves --color-bg → var(--bg) at :root level,
+    // so overriding --bg-light-val on a child has no effect on the already-computed --bg.
     let mockupRef: HTMLDivElement | undefined;
     createEffect(() => {
         const themeKey = form.state.values.themeColor;
         const theme = THEME_PRESETS[themeKey] || THEME_PRESETS['#64748b'];
-        if (mockupRef) {
-            mockupRef.style.setProperty('--bg-light-val', theme.bgLight);
-            mockupRef.style.setProperty('--bg-dark-val', theme.bgDark);
-            mockupRef.style.setProperty('--surface-light-val', theme.surfaceLight);
-            mockupRef.style.setProperty('--surface-dark-val', theme.surfaceDark);
-            mockupRef.style.setProperty('--card-light-val', theme.cardLight);
-            mockupRef.style.setProperty('--card-dark-val', theme.cardDark);
-            mockupRef.style.setProperty('--card-alt-light-val', theme.cardAltLight);
-            mockupRef.style.setProperty('--card-alt-dark-val', theme.cardAltDark);
-            mockupRef.style.setProperty('--border-light-val', theme.borderLight);
-            mockupRef.style.setProperty('--border-dark-val', theme.borderDark);
-        }
+        if (!mockupRef) return;
+
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        mockupRef.style.setProperty('--bg', isDark ? theme.bgDark : theme.bgLight);
+        mockupRef.style.setProperty('--surface', isDark ? theme.surfaceDark : theme.surfaceLight);
+        mockupRef.style.setProperty('--card', isDark ? theme.cardDark : theme.cardLight);
+        mockupRef.style.setProperty('--card-alt', isDark ? theme.cardAltDark : theme.cardAltLight);
+        mockupRef.style.setProperty('--border', isDark ? theme.borderDark : theme.borderLight);
     });
 
     return (

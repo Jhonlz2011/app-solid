@@ -37,8 +37,8 @@ export function useUpdateCompanyBranding() {
             
             // Aplicar en caliente los cambios de branding y color en la UI
             applyBranding(tenantObj);
-        },
-        onSettled: () => {
+
+            // Invalidar caché DESPUÉS de aplicar branding para evitar race conditions
             qc.invalidateQueries({ queryKey: brandingKeys.branding });
         },
     }));
