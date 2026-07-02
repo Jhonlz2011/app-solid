@@ -3,25 +3,75 @@ import { brandingApi } from './branding.api';
 import { brandingKeys } from './branding.keys';
 import type { CompanySettingsFormData } from '@app/schema/frontend';
 import { applyBranding, getSubdomain } from '@modules/auth/store/branding.store';
+import { toast } from 'solid-sonner';
 
-export function useUpdateCompanyBranding() {
+/**
+ * Optimistic mutation for settings branding updates.
+ * 
+ * Flow:
+ * 1. onMutate: Instantly update cache + apply branding CSS (0ms UX)
+ * 2. Server processes the PATCH request
+ * 3. onSuccess: Sync with real server response (R2 URLs, etc.)
+ * 4. onError: Rollback to previous state
+ */
+export function useUpdateSettingsBranding() {
     const qc = useQueryClient();
     
     return createMutation(() => ({
         mutationKey: ['settings', 'branding', 'update'],
         mutationFn: (body: CompanySettingsFormData) => brandingApi.update(body),
+
+        // 🚀 Optimistic update — instant UX before server responds
+        onMutate: async (newData) => {
+            // Cancel in-flight queries to prevent stale overwrites
+            await qc.cancelQueries({ queryKey: brandingKeys.branding });
+
+            // Snapshot previous state for rollback
+            const previousData = qc.getQueryData<any>(brandingKeys.branding);
+
+            // Update TanStack Query cache optimistically
+            qc.setQueryData(brandingKeys.branding, (old: any) => ({
+                ...old,
+                ...newData,
+                // Preserve URL strings for File objects (real URLs come from onSuccess)
+                logoUrl: newData.logoUrl instanceof File ? old?.logoUrl : newData.logoUrl,
+                loginBgUrl: newData.loginBgUrl instanceof File ? old?.loginBgUrl : newData.loginBgUrl,
+            }));
+
+            // Apply branding CSS variables IMMEDIATELY (0ms perceived latency)
+            const slug = previousData?.slug || getSubdomain() || '';
+            const id = previousData?.id || 0;
+            applyBranding({
+                id, slug,
+                businessName: newData.businessName,
+                tradeName: newData.tradeName,
+                logoUrl: typeof newData.logoUrl === 'string' ? newData.logoUrl : previousData?.logoUrl ?? null,
+                primaryColor: newData.primaryColor,
+                themeColor: newData.themeColor,
+                loginBgUrl: typeof newData.loginBgUrl === 'string' ? newData.loginBgUrl : previousData?.loginBgUrl ?? null,
+            });
+
+            return { previousData };
+        },
+
+        // ❌ Rollback on server error
+        onError: (_err, _newData, context) => {
+            if (context?.previousData) {
+                qc.setQueryData(brandingKeys.branding, context.previousData);
+                applyBranding(context.previousData);
+            }
+            toast.error('Error al guardar los cambios');
+        },
+
+        // ✅ Sync with real server response (includes R2 URLs for uploaded files)
         onSuccess: (data: any) => {
-            // Actualizar la caché de TanStack Query
             qc.setQueryData(brandingKeys.branding, data);
-            
-            // Obtener el slug y el id actualizados (o recurrir a valores calculados)
-            const currentQueryData = qc.getQueryData<any>(brandingKeys.branding);
-            const slug = data.slug || currentQueryData?.slug || getSubdomain() || '';
-            const id = data.id || currentQueryData?.id || 0;
+
+            const slug = data.slug || getSubdomain() || '';
+            const id = data.id || 0;
 
             const tenantObj = {
-                id,
-                slug,
+                id, slug,
                 businessName: data.businessName,
                 tradeName: data.tradeName,
                 logoUrl: data.logoUrl,
@@ -30,15 +80,15 @@ export function useUpdateCompanyBranding() {
                 loginBgUrl: data.loginBgUrl,
             };
 
-            // Sincronizar en localStorage para que persista al recargar la página
+            // Persist to localStorage for branding-fallback.js on next page load
             if (slug) {
                 localStorage.setItem(`branding:${slug}`, JSON.stringify(tenantObj));
             }
-            
-            // Aplicar en caliente los cambios de branding y color en la UI
+
+            // Re-apply with real R2 URLs (in case files were uploaded)
             applyBranding(tenantObj);
 
-            // Invalidar caché DESPUÉS de aplicar branding para evitar race conditions
+            // Invalidate to ensure fresh data on next read
             qc.invalidateQueries({ queryKey: brandingKeys.branding });
         },
     }));

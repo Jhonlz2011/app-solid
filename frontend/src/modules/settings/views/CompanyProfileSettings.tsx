@@ -1,4 +1,5 @@
 import { Component, Show } from 'solid-js';
+import { cn } from '@shared/lib/utils';
 import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
 import { FileUploadDropzone } from '@shared/ui/FileUpload';
 import TextField from '@shared/ui/TextField';
@@ -37,9 +38,17 @@ const CompanyProfileSettings: Component = () => {
                                 loading={updateBrandingMut.isPending}
                                 loadingText="Guardando..."
                                 icon={<FloppyDiskIcon />}
-                                class="shadow-lg shadow-primary/25 cursor-pointer"
+                                class={cn(
+                                    'shadow-lg cursor-pointer transition-all duration-300',
+                                    form.state.isDirty
+                                        ? 'shadow-primary/25 ring-2 ring-primary/30'
+                                        : 'shadow-primary/10 opacity-80',
+                                )}
                             >
                                 Guardar
+                                <Show when={form.state.isDirty}>
+                                    <span class="size-2 rounded-full bg-white animate-pulse ml-1" />
+                                </Show>
                             </Button>
                         </div>
 

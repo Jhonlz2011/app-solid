@@ -4,7 +4,7 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CompanySettingsFormSchema, type CompanySettingsFormData } from '@app/schema/frontend';
 import { toast } from 'solid-sonner';
 import { useCompanyBranding } from './branding.queries';
-import { useUpdateCompanyBranding } from './branding.mutations';
+import { useUpdateSettingsBranding } from './branding.mutations';
 
 /**
  * Shared hook for company settings forms.
@@ -16,7 +16,7 @@ import { useUpdateCompanyBranding } from './branding.mutations';
  */
 export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) {
     const brandingQuery = useCompanyBranding();
-    const updateBrandingMut = useUpdateCompanyBranding();
+    const updateBrandingMut = useUpdateSettingsBranding();
 
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const [logoPreviewUrl, setLogoPreviewUrl] = createSignal<string | null>(null);
@@ -51,9 +51,6 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
                 onSuccess: () => {
                     toast.success(options?.onSuccessMessage || 'Guardado correctamente');
                 },
-                onError: (err: any) => {
-                    toast.error(err.message || 'Error al guardar');
-                }
             });
         },
     }));

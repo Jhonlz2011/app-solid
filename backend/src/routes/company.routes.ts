@@ -7,14 +7,19 @@ import { db } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 
+/**
+ * Helper to resolve company slug from ID.
+ * Only used by upload routes that need the slug for R2 key paths.
+ */
+const resolveCompanySlug = async (companyId: number): Promise<string | null> => {
+  const [company] = await db.select({ slug: companies.slug })
+    .from(companies).where(eq(companies.id, companyId)).limit(1);
+  return company?.slug ?? null;
+};
+
 export const companyRoutes = new Elysia({ prefix: '/settings/company' })
   .use(authGuard)
-  // Derive companySlug once — available to all routes below
-  .derive(async ({ currentCompanyId }) => {
-    const [company] = await db.select({ slug: companies.slug })
-      .from(companies).where(eq(companies.id, currentCompanyId)).limit(1);
-    return { companySlug: company?.slug ?? null };
-  })
+  // GET and PATCH don't need slug — removed derive() to save 1 SELECT per request
   .get('/', async ({ currentCompanyId }) => {
     return await companyService.getBranding(currentCompanyId);
   })
@@ -23,7 +28,9 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
   }, {
     body: CompanySettingsBodySchema,
   })
-  .post('/upload-logo', async ({ companySlug, body, set }) => {
+  // Upload routes resolve slug on-demand (only when needed for R2 key paths)
+  .post('/upload-logo', async ({ currentCompanyId, body, set }) => {
+    const companySlug = await resolveCompanySlug(currentCompanyId);
     if (!companySlug) { set.status = 404; return { message: 'Empresa no encontrada' }; }
 
     const arrayBuffer = await body.file.arrayBuffer();
@@ -43,7 +50,8 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
       }),
     }),
   })
-  .post('/upload-bg', async ({ companySlug, body, set }) => {
+  .post('/upload-bg', async ({ currentCompanyId, body, set }) => {
+    const companySlug = await resolveCompanySlug(currentCompanyId);
     if (!companySlug) { set.status = 404; return { message: 'Empresa no encontrada' }; }
 
     const arrayBuffer = await body.file.arrayBuffer();
@@ -63,4 +71,3 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
       }),
     }),
   });
-

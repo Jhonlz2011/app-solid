@@ -4,6 +4,68 @@ import { eq } from '@app/schema';
 import { invalidateTenantCache } from './spa-renderer.service';
 import type { CompanySettingsBodyType } from '@app/schema/backend';
 
+/**
+ * Maps camelCase form field names → snake_case DB column setters.
+ * Only fields present in the input are included in the UPDATE SET clause,
+ * avoiding unnecessary writes and reducing last-write-wins conflicts.
+ */
+const FIELD_MAP: Record<keyof CompanySettingsBodyType, (data: CompanySettingsBodyType) => any> = {
+  logoUrl: (d) => d.logoUrl,
+  loginBgUrl: (d) => d.loginBgUrl,
+  primaryColor: (d) => d.primaryColor,
+  themeColor: (d) => d.themeColor,
+  businessName: (d) => d.businessName,
+  tradeName: (d) => d.tradeName || null,
+  ruc: (d) => d.ruc,
+  mainAddress: (d) => d.mainAddress,
+  businessType: (d) => d.businessType || null,
+  email: (d) => d.email || null,
+  phone: (d) => d.phone || null,
+  obligadoContabilidad: (d) => d.obligadoContabilidad,
+  contribuyenteEspecial: (d) => d.contribuyenteEspecial || null,
+  agenteRetencion: (d) => d.agenteRetencion || null,
+  rimpeType: (d) => d.rimpeType || null,
+  sriEnvironment: (d) => d.sriEnvironment,
+};
+
+const CAMEL_TO_COLUMN: Record<string, keyof typeof companies> = {
+  logoUrl: 'logo_url',
+  loginBgUrl: 'login_bg_url',
+  primaryColor: 'primary_color',
+  themeColor: 'theme_color',
+  businessName: 'business_name',
+  tradeName: 'trade_name',
+  ruc: 'ruc',
+  mainAddress: 'main_address',
+  businessType: 'business_type',
+  email: 'email',
+  phone: 'phone',
+  obligadoContabilidad: 'obligado_contabilidad',
+  contribuyenteEspecial: 'contribuyente_especial',
+  agenteRetencion: 'agente_retencion',
+  rimpeType: 'rimpe_type',
+  sriEnvironment: 'sri_environment',
+};
+
+/**
+ * Builds a partial Drizzle `.set()` object from only the fields present in the input.
+ * Fields with `undefined` value are skipped — only explicit values are written.
+ */
+function buildPartialSet(data: CompanySettingsBodyType): Record<string, any> {
+  const set: Record<string, any> = {};
+  for (const [camelKey, resolver] of Object.entries(FIELD_MAP)) {
+    const value = (data as any)[camelKey];
+    if (value !== undefined) {
+      const columnKey = CAMEL_TO_COLUMN[camelKey];
+      if (columnKey) {
+        set[columnKey as string] = resolver(data);
+      }
+    }
+  }
+  set.updated_at = new Date();
+  return set;
+}
+
 export const companyService = {
   getBranding: async (companyId: number) => {
     const [company] = await db
@@ -39,27 +101,12 @@ export const companyService = {
   },
 
   updateBranding: async (companyId: number, data: CompanySettingsBodyType) => {
+    // Build partial SET — only changed fields are written to the DB
+    const partialSet = buildPartialSet(data);
+
     const [updated] = await db
       .update(companies)
-      .set({
-        logo_url: data.logoUrl,
-        login_bg_url: data.loginBgUrl,
-        primary_color: data.primaryColor,
-        theme_color: data.themeColor,
-        business_name: data.businessName,
-        trade_name: data.tradeName || null,
-        ruc: data.ruc,
-        main_address: data.mainAddress,
-        business_type: data.businessType || null,
-        email: data.email || null,
-        phone: data.phone || null,
-        obligado_contabilidad: data.obligadoContabilidad,
-        contribuyente_especial: data.contribuyenteEspecial || null,
-        agente_retencion: data.agenteRetencion || null,
-        rimpe_type: data.rimpeType || null,
-        sri_environment: data.sriEnvironment,
-        updated_at: new Date(),
-      })
+      .set(partialSet as any)
       .where(eq(companies.id, companyId))
       .returning();
 

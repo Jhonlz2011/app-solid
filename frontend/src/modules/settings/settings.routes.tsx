@@ -5,6 +5,8 @@ import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
 // Data layer imports
 import { warehousesApi } from './data/warehouses.api';
 import { warehouseKeys } from './data/warehouses.keys';
+import { brandingApi } from './data/branding.api';
+import { brandingKeys } from './data/branding.keys';
 
 // Lazy-loaded views
 const SettingsPage = lazyRouteComponent(() => import('./views/SettingsPage'));
@@ -30,6 +32,14 @@ export const createSettingsRoutes = (layoutRoute: any) => {
                 throw redirect({ to: '/settings/company' });
             }
         },
+        // Prefetch branding data for ALL settings tabs — eliminates skeleton when switching
+        loader: async () => {
+            await queryClient.prefetchQuery({
+                queryKey: brandingKeys.branding,
+                queryFn: () => brandingApi.get(),
+                staleTime: 1000 * 60 * 10,
+            });
+        },
     });
 
     // Redirect /settings/attributes → /attributes (standalone module)
@@ -47,7 +57,7 @@ export const createSettingsRoutes = (layoutRoute: any) => {
             await queryClient.prefetchQuery({
                 queryKey: warehouseKeys.warehouses,
                 queryFn: () => warehousesApi.list(),
-                staleTime: 1000 * 60 * 30,
+                staleTime: 1000 * 60 * 10, // Must match useWarehousesList() staleTime
             });
         },
         component: WarehouseList,

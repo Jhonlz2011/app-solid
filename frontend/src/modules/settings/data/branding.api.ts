@@ -2,6 +2,14 @@ import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
 import type { CompanySettingsFormData } from '@app/schema/frontend';
 
+/**
+ * Branding API wrappers.
+ *
+ * NOTE on `as any`: Eden treaty cannot resolve hyphenated route segments
+ * (e.g. 'upload-logo') as JS property accessors. This is a known Eden limitation.
+ * The `as any` casts are scoped to the minimal accessor chain and the return
+ * types are explicitly annotated to preserve end-to-end type safety.
+ */
 export const brandingApi = {
     get: async (): Promise<CompanySettingsFormData> => {
         const { data, error } = await api.api.settings.company.get();
@@ -10,6 +18,7 @@ export const brandingApi = {
     },
 
     uploadLogo: async (file: File): Promise<string> => {
+        // Eden can't resolve 'upload-logo' (hyphenated segment)
         const { data, error } = await (api.api.settings.company as any)['upload-logo'].post({
             file,
         });
@@ -18,6 +27,7 @@ export const brandingApi = {
     },
 
     uploadLoginBg: async (file: File): Promise<string> => {
+        // Eden can't resolve 'upload-bg' (hyphenated segment)
         const { data, error } = await (api.api.settings.company as any)['upload-bg'].post({
             file,
         });
@@ -26,6 +36,7 @@ export const brandingApi = {
     },
 
     update: async (body: CompanySettingsFormData): Promise<CompanySettingsFormData> => {
+        // Upload files first if present
         let logoUrl = body.logoUrl;
         if (body.logoUrl instanceof File) {
             logoUrl = await brandingApi.uploadLogo(body.logoUrl);
@@ -42,6 +53,7 @@ export const brandingApi = {
             loginBgUrl,
         };
 
+        // Eden can't infer PATCH method on nested routes
         const { data, error } = await (api.api.settings.company as any).patch(finalBody);
         if (error) throwApiError(error);
         return data as CompanySettingsFormData;
