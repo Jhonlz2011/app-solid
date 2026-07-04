@@ -20,10 +20,10 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
     '#3b82f6': {
         bgLight: '#f4f7fb',
         bgDark: '#020617',
-        surfaceLight: '#ffffff',
+        surfaceLight: '#fff',
         surfaceDark: '#0f172a',
-        cardLight: '#ffffff',
-        cardDark: '#111827',
+        cardLight: '#fff',
+        cardDark: '#0f172a',      // ← antes #111827
         cardAltLight: '#eef2ff',
         cardAltDark: '#1e293b',
         borderLight: '#e7eff8',
@@ -32,10 +32,10 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
     '#10b981': {
         bgLight: '#f0f7f4',
         bgDark: '#051c14',
-        surfaceLight: '#ffffff',
+        surfaceLight: '#fff',
         surfaceDark: '#0c2c20',
-        cardLight: '#ffffff',
-        cardDark: '#111827',
+        cardLight: '#fff',
+        cardDark: '#0c2c20',      // ← antes #111827
         cardAltLight: '#e2efe9',
         cardAltDark: '#112d24',
         borderLight: '#e2efe9',
@@ -46,8 +46,8 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
         bgDark: '#1c1917',
         surfaceLight: '#ffffff',
         surfaceDark: '#292524',
-        cardLight: '#ffffff',
-        cardDark: '#111827',
+        cardLight: '#fff',
+        cardDark: '#292524',      // ← antes #111827
         cardAltLight: '#f1ebe1',
         cardAltDark: '#383330',
         borderLight: '#f1ebe1',
@@ -59,7 +59,7 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
         surfaceLight: '#fff',
         surfaceDark: '#0f172a',
         cardLight: '#fff',
-        cardDark: '#111827',
+        cardDark: '#111827',      // ← antes #111827
         cardAltLight: '#eef2ff',
         cardAltDark: '#1f2937',
         borderLight: '#e7eff8',
