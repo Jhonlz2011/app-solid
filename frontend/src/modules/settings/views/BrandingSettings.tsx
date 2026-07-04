@@ -31,13 +31,16 @@ const BrandingSettings: Component = () => {
     const {
         form, brandingQuery, updateBrandingMut,
         hasAttemptedSubmit, setHasAttemptedSubmit,
-        logoPreviewUrl, loginBgPreviewUrl,
+        logoPreviewUrl, loginBgPreviewUrl, isFormDirty,
     } = useCompanySettingsForm({ onSuccessMessage: 'Apariencia guardada correctamente' });
 
-    // Live preview: override intermediate CSS variables directly on the mockup container.
-    // We must override --bg, --surface, --card, --card-alt, --border (not the *-val leaves)
-    // because Tailwind v4 @theme resolves --color-bg → var(--bg) at :root level,
-    // so overriding --bg-light-val on a child has no effect on the already-computed --bg.
+    // Live preview: override @theme-level CSS variables on the mockup container.
+    //
+    // Chain: @theme { --color-bg: var(--bg) } → :root { --bg: light-dark(...) }
+    // Tailwind classes like `bg-bg` resolve to `background-color: var(--color-bg)`.
+    // CSS custom properties inherit as COMPUTED values from :root, so overriding
+    // --bg on a child does NOT re-evaluate --color-bg. We must override the
+    // @theme-level variables (--color-*) directly.
     let mockupRef: HTMLDivElement | undefined;
     createEffect(() => {
         const themeKey = form.state.values.themeColor;
@@ -46,11 +49,12 @@ const BrandingSettings: Component = () => {
 
         const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-        mockupRef.style.setProperty('--bg', isDark ? theme.bgDark : theme.bgLight);
-        mockupRef.style.setProperty('--surface', isDark ? theme.surfaceDark : theme.surfaceLight);
-        mockupRef.style.setProperty('--card', isDark ? theme.cardDark : theme.cardLight);
-        mockupRef.style.setProperty('--card-alt', isDark ? theme.cardAltDark : theme.cardAltLight);
-        mockupRef.style.setProperty('--border', isDark ? theme.borderDark : theme.borderLight);
+        // Override @theme variables that Tailwind v4 classes use directly
+        mockupRef.style.setProperty('--color-bg', isDark ? theme.bgDark : theme.bgLight);
+        mockupRef.style.setProperty('--color-surface', isDark ? theme.surfaceDark : theme.surfaceLight);
+        mockupRef.style.setProperty('--color-card', isDark ? theme.cardDark : theme.cardLight);
+        mockupRef.style.setProperty('--color-card-alt', isDark ? theme.cardAltDark : theme.cardAltLight);
+        mockupRef.style.setProperty('--color-border', isDark ? theme.borderDark : theme.borderLight);
     });
 
     return (
@@ -78,13 +82,13 @@ const BrandingSettings: Component = () => {
                                 icon={<FloppyDiskIcon />}
                                 class={cn(
                                     'shadow-lg cursor-pointer transition-all duration-300',
-                                    form.state.isDirty
+                                    isFormDirty()
                                         ? 'shadow-primary/25 ring-2 ring-primary/30 animate-pulse-subtle'
                                         : 'shadow-primary/10 opacity-80',
                                 )}
                             >
                                 Guardar
-                                <Show when={form.state.isDirty}>
+                                <Show when={isFormDirty()}>
                                     <span class="size-2 rounded-full bg-white animate-pulse ml-1" />
                                 </Show>
                             </Button>

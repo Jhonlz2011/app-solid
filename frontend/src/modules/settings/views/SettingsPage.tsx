@@ -59,7 +59,7 @@ const SECTION_GROUPS: SectionGroup[] = [
         key: 'company_group',
         label: 'Empresa',
         sections: [
-            { key: 'company', path: '/settings/company', label: 'Perfil Comercial', icon: BriefcaseIcon, available: true },
+            { key: 'company', path: '/settings/company', label: 'Datos Generales', icon: BriefcaseIcon, available: true },
             { key: 'fiscal_settings', path: '/settings/fiscal', label: 'Datos Fiscales', icon: ShieldIcon, available: true },
         ],
     },
@@ -67,7 +67,7 @@ const SECTION_GROUPS: SectionGroup[] = [
         key: 'appearance',
         label: 'Apariencia',
         sections: [
-            { key: 'branding', path: '/settings/branding', label: 'Colores de Marca', icon: PaintBrushIcon, available: true },
+            { key: 'branding', path: '/settings/branding', label: 'Apariencia', icon: PaintBrushIcon, available: true },
         ],
     },
     {

@@ -12,7 +12,7 @@ const CompanyProfileSettings: Component = () => {
     const {
         form, brandingQuery, updateBrandingMut,
         hasAttemptedSubmit, setHasAttemptedSubmit,
-        logoPreviewUrl,
+        logoPreviewUrl, isFormDirty,
     } = useCompanySettingsForm({ onSuccessMessage: 'Perfil de empresa guardado correctamente' });
 
     return (
@@ -40,13 +40,13 @@ const CompanyProfileSettings: Component = () => {
                                 icon={<FloppyDiskIcon />}
                                 class={cn(
                                     'shadow-lg cursor-pointer transition-all duration-300',
-                                    form.state.isDirty
+                                    isFormDirty()
                                         ? 'shadow-primary/25 ring-2 ring-primary/30'
                                         : 'shadow-primary/10 opacity-80',
                                 )}
                             >
                                 Guardar
-                                <Show when={form.state.isDirty}>
+                                <Show when={isFormDirty()}>
                                     <span class="size-2 rounded-full bg-white animate-pulse ml-1" />
                                 </Show>
                             </Button>

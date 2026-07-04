@@ -56,6 +56,9 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
     }));
 
     // Sync query data → form fields
+    // Store the last synced server data for manual dirty comparison
+    const [serverBaseline, setServerBaseline] = createSignal<string>('');
+
     createEffect(() => {
         const data = brandingQuery.data;
         if (data) {
@@ -76,9 +79,60 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
                 form.setFieldValue('agenteRetencion', data.agenteRetencion);
                 form.setFieldValue('rimpeType', data.rimpeType);
                 form.setFieldValue('sriEnvironment', data.sriEnvironment);
+
+                // Snapshot server state for manual dirty comparison.
+                // TanStack Form's isDirty is "once dirty, always dirty" —
+                // it never reverts, so we track it ourselves.
+                setServerBaseline(JSON.stringify({
+                    logoUrl: data.logoUrl,
+                    loginBgUrl: data.loginBgUrl,
+                    primaryColor: data.primaryColor,
+                    themeColor: data.themeColor,
+                    businessName: data.businessName,
+                    tradeName: data.tradeName,
+                    ruc: data.ruc,
+                    mainAddress: data.mainAddress,
+                    businessType: data.businessType,
+                    email: data.email,
+                    phone: data.phone,
+                    obligadoContabilidad: data.obligadoContabilidad,
+                    contribuyenteEspecial: data.contribuyenteEspecial,
+                    agenteRetencion: data.agenteRetencion,
+                    rimpeType: data.rimpeType,
+                    sriEnvironment: data.sriEnvironment,
+                }));
             });
         }
     });
+
+    // Manual dirty tracking: compare current form values against server baseline
+    const isFormDirty = () => {
+        const baseline = serverBaseline();
+        if (!baseline) return false;
+        const v = form.state.values;
+        // Skip File objects in comparison (they're always "new")
+        const current = JSON.stringify({
+            logoUrl: v.logoUrl instanceof File ? '__file__' : v.logoUrl,
+            loginBgUrl: v.loginBgUrl instanceof File ? '__file__' : v.loginBgUrl,
+            primaryColor: v.primaryColor,
+            themeColor: v.themeColor,
+            businessName: v.businessName,
+            tradeName: v.tradeName,
+            ruc: v.ruc,
+            mainAddress: v.mainAddress,
+            businessType: v.businessType,
+            email: v.email,
+            phone: v.phone,
+            obligadoContabilidad: v.obligadoContabilidad,
+            contribuyenteEspecial: v.contribuyenteEspecial,
+            agenteRetencion: v.agenteRetencion,
+            rimpeType: v.rimpeType,
+            sriEnvironment: v.sriEnvironment,
+        });
+        // If a File was selected, it's always dirty
+        if (v.logoUrl instanceof File || v.loginBgUrl instanceof File) return true;
+        return current !== baseline;
+    };
 
     // Logo preview URL (File object or string URL)
     createEffect(() => {
@@ -116,5 +170,6 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
         setHasAttemptedSubmit,
         logoPreviewUrl,
         loginBgPreviewUrl,
+        isFormDirty,
     };
 }
