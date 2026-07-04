@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onCleanup, untrack } from 'solid-js';
+import { createSignal, createEffect, createMemo, onCleanup, untrack } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CompanySettingsFormSchema, type CompanySettingsFormData } from '@app/schema/frontend';
@@ -105,15 +105,26 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
         }
     });
 
-    // Manual dirty tracking: compare current form values against server baseline
-    const isFormDirty = () => {
+    // Manual dirty tracking: compare current form values against server baseline.
+    //
+    // Why not form.state.isDirty?
+    //   TanStack Form's isDirty is "once dirty, always dirty" — it never reverts.
+    //
+    // Why createMemo + form.useStore?
+    //   form.state.values is NOT a Solid reactive proxy. Accessing properties inside
+    //   a derived function won't create Solid tracking subscriptions. form.useStore()
+    //   returns a proper Solid accessor that re-triggers when values change.
+    const formValues = form.useStore((s) => s.values);
+
+    const isFormDirty = createMemo(() => {
         const baseline = serverBaseline();
         if (!baseline) return false;
-        const v = form.state.values;
-        // Skip File objects in comparison (they're always "new")
+        const v = formValues();
+        // If a File was selected, it's always dirty
+        if (v.logoUrl instanceof File || v.loginBgUrl instanceof File) return true;
         const current = JSON.stringify({
-            logoUrl: v.logoUrl instanceof File ? '__file__' : v.logoUrl,
-            loginBgUrl: v.loginBgUrl instanceof File ? '__file__' : v.loginBgUrl,
+            logoUrl: v.logoUrl,
+            loginBgUrl: v.loginBgUrl,
             primaryColor: v.primaryColor,
             themeColor: v.themeColor,
             businessName: v.businessName,
@@ -129,10 +140,8 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
             rimpeType: v.rimpeType,
             sriEnvironment: v.sriEnvironment,
         });
-        // If a File was selected, it's always dirty
-        if (v.logoUrl instanceof File || v.loginBgUrl instanceof File) return true;
         return current !== baseline;
-    };
+    });
 
     // Logo preview URL (File object or string URL)
     createEffect(() => {

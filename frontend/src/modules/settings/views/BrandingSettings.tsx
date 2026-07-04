@@ -1,4 +1,4 @@
-import { Component, For, Show, createEffect } from 'solid-js';
+import { Component, For, Show, createMemo } from 'solid-js';
 import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
 import { FileUploadDropzone } from '@shared/ui/FileUpload';
 import TextField from '@shared/ui/TextField';
@@ -34,27 +34,33 @@ const BrandingSettings: Component = () => {
         logoPreviewUrl, loginBgPreviewUrl, isFormDirty,
     } = useCompanySettingsForm({ onSuccessMessage: 'Apariencia guardada correctamente' });
 
-    // Live preview: override @theme-level CSS variables on the mockup container.
+    // Live preview: derive theme colors reactively for inline styles.
     //
-    // Chain: @theme { --color-bg: var(--bg) } → :root { --bg: light-dark(...) }
-    // Tailwind classes like `bg-bg` resolve to `background-color: var(--color-bg)`.
-    // CSS custom properties inherit as COMPUTED values from :root, so overriding
-    // --bg on a child does NOT re-evaluate --color-bg. We must override the
-    // @theme-level variables (--color-*) directly.
-    let mockupRef: HTMLDivElement | undefined;
-    createEffect(() => {
-        const themeKey = form.state.values.themeColor;
+    // Tailwind v4's @theme registers CSS custom properties using @property with
+    // inherits: false. This means --color-bg, --color-surface, etc. set on a child
+    // element have NO effect — they don't cascade down. We CANNOT override them.
+    //
+    // Additionally, form.state.values is NOT a Solid reactive proxy — it won't
+    // trigger re-renders. We must use form.useStore() for proper reactivity.
+    const selectedThemeColor = form.useStore((s) => s.values.themeColor);
+    const selectedPrimaryColor = form.useStore((s) => s.values.primaryColor);
+    const selectedTradeName = form.useStore((s) => s.values.tradeName);
+    const selectedBusinessName = form.useStore((s) => s.values.businessName);
+
+    const previewTheme = createMemo(() => {
+        const themeKey = selectedThemeColor();
         const theme = THEME_PRESETS[themeKey] || THEME_PRESETS['#64748b'];
-        if (!mockupRef) return;
-
-        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-        // Override @theme variables that Tailwind v4 classes use directly
-        mockupRef.style.setProperty('--color-bg', isDark ? theme.bgDark : theme.bgLight);
-        mockupRef.style.setProperty('--color-surface', isDark ? theme.surfaceDark : theme.surfaceLight);
-        mockupRef.style.setProperty('--color-card', isDark ? theme.cardDark : theme.cardLight);
-        mockupRef.style.setProperty('--color-card-alt', isDark ? theme.cardAltDark : theme.cardAltLight);
-        mockupRef.style.setProperty('--color-border', isDark ? theme.borderDark : theme.borderLight);
+        const isDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        return {
+            bg: isDark ? theme.bgDark : theme.bgLight,
+            surface: isDark ? theme.surfaceDark : theme.surfaceLight,
+            card: isDark ? theme.cardDark : theme.cardLight,
+            cardAlt: isDark ? theme.cardAltDark : theme.cardAltLight,
+            border: isDark ? theme.borderDark : theme.borderLight,
+            text: isDark ? '#f8fafc' : '#0f172a',
+            heading: isDark ? '#f8fafc' : '#0b1220',
+            muted: isDark ? '#94a3b8' : '#475569',
+        };
     });
 
     return (
@@ -229,35 +235,66 @@ const BrandingSettings: Component = () => {
                                     <h3 class="text-sm font-bold text-heading">Vista Previa del ERP</h3>
                                     <p class="text-xs text-muted">Así se verá el entorno de tu ERP en tiempo real según el logo y color que elijas:</p>
                                     
-                                    {/* Mockup Container */}
-                                    <div ref={mockupRef} class="border border-border/80 bg-surface rounded-2xl overflow-hidden shadow-2xl aspect-4/3 flex flex-col text-[11px] select-none">
+                                    {/* Mockup Container — ALL colors via inline styles (not Tailwind classes) */}
+                                    <div
+                                        class="rounded-2xl overflow-hidden shadow-2xl aspect-4/3 flex flex-col text-[11px] select-none"
+                                        style={{
+                                            "background-color": previewTheme().surface,
+                                            "border": `1px solid ${previewTheme().border}`,
+                                        }}
+                                    >
                                         {/* Browser TopBar */}
-                                        <div class="bg-card px-4 py-2 border-b border-border/60 flex items-center gap-2 shrink-0">
+                                        <div
+                                            class="px-4 py-2 flex items-center gap-2 shrink-0"
+                                            style={{
+                                                "background-color": previewTheme().card,
+                                                "border-bottom": `1px solid ${previewTheme().border}`,
+                                            }}
+                                        >
                                             <div class="flex gap-1">
-                                                <span class="size-2 rounded-full bg-danger/50" />
-                                                <span class="size-2 rounded-full bg-warning/50" />
-                                                <span class="size-2 rounded-full bg-success/50" />
+                                                <span class="size-2 rounded-full" style={{ "background-color": "#dc262680" }} />
+                                                <span class="size-2 rounded-full" style={{ "background-color": "#ca8a0480" }} />
+                                                <span class="size-2 rounded-full" style={{ "background-color": "#16a34a80" }} />
                                             </div>
-                                            <div class="bg-card-alt rounded-md border border-border/40 text-[9px] text-muted text-center px-4 py-0.5 flex-1 max-w-[200px] truncate ml-4 font-mono">
+                                            <div
+                                                class="rounded-md text-[9px] text-center px-4 py-0.5 flex-1 max-w-[200px] truncate ml-4 font-mono"
+                                                style={{
+                                                    "background-color": previewTheme().cardAlt,
+                                                    "border": `1px solid ${previewTheme().border}`,
+                                                    "color": previewTheme().muted,
+                                                }}
+                                            >
                                                 mybrand.zelys.app
                                             </div>
                                         </div>
 
                                         {/* Mock App Body */}
-                                        <div class="flex-1 flex min-h-0 bg-background">
+                                        <div class="flex-1 flex min-h-0" style={{ "background-color": previewTheme().bg }}>
                                             {/* Sidebar Mockup */}
-                                            <div class="w-28 border-r border-border/50 bg-card p-2 flex flex-col gap-4 shrink-0">
+                                            <div
+                                                class="w-28 p-2 flex flex-col gap-4 shrink-0"
+                                                style={{
+                                                    "background-color": previewTheme().card,
+                                                    "border-right": `1px solid ${previewTheme().border}`,
+                                                }}
+                                            >
                                                 {/* Logo & Brand Name */}
                                                 <div class="flex items-center gap-1.5 px-1 py-1">
                                                     <Show when={logoPreviewUrl()} fallback={
-                                                        <div class="size-5 rounded-md bg-primary-soft text-primary font-bold flex items-center justify-center text-[10px]">
-                                                            {(form.state.values.tradeName || form.state.values.businessName || 'Z').charAt(0).toUpperCase()}
+                                                        <div
+                                                            class="size-5 rounded-md font-bold flex items-center justify-center text-[10px]"
+                                                            style={{
+                                                                "background-color": `${selectedPrimaryColor()}20`,
+                                                                "color": selectedPrimaryColor(),
+                                                            }}
+                                                        >
+                                                            {(selectedTradeName() || selectedBusinessName() || 'Z').charAt(0).toUpperCase()}
                                                         </div>
                                                     }>
                                                         <img src={logoPreviewUrl()!} class="size-5 rounded-md object-cover" />
                                                     </Show>
-                                                    <span class="font-bold text-heading truncate max-w-[50px] leading-tight">
-                                                        {form.state.values.tradeName || form.state.values.businessName || 'Zelys'}
+                                                    <span class="font-bold truncate max-w-[50px] leading-tight" style={{ "color": previewTheme().heading }}>
+                                                        {selectedTradeName() || selectedBusinessName() || 'Zelys'}
                                                     </span>
                                                 </div>
  
@@ -265,32 +302,32 @@ const BrandingSettings: Component = () => {
                                                 <div class="flex flex-col gap-1">
                                                     <div 
                                                         class="flex items-center gap-1.5 px-2 py-1 rounded-md text-white font-semibold shadow-xs"
-                                                        style={{ "background-color": form.state.values.primaryColor }}
+                                                        style={{ "background-color": selectedPrimaryColor() }}
                                                     >
                                                         <span class="size-3 border border-white/50 rounded-full" />
                                                         <span>Inicio</span>
                                                     </div>
-                                                    <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-muted hover:bg-surface/50">
-                                                        <span class="size-3 border border-muted/50 rounded-full" />
+                                                    <div class="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ "color": previewTheme().muted }}>
+                                                        <span class="size-3 rounded-full" style={{ "border": `1px solid ${previewTheme().muted}80` }} />
                                                         <span>Bodegas</span>
                                                     </div>
-                                                    <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-muted hover:bg-surface/50">
-                                                        <span class="size-3 border border-muted/50 rounded-full" />
+                                                    <div class="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ "color": previewTheme().muted }}>
+                                                        <span class="size-3 rounded-full" style={{ "border": `1px solid ${previewTheme().muted}80` }} />
                                                         <span>Clientes</span>
                                                     </div>
                                                 </div>
                                             </div>
  
                                             {/* Dashboard Page Mockup */}
-                                            <div class="flex-1 bg-surface p-3 overflow-y-auto space-y-3">
-                                                <div class="flex items-center justify-between border-b border-border/40 pb-2">
-                                                    <span class="font-bold text-heading">Resumen de Ventas</span>
+                                            <div class="flex-1 p-3 overflow-y-auto space-y-3" style={{ "background-color": previewTheme().surface }}>
+                                                <div class="flex items-center justify-between pb-2" style={{ "border-bottom": `1px solid ${previewTheme().border}60` }}>
+                                                    <span class="font-bold" style={{ "color": previewTheme().heading }}>Resumen de Ventas</span>
                                                     <span 
                                                         class="px-2 py-0.5 rounded-full text-[8px] font-semibold"
                                                         style={{ 
-                                                            "background-color": `${form.state.values.primaryColor}15`, 
-                                                            "color": form.state.values.primaryColor,
-                                                            "border": `1px solid ${form.state.values.primaryColor}30`
+                                                            "background-color": `${selectedPrimaryColor()}15`, 
+                                                            "color": selectedPrimaryColor(),
+                                                            "border": `1px solid ${selectedPrimaryColor()}30`
                                                         }}
                                                     >
                                                         Pro Plan
@@ -298,20 +335,20 @@ const BrandingSettings: Component = () => {
                                                 </div>
  
                                                 <div class="grid grid-cols-2 gap-2">
-                                                    <div class="bg-card border border-border p-2 rounded-xl">
-                                                        <span class="text-muted text-[8px] block">Ingresos</span>
-                                                        <span class="font-bold text-heading mt-0.5 block">$12,450</span>
+                                                    <div class="p-2 rounded-xl" style={{ "background-color": previewTheme().card, "border": `1px solid ${previewTheme().border}` }}>
+                                                        <span class="text-[8px] block" style={{ "color": previewTheme().muted }}>Ingresos</span>
+                                                        <span class="font-bold mt-0.5 block" style={{ "color": previewTheme().heading }}>$12,450</span>
                                                     </div>
-                                                    <div class="bg-card border border-border p-2 rounded-xl">
-                                                        <span class="text-muted text-[8px] block">Transacciones</span>
-                                                        <span class="font-bold text-heading mt-0.5 block">142</span>
+                                                    <div class="p-2 rounded-xl" style={{ "background-color": previewTheme().card, "border": `1px solid ${previewTheme().border}` }}>
+                                                        <span class="text-[8px] block" style={{ "color": previewTheme().muted }}>Transacciones</span>
+                                                        <span class="font-bold mt-0.5 block" style={{ "color": previewTheme().heading }}>142</span>
                                                     </div>
                                                 </div>
  
                                                 <button 
                                                     type="button" 
-                                                    class="w-full py-1.5 px-3 rounded-lg text-white font-semibold text-center shadow-md shadow-primary/10 cursor-default"
-                                                    style={{ "background-color": form.state.values.primaryColor }}
+                                                    class="w-full py-1.5 px-3 rounded-lg text-white font-semibold text-center shadow-md cursor-default"
+                                                    style={{ "background-color": selectedPrimaryColor() }}
                                                 >
                                                     Nueva Factura
                                                 </button>
