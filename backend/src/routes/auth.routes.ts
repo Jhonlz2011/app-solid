@@ -222,6 +222,9 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       slug: t.Optional(t.String()),
     }),
     response: TenantBrandingResponseDto,
+    afterHandle: ({ set }) => {
+      set.headers['cache-control'] = 'public, max-age=60, s-maxage=120, stale-while-revalidate=300';
+    },
   })
   .get('/tenant-manifest', async ({ query, request, set }) => {
     const host = request.headers.get('host') || '';
@@ -244,6 +247,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     }
 
     set.headers['content-type'] = 'application/manifest+json; charset=utf-8';
+    set.headers['cache-control'] = 'public, max-age=3600, s-maxage=7200, stale-while-revalidate=86400';
     
     return {
       name: companyName,

@@ -3,9 +3,7 @@ import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import type { TenantBrandingResponseDtoType } from '@app/schema/backend';
 import { env } from '../config/env';
-import { resolveSlugFromHost } from '@app/schema/utils';
-import { getContrastColor, isHexColor } from '@app/schema/utils';
-import { THEME_PRESETS } from '@app/schema/utils';
+import { resolveSlugFromHost, getContrastColor, isHexColor, THEME_PRESETS, BRANDING_DEFAULTS } from '@app/schema/utils';
 
 // Cache in-memory in production with a TTL (e.g., 5 minutes)
 let cachedHtml: string | null = null;
@@ -13,12 +11,25 @@ let lastHtmlFetchTime = 0;
 const HTML_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
 // Database query caching for companies by slug
+interface TenantBrandingRow {
+    id: number;
+    slug: string;
+    businessName: string;
+    tradeName: string | null;
+    logoUrl: string | null;
+    primaryColor: string;
+    themeColor: string;
+    loginBgUrl: string | null;
+    isActive: boolean;
+}
+
 interface TenantCacheEntry {
-    company: any | null;
+    company: TenantBrandingRow | null;
     timestamp: number;
 }
 const tenantCache = new Map<string, TenantCacheEntry>();
 const TENANT_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutos
+const MAX_TENANT_CACHE_SIZE = 500;
 
 export function invalidateTenantCache(slug: string): void {
     tenantCache.delete(slug);
@@ -49,6 +60,12 @@ export async function getTenantBySlug(slug: string) {
         .limit(1);
 
     const company = dbCompany || null;
+
+    // FIFO eviction: remove oldest entry if cache exceeds max size
+    if (tenantCache.size >= MAX_TENANT_CACHE_SIZE) {
+        const oldestKey = tenantCache.keys().next().value;
+        if (oldestKey) tenantCache.delete(oldestKey);
+    }
     tenantCache.set(slug, { company, timestamp: now });
     return company;
 }
@@ -132,8 +149,8 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
 
             if (company && company.isActive) {
                 // Strict hex color check
-                const primCol = isHexColor(company.primaryColor) ? company.primaryColor : '#2563eb';
-                const secCol = isHexColor(company.themeColor) ? company.themeColor : '#64748b';
+                const primCol = isHexColor(company.primaryColor) ? company.primaryColor : BRANDING_DEFAULTS.primaryColor;
+                const secCol = isHexColor(company.themeColor) ? company.themeColor : BRANDING_DEFAULTS.themeColor;
 
                 const theme = THEME_PRESETS[secCol] || THEME_PRESETS['#64748b'];
                 const onPrimary = getContrastColor(primCol);
@@ -200,7 +217,7 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                 }
                 const apiUrl = `${apiProtocol}://${apiDomain}`;
 
-                headInjections += `\n<link rel="manifest" crossorigin="use-credentials" href="${apiUrl}/api/auth/tenant-manifest?slug=${company.slug}" />`;
+                // PWA-01: manifest link is REPLACED (not appended) to avoid duplicates — see below
 
                 // 4. Favicon and shortcut icons (html escaped to prevent attribute breakouts)
                 if (company.logoUrl) {
@@ -214,24 +231,27 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                     headInjections += `\n<link rel="shortcut icon" href="/favicon.ico">`;
                 }
 
-                // Inyectamos todo en el head del index.html
+                // Inyectamos estilos, JSON y favicons en el head
                 html = html.replace('</head>', `${headInjections}\n</head>`);
 
-                // 5. Title tag dynamic replacement (escaped to prevent injection)
+                // 5. Replace manifest link (NOT append) to avoid duplicate <link rel="manifest"> — PWA-01
+                html = html.replace(
+                    /<link rel="manifest"[^>]*>/,
+                    `<link rel="manifest" crossorigin="use-credentials" href="${apiUrl}/api/auth/tenant-manifest?slug=${company.slug}" />`
+                );
+
+                // 6. Title tag dynamic replacement (escaped to prevent injection)
                 const titleText = escapeHtml(`${company.tradeName || company.businessName} - Iniciar Sesión`);
                 html = html.replace(/<title>.*?<\/title>/, `<title>${titleText}</title>`);
             } else {
-                // Tenant not found or inactive, fall back to default manifest
-                html = html.replace('</head>', `\n<link rel="manifest" href="/manifest.webmanifest" />\n</head>`);
+                // Tenant not found or inactive — index.html already has the default manifest link
             }
         } catch (dbError) {
             console.error('❌ Error resolving tenant from database in SPA renderer:', dbError);
-            // Fallback gracefully on DB error: serve unbranded index.html and let client handle it
-            html = html.replace('</head>', `\n<link rel="manifest" href="/manifest.webmanifest" />\n</head>`);
+            // Fallback gracefully on DB error: serve unbranded index.html (default manifest already present)
         }
     } else {
-        // No tenant resolved (landing page or default site), fall back to default manifest
-        html = html.replace('</head>', `\n<link rel="manifest" href="/manifest.webmanifest" />\n</head>`);
+        // No tenant resolved (landing page or default site) — index.html already has the default manifest link
     }
 
     set.headers['content-type'] = 'text/html; charset=utf-8';

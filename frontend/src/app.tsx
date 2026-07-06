@@ -1,7 +1,7 @@
 
 /* @refresh reload */
 import { render } from 'solid-js/web';
-import { onMount } from 'solid-js';
+import { onMount, createEffect } from 'solid-js';
 import 'solid-devtools';
 import './index.css';
 
@@ -38,6 +38,11 @@ if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
 // Initialize auth listeners once before rendering (storage, BroadcastChannel, WS events)
 authActions.initStore();
 
+// Start branding resolution immediately (before render).
+// The SSR-injected data is already parsed synchronously by getInitialTenant(),
+// so this just starts the background sync if needed — no waterfall.
+brandingActions.loadBranding();
+
 // Mount the app with QueryClient and Router
 render(
     () => {
@@ -55,13 +60,15 @@ render(
             },
         });
 
-        // Disparar toasts reactivos basados en estados del SW
+        // One-time offline ready notification
         onMount(() => {
-            brandingActions.loadBranding();
             if (offlineReady()) {
                 toast.success('Zelys está listo para trabajar sin conexión.');
             }
+        });
 
+        // Reactive: fires whenever SW detects a new version (even after mount)
+        createEffect(() => {
             if (needRefresh()) {
                 toast.info('Nueva versión de Zelys disponible', {
                     description: 'Se han realizado optimizaciones. Haz clic para actualizar.',

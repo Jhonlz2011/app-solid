@@ -2,6 +2,7 @@ import { createSignal, createEffect, createMemo, onCleanup, untrack } from 'soli
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CompanySettingsFormSchema, type CompanySettingsFormData } from '@app/schema/frontend';
+import { BRANDING_DEFAULTS } from '@app/schema/utils';
 import { toast } from 'solid-sonner';
 import { useCompanyBranding } from './branding.queries';
 import { useUpdateSettingsBranding } from './branding.mutations';
@@ -26,8 +27,8 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
         defaultValues: {
             logoUrl: null,
             loginBgUrl: null,
-            primaryColor: '#6366f1',
-            themeColor: '#64748b',
+            primaryColor: BRANDING_DEFAULTS.primaryColor,
+            themeColor: BRANDING_DEFAULTS.themeColor,
             businessName: '',
             tradeName: '',
             ruc: '',

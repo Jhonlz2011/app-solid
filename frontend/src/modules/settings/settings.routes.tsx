@@ -24,7 +24,7 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         component: SettingsPage,
         beforeLoad: async ({ location }) => {
             const { useAuth } = await import('@modules/auth/store/auth.store');
-            if (!useAuth().canRead('inventory')) {
+            if (!useAuth().canRead('config')) {
                 throw redirect({ to: '/dashboard' });
             }
             // Redirect bare /settings to /settings/company

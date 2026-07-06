@@ -143,15 +143,19 @@ export const brandingActions = {
         if (initialTenant && initialTenant.slug === slug) {
             localStorage.setItem(`branding:${slug}`, JSON.stringify(initialTenant));
             
-            // Run a silent background sync to ensure cache stays fresh (non-blocking)
-            try {
-                const tenantInfo = await authApi.getTenantInfo(slug);
-                localStorage.setItem(`branding:${slug}`, JSON.stringify(tenantInfo));
-                if (JSON.stringify(tenantInfo) !== JSON.stringify(initialTenant)) {
-                    applyBranding(tenantInfo);
+            // Skip sync if data was SSR-injected (always fresh from the DB, max 2 min TTL).
+            // Only do background sync if data came from localStorage cache (stale from a previous session).
+            const wasSSRInjected = !!document.getElementById('tenant-data');
+            if (!wasSSRInjected) {
+                try {
+                    const tenantInfo = await authApi.getTenantInfo(slug);
+                    localStorage.setItem(`branding:${slug}`, JSON.stringify(tenantInfo));
+                    if (JSON.stringify(tenantInfo) !== JSON.stringify(initialTenant)) {
+                        applyBranding(tenantInfo);
+                    }
+                } catch (err) {
+                    console.warn('Silent branding background sync failed:', err);
                 }
-            } catch (err) {
-                console.warn('Silent branding background sync failed:', err);
             }
             return;
         }

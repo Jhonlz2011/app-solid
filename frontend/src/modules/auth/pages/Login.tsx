@@ -111,7 +111,7 @@ const Login: Component = () => {
         const redirectTo = (searchParams as any)?.redirect
             ?? new URLSearchParams(window.location.search).get('redirect');
         const safePath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
-            ? redirectTo
+            ? new URL(redirectTo, window.location.origin).pathname
             : '/dashboard';
 
         if (companySlug) {
