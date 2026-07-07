@@ -63,7 +63,7 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
 
             {/* EXPANDED: inline profile link + logout button */}
             <Show when={!collapsed()}>
-                <div class="absolute inset-0 flex items-center gap-2 px-4 sm:pl-5 sm:pr-4 animate-in fade-in duration-200">
+                <div class="absolute inset-0 flex items-center gap-1.5 px-4 sm:pl-5 sm:pr-4 animate-in fade-in duration-200">
                     <Link
                         to="/profile"
                         onClick={handleNavClick}
@@ -90,7 +90,7 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                         onClick={handleLogout}
                         disabled={isLoggingOut()}
                         loading={isLoggingOut()}
-                        class="text-danger hover:text-danger hover:bg-danger/10 focus-visible:ring-danger/55 focus-visible:ring-2 focus-visible:ring-offset-transparent"
+                        class="text-danger hover:text-danger hover:bg-danger/10 focus-visible:ring-danger/55 focus-visible:ring-2 focus-visible:ring-offset-transparent h-8 w-8"
                         title="Cerrar Sesión"
                         aria-label="Cerrar Sesión"
                     >
