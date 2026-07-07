@@ -1,6 +1,7 @@
 import { Component, Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
+import ThemeToggle from '../ThemeToggle';
 import { useSidebar } from './SidebarContext';
 import { LogoutIcon } from '@shared/ui/icons';
 import { useLogout } from '@modules/auth/hooks/useLogout';
@@ -80,6 +81,8 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                             <p class="text-muted text-xs truncate">{props.userRole}</p>
                         </div>
                     </Link>
+
+                    <ThemeToggle collapsed={collapsed()} />
 
                     <Button
                         variant="ghost"

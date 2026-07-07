@@ -1,5 +1,4 @@
 import { Component, Show } from 'solid-js';
-import ThemeToggle from '../ThemeToggle';
 import { useSidebar } from './SidebarContext';
 import { SidebarCollapseIcon, CloseIcon } from '@shared/ui/icons';
 import { useBranding } from '@modules/auth/store/branding.store';
@@ -84,7 +83,6 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
 
                 {/* Right side buttons */}
                 <div class="flex items-center gap-2">
-
                     <Show when={!collapsed()}>
                         <button
                             onClick={props.toggleCollapse}

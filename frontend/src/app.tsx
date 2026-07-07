@@ -8,7 +8,7 @@ import './index.css';
 import { RouterApp } from './router';
 import { PersistQueryClientProvider } from '@tanstack/solid-query-persist-client';
 import { queryClient, persister } from './shared/lib/queryClient';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { Toaster, toast } from 'solid-sonner';
 import { useRegisterSW } from 'virtual:pwa-register/solid';
 
@@ -104,7 +104,7 @@ render(
             >
                 <ThemeProvider>
                     <RouterApp />
-                    <Toaster offset={6} position="top-center" richColors />
+                    <Toaster offset={6} position="top-center" richColors theme={useTheme().theme()} />
                 </ThemeProvider>
             </PersistQueryClientProvider>
         );
