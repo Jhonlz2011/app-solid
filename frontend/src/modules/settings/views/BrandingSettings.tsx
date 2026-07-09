@@ -216,6 +216,7 @@ const BrandingSettings: Component = () => {
                                                     crop={true}
                                                     cropShape="rectangle"
                                                     cropAspectRatio={16 / 9}
+                                                    lockAspectRatio={true}
                                                     existingUrls={loginBgPreviewUrl() ? [loginBgPreviewUrl()!] : []}
                                                     onFilesChange={(files) => {
                                                         if (files.length > 0) {

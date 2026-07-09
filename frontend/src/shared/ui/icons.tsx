@@ -594,3 +594,45 @@ export const LockIcon: Component<IconProps> = (props) => (
         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </BaseIcon>
 );
+
+export const MinusIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <line x1="5" y1="12" x2="19" y2="12" />
+    </BaseIcon>
+);
+
+export const ZoomInIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        <line x1="11" y1="8" x2="11" y2="14" />
+        <line x1="8" y1="11" x2="14" y2="11" />
+    </BaseIcon>
+);
+
+export const ZoomOutIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        <line x1="8" y1="11" x2="14" y2="11" />
+    </BaseIcon>
+);
+
+export const FlipHorizontalIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+    </BaseIcon>
+);
+
+export const FlipVerticalIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M7 8v12m0 0l-4-4m4 4l-4 4m6 0V4m0 0l4 4m-4-4l4-4" />
+    </BaseIcon>
+);
+
+export const RotateCwIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+        <polyline points="21 3 21 8 16 8" />
+    </BaseIcon>
+);

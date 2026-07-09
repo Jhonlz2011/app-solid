@@ -144,6 +144,7 @@ const CompanyProfileSettings: Component = () => {
                                                 crop={true}
                                                 cropShape="rectangle"
                                                 cropAspectRatio={1}
+                                                lockAspectRatio={true}
                                                 existingUrls={logoPreviewUrl() ? [logoPreviewUrl()!] : []}
                                                 onFilesChange={(files) => {
                                                     if (files.length > 0) {
