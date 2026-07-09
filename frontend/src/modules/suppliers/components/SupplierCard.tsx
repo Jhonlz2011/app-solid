@@ -33,7 +33,6 @@ export const SupplierCard: Component<SupplierCardProps> = (props) => {
                 'group relative flex items-start gap-3 px-3 py-3.5',
                 'bg-card border-b border-border',
                 'transition-colors duration-150',
-                'active:bg-surface-2',
                 props.isSelected && 'bg-row-selected',
             )}
             onClick={() => navigate({ to: `/suppliers/${props.supplier.id}/show` })}

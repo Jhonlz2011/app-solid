@@ -76,7 +76,7 @@ const FilterGroup: Component<FilterGroupProps> = (props) => {
 
             {/* Options — show search only when more than 4 */}
             <Show when={props.options.length > 4}>
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-2 border border-border mb-2">
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border mb-2">
                     <SearchIcon class="size-3.5 text-muted shrink-0" />
                     <input
                         type="text"
@@ -91,7 +91,7 @@ const FilterGroup: Component<FilterGroupProps> = (props) => {
             <Show when={props.isLoading}>
                 <div class="space-y-2">
                     <For each={[1, 2, 3]}>
-                        {() => <div class="h-9 rounded-xl bg-surface-2 animate-pulse" />}
+                        {() => <div class="h-9 rounded-xl animate-pulse" />}
                     </For>
                 </div>
             </Show>
@@ -105,7 +105,7 @@ const FilterGroup: Component<FilterGroupProps> = (props) => {
                                     'flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-colors',
                                     isSelected(option.value)
                                         ? 'bg-primary/10 text-primary'
-                                        : 'hover:bg-surface-2 text-text',
+                                        : 'text-text',
                                 )}
                             >
                                 <Checkbox
@@ -117,7 +117,7 @@ const FilterGroup: Component<FilterGroupProps> = (props) => {
                                     'text-xs tabular-nums font-medium px-2 py-0.5 rounded-full',
                                     isSelected(option.value)
                                         ? 'bg-primary/20 text-primary'
-                                        : 'bg-surface-2 text-muted',
+                                        : 'text-muted',
                                 )}>
                                     {option.count}
                                 </span>

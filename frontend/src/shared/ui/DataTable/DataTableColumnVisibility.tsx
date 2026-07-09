@@ -62,7 +62,7 @@ export const DataTableColumnVisibility: Component<DataTableColumnVisibilityProps
                             const title = () => (column.columnDef.meta as { title?: string })?.title ?? column.id;
 
                             return (
-                                <div class="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-surface-2 transition-colors">
+                                <div class="flex items-center gap-2 py-2 px-2 rounded-lg transition-colors">
                                     <span class="flex-1 text-sm text-text truncate" title={title()}>
                                         {title()}
                                     </span>
@@ -73,7 +73,7 @@ export const DataTableColumnVisibility: Component<DataTableColumnVisibilityProps
                                                 onClick={() => column.pin(isPinned() === 'left' ? false : 'left')}
                                                 class={`p-1 rounded transition-colors ${isPinned() === 'left'
                                                     ? 'bg-primary text-white'
-                                                    : 'text-muted hover:text-text hover:bg-surface-2'
+                                                    : 'text-muted hover:text-text'
                                                     }`}
                                                 title={isPinned() === 'left' ? 'Desfijar' : 'Fijar izquierda'}
                                                 aria-label={isPinned() === 'left' ? `Desfijar` : `Fijar columna a la izquierda`}
@@ -84,7 +84,7 @@ export const DataTableColumnVisibility: Component<DataTableColumnVisibilityProps
                                                 onClick={() => column.pin(isPinned() === 'right' ? false : 'right')}
                                                 class={`p-1 rounded transition-colors ${isPinned() === 'right'
                                                     ? 'bg-primary text-white'
-                                                    : 'text-muted hover:text-text hover:bg-surface-2'
+                                                    : 'text-muted hover:text-text'
                                                     }`}
                                                 title={isPinned() === 'right' ? 'Desfijar' : 'Fijar derecha'}
                                                 aria-label={isPinned() === 'right' ? `Desfijar` : `Fijar columna a la derecha`}

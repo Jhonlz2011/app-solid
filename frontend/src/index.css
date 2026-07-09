@@ -51,8 +51,14 @@
   --muted: light-dark(#475569, #94a3b8);
   --border: light-dark(var(--border-light-val, #e7eff8), var(--border-dark-val, #1f2533));
   --border-strong: light-dark(var(--border-strong-light-val, #d0d7e5), var(--border-strong-dark-val, #222c3c));
-  --table-hover: light-dark(var(--table-hover-light-val, #f4f7fc), var(--table-hover-dark-val, #0c1222));
-  --dropdown-hover: light-dark(var(--dropdown-hover-light-val, #f4f7fb), var(--dropdown-hover-dark-val, #1f2937));
+  --table-hover: light-dark(
+    color-mix(in srgb, var(--border) 50%, var(--surface)),
+    color-mix(in srgb, var(--bg) 30%, var(--surface))
+  );
+  --dropdown-hover: light-dark(
+    color-mix(in srgb, var(--border) 35%, var(--card)),
+    var(--card-alt)
+  );
 
   /* Colores base por defecto */
   --primary-default: light-dark(#1f86c2, #60dbfa);
@@ -69,8 +75,14 @@
   --secondary-soft: color-mix(in srgb, var(--secondary) 15%, transparent);
   --on-secondary: light-dark(#ffffff, #0f172a);
 
-  --row-selected: light-dark(#e0e9fc, #1a2744);
-  --row-selected-hover: light-dark(#d0dffa, #1f3055);
+  --row-selected: light-dark(
+    color-mix(in srgb, var(--primary) 12%, var(--surface)),
+    color-mix(in srgb, var(--primary) 14%, var(--surface))
+  );
+  --row-selected-hover: light-dark(
+    color-mix(in srgb, var(--primary) 18%, var(--surface)),
+    color-mix(in srgb, var(--primary) 20%, var(--surface))
+  );
 
   --info: light-dark(#0ea5e9, #38bdf8);
   --success: light-dark(#16a34a, #22c55e);
