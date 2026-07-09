@@ -409,7 +409,10 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                 )}
             </Show>
         </div>
-   // ============================================================================
+    );
+};
+
+// ============================================================================
 // IMAGE CROPPER DIALOG (INTERNAL COMPONENT)
 // ============================================================================
 interface ImageCropperDialogProps {
