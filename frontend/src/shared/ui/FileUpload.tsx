@@ -13,11 +13,9 @@ import {
     RectangleHorizontalIcon, 
     SquareIcon, 
     RectangleVerticalIcon,
-    MinusIcon,
     ZoomInIcon,
     ZoomOutIcon,
     FlipHorizontalIcon,
-    FlipVerticalIcon,
     RotateCwIcon,
     RotateCcwIcon
 } from './icons';
@@ -565,14 +563,14 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                     >
                                         <FlipHorizontalIcon class="size-4.5" />
                                     </button>
-                                    <button
+                                    {/* <button
                                         type="button"
                                         onClick={() => api().flipVertically()}
                                         class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer flex items-center justify-center"
                                         title="Reflejar verticalmente"
                                     >
                                         <FlipVerticalIcon class="size-4.5" />
-                                    </button>
+                                    </button> */}
                                     <button
                                         type="button"
                                         onClick={() => api().rotateBy(90)}

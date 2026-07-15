@@ -33,13 +33,13 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
         bgLight: '#f0f7f4',
         bgDark: '#051c14',
         surfaceLight: '#fff',
-        surfaceDark: '#002318',
+        surfaceDark: '#001c12',
         cardLight: '#fff',
-        cardDark: '#0c2c20',      // ← antes #111827
+        cardDark: '#002215',      // ← antes #111827
         cardAltLight: '#e2efe9',
-        cardAltDark: '#112d24',
+        cardAltDark: '#002b1d',
         borderLight: '#e2efe9',
-        borderDark: '#002f1e',
+        borderDark: '#002e08',
     },
     '#f59e0b': {
         bgLight: '#faf8f5',

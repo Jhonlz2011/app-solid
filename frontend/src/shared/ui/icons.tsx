@@ -550,21 +550,21 @@ export const BoxIcon: Component<IconProps> = (props) => (
 );
 
 export const RectangleHorizontalIcon: Component<IconProps> = (props) => (
-    <svg class={props.class} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect width="20" height="12" x="2" y="6" rx="2" />
-    </svg>
+    <BaseIcon {...props}>
+        <rect width="20" height="12" x="2" y="6" rx="2"/>
+    </BaseIcon>
 );
 
 export const SquareIcon: Component<IconProps> = (props) => (
-    <svg class={props.class} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect width="18" height="18" x="3" y="3" rx="2" />
-    </svg>
+     <BaseIcon {...props}>
+        <rect width="18" height="18" x="3" y="3" rx="2"/>
+    </BaseIcon>
 );
 
 export const RectangleVerticalIcon: Component<IconProps> = (props) => (
-    <svg class={props.class} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <BaseIcon {...props}>
         <rect width="12" height="20" x="6" y="2" rx="2" />
-    </svg>
+    </BaseIcon>
 );
 
 export const ClockIcon: Component<IconProps> = (props) => (
@@ -620,13 +620,7 @@ export const ZoomOutIcon: Component<IconProps> = (props) => (
 
 export const FlipHorizontalIcon: Component<IconProps> = (props) => (
     <BaseIcon {...props}>
-        <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-    </BaseIcon>
-);
-
-export const FlipVerticalIcon: Component<IconProps> = (props) => (
-    <BaseIcon {...props}>
-        <path d="M7 8v12m0 0l-4-4m4 4l-4 4m6 0V4m0 0l4 4m-4-4l4-4" />
+        <path d="M8 3H5a2 2 0 0 0-2 2v14q.2 1.8 2 2h3M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3M12 20v2M12 14v2M12 8v2M12 2v2" />
     </BaseIcon>
 );
 
