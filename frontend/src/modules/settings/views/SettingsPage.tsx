@@ -144,10 +144,10 @@ const SettingsPage: Component = () => {
                                     role="tab"
                                     aria-selected={activeSection() === section.key}
                                     class={cn(
-                                        'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all border',
+                                        'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 border',
                                         activeSection() === section.key
-                                            ? 'bg-primary/10 text-primary border-primary/20 shadow-sm'
-                                            : 'text-muted hover:bg-surface/50 hover:text-text border-transparent',
+                                            ? 'bg-primary/10 text-primary border-primary/20 shadow-xs'
+                                            : 'text-muted hover:bg-primary/5 hover:text-primary border-transparent',
                                     )}
                                 >
                                     <Icon class="size-3.5" />
@@ -238,7 +238,7 @@ const SidebarItem: Component<{ section: Section; isActive: boolean }> = (props) 
 
     if (!props.section.available) {
         return (
-            <div class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-muted/40 cursor-not-allowed select-none">
+            <div class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-muted/40 cursor-not-allowed select-none border border-transparent">
                 <Icon class="size-4 shrink-0" />
                 <span class="flex-1 truncate">{props.section.label}</span>
                 <LockIcon class="size-3 shrink-0 opacity-40" />
@@ -251,10 +251,10 @@ const SidebarItem: Component<{ section: Section; isActive: boolean }> = (props) 
             to={props.section.path as any}
             preload="intent"
             class={cn(
-                'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-left',
+                'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-left transition-all duration-200 border',
                 props.isActive
-                    ? 'bg-on-primary text-primary font-semibold border border-on-primary/20 shadow-sm'
-                    : 'text-text hover:bg-surface/50 hover:text-heading border border-transparent',
+                    ? 'bg-primary/10 text-primary font-semibold border-primary/20 shadow-xs'
+                    : 'text-muted hover:bg-primary/5 hover:text-primary border-transparent',
             )}
         >
             <Icon class="size-4 shrink-0" />
