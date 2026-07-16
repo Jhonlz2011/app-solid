@@ -9,7 +9,7 @@ import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { THEME_PRESETS } from '@app/schema/utils/theme-presets';
 import { getContrastColor } from '@app/schema/utils/color';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const PRIMARY_COLOR_PRESETS = [
     { name: 'Índigo (Por defecto)', hex: '#6366f1' },
