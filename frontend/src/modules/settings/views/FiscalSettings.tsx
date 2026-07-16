@@ -57,7 +57,7 @@ const FiscalSettings: Component = () => {
                                         : 'shadow-primary/10 opacity-80',
                                 )}
                             >
-                                Guardar Datos Fiscales
+                                Guardar
                                 <Show when={isFormDirty()}>
                                     <span class="size-2 rounded-full bg-white animate-pulse ml-1" />
                                 </Show>
