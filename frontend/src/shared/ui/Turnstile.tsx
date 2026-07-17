@@ -105,12 +105,6 @@ const Turnstile: Component<TurnstileProps> = (props) => {
     }
   };
 
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === 'visible') {
-      resetWidget();
-    }
-  };
-
   const handleOnline = () => {
     resetWidget();
   };
@@ -123,7 +117,6 @@ const Turnstile: Component<TurnstileProps> = (props) => {
       return;
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('online', handleOnline);
 
     loadTurnstileScript(
@@ -156,7 +149,6 @@ const Turnstile: Component<TurnstileProps> = (props) => {
   });
 
   onCleanup(() => {
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('online', handleOnline);
     if (widgetId && window.turnstile) {
       window.turnstile.remove(widgetId);
