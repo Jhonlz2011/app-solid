@@ -132,7 +132,7 @@ const SettingsPage: Component = () => {
             </div>
 
             {/* ── Mobile: horizontal scrollable tabs ── */}
-            <div class="flex-shrink-0 md:hidden px-3 pb-2 overflow-x-auto">
+            <div class="shrink-0 md:hidden px-3 pb-2 overflow-x-auto">
                 <nav class="flex gap-1 min-w-max" role="tablist">
                     <For each={ALL_SECTIONS.filter(s => s.available)}>
                         {(section) => {

@@ -231,7 +231,7 @@ function SettingsTable<T>(props: SettingsTableProps<T>) {
                                     {(opt) => (
                                         <SegmentedControlItem value={opt.value}>
                                             <SegmentedControlItemInput />
-                                            <SegmentedControlItemLabel class="!text-xs !px-2.5 !py-1.5">
+                                            <SegmentedControlItemLabel class="text-xs! px-2.5! py-1.5!">
                                                 {opt.label}
                                             </SegmentedControlItemLabel>
                                         </SegmentedControlItem>

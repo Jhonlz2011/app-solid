@@ -1,4 +1,4 @@
-import { ParentComponent } from 'solid-js';
+import { ParentComponent, Show } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
 import { useBranding } from '../modules/auth/store/branding.store';
 
