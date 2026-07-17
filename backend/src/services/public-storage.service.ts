@@ -28,7 +28,7 @@ export const publicStorageService = {
         width: 400,
         withoutEnlargement: true,
       })
-      .webp({ quality: 85 })
+      .webp({ quality: 95 })
       .toBuffer();
 
     const bucketName = env.R2_BUCKET_NAME;
@@ -60,7 +60,7 @@ export const publicStorageService = {
         width: 1920,
         withoutEnlargement: true,
       })
-      .webp({ quality: 80 })
+      .webp({ quality: 90 })
       .toBuffer();
 
     const bucketName = env.R2_BUCKET_NAME;

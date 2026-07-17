@@ -132,13 +132,17 @@ const Login: Component = () => {
   }));
 
   return (
-    <div class="w-full p-8 bg-card border border-border rounded-2xl shadow-lg transition-all duration-300">
+    <div classList={{
+      "w-full p-8 rounded-2xl transition-all duration-500 animate-in fade-in slide-in-from-bottom-4": true,
+      "bg-card/85 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-white/10": !!branding.tenant()?.loginBgUrl,
+      "bg-card border border-border shadow-lg": !branding.tenant()?.loginBgUrl,
+    }}>
       {/* Logo / Brand */}
       <div class="flex flex-col items-center mb-6">
         <Show
           when={branding.tenant()?.logoUrl}
           fallback={
-            <div class="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-3 transition-transform duration-300 hover:scale-105">
+            <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-3 transition-transform duration-300 hover:scale-105">
               <span class="text-primary font-bold text-2xl">
                 {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Z').charAt(0).toUpperCase()}
               </span>
@@ -148,7 +152,7 @@ const Login: Component = () => {
           <img
             src={branding.tenant()?.logoUrl!}
             alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}`}
-            class="max-h-14 object-contain mb-3 transition-transform duration-300 hover:scale-105"
+            class="max-h-16 object-contain mb-3 transition-transform duration-300 hover:scale-105"
           />
         </Show>
 
@@ -239,7 +243,7 @@ const Login: Component = () => {
           />
 
           <Show when={!branding.tenant()}>
-            <p class="text-sm text-muted text-center mt-2">
+            <p class="text-sm text-muted text-center mt-1">
               ¿No tienes cuenta?{' '}
               <a
                 href="/register"

@@ -157,7 +157,7 @@ const Turnstile: Component<TurnstileProps> = (props) => {
   });
 
   return (
-    <div class="relative flex justify-center mt-1 min-h-[65px] items-center w-full">
+    <div class="relative flex justify-center min-h-[65px] items-center w-full">
       <Show when={!isReady()}>
         <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
           <Skeleton class="h-[65px] w-[300px] rounded-lg" />
