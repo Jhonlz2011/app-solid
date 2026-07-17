@@ -7,7 +7,7 @@ const AuthLayout: ParentComponent = () => {
 
     return (
         <div 
-            class="h-screen flex items-center justify-center bg-bg overflow-hidden transition-all duration-300 overflow-y-auto"
+            class="h-screen flex items-center justify-center bg-bg overflow-x-hidden overflow-y-auto transition-all duration-300"
             style={branding.tenant()?.loginBgUrl ? { 
                 "background-image": `url(${branding.tenant()?.loginBgUrl})`,
                 "background-size": "cover",

@@ -84,7 +84,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-solid': ['solid-js', 'solid-js/web', 'solid-js/store'],
-          'vendor-tanstack': ['@tanstack/solid-query', '@tanstack/solid-router', '@tanstack/solid-form', '@tanstack/solid-table'],
+          'vendor-tanstack': ['@tanstack/solid-query', '@tanstack/solid-router', '@tanstack/solid-form', '@tanstack/solid-table', '@tanstack/solid-virtual'],
+          'vendor-form': ['@tanstack/valibot-form-adapter', 'valibot'],
           'vendor-kobalte': ['@kobalte/core'],
         },
       },

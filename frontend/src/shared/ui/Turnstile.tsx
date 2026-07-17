@@ -52,8 +52,9 @@ export interface TurnstileProps {
 let scriptLoaded = false;
 let scriptLoading = false;
 const pendingCallbacks: (() => void)[] = [];
+const pendingErrorCallbacks: (() => void)[] = [];
 
-function loadTurnstileScript(onReady: () => void) {
+function loadTurnstileScript(onReady: () => void, onError: () => void) {
   if (typeof window === 'undefined') return;
 
   if (scriptLoaded && window.turnstile) {
@@ -62,6 +63,7 @@ function loadTurnstileScript(onReady: () => void) {
   }
 
   pendingCallbacks.push(onReady);
+  pendingErrorCallbacks.push(onError);
 
   if (scriptLoading) return;
   scriptLoading = true;
@@ -76,11 +78,14 @@ function loadTurnstileScript(onReady: () => void) {
     scriptLoading = false;
     // Flush all pending callbacks
     pendingCallbacks.splice(0).forEach((cb) => cb());
+    pendingErrorCallbacks.splice(0);
   };
 
   script.onerror = () => {
     scriptLoading = false;
     console.error('[Turnstile] Failed to load Cloudflare Turnstile script.');
+    pendingErrorCallbacks.splice(0).forEach((cb) => cb());
+    pendingCallbacks.splice(0);
   };
 
   document.head.appendChild(script);
@@ -94,32 +99,65 @@ const Turnstile: Component<TurnstileProps> = (props) => {
   const siteKey = () =>
     props.siteKey ?? import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '';
 
+  const resetWidget = () => {
+    if (widgetId && window.turnstile) {
+      window.turnstile.reset(widgetId);
+    }
+  };
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      resetWidget();
+    }
+  };
+
+  const handleOnline = () => {
+    resetWidget();
+  };
+
   onMount(() => {
     if (!siteKey()) {
-      console.warn('[Turnstile] No siteKey provided. Set VITE_TURNSTILE_SITE_KEY in your .env file.');
+      console.warn('[Turnstile] No siteKey provided. Bypassing Turnstile for development.');
+      setIsReady(true);
+      props.onToken('dev_bypass_token');
       return;
     }
 
-    loadTurnstileScript(() => {
-      if (!containerRef || !window.turnstile) return;
-      widgetId = window.turnstile.render(containerRef, {
-        sitekey: siteKey(),
-        theme: props.theme ?? 'auto',
-        language: 'es',
-        callback: (token: string) => {
-          setIsReady(true);
-          props.onToken(token);
-        },
-        'expired-callback': () => props.onExpire?.(),
-        'error-callback': () => props.onError?.(),
-        'after-interactive-callback': () => setIsReady(true),
-      });
-      // Fallback: if no callback fires within 3s, show the widget anyway
-      setTimeout(() => setIsReady(true), 3000);
-    });
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('online', handleOnline);
+
+    loadTurnstileScript(
+      () => {
+        if (!containerRef || !document.contains(containerRef) || !window.turnstile) return;
+        widgetId = window.turnstile.render(containerRef, {
+          sitekey: siteKey(),
+          theme: props.theme ?? 'auto',
+          language: 'es',
+          callback: (token: string) => {
+            setIsReady(true);
+            props.onToken(token);
+          },
+          'expired-callback': () => {
+            props.onExpire?.();
+            resetWidget();
+          },
+          'error-callback': () => {
+            props.onError?.();
+            resetWidget();
+          },
+          'before-interactive-callback': () => setIsReady(true),
+          'after-interactive-callback': () => setIsReady(true),
+        });
+      },
+      () => {
+        props.onError?.();
+      }
+    );
   });
 
   onCleanup(() => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('online', handleOnline);
     if (widgetId && window.turnstile) {
       window.turnstile.remove(widgetId);
       widgetId = undefined;

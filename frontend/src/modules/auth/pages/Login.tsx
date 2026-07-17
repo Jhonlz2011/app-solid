@@ -3,7 +3,7 @@ import { toast } from 'solid-sonner';
 import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
-import { AuthLoginSchema } from '@app/schema/frontend';
+import { AuthLoginSchema, type AuthLoginDto } from '@app/schema/frontend';
 import type { DiscoverTenantItemType, AuthUserResponseType } from '@app/schema/backend';
 import { actions } from '@modules/auth/store/auth.store';
 import { authApi } from '../api/auth.api';
@@ -78,8 +78,8 @@ const Login: Component = () => {
     defaultValues: {
       email: '',
       password: '',
-      companyId: undefined as number | undefined,
-    },
+      companyId: undefined,
+    } as AuthLoginDto,
     validatorAdapter: valibotValidator(),
     validators: { onSubmit: AuthLoginSchema },
     onSubmit: async ({ value }) => {
@@ -173,7 +173,7 @@ const Login: Component = () => {
             e.stopPropagation();
             form.handleSubmit();
           }}
-          class="flex flex-col gap-3"
+          class="flex flex-col gap-2"
           novalidate
         >
           <form.Field
@@ -218,7 +218,8 @@ const Login: Component = () => {
             onExpire={() => setTurnstileToken(null)}
             onError={() => {
               setTurnstileToken(null);
-              console.warn('[Login] Turnstile error — widget will retry automatically');
+              toast.error('Error al cargar la verificación de seguridad. Desactiva tu bloqueador de anuncios.');
+              console.warn('[Login] Turnstile error — widget failed or will retry automatically');
             }}
           />
 
@@ -254,7 +255,7 @@ const Login: Component = () => {
 
       {/* ── Tenant Selector (post-auth multi-empresa) ── */}
       <Show when={showTenants()}>
-        <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-2">
           <p class="text-sm text-muted font-medium mb-1">
             Tu usuario pertenece a varias empresas. Selecciona para continuar:
           </p>

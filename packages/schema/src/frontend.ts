@@ -291,7 +291,8 @@ export type UomFormData = InferInput<typeof UomFormSchema>;
 // --- AUTH DTOs ---
 export const AuthLoginSchema = object({
     email: pipe(string(), minLength(1, 'Usuario o correo es requerido')),
-    password: pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres'))
+    password: pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres')),
+    companyId: optional(number()),
 });
 
 export type AuthLoginDto = InferInput<typeof AuthLoginSchema>;
