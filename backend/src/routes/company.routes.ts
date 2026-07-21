@@ -57,9 +57,20 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
     const arrayBuffer = await body.file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    let crop: { left: number; top: number; width: number; height: number } | undefined;
+    if (body.cropX && body.cropY && body.cropWidth && body.cropHeight) {
+      crop = {
+        left: Math.round(Number(body.cropX)),
+        top: Math.round(Number(body.cropY)),
+        width: Math.round(Number(body.cropWidth)),
+        height: Math.round(Number(body.cropHeight)),
+      };
+    }
+
     const bgUrl = await publicStorageService.optimizeAndUploadLoginBg({
       slug: companySlug,
       rawFileBuffer: buffer,
+      crop,
     });
 
     return { url: bgUrl };
@@ -69,5 +80,9 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
         maxSize: '10m',
         type: ['image/jpeg', 'image/png', 'image/webp'],
       }),
+      cropX: t.Optional(t.String()),
+      cropY: t.Optional(t.String()),
+      cropWidth: t.Optional(t.String()),
+      cropHeight: t.Optional(t.String()),
     }),
   });

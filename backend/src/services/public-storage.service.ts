@@ -49,13 +49,19 @@ export const publicStorageService = {
     return `${cdnUrl}/${key}?t=${timestamp}`;
   },
 
-  optimizeAndUploadLoginBg: async ({ slug, rawFileBuffer }: { slug: string; rawFileBuffer: Buffer }) => {
+  optimizeAndUploadLoginBg: async ({ slug, rawFileBuffer, crop }: { slug: string; rawFileBuffer: Buffer; crop?: { left: number; top: number; width: number; height: number } }) => {
     if (rawFileBuffer.length > MAX_BG_SIZE) {
       throw new Error('La imagen de fondo excede el límite de 10MB');
     }
 
-    // Sharp Pipeline: solo optimización a webp (calidad 90), sin redimensionar
-    const optimizedBuffer = await sharp(rawFileBuffer)
+    // Sharp Pipeline: opcionalmente recortar, luego optimizar a webp (calidad 90)
+    let pipeline = sharp(rawFileBuffer);
+    
+    if (crop) {
+      pipeline = pipeline.extract(crop);
+    }
+
+    const optimizedBuffer = await pipeline
       .webp({ quality: 90 })
       .toBuffer();
 

@@ -26,16 +26,21 @@ export const brandingApi = {
         return (data as { url: string }).url;
     },
 
-    uploadLoginBg: async (file: File): Promise<string> => {
+    uploadLoginBg: async (file: File, cropData?: { x: number; y: number; width: number; height: number }): Promise<string> => {
         // Eden can't resolve 'upload-bg' (hyphenated segment)
-        const { data, error } = await (api.api.settings.company as any)['upload-bg'].post({
-            file,
-        });
+        const body: any = { file };
+        if (cropData) {
+            body.cropX = String(cropData.x);
+            body.cropY = String(cropData.y);
+            body.cropWidth = String(cropData.width);
+            body.cropHeight = String(cropData.height);
+        }
+        const { data, error } = await (api.api.settings.company as any)['upload-bg'].post(body);
         if (error) throwApiError(error);
         return (data as { url: string }).url;
     },
 
-    update: async (body: CompanySettingsFormData): Promise<CompanySettingsFormData> => {
+    update: async (body: CompanySettingsFormData, loginBgCrop?: { x: number; y: number; width: number; height: number }): Promise<CompanySettingsFormData> => {
         // Upload files first if present
         let logoUrl = body.logoUrl;
         if (body.logoUrl instanceof File) {
@@ -44,7 +49,7 @@ export const brandingApi = {
 
         let loginBgUrl = body.loginBgUrl;
         if (body.loginBgUrl instanceof File) {
-            loginBgUrl = await brandingApi.uploadLoginBg(body.loginBgUrl);
+            loginBgUrl = await brandingApi.uploadLoginBg(body.loginBgUrl, loginBgCrop);
         }
 
         const finalBody = {

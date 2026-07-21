@@ -19,10 +19,11 @@ export function useUpdateSettingsBranding() {
     
     return createMutation(() => ({
         mutationKey: ['settings', 'branding', 'update'],
-        mutationFn: (body: CompanySettingsFormData) => brandingApi.update(body),
+        mutationFn: (variables: { body: CompanySettingsFormData, loginBgCrop?: { x: number; y: number; width: number; height: number } }) => brandingApi.update(variables.body, variables.loginBgCrop),
 
         // 🚀 Optimistic update — instant UX before server responds
-        onMutate: async (newData) => {
+        onMutate: async (variables) => {
+            const newData = variables.body;
             // Cancel in-flight queries to prevent stale overwrites
             await qc.cancelQueries({ queryKey: brandingKeys.branding });
 

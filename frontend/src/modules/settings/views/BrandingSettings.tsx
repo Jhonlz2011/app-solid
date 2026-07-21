@@ -33,7 +33,7 @@ const BrandingSettings: Component = () => {
     const {
         form, brandingQuery, updateBrandingMut,
         hasAttemptedSubmit, setHasAttemptedSubmit,
-        logoPreviewUrl, loginBgPreviewUrl, isFormDirty,
+        logoPreviewUrl, loginBgPreviewUrl, setLoginBgCropDetails, isFormDirty,
     } = useCompanySettingsForm({ onSuccessMessage: 'Apariencia guardada correctamente' });
 
     // Live preview: derive theme colors reactively for inline styles.
@@ -225,7 +225,7 @@ const BrandingSettings: Component = () => {
                                     {/* Fondo Login */}
                                     <div class="bg-card-alt/50 border border-border/80 rounded-2xl p-5 space-y-3">
                                         <h3 class="text-sm font-bold text-heading">Fondo de Inicio de Sesión</h3>
-                                        <p class="text-xs text-muted">Sube una imagen para el fondo de la pantalla de inicio de sesión de tus usuarios. El sistema recortará la imagen a formato panorámico 16:9.</p>
+                                        <p class="text-xs text-muted">Sube una imagen para el fondo de la pantalla de inicio de sesión de tus usuarios. El sistema guardará la imagen en alta calidad y la recortará panorámicamente (16:9).</p>
                                         <form.Field name="loginBgUrl">
                                             {(field) => (
                                                 <FileUploadDropzone
@@ -236,12 +236,16 @@ const BrandingSettings: Component = () => {
                                                     cropAspectRatio={16 / 9}
                                                     lockAspectRatio={true}
                                                     existingUrls={loginBgPreviewUrl() ? [loginBgPreviewUrl()!] : []}
-                                                    onFilesChange={(files) => {
+                                                    onFilesChange={(files, cropData) => {
                                                         if (files.length > 0) {
                                                             field().handleChange(files[0]);
+                                                            if (cropData) setLoginBgCropDetails(cropData);
                                                         }
                                                     }}
-                                                    onRemoveUrl={() => field().handleChange(null)}
+                                                    onRemoveUrl={() => {
+                                                        field().handleChange(null);
+                                                        setLoginBgCropDetails(undefined);
+                                                    }}
                                                     showPreview={false}
                                                 />
                                             )}

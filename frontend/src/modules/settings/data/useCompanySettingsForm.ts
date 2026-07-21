@@ -22,6 +22,7 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const [logoPreviewUrl, setLogoPreviewUrl] = createSignal<string | null>(null);
     const [loginBgPreviewUrl, setLoginBgPreviewUrl] = createSignal<string | null>(null);
+    const [loginBgCropDetails, setLoginBgCropDetails] = createSignal<{ x: number; y: number; width: number; height: number } | undefined>();
 
     const form = createForm(() => ({
         defaultValues: {
@@ -48,7 +49,7 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
             onSubmit: CompanySettingsFormSchema,
         },
         onSubmit: async ({ value }) => {
-            updateBrandingMut.mutate(value, {
+            updateBrandingMut.mutate({ body: value, loginBgCrop: loginBgCropDetails() }, {
                 onSuccess: () => {
                     toast.success(options?.onSuccessMessage || 'Guardado correctamente');
                 },
@@ -180,6 +181,7 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
         setHasAttemptedSubmit,
         logoPreviewUrl,
         loginBgPreviewUrl,
+        setLoginBgCropDetails,
         isFormDirty,
     };
 }

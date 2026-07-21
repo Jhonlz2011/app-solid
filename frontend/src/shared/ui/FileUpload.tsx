@@ -32,7 +32,7 @@ export interface FileUploadProps {
     /** Max file size in bytes */
     maxFileSize?: number;
     /** Callback when NEW files are added */
-    onFilesChange?: (files: File[]) => void;
+    onFilesChange?: (files: File[], cropData?: { x: number; y: number; width: number; height: number }) => void;
     /** Whether upload is disabled */
     disabled?: boolean;
     /** Extra class */
@@ -72,6 +72,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
     
     // Cropper State
     const [cropImageSrc, setCropImageSrc] = createSignal<string | null>(null);
+    const [originalCropFile, setOriginalCropFile] = createSignal<File | null>(null);
     const [cropFileName, setCropFileName] = createSignal<string>('image.webp');
     const [cropFileType, setCropFileType] = createSignal<string>('image/webp');
     const [isCropping, setIsCropping] = createSignal(false);
@@ -111,6 +112,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
 
             setCropFileName(file.name);
             setCropFileType(file.type);
+            setOriginalCropFile(file);
             setCropImageSrc(URL.createObjectURL(file));
             setIsOwnCropUrl(true);
             setIsCropping(true);
@@ -278,6 +280,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                                             const file = pendingPreviews()[0]?.file;
                                             setCropFileName(file?.name || 'logo.png');
                                             setCropFileType(file?.type || 'image/png');
+                                            if (file) setOriginalCropFile(file);
                                             setCropImageSrc(url);
                                             setIsOwnCropUrl(false);
                                             setIsCropping(true);
@@ -382,7 +385,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                             }
                             setCropImageSrc(null);
                         }}
-                        onConfirm={(croppedBlob) => {
+                        onConfirm={(croppedBlob, cropData) => {
                             setIsCropping(false);
                             if (cropImageSrc() && isOwnCropUrl()) {
                                 URL.revokeObjectURL(cropImageSrc()!);
@@ -390,17 +393,19 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                             setCropImageSrc(null);
 
                             if (croppedBlob) {
-                                const croppedFile = new File([croppedBlob], cropFileName(), { type: cropFileType() });
-                                const previewUrl = URL.createObjectURL(croppedFile);
+                                const previewFile = new File([croppedBlob], cropFileName(), { type: cropFileType() });
+                                const previewUrl = URL.createObjectURL(previewFile);
 
                                 if (maxFiles() === 1) {
                                     // Revoke existing pending previews if replacing
                                     pendingPreviews().forEach(p => URL.revokeObjectURL(p.url));
-                                    setPendingPreviews([{ file: croppedFile, url: previewUrl }]);
+                                    setPendingPreviews([{ file: previewFile, url: previewUrl }]);
                                 } else {
-                                    setPendingPreviews(prev => [...prev, { file: croppedFile, url: previewUrl }]);
+                                    setPendingPreviews(prev => [...prev, { file: previewFile, url: previewUrl }]);
                                 }
-                                props.onFilesChange?.([croppedFile]);
+                                
+                                // Return the ORIGINAL file and crop coordinates to the parent
+                                props.onFilesChange?.([originalCropFile() || previewFile], cropData ?? undefined);
                             }
                         }}
                     />
@@ -419,7 +424,7 @@ interface ImageCropperDialogProps {
     cropAspectRatio?: number;
     lockAspectRatio?: boolean;
     onClose: () => void;
-    onConfirm: (blob: Blob | null) => void;
+    onConfirm: (blob: Blob | null, cropData?: { x: number; y: number; width: number; height: number }) => void;
 }
 
 const ASPECTS = [
@@ -603,7 +608,8 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                         onClick={async () => {
                                             try {
                                                 const blob = await api().getCroppedImage({ type: 'image/webp' });
-                                                props.onConfirm(blob ? new Blob([blob], { type: 'image/webp' }) : null);
+                                                const cropData = api().getCropData();
+                                                props.onConfirm(blob ? new Blob([blob], { type: 'image/webp' }) : null, cropData);
                                             } catch (err) {
                                                 console.error("Error cropping image:", err);
                                                 props.onConfirm(null);
