@@ -244,7 +244,7 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                 );
 
                 // 6. Title tag dynamic replacement (escaped to prevent injection)
-                const titleText = escapeHtml(`${company.tradeName || company.businessName} - Iniciar Sesión`);
+                const titleText = escapeHtml(`${company.tradeName || company.businessName}`);
                 html = html.replace(/<title>.*?<\/title>/, `<title>${titleText}</title>`);
             } else {
                 // Tenant not found or inactive — index.html already has the default manifest link

@@ -140,7 +140,7 @@ const Login: Component = () => {
 
   return (
     <div classList={{
-      "w-full p-8 rounded-2xl transition-all duration-500": true,
+      "w-full p-8 rounded-2xl": true,
       "bg-card/80 backdrop-blur-sm shadow-2xl ring-1 ring-white/10": !!branding.tenant()?.loginBgUrl,
       "bg-card border border-border shadow-lg": !branding.tenant()?.loginBgUrl,
     }}>

@@ -137,7 +137,7 @@
 
     // Escape HTML in title to prevent injection via company name
     var safeName = (company.tradeName || company.businessName || '').replace(/[<>&"']/g, '');
-    document.title = safeName + ' - Iniciar Sesión';
+    document.title = safeName;
 
     // SEC-02: Validate favicon URL — only allow HTTPS or root-relative paths
     if (company.logoUrl && (company.logoUrl.startsWith('https://') || company.logoUrl.startsWith('/'))) {

@@ -70,7 +70,7 @@ export const applyBranding = (tenant: TenantBrandingResponseDtoType | null) => {
             root.style.setProperty('--border-light-val', theme.borderLight);
             root.style.setProperty('--border-dark-val', theme.borderDark);
             
-            document.title = `${tenant.tradeName || tenant.businessName} - Iniciar Sesión`;
+            document.title = `${tenant.tradeName || tenant.businessName}`;
             if (tenant.logoUrl) {
                 const iconLinks = document.querySelectorAll("link[rel*='icon'], link[rel='apple-touch-icon']");
                 if (iconLinks.length > 0) {
