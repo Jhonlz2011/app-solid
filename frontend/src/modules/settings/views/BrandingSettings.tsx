@@ -366,7 +366,7 @@ const BrandingSettings: Component = () => {
                                             </div>
  
                                             {/* Main Dashboard Panel */}
-                                            <div class="flex-1 p-2.5 overflow-y-auto space-y-2.5 flex flex-col justify-between">
+                                            <div class="flex-1 p-2 overflow-y-auto space-y-2 flex flex-col justify-between">
                                                 <div>
                                                     {/* PageHeader Emulation */}
                                                     <div class="flex items-center justify-between gap-2 pb-1.5 border-b" style={{ "border-color": `${previewTheme().border}60` }}>

@@ -1,4 +1,4 @@
-import { Component, onMount, Show, createSignal, For } from 'solid-js';
+import { Component, onMount, Show, createSignal, For, type JSX } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
@@ -12,6 +12,7 @@ import { AuthError } from '@modules/auth/types/auth.types';
 import Input from '@shared/ui/Input';
 import Button from '@shared/ui/Button';
 import Turnstile from '@shared/ui/Turnstile';
+import { MailIcon, LockIcon, BuildingIcon } from '@shared/ui/icons';
 
 const BASE_DOMAIN = import.meta.env.VITE_BASE_DOMAIN || 'zelys.app';
 
@@ -21,6 +22,12 @@ const getFieldError = (errors: unknown[]): string | undefined => {
     if (typeof e === 'object' && e && 'message' in e) return (e as { message: string }).message;
     return String(e);
 };
+
+/** Progressive stagger delay for entrance animations */
+const stagger = (index: number): JSX.CSSProperties => ({
+  "animation-delay": `${index * 65}ms`,
+  "animation-fill-mode": "both",
+});
 
 const Login: Component = () => {
   const navigate = useNavigate();
@@ -133,39 +140,55 @@ const Login: Component = () => {
 
   return (
     <div classList={{
-      "w-full p-8 rounded-2xl transition-all duration-500 animate-in fade-in slide-in-from-bottom-4": true,
-      "bg-card/85 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-white/10": !!branding.tenant()?.loginBgUrl,
+      "w-full p-8 rounded-2xl transition-all duration-500": true,
+      "bg-card/80 backdrop-blur-sm shadow-2xl ring-1 ring-white/10": !!branding.tenant()?.loginBgUrl,
       "bg-card border border-border shadow-lg": !branding.tenant()?.loginBgUrl,
     }}>
-      {/* Logo / Brand */}
+      {/* ── Logo / Brand ── */}
       <div class="flex flex-col items-center mb-6">
-        <Show
-          when={branding.tenant()?.logoUrl}
-          fallback={
-            <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-3 transition-transform duration-300 hover:scale-105">
-              <span class="text-primary font-bold text-2xl">
-                {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Z').charAt(0).toUpperCase()}
-              </span>
+        <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(0)}>
+          <Show
+            when={branding.tenant()?.logoUrl}
+            fallback={
+              <div
+                class="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 shadow-lg transition-transform duration-300 hover:scale-105"
+                style={{
+                  "background": "linear-gradient(135deg, var(--primary, #1f86c2), color-mix(in srgb, var(--primary, #1f86c2) 65%, #000))",
+                }}
+              >
+                <span class="text-white font-bold text-2xl drop-shadow-sm">
+                  {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Z').charAt(0).toUpperCase()}
+                </span>
+              </div>
+            }
+          >
+            <div class="w-16 h-16 rounded-2xl overflow-hidden mb-3 shadow-lg transition-transform duration-300 hover:scale-105 ring-1 ring-border/50">
+              <img
+                src={branding.tenant()?.logoUrl!}
+                alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}`}
+                class="w-full h-full object-contain"
+              />
             </div>
-          }
-        >
-          <img
-            src={branding.tenant()?.logoUrl!}
-            alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}`}
-            class="max-h-16 object-contain mb-3 transition-transform duration-300 hover:scale-105"
-          />
-        </Show>
+          </Show>
+        </div>
 
-        <h2 class="text-2xl font-bold text-heading text-center">
+        <h2 class="text-2xl font-bold text-heading text-center animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(1)}>
           <Show when={branding.tenant()} fallback="Iniciar sesión">
             {branding.tenant()?.tradeName || branding.tenant()?.businessName}
           </Show>
         </h2>
-        <p class="text-muted text-sm text-center mt-1">
+        <p class="text-muted text-sm text-center mt-1 animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(2)}>
           <Show when={branding.tenant()} fallback="Ingresa tus credenciales para continuar">
             Portal Corporativo de Acceso
           </Show>
         </p>
+      </div>
+
+      {/* ── Decorative separator ── */}
+      <div class="flex items-center gap-3 mb-6 animate-in fade-in duration-700" style={stagger(3)}>
+        <div class="flex-1 h-px bg-gradient-to-r from-transparent to-border" />
+        <div class="w-1 h-1 rounded-full bg-border-strong" />
+        <div class="flex-1 h-px bg-gradient-to-l from-transparent to-border" />
       </div>
 
       {/* ── Main Login Form ── */}
@@ -177,77 +200,98 @@ const Login: Component = () => {
             e.stopPropagation();
             form.handleSubmit();
           }}
-          class="flex flex-col gap-2"
+          class="flex flex-col gap-1"
           novalidate
         >
-          <form.Field
-            name="email"
-            children={(field) => (
-              <Input
-                id="login-email"
-                label="Usuario o correo electrónico"
-                type="text"
-                value={field().state.value}
-                onBlur={field().handleBlur}
-                onInput={(e) => field().handleChange(e.target.value)}
-                required
-                placeholder="nombre@empresa.com"
-                autocomplete="username"
-                error={getFieldError(field().state.meta.errors)}
-              />
-            )}
-          />
+          <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(4)}>
+            <form.Field
+              name="email"
+              children={(field) => (
+                <Input
+                  id="login-email"
+                  label="Usuario o correo electrónico"
+                  type="text"
+                  value={field().state.value}
+                  onBlur={field().handleBlur}
+                  onInput={(e) => field().handleChange(e.target.value)}
+                  required
+                  placeholder="nombre@empresa.com"
+                  autocomplete="username"
+                  error={getFieldError(field().state.meta.errors)}
+                  leadingIcon={<MailIcon class="size-[18px]" />}
+                />
+              )}
+            />
+          </div>
 
-          <form.Field
-            name="password"
-            children={(field) => (
-              <Input
-                id="login-password"
-                label="Contraseña"
-                type="password"
-                value={field().state.value}
-                onBlur={field().handleBlur}
-                onInput={(e) => field().handleChange(e.target.value)}
-                required
-                placeholder="••••••••"
-                autocomplete="current-password"
-                error={getFieldError(field().state.meta.errors)}
-              />
-            )}
-          />
+          <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(5)}>
+            <form.Field
+              name="password"
+              children={(field) => (
+                <Input
+                  id="login-password"
+                  label="Contraseña"
+                  type="password"
+                  value={field().state.value}
+                  onBlur={field().handleBlur}
+                  onInput={(e) => field().handleChange(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  autocomplete="current-password"
+                  error={getFieldError(field().state.meta.errors)}
+                  leadingIcon={<LockIcon class="size-[18px]" />}
+                />
+              )}
+            />
+          </div>
+
+          {/* Forgot password placeholder */}
+          <div class="flex justify-end -mt-2 mb-1 animate-in fade-in duration-500" style={stagger(6)}>
+            <a
+              href="/forgot-password"
+              class="text-xs text-muted hover:text-primary transition-colors duration-200"
+              onClick={(e) => { e.preventDefault(); navigate({ to: '/forgot-password' }); }}
+            >
+              ¿Olvidaste tu contraseña?
+            </a>
+          </div>
 
           {/* Cloudflare Turnstile widget */}
-          <Turnstile
-            onToken={(token) => setTurnstileToken(token)}
-            onExpire={() => setTurnstileToken(null)}
-            onError={() => {
-              setTurnstileToken(null);
-              toast.error('Error al cargar la verificación de seguridad. Desactiva tu bloqueador de anuncios.');
-              console.warn('[Login] Turnstile error — widget failed or will retry automatically');
-            }}
-          />
+          <div class="animate-in fade-in duration-500" style={stagger(7)}>
+            <Turnstile
+              onToken={(token) => setTurnstileToken(token)}
+              onExpire={() => setTurnstileToken(null)}
+              onError={() => {
+                setTurnstileToken(null);
+                toast.error('Error al cargar la verificación de seguridad. Desactiva tu bloqueador de anuncios.');
+                console.warn('[Login] Turnstile error — widget failed or will retry automatically');
+              }}
+            />
+          </div>
 
-          <form.Subscribe
-            selector={(state) => ({ isSubmitting: state.isSubmitting })}
-            children={(state) => (
-              <Button
-                class="mt-1 w-full"
-                type="submit"
-                disabled={state().isSubmitting || !turnstileToken()}
-                loading={state().isSubmitting}
-                loadingText="Accediendo…"
-              >
-                Iniciar sesión
-              </Button>
-            )}
-          />
+          <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(8)}>
+            <form.Subscribe
+              selector={(state) => ({ isSubmitting: state.isSubmitting })}
+              children={(state) => (
+                <Button
+                  class="mt-1 w-full"
+                  type="submit"
+                  disabled={state().isSubmitting || !turnstileToken()}
+                  loading={state().isSubmitting}
+                  loadingText="Accediendo…"
+                >
+                  Iniciar sesión
+                </Button>
+              )}
+            />
+          </div>
 
           <Show when={!branding.tenant()}>
-            <p class="text-sm text-muted text-center mt-1">
+            <p class="text-sm text-muted text-center mt-2 animate-in fade-in duration-500" style={stagger(9)}>
               ¿No tienes cuenta?{' '}
               <a
                 href="/register"
-                class="text-primary hover:underline font-medium"
+                class="text-primary hover:text-primary-strong hover:underline font-medium transition-colors duration-200"
                 onClick={(e) => { e.preventDefault(); navigate({ to: '/register' }); }}
               >
                 Regístrate
@@ -259,7 +303,7 @@ const Login: Component = () => {
 
       {/* ── Tenant Selector (post-auth multi-empresa) ── */}
       <Show when={showTenants()}>
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-3 duration-500">
           <p class="text-sm text-muted font-medium mb-1">
             Tu usuario pertenece a varias empresas. Selecciona para continuar:
           </p>
@@ -272,14 +316,15 @@ const Login: Component = () => {
                   onClick={() => handleSelectTenant(tenant)}
                   class="flex items-center gap-4 p-3 rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/50 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <div class="w-11 h-11 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 group-hover:bg-primary/20 transition-colors duration-300">
+                  <div
+                    class="w-11 h-11 rounded-lg flex items-center justify-center overflow-hidden shrink-0 transition-colors duration-300"
+                    classList={{
+                      "bg-primary/10 group-hover:bg-primary/20": !tenant.logoUrl,
+                    }}
+                  >
                     <Show
                       when={tenant.logoUrl}
-                      fallback={
-                        <span class="text-primary font-bold text-lg uppercase">
-                          {(tenant.tradeName || tenant.businessName).charAt(0)}
-                        </span>
-                      }
+                      fallback={<BuildingIcon class="size-5 text-primary" />}
                     >
                       <img src={tenant.logoUrl!} alt="Logo" class="w-full h-full object-contain" />
                     </Show>

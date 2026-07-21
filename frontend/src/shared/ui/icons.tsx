@@ -630,3 +630,42 @@ export const RotateCwIcon: Component<IconProps> = (props) => (
         <polyline points="21 3 21 8 16 8" />
     </BaseIcon>
 );
+
+// ── Auth / Login Icons ──
+
+export const BuildingIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
+        <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+        <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
+        <path d="M10 6h4M10 10h4M10 14h4M10 18h4" />
+    </BaseIcon>
+);
+
+export const AtSignIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" />
+    </BaseIcon>
+);
+
+export const ArrowRightIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M5 12h14" />
+        <path d="m12 5 7 7-7 7" />
+    </BaseIcon>
+);
+
+export const FingerprintIcon: Component<IconProps> = (props) => (
+    <BaseIcon {...props}>
+        <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" />
+        <path d="M14 13.12c0 2.38-.16 5.01-.43 6.88" />
+        <path d="M4 4S2 5.2 2 12c0 4.2 1.2 7.8 2.4 9.4" />
+        <path d="M6 6S4 7.6 4 12c0 3.6.8 6.6 2 8.4" />
+        <path d="M8 8s-2 1-2 4c0 2.4.6 4.4 1.2 5.6" />
+        <path d="M22 12c0-6.8-2-11-2-11" />
+        <path d="M20 10c0-5.2-1.6-9-1.6-9" />
+        <path d="M18 8c0-3.6-1-6-1-6" />
+        <path d="M16 13.12c0-3.12-1-5.12-1-5.12" />
+    </BaseIcon>
+);
