@@ -275,8 +275,9 @@ const Login: Component = () => {
             </a>
           </div>
 
-          {/* Cloudflare Turnstile widget (Invisible) */}
+          {/* Cloudflare Turnstile widget */}
           <Turnstile
+            action="login"
             onToken={(token) => setTurnstileToken(token)}
             onExpire={() => setTurnstileToken(null)}
             onError={() => {
@@ -294,8 +295,8 @@ const Login: Component = () => {
                   class="mt-1 w-full font-bold"
                   type="submit"
                   disabled={state().isSubmitting || !turnstileToken()}
-                  loading={state().isSubmitting}
-                  loadingText="Accediendo…"
+                  loading={state().isSubmitting || !turnstileToken()}
+                  loadingText={!turnstileToken() ? "Verificando seguridad…" : "Accediendo…"}
                 >
                   Iniciar sesión
                 </Button>

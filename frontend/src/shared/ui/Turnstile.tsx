@@ -17,6 +17,8 @@ declare global {
 
 interface TurnstileOptions {
   sitekey: string;
+  action?: string;
+  appearance?: 'always' | 'execute' | 'interaction-only';
   theme?: 'light' | 'dark' | 'auto';
   size?: 'normal' | 'compact' | 'flexible' | 'invisible';
   language?: string;
@@ -29,10 +31,12 @@ interface TurnstileOptions {
 
 export interface TurnstileProps {
   siteKey?: string;
+  action?: string;
   theme?: 'light' | 'dark' | 'auto';
   onToken: (token: string) => void;
   onExpire?: () => void;
   onError?: () => void;
+  class?: string;
 }
 
 // Singleton: load script only once across component instances
@@ -109,7 +113,8 @@ const Turnstile: Component<TurnstileProps> = (props) => {
         
         widgetId = window.turnstile.render(containerRef, {
           sitekey: siteKey(),
-          size: 'invisible', // <-- CLAVE: Fuerza el modo invisible
+          action: props.action ?? 'login',
+          appearance: 'interaction-only',
           theme: props.theme ?? 'auto',
           language: 'es',
           callback: (token: string) => {
@@ -139,12 +144,10 @@ const Turnstile: Component<TurnstileProps> = (props) => {
     }
   });
 
-  // Retorna un div vacío, sin ocupar espacio en el DOM
   return (
     <div
       ref={containerRef}
-      class="hidden" 
-      aria-hidden="true"
+      class={`flex justify-center ${props.class || ''}`}
     />
   );
 };
