@@ -72,13 +72,17 @@ export const applyBranding = (tenant: TenantBrandingResponseDtoType | null) => {
             
             document.title = `${tenant.tradeName || tenant.businessName} - Iniciar Sesión`;
             if (tenant.logoUrl) {
-                let favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
-                if (!favicon) {
-                    favicon = document.createElement('link');
+                const iconLinks = document.querySelectorAll("link[rel*='icon'], link[rel='apple-touch-icon']");
+                if (iconLinks.length > 0) {
+                    iconLinks.forEach(link => {
+                        (link as HTMLLinkElement).href = tenant.logoUrl!;
+                    });
+                } else {
+                    const favicon = document.createElement('link');
                     favicon.rel = 'shortcut icon';
+                    favicon.href = tenant.logoUrl;
                     document.head.appendChild(favicon);
                 }
-                favicon.href = tenant.logoUrl;
             }
             
             // Dynamic manifest updating via absolute backend endpoint (crossorigin)

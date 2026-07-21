@@ -224,12 +224,15 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                     const escapedLogoUrl = escapeHtml(company.logoUrl);
                     headInjections += `
 <link rel="shortcut icon" href="${escapedLogoUrl}">
-<link rel="icon" type="image/png" sizes="192x192" href="${escapedLogoUrl}">
+<link rel="icon" type="image/webp" sizes="192x192" href="${escapedLogoUrl}">
 <link rel="apple-touch-icon" href="${escapedLogoUrl}">
 `;
                 } else {
                     headInjections += `\n<link rel="shortcut icon" href="/favicon.ico">`;
                 }
+
+                // Remove existing static favicon tags to avoid duplicates
+                html = html.replace(/<link[^>]+rel=["']?(?:shortcut icon|icon|apple-touch-icon)["']?[^>]*>/gi, '');
 
                 // Inyectamos estilos, JSON y favicons en el head
                 html = html.replace('</head>', `${headInjections}\n</head>`);

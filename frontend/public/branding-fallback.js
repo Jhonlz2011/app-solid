@@ -60,13 +60,13 @@
             bgLight: "#f0f7f4",
             bgDark: "#051c14",
             surfaceLight: "#fff",
-            surfaceDark: "#002318",
+            surfaceDark: "#001c12",
             cardLight: "#fff",
-            cardDark: "#0c2c20",
+            cardDark: "#002215",
             cardAltLight: "#e2efe9",
-            cardAltDark: "#112d24",
-            borderLight: "#e2efe9",
-            borderDark: "#002f1e"
+            cardAltDark: "#002b1d",
+            borderLight: "#c5dbd1",
+            borderDark: "#002e08"
       },
       "#f59e0b": {
             bgLight: "#faf8f5",
@@ -141,11 +141,13 @@
 
     // SEC-02: Validate favicon URL — only allow HTTPS or root-relative paths
     if (company.logoUrl && (company.logoUrl.startsWith('https://') || company.logoUrl.startsWith('/'))) {
-      var link = document.querySelector("link[rel*='icon']");
-      if (link) {
-        link.href = company.logoUrl;
+      var iconLinks = document.querySelectorAll("link[rel*='icon'], link[rel='apple-touch-icon']");
+      if (iconLinks.length > 0) {
+        for (var i = 0; i < iconLinks.length; i++) {
+          iconLinks[i].href = company.logoUrl;
+        }
       } else {
-        link = document.createElement('link');
+        var link = document.createElement('link');
         link.rel = 'shortcut icon';
         link.href = company.logoUrl;
         document.head.appendChild(link);
