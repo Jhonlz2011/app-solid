@@ -145,7 +145,7 @@ const Login: Component = () => {
       "bg-card border border-border shadow-lg": !branding.tenant()?.loginBgUrl,
     }}>
       {/* ── Logo / Brand ── */}
-      <div class="@container mb-6">
+      <div class="@container mb-4">
         <div class="flex flex-col items-center @sm:flex-row @sm:items-center gap-4">
           {/* Logo */}
           <div class="shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(0)}>

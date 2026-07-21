@@ -54,7 +54,7 @@ const AuthLayout: ParentComponent = () => {
 
             {/* Subtle platform branding */}
             <div class="absolute bottom-3 left-0 right-0 z-10 flex justify-center pointer-events-none">
-                <span class="text-[11px] text-muted/30 tracking-wide select-none pointer-events-auto">
+                <span class="text-[11px] text-muted/45 tracking-wide select-none pointer-events-auto">
                     Powered by{' '}
                     <a 
                         href="https://zelys.app" 
