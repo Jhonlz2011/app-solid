@@ -27,5 +27,5 @@ export function getContrastColor(hex: string): string {
 
     const l = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 
-    return l > 0.185 ? '#0f172a' : '#ffffff';
+    return l > 0.185 ? '#000a23' : '#ffffff';
 }

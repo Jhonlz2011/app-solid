@@ -275,6 +275,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                                     <button
                                         type="button"
                                         onClick={(e) => {
+                                            e.preventDefault();
                                             e.stopPropagation();
                                             const url = props.existingUrls?.[0] || pendingPreviews()[0]?.url;
                                             const file = pendingPreviews()[0]?.file;
@@ -296,11 +297,14 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                                 <button
                                     type="button"
                                     onClick={(e) => {
+                                        e.preventDefault();
                                         e.stopPropagation();
                                         if (props.existingUrls?.length) {
                                             props.onRemoveUrl?.(props.existingUrls[0]);
-                                        } else {
-                                            removePending(0);
+                                        }
+                                        if (pendingPreviews().length) {
+                                            pendingPreviews().forEach(p => URL.revokeObjectURL(p.url));
+                                            setPendingPreviews([]);
                                         }
                                     }}
                                     class="p-2 rounded-xl bg-danger text-white shadow-sm hover:bg-destructive transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
