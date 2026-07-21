@@ -38,7 +38,7 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
         cardDark: '#002215',      // ← antes #111827
         cardAltLight: '#e2efe9',
         cardAltDark: '#002b1d',
-        borderLight: '#e2efe9',
+        borderLight: '#c5dbd1',
         borderDark: '#002e08',
     },
     '#f59e0b': {

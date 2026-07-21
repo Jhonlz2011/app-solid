@@ -152,16 +152,29 @@ const Login: Component = () => {
             <Show
               when={branding.tenant()?.logoUrl}
               fallback={
-                <div
-                  class="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-transform duration-300 hover:scale-105"
-                  style={{
-                    "background": "linear-gradient(135deg, var(--primary, #1f86c2), color-mix(in srgb, var(--primary, #1f86c2) 65%, #000))",
-                  }}
+                <Show
+                  when={branding.tenant()}
+                  fallback={
+                    <div class="w-16 h-16 rounded-2xl overflow-hidden shadow-lg transition-transform duration-300 hover:scale-105 ring-1 ring-border/50 bg-primary/5 flex items-center justify-center p-2">
+                      <img
+                        src="/icons/logo-blank-192x192.png"
+                        alt="Zelys"
+                        class="w-full h-full object-contain"
+                      />
+                    </div>
+                  }
                 >
-                  <span class="text-white font-bold text-2xl drop-shadow-sm">
-                    {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Z').charAt(0).toUpperCase()}
-                  </span>
-                </div>
+                  <div
+                    class="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-transform duration-300 hover:scale-105"
+                    style={{
+                      "background": "linear-gradient(135deg, var(--primary, #1f86c2), color-mix(in srgb, var(--primary, #1f86c2) 65%, #000))",
+                    }}
+                  >
+                    <span class="text-white font-bold text-2xl drop-shadow-sm">
+                      {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Z').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                </Show>
               }
             >
               <div class="w-16 h-16 rounded-2xl overflow-hidden shadow-lg transition-transform duration-300 hover:scale-105 ring-1 ring-border/50">
@@ -318,7 +331,7 @@ const Login: Component = () => {
                   type="button"
                   disabled={loadingTenants()}
                   onClick={() => handleSelectTenant(tenant)}
-                  class="flex items-center gap-4 p-3 rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/50 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="flex items-center gap-4 p-3 rounded-xl border border-border bg-card hover:bg-card-alt hover:border-primary/50 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div
                     class="w-11 h-11 rounded-lg flex items-center justify-center overflow-hidden shrink-0 transition-colors duration-300"

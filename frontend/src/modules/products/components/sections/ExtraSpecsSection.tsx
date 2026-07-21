@@ -50,7 +50,7 @@ const ExtraSpecsSection: Component<ExtraSpecsSectionProps> = (props) => {
     };
 
     return (
-        <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
+        <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/50">
             <SectionHeader
                 color="accent"
                 title="Especificaciones Adicionales"

@@ -17,6 +17,7 @@ import { SearchInput } from '@shared/ui/SearchInput';
 import { DropdownMenu } from '@shared/ui/DropdownMenu';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
+import LinkButton from '@shared/ui/LinkButton';
 import Button from '@shared/ui/Button';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
 import ClientDeleteDialog from '../components/ClientDeleteDialog';
@@ -42,7 +43,7 @@ const ClientsPage: Component = () => {
             {/* Modals from Router (Sheets/Panels) */}
                 <Outlet />
             {/* Header */}
-            <div class="flex-shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
+            <div class="shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
                 <PageHeader
                     icon={<UsersIcon />}
                     iconBg="linear-gradient(135deg, #10b981, #059669)"
@@ -55,13 +56,9 @@ const ClientsPage: Component = () => {
                                 <span class="hidden @sm:inline">Importar</span>
                             </Button>
                             <Show when={state.auth.canAdd('clients')}>
-                                <Button
-                                    to="/clients/new"
-                                    preload="intent"
-                                    icon={<PlusIcon />}
-                                >
-                                    <span class="hidden @sm:inline">Nuevo</span>
-                                </Button>
+                                <LinkButton to="/clients/new" preload="intent" icon={<PlusIcon />}>
+                                                <span class="hidden @sm:inline">Nuevo</span>
+                                </LinkButton>
                             </Show>
                         </div>
                     }

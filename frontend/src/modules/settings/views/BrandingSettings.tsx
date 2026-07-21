@@ -287,7 +287,7 @@ const BrandingSettings: Component = () => {
                                                     "color": previewTheme().muted,
                                                 }}
                                             >
-                                                mybrand.zelys.app
+                                                {selectedTradeName() ?? "mybrand"}.zelys.app
                                             </div>
                                         </div>
 

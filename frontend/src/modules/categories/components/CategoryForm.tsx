@@ -204,7 +204,7 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
                     </fieldset>
 
                     {/* ─── Attributes Assignment ─── */}
-                    <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
+                    <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/50">
                         <CategoryAttributesPicker
                             value={attributesValue() ?? []}
                             onChange={(attrs) => form.setFieldValue('attributes', attrs)}

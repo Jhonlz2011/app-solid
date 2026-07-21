@@ -11,13 +11,12 @@
 import { Component, For, Show, createSignal, JSX } from 'solid-js';
 import { Outlet, Link, useMatches } from '@tanstack/solid-router';
 import { PageHeader } from '@shared/ui/PageHeader';
+import LinkButton from '@shared/ui/LinkButton';
 import Button from '@shared/ui/Button';
 import { cn } from '@shared/lib/utils';
 import type { IconProps } from '@shared/ui/icons';
 import {
     PlusIcon,
-    LayersIcon,
-    LayoutIcon,
     WarehouseIcon,
     PercentIcon,
     HashIcon,
@@ -116,15 +115,9 @@ const SettingsPage: Component = () => {
                     actions={
                         <Show when={currentNewAction()}>
                             {(action) => (
-                                <Button
-                                    icon={<PlusIcon />}
-                                    to={action()}
-                                    preload="intent"
-                                >
-                                    <span class="hidden sm:inline">
-                                        {currentNewLabel()}
-                                    </span>
-                                </Button>
+                                <LinkButton to={action()} preload="intent" icon={<PlusIcon />}>
+                                    <span class="hidden @sm:inline">{currentNewLabel()}</span>
+                                </LinkButton>
                             )}
                         </Show>
                     }
