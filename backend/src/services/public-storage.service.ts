@@ -54,12 +54,8 @@ export const publicStorageService = {
       throw new Error('La imagen de fondo excede el límite de 10MB');
     }
 
-    // Sharp Pipeline: resize max width 1920px (withoutEnlargement), strip EXIF, convert to webp quality 80
+    // Sharp Pipeline: solo optimización a webp (calidad 90), sin redimensionar
     const optimizedBuffer = await sharp(rawFileBuffer)
-      .resize({
-        width: 1920,
-        withoutEnlargement: true,
-      })
       .webp({ quality: 90 })
       .toBuffer();
 

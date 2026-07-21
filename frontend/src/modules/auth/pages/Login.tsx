@@ -145,50 +145,56 @@ const Login: Component = () => {
       "bg-card border border-border shadow-lg": !branding.tenant()?.loginBgUrl,
     }}>
       {/* ── Logo / Brand ── */}
-      <div class="flex flex-col items-center mb-6">
-        <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(0)}>
-          <Show
-            when={branding.tenant()?.logoUrl}
-            fallback={
-              <div
-                class="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 shadow-lg transition-transform duration-300 hover:scale-105"
-                style={{
-                  "background": "linear-gradient(135deg, var(--primary, #1f86c2), color-mix(in srgb, var(--primary, #1f86c2) 65%, #000))",
-                }}
-              >
-                <span class="text-white font-bold text-2xl drop-shadow-sm">
-                  {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Z').charAt(0).toUpperCase()}
-                </span>
+      <div class="@container mb-6">
+        <div class="flex flex-col items-center @sm:flex-row @sm:items-center gap-4">
+          {/* Logo */}
+          <div class="shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(0)}>
+            <Show
+              when={branding.tenant()?.logoUrl}
+              fallback={
+                <div
+                  class="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-transform duration-300 hover:scale-105"
+                  style={{
+                    "background": "linear-gradient(135deg, var(--primary, #1f86c2), color-mix(in srgb, var(--primary, #1f86c2) 65%, #000))",
+                  }}
+                >
+                  <span class="text-white font-bold text-2xl drop-shadow-sm">
+                    {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Z').charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              }
+            >
+              <div class="w-16 h-16 rounded-2xl overflow-hidden shadow-lg transition-transform duration-300 hover:scale-105 ring-1 ring-border/50">
+                <img
+                  src={branding.tenant()?.logoUrl!}
+                  alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}`}
+                  class="w-full h-full object-contain"
+                />
               </div>
-            }
-          >
-            <div class="w-16 h-16 rounded-2xl overflow-hidden mb-3 shadow-lg transition-transform duration-300 hover:scale-105 ring-1 ring-border/50">
-              <img
-                src={branding.tenant()?.logoUrl!}
-                alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}`}
-                class="w-full h-full object-contain"
-              />
-            </div>
-          </Show>
-        </div>
+            </Show>
+          </div>
 
-        <h2 class="text-2xl font-bold text-heading text-center animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(1)}>
-          <Show when={branding.tenant()} fallback="Iniciar sesión">
-            {branding.tenant()?.tradeName || branding.tenant()?.businessName}
-          </Show>
-        </h2>
-        <p class="text-muted text-sm text-center mt-1 animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(2)}>
-          <Show when={branding.tenant()} fallback="Ingresa tus credenciales para continuar">
-            Portal Corporativo de Acceso
-          </Show>
-        </p>
+          {/* Title + subtitle */}
+          <div class="flex flex-col items-center @sm:items-start min-w-0">
+            <h2 class="text-2xl font-bold text-heading text-center @sm:text-left animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(1)}>
+              <Show when={branding.tenant()} fallback="Iniciar sesión">
+                {branding.tenant()?.tradeName || branding.tenant()?.businessName}
+              </Show>
+            </h2>
+            <p class="text-muted text-sm text-center @sm:text-left mt-1 animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(2)}>
+              <Show when={branding.tenant()} fallback="Ingresa tus credenciales para continuar">
+                Portal Corporativo de Acceso
+              </Show>
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* ── Decorative separator ── */}
       <div class="flex items-center gap-3 mb-6 animate-in fade-in duration-700" style={stagger(3)}>
-        <div class="flex-1 h-px bg-gradient-to-r from-transparent to-border" />
+        <div class="flex-1 h-px bg-linear-to-r from-transparent to-border" />
         <div class="w-1 h-1 rounded-full bg-border-strong" />
-        <div class="flex-1 h-px bg-gradient-to-l from-transparent to-border" />
+        <div class="flex-1 h-px bg-linear-to-l from-transparent to-border" />
       </div>
 
       {/* ── Main Login Form ── */}
@@ -274,7 +280,7 @@ const Login: Component = () => {
               selector={(state) => ({ isSubmitting: state.isSubmitting })}
               children={(state) => (
                 <Button
-                  class="mt-1 w-full"
+                  class="mt-1 w-full font-bold"
                   type="submit"
                   disabled={state().isSubmitting || !turnstileToken()}
                   loading={state().isSubmitting}
