@@ -147,7 +147,7 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
 
     // Logo preview URL (File object or string URL)
     createEffect(() => {
-        const logoVal = form.state.values.logoUrl;
+        const logoVal = formValues().logoUrl;
         if (logoVal instanceof File) {
             const url = URL.createObjectURL(logoVal);
             setLogoPreviewUrl(url);
@@ -161,7 +161,7 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
 
     // Login background preview URL
     createEffect(() => {
-        const bgVal = form.state.values.loginBgUrl;
+        const bgVal = formValues().loginBgUrl;
         if (bgVal instanceof File) {
             const url = URL.createObjectURL(bgVal);
             setLoginBgPreviewUrl(url);

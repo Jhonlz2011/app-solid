@@ -118,7 +118,7 @@ export const DataTableSelectionBar: Component<DataTableSelectionBarProps> = (pro
                 class={cn(
                     // Positioning — stays above mobile nav/safe-area
                     'fixed bottom-[calc(env(safe-area-inset-bottom,0px)+16px)] left-1/2 z-50',
-                    'w-[max-content] max-w-[calc(100vw-2rem)]', // Adjust max width to wrap content smoothly
+                    'w-max max-w-[calc(100vw-2rem)]', // Adjust max width to wrap content smoothly
                     // Layout — wrap on very narrow screens
                     'flex flex-wrap items-center justify-between gap-1  px-3 py-2', // Reduced gaps
                     // Glass surface
@@ -136,7 +136,7 @@ export const DataTableSelectionBar: Component<DataTableSelectionBarProps> = (pro
             >
                 {/* Left: count */}
                 <div class="flex items-center gap-2 shrink-0">
-                    <span class="flex items-center justify-center min-w-[1.75rem] h-6 px-2 rounded-full bg-primary/15 text-primary text-xs font-bold tabular-nums">
+                    <span class="flex items-center justify-center min-w-7 h-6 px-2 rounded-full bg-primary/15 text-primary text-xs font-bold tabular-nums">
                         {props.selectedCount}
                     </span>
                     <span class="text-sm text-muted whitespace-nowrap hidden sm:inline-block"> {/* Hidden on smallest mobile screens */}
