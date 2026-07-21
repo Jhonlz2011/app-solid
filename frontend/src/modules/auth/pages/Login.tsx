@@ -17,10 +17,10 @@ import { MailIcon, LockIcon, BuildingIcon } from '@shared/ui/icons';
 const BASE_DOMAIN = import.meta.env.VITE_BASE_DOMAIN || 'zelys.app';
 
 const getFieldError = (errors: unknown[]): string | undefined => {
-    if (!errors.length) return undefined;
-    const e = errors[0];
-    if (typeof e === 'object' && e && 'message' in e) return (e as { message: string }).message;
-    return String(e);
+  if (!errors.length) return undefined;
+  const e = errors[0];
+  if (typeof e === 'object' && e && 'message' in e) return (e as { message: string }).message;
+  return String(e);
 };
 
 /** Progressive stagger delay for entrance animations */
@@ -116,10 +116,10 @@ const Login: Component = () => {
 
         const searchParams = typeof search === 'function' ? search() : search;
         const redirectTo = (searchParams as any)?.redirect
-            ?? new URLSearchParams(window.location.search).get('redirect');
+          ?? new URLSearchParams(window.location.search).get('redirect');
         const safePath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
-            ? new URL(redirectTo, window.location.origin).pathname
-            : '/dashboard';
+          ? new URL(redirectTo, window.location.origin).pathname
+          : '/dashboard';
 
         if (companySlug) {
           handleRedirect(companySlug, safePath);
@@ -262,20 +262,18 @@ const Login: Component = () => {
             </a>
           </div>
 
-          {/* Cloudflare Turnstile widget */}
-          <div class="animate-in fade-in duration-500" style={stagger(7)}>
-            <Turnstile
-              onToken={(token) => setTurnstileToken(token)}
-              onExpire={() => setTurnstileToken(null)}
-              onError={() => {
-                setTurnstileToken(null);
-                toast.error('Error al cargar la verificación de seguridad. Desactiva tu bloqueador de anuncios.');
-                console.warn('[Login] Turnstile error — widget failed or will retry automatically');
-              }}
-            />
-          </div>
+          {/* Cloudflare Turnstile widget (Invisible) */}
+          <Turnstile
+            onToken={(token) => setTurnstileToken(token)}
+            onExpire={() => setTurnstileToken(null)}
+            onError={() => {
+              setTurnstileToken(null);
+              toast.error('Error en la verificación de seguridad. Desactiva tu bloqueador de anuncios.');
+              console.warn('[Login] Turnstile error — widget failed or will retry automatically');
+            }}
+          />
 
-          <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(8)}>
+          <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(7)}>
             <form.Subscribe
               selector={(state) => ({ isSubmitting: state.isSubmitting })}
               children={(state) => (
@@ -293,7 +291,7 @@ const Login: Component = () => {
           </div>
 
           <Show when={!branding.tenant()}>
-            <p class="text-sm text-muted text-center mt-2 animate-in fade-in duration-500" style={stagger(9)}>
+            <p class="text-sm text-muted text-center mt-2 animate-in fade-in duration-500" style={stagger(8)}>
               ¿No tienes cuenta?{' '}
               <a
                 href="/register"
@@ -313,7 +311,7 @@ const Login: Component = () => {
           <p class="text-sm text-muted font-medium mb-1">
             Tu usuario pertenece a varias empresas. Selecciona para continuar:
           </p>
-          <div class="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+          <div class="flex flex-col gap-2 max-h-64 overflow-y-auto p-1">
             <For each={discoveredTenants()}>
               {(tenant) => (
                 <button

@@ -1,14 +1,7 @@
 /**
- * Turnstile.tsx — Cloudflare Turnstile widget for SolidJS
- *
- * Loads the CF script once per page and renders the widget inside a div ref.
- * Exposes the token via onToken() callback.
- *
- * Usage:
- *   <Turnstile onToken={(token) => setTurnstileToken(token)} onExpire={() => setTurnstileToken(null)} />
+ * Turnstile.tsx — Cloudflare Turnstile widget for SolidJS (Invisible Mode)
  */
-import { Component, onMount, onCleanup, createSignal, Show } from 'solid-js';
-import { Skeleton } from './Skeleton';
+import { Component, onMount, onCleanup, createSignal } from 'solid-js';
 
 // Extend Window with Turnstile API
 declare global {
@@ -18,7 +11,6 @@ declare global {
       reset: (widgetId: string) => void;
       remove: (widgetId: string) => void;
     };
-    // Called by CF script on ready — we override if needed
     onloadTurnstileCallback?: () => void;
   }
 }
@@ -26,7 +18,7 @@ declare global {
 interface TurnstileOptions {
   sitekey: string;
   theme?: 'light' | 'dark' | 'auto';
-  size?: 'normal' | 'compact' | 'flexible';
+  size?: 'normal' | 'compact' | 'flexible' | 'invisible';
   language?: string;
   callback?: (token: string) => void;
   'expired-callback'?: () => void;
@@ -36,15 +28,10 @@ interface TurnstileOptions {
 }
 
 export interface TurnstileProps {
-  /** Cloudflare site key. Defaults to VITE_TURNSTILE_SITE_KEY env var. */
   siteKey?: string;
-  /** Widget color theme. Default: 'auto' (follows system/page preference). */
   theme?: 'light' | 'dark' | 'auto';
-  /** Called when CF issues a valid token. */
   onToken: (token: string) => void;
-  /** Called when token expires (~5 min). Reset token to null here. */
   onExpire?: () => void;
-  /** Called on CF challenge error. */
   onError?: () => void;
 }
 
@@ -76,7 +63,6 @@ function loadTurnstileScript(onReady: () => void, onError: () => void) {
   script.onload = () => {
     scriptLoaded = true;
     scriptLoading = false;
-    // Flush all pending callbacks
     pendingCallbacks.splice(0).forEach((cb) => cb());
     pendingErrorCallbacks.splice(0);
   };
@@ -94,7 +80,6 @@ function loadTurnstileScript(onReady: () => void, onError: () => void) {
 const Turnstile: Component<TurnstileProps> = (props) => {
   let containerRef: HTMLDivElement | undefined;
   let widgetId: string | undefined;
-  const [isReady, setIsReady] = createSignal(false);
 
   const siteKey = () =>
     props.siteKey ?? import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '';
@@ -112,7 +97,6 @@ const Turnstile: Component<TurnstileProps> = (props) => {
   onMount(() => {
     if (!siteKey()) {
       console.warn('[Turnstile] No siteKey provided. Bypassing Turnstile for development.');
-      setIsReady(true);
       props.onToken('dev_bypass_token');
       return;
     }
@@ -122,24 +106,23 @@ const Turnstile: Component<TurnstileProps> = (props) => {
     loadTurnstileScript(
       () => {
         if (!containerRef || !document.contains(containerRef) || !window.turnstile) return;
+        
         widgetId = window.turnstile.render(containerRef, {
           sitekey: siteKey(),
+          size: 'invisible', // <-- CLAVE: Fuerza el modo invisible
           theme: props.theme ?? 'auto',
           language: 'es',
           callback: (token: string) => {
-            setIsReady(true);
             props.onToken(token);
           },
           'expired-callback': () => {
             props.onExpire?.();
-            resetWidget();
+            resetWidget(); // Si expira, genera uno nuevo en background automáticamente
           },
           'error-callback': () => {
             props.onError?.();
             resetWidget();
-          },
-          'before-interactive-callback': () => setIsReady(true),
-          'after-interactive-callback': () => setIsReady(true),
+          }
         });
       },
       () => {
@@ -156,19 +139,13 @@ const Turnstile: Component<TurnstileProps> = (props) => {
     }
   });
 
+  // Retorna un div vacío, sin ocupar espacio en el DOM
   return (
-    <div class="relative flex justify-center min-h-[65px] items-center w-full">
-      <Show when={!isReady()}>
-        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <Skeleton class="h-[65px] w-[300px] rounded-lg" />
-        </div>
-      </Show>
-      <div
-        ref={containerRef}
-        class="z-10 relative"
-        aria-label="Verificación de seguridad Cloudflare"
-      />
-    </div>
+    <div
+      ref={containerRef}
+      class="hidden" 
+      aria-hidden="true"
+    />
   );
 };
 

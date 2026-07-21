@@ -19,7 +19,7 @@ const AuthLayout: ParentComponent = () => {
                 <div 
                     class="absolute inset-0 pointer-events-none z-0"
                     style={{
-                        "background": "radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.55) 100%)"
+                        "background": "radial-gradient(ellipse at center, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.65) 100%)"
                     }}
                 />
             </Show>
