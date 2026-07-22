@@ -232,6 +232,7 @@ const BrandingSettings: Component = () => {
                                                     maxFiles={1}
                                                     accept={['image/png', 'image/jpeg', 'image/webp']}
                                                     crop={true}
+                                                    serverSideCrop={true}
                                                     cropShape="rectangle"
                                                     cropAspectRatio={16 / 9}
                                                     lockAspectRatio={true}

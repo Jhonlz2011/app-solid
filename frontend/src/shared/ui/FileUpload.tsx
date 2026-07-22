@@ -8,6 +8,7 @@ import { Component, For, Show, splitProps, JSX, createSignal, onCleanup, createU
 import { ImageCropper } from '@ark-ui/solid';
 import Modal from './Modal';
 import { cn } from '../lib/utils';
+import type { CropCoordinates } from '@app/schema';
 import { 
     XIcon, 
     RectangleHorizontalIcon, 
@@ -17,7 +18,6 @@ import {
     ZoomOutIcon,
     FlipHorizontalIcon,
     RotateCwIcon,
-    RotateCcwIcon
 } from './icons';
 import { SegmentedControl, SegmentedControlItem, SegmentedControlItemLabel, SegmentedControlIndicator, SegmentedControlItemInput } from './SegmentedControl';
 
@@ -31,8 +31,8 @@ export interface FileUploadProps {
     maxFiles?: number;
     /** Max file size in bytes */
     maxFileSize?: number;
-    /** Callback when NEW files are added */
-    onFilesChange?: (files: File[], cropData?: { x: number; y: number; width: number; height: number }) => void;
+    /** Callback when NEW files are added. If serverSideCrop=true, files[0] is the original file + cropData has coordinates. Otherwise files[0] is the already-cropped blob. */
+    onFilesChange?: (files: File[], cropData?: CropCoordinates) => void;
     /** Whether upload is disabled */
     disabled?: boolean;
     /** Extra class */
@@ -55,6 +55,9 @@ export interface FileUploadProps {
     cropAspectRatio?: number;
     /** Prevent user from changing the aspect ratio in the cropper modal */
     lockAspectRatio?: boolean;
+    /** When true, sends the ORIGINAL file + crop coordinates for server-side cropping.
+     *  When false (default), sends the already-cropped blob (client-side crop). */
+    serverSideCrop?: boolean;
 }
 
 // ============================================================================
@@ -64,7 +67,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
     const [props, _rest] = splitProps(rawProps, [
         'accept', 'maxFiles', 'maxFileSize', 'onFilesChange',
         'disabled', 'class', 'label', 'existingUrls', 'onRemoveUrl', 'showPreview', 'children',
-        'crop', 'cropShape', 'cropAspectRatio', 'lockAspectRatio',
+        'crop', 'cropShape', 'cropAspectRatio', 'lockAspectRatio', 'serverSideCrop',
     ]);
 
     const [isDragging, setIsDragging] = createSignal(false);
@@ -401,15 +404,18 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                                 const previewUrl = URL.createObjectURL(previewFile);
 
                                 if (maxFiles() === 1) {
-                                    // Revoke existing pending previews if replacing
                                     pendingPreviews().forEach(p => URL.revokeObjectURL(p.url));
                                     setPendingPreviews([{ file: previewFile, url: previewUrl }]);
                                 } else {
                                     setPendingPreviews(prev => [...prev, { file: previewFile, url: previewUrl }]);
                                 }
                                 
-                                // Return the ORIGINAL file and crop coordinates to the parent
-                                props.onFilesChange?.([originalCropFile() || previewFile], cropData ?? undefined);
+                                // serverSideCrop: send original file + full coordinates (rotate/flip included)
+                                // client-side crop: send the already-cropped blob
+                                const fileToSend = props.serverSideCrop
+                                    ? (originalCropFile() || previewFile)
+                                    : previewFile;
+                                props.onFilesChange?.([fileToSend], cropData ?? undefined);
                             }
                         }}
                     />
@@ -428,7 +434,7 @@ interface ImageCropperDialogProps {
     cropAspectRatio?: number;
     lockAspectRatio?: boolean;
     onClose: () => void;
-    onConfirm: (blob: Blob | null, cropData?: { x: number; y: number; width: number; height: number }) => void;
+    onConfirm: (blob: Blob | null, cropData?: CropCoordinates) => void;
 }
 
 const ASPECTS = [
@@ -582,7 +588,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                     </button> */}
                                     <button
                                         type="button"
-                                        onClick={() => api().rotateBy(90)}
+                                        onClick={() => api().setRotation((api().rotation + 90) % 360)}
                                         class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer flex items-center justify-center"
                                         title="Girar 90°"
                                     >

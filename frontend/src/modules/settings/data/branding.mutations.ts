@@ -2,6 +2,7 @@ import { createMutation, useQueryClient } from '@tanstack/solid-query';
 import { brandingApi } from './branding.api';
 import { brandingKeys } from './branding.keys';
 import type { CompanySettingsFormData } from '@app/schema/frontend';
+import type { CropCoordinates } from '@app/schema';
 import { applyBranding, getSubdomain } from '@modules/auth/store/branding.store';
 import { toast } from 'solid-sonner';
 
@@ -19,7 +20,7 @@ export function useUpdateSettingsBranding() {
     
     return createMutation(() => ({
         mutationKey: ['settings', 'branding', 'update'],
-        mutationFn: (variables: { body: CompanySettingsFormData, loginBgCrop?: { x: number; y: number; width: number; height: number } }) => brandingApi.update(variables.body, variables.loginBgCrop),
+        mutationFn: (variables: { body: CompanySettingsFormData; loginBgCrop?: CropCoordinates }) => brandingApi.update(variables.body, variables.loginBgCrop),
 
         // 🚀 Optimistic update — instant UX before server responds
         onMutate: async (variables) => {

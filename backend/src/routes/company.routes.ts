@@ -58,12 +58,22 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
     const buffer = Buffer.from(arrayBuffer);
 
     let crop: { left: number; top: number; width: number; height: number } | undefined;
-    if (body.cropX && body.cropY && body.cropWidth && body.cropHeight) {
+    let transforms: { rotate?: number; flipX?: boolean; flipY?: boolean } | undefined;
+    
+    if (body.cropX != null && body.cropY != null && body.cropWidth != null && body.cropHeight != null) {
       crop = {
-        left: Math.round(Number(body.cropX)),
-        top: Math.round(Number(body.cropY)),
-        width: Math.round(Number(body.cropWidth)),
-        height: Math.round(Number(body.cropHeight)),
+        left: Math.round(body.cropX),
+        top: Math.round(body.cropY),
+        width: Math.round(body.cropWidth),
+        height: Math.round(body.cropHeight),
+      };
+    }
+
+    if (body.cropRotate || body.cropFlipX || body.cropFlipY) {
+      transforms = {
+        rotate: body.cropRotate ? Math.round(body.cropRotate) : undefined,
+        flipX: body.cropFlipX ?? undefined,
+        flipY: body.cropFlipY ?? undefined,
       };
     }
 
@@ -71,6 +81,7 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
       slug: companySlug,
       rawFileBuffer: buffer,
       crop,
+      transforms,
     });
 
     return { url: bgUrl };
@@ -80,9 +91,12 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
         maxSize: '10m',
         type: ['image/jpeg', 'image/png', 'image/webp'],
       }),
-      cropX: t.Optional(t.String()),
-      cropY: t.Optional(t.String()),
-      cropWidth: t.Optional(t.String()),
-      cropHeight: t.Optional(t.String()),
+      cropX: t.Optional(t.Numeric()),
+      cropY: t.Optional(t.Numeric()),
+      cropWidth: t.Optional(t.Numeric()),
+      cropHeight: t.Optional(t.Numeric()),
+      cropRotate: t.Optional(t.Numeric()),
+      cropFlipX: t.Optional(t.BooleanString()),
+      cropFlipY: t.Optional(t.BooleanString()),
     }),
   });

@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
 import { env } from '../config/env';
 
@@ -32,7 +32,8 @@ export const publicStorageService = {
       .toBuffer();
 
     const bucketName = env.R2_BUCKET_NAME;
-    const key = `t/${slug}/logo.webp`;
+    const timestamp = Date.now();
+    const key = `t/${slug}/logo-${timestamp}.webp`;
 
     await r2Client.send(
       new PutObjectCommand({
@@ -45,20 +46,47 @@ export const publicStorageService = {
     );
 
     const cdnUrl = env.NEXT_PUBLIC_CDN_URL;
-    const timestamp = Date.now();
-    return `${cdnUrl}/${key}?t=${timestamp}`;
+    return `${cdnUrl}/${key}`;
   },
 
-  optimizeAndUploadLoginBg: async ({ slug, rawFileBuffer, crop }: { slug: string; rawFileBuffer: Buffer; crop?: { left: number; top: number; width: number; height: number } }) => {
+  optimizeAndUploadLoginBg: async ({ slug, rawFileBuffer, crop, transforms }: { 
+    slug: string; 
+    rawFileBuffer: Buffer; 
+    crop?: { left: number; top: number; width: number; height: number };
+    transforms?: { rotate?: number; flipX?: boolean; flipY?: boolean };
+  }) => {
     if (rawFileBuffer.length > MAX_BG_SIZE) {
       throw new Error('La imagen de fondo excede el límite de 10MB');
     }
 
-    // Sharp Pipeline: opcionalmente recortar, luego optimizar a webp (calidad 90)
+    // Get original metadata for bounds validation
+    const metadata = await sharp(rawFileBuffer).metadata();
+    let imgW = metadata.width ?? 0;
+    let imgH = metadata.height ?? 0;
+
     let pipeline = sharp(rawFileBuffer);
     
+    // Apply transforms BEFORE crop
+    if (transforms?.flipX) pipeline = pipeline.flop();
+    if (transforms?.flipY) pipeline = pipeline.flip();
+    if (transforms?.rotate) {
+        pipeline = pipeline.rotate(transforms.rotate);
+        // After 90/270 rotation, width and height swap
+        if (transforms.rotate % 180 !== 0) {
+            [imgW, imgH] = [imgH, imgW];
+        }
+    }
+
+    // Validate and apply crop with bounds checking
     if (crop) {
-      pipeline = pipeline.extract(crop);
+        const safeLeft = Math.max(0, Math.min(crop.left, imgW - 1));
+        const safeTop = Math.max(0, Math.min(crop.top, imgH - 1));
+        const safeWidth = Math.min(crop.width, imgW - safeLeft);
+        const safeHeight = Math.min(crop.height, imgH - safeTop);
+        
+        if (safeWidth > 0 && safeHeight > 0) {
+            pipeline = pipeline.extract({ left: safeLeft, top: safeTop, width: safeWidth, height: safeHeight });
+        }
     }
 
     const optimizedBuffer = await pipeline
@@ -66,7 +94,8 @@ export const publicStorageService = {
       .toBuffer();
 
     const bucketName = env.R2_BUCKET_NAME;
-    const key = `t/${slug}/login-bg.webp`;
+    const timestamp = Date.now();
+    const key = `t/${slug}/login-bg-${timestamp}.webp`;
 
     await r2Client.send(
       new PutObjectCommand({
@@ -79,7 +108,20 @@ export const publicStorageService = {
     );
 
     const cdnUrl = env.NEXT_PUBLIC_CDN_URL;
-    const timestamp = Date.now();
-    return `${cdnUrl}/${key}?t=${timestamp}`;
+    return `${cdnUrl}/${key}`;
+  },
+
+  deleteObject: async (url: string) => {
+    const cdnUrl = env.NEXT_PUBLIC_CDN_URL;
+    if (!url || !url.startsWith(cdnUrl)) return;
+    const key = url.replace(`${cdnUrl}/`, '').split('?')[0];
+    try {
+        await r2Client.send(new DeleteObjectCommand({
+            Bucket: env.R2_BUCKET_NAME,
+            Key: key,
+        }));
+    } catch (err) {
+        console.warn('[R2] Failed to delete object:', key, err);
+    }
   }
 };

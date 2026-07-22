@@ -2,10 +2,36 @@ import { createSignal, createEffect, createMemo, onCleanup, untrack } from 'soli
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CompanySettingsFormSchema, type CompanySettingsFormData } from '@app/schema/frontend';
+import type { CropCoordinates } from '@app/schema';
 import { BRANDING_DEFAULTS } from '@app/schema/utils';
 import { toast } from 'solid-sonner';
 import { useCompanyBranding } from './branding.queries';
 import { useUpdateSettingsBranding } from './branding.mutations';
+
+/**
+ * Serializes a CompanySettingsFormData into a stable JSON string for dirty comparison.
+ * Single source of truth for which fields are compared — avoids repeating the list.
+ */
+function snapshotFields(source: CompanySettingsFormData): string {
+    return JSON.stringify({
+        logoUrl: source.logoUrl,
+        loginBgUrl: source.loginBgUrl,
+        primaryColor: source.primaryColor,
+        themeColor: source.themeColor,
+        businessName: source.businessName,
+        tradeName: source.tradeName,
+        ruc: source.ruc,
+        mainAddress: source.mainAddress,
+        businessType: source.businessType,
+        email: source.email,
+        phone: source.phone,
+        obligadoContabilidad: source.obligadoContabilidad,
+        contribuyenteEspecial: source.contribuyenteEspecial,
+        agenteRetencion: source.agenteRetencion,
+        rimpeType: source.rimpeType,
+        sriEnvironment: source.sriEnvironment,
+    });
+}
 
 /**
  * Shared hook for company settings forms.
@@ -22,7 +48,7 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const [logoPreviewUrl, setLogoPreviewUrl] = createSignal<string | null>(null);
     const [loginBgPreviewUrl, setLoginBgPreviewUrl] = createSignal<string | null>(null);
-    const [loginBgCropDetails, setLoginBgCropDetails] = createSignal<{ x: number; y: number; width: number; height: number } | undefined>();
+    const [loginBgCropDetails, setLoginBgCropDetails] = createSignal<CropCoordinates | undefined>();
 
     const form = createForm(() => ({
         defaultValues: {
@@ -82,27 +108,7 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
                 form.setFieldValue('rimpeType', data.rimpeType);
                 form.setFieldValue('sriEnvironment', data.sriEnvironment);
 
-                // Snapshot server state for manual dirty comparison.
-                // TanStack Form's isDirty is "once dirty, always dirty" —
-                // it never reverts, so we track it ourselves.
-                setServerBaseline(JSON.stringify({
-                    logoUrl: data.logoUrl,
-                    loginBgUrl: data.loginBgUrl,
-                    primaryColor: data.primaryColor,
-                    themeColor: data.themeColor,
-                    businessName: data.businessName,
-                    tradeName: data.tradeName,
-                    ruc: data.ruc,
-                    mainAddress: data.mainAddress,
-                    businessType: data.businessType,
-                    email: data.email,
-                    phone: data.phone,
-                    obligadoContabilidad: data.obligadoContabilidad,
-                    contribuyenteEspecial: data.contribuyenteEspecial,
-                    agenteRetencion: data.agenteRetencion,
-                    rimpeType: data.rimpeType,
-                    sriEnvironment: data.sriEnvironment,
-                }));
+                setServerBaseline(snapshotFields(data as CompanySettingsFormData));
             });
         }
     });
@@ -124,25 +130,7 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
         const v = formValues();
         // If a File was selected, it's always dirty
         if (v.logoUrl instanceof File || v.loginBgUrl instanceof File) return true;
-        const current = JSON.stringify({
-            logoUrl: v.logoUrl,
-            loginBgUrl: v.loginBgUrl,
-            primaryColor: v.primaryColor,
-            themeColor: v.themeColor,
-            businessName: v.businessName,
-            tradeName: v.tradeName,
-            ruc: v.ruc,
-            mainAddress: v.mainAddress,
-            businessType: v.businessType,
-            email: v.email,
-            phone: v.phone,
-            obligadoContabilidad: v.obligadoContabilidad,
-            contribuyenteEspecial: v.contribuyenteEspecial,
-            agenteRetencion: v.agenteRetencion,
-            rimpeType: v.rimpeType,
-            sriEnvironment: v.sriEnvironment,
-        });
-        return current !== baseline;
+        return snapshotFields(v) !== baseline;
     });
 
     // Logo preview URL (File object or string URL)

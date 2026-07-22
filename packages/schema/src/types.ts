@@ -24,3 +24,15 @@ export type NewInventoryStock = InferInsertModel<typeof tables.inventoryStock>;
 // --- AUTH ---
 export type AuthUser = InferSelectModel<typeof tables.authUsers>;
 export type NewAuthUser = InferInsertModel<typeof tables.authUsers>;
+
+// --- IMAGE CROP ---
+/** Coordinates for server-side image cropping. Shared between frontend and backend. */
+export interface CropCoordinates {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotate?: number;
+    flipX?: boolean;
+    flipY?: boolean;
+}

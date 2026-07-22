@@ -3,6 +3,7 @@ import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { invalidateTenantCache } from './spa-renderer.service';
 import type { CompanySettingsBodyType } from '@app/schema/backend';
+import { publicStorageService } from './public-storage.service';
 
 /**
  * Maps camelCase form field names → snake_case DB column setters.
@@ -101,6 +102,12 @@ export const companyService = {
   },
 
   updateBranding: async (companyId: number, data: CompanySettingsBodyType) => {
+    // Fetch current image URLs for deferred delete comparison
+    const [currentImages] = await db.select({
+        logoUrl: companies.logo_url,
+        loginBgUrl: companies.login_bg_url,
+    }).from(companies).where(eq(companies.id, companyId)).limit(1);
+
     // Build partial SET — only changed fields are written to the DB
     const partialSet = buildPartialSet(data);
 
@@ -109,6 +116,25 @@ export const companyService = {
       .set(partialSet as any)
       .where(eq(companies.id, companyId))
       .returning();
+
+    // Deferred delete: cleanup orphaned R2 objects after successful DB update
+    if (currentImages) {
+        const oldLogo = currentImages.logoUrl;
+        const newLogo = data.logoUrl;
+        if (oldLogo && oldLogo !== newLogo) {
+            publicStorageService.deleteObject(oldLogo).catch((err) =>
+                console.warn('[R2] Deferred logo delete failed:', err)
+            );
+        }
+
+        const oldBg = currentImages.loginBgUrl;
+        const newBg = data.loginBgUrl;
+        if (oldBg && oldBg !== newBg) {
+            publicStorageService.deleteObject(oldBg).catch((err) =>
+                console.warn('[R2] Deferred login-bg delete failed:', err)
+            );
+        }
+    }
 
     // Invalidate backend SPA cache for this tenant
     if (updated.slug) {
