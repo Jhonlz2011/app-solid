@@ -164,7 +164,7 @@ const BrandingSettings: Component = () => {
                                                             class="size-10 rounded-lg border border-border cursor-pointer bg-transparent p-0 outline-none"
                                                         />
                                                         <div class="flex-1">
-                                                            <span class="text-xs font-semibold text-text truncate block">Color Primario Personalizado</span>
+                                                            <span class="text-xs font-semibold text-text truncate block">Color Primario</span>
                                                             <span class="text-[10px] text-muted font-mono">{field().state.value}</span>
                                                         </div>
                                                         <TextField.Root value={field().state.value} onChange={(val) => field().handleChange(val)} class="w-28">
@@ -399,7 +399,7 @@ const BrandingSettings: Component = () => {
                                                             class="px-1.5 py-0.5 rounded-md font-semibold text-[7.5px] shadow-sm shrink-0 cursor-default"
                                                             style={{ "background-color": previewTheme().primary, "color": previewTheme().onPrimary }}
                                                         >
-                                                            + Nueva Factura
+                                                            + Nuevo
                                                         </button>
                                                     </div>
 
