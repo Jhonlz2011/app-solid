@@ -117,20 +117,18 @@ export const companyService = {
       .where(eq(companies.id, companyId))
       .returning();
 
-    // Deferred delete: cleanup orphaned R2 objects after successful DB update
+    // Deferred delete: only cleanup R2 objects when explicitly removed (set to null).
+    // When replacing an image, PutObject already overwrites the same static key —
+    // calling deleteObject here would DELETE the file that was just uploaded.
     if (currentImages) {
-        const oldLogo = currentImages.logoUrl;
-        const newLogo = data.logoUrl;
-        if (oldLogo && oldLogo !== newLogo) {
-            publicStorageService.deleteObject(oldLogo).catch((err) =>
+        if (currentImages.logoUrl && data.logoUrl === null) {
+            publicStorageService.deleteObject(currentImages.logoUrl).catch((err) =>
                 console.warn('[R2] Deferred logo delete failed:', err)
             );
         }
 
-        const oldBg = currentImages.loginBgUrl;
-        const newBg = data.loginBgUrl;
-        if (oldBg && oldBg !== newBg) {
-            publicStorageService.deleteObject(oldBg).catch((err) =>
+        if (currentImages.loginBgUrl && data.loginBgUrl === null) {
+            publicStorageService.deleteObject(currentImages.loginBgUrl).catch((err) =>
                 console.warn('[R2] Deferred login-bg delete failed:', err)
             );
         }

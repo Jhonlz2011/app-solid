@@ -32,8 +32,7 @@ export const publicStorageService = {
       .toBuffer();
 
     const bucketName = env.R2_BUCKET_NAME;
-    const timestamp = Date.now();
-    const key = `t/${slug}/logo-${timestamp}.webp`;
+    const key = `t/${slug}/logo.webp`;
 
     await r2Client.send(
       new PutObjectCommand({
@@ -46,7 +45,8 @@ export const publicStorageService = {
     );
 
     const cdnUrl = env.NEXT_PUBLIC_CDN_URL;
-    return `${cdnUrl}/${key}`;
+    const version = Date.now();
+    return `${cdnUrl}/${key}?v=${version}`;
   },
 
   optimizeAndUploadLoginBg: async ({ slug, rawFileBuffer, crop, transforms }: { 
@@ -94,8 +94,7 @@ export const publicStorageService = {
       .toBuffer();
 
     const bucketName = env.R2_BUCKET_NAME;
-    const timestamp = Date.now();
-    const key = `t/${slug}/login-bg-${timestamp}.webp`;
+    const key = `t/${slug}/login-bg.webp`;
 
     await r2Client.send(
       new PutObjectCommand({
@@ -108,7 +107,8 @@ export const publicStorageService = {
     );
 
     const cdnUrl = env.NEXT_PUBLIC_CDN_URL;
-    return `${cdnUrl}/${key}`;
+    const version = Date.now();
+    return `${cdnUrl}/${key}?v=${version}`;
   },
 
   deleteObject: async (url: string) => {
