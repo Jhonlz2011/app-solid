@@ -252,7 +252,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     return {
       name: companyName,
       short_name: shortName,
-      start_url: `https://${host}/`,
+      start_url: `/`,
       display: 'standalone',
       background_color: '#ffffff',
       theme_color: primaryColor,
