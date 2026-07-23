@@ -33,8 +33,8 @@ const [state, setState] = createStore<AuthState>({
     status: 'idle',
 });
 
-// --- BROADCAST CHANNEL (Cross-tab sync) ---
-const authChannel = typeof window !== 'undefined' ? new BroadcastChannel('auth_sync') : null;
+// P0-4: Auth cross-tab sync now uses centralized broadcast.store.ts (app_sync channel)
+// Removed: const authChannel = new BroadcastChannel('auth_sync') — was a separate channel that was never closed
 
 // --- HELPERS ---
 
@@ -71,10 +71,8 @@ export const actions = {
             enableReconnect();
             connect(currentSessionId);
 
-            // Notify other tabs
-            if (authChannel) {
-                authChannel.postMessage({ type: 'LOGIN', user: sanitizeUser(user), sessionId: currentSessionId });
-            }
+            // Notify other tabs via centralized broadcast
+            broadcast.emit(BroadcastEvents.AUTH_LOGIN, { user: sanitizeUser(user), sessionId: currentSessionId });
 
             // Sync branding if user has a companySlug (for domain-less login via zelys.app)
             if ((successData.user as any).companySlug) {
@@ -97,10 +95,8 @@ export const actions = {
         setSessionFlag(false);
         disconnect();
 
-        // Notify other tabs
-        if (authChannel) {
-            authChannel.postMessage({ type: 'LOGOUT' });
-        }
+        // Notify other tabs via centralized broadcast
+        broadcast.emit(BroadcastEvents.AUTH_LOGOUT);
 
         // Notify server (only for voluntary logout)
         if (notifyServer) {
@@ -141,10 +137,8 @@ export const actions = {
         enableReconnect();
         connect(currentSessionId);
 
-        // Notify other tabs
-        if (authChannel) {
-            authChannel.postMessage({ type: 'LOGIN', user: sanitizeUser(userData), sessionId });
-        }
+        // Notify other tabs via centralized broadcast
+        broadcast.emit(BroadcastEvents.AUTH_LOGIN, { user: sanitizeUser(userData), sessionId });
     },
 
     // Session initialization — just call GET /me, cookie is sent automatically
@@ -241,39 +235,38 @@ export const actions = {
             actions.refreshSession();
         });
 
-        // Cross-tab sync via BroadcastChannel
-        if (authChannel) {
-            authChannel.onmessage = (e) => {
-                if (e.data.type === 'LOGOUT') {
-                    currentSessionId = null;
-                    // Only set status — don't clear user (causes sidebar flash).
-                    // The full-page reload below will reset all in-memory stores anyway.
-                    setState('status', 'unauthenticated');
-                    disconnect();
-                    // Navigate if still on a protected page
-                    if (!window.location.pathname.startsWith('/login')) {
-                        window.location.href = '/login';
-                    }
-                } else if (e.data.type === 'LOGIN' && e.data.user) {
-                    currentSessionId = e.data.sessionId ?? null;
-                    batch(() => {
-                        setState('user', e.data.user);
-                        setState('status', 'authenticated');
-                    });
-                    setSessionFlag(true);
-                    enableReconnect();
-                    connect(currentSessionId);
-                    // Navigate if still on the login page
-                    // Preserve redirect param if present (e.g., /login?redirect=/suppliers → /suppliers)
-                    if (window.location.pathname.startsWith('/login')) {
-                        const params = new URLSearchParams(window.location.search);
-                        const redirectTo = params.get('redirect');
-                        const safePath = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
-                        window.location.href = safePath;
-                    }
-                }
-            };
-        }
+        // Cross-tab sync via centralized broadcast store (P0-4: replaces separate auth_sync BroadcastChannel)
+        broadcast.on(BroadcastEvents.AUTH_LOGOUT, () => {
+            currentSessionId = null;
+            // Only set status — don't clear user (causes sidebar flash).
+            // The full-page reload below will reset all in-memory stores anyway.
+            setState('status', 'unauthenticated');
+            disconnect();
+            // Navigate if still on a protected page
+            if (!window.location.pathname.startsWith('/login')) {
+                window.location.href = '/login';
+            }
+        });
+
+        broadcast.on(BroadcastEvents.AUTH_LOGIN, (data) => {
+            if (!data?.user) return;
+            currentSessionId = data.sessionId ?? null;
+            batch(() => {
+                setState('user', data.user);
+                setState('status', 'authenticated');
+            });
+            setSessionFlag(true);
+            enableReconnect();
+            connect(currentSessionId);
+            // Navigate if still on the login page
+            // Preserve redirect param if present (e.g., /login?redirect=/suppliers → /suppliers)
+            if (window.location.pathname.startsWith('/login')) {
+                const params = new URLSearchParams(window.location.search);
+                const redirectTo = params.get('redirect');
+                const safePath = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
+                window.location.href = safePath;
+            }
+        });
 
         // Centralized broadcast store (profile updates from other tabs via BroadcastChannel)
         broadcast.init();

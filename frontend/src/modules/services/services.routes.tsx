@@ -1,25 +1,25 @@
 import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
-import { createProductModals } from '@shared/routes/products.factory';
-import { productsApi, productKeys } from './data/products.api';
+import { createServiceModals } from '@shared/routes/services.factory';
+import { productsApi, productKeys } from '@modules/products/data/products.api';
 
 // --- LAZY PAGE ---
-const ProductsPage = lazyRouteComponent(() => import('./views/ProductsPage'));
+const ServicesPage = lazyRouteComponent(() => import('./views/ServicesPage'));
 
 // ─── Route factory ──────────────────────────────────────────────────────────
-export const createProductsRoutes = (layoutRoute: any) => {
-    const productsRoute = createRoute({
+export const createServicesRoutes = (layoutRoute: any) => {
+    const servicesRoute = createRoute({
         getParentRoute: () => layoutRoute,
-        path: 'products',
+        path: 'services',
         beforeLoad: async () => {
             const { useAuth } = await import('@modules/auth/store/auth.store');
-            if (!useAuth().canRead('products')) {
+            if (!useAuth().canRead('services')) {
                 throw redirect({ to: '/dashboard' });
             }
         },
         loader: async () => {
-            const defaultFilters = { limit: 10, direction: 'first' as const, productType: ['PRODUCTO'] };
+            const defaultFilters = { limit: 10, direction: 'first' as const, productType: ['SERVICIO'] };
             return await queryClient.prefetchQuery({
                 queryKey: productKeys.list(defaultFilters),
                 queryFn: () => productsApi.list(defaultFilters),
@@ -27,14 +27,12 @@ export const createProductsRoutes = (layoutRoute: any) => {
             });
         },
         pendingComponent: GlobalPageLoader,
-        component: ProductsPage,
+        component: ServicesPage,
     });
 
-    // Catalog modals are now nested INSIDE newRoute/editRoute via the factory.
-    // No need to inject them as siblings here — they live inside products.factory.tsx.
-    productsRoute.addChildren([
-        ...createProductModals(productsRoute),
+    servicesRoute.addChildren([
+        ...createServiceModals(servicesRoute),
     ]);
 
-    return productsRoute;
+    return servicesRoute;
 };

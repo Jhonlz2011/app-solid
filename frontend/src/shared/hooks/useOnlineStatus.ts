@@ -53,18 +53,20 @@ function handleReconnect() {
     .getAll()
     .filter(m => m.state.isPaused).length;
 
+  // P0-1: Only refetch queries that are actively mounted on screen (not the entire cache)
+  // to prevent a thundering herd of 30-50+ parallel API calls on reconnect.
   if (pausedCount > 0) {
     const toastId = toast.loading(
       `Sincronizando ${pausedCount} operación${pausedCount !== 1 ? 'es' : ''} pendiente${pausedCount !== 1 ? 's' : ''}...`
     );
     queryClient.resumePausedMutations().then(() => {
-      queryClient.invalidateQueries();
+      queryClient.invalidateQueries({ refetchType: 'active' });
       toast.success('Todo sincronizado correctamente', { id: toastId, duration: 3000 });
     }).catch(() => {
       toast.error('Algunas operaciones no pudieron sincronizarse', { id: toastId, duration: 5000 });
     });
   } else {
-    queryClient.invalidateQueries();
+    queryClient.invalidateQueries({ refetchType: 'active' });
   }
 }
 

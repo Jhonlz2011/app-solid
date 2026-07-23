@@ -70,7 +70,9 @@ render(
         // Reactive: fires whenever SW detects a new version (even after mount)
         createEffect(() => {
             if (needRefresh()) {
+                // P1-9: Use fixed toastId to prevent infinite-duration toasts from stacking
                 toast.info('Nueva versión de Zelys disponible', {
+                    id: 'sw-update',
                     description: 'Se han realizado optimizaciones. Haz clic para actualizar.',
                     duration: Infinity,
                     action: {
@@ -96,9 +98,10 @@ render(
                     },
                 }}
                 onSuccess={() => {
-                    // Al hidratar exitosamente la caché de IndexedDB, reanudar mutaciones en cola
+                    // P0-1: Only refetch actively mounted queries (not the entire cache)
+                    // to prevent thundering herd on cache rehydration from IndexedDB.
                     queryClient.resumePausedMutations().then(() => {
-                        queryClient.invalidateQueries();
+                        queryClient.invalidateQueries({ refetchType: 'active' });
                     });
                 }}
             >

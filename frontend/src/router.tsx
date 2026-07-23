@@ -1,4 +1,4 @@
-import { Component, onMount } from 'solid-js';
+import { Component } from 'solid-js';
 import { createRouter, createRootRoute, createRoute, RouterProvider, Outlet, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 
 import MainLayout from './layout/MainLayout';
@@ -7,6 +7,7 @@ import { createSuppliersRoutes } from './modules/suppliers/suppliers.routes';
 import { createClientsRoutes } from './modules/clients/clients.routes';
 import { createUsersRoutes } from './modules/users/users.routes';
 import { createProductsRoutes } from './modules/products/products.routes';
+import { createServicesRoutes } from './modules/services/services.routes';
 import { createCategoriesRoutes } from './modules/categories/categories.routes';
 import { createSettingsRoutes } from './modules/settings/settings.routes';
 import { createBrandsRoutes } from './modules/brands/brands.routes';
@@ -14,7 +15,7 @@ import { createUomRoutes } from './modules/uom/uom.routes';
 import { createAttributesRoutes } from './modules/attributes/attributes.routes';
 import { createLocationRoutes } from './modules/locations/locations.routes';
 
-import { connect as connectSSE } from './shared/store/sse.store';
+// P1-5: Removed connectSSE import — SSE connection is managed solely by MainLayout.createEffect(isOnline())
 import { queryClient } from './shared/lib/queryClient';
 import ErrorState from './shared/ui/ErrorState';
 
@@ -53,11 +54,9 @@ const verifyEmailRoute = createRoute({
 });
 
 // --- PROTECTED LAYOUT ---
+// P1-5: Removed redundant connectSSE() from onMount — MainLayout.createEffect(isOnline()) is the
+// single source of truth for SSE connection. auth.store also connects on login/initSession.
 const ProtectedLayout: Component = () => {
-  onMount(() => {
-    connectSSE();
-  });
-
   return <MainLayout />;
 };
 
@@ -142,6 +141,7 @@ const routeTree = rootRoute.addChildren([
     createSuppliersRoutes(layoutRoute),
     createClientsRoutes(layoutRoute),
     createProductsRoutes(layoutRoute),
+    createServicesRoutes(layoutRoute),
     createCategoriesRoutes(layoutRoute),
     createBrandsRoutes(layoutRoute),
     createUomRoutes(layoutRoute),

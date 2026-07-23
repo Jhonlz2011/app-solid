@@ -9,6 +9,7 @@ import Switch from '@shared/ui/Switch';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import { UomSelect } from '@shared/ui/selectors';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
+import type { CatalogModeConfig } from '@shared/forms/catalog';
 import SectionHeader from '../ui/SectionHeader';
 
 const IVA_OPTIONS = [
@@ -21,6 +22,7 @@ type SelectOption<T> = { value: T; label: string };
 
 interface PricingInventorySectionProps {
     form: any;
+    mode: CatalogModeConfig;
     hasAttemptedSubmit: () => boolean;
 }
 
@@ -29,10 +31,10 @@ const PricingInventorySection: Component<PricingInventorySectionProps> = (props)
 
     return (
         <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
-            <SectionHeader color="warning" title="Precios e Inventario" />
+            <SectionHeader color="warning" title={props.mode.features.inventoryTab ? 'Precios e Inventario' : 'Precios'} />
 
-            {/* Row: Price + IVA + UOM + Min Stock */}
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Row: Price + IVA + UOM + Min Stock (conditional) */}
+            <div class={`grid grid-cols-2 gap-4 ${props.mode.features.inventoryTab ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
                 {/* Precio Base */}
                 <props.form.Field name="default_base_price">
                     {(field: any) => (
@@ -94,33 +96,37 @@ const PricingInventorySection: Component<PricingInventorySectionProps> = (props)
                 </props.form.Field>
 
                 {/* Stock Mínimo */}
-                <props.form.Field name="min_stock_alert">
-                    {(field: any) => (
-                        <TextField.Root field={field()}>
-                            <TextField.Label>Stock Mínimo</TextField.Label>
-                            <TextField.Input type="number" placeholder="0" min={0} step="0.01" />
-                            <TextField.Description>Alerta de reposición</TextField.Description>
-                        </TextField.Root>
-                    )}
-                </props.form.Field>
+                <Show when={props.mode.features.inventoryTab}>
+                    <props.form.Field name="min_stock_alert">
+                        {(field: any) => (
+                            <TextField.Root field={field()}>
+                                <TextField.Label>Stock Mínimo</TextField.Label>
+                                <TextField.Input type="number" placeholder="0" min={0} step="0.01" />
+                                <TextField.Description>Alerta de reposición</TextField.Description>
+                            </TextField.Root>
+                        )}
+                    </props.form.Field>
+                </Show>
             </div>
 
             {/* Dimensional tracking toggle */}
-            <props.form.Field name="has_dimensional_tracking">
-                {(field: any) => (
-                    <div class="flex items-center gap-3 p-3 bg-card rounded-xl border border-border/40">
-                        <Switch field={field()}>
-                            <div>
-                                <p class="text-sm font-medium text-text">Maneja dimensiones</p>
-                                <p class="text-xs text-muted">Habilitar seguimiento por largo × ancho (planchas, rollos)</p>
-                            </div>
-                        </Switch>
-                    </div>
-                )}
-            </props.form.Field>
+            <Show when={props.mode.features.inventoryTab}>
+                <props.form.Field name="has_dimensional_tracking">
+                    {(field: any) => (
+                        <div class="flex items-center gap-3 p-3 bg-card rounded-xl border border-border/40">
+                            <Switch field={field()}>
+                                <div>
+                                    <p class="text-sm font-medium text-text">Maneja dimensiones</p>
+                                    <p class="text-xs text-muted">Habilitar seguimiento por largo × ancho (planchas, rollos)</p>
+                                </div>
+                            </Switch>
+                        </div>
+                    )}
+                </props.form.Field>
+            </Show>
 
             {/* Conditional dimensional fields from variant[0] */}
-            <Show when={hasDimensional()}>
+            <Show when={props.mode.features.inventoryTab && hasDimensional()}>
                 <div class="grid grid-cols-3 gap-4 p-4 bg-info/5 border border-info/20 rounded-xl animate-in fade-in slide-in-from-top-1">
                     <props.form.Field name={"variants[0].content_quantity" as any}>
                         {(field: any) => (

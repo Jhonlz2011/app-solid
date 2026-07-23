@@ -1,12 +1,12 @@
 /**
- * ProductsPage — Orchestrator component.
- * All state and logic extracted to useProductsState hook.
+ * ServicesPage — Orchestrator component for services.
+ * Reuses state and logic from useProductsState hook with productType filter.
  */
 import { Component, Show } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
-import { useProductsState } from '../hooks/useProductsState';
+import { useProductsState } from '@/modules/products/hooks/useProductsState';
 
 // UI Components
 import { DataTable } from '@shared/ui/DataTable';
@@ -18,8 +18,8 @@ import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnV
 import LinkButton from '@shared/ui/LinkButton';
 import Button from '@shared/ui/Button';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
-import ProductDeleteDialog from '../components/ProductDeleteDialog';
-import { ProductFilterSheet } from '../components/ProductFilterSheet';
+import ProductDeleteDialog from '@/modules/products/components/ProductDeleteDialog';
+import { ProductFilterSheet } from '@/modules/products/components/ProductFilterSheet';
 
 // Icons
 import {
@@ -27,16 +27,17 @@ import {
     FilterIcon, CopyIcon, RotateCcwIcon, ChevronsUpDownIcon,
 } from '@shared/ui/icons';
 
-// Product icon
-const PackageIcon = () => (
+// Service icon (Wrench)
+const WrenchIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="m7.5 4.27 9 5.15" /><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" />
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
     </svg>
 );
 
-const ProductsPage: Component = () => {
+const ServicesPage: Component = () => {
     const isMobile = useIsMobile();
-    const state = useProductsState({ productType: ['PRODUCTO'] });
+    // Initialize state with productType: ['SERVICIO']
+    const state = useProductsState({ productType: ['SERVICIO'] });
 
     return (
         <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
@@ -46,18 +47,18 @@ const ProductsPage: Component = () => {
             {/* Header */}
             <div class="shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
                 <PageHeader
-                    icon={<PackageIcon />}
-                    iconBg="linear-gradient(135deg, #0ea5e9, #6366f1)"
-                    title="Productos"
+                    icon={<WrenchIcon />}
+                    iconBg="linear-gradient(135deg, #f59e0b, #ef4444)"
+                    title="Servicios"
                     count={state.totalRows()}
-                    info="Gestiona los productos y servicios de tu negocio. Puedes agregar, editar, eliminar y buscar."
+                    info="Gestiona los servicios de tu negocio."
                     actions={
                         <div class="flex items-center gap-2">
                             <Button variant="outline" icon={<UploadIcon />} onClick={() => toast.info('Importación próximamente')}>
                                 <span class="hidden @sm:inline">Importar</span>
                             </Button>
-                            <Show when={state.auth.canAdd('products')}>
-                                <LinkButton to="/products/new" preload="intent" icon={<PlusIcon />}>
+                            <Show when={state.auth.canAdd('services')}>
+                                <LinkButton to="/services/new" preload="intent" icon={<PlusIcon />}>
                                     <span class="hidden @sm:inline">Nuevo</span>
                                 </LinkButton>
                             </Show>
@@ -70,7 +71,7 @@ const ProductsPage: Component = () => {
                     <SearchInput
                         value={state.search()}
                         onSearch={state.handleSearchInput}
-                        placeholder="Buscar productos..."
+                        placeholder="Buscar servicios..."
                         class="flex-1 w-full min-w-[150px] max-w-md"
                     />
                     <div class="flex items-center gap-2">
@@ -132,8 +133,8 @@ const ProductsPage: Component = () => {
                         onRowHover={state.handlePrefetch}
                         enableVirtualization={false}
                         estimatedRowHeight={56}
-                        emptyIcon={<PackageIcon />}
-                        emptyMessage="No hay productos"
+                        emptyIcon={<WrenchIcon />}
+                        emptyMessage="No hay servicios"
                         emptyDescription="Crea uno nuevo para comenzar"
                         tableRef={(table) => { state.setTableInstance(table); }}
                     />
@@ -193,14 +194,14 @@ const ProductsPage: Component = () => {
             <ProductDeleteDialog
                 product={state.deleteTarget()}
                 onClose={() => state.setDeleteTarget(null)}
-                onSuccess={() => toast.success('Producto eliminado')}
+                onSuccess={() => toast.success('Servicio eliminado')}
             />
             <ConfirmDialog
                 isOpen={state.showBulkDeleteConfirm()}
                 onClose={() => state.setShowBulkDeleteConfirm(false)}
                 onConfirm={state.confirmBulkDelete}
-                title={`Eliminar ${state.selectedActiveCount()} productos`}
-                description="Los productos seleccionados quedarán inactivos. Podrás restaurarlos en cualquier momento."
+                title={`Eliminar ${state.selectedActiveCount()} servicios`}
+                description="Los servicios seleccionados quedarán inactivos. Podrás restaurarlos en cualquier momento."
                 confirmLabel="Eliminar" variant="danger"
                 isLoading={state.bulkDeleteMutation.isPending}
             />
@@ -208,8 +209,8 @@ const ProductsPage: Component = () => {
                 isOpen={state.showBulkRestoreConfirm()}
                 onClose={() => state.setShowBulkRestoreConfirm(false)}
                 onConfirm={state.confirmBulkRestore}
-                title={`Restaurar ${state.selectedInactiveCount()} productos`}
-                description="Los productos seleccionados volverán a estar activos."
+                title={`Restaurar ${state.selectedInactiveCount()} servicios`}
+                description="Los servicios seleccionados volverán a estar activos."
                 confirmLabel="Restaurar" variant="success"
                 isLoading={state.bulkRestoreMutation.isPending}
             />
@@ -217,4 +218,4 @@ const ProductsPage: Component = () => {
     );
 };
 
-export default ProductsPage;
+export default ServicesPage;

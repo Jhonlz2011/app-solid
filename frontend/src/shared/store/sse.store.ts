@@ -78,14 +78,25 @@ export const connect = (token?: string | null) => {
             }
         }
 
+        // P1-7: Use a 2s delay before closing SSE on error to tolerate transient
+        // network hiccups. Avoids premature close when navigator.onLine is stale.
+        let offlineCloseTimer: ReturnType<typeof setTimeout> | null = null;
         newEs.onerror = () => {
             setIsConnected(false);
-            // Si no hay red, cerrar definitivamente para evitar spam de ERR_NAME_NOT_RESOLVED.
-            // MainLayout.tsx reconectará vía connectSSE() al detectar isOnline() === true.
+            // Clear any pending close timer if we get a rapid error→recovery cycle
+            if (offlineCloseTimer) clearTimeout(offlineCloseTimer);
+
             if (typeof navigator !== 'undefined' && !navigator.onLine) {
-                console.log('🔌 SSE: Offline detectado. Cerrando conexión SSE.');
-                newEs.close();
-                setEventSource(null);
+                // Delay close by 2s — MainLayout will reconnect via isOnline() signal
+                offlineCloseTimer = setTimeout(() => {
+                    if (!navigator.onLine) {
+                        console.log('🔌 SSE: Offline confirmado tras 2s. Cerrando conexión SSE.');
+                        newEs.close();
+                        setEventSource(null);
+                    } else {
+                        console.log('⚠️ SSE: Red recuperada durante grace period. Manteniendo conexión.');
+                    }
+                }, 2000);
             } else {
                 console.log('⚠️ SSE: Error temporal. Navegador reintentará reconectar.');
             }

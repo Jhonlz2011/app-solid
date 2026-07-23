@@ -98,4 +98,7 @@ export const BroadcastEvents = {
     SESSIONS_REFRESH: 'sessions:refresh',
     OFFLINE_SYNCED: 'offline:synced',
     OFFLINE_SYNC_FAILED: 'offline:sync-failed',
+    // P0-4: Auth events consolidated from separate auth_sync channel
+    AUTH_LOGIN: 'auth:login',
+    AUTH_LOGOUT: 'auth:logout',
 } as const;

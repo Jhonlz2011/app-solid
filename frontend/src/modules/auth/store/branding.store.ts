@@ -5,6 +5,9 @@ import { getContrastColor } from '@app/schema/utils/color';
 import { THEME_PRESETS } from '@app/schema/utils';
 import { resolveSlugFromHost } from '@app/schema/utils';
 
+// P1-8: AbortController for deduplicating concurrent branding API calls
+let activeBrandingAbort: AbortController | null = null;
+
 
 interface BrandingState {
     tenant: TenantBrandingResponseDtoType | null;
@@ -151,6 +154,9 @@ export const brandingActions = {
             // Only do background sync if data came from localStorage cache (stale from a previous session).
             const wasSSRInjected = !!document.getElementById('tenant-data');
             if (!wasSSRInjected) {
+                // P1-8: Cancel any in-flight branding request before starting a new one
+                activeBrandingAbort?.abort();
+                activeBrandingAbort = new AbortController();
                 try {
                     const tenantInfo = await authApi.getTenantInfo(slug);
                     localStorage.setItem(`branding:${slug}`, JSON.stringify(tenantInfo));
@@ -158,13 +164,19 @@ export const brandingActions = {
                         applyBranding(tenantInfo);
                     }
                 } catch (err) {
+                    if ((err as Error)?.name === 'AbortError') return;
                     console.warn('Silent branding background sync failed:', err);
+                } finally {
+                    activeBrandingAbort = null;
                 }
             }
             return;
         }
 
         // Fallback standard load (primarily for development environment)
+        // P1-8: Cancel any in-flight branding request
+        activeBrandingAbort?.abort();
+        activeBrandingAbort = new AbortController();
         setState('loading', true);
         try {
             const tenantInfo = await authApi.getTenantInfo(slug);
@@ -172,10 +184,12 @@ export const brandingActions = {
             localStorage.setItem(`branding:${slug}`, JSON.stringify(tenantInfo));
             applyBranding(tenantInfo);
         } catch (err: any) {
+            if (err?.name === 'AbortError') return;
             console.error('Error al resolver branding del tenant:', err);
             setState({ tenant: null, error: err.message || 'Error resolviendo branding' });
             applyBranding(null);
         } finally {
+            activeBrandingAbort = null;
             setState('loading', false);
         }
     },
@@ -189,13 +203,19 @@ export const brandingActions = {
         // Skip if already loaded for this slug
         if (state.tenant?.slug === slug) return;
 
+        // P1-8: Cancel any in-flight branding request to prevent race condition
+        activeBrandingAbort?.abort();
+        activeBrandingAbort = new AbortController();
         try {
             const tenantInfo = await authApi.getTenantInfo(slug);
             setState({ tenant: tenantInfo, error: null });
             localStorage.setItem(`branding:${slug}`, JSON.stringify(tenantInfo));
             applyBranding(tenantInfo);
         } catch (err: any) {
+            if (err?.name === 'AbortError') return;
             console.warn('Branding sync for slug failed:', err);
+        } finally {
+            activeBrandingAbort = null;
         }
     }
 };

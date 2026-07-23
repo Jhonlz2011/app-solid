@@ -17,7 +17,7 @@ import { useDataTableSSE, useRealtimeInvalidation } from '@shared/hooks/useDataT
 import { useAuth } from '@/modules/auth/store/auth.store';
 import { createProductColumns } from '../data/product.columns';
 
-export function useProductsState() {
+export function useProductsState(initialProps?: { productType?: string[] }) {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const auth = useAuth();
@@ -25,7 +25,7 @@ export function useProductsState() {
     // Filter signals
     const [categoryFilter, setCategoryFilter] = createSignal<string[]>([]);
     const [brandFilter, setBrandFilter] = createSignal<string[]>([]);
-    const [productTypeFilter, setProductTypeFilter] = createSignal<string[]>([]);
+    const [productTypeFilter, setProductTypeFilter] = createSignal<string[]>(initialProps?.productType || []);
     const [isActiveFilter, setIsActiveFilter] = createSignal<string[]>([]);
     const [showFilterSheet, setShowFilterSheet] = createSignal(false);
 

@@ -1,13 +1,12 @@
 /**
- * ProductNewSheet — Thin shell for creating a new product.
+ * ServiceNewSheet — Thin shell for creating a new service.
  * Handles only Sheet chrome, footer buttons, and submit routing.
- * All form logic lives in ProductForm.tsx.
  */
 import { Component } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
-import { useCreateProduct } from '../data/products.mutations';
+import { useCreateProduct } from '@/modules/products/data/products.mutations';
 import { CatalogForm, CATALOG_MODES } from '@shared/forms/catalog';
 import type { ProductFormData } from '@app/schema/frontend';
 import { ApiError, isNetworkError } from '@shared/utils/api-errors';
@@ -16,11 +15,11 @@ import { FloppyDiskIcon } from '@shared/ui/icons';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 
-interface ProductNewSheetProps {
+interface ServiceNewSheetProps {
     onClose?: () => void;
 }
 
-const ProductNewSheet: Component<ProductNewSheetProps> = (props) => {
+const ServiceNewSheet: Component<ServiceNewSheetProps> = (props) => {
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
     const createMutation = useCreateProduct();
 
@@ -33,7 +32,7 @@ const ProductNewSheet: Component<ProductNewSheetProps> = (props) => {
         }
         try {
             await createMutation.mutateAsync(data);
-            toast.success('Producto creado correctamente');
+            toast.success('Servicio creado correctamente');
             close();
         } catch (error: any) {
             if (isNetworkError(error)) {
@@ -42,7 +41,7 @@ const ProductNewSheet: Component<ProductNewSheetProps> = (props) => {
                 return;
             }
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
-            if (!hasFieldErrors) toast.error(error?.message || 'Error al crear producto');
+            if (!hasFieldErrors) toast.error(error?.message || 'Error al crear servicio');
             throw error;
         }
     };
@@ -52,8 +51,8 @@ const ProductNewSheet: Component<ProductNewSheetProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            title="Nuevo Producto"
-            description="Ingresa los datos del nuevo producto"
+            title="Nuevo Servicio"
+            description="Ingresa los datos del nuevo servicio"
             size="5xl"
             footer={
                 <>
@@ -62,18 +61,17 @@ const ProductNewSheet: Component<ProductNewSheetProps> = (props) => {
                     </Button>
                     <Button
                         type="submit"
-                        form="product-form"
+                        form="service-form"
                         loading={createMutation.isPending}
                         loadingText="Creando..."
                         icon={<FloppyDiskIcon />}
                     >
-                        Crear Producto
+                        Crear Servicio
                     </Button>
                 </>
             }
         >
-            <CatalogForm
-                mode={CATALOG_MODES.PRODUCTO}
+            <CatalogForm mode={CATALOG_MODES.SERVICIO}
                 onSubmit={handleSubmit}
                 isSubmitting={createMutation.isPending}
             />
@@ -83,4 +81,4 @@ const ProductNewSheet: Component<ProductNewSheetProps> = (props) => {
     );
 };
 
-export default ProductNewSheet;
+export default ServiceNewSheet;

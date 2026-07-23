@@ -34,6 +34,7 @@ registerRoute(
   ({ url }) => url.pathname.includes('/auth/tenant-manifest'),
   new NetworkFirst({
     cacheName: 'tenant-manifest-cache',
+    networkTimeoutSeconds: 5,
   })
 );
 
@@ -63,7 +64,9 @@ async function syncPendingTransactions() {
 
   const remaining: any[] = [];
   const failed: any[] = [];
-  const broadcastChannel = new BroadcastChannel('app_sync');
+  // P0-3: Create channel once, close at end to prevent resource leak
+  let broadcastChannel: BroadcastChannel | null = null;
+  broadcastChannel = new BroadcastChannel('app_sync');
 
   for (const item of outbox) {
     try {
@@ -94,10 +97,9 @@ async function syncPendingTransactions() {
       console.log(`✅ SW: Sincronización exitosa para: [${item.entity}]`);
 
       // Notificar a las pestañas activas del ERP que se sincronizó el registro
-      broadcastChannel.postMessage({
+      broadcastChannel!.postMessage({
         type: 'offline:synced',
-        entity: item.entity,
-        data: result,
+        data: { entity: item.entity, result },
       });
 
     } catch (err) {
@@ -117,10 +119,15 @@ async function syncPendingTransactions() {
 
   // Notificar sobre items que fallaron permanentemente
   if (failed.length > 0) {
-    broadcastChannel.postMessage({
+    broadcastChannel!.postMessage({
       type: 'offline:sync-failed',
-      count: failed.length,
-      items: failed.map((f: any) => ({ entity: f.entity, id: f.id })),
+      data: {
+        count: failed.length,
+        items: failed.map((f: any) => ({ entity: f.entity, id: f.id })),
+      },
     });
   }
+
+  // P0-3: Close the BroadcastChannel to prevent resource leaks in long-lived SW
+  broadcastChannel?.close();
 }

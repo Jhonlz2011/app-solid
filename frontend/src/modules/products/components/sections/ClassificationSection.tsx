@@ -13,12 +13,10 @@ import {
 } from '@shared/ui/SegmentedControl';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import { PlusIcon, FolderIcon } from '@shared/ui/icons';
+import type { CatalogModeConfig } from '@shared/forms/catalog';
 import SectionHeader from '../ui/SectionHeader';
 
-const PRODUCT_TYPE_OPTIONS = [
-    { value: 'PRODUCTO', label: 'Producto', icon: '📦' },
-    { value: 'SERVICIO', label: 'Servicio', icon: '🔧' },
-];
+
 
 const PRODUCT_SUBTYPE_OPTIONS = [
     { value: 'SIMPLE', label: 'Simple' },
@@ -28,7 +26,7 @@ const PRODUCT_SUBTYPE_OPTIONS = [
 
 interface ClassificationSectionProps {
     form: any;
-    productType: () => string;
+    mode: CatalogModeConfig;
     hasAttemptedSubmit: () => boolean;
 }
 
@@ -37,26 +35,24 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
         <fieldset class="space-y-4 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
             <SectionHeader color="primary" title="Tipo y Clasificación" />
 
-            {/* Row 1: Type + Subtype — compact 2-col, responsive */}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Row 1: Subtype — only if feature enabled */}
+            <Show when={props.mode.features.subtype}>
                 <div class="space-y-1.5">
-                    <FieldLabel>Tipo de Producto</FieldLabel>
-                    <props.form.Field name="product_type">
+                    <FieldLabel>Subtipo</FieldLabel>
+                    <props.form.Field name="product_subtype">
                         {(field: any) => {
                             const f = field();
                             return (
                                 <SegmentedControl
-                                    value={f.state.value}
-                                    onChange={(val: any) => f.handleChange(val as any)}
+                                    value={f.state.value ?? ''}
+                                    onChange={(val: any) => f.handleChange((val || null) as any)}
                                 >
                                     <SegmentedControlIndicator />
-                                    <Index each={PRODUCT_TYPE_OPTIONS}>
+                                    <Index each={PRODUCT_SUBTYPE_OPTIONS}>
                                         {(opt) => (
                                             <SegmentedControlItem value={opt().value}>
                                                 <SegmentedControlItemInput />
-                                                <SegmentedControlItemLabel>
-                                                    {opt().icon} {opt().label}
-                                                </SegmentedControlItemLabel>
+                                                <SegmentedControlItemLabel>{opt().label}</SegmentedControlItemLabel>
                                             </SegmentedControlItem>
                                         )}
                                     </Index>
@@ -65,34 +61,7 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                         }}
                     </props.form.Field>
                 </div>
-
-                <Show when={props.productType() === 'PRODUCTO'}>
-                    <div class="space-y-1.5">
-                        <FieldLabel>Subtipo</FieldLabel>
-                        <props.form.Field name="product_subtype">
-                            {(field: any) => {
-                                const f = field();
-                                return (
-                                    <SegmentedControl
-                                        value={f.state.value ?? ''}
-                                        onChange={(val: any) => f.handleChange((val || null) as any)}
-                                    >
-                                        <SegmentedControlIndicator />
-                                        <Index each={PRODUCT_SUBTYPE_OPTIONS}>
-                                            {(opt) => (
-                                                <SegmentedControlItem value={opt().value}>
-                                                    <SegmentedControlItemInput />
-                                                    <SegmentedControlItemLabel>{opt().label}</SegmentedControlItemLabel>
-                                                </SegmentedControlItem>
-                                            )}
-                                        </Index>
-                                    </SegmentedControl>
-                                );
-                            }}
-                        </props.form.Field>
-                    </div>
-                </Show>
-            </div>
+            </Show>
 
             {/* Row 2: Category + Brand — responsive grid with Link create buttons */}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

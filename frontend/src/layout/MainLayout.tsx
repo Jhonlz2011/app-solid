@@ -8,6 +8,7 @@ import { OfflineBanner } from '@shared/ui/OfflineBanner';
 import { toast } from 'solid-sonner';
 import { useQueryClient } from '@tanstack/solid-query';
 import { connect as connectSSE, disconnect as disconnectSSE } from '@shared/store/sse.store';
+import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 
 export const LayoutSkeleton: Component = () => {
     return (
@@ -103,23 +104,27 @@ const MainLayout: Component = () => {
         return current;
     }, isOnline());
 
-    // Escuchar mensajes del Service Worker vía BroadcastChannel
+    // P0-2: Use centralized broadcast store instead of duplicate BroadcastChannel
+    // P0-1: Filter invalidateQueries by entity instead of invalidating entire cache
     onMount(() => {
-        const channel = new BroadcastChannel('app_sync');
-        channel.onmessage = (event: MessageEvent) => {
-            const { type, entity, count } = event.data || {};
-            if (type === 'offline:synced') {
-                console.log(`✅ Sync completado para: ${entity}`);
-                queryClient.invalidateQueries();
-                toast.success(`Datos sincronizados: ${entity}`);
-            }
-            if (type === 'offline:sync-failed') {
-                toast.error(`${count} operación(es) no pudieron sincronizarse. Verifica los datos e intenta de nuevo.`, {
-                    duration: 8000,
-                });
-            }
-        };
-        onCleanup(() => channel.close());
+        const cleanupSynced = broadcast.on(BroadcastEvents.OFFLINE_SYNCED, (data) => {
+            const entity = data?.entity;
+            console.log(`✅ Sync completado para: ${entity}`);
+            queryClient.invalidateQueries(
+                entity ? { queryKey: [entity], refetchType: 'active' } : { refetchType: 'active' }
+            );
+            toast.success(`Datos sincronizados: ${entity}`);
+        });
+        const cleanupFailed = broadcast.on(BroadcastEvents.OFFLINE_SYNC_FAILED, (data) => {
+            const count = data?.count ?? 0;
+            toast.error(`${count} operación(es) no pudieron sincronizarse. Verifica los datos e intenta de nuevo.`, {
+                duration: 8000,
+            });
+        });
+        onCleanup(() => {
+            cleanupSynced();
+            cleanupFailed();
+        });
     });
 
     return (
