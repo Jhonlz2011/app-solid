@@ -1,5 +1,5 @@
 import { Component, Show } from 'solid-js';
-import { useParams } from '@tanstack/solid-router';
+import { useParams, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import { useCategoryDetail } from '../data/categories.queries';
@@ -168,6 +168,8 @@ const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
                     </Show>
                 </Show>
             </Show>
+            {/* Nested sheets (e.g. attribute creation) render here */}
+            <Outlet />
         </Sheet>
     );
 };

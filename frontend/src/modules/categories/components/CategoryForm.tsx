@@ -19,8 +19,6 @@ import { useAttributeList } from '@modules/attributes/data/attributes.queries';
 import type { CategoryDetail, CategoryNode } from '../data/categories.api';
 import type { AttributeItem } from '@modules/attributes/data/attributes.api';
 
-const AttributeNewSheet = lazy(() => import('@modules/attributes/components/AttributeNewSheet'));
-
 export interface CategoryFormProps {
     category?: CategoryDetail | null;
     defaultParentId?: number;
@@ -38,7 +36,6 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
     const attrsQuery = useAttributeList();
 
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
-    const [showNewAttr, setShowNewAttr] = createSignal(false);
 
 
     const form = createForm(() => ({
@@ -216,7 +213,6 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
                         <CategoryAttributesPicker
                             value={attributesValue() ?? []}
                             onChange={(attrs) => form.setFieldValue('attributes', attrs)}
-                            onCreateNew={() => setShowNewAttr(true)}
                         />
                     </fieldset>
                 </div>
@@ -256,11 +252,6 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
                     </fieldset>
                 </Show>
                 </form>
-
-            {/* Inline sheet for creating new attributes */}
-            <Show when={showNewAttr()}>
-                <AttributeNewSheet onClose={() => setShowNewAttr(false)} />
-            </Show>
             </FormSubmissionContext.Provider>
     );
 };

@@ -1,5 +1,5 @@
 /**
- * Product Column Definitions
+ * Product & Service Column Definitions for DataTable
  */
 import { Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
@@ -60,24 +60,37 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
             enableHiding: false,
         },
 
-        // SKU
+        // SKU + Variant Count
         {
-            accessorKey: 'sku',
+            accessorKey: 'default_sku',
             header: ({ column }) => <DataTableColumnHeader column={column} title="SKU" />,
             meta: { title: 'SKU' },
-            size: 130,
-            cell: (info) => (
-                <Link
-                    to={`${routePrefix}/${info.row.original.id}/show`}
-                    preload="intent"
-                    class="block cursor-pointer group/cell"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div class="font-mono text-sm font-semibold text-primary group-hover/cell:underline underline-offset-2 transition-all duration-150">
-                        {info.getValue<string>()}
-                    </div>
-                </Link>
-            ),
+            size: 140,
+            cell: (info) => {
+                const item = info.row.original as any;
+                const skuText = item.default_sku || item.sku || '—';
+                const variantCount = item.variant_count ?? 0;
+
+                return (
+                    <Link
+                        to={`${routePrefix}/${item.id}/show`}
+                        preload="intent"
+                        class="block cursor-pointer group/cell"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="font-mono text-sm font-semibold text-primary group-hover/cell:underline underline-offset-2 transition-all duration-150 truncate">
+                                {skuText}
+                            </span>
+                            <Show when={variantCount > 1}>
+                                <span class="text-[10px] font-semibold text-muted bg-surface border border-border/80 px-1 py-0.2 rounded shrink-0">
+                                    {variantCount} vars
+                                </span>
+                            </Show>
+                        </div>
+                    </Link>
+                );
+            },
         },
 
         // Name + Description
@@ -85,7 +98,7 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
             accessorKey: 'name',
             header: ({ column }) => <DataTableColumnHeader column={column} title={isServiceMode ? "Servicio" : "Producto"} />,
             meta: { title: isServiceMode ? 'Servicio' : 'Producto' },
-            size: 240,
+            size: 260,
             cell: (info) => (
                 <Link
                     to={`${routePrefix}/${info.row.original.id}/show`}
@@ -94,11 +107,11 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
                     title={info.getValue<string>()}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div class="font-medium text-text truncate group-hover/cell:text-primary transition-colors duration-150">
+                    <div class="font-semibold text-sm text-text truncate group-hover/cell:text-primary transition-colors duration-150">
                         {info.getValue<string>()}
                     </div>
                     <Show when={info.row.original.description}>
-                        <div class="text-xs text-muted truncate">{info.row.original.description}</div>
+                        <div class="text-xs text-muted/80 truncate mt-0.5">{info.row.original.description}</div>
                     </Show>
                 </Link>
             ),
@@ -122,7 +135,7 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
             size: 150,
             cell: (info) => (
                 <Show when={info.getValue<string>()} fallback={<span class="text-muted text-xs">—</span>}>
-                    <Badge variant="primary" class="text-[11px]">{info.getValue<string>()}</Badge>
+                    <Badge variant="primary" class="text-[11px] font-medium">{info.getValue<string>()}</Badge>
                 </Show>
             ),
         },
@@ -148,7 +161,7 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
             size: 130,
             cell: (info) => (
                 <Show when={info.getValue<string>()} fallback={<span class="text-muted text-xs">—</span>}>
-                    <span class="text-sm font-medium">{info.getValue<string>()}</span>
+                    <span class="text-xs font-semibold text-text">{info.getValue<string>()}</span>
                 </Show>
             ),
         });
@@ -175,11 +188,11 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
                 const subtype = info.row.original.product_subtype;
                 return (
                     <div class="flex flex-col gap-0.5">
-                        <Badge variant={type === 'PRODUCTO' ? 'primary' : 'info'} class="text-[11px] w-max">
+                        <Badge variant={type === 'PRODUCTO' ? 'primary' : 'info'} class="text-[10px] w-max font-semibold">
                             {productTypeLabels[type as keyof typeof productTypeLabels] ?? type}
                         </Badge>
                         <Show when={subtype}>
-                            <span class="text-[10px] text-muted uppercase tracking-wider">
+                            <span class="text-[10px] font-bold text-muted uppercase tracking-wider">
                                 {productSubtypeLabels[subtype as keyof typeof productSubtypeLabels] ?? subtype}
                             </span>
                         </Show>
@@ -191,35 +204,41 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
 
     // Price, UOM, Status, Actions
     columns.push(
-        // Price
+        // Base Price (safe formatting without $NaN)
         {
-            accessorKey: 'base_price',
-            header: ({ column }) => <DataTableColumnHeader column={column} title="Precio" />,
-            meta: { title: 'Precio' },
-            size: 110,
+            accessorKey: 'default_base_price',
+            header: ({ column }) => <DataTableColumnHeader column={column} title="Precio Base" />,
+            meta: { title: 'Precio Base' },
+            size: 120,
             cell: (info) => {
-                const price = Number(info.getValue<string>());
+                const raw = info.row.original.default_base_price ?? (info.row.original as any).base_price;
+                const num = typeof raw === 'number' ? raw : (raw != null ? parseFloat(String(raw)) : 0);
+                const safeNum = Number.isFinite(num) ? num : 0;
+                const formatted = new Intl.NumberFormat('es-CO', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }).format(safeNum);
+
                 return (
-                    <span class="font-mono text-sm font-semibold tabular-nums">
-                        ${price.toFixed(2)}
+                    <span class="font-mono text-sm font-semibold tabular-nums text-text">
+                        $ {formatted}
                     </span>
                 );
             },
         },
 
-        // UOM
+        // UOM (inventory unit of measure)
         {
-            accessorKey: 'uom_inventory_id',
+            accessorKey: 'uom_code',
             header: ({ column }) => <DataTableColumnHeader column={column} title="UOM" />,
             meta: { title: 'UOM' },
-            size: 80,
+            size: 90,
             cell: (info) => {
-                const val = info.getValue<number | null>();
                 const item = info.row.original as any;
-                const uomText = item.uom_code || item.uom_name || (val != null ? `#${val}` : null);
+                const uomText = item.uom_code || item.uom_name || (item.uom_inventory_id ? `#${item.uom_inventory_id}` : null);
                 return (
                     <Show when={uomText} fallback={<span class="text-muted text-xs">—</span>}>
-                        <span class="text-xs font-medium uppercase bg-surface px-1.5 py-0.5 rounded border border-border">
+                        <span class="text-[11px] font-semibold font-mono uppercase bg-surface-hover/80 text-text px-2 py-0.5 rounded border border-border/60">
                             {uomText}
                         </span>
                     </Show>
@@ -269,3 +288,5 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
 
     return columns;
 }
+
+export default createProductColumns;

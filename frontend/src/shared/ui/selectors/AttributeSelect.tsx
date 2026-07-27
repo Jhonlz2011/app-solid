@@ -2,16 +2,17 @@
  * AttributeSelect — Multi-select for attribute definitions.
  *
  * Thin wrapper around MultiCombobox, same pattern as BrandSelect wraps Autocomplete.
- * "Crear nuevo atributo" button is placed in the label row (not inside the dropdown).
+ * "Crear nuevo atributo" button is placed in the label row using LinkButton with dynamic route resolution.
  */
-import { Component, createMemo, createSignal } from 'solid-js';
+import { Component, createMemo, createSignal, Show } from 'solid-js';
 import { useAttributeList } from '@modules/attributes/data/attributes.queries';
 import { ATTRIBUTE_TYPE_LABELS } from '@modules/attributes/data/attributes.constants';
 import type { AttributeItem } from '@modules/attributes/data/attributes.api';
 import { MultiCombobox } from '@shared/ui/MultiCombobox';
 import { Badge } from '@shared/ui/Badge';
 import { PlusIcon, CheckIcon } from '@shared/ui/icons';
-import Button from '../Button';
+import LinkButton from '@shared/ui/LinkButton';
+import { useResolvedSelectorPath } from './SelectorBreadcrumbs';
 
 export interface AttributeSelectProps {
     value: number[];
@@ -20,11 +21,13 @@ export interface AttributeSelectProps {
     label?: string;
     placeholder?: string;
     disabled?: boolean;
+    showCreateButton?: boolean;
 }
 
 export const AttributeSelect: Component<AttributeSelectProps> = (props) => {
     const attrsQuery = useAttributeList();
     const [search, setSearch] = createSignal('');
+    const resolvedAttributePath = useResolvedSelectorPath('/attributes');
 
     // All active attributes
     const allAttrs = createMemo(() =>
@@ -50,24 +53,21 @@ export const AttributeSelect: Component<AttributeSelectProps> = (props) => {
 
     return (
         <MultiCombobox.Root>
-            {/* Label row with "Crear nuevo" button */}
+            {/* Label row with "Crear nuevo" LinkButton */}
             <div class="flex items-center justify-between">
                 <MultiCombobox.Label>{props.label ?? 'Atributos'}</MultiCombobox.Label>
-                {props.onCreateNew && (
-                    <Button
+                <Show when={props.showCreateButton !== false}>
+                    <LinkButton
+                        to={`${resolvedAttributePath()}/new`}
+                        preload="intent"
                         variant="link"
                         size="none"
-                        class="text-xs font-medium px-1.5 py-0.5 rounded-md"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            props.onCreateNew!();
-                        }}
+                        class="text-xs font-medium text-primary hover:underline px-1.5 py-0.5 rounded-md"
                         icon={<PlusIcon class="size-3.5" />}
                     >
                         Crear nuevo
-                    </Button>
-                )}
+                    </LinkButton>
+                </Show>
             </div>
 
             <MultiCombobox.Input<AttributeItem>

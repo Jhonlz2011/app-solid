@@ -2,6 +2,7 @@ import { createRoute, lazyRouteComponent, redirect, useNavigate } from '@tanstac
 import { queryClient } from '@shared/lib/queryClient';
 import { categorieKeys } from '@/modules/categories/data/categories.keys';
 import { categoriesApi } from '@/modules/categories/data/categories.api';
+import { createAttributeModals } from '@shared/routes/attributes.factory';
 
 // --- Lazy Loaders for Categories ---
 const LazyCategoryShowRoute = lazyRouteComponent(() => import('@modules/categories/components/CategoryShowPanel'));
@@ -164,10 +165,18 @@ export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRe
         }
     });
 
+    // Nest attribute creation modals inside newRoute and editRoute
+    newRoute.addChildren([
+        ...createAttributeModals(newRoute, 'attributes', fallbackRedirect),
+        newShowRoute.addChildren([newNestedEditRoute]),
+    ]);
+
+    editRoute.addChildren([
+        ...createAttributeModals(editRoute, 'attributes', fallbackRedirect),
+    ]);
+
     return [
-        newRoute.addChildren([
-            newShowRoute.addChildren([newNestedEditRoute])
-        ]),
+        newRoute,
         baseRoute.addChildren([
             indexRoute,
             showRoute.addChildren([nestedEditRoute]),
