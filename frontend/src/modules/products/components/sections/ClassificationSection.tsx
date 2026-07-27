@@ -1,27 +1,50 @@
 /**
- * ClassificationSection — Compact layout for product classification.
- * Type + Subtype in 2 columns. Category + Brand in 2 columns. Family below.
- * Each Autocomplete selector has a "+" Link button for inline creation via TanStack Router.
+ * ClassificationSection — Classification module for Product/Service Catalog.
+ * 
+ * Features:
+ * - Interactive Subtype Card Selector (SIMPLE, COMPUESTO, FABRICADO) with icons & contextual guidance.
+ * - Category Autocomplete selector with inline creation shortcut.
+ * - Brand Autocomplete selector with inline creation shortcut.
  */
-import { Component, Show, Index } from 'solid-js';
+import { Component, Show, For } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import { FieldLabel } from '@shared/ui/TextField';
 import { CategorySelect, BrandSelect } from '@shared/ui/selectors';
-import {
-    SegmentedControl, SegmentedControlIndicator,
-    SegmentedControlItem, SegmentedControlItemInput, SegmentedControlItemLabel,
-} from '@shared/ui/SegmentedControl';
-import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import { PlusIcon, FolderIcon } from '@shared/ui/icons';
 import type { CatalogModeConfig } from '@shared/forms/catalog';
+import type { ProductSubtype } from '@app/schema/enums';
 import SectionHeader from '../ui/SectionHeader';
 
+interface SubtypeOption {
+    value: ProductSubtype;
+    label: string;
+    icon: string;
+    description: string;
+    badge: string;
+}
 
-
-const PRODUCT_SUBTYPE_OPTIONS = [
-    { value: 'SIMPLE', label: 'Simple' },
-    { value: 'COMPUESTO', label: 'Compuesto' },
-    { value: 'FABRICADO', label: 'Fabricado' },
+const SUBTYPE_OPTIONS: SubtypeOption[] = [
+    {
+        value: 'SIMPLE',
+        label: 'Simple',
+        icon: '📦',
+        description: 'Ítem estándar de compra, venta o almacenamiento individual.',
+        badge: 'Estándar',
+    },
+    {
+        value: 'COMPUESTO',
+        label: 'Compuesto / Kit',
+        icon: '🧩',
+        description: 'Ensamblado a partir de otros productos (BOM / Kit de venta / Despiece).',
+        badge: 'BOM / Kit',
+    },
+    {
+        value: 'FABRICADO',
+        label: 'Fabricado',
+        icon: '⚙️',
+        description: 'Producido mediante órdenes de fabricación con transformación de insumos.',
+        badge: 'Producción',
+    },
 ];
 
 interface ClassificationSectionProps {
@@ -33,38 +56,94 @@ interface ClassificationSectionProps {
 const ClassificationSection: Component<ClassificationSectionProps> = (props) => {
     return (
         <fieldset class="space-y-4 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
-            <SectionHeader color="primary" title="Tipo y Clasificación" />
+            <SectionHeader 
+                color="primary" 
+                title="Tipo y Clasificación" 
+                description="Define la naturaleza del ítem y su jerarquía en el catálogo"
+            />
 
-            {/* Row 1: Subtype — only if feature enabled */}
+            {/* Row 1: Subtype Card Selector — Only for PRODUCTO mode */}
             <Show when={props.mode.features.subtype}>
-                <div class="space-y-1.5">
-                    <FieldLabel>Subtipo</FieldLabel>
-                    <props.form.Field name="product_subtype">
-                        {(field: any) => {
-                            const f = field();
-                            return (
-                                <SegmentedControl
-                                    value={f.state.value ?? ''}
-                                    onChange={(val: any) => f.handleChange((val || null) as any)}
-                                >
-                                    <SegmentedControlIndicator />
-                                    <Index each={PRODUCT_SUBTYPE_OPTIONS}>
-                                        {(opt) => (
-                                            <SegmentedControlItem value={opt().value}>
-                                                <SegmentedControlItemInput />
-                                                <SegmentedControlItemLabel>{opt().label}</SegmentedControlItemLabel>
-                                            </SegmentedControlItem>
-                                        )}
-                                    </Index>
-                                </SegmentedControl>
-                            );
-                        }}
-                    </props.form.Field>
-                </div>
+                <props.form.Field name="product_subtype">
+                    {(field: any) => {
+                        const currentValue = () => (field().state.value ?? 'SIMPLE') as ProductSubtype;
+
+                        return (
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <FieldLabel>Subtipo de Producto *</FieldLabel>
+                                    <span class="text-[11px] text-muted font-medium">
+                                        Selecciona cómo opera este ítem
+                                    </span>
+                                </div>
+
+                                {/* 3-Card Interactive Selector */}
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                    <For each={SUBTYPE_OPTIONS}>
+                                        {(opt) => {
+                                            const isSelected = () => currentValue() === opt.value;
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => field().handleChange(opt.value)}
+                                                    class="relative flex flex-col text-left p-3 rounded-xl border transition-all cursor-pointer outline-none group"
+                                                    classList={{
+                                                        'bg-primary/10 border-primary shadow-sm ring-1 ring-primary/30': isSelected(),
+                                                        'bg-card border-border/60 hover:border-primary/40 hover:bg-card-alt': !isSelected(),
+                                                    }}
+                                                >
+                                                    {/* Header: Icon + Label + Badge */}
+                                                    <div class="flex items-center justify-between gap-1.5 w-full mb-1">
+                                                        <div class="flex items-center gap-1.5 min-w-0">
+                                                            <span class="text-base leading-none">{opt.icon}</span>
+                                                            <span 
+                                                                class="text-xs font-bold truncate"
+                                                                classList={{
+                                                                    'text-primary': isSelected(),
+                                                                    'text-text': !isSelected(),
+                                                                }}
+                                                            >
+                                                                {opt.label}
+                                                            </span>
+                                                        </div>
+                                                        <span 
+                                                            class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
+                                                            classList={{
+                                                                'bg-primary text-white': isSelected(),
+                                                                'bg-surface-hover text-muted': !isSelected(),
+                                                            }}
+                                                        >
+                                                            {opt.badge}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Description micro-copy */}
+                                                    <p class="text-[11px] text-muted leading-tight line-clamp-2">
+                                                        {opt.description}
+                                                    </p>
+
+                                                    {/* Selection Radio Indicator Dot */}
+                                                    <div 
+                                                        class="absolute top-2.5 right-2.5 size-2 rounded-full transition-all"
+                                                        classList={{
+                                                            'bg-primary ring-2 ring-primary/30 scale-100': isSelected(),
+                                                            'opacity-0 scale-50': !isSelected(),
+                                                        }}
+                                                    />
+                                                </button>
+                                            );
+                                        }}
+                                    </For>
+                                </div>
+                            </div>
+                        );
+                    }}
+                </props.form.Field>
             </Show>
 
-            {/* Row 2: Category + Brand — responsive grid with Link create buttons */}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Row 2: Category + Brand — 2-column responsive grid */}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                {/* Category Selector */}
                 <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
                         <FieldLabel>Categoría *</FieldLabel>
@@ -95,6 +174,7 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                     </props.form.Field>
                 </div>
 
+                {/* Brand Selector */}
                 <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
                         <FieldLabel>Marca</FieldLabel>
@@ -121,8 +201,6 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                     </props.form.Field>
                 </div>
             </div>
-
-
         </fieldset>
     );
 };

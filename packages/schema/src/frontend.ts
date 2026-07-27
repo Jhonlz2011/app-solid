@@ -52,6 +52,14 @@ export const ProductVariantFormSchema = object({
     sort_order: optional(number()),
 });
 
+export const ProductComponentFormSchema = object({
+    id: optional(nullable(number())),
+    component_product_id: number('Producto componente es requerido'),
+    quantity_per_parent: number('Cantidad es requerida'),
+    is_reversible: optional(boolean()),
+    notes: optional(nullable(string())),
+});
+
 // Main product form — the parent merchandising entity
 export const ProductFormSchema = object({
     // Classification
@@ -78,10 +86,13 @@ export const ProductFormSchema = object({
     is_active: boolean(),
     // Variants (each variant = 1 SKU with attributes + packaging)
     variants: array(ProductVariantFormSchema),
+    // Structural composition for COMPUESTO / FABRICADO products
+    components: optional(array(ProductComponentFormSchema)),
 });
 
 export type ProductFormData = InferInput<typeof ProductFormSchema>;
 export type ProductVariantFormData = InferInput<typeof ProductVariantFormSchema>;
+export type ProductComponentFormData = InferInput<typeof ProductComponentFormSchema>;
 
 // --- ATTRIBUTE DEFINITIONS ---
 export const RenameOptionEntry = object({

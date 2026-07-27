@@ -36,6 +36,7 @@ import PurchaseSection from './sections/PurchaseSection';
 import InventorySection from './sections/InventorySection';
 import ExtraSpecsSection from './sections/ExtraSpecsSection';
 import VariantsSection from './sections/VariantsSection';
+import BomSection from './sections/BomSection';
 import DynamicAttributeFields from './DynamicAttributeFields';
 import CategoryAttributeTags from './CategoryAttributeTags';
 
@@ -176,6 +177,7 @@ export const ProductForm: Component<ProductFormProps> = (props) => {
 
     // ── Reactive selectors ────────────────────────────────────────────
     const categoryId = form.useStore((s) => s.values.category_id);
+    const productSubtype = form.useStore((s) => s.values.product_subtype);
     const imageUrls = form.useStore((s) => s.values.image_urls);
     const sharedAttributes = form.useStore((s) => s.values.shared_attributes);
     const mode = CATALOG_MODES.PRODUCTO;
@@ -262,6 +264,11 @@ export const ProductForm: Component<ProductFormProps> = (props) => {
                                     />
 
                                     <VariantsSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
+
+                                    <Show when={productSubtype() === 'COMPUESTO' || productSubtype() === 'FABRICADO'}>
+                                        <BomSection form={form} currentProductId={props.product?.id} />
+                                    </Show>
+
                                     <ExtraSpecsSection form={form} />
                                 </div>
                             </TabsContent>

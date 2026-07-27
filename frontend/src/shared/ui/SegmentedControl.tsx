@@ -13,10 +13,15 @@ import { cn } from '../lib/utils';
 type SegmentedControlItemLabelProps = ComponentProps<typeof KSegmentedControl.ItemLabel>;
 
 // 1. ROOT (Accepts children, uses Tailwind CSS v4 container query responsive @sm:)
-export const SegmentedControl: ParentComponent<SegmentedControlRootProps & { class?: string }> = (props) => {
-    const [local, others] = splitProps(props, ['class']);
+export const SegmentedControl: ParentComponent<SegmentedControlRootProps & { class?: string; onChange?: (value: any) => void }> = (props) => {
+    const [local, others] = splitProps(props, ['class', 'onChange', 'onValueChange', 'value']);
     return (
         <KSegmentedControl 
+            value={local.value ?? ''}
+            onValueChange={(val) => {
+                local.onChange?.(val);
+                local.onValueChange?.(val);
+            }}
             {...others}
             class={cn(
                 "group relative flex w-full @sm:w-fit m-0 p-0 rounded-xl bg-card-alt ring-1 ring-inset ring-border/80 select-none",
