@@ -36,8 +36,17 @@ const WrenchIcon = () => (
 
 const ServicesPage: Component = () => {
     const isMobile = useIsMobile();
-    // Initialize state with productType: ['SERVICIO']
-    const state = useProductsState({ productType: ['SERVICIO'] });
+    // Initialize state with productType: ['SERVICIO'] and routePrefix: '/services'
+    const state = useProductsState({
+        productType: ['SERVICIO'],
+        routePrefix: '/services',
+        hideTypeColumn: true,
+        hideBrandColumn: true,
+        labels: {
+            entityName: 'servicio',
+            entityPlural: 'servicios',
+        },
+    });
 
     return (
         <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">

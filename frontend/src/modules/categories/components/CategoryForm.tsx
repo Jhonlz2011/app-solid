@@ -125,70 +125,21 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
 
                         <form.Field name="parentId">
                             {(field) => (
-                                <Show
-                                    when={!categoriesFlat.isLoading}
-                                    fallback={
-                                        <div class="space-y-1.5">
-                                            <FieldLabel>Categoría Padre</FieldLabel>
-                                            <SkeletonLoader type="text" class="h-10 w-full" />
-                                        </div>
-                                    }
-                                >
-                                    <div class="space-y-1">
-                                        <Show
-                                            when={selectedCategory()}
-                                            fallback={
-                                                <CategorySelect
-                                                    value={field().state.value ?? null}
-                                                    onChange={(id) => field().handleChange(id ?? undefined)}
-                                                    parentSelectable={true}
-                                                    editingId={categoryId()}
-                                                    label="Categoría Padre"
-                                                    placeholder="Buscar categoría padre..."
-                                                    field={field()}
-                                                    inputPrefix={<TagIcon class="size-4 text-muted" />}
-                                                />
-                                            }
-                                        >
-                                            {(cat) => (
-                                                <div class="flex flex-col gap-1 w-full">
-                                                    <label class="text-sm font-medium text-muted w-fit ml-1">
-                                                        Categoría Padre
-                                                    </label>
-                                                    <div class="flex items-center gap-2 p-1 pl-3 pr-2 rounded-xl bg-primary/5 border border-primary/20 hover:bg-primary/8 hover:border-primary/30 transition-all duration-200 shadow-sm min-h-9.5">
-                                                        <div class="flex-1 min-w-0">
-                                                            <div class="flex items-center gap-2">
-                                                                <TagIcon class="size-4 text-muted shrink-0" />
-                                                                <p class="text-sm font-semibold text-text truncate">
-                                                                    {cat().name}
-                                                                </p>
-                                                            </div>
-                                                            <SelectorBreadcrumbs 
-                                                                items={breadcrumbs()} 
-                                                                basePath="/categories" 
-                                                            />
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => {
-                                                                field().handleChange(undefined);
-                                                            }}
-                                                            disabled={props.isSubmitting}
-                                                            class="text-muted hover:text-danger hover:bg-transparent p-1 rounded-lg shrink-0 cursor-pointer h-7"
-                                                            title="Desvincular categoría padre"
-                                                        >
-                                                            <CloseIcon class="size-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </Show>
-                                        <p class="text-xs text-muted ml-1">
-                                            Deja vacío para crear como categoría raíz
-                                        </p>
-                                    </div>
-                                </Show>
+                                <div class="space-y-1">
+                                    <CategorySelect
+                                        value={field().state.value ?? null}
+                                        onChange={(id) => field().handleChange(id ?? undefined)}
+                                        parentSelectable={true}
+                                        editingId={categoryId()}
+                                        label="Categoría Padre"
+                                        placeholder="Buscar categoría padre..."
+                                        field={field()}
+                                        inputPrefix={<TagIcon class="size-4 text-muted" />}
+                                    />
+                                    <p class="text-xs text-muted ml-1">
+                                        Deja vacío para crear como categoría raíz
+                                    </p>
+                                </div>
                             )}
                         </form.Field>
 

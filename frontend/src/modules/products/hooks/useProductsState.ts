@@ -17,10 +17,27 @@ import { useDataTableSSE, useRealtimeInvalidation } from '@shared/hooks/useDataT
 import { useAuth } from '@/modules/auth/store/auth.store';
 import { createProductColumns } from '../data/product.columns';
 
-export function useProductsState(initialProps?: { productType?: string[] }) {
+export interface UseProductsStateOptions {
+    productType?: string[];
+    routePrefix?: string;
+    hideTypeColumn?: boolean;
+    hideBrandColumn?: boolean;
+    labels?: {
+        entityName?: string;
+        entityPlural?: string;
+    };
+}
+
+export function useProductsState(initialProps?: UseProductsStateOptions) {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const auth = useAuth();
+
+    const entityName = initialProps?.labels?.entityName ?? 'producto';
+    const entityPlural = initialProps?.labels?.entityPlural ?? 'productos';
+    const routePrefix = initialProps?.routePrefix ?? '/products';
+    const hideTypeColumn = initialProps?.hideTypeColumn ?? false;
+    const hideBrandColumn = initialProps?.hideBrandColumn ?? false;
 
     // Filter signals
     const [categoryFilter, setCategoryFilter] = createSignal<string[]>([]);
@@ -101,10 +118,12 @@ export function useProductsState(initialProps?: { productType?: string[] }) {
         const selected = tableState.selectedItems();
         if (selected.length === 0) return;
         const text = selected.map(p => {
-            return `${p.default_sku} | ${p.name} | $${Number(p.default_base_price).toFixed(2)}`;
+            const code = p.sku || p.default_sku || `#${p.id}`;
+            const price = p.base_price != null ? Number(p.base_price) : Number(p.default_base_price) || 0;
+            return `${code} | ${p.name} | $${price.toFixed(2)}`;
         }).join('\n');
         const ok = await copyToClipboard(text);
-        if (ok) toast.success(`Copiado ${selected.length} productos al portapapeles`);
+        if (ok) toast.success(`Copiado ${selected.length} ${entityPlural} al portapapeles`);
         else toast.error('Error al copiar al portapapeles');
         tableState.setRowSelection({});
     };
@@ -124,7 +143,7 @@ export function useProductsState(initialProps?: { productType?: string[] }) {
         const ids = tableState.selectedItems().filter(p => p.is_active).map(p => p.id);
         if (ids.length === 0) return;
         bulkDeleteMutation.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} productos eliminados`); tableState.setRowSelection({}); setShowBulkDeleteConfirm(false); },
+            onSuccess: () => { toast.success(`${ids.length} ${entityPlural} eliminados`); tableState.setRowSelection({}); setShowBulkDeleteConfirm(false); },
             onError: (err: any) => toast.error(err.message || 'Error al eliminar'),
         });
     };
@@ -133,7 +152,7 @@ export function useProductsState(initialProps?: { productType?: string[] }) {
         const ids = tableState.selectedItems().filter(p => !p.is_active).map(p => p.id);
         if (ids.length === 0) return;
         bulkRestoreMutation.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} productos restaurados`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },
+            onSuccess: () => { toast.success(`${ids.length} ${entityPlural} restaurados`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },
             onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
@@ -163,6 +182,9 @@ export function useProductsState(initialProps?: { productType?: string[] }) {
             onDelete: handleDelete,
             onRestore: handleRestore,
             auth,
+            routePrefix,
+            hideTypeColumn,
+            hideBrandColumn,
             filters: {
                 categoryId: { options: categoryFilterOptions, selected: categoryFilter, onChange: handleFilterChange(setCategoryFilter), isLoading: () => facetsQuery.isPending },
                 brandId: { options: brandFilterOptions, selected: brandFilter, onChange: handleFilterChange(setBrandFilter), isLoading: () => facetsQuery.isPending },

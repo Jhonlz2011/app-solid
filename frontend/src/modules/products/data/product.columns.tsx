@@ -24,6 +24,9 @@ export interface ProductColumnHandlers {
     onDelete: (product: ProductListItem) => void;
     onRestore: (product: ProductListItem) => void;
     auth: ReturnType<typeof useAuth>;
+    routePrefix?: string;
+    hideTypeColumn?: boolean;
+    hideBrandColumn?: boolean;
     filters?: {
         categoryId?: ColumnFilterConfig;
         brandId?: ColumnFilterConfig;
@@ -33,7 +36,10 @@ export interface ProductColumnHandlers {
 }
 
 export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef<ProductListItem>[] {
-    return [
+    const routePrefix = handlers.routePrefix || '/products';
+    const isServiceMode = handlers.hideTypeColumn ?? false;
+
+    const columns: ColumnDef<ProductListItem>[] = [
         // Selection
         {
             id: 'select',
@@ -62,7 +68,7 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
             size: 130,
             cell: (info) => (
                 <Link
-                    to={`/products/${info.row.original.id}/show`}
+                    to={`${routePrefix}/${info.row.original.id}/show`}
                     preload="intent"
                     class="block cursor-pointer group/cell"
                     onClick={(e) => e.stopPropagation()}
@@ -77,12 +83,12 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
         // Name + Description
         {
             accessorKey: 'name',
-            header: ({ column }) => <DataTableColumnHeader column={column} title="Producto" />,
-            meta: { title: 'Producto' },
+            header: ({ column }) => <DataTableColumnHeader column={column} title={isServiceMode ? "Servicio" : "Producto"} />,
+            meta: { title: isServiceMode ? 'Servicio' : 'Producto' },
             size: 240,
             cell: (info) => (
                 <Link
-                    to={`/products/${info.row.original.id}/show`}
+                    to={`${routePrefix}/${info.row.original.id}/show`}
                     preload="intent"
                     class="min-w-0 block cursor-pointer group/cell"
                     title={info.getValue<string>()}
@@ -120,9 +126,12 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
                 </Show>
             ),
         },
+    ];
 
-        // Brand (faceted)
-        {
+    // Conditionally include Brand column (only for Products, not for Services)
+    const hideBrand = handlers.hideBrandColumn ?? isServiceMode;
+    if (!hideBrand) {
+        columns.push({
             accessorKey: 'brand_name',
             id: 'brand_id',
             header: ({ column }) => (
@@ -142,10 +151,12 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
                     <span class="text-sm font-medium">{info.getValue<string>()}</span>
                 </Show>
             ),
-        },
+        });
+    }
 
-        // Product Type (faceted)
-        {
+    // Conditionally include Product Type column (only for Products, not for Services)
+    if (!isServiceMode) {
+        columns.push({
             accessorKey: 'product_type',
             header: ({ column }) => (
                 <DataTableColumnHeader
@@ -175,8 +186,11 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
                     </div>
                 );
             },
-        },
+        });
+    }
 
+    // Price, UOM, Status, Actions
+    columns.push(
         // Price
         {
             accessorKey: 'base_price',
@@ -201,10 +215,12 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
             size: 80,
             cell: (info) => {
                 const val = info.getValue<number | null>();
+                const item = info.row.original as any;
+                const uomText = item.uom_code || item.uom_name || (val != null ? `#${val}` : null);
                 return (
-                    <Show when={val != null} fallback={<span class="text-muted text-xs">—</span>}>
+                    <Show when={uomText} fallback={<span class="text-muted text-xs">—</span>}>
                         <span class="text-xs font-medium uppercase bg-surface px-1.5 py-0.5 rounded border border-border">
-                            #{val}
+                            {uomText}
                         </span>
                     </Show>
                 );
@@ -239,15 +255,17 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
                 const product = info.row.original;
                 return (
                     <ActionMenu
-                        module="products"
+                        module={isServiceMode ? "services" : "products"}
                         isActive={product.is_active ?? false}
-                        showTo={`/products/${product.id}/show`}
-                        editTo={`/products/${product.id}/edit`}
+                        showTo={`${routePrefix}/${product.id}/show`}
+                        editTo={`${routePrefix}/${product.id}/edit`}
                         onRestore={() => handlers.onRestore(product)}
                         onDelete={() => handlers.onDelete(product)}
                     />
                 );
             },
-        },
-    ];
+        }
+    );
+
+    return columns;
 }

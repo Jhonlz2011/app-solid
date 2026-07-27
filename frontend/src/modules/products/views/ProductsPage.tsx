@@ -36,7 +36,15 @@ const PackageIcon = () => (
 
 const ProductsPage: Component = () => {
     const isMobile = useIsMobile();
-    const state = useProductsState({ productType: ['PRODUCTO'] });
+    const state = useProductsState({
+        productType: ['PRODUCTO'],
+        routePrefix: '/products',
+        hideTypeColumn: false,
+        labels: {
+            entityName: 'producto',
+            entityPlural: 'productos',
+        },
+    });
 
     return (
         <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
