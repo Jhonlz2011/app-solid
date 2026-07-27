@@ -4,7 +4,7 @@ export { UomSelect, type UomSelectProps } from './UomSelect';
 export { WarehouseSelect, type WarehouseSelectProps } from './WarehouseSelect';
 export { LocationSelect, type LocationSelectProps } from './LocationSelect';
 export { AttributeSelect, type AttributeSelectProps } from './AttributeSelect';
-export { SelectorBreadcrumbs, buildBreadcrumbs, type SelectorBreadcrumbsProps, type BreadcrumbItem } from './SelectorBreadcrumbs';
+export { SelectorBreadcrumbs, buildBreadcrumbs, useResolvedSelectorPath, type SelectorBreadcrumbsProps, type BreadcrumbItem } from './SelectorBreadcrumbs';
 export { ProductSelect, type ProductSelectProps } from './ProductSelect';
 
 

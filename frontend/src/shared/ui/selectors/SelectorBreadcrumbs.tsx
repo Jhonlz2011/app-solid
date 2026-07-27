@@ -13,6 +13,30 @@ export interface SelectorBreadcrumbsProps {
 }
 
 /**
+ * Hook reutilizable para resolver dinámicamente el prefijo de la ruta
+ * manteniendo el contexto de navegación en hojas/modales anidados (ej. /new o /edit).
+ */
+export function useResolvedSelectorPath(basePath: string) {
+    const location = useLocation();
+
+    return createMemo(() => {
+        const path = location().pathname;
+        const target = basePath; // e.g. '/categories' o '/locations'
+        const index = path.lastIndexOf(target);
+        if (index !== -1) {
+            let base = path.substring(0, index + target.length);
+            const suffix = path.substring(index + target.length);
+            // Si el sufijo indica que estamos en el flujo /new o sus hijos anidados
+            if (suffix === '/new' || suffix.startsWith('/new/')) {
+                base += '/new';
+            }
+            return base;
+        }
+        return target;
+    });
+}
+
+/**
  * Helper genérico y type-safe para construir recursivamente la ruta de ancestros
  * desde cualquier lista plana que soporte una estructura jerárquica parent_id.
  */
@@ -54,24 +78,7 @@ export function buildBreadcrumbs<T>(
  * Resuelve dinámicamente el prefijo de la ruta según el contexto activo (/new) para no romper el estado.
  */
 export const SelectorBreadcrumbs: Component<SelectorBreadcrumbsProps> = (props) => {
-    const location = useLocation();
-
-    // Resuelve dinámicamente el prefijo de la ruta de forma compatible con hojas anidadas /new
-    const resolvedPath = createMemo(() => {
-        const path = location().pathname;
-        const target = props.basePath; // e.g. '/categories' o '/locations'
-        const index = path.lastIndexOf(target);
-        if (index !== -1) {
-            let base = path.substring(0, index + target.length);
-            const suffix = path.substring(index + target.length);
-            // Si el sufijo indica que estamos en el flujo /new o sus hijos anidados
-            if (suffix === '/new' || suffix.startsWith('/new/')) {
-                base += '/new';
-            }
-            return base;
-        }
-        return target;
-    });
+    const resolvedPath = useResolvedSelectorPath(props.basePath);
 
     return (
         <Show when={props.items.length > 0}>

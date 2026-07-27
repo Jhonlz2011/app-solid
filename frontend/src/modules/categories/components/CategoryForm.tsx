@@ -5,7 +5,7 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CategoryFormSchema } from '@app/schema/frontend';
 import type { CategoryFormData } from '@app/schema/frontend';
 import TextField, { FieldLabel } from '@shared/ui/TextField';
-import { CategorySelect, SelectorBreadcrumbs, buildBreadcrumbs } from '@shared/ui/selectors';
+import { CategorySelect, SelectorBreadcrumbs, buildBreadcrumbs, useResolvedSelectorPath } from '@shared/ui/selectors';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { TagIcon, CloseIcon } from '@shared/ui/icons';
@@ -70,6 +70,8 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
     // to create a reactive subscription that triggers re-renders.
     const attributesValue = form.useStore((s) => s.values.attributes);
     const parentIdValue = form.useStore((s) => s.values.parentId);
+
+    const resolvedCategoryPath = useResolvedSelectorPath('/categories');
 
     const flatList = createMemo(() => (categoriesFlat.data ?? []) as CategoryNode[]);
     const selectedCategory = createMemo(() => {
@@ -161,7 +163,7 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
                                                             <div class="flex items-center gap-2">
                                                                 <TagIcon class="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                                                                 <Link
-                                                                    to={`/categories/${cat().id}/show`}
+                                                                    to={`${resolvedCategoryPath()}/${cat().id}/show`}
                                                                     preload="intent"
                                                                     class="text-xs font-bold text-text uppercase tracking-wide truncate hover:text-primary hover:underline cursor-pointer"
                                                                     title="Ver detalle de esta categoría"
