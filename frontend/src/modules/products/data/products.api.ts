@@ -105,25 +105,20 @@ export const productsApi = {
         }
     },
 
-    /** Upload product images to Cloudflare R2 using Presigned URLs. Returns public URLs ready for storage. */
+    /** Upload product images to Cloudflare R2 Public bucket with Sharp optimization. Returns public CDN URLs. */
     uploadImages: async (files: File[]): Promise<string[]> => {
         if (files.length === 0) return [];
-        const uploadedUrls: string[] = [];
-
-        for (const file of files) {
-            const contentType = file.type || 'image/webp';
-            const fileName = file.name || 'product-image.webp';
-            
-            // 1. Obtener Presigned URL desde el backend
-            const { uploadUrl, publicUrl } = await productsApi.getPresignedUploadUrl(fileName, contentType);
-            
-            // 2. Cargar directamente a Cloudflare R2 privado/CDN
-            await productsApi.uploadFileToR2(uploadUrl, file);
-            
-            uploadedUrls.push(publicUrl);
-        }
-
-        return uploadedUrls;
+        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const formData = new FormData();
+        files.forEach(f => formData.append('files', f));
+        const res = await fetch(`${apiBase}/api/products/upload-images`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+        if (!res.ok) throw new Error('Error al cargar imágenes del producto');
+        const data = await res.json();
+        return data.urls ?? [];
     },
 };
 

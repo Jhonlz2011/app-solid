@@ -20,6 +20,7 @@ import {
     type ProductPayload,
 } from '../services/products.service';
 import { privateStorageService } from '../services/private-storage.service';
+import { publicStorageService } from '../services/public-storage.service';
 
 // TypeBox schema for unified variant sub-form (attributes + packaging in one entity)
 const variantSchema = t.Object({
@@ -139,21 +140,33 @@ export const productRoutes = new Elysia({ prefix: '/products' })
         }
     )
 
-    // ─── PRESIGNED UPLOAD URL FOR CLOUDFLARE R2 ──────────────────
-    .post('/upload-url', async ({ body, currentCompanyId }) => {
+    // ─── OPTIMIZED PUBLIC PRODUCT IMAGES UPLOAD (R2 PUBLIC BUCKET) ───
+    .post('/upload-images', async ({ body, currentCompanyId, set }) => {
         const [company] = await db.select({ slug: companies.slug })
             .from(companies).where(eq(companies.id, currentCompanyId)).limit(1);
         const companySlug = company?.slug ?? 'default';
 
-        return await privateStorageService.getPresignedUploadUrl({
-            companySlug,
-            fileName: body.fileName,
-            contentType: body.contentType,
-        });
+        const files = Array.isArray(body.files) ? body.files : [body.files];
+        if (!files || files.length === 0 || !files[0]) {
+            set.status = 400;
+            return { message: 'No se enviaron archivos' };
+        }
+
+        const urls: string[] = [];
+        for (const file of files) {
+            const arrayBuffer = await file.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const url = await publicStorageService.optimizeAndUploadProductImage({
+                slug: companySlug,
+                rawFileBuffer: buffer,
+            });
+            urls.push(url);
+        }
+
+        return { urls };
     }, {
         body: t.Object({
-            fileName: t.String({ minLength: 1 }),
-            contentType: t.String({ minLength: 1 }),
+            files: t.Union([t.File(), t.Array(t.File())]),
         }),
         permission: 'products.create',
     })

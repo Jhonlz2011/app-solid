@@ -113,8 +113,9 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                 URL.revokeObjectURL(cropImageSrc()!);
             }
 
-            setCropFileName(file.name);
-            setCropFileType(file.type);
+            const webpName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+            setCropFileName(webpName);
+            setCropFileType('image/webp');
             setOriginalCropFile(file);
             setCropImageSrc(URL.createObjectURL(file));
             setIsOwnCropUrl(true);
@@ -400,7 +401,8 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                             setCropImageSrc(null);
 
                             if (croppedBlob) {
-                                const previewFile = new File([croppedBlob], cropFileName(), { type: cropFileType() });
+                                const webpName = cropFileName().replace(/\.[^/.]+$/, "") + ".webp";
+                                const previewFile = new File([croppedBlob], webpName, { type: 'image/webp' });
                                 const previewUrl = URL.createObjectURL(previewFile);
 
                                 if (maxFiles() === 1) {

@@ -111,6 +111,40 @@ export const publicStorageService = {
     return `${cdnUrl}/${key}?v=${version}`;
   },
 
+  optimizeAndUploadProductImage: async ({ slug, rawFileBuffer }: { slug: string; rawFileBuffer: Buffer }) => {
+    if (rawFileBuffer.length > MAX_BG_SIZE) {
+      throw new Error('La imagen excede el límite de 10MB');
+    }
+
+    const optimizedBuffer = await sharp(rawFileBuffer)
+      .resize({
+        width: 800,
+        height: 800,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 85 })
+      .toBuffer();
+
+    const bucketName = env.R2_BUCKET_NAME_PUBLIC;
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 9);
+    const key = `t/${slug}/products/${timestamp}-${randomStr}.webp`;
+
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        Body: optimizedBuffer,
+        ContentType: 'image/webp',
+        CacheControl: 'public, max-age=31536000, immutable',
+      })
+    );
+
+    const cdnUrl = env.NEXT_PUBLIC_CDN_URL || 'https://cdn.zelys.app';
+    return `${cdnUrl}/${key}`;
+  },
+
   deleteObject: async (url: string) => {
     const cdnUrl = env.NEXT_PUBLIC_CDN_URL;
     if (!url || !url.startsWith(cdnUrl)) return;
