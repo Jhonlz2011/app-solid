@@ -14,6 +14,19 @@ const LazyCategoryNewRoute = lazyRouteComponent(() => import('@modules/categorie
  */
 export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRedirect: any = { to: '/categories' }) => {
     const prefix = basePath ? `${basePath}/` : '';
+    const segment = basePath || 'categories';
+    const fallbackPath = typeof fallbackRedirect === 'string' ? fallbackRedirect : (fallbackRedirect.to || '/categories');
+
+    const getBackTarget = () => {
+        const path = window.location.pathname;
+        const marker = `/${segment}`;
+        const index = path.lastIndexOf(marker);
+        if (index !== -1) {
+            const target = path.substring(0, index);
+            return target || fallbackPath;
+        }
+        return '..';
+    };
 
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
@@ -24,7 +37,14 @@ export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRe
                 throw redirect(fallbackRedirect);
             }
         },
-        component: LazyCategoryNewRoute,
+        component: function NestedCategoryNewWrapper() {
+            const navigate = useNavigate();
+            return (
+                <LazyCategoryNewRoute 
+                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
+                />
+            );
+        },
     });
 
     const newShowRoute = createRoute({
@@ -90,7 +110,14 @@ export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRe
                 staleTime: 1000 * 30,
             });
         },
-        component: LazyCategoryShowRoute,
+        component: function NestedCategoryShowWrapper() {
+            const navigate = useNavigate();
+            return (
+                <LazyCategoryShowRoute 
+                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
+                />
+            );
+        },
     });
 
     const editRoute = createRoute({
@@ -112,7 +139,14 @@ export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRe
             });
             return;
         },
-        component: LazyCategoryEditRoute,
+        component: function NestedCategoryEditWrapper() {
+            const navigate = useNavigate();
+            return (
+                <LazyCategoryEditRoute 
+                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
+                />
+            );
+        },
     });
 
     const nestedEditRoute = createRoute({

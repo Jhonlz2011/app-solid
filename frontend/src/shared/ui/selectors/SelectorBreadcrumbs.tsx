@@ -21,17 +21,27 @@ export function useResolvedSelectorPath(basePath: string) {
 
     return createMemo(() => {
         const path = location().pathname;
-        const target = basePath; // e.g. '/categories' o '/locations'
+        const target = basePath.startsWith('/') ? basePath : `/${basePath}`;
+        const targetClean = target.replace(/^\//, ''); // e.g. 'categories' or 'brands'
+        
         const index = path.lastIndexOf(target);
         if (index !== -1) {
             let base = path.substring(0, index + target.length);
             const suffix = path.substring(index + target.length);
-            // Si el sufijo indica que estamos en el flujo /new o sus hijos anidados
             if (suffix === '/new' || suffix.startsWith('/new/')) {
                 base += '/new';
             }
             return base;
         }
+
+        // If inside an active form/sheet route (e.g. /products/new, /products/123/edit, /services/new)
+        // and target (e.g. /categories) is not in path yet, append target to current path
+        const isFormSheetRoute = /\/(new|edit)(\/.*)?$/.test(path);
+        if (isFormSheetRoute) {
+            const cleanPath = path.replace(/\/$/, '');
+            return `${cleanPath}/${targetClean}`;
+        }
+
         return target;
     });
 }

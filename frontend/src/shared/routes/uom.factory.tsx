@@ -1,4 +1,4 @@
-import { createRoute, lazyRouteComponent, redirect } from '@tanstack/solid-router';
+import { createRoute, lazyRouteComponent, redirect, useNavigate } from '@tanstack/solid-router';
 
 const LazyUomNewRoute = lazyRouteComponent(() => import('@modules/uom/components/UomNewSheet'));
 const LazyUomEditRoute = lazyRouteComponent(() => import('@modules/uom/components/UomEditSheet'));
@@ -8,6 +8,19 @@ const LazyUomEditRoute = lazyRouteComponent(() => import('@modules/uom/component
  */
 export const createUomModals = (parentRoute: any, basePath = '', fallbackRedirect: any = { to: '/uom' }) => {
     const prefix = basePath ? `${basePath}/` : '';
+    const segment = basePath || 'uom';
+    const fallbackPath = typeof fallbackRedirect === 'string' ? fallbackRedirect : (fallbackRedirect.to || '/uom');
+
+    const getBackTarget = () => {
+        const path = window.location.pathname;
+        const marker = `/${segment}`;
+        const index = path.lastIndexOf(marker);
+        if (index !== -1) {
+            const target = path.substring(0, index);
+            return target || fallbackPath;
+        }
+        return '..';
+    };
 
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
@@ -18,7 +31,14 @@ export const createUomModals = (parentRoute: any, basePath = '', fallbackRedirec
                 throw redirect(fallbackRedirect);
             }
         },
-        component: LazyUomNewRoute,
+        component: function NestedUomNewWrapper() {
+            const navigate = useNavigate();
+            return (
+                <LazyUomNewRoute 
+                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
+                />
+            );
+        },
     });
 
     const baseRoute = createRoute({
@@ -41,7 +61,14 @@ export const createUomModals = (parentRoute: any, basePath = '', fallbackRedirec
                 throw redirect(fallbackRedirect);
             }
         },
-        component: LazyUomEditRoute,
+        component: function NestedUomEditWrapper() {
+            const navigate = useNavigate();
+            return (
+                <LazyUomEditRoute 
+                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
+                />
+            );
+        },
     });
 
     return [
