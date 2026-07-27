@@ -20,6 +20,7 @@ import Button from '@shared/ui/Button';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
 import ProductDeleteDialog from '../components/ProductDeleteDialog';
 import { ProductFilterSheet } from '../components/ProductFilterSheet';
+import ImageLightboxModal from '@shared/ui/ImageLightboxModal';
 
 // Icons
 import {
