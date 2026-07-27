@@ -8,7 +8,7 @@
  * Attribute columns are dynamically derived from the category's attributes.
  * Each variant row shows: attribute values + Price + Active status.
  */
-import { Component, Show, For, createSignal, createMemo } from 'solid-js';
+import { Component, Show, For, createSignal, createMemo, createEffect } from 'solid-js';
 import {
     DragDropProvider,
     DragDropSensors,
@@ -19,7 +19,7 @@ import {
 import type { ProductVariantFormData } from '@app/schema/frontend';
 import { useCategoryFormSchema } from '@/modules/categories/data/categories.queries';
 import Button from '@shared/ui/Button';
-import { PlusIcon, TrashIcon, GripVerticalIcon, MoreVerticalIcon } from '@shared/ui/icons';
+import { PlusIcon, TrashIcon, GripVerticalIcon, MoreVerticalIcon, CopyIcon } from '@shared/ui/icons';
 
 interface VariantsSectionProps {
     form: any;
@@ -57,7 +57,7 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
     const [hasVariants, setHasVariants] = createSignal(false);
 
     // Auto-detect existing additional variants
-    createMemo(() => {
+    createEffect(() => {
         if (additionalVariants().length > 0) setHasVariants(true);
     });
 
@@ -98,6 +98,26 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
         if (!hasVariants()) setHasVariants(true);
     };
 
+    const cloneVariant = (additionalIndex: number) => {
+        const current = props.form.getFieldValue('variants') as ProductVariantFormData[];
+        const sourceIndex = additionalIndex + 1;
+        const source = current[sourceIndex];
+        if (!source) return;
+
+        const maxSort = current.reduce((max, v) => Math.max(max, v.sort_order ?? 0), 0);
+        const cloned: ProductVariantFormData = {
+            ...source,
+            id: null,
+            sku: source.sku ? `${source.sku}-copia` : '',
+            variant_name: source.variant_name ? `${source.variant_name} (Copia)` : null,
+            variant_attributes: { ...(source.variant_attributes ?? {}) },
+            is_default: false,
+            sort_order: maxSort + 1,
+        };
+
+        props.form.setFieldValue('variants', [...current, cloned]);
+    };
+
     const addVariantFromForm = () => {
         const current = props.form.getFieldValue('variants') as ProductVariantFormData[];
         const maxSort = current.reduce((max, v) => Math.max(max, v.sort_order ?? 0), 0);
@@ -105,12 +125,10 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
         const sharedAttrs = props.form.getFieldValue('shared_attributes') as Record<string, unknown>;
 
         const variant = emptyVariant(maxSort + 1, productName, sharedAttrs);
-        // Merge attribute values from form
         const attrs = newAttrValues();
         if (Object.keys(attrs).length > 0) {
             variant.variant_attributes = { ...variant.variant_attributes, ...attrs };
         }
-        // Set price if provided
         const price = parseFloat(newPrice());
         if (!isNaN(price) && price > 0) {
             variant.base_price = price;
@@ -159,7 +177,6 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                 </div>
 
                 <div class="flex items-center gap-0.5">
-                    {/* Inner tab buttons */}
                     <button
                         type="button"
                         onClick={() => setActiveTab('list')}
@@ -181,13 +198,6 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                         }}
                     >
                         Agregar Nueva
-                    </button>
-                    <button
-                        type="button"
-                        class="p-1.5 text-muted/50 hover:text-muted transition-colors rounded-lg cursor-pointer"
-                        title="Configuración"
-                    >
-                        <MoreVerticalIcon class="size-3.5" />
                     </button>
                 </div>
             </div>
@@ -219,37 +229,40 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                             </div>
                         }
                     >
-                        {/* Variant summary table */}
-                        <div class="space-y-2 mb-4">
+                        {/* POS/ERP High-Density Matrix Table */}
+                        <div class="space-y-2 mb-4 overflow-x-auto">
                             {/* Column headers */}
-                            <div class="hidden sm:grid gap-3 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted"
+                            <div
+                                class="grid gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted min-w-[600px]"
                                 style={{
-                                    'grid-template-columns': `24px ${categoryAttributes().length > 0 ? categoryAttributes().map(() => '1fr').join(' ') : ''} 100px 80px 36px`.trim(),
+                                    'grid-template-columns': `20px 140px ${categoryAttributes().length > 0 ? categoryAttributes().map(() => '110px').join(' ') : ''} 100px 70px 60px`.trim(),
                                 }}
                             >
                                 <div />
+                                <div>Nombre / SKU</div>
                                 <For each={categoryAttributes()}>
                                     {(attr) => <div class="truncate">{attr.label}</div>}
                                 </For>
                                 <div>Precio</div>
                                 <div>Estado</div>
-                                <div />
+                                <div>Acciones</div>
                             </div>
 
                             {/* Variant rows */}
                             <DragDropProvider onDragEnd={onDragEnd} collisionDetector={closestCenter}>
                                 <DragDropSensors />
                                 <SortableProvider ids={variantIds()}>
-                                    <div class="space-y-1.5">
+                                    <div class="space-y-2 min-w-[600px]">
                                         <For each={additionalVariants()}>
                                             {(variant, index) => {
-                                                const variantData = () => (allVariants() as ProductVariantFormData[])[index() + 1];
+                                                const formIndex = () => index() + 1;
+                                                const variantData = () => (allVariants() as ProductVariantFormData[])[formIndex()];
 
                                                 return (
                                                     <div
-                                                        class="grid items-center gap-3 px-3 py-2.5 rounded-xl bg-card border border-border/40 hover:border-primary/30 transition-all group"
+                                                        class="grid items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/40 hover:border-primary/30 transition-all group"
                                                         style={{
-                                                            'grid-template-columns': `24px ${categoryAttributes().length > 0 ? categoryAttributes().map(() => '1fr').join(' ') : ''} 100px 80px 36px`.trim(),
+                                                            'grid-template-columns': `20px 140px ${categoryAttributes().length > 0 ? categoryAttributes().map(() => '110px').join(' ') : ''} 100px 70px 60px`.trim(),
                                                         }}
                                                     >
                                                         {/* Drag handle */}
@@ -257,54 +270,118 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                             <GripVerticalIcon class="size-3.5" />
                                                         </div>
 
-                                                        {/* Attribute values */}
+                                                        {/* Variant Name / SKU */}
+                                                        <div class="space-y-1">
+                                                            <props.form.Field name={`variants[${formIndex()}].variant_name` as any}>
+                                                                {(field: any) => (
+                                                                    <input
+                                                                        type="text"
+                                                                        value={field().state.value ?? ''}
+                                                                        onInput={(e) => field().handleChange(e.currentTarget.value || null)}
+                                                                        placeholder={`Variante ${formIndex()}`}
+                                                                        class="w-full bg-card-alt border border-border/60 rounded-md px-2 py-1 text-xs text-text font-medium outline-none focus:border-primary/50"
+                                                                    />
+                                                                )}
+                                                            </props.form.Field>
+                                                        </div>
+
+                                                        {/* Dynamic Attribute Inline Inputs */}
                                                         <For each={categoryAttributes()}>
                                                             {(attr) => {
                                                                 const val = () => variantData()?.variant_attributes?.[attr.key];
+                                                                const updateAttr = (newVal: any) => {
+                                                                    const current = props.form.getFieldValue('variants') as ProductVariantFormData[];
+                                                                    if (!current[formIndex()]) return;
+                                                                    const updatedAttrs = { ...(current[formIndex()].variant_attributes ?? {}), [attr.key]: newVal };
+                                                                    const updatedVariants = [...current];
+                                                                    updatedVariants[formIndex()] = { ...updatedVariants[formIndex()], variant_attributes: updatedAttrs };
+                                                                    props.form.setFieldValue('variants', updatedVariants);
+                                                                };
+
                                                                 return (
-                                                                    <div class="text-sm text-text truncate" title={String(val() ?? '')}>
-                                                                        <Show when={val()} fallback={<span class="text-muted/40 text-xs">—</span>}>
-                                                                            {String(val())}
+                                                                    <div>
+                                                                        <Show
+                                                                            when={attr.type === 'SELECT' && (attr.options ?? []).length > 0}
+                                                                            fallback={
+                                                                                <input
+                                                                                    type={attr.type === 'NUMBER' ? 'number' : 'text'}
+                                                                                    value={val() != null ? String(val()) : ''}
+                                                                                    onInput={(e) => updateAttr(attr.type === 'NUMBER' ? (parseFloat(e.currentTarget.value) || null) : e.currentTarget.value)}
+                                                                                    placeholder={attr.label}
+                                                                                    class="w-full bg-card-alt border border-border/60 rounded-md px-2 py-1 text-xs text-text outline-none focus:border-primary/50"
+                                                                                />
+                                                                            }
+                                                                        >
+                                                                            <select
+                                                                                value={val() != null ? String(val()) : ''}
+                                                                                onChange={(e) => updateAttr(e.currentTarget.value)}
+                                                                                class="w-full bg-card-alt border border-border/60 rounded-md px-2 py-1 text-xs text-text outline-none focus:border-primary/50"
+                                                                            >
+                                                                                <option value="">-- {attr.label} --</option>
+                                                                                <For each={attr.options ?? []}>
+                                                                                    {(opt) => <option value={opt}>{opt}</option>}
+                                                                                </For>
+                                                                            </select>
                                                                         </Show>
                                                                     </div>
                                                                 );
                                                             }}
                                                         </For>
 
-                                                        {/* Price */}
-                                                        <div class="text-sm font-mono font-semibold tabular-nums">
-                                                            <Show
-                                                                when={variantData()?.base_price != null}
-                                                                fallback={<span class="text-muted/40 text-xs">Hereda</span>}
-                                                            >
-                                                                ${Number(variantData()?.base_price ?? 0).toFixed(2)}
-                                                            </Show>
-                                                        </div>
+                                                        {/* Base Price Override */}
+                                                        <props.form.Field name={`variants[${formIndex()}].base_price` as any}>
+                                                            {(field: any) => (
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    min="0"
+                                                                    value={field().state.value ?? ''}
+                                                                    onInput={(e) => {
+                                                                        const val = e.currentTarget.value;
+                                                                        field().handleChange(val === '' ? null : parseFloat(val));
+                                                                    }}
+                                                                    placeholder="Hereda"
+                                                                    class="w-full bg-card-alt border border-border/60 rounded-md px-2 py-1 text-xs font-mono text-text outline-none focus:border-primary/50"
+                                                                />
+                                                            )}
+                                                        </props.form.Field>
 
-                                                        {/* Active status */}
-                                                        <div>
-                                                            <Show
-                                                                when={variantData()?.is_active}
-                                                                fallback={
-                                                                    <span class="text-[10px] px-2 py-0.5 rounded-md bg-danger/10 text-danger font-semibold uppercase">
-                                                                        No
-                                                                    </span>
-                                                                }
-                                                            >
-                                                                <span class="text-[10px] px-2 py-0.5 rounded-md bg-success/10 text-success font-semibold uppercase">
-                                                                    Sí
-                                                                </span>
-                                                            </Show>
-                                                        </div>
+                                                        {/* Active Status Toggle */}
+                                                        <props.form.Field name={`variants[${formIndex()}].is_active` as any}>
+                                                            {(field: any) => (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => field().handleChange(!field().state.value)}
+                                                                    class="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase cursor-pointer transition-colors"
+                                                                    classList={{
+                                                                        'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20': field().state.value,
+                                                                        'bg-danger/10 text-danger border border-danger/20': !field().state.value,
+                                                                    }}
+                                                                >
+                                                                    {field().state.value ? 'Sí' : 'No'}
+                                                                </button>
+                                                            )}
+                                                        </props.form.Field>
 
-                                                        {/* Remove */}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => removeVariant(index())}
-                                                            class="p-1 rounded-lg text-muted/30 hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                                                        >
-                                                            <TrashIcon class="size-3.5" />
-                                                        </button>
+                                                        {/* Clone & Delete Actions */}
+                                                        <div class="flex items-center gap-1 justify-end">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => cloneVariant(index())}
+                                                                class="p-1 rounded-md text-muted/50 hover:text-primary hover:bg-primary/10 transition-all cursor-pointer"
+                                                                title="Clonar variante"
+                                                            >
+                                                                <CopyIcon class="size-3.5" />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeVariant(index())}
+                                                                class="p-1 rounded-md text-muted/50 hover:text-danger hover:bg-danger/10 transition-all cursor-pointer"
+                                                                title="Eliminar variante"
+                                                            >
+                                                                <TrashIcon class="size-3.5" />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 );
                                             }}

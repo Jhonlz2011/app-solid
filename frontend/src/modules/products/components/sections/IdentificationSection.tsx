@@ -6,6 +6,7 @@
 import { Component, Show } from 'solid-js';
 import TextField from '@shared/ui/TextField';
 import { Badge } from '@shared/ui/Badge';
+import { EditIcon, RotateCcwIcon } from '@shared/ui/icons';
 import SectionHeader from '../ui/SectionHeader';
 
 interface IdentificationSectionProps {
@@ -45,19 +46,21 @@ const IdentificationSection: Component<IdentificationSectionProps> = (props) => 
             <Show when={props.hasTemplate() && !props.manualNameOverride()}>
                 <button
                     type="button"
-                    class="text-xs text-primary hover:text-primary/80 transition-colors -mt-3"
+                    class="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors -mt-3 cursor-pointer"
                     onClick={() => props.setManualNameOverride(true)}
                 >
-                    ✏️ Editar nombre manualmente
+                    <EditIcon class="size-3.5" />
+                    <span>Editar nombre manualmente</span>
                 </button>
             </Show>
             <Show when={props.hasTemplate() && props.manualNameOverride()}>
                 <button
                     type="button"
-                    class="text-xs text-info hover:text-info/80 transition-colors -mt-3"
+                    class="inline-flex items-center gap-1.5 text-xs text-info hover:text-info/80 transition-colors -mt-3 cursor-pointer"
                     onClick={() => props.setManualNameOverride(false)}
                 >
-                    🔄 Volver a nombre automático
+                    <RotateCcwIcon class="size-3.5" />
+                    <span>Volver a nombre automático</span>
                 </button>
             </Show>
 

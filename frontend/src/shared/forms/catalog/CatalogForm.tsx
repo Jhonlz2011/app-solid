@@ -2,7 +2,7 @@
  * CatalogForm — 2-column layout: Tabs LEFT, Images+Attributes RIGHT.
  * Mode-aware version of ProductForm for both Products and Services.
  */
-import { Component, Show, createSignal, createEffect, createMemo } from 'solid-js';
+import { Component, Show, createSignal, createEffect, createMemo, onCleanup } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { ProductFormSchema } from '@app/schema/frontend';
@@ -14,6 +14,7 @@ import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import Switch from '@shared/ui/Switch';
 import { FileUploadDropzone } from '@shared/ui/FileUpload';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
+import { TagIcon, UploadIcon } from '@shared/ui/icons';
 
 // Data
 import { useCategoryFormSchema } from '@/modules/categories/data/categories.queries';
@@ -118,6 +119,14 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
     const [pendingFiles, setPendingFiles] = createSignal<File[]>([]);
     const [isUploading, setIsUploading] = createSignal(false);
 
+    onCleanup(() => {
+        pendingFiles().forEach((f) => {
+            if ((f as any)._previewUrl) {
+                try { URL.revokeObjectURL((f as any)._previewUrl); } catch {}
+            }
+        });
+    });
+
     // ── TanStack Form ─────────────────────────────────────────────────
     const form = createForm(() => ({
         defaultValues: buildDefaultValues(props.mode, props.product),
@@ -127,7 +136,12 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
             let uploadedUrls: string[] = [];
             if (pendingFiles().length > 0) {
                 setIsUploading(true);
-                try { uploadedUrls = await productsApi.uploadImages(pendingFiles()); }
+                try { 
+                    uploadedUrls = await productsApi.uploadImages(pendingFiles());
+                    const existing = form.getFieldValue('image_urls') ?? [];
+                    form.setFieldValue('image_urls', [...existing, ...uploadedUrls]);
+                    setPendingFiles([]);
+                }
                 finally { setIsUploading(false); }
             }
 
@@ -333,8 +347,9 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                             />
                             <Show when={pendingFiles().length > 0}>
                                 <div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-info/10 border border-info/20 rounded-lg">
+                                    <UploadIcon class="size-3.5 text-info shrink-0" />
                                     <span class="text-[11px] text-info font-medium">
-                                        📎 {pendingFiles().length} pendiente{pendingFiles().length > 1 ? 's' : ''} de subir
+                                        {pendingFiles().length} pendiente{pendingFiles().length > 1 ? 's' : ''} de subir
                                     </span>
                                 </div>
                             </Show>
@@ -345,7 +360,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                             when={categoryId() > 0}
                             fallback={
                                 <div class="bg-surface/30 rounded-2xl border border-dashed border-border/40 p-5 flex flex-col items-center justify-center text-center min-h-[100px]">
-                                    <div class="text-xl mb-1.5 opacity-30">🏷️</div>
+                                    <TagIcon class="size-6 text-muted/30 mb-1.5" />
                                     <p class="text-xs font-medium text-muted">Selecciona una categoría</p>
                                     <p class="text-[10px] text-muted/60 mt-0.5">Los atributos aparecerán aquí</p>
                                 </div>

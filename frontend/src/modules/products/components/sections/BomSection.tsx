@@ -9,7 +9,7 @@ import TextField from '@shared/ui/TextField';
 import Button from '@shared/ui/Button';
 import Switch from '@shared/ui/Switch';
 import { ProductSelect } from '@shared/ui/selectors';
-import { PlusIcon, TrashIcon } from '@shared/ui/icons';
+import { PlusIcon, TrashIcon, BeakerIcon } from '@shared/ui/icons';
 import SectionHeader from '../ui/SectionHeader';
 
 interface BomSectionProps {
@@ -70,8 +70,8 @@ export const BomSection: Component<BomSectionProps> = (props) => {
             <Show
                 when={components().length > 0}
                 fallback={
-                    <div class="py-6 text-center border border-dashed border-border/60 rounded-xl bg-card/50">
-                        <span class="text-2xl mb-1 block">🧩</span>
+                    <div class="py-6 flex flex-col items-center justify-center text-center border border-dashed border-border/60 rounded-xl bg-card/50">
+                        <BeakerIcon class="size-6 text-muted/40 mb-1" />
                         <p class="text-xs font-semibold text-text">Sin componentes asignados</p>
                         <p class="text-[11px] text-muted">Agrega productos al kit o combo utilizando el formulario de abajo.</p>
                     </div>

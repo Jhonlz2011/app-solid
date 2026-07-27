@@ -86,7 +86,7 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
                                         <InfoRow label="Descripción" value={p().description || '—'} />
                                         <InfoRow label="Categoría" value={(p() as any).category?.name || '—'} />
                                         <InfoRow label="Marca" value={(p() as any).brand?.name || '—'} />
-                                        <InfoRow label="UOM" value={`#${(p() as any).uom_inventory_id}` || '—'} />
+                                        <InfoRow label="UOM" value={(p() as any).uom_code || (p() as any).uom_name || ((p() as any).uom_inventory_id ? `#${(p() as any).uom_inventory_id}` : '—')} />
                                     </div>
 
                                     {/* Shared Attributes (JSONB) */}

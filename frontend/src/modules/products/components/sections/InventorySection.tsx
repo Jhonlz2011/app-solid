@@ -7,6 +7,7 @@ import { Component, Show } from 'solid-js';
 import TextField from '@shared/ui/TextField';
 import Switch from '@shared/ui/Switch';
 import { UomSelect } from '@shared/ui/selectors';
+import { ProductIcon, RulerIcon } from '@shared/ui/icons';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import SectionHeader from '../ui/SectionHeader';
 
@@ -62,9 +63,7 @@ const InventorySection: Component<InventorySectionProps> = (props) => {
                     <div class="flex items-center gap-3 p-3 bg-card rounded-xl border border-border/40">
                         <div class="flex items-center gap-3 flex-1">
                             <div class="size-8 rounded-lg bg-info/10 flex items-center justify-center text-info">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="m7.5 4.27 9 5.15" /><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" />
-                                </svg>
+                                <ProductIcon class="size-4" />
                             </div>
                             <div>
                                 <p class="text-sm font-medium text-text">Producto Stockeable</p>
@@ -88,9 +87,7 @@ const InventorySection: Component<InventorySectionProps> = (props) => {
                                 <Switch field={field()}>
                                     <div class="flex items-center gap-3">
                                         <div class="size-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z" /><path d="m14.5 12.5 2-2" /><path d="m11.5 9.5 2-2" /><path d="m8.5 6.5 2-2" /><path d="m17.5 15.5 2-2" />
-                                            </svg>
+                                            <RulerIcon class="size-4" />
                                         </div>
                                         <div>
                                             <p class="text-sm font-medium text-text">Maneja dimensiones</p>

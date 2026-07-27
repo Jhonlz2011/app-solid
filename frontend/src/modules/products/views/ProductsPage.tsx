@@ -48,6 +48,12 @@ const ProductsPage: Component = () => {
 
     return (
         <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
+            {/* Image Lightbox Modal for table cell clicks */}
+            <ImageLightboxModal
+                src={state.previewImageUrl()}
+                onClose={() => state.setPreviewImageUrl(null)}
+            />
+
             {/* Deep-Nested Routes (New/Show/Edit sheets) */}
             <Outlet />
 

@@ -9,7 +9,7 @@
 import { Component, Show, For, createMemo, createSignal } from 'solid-js';
 import { TagsInput } from '@ark-ui/solid/tags-input';
 import { useCategoryFormSchema } from '@/modules/categories/data/categories.queries';
-import { XIcon, PlusIcon } from '@shared/ui/icons';
+import { XIcon, PlusIcon, SlidersIcon, HashIcon, CheckIcon, TagIcon } from '@shared/ui/icons';
 
 interface CategoryAttributeTagsProps {
     categoryId: () => number | null;
@@ -51,12 +51,12 @@ const CategoryAttributeTags: Component<CategoryAttributeTagsProps> = (props) => 
         return val !== null && val !== undefined && String(val).trim() !== '';
     };
 
-    const getTypeIcon = (type: string) => {
+    const renderTypeIcon = (type: string) => {
         switch (type) {
-            case 'SELECT': return '☰';
-            case 'NUMBER': return '#';
-            case 'BOOLEAN': return '◉';
-            default: return 'T';
+            case 'SELECT': return <SlidersIcon class="size-3 shrink-0" />;
+            case 'NUMBER': return <HashIcon class="size-3 shrink-0" />;
+            case 'BOOLEAN': return <CheckIcon class="size-3 shrink-0" />;
+            default: return <TagIcon class="size-3 shrink-0" />;
         }
     };
 
@@ -115,15 +115,15 @@ const CategoryAttributeTags: Component<CategoryAttributeTagsProps> = (props) => 
 
                             return (
                                 <div
-                                    class="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition-all duration-200 select-none"
+                                    class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-all duration-200 select-none"
                                     classList={{
-                                        'bg-success/10 border-success/30 text-success': filled(),
+                                        'bg-emerald-500/10 border-emerald-500/30 text-emerald-500': filled(),
                                         'bg-card-alt border-border/60 text-muted': !filled(),
                                     }}
                                     title={`${attr.key}: ${filledValue() || '(vacío)'}`}
                                 >
-                                    <span class="text-[9px] opacity-60 font-mono shrink-0">
-                                        {getTypeIcon(attr.type)}
+                                    <span class="opacity-70">
+                                        {renderTypeIcon(attr.type)}
                                     </span>
                                     <span class="truncate max-w-[100px]">{attr.label}</span>
                                     <Show when={filled() && filledValue()}>

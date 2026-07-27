@@ -48,6 +48,7 @@ export function useProductsState(initialProps?: UseProductsStateOptions) {
 
     // Delete / Restore confirmation state
     const [deleteTarget, setDeleteTarget] = createSignal<ProductListItem | null>(null);
+    const [previewImageUrl, setPreviewImageUrl] = createSignal<string | null>(null);
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = createSignal(false);
     const [showBulkRestoreConfirm, setShowBulkRestoreConfirm] = createSignal(false);
 
@@ -181,6 +182,7 @@ export function useProductsState(initialProps?: UseProductsStateOptions) {
         createProductColumns({
             onDelete: handleDelete,
             onRestore: handleRestore,
+            onPreviewImage: (url) => setPreviewImageUrl(url),
             auth,
             routePrefix,
             hideTypeColumn,
@@ -200,6 +202,7 @@ export function useProductsState(initialProps?: UseProductsStateOptions) {
         // State
         auth,
         showFilterSheet, setShowFilterSheet, deleteTarget, setDeleteTarget,
+        previewImageUrl, setPreviewImageUrl,
         showBulkDeleteConfirm, setShowBulkDeleteConfirm, showBulkRestoreConfirm, setShowBulkRestoreConfirm,
 
         // Query results

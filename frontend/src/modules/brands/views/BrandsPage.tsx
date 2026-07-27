@@ -138,7 +138,7 @@ const BrandsPage: Component = () => {
                             <span>Acciones</span>
                             <ChevronsUpDownIcon class="size-3.5" />
                         </DropdownMenu.Trigger>
-                        <DropdownMenu.Content class="min-w-[180px]">
+                        <DropdownMenu.Content class="min-w-45">
                             <DropdownMenu.Item onSelect={state.handleBulkDelete} destructive>
                                 <TrashIcon class="size-4 mr-2" />
                                 <span class="flex-1 font-medium">Desactivar Activas</span>

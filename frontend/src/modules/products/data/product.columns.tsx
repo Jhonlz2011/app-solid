@@ -12,6 +12,7 @@ import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeade
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 import ActionMenu from '@shared/ui/ActionMenu';
 import { productTypeLabels, productSubtypeLabels } from './products.api';
+import { ProductIcon, WrenchIcon, Maximize2Icon } from '@shared/ui/icons';
 
 export interface ColumnFilterConfig {
     options: () => FilterOption[];
@@ -23,6 +24,7 @@ export interface ColumnFilterConfig {
 export interface ProductColumnHandlers {
     onDelete: (product: ProductListItem) => void;
     onRestore: (product: ProductListItem) => void;
+    onPreviewImage?: (url: string) => void;
     auth: ReturnType<typeof useAuth>;
     routePrefix?: string;
     hideTypeColumn?: boolean;
@@ -113,19 +115,35 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Thumbnail Avatar */}
-                        <div class="size-9 rounded-xl overflow-hidden bg-card-alt border border-border/60 shrink-0 flex items-center justify-center shadow-2xs">
+                        <div
+                            class="relative size-9 rounded-xl overflow-hidden bg-card-alt border border-border/60 shrink-0 flex items-center justify-center shadow-2xs group/thumb hover:border-primary/50 transition-colors"
+                            onClick={(e) => {
+                                if (firstImage && handlers.onPreviewImage) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handlers.onPreviewImage(firstImage);
+                                }
+                            }}
+                        >
                             <Show
                                 when={firstImage}
                                 fallback={
-                                    <span class="text-base select-none">{isServiceMode ? '🔧' : '📦'}</span>
+                                    isServiceMode ? (
+                                        <WrenchIcon class="size-4.5 text-muted/50" />
+                                    ) : (
+                                        <ProductIcon class="size-4.5 text-muted/50" />
+                                    )
                                 }
                             >
                                 <img
                                     src={firstImage!}
                                     alt={info.getValue<string>()}
-                                    class="w-full h-full object-cover group-hover/cell:scale-105 transition-transform duration-200"
+                                    class="w-full h-full object-cover group-hover/thumb:scale-110 transition-transform duration-200 cursor-zoom-in"
                                     loading="lazy"
                                 />
+                                <div class="absolute inset-0 bg-black/30 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-white pointer-events-none">
+                                    <Maximize2Icon class="size-3.5 stroke-[2.5]" />
+                                </div>
                             </Show>
                         </div>
                         <div class="min-w-0 flex-1">

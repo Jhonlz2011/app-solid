@@ -122,7 +122,7 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
                                         <div class="flex items-center gap-2">
                                             <div class="size-2 rounded-full bg-primary/40" />
                                             <span class="text-sm font-medium text-text truncate">
-                                                {variant.variant_name || variant.sku || `Variante ${formIndex()}`}
+                                                {variants()[formIndex()]?.variant_name || variants()[formIndex()]?.sku || variant.variant_name || variant.sku || `Variante ${formIndex()}`}
                                             </span>
                                         </div>
 
@@ -147,7 +147,7 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
                                         {/* Active badge */}
                                         <div>
                                             <Show
-                                                when={variant.is_active}
+                                                when={variants()[formIndex()]?.is_active ?? variant.is_active}
                                                 fallback={
                                                     <span class="text-[10px] px-2 py-0.5 rounded-md bg-danger/10 text-danger font-semibold uppercase">
                                                         Inactivo
