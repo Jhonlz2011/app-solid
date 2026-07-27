@@ -1,6 +1,6 @@
 import { and, desc, eq, ilike, or, sql, lt, gt, asc, inArray, type AnyColumn } from '@app/schema';
 import { db, type Tx } from '../db';
-import { products, productVariants, categories, brands, uom_definitions } from '@app/schema/tables';
+import { products, productVariants, categories, brands, uom } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/sse';
@@ -177,8 +177,8 @@ async function listProductsCursor(filters: ProductFilters, companyId: number) {
                 description: products.description,
                 default_base_price: products.default_base_price,
                 uom_inventory_id: products.uom_inventory_id,
-                uom_code: uom_definitions.code,
-                uom_name: uom_definitions.name,
+                uom_code: uom.code,
+                uom_name: uom.name,
                 has_dimensional_tracking: products.has_dimensional_tracking,
                 is_active: products.is_active,
                 created_at: products.created_at,
@@ -204,7 +204,7 @@ async function listProductsCursor(filters: ProductFilters, companyId: number) {
             .from(products)
             .leftJoin(categories, eq(products.category_id, categories.id))
             .leftJoin(brands, eq(products.brand_id, brands.id))
-            .leftJoin(uom_definitions, eq(products.uom_inventory_id, uom_definitions.id))
+            .leftJoin(uom, eq(products.uom_inventory_id, uom.id))
             .where(whereClause)
             .limit(fetchLimit)
             .orderBy(isDescending ? desc(products.id) : asc(products.id));
@@ -284,8 +284,8 @@ async function listProductsSorted(filters: ProductFilters, companyId: number) {
                 description: products.description,
                 default_base_price: products.default_base_price,
                 uom_inventory_id: products.uom_inventory_id,
-                uom_code: uom_definitions.code,
-                uom_name: uom_definitions.name,
+                uom_code: uom.code,
+                uom_name: uom.name,
                 has_dimensional_tracking: products.has_dimensional_tracking,
                 is_active: products.is_active,
                 created_at: products.created_at,
@@ -310,7 +310,7 @@ async function listProductsSorted(filters: ProductFilters, companyId: number) {
             .from(products)
             .leftJoin(categories, eq(products.category_id, categories.id))
             .leftJoin(brands, eq(products.brand_id, brands.id))
-            .leftJoin(uom_definitions, eq(products.uom_inventory_id, uom_definitions.id))
+            .leftJoin(uom, eq(products.uom_inventory_id, uom.id))
             .where(inArray(products.id, ids));
 
         const idOrder = new Map(ids.map((id, i) => [id, i]));
