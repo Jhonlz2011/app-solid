@@ -88,11 +88,6 @@ export function useProductsState(initialProps?: { productType?: string[] }) {
 
     const selectedActiveCount = () => tableState.selectedItems().filter(p => p.is_active).length;
     const selectedInactiveCount = () => tableState.selectedItems().filter(p => !p.is_active).length;
-
-    // ─── Navigation Handlers ─────────────────────────────────────
-    // const handleNew = () => navigate({ to: '/products/new' });
-    // const handleView = (p: ProductListItem) => navigate({ to: `/products/${p.id}` });
-    // const handleEdit = (p: ProductListItem) => navigate({ to: `/products/${p.id}/edit` });
     const handlePrefetch = (p: ProductListItem) => {
         queryClient.prefetchQuery({
             queryKey: productKeys.detail(p.id),
@@ -106,7 +101,7 @@ export function useProductsState(initialProps?: { productType?: string[] }) {
         const selected = tableState.selectedItems();
         if (selected.length === 0) return;
         const text = selected.map(p => {
-            return `${p.sku} | ${p.name} | $${Number(p.base_price).toFixed(2)}`;
+            return `${p.default_sku} | ${p.name} | $${Number(p.default_base_price).toFixed(2)}`;
         }).join('\n');
         const ok = await copyToClipboard(text);
         if (ok) toast.success(`Copiado ${selected.length} productos al portapapeles`);

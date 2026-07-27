@@ -21,7 +21,17 @@
         file_server
     }
 
-    # 2. Serve static files if they physically exist
+    # 2. RUTAS ESTÁTICAS EXPLICITAS
+    # Forzar que /assets/*, iconos, manifest y favicon NUNCA pasen al backend
+    @static_paths path /assets/* /icons/* /favicon.ico /manifest.webmanifest /sw.js /branding-fallback.js
+    handle @static_paths {
+        header Cache-Control "public, max-age=31536000, immutable"
+        file_server {
+            precompressed br gzip
+        }
+    }
+
+    # 3. Cualquier otro archivo que exista físicamente en la raíz
     @static_assets {
         file
     }
@@ -31,7 +41,7 @@
         }
     }
 
-    # 3. Proxy SPA navigation routes to backend for dynamic tenant branding
+    # 4. Proxy SPA navigation routes to backend for dynamic tenant branding
     handle {
         reverse_proxy {$BACKEND_URL:https://api.zelys.app} {
             header_up Host {$BACKEND_HOST:api.zelys.app}
@@ -40,7 +50,7 @@
         }
     }
 
-    # 4. Fallback: serve local static index.html if backend is offline/error
+    # 5. Fallback: serve local static index.html if backend is offline/error
     handle_errors {
         rewrite * /index.html
         file_server
@@ -51,6 +61,7 @@
         file
         path *.js *.css *.jpg *.jpeg *.png *.gif *.ico *.svg *.woff *.woff2
     }
+
     header @static Cache-Control "public, max-age=31536000, immutable"
 
     # Robust Security Headers (Blindaje contra XSS, Clickjacking y Spoofing)

@@ -13,6 +13,7 @@ import { EditIcon, TrashIcon, RotateCcwIcon } from '@shared/ui/icons';
 import Checkbox from '@shared/ui/Checkbox';
 import { cn } from '@shared/lib/utils';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 
 export interface ClientCardProps {
     client: ClientListItem;
@@ -121,7 +122,7 @@ export const ClientCard: Component<ClientCardProps> = (props) => {
                         </>
                     }
                 >
-                    <Button
+                    <LinkButton
                         to={`/clients/${props.client.id}/edit`}
                         variant="ghost"
                         size="icon"
@@ -130,7 +131,7 @@ export const ClientCard: Component<ClientCardProps> = (props) => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <EditIcon class="size-4" />
-                    </Button>
+                    </LinkButton>
                     <Button
                         variant="ghost"
                         size="icon"

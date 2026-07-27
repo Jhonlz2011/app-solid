@@ -206,7 +206,7 @@ function SettingsTable<T>(props: SettingsTableProps<T>) {
                     <div class="flex items-center gap-3 flex-wrap">
                         {/* Search */}
                         <Show when={props.searchable}>
-                            <div class="relative flex-1 min-w-[180px] max-w-xs">
+                            <div class="relative flex-1 min-w-45 max-w-xs">
                                 <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
                                     <SearchIcon class="size-3.5 text-muted" />
                                 </div>

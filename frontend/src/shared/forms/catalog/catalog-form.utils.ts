@@ -11,7 +11,9 @@ export interface CatalogModeConfig {
     formId: string;              // 'product-form' | 'service-form' (for form submission)
     features: {
         subtype: boolean;        // SIMPLE/COMPUESTO/FABRICADO toggle
-        inventoryTab: boolean;   // Tab 'Compras' with stock/dimensional tracking
+        salesTab: boolean;       // Tab 'Ventas' with pricing
+        purchaseTab: boolean;    // Tab 'Compras' with costs
+        inventoryTab: boolean;   // Tab 'Inventario' with stock/dimensional tracking
         extraSpecs: boolean;     // Extra specs key-value editor
     };
 }
@@ -27,6 +29,8 @@ export const CATALOG_MODES: Record<ProductType, CatalogModeConfig> = {
         formId: 'product-form',
         features: {
             subtype: true,
+            salesTab: true,
+            purchaseTab: true,
             inventoryTab: true,
             extraSpecs: true,
         },
@@ -41,6 +45,8 @@ export const CATALOG_MODES: Record<ProductType, CatalogModeConfig> = {
         formId: 'service-form',
         features: {
             subtype: false,
+            salesTab: true,
+            purchaseTab: false,
             inventoryTab: false,
             extraSpecs: false,
         },

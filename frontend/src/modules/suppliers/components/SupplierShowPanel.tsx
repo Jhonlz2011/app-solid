@@ -204,7 +204,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
 
                                     <TabsContent value="contacts" class="fill-mode-both">
                                         <Show when={(supplier().contacts?.length ?? 0) > 0} fallback={
-                                            <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
+                                            <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-50">
                                                 <UserIcon class="size-8 opacity-20 mb-3" />
                                                 No hay contactos registrados para este proveedor.
                                             </div>
@@ -238,7 +238,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
 
                                     <TabsContent value="addresses" class="fill-mode-both">
                                         <Show when={(supplier().addresses?.length ?? 0) > 0} fallback={
-                                            <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
+                                            <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-50">
                                                 <div class="text-2xl opacity-30 mb-2">📍</div>
                                                 No hay direcciones registradas para este proveedor.
                                             </div>

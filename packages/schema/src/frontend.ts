@@ -69,6 +69,7 @@ export const ProductFormSchema = object({
     image_urls: optional(array(string())),
     // UOM & Inventory
     uom_inventory_id: number('UOM de inventario es requerida'),
+    is_stockable: boolean(),
     has_dimensional_tracking: boolean(),
     min_stock_alert: optional(nullable(number())),
     // Pricing defaults

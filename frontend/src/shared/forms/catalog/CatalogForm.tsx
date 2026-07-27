@@ -23,7 +23,9 @@ import type { Product } from '@/modules/products/data/products.api';
 // Form sections
 import ClassificationSection from '@/modules/products/components/sections/ClassificationSection';
 import IdentificationSection from '@/modules/products/components/sections/IdentificationSection';
-import PricingInventorySection from '@/modules/products/components/sections/PricingInventorySection';
+import SalesSection from '@/modules/products/components/sections/SalesSection';
+import PurchaseSection from '@/modules/products/components/sections/PurchaseSection';
+import InventorySection from '@/modules/products/components/sections/InventorySection';
 import ExtraSpecsSection from '@/modules/products/components/sections/ExtraSpecsSection';
 import VariantsSection from '@/modules/products/components/sections/VariantsSection';
 import DynamicAttributeFields from '@/modules/products/components/DynamicAttributeFields';
@@ -72,6 +74,7 @@ function buildDefaultValues(mode: CatalogModeConfig, product?: Product): Product
             extra_specs: p.extra_specs ?? {},
             image_urls: p.image_urls ?? [],
             uom_inventory_id: p.uom_inventory_id ?? 0,
+            is_stockable: p.is_stockable ?? (p.product_type === 'PRODUCTO'),
             has_dimensional_tracking: p.has_dimensional_tracking ?? false,
             min_stock_alert: Number(p.min_stock_alert) || null,
             default_base_price: Number(p.default_base_price) || 0,
@@ -100,7 +103,8 @@ function buildDefaultValues(mode: CatalogModeConfig, product?: Product): Product
         category_id: 0, brand_id: null,
         slug: '', name: '', description: null,
         shared_attributes: {}, extra_specs: {}, image_urls: [],
-        uom_inventory_id: 0, has_dimensional_tracking: false,
+        uom_inventory_id: 0, is_stockable: mode.type === 'PRODUCTO',
+        has_dimensional_tracking: false,
         min_stock_alert: null, default_base_price: 0, iva_rate_code: 4,
         is_active: true, variants: [defaultVariant()],
     };
@@ -203,9 +207,12 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
 
                     {/* ══════ LEFT: Tabs ══════ */}
                     <div class="min-w-0 order-2 lg:order-1">
-                        <Show 
-                            when={props.mode.features.inventoryTab}
-                            fallback={
+                        {/* ── Determine if we need tabs ── */}
+                        {(() => {
+                            const hasTabs = props.mode.features.salesTab || props.mode.features.purchaseTab || props.mode.features.inventoryTab;
+                            
+                            // ── General content (shared between tabbed and non-tabbed) ──
+                            const generalContent = (
                                 <div class="flex flex-col gap-4 sm:gap-5 pt-4">
                                     <ClassificationSection
                                         form={form}
@@ -231,65 +238,68 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                         setManualNameOverride={setManualNameOverride}
                                     />
 
-                                    <PricingInventorySection form={form} mode={props.mode} hasAttemptedSubmit={hasAttemptedSubmit} />
-
                                     <VariantsSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
                                     
                                     <Show when={props.mode.features.extraSpecs}>
                                         <ExtraSpecsSection form={form} />
                                     </Show>
                                 </div>
+                            );
+
+                            if (!hasTabs) {
+                                // No tabs mode (unlikely but safe)
+                                return generalContent;
                             }
-                        >
-                            <Tabs defaultValue="general">
-                                <TabsList>
-                                    <TabsTrigger value="general">General</TabsTrigger>
-                                    <TabsTrigger value="compras">Compras</TabsTrigger>
-                                </TabsList>
 
-                                {/* Tab: General */}
-                                <TabsContent value="general" forceMount class="hidden data-[selected]:block">
-                                    <div class="flex flex-col gap-4 sm:gap-5 pt-4">
-                                        <ClassificationSection
-                                            form={form}
-                                            mode={props.mode}
-                                            hasAttemptedSubmit={hasAttemptedSubmit}
-                                        />
-
-                                        <Show when={categoryId() > 0}>
-                                            <DynamicAttributeFields
-                                                categoryId={() => categoryId() || null}
-                                                values={(form.getFieldValue('shared_attributes') ?? {}) as Record<string, unknown>}
-                                                onChange={(attrs) => form.setFieldValue('shared_attributes', attrs)}
-                                                onNameGenerated={(generated) => {
-                                                    if (!manualNameOverride()) form.setFieldValue('name', generated);
-                                                }}
-                                            />
+                            return (
+                                <Tabs defaultValue="general">
+                                    <TabsList>
+                                        <TabsTrigger value="general">General</TabsTrigger>
+                                        <Show when={props.mode.features.salesTab}>
+                                            <TabsTrigger value="ventas">Ventas</TabsTrigger>
                                         </Show>
-
-                                        <IdentificationSection
-                                            form={form}
-                                            hasTemplate={hasTemplate}
-                                            manualNameOverride={manualNameOverride}
-                                            setManualNameOverride={setManualNameOverride}
-                                        />
-
-                                        <VariantsSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
-                                        
-                                        <Show when={props.mode.features.extraSpecs}>
-                                            <ExtraSpecsSection form={form} />
+                                        <Show when={props.mode.features.purchaseTab}>
+                                            <TabsTrigger value="compras">Compras</TabsTrigger>
                                         </Show>
-                                    </div>
-                                </TabsContent>
+                                        <Show when={props.mode.features.inventoryTab}>
+                                            <TabsTrigger value="inventario">Inventario</TabsTrigger>
+                                        </Show>
+                                    </TabsList>
 
-                                {/* Tab: Compras */}
-                                <TabsContent value="compras" forceMount class="hidden data-[selected]:block">
-                                    <div class="flex flex-col gap-4 sm:gap-5 pt-4">
-                                        <PricingInventorySection form={form} mode={props.mode} hasAttemptedSubmit={hasAttemptedSubmit} />
-                                    </div>
-                                </TabsContent>
-                            </Tabs>
-                        </Show>
+                                    {/* Tab: General */}
+                                    <TabsContent value="general" forceMount class="hidden data-[selected]:block">
+                                        {generalContent}
+                                    </TabsContent>
+
+                                    {/* Tab: Ventas */}
+                                    <Show when={props.mode.features.salesTab}>
+                                        <TabsContent value="ventas" forceMount class="hidden data-[selected]:block">
+                                            <div class="flex flex-col gap-4 sm:gap-5 pt-4">
+                                                <SalesSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
+                                            </div>
+                                        </TabsContent>
+                                    </Show>
+
+                                    {/* Tab: Compras */}
+                                    <Show when={props.mode.features.purchaseTab}>
+                                        <TabsContent value="compras" forceMount class="hidden data-[selected]:block">
+                                            <div class="flex flex-col gap-4 sm:gap-5 pt-4">
+                                                <PurchaseSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
+                                            </div>
+                                        </TabsContent>
+                                    </Show>
+
+                                    {/* Tab: Inventario */}
+                                    <Show when={props.mode.features.inventoryTab}>
+                                        <TabsContent value="inventario" forceMount class="hidden data-[selected]:block">
+                                            <div class="flex flex-col gap-4 sm:gap-5 pt-4">
+                                                <InventorySection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
+                                            </div>
+                                        </TabsContent>
+                                    </Show>
+                                </Tabs>
+                            );
+                        })()}
                     </div>
 
                     {/* ══════ RIGHT: Images + Attributes (sticky sidebar) ══════ */}

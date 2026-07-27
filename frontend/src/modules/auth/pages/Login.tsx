@@ -237,7 +237,7 @@ const Login: Component = () => {
                   placeholder="nombre@empresa.com"
                   autocomplete="username"
                   error={getFieldError(field().state.meta.errors)}
-                  leadingIcon={<MailIcon class="size-[18px]" />}
+                  leadingIcon={<MailIcon class="size-4.5" />}
                 />
               )}
             />
@@ -258,7 +258,7 @@ const Login: Component = () => {
                   placeholder="••••••••"
                   autocomplete="current-password"
                   error={getFieldError(field().state.meta.errors)}
-                  leadingIcon={<LockIcon class="size-[18px]" />}
+                  leadingIcon={<LockIcon class="size-4.5" />}
                 />
               )}
             />

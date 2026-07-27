@@ -231,7 +231,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                 onDragOver={onDragOver}
                 onDrop={onDrop}
                 class={cn(
-                    "relative flex flex-col items-center justify-center gap-3 p-6 min-h-[160px] rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer group",
+                    "relative flex flex-col items-center justify-center gap-3 p-6 min-h-40 rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer group",
                     "bg-card-alt/50 border-border hover:border-primary/40 hover:bg-primary/5",
                     isDragging() && "border-primary bg-primary/10 scale-[1.02]",
                     props.disabled && "opacity-50 cursor-not-allowed",
@@ -266,7 +266,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
                         <div class="absolute inset-0 w-full h-full">
                             <img
                                 src={props.existingUrls?.[0] || pendingPreviews()[0]?.url}
-                                class="w-full h-full object-cover rounded-2xl"
+                                class="w-full h-full object- rounded-2xl"
                                 alt="Vista previa"
                             />
                             {/* Overlay on hover */}
@@ -487,7 +487,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                     <div class="flex justify-center w-full">
                         <div class="w-full">
                             {/* Viewport */}
-                            <ImageCropper.Viewport class="relative overflow-hidden w-full h-[280px] sm:h-[340px] bg-card-alt rounded-xl border border-border/80 touch-none shadow-sm flex items-center justify-center">
+                            <ImageCropper.Viewport class="relative overflow-hidden w-full h-70 sm:h-85 bg-card-alt rounded-xl border border-border/80 touch-none shadow-sm flex items-center justify-center">
                                     <ImageCropper.Image
                                         src={props.src}
                                         alt="Imagen a recortar"
@@ -546,7 +546,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                                                 >
                                                     <ZoomOutIcon class="size-4" />
                                                 </button>
-                                                <span class="text-[10px] font-mono font-bold text-muted px-1.5 min-w-[36px] text-center select-none">
+                                                <span class="text-[10px] font-mono font-bold text-muted px-1.5 min-w-9 text-center select-none">
                                                     {Math.round(api().zoom * 100)}%
                                                 </span>
                                                 <button
@@ -567,7 +567,7 @@ const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
                     {/* Footer actions (Sticky) */}
                     <ImageCropper.Context>
                         {(api) => (
-                            <div class="sticky bottom-[-16px] z-10 bg-card/95 backdrop-blur-md border-t border-border/60 px-6 py-4 mx-[-24px] mb-[-16px] flex items-center justify-between mt-6">
+                            <div class="sticky -bottom-4 z-10 bg-card/95 backdrop-blur-md border-t border-border/60 px-6 py-4 -mx-6 -mb-4 flex items-center justify-between mt-6">
                                 {/* Transform tools */}
                                 <div class="flex items-center gap-1">
                                     <button

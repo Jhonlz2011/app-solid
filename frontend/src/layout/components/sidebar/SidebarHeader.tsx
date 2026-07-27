@@ -72,10 +72,10 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="size-10 shrink-0 opacity-0" /> {/* Spacer */}
                     <div class="flex flex-col justify-center overflow-hidden">
-                        <h2 class="font-bold text-base whitespace-nowrap truncate max-w-[120px]">
+                        <h2 class="font-bold text-base whitespace-nowrap truncate max-w-30">
                             {branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}
                         </h2>
-                        <p class="text-muted text-[10px] whitespace-nowrap truncate max-w-[120px]">
+                        <p class="text-muted text-[10px] whitespace-nowrap truncate max-w-30">
                             {branding.tenant()?.tradeName ? branding.tenant()?.businessName : 'Dashboard'}
                         </p>
                     </div>

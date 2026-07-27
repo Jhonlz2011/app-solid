@@ -1,9 +1,9 @@
 /**
- * ProductForm V8 — 2-column layout: Tabs LEFT, Images+Attributes RIGHT.
+ * ProductForm V9 — 2-column layout: 4 Tabs LEFT, Images+Attributes RIGHT.
  *
  * Layout:
  * ─ is_active toggle (edit only, top-right)
- * ─ [LEFT COLUMN]  Tabs (General, Compras) — scrollable form content
+ * ─ [LEFT COLUMN]  Tabs (General, Ventas, Compras, Inventario) — scrollable form content
  * ─ [RIGHT COLUMN] Images + CategoryAttributeTags — sticky sidebar, persistent
  * ─ On mobile: stacks with images on top, tabs below
  */
@@ -20,6 +20,9 @@ import Switch from '@shared/ui/Switch';
 import { FileUploadDropzone } from '@shared/ui/FileUpload';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 
+// Config
+import { CATALOG_MODES } from '@shared/forms/catalog';
+
 // Data
 import { useCategoryFormSchema } from '@/modules/categories/data/categories.queries';
 import { productsApi } from '../data/products.api';
@@ -28,7 +31,9 @@ import type { Product } from '../data/products.api';
 // Form sections
 import ClassificationSection from './sections/ClassificationSection';
 import IdentificationSection from './sections/IdentificationSection';
-import PricingInventorySection from './sections/PricingInventorySection';
+import SalesSection from './sections/SalesSection';
+import PurchaseSection from './sections/PurchaseSection';
+import InventorySection from './sections/InventorySection';
 import ExtraSpecsSection from './sections/ExtraSpecsSection';
 import VariantsSection from './sections/VariantsSection';
 import DynamicAttributeFields from './DynamicAttributeFields';
@@ -78,6 +83,7 @@ function buildDefaultValues(product?: Product): ProductFormData {
             extra_specs: p.extra_specs ?? {},
             image_urls: p.image_urls ?? [],
             uom_inventory_id: p.uom_inventory_id ?? 0,
+            is_stockable: p.is_stockable ?? true,
             has_dimensional_tracking: p.has_dimensional_tracking ?? false,
             min_stock_alert: Number(p.min_stock_alert) || null,
             default_base_price: Number(p.default_base_price) || 0,
@@ -105,7 +111,8 @@ function buildDefaultValues(product?: Product): ProductFormData {
         category_id: 0, brand_id: null,
         slug: '', name: '', description: null,
         shared_attributes: {}, extra_specs: {}, image_urls: [],
-        uom_inventory_id: 0, has_dimensional_tracking: false,
+        uom_inventory_id: 0, is_stockable: true,
+        has_dimensional_tracking: false,
         min_stock_alert: null, default_base_price: 0, iva_rate_code: 4,
         is_active: true, variants: [defaultVariant()],
     };
@@ -169,9 +176,9 @@ export const ProductForm: Component<ProductFormProps> = (props) => {
 
     // ── Reactive selectors ────────────────────────────────────────────
     const categoryId = form.useStore((s) => s.values.category_id);
-    const productType = form.useStore((s) => s.values.product_type);
     const imageUrls = form.useStore((s) => s.values.image_urls);
     const sharedAttributes = form.useStore((s) => s.values.shared_attributes);
+    const mode = CATALOG_MODES.PRODUCTO;
     const categorySchemaQuery = useCategoryFormSchema(() => categoryId() > 0 ? categoryId() : null);
     const hasTemplate = createMemo(() => !!(categorySchemaQuery.data as any)?.category?.nameTemplate);
 
@@ -222,15 +229,17 @@ export const ProductForm: Component<ProductFormProps> = (props) => {
                         <Tabs defaultValue="general">
                             <TabsList>
                                 <TabsTrigger value="general">General</TabsTrigger>
+                                <TabsTrigger value="ventas">Ventas</TabsTrigger>
                                 <TabsTrigger value="compras">Compras</TabsTrigger>
+                                <TabsTrigger value="inventario">Inventario</TabsTrigger>
                             </TabsList>
 
                             {/* Tab: General */}
-                            <TabsContent value="general" forceMount class="hidden data-[selected]:block">
+                            <TabsContent value="general" forceMount class="hidden data-selected:block">
                                 <div class="flex flex-col gap-4 sm:gap-5 pt-4">
                                     <ClassificationSection
                                         form={form}
-                                        productType={productType}
+                                        mode={mode}
                                         hasAttemptedSubmit={hasAttemptedSubmit}
                                     />
 
@@ -257,10 +266,24 @@ export const ProductForm: Component<ProductFormProps> = (props) => {
                                 </div>
                             </TabsContent>
 
-                            {/* Tab: Compras */}
-                            <TabsContent value="compras" forceMount class="hidden data-[selected]:block">
+                            {/* Tab: Ventas */}
+                            <TabsContent value="ventas" forceMount class="hidden data-selected:block">
                                 <div class="flex flex-col gap-4 sm:gap-5 pt-4">
-                                    <PricingInventorySection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
+                                    <SalesSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
+                                </div>
+                            </TabsContent>
+
+                            {/* Tab: Compras */}
+                            <TabsContent value="compras" forceMount class="hidden data-selected:block">
+                                <div class="flex flex-col gap-4 sm:gap-5 pt-4">
+                                    <PurchaseSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
+                                </div>
+                            </TabsContent>
+
+                            {/* Tab: Inventario */}
+                            <TabsContent value="inventario" forceMount class="hidden data-selected:block">
+                                <div class="flex flex-col gap-4 sm:gap-5 pt-4">
+                                    <InventorySection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
                                 </div>
                             </TabsContent>
                         </Tabs>
@@ -299,7 +322,7 @@ export const ProductForm: Component<ProductFormProps> = (props) => {
                         <Show
                             when={categoryId() > 0}
                             fallback={
-                                <div class="bg-surface/30 rounded-2xl border border-dashed border-border/40 p-5 flex flex-col items-center justify-center text-center min-h-[100px]">
+                                <div class="bg-surface/30 rounded-2xl border border-dashed border-border/40 p-5 flex flex-col items-center justify-center text-center min-h-25">
                                     <div class="text-xl mb-1.5 opacity-30">🏷️</div>
                                     <p class="text-xs font-medium text-muted">Selecciona una categoría</p>
                                     <p class="text-[10px] text-muted/60 mt-0.5">Los atributos aparecerán aquí</p>

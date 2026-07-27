@@ -67,7 +67,7 @@ const FilterGroup: Component<FilterGroupProps> = (props) => {
                         variant="ghost"
                         size="sm"
                         onClick={clearAll}
-                        class="h-auto p-0 px-2 text-xs text-muted hover:text-primary bg-transparent text-primary hover:bg-primary/5"
+                        class="h-auto p-0 px-2 text-xs text-muted hover:text-primary bg-transparent  hover:bg-primary/5"
                     >
                         Limpiar
                     </Button>

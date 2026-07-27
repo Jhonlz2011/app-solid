@@ -96,7 +96,7 @@ const UsersRolesPage: Component = () => {
                             value={state.userSearch()}
                             onSearch={state.handleSearchInput}
                             placeholder="Buscar usuarios..."
-                            class="flex-1 min-w-[150px] max-w-md"
+                            class="flex-1 min-w-37.5 max-w-md"
                         />
                         <DataTableColumnVisibility table={state.tableInstance()} />
                     </div>
@@ -226,7 +226,7 @@ const UsersRolesPage: Component = () => {
                             <span>Acciones</span>
                             <ChevronsUpDownIcon class="size-3.5" />
                         </DropdownMenu.Trigger>
-                        <DropdownMenu.Content class="min-w-[180px]">
+                        <DropdownMenu.Content class="min-w-45">
                             <DropdownMenu.Item onSelect={state.handleBulkDelete} destructive>
                                 <TrashIcon class="size-4 mr-2" />
                                 <span class="flex-1 font-medium">Eliminar Activos</span>

@@ -3,6 +3,7 @@ import { useParams, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import { Avatar } from '@shared/ui/Avatar';
@@ -83,18 +84,20 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                             </div>
                                         </div>
                                     </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                        disabled={!userId()}
-                                        to={`./edit`}
-                                        search={true}
-                                        preload="intent"
-                                    >
-                                        <EditIcon class="size-4 text-muted" />
-                                        Editar
-                                    </Button>
+                                    
+                                    <Show when={canUpdate()}>
+                                        <LinkButton
+                                            variant="outline"
+                                            size="sm"
+                                            class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
+                                            to={`./edit`}
+                                            disabled={!userId()}
+                                        >
+                                            <EditIcon class="size-4 text-muted" />
+                                            Editar
+                                        </LinkButton>
+                                    </Show>
+
                                 </div>
 
                                 {/* TabsList */}
@@ -220,9 +223,9 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                 <TabsContent value="activity">
                                     <UserActivityTab userId={userId()} />
                                 </TabsContent>
-                                </div>
-                            </Tabs>
-                        )}
+                            </div>
+                        </Tabs>
+                    )}
                 </Show>
             </Show>
 

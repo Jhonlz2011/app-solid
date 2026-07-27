@@ -281,7 +281,7 @@ const BrandingSettings: Component = () => {
                                                 <span class="size-1.5 rounded-full bg-green-500/80" />
                                             </div>
                                             <div
-                                                class="rounded-md text-[8px] text-center px-4 py-0.5 flex-1 max-w-[180px] truncate ml-4 font-mono"
+                                                class="rounded-md text-[8px] text-center px-4 py-0.5 flex-1 max-w-45 truncate ml-4 font-mono"
                                                 style={{
                                                     "background-color": previewTheme().cardAlt,
                                                     "border": `1px solid ${previewTheme().border}`,
@@ -319,10 +319,10 @@ const BrandingSettings: Component = () => {
                                                             <img src={logoPreviewUrl()!} class="size-5 rounded-md object-contain" />
                                                         </Show>
                                                         <div class="flex flex-col justify-center min-w-0 leading-none">
-                                                            <span class="font-bold truncate max-w-[45px] text-[8px]" style={{ "color": previewTheme().heading }}>
+                                                            <span class="font-bold truncate max-w-11.25 text-[8px]" style={{ "color": previewTheme().heading }}>
                                                                 {selectedTradeName() || selectedBusinessName() || 'Zelys'}
                                                             </span>
-                                                            <span class="text-[6px] truncate max-w-[45px]" style={{ "color": previewTheme().muted }}>
+                                                            <span class="text-[6px] truncate max-w-11.25" style={{ "color": previewTheme().muted }}>
                                                                 Admin
                                                             </span>
                                                         </div>
@@ -362,7 +362,7 @@ const BrandingSettings: Component = () => {
                                                 <div class="flex items-center justify-between border-t pt-1.5" style={{ "border-color": `${previewTheme().border}80` }}>
                                                     <div class="flex items-center gap-1 min-w-0">
                                                         <div class="size-4.5 rounded-md font-bold flex items-center justify-center text-[7px]" style={{ "background-color": previewTheme().primarySoft, "color": previewTheme().primary }}>US</div>
-                                                        <span class="font-medium truncate max-w-[45px] text-[7px]" style={{ "color": previewTheme().heading }}>Usuario</span>
+                                                        <span class="font-medium truncate max-w-11.25 text-[7px]" style={{ "color": previewTheme().heading }}>Usuario</span>
                                                     </div>
                                                     <svg class="size-3 cursor-pointer shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style={{ "color": previewTheme().muted }}>
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
