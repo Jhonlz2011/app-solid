@@ -3,10 +3,10 @@ import sharp from 'sharp';
 import { env } from '../config/env';
 
 const r2Client = new S3Client({
-  endpoint: env.R2_ENDPOINT,
+  endpoint: env.R2_ENDPOINT_PUBLIC,
   credentials: {
-    accessKeyId: env.R2_ACCESS_KEY_ID,
-    secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    accessKeyId: env.R2_ACCESS_KEY_ID_PUBLIC,
+    secretAccessKey: env.R2_SECRET_ACCESS_KEY_PUBLIC,
   },
   region: 'auto',
   forcePathStyle: true,
@@ -31,7 +31,7 @@ export const publicStorageService = {
       .webp({ quality: 95 })
       .toBuffer();
 
-    const bucketName = env.R2_BUCKET_NAME;
+    const bucketName = env.R2_BUCKET_NAME_PUBLIC;
     const key = `t/${slug}/logo.webp`;
 
     await r2Client.send(
@@ -93,7 +93,7 @@ export const publicStorageService = {
       .webp({ quality: 90 })
       .toBuffer();
 
-    const bucketName = env.R2_BUCKET_NAME;
+    const bucketName = env.R2_BUCKET_NAME_PUBLIC;
     const key = `t/${slug}/login-bg.webp`;
 
     await r2Client.send(
@@ -117,7 +117,7 @@ export const publicStorageService = {
     const key = url.replace(`${cdnUrl}/`, '').split('?')[0];
     try {
         await r2Client.send(new DeleteObjectCommand({
-            Bucket: env.R2_BUCKET_NAME,
+            Bucket: env.R2_BUCKET_NAME_PUBLIC,
             Key: key,
         }));
     } catch (err) {

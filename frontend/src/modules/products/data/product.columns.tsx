@@ -208,7 +208,7 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
         {
             accessorKey: 'default_base_price',
             header: ({ column }) => <DataTableColumnHeader column={column} title="Precio Base" />,
-            meta: { title: 'Precio Base' },
+            meta: { title: 'Precio' },
             size: 120,
             cell: (info) => {
                 const raw = info.row.original.default_base_price ?? (info.row.original as any).base_price;
@@ -260,7 +260,7 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
                 />
             ),
             meta: { title: 'Estado' },
-            size: 100,
+            size: 120,
             cell: (info) => <StatusBadge isActive={info.getValue<boolean>()} />,
         },
 

@@ -323,6 +323,9 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                 accept={['image/jpeg', 'image/png', 'image/webp', 'image/avif']}
                                 maxFiles={6}
                                 maxFileSize={5 * 1024 * 1024}
+                                crop={true}
+                                cropShape="rectangle"
+                                cropAspectRatio={1}
                                 onFilesChange={(files) => setPendingFiles(prev => [...prev, ...files])}
                                 existingUrls={imageUrls() ?? []}
                                 onRemoveUrl={removeImageUrl}

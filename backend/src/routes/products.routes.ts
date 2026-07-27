@@ -16,6 +16,7 @@ import {
     generateSku,
     type ProductPayload,
 } from '../services/products.service';
+import { privateStorageService } from '../services/private-storage.service';
 
 // TypeBox schema for unified variant sub-form (attributes + packaging in one entity)
 const variantSchema = t.Object({
@@ -134,6 +135,21 @@ export const productRoutes = new Elysia({ prefix: '/products' })
             permission: 'products.read',
         }
     )
+
+    // ─── PRESIGNED UPLOAD URL FOR CLOUDFLARE R2 ──────────────────
+    .post('/upload-url', async ({ body, companySlug }) => {
+        return await privateStorageService.getPresignedUploadUrl({
+            companySlug: companySlug ?? 'default',
+            fileName: body.fileName,
+            contentType: body.contentType,
+        });
+    }, {
+        body: t.Object({
+            fileName: t.String({ minLength: 1 }),
+            contentType: t.String({ minLength: 1 }),
+        }),
+        permission: 'products.create',
+    })
 
     // ─── GET BY ID ───────────────────────────────────────────────
     .get('/:id', ({ params }) => getProduct(Number(params.id)),

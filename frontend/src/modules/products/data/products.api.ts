@@ -81,20 +81,49 @@ export const productsApi = {
         return data as string;
     },
 
-    /** Upload product images. Returns full URLs ready for storage. */
+    /** Obtiene una URL firmada (Presigned URL) de Cloudflare R2 para subir un archivo directamente. */
+    getPresignedUploadUrl: async (fileName: string, contentType: string): Promise<{ uploadUrl: string; fileKey: string; publicUrl: string }> => {
+        const { data, error } = await (api.api.products as any)['upload-url'].post({
+            fileName,
+            contentType,
+        });
+        if (error) throwApiError(error);
+        return data as { uploadUrl: string; fileKey: string; publicUrl: string };
+    },
+
+    /** Sube un archivo directamente a Cloudflare R2 utilizando la Presigned URL via HTTP PUT. */
+    uploadFileToR2: async (uploadUrl: string, file: File): Promise<void> => {
+        const response = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': file.type || 'image/webp',
+            },
+            body: file,
+        });
+        if (!response.ok) {
+            throw new Error(`Error al cargar el archivo a Cloudflare R2 (${response.statusText})`);
+        }
+    },
+
+    /** Upload product images to Cloudflare R2 using Presigned URLs. Returns public URLs ready for storage. */
     uploadImages: async (files: File[]): Promise<string[]> => {
         if (files.length === 0) return [];
-        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const formData = new FormData();
-        files.forEach(f => formData.append('files', f));
-        const res = await fetch(`${apiBase}/api/uploads/products`, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include',
-        });
-        if (!res.ok) throw new Error('Upload failed');
-        const data = await res.json();
-        return (data.urls ?? []).map((u: string) => `${apiBase}${u}`);
+        const uploadedUrls: string[] = [];
+
+        for (const file of files) {
+            const contentType = file.type || 'image/webp';
+            const fileName = file.name || 'product-image.webp';
+            
+            // 1. Obtener Presigned URL desde el backend
+            const { uploadUrl, publicUrl } = await productsApi.getPresignedUploadUrl(fileName, contentType);
+            
+            // 2. Cargar directamente a Cloudflare R2 privado/CDN
+            await productsApi.uploadFileToR2(uploadUrl, file);
+            
+            uploadedUrls.push(publicUrl);
+        }
+
+        return uploadedUrls;
     },
 };
 

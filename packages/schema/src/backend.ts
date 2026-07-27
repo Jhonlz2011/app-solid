@@ -376,6 +376,17 @@ export const CompanySettingsBodySchema = Type.Object({
 
 export type CompanySettingsBodyType = Static<typeof CompanySettingsBodySchema>;
 
-// Tenant Discovery DTOs moved up to prevent reference errors
+// --- R2 PRIVATE PRESIGNED URL SCHEMAS ---
+export const PresignedUploadRequestSchema = Type.Object({
+    fileName: Type.String({ minLength: 1 }),
+    contentType: Type.String({ minLength: 1 }),
+});
 
+export const PresignedUploadResponseSchema = Type.Object({
+    uploadUrl: Type.String(),
+    fileKey: Type.String(),
+    publicUrl: Type.String(),
+});
 
+export type PresignedUploadRequestType = Static<typeof PresignedUploadRequestSchema>;
+export type PresignedUploadResponseType = Static<typeof PresignedUploadResponseSchema>;
