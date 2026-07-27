@@ -42,7 +42,7 @@ export const privateStorageService = {
         });
 
         // Generate signed URL (expires in 15 minutes = 900 seconds)
-        const uploadUrl = await getSignedUrl(r2PrivateClient, command, { expiresIn: 900 });
+        const uploadUrl = await getSignedUrl(r2PrivateClient as any, command, { expiresIn: 900 });
 
         // Public/CDN URL for stored asset
         const cdnUrl = env.NEXT_PUBLIC_CDN_URL || 'https://cdn.zelys.app';
@@ -66,7 +66,7 @@ export const privateStorageService = {
             Key: fileKey,
         });
 
-        return await getSignedUrl(r2PrivateClient, command, { expiresIn: 3600 });
+        return await getSignedUrl(r2PrivateClient as any, command, { expiresIn: 3600 });
     },
 
     /**

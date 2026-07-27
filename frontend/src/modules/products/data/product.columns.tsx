@@ -93,28 +93,52 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
             },
         },
 
-        // Name + Description
+        // Name + Description + Image Thumbnail
         {
             accessorKey: 'name',
             header: ({ column }) => <DataTableColumnHeader column={column} title={isServiceMode ? "Servicio" : "Producto"} />,
             meta: { title: isServiceMode ? 'Servicio' : 'Producto' },
-            size: 260,
-            cell: (info) => (
-                <Link
-                    to={`${routePrefix}/${info.row.original.id}/show`}
-                    preload="intent"
-                    class="min-w-0 block cursor-pointer group/cell"
-                    title={info.getValue<string>()}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div class="font-semibold text-sm text-text truncate group-hover/cell:text-primary transition-colors duration-150">
-                        {info.getValue<string>()}
-                    </div>
-                    <Show when={info.row.original.description}>
-                        <div class="text-xs text-muted/80 truncate mt-0.5">{info.row.original.description}</div>
-                    </Show>
-                </Link>
-            ),
+            size: 280,
+            cell: (info) => {
+                const item = info.row.original as any;
+                const images: string[] = item.image_urls ?? [];
+                const firstImage = images.length > 0 ? images[0] : null;
+
+                return (
+                    <Link
+                        to={`${routePrefix}/${item.id}/show`}
+                        preload="intent"
+                        class="min-w-0 flex items-center gap-3 cursor-pointer group/cell py-0.5"
+                        title={info.getValue<string>()}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Thumbnail Avatar */}
+                        <div class="size-9 rounded-xl overflow-hidden bg-card-alt border border-border/60 shrink-0 flex items-center justify-center shadow-2xs">
+                            <Show
+                                when={firstImage}
+                                fallback={
+                                    <span class="text-base select-none">{isServiceMode ? '🔧' : '📦'}</span>
+                                }
+                            >
+                                <img
+                                    src={firstImage!}
+                                    alt={info.getValue<string>()}
+                                    class="w-full h-full object-cover group-hover/cell:scale-105 transition-transform duration-200"
+                                    loading="lazy"
+                                />
+                            </Show>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-semibold text-sm text-text truncate group-hover/cell:text-primary transition-colors duration-150">
+                                {info.getValue<string>()}
+                            </div>
+                            <Show when={item.description} fallback={<div class="text-xs text-muted/60 truncate">—</div>}>
+                                <div class="text-xs text-muted/80 truncate mt-0.5">{item.description}</div>
+                            </Show>
+                        </div>
+                    </Link>
+                );
+            },
         },
 
         // Category (faceted)

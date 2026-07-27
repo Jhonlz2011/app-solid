@@ -1,4 +1,7 @@
 import { Elysia, t } from 'elysia';
+import { db } from '../db';
+import { companies } from '@app/schema/tables';
+import { eq } from '@app/schema';
 import { authGuard } from '../plugins/auth-guard';
 import { rbac } from '../plugins/rbac';
 import {
@@ -137,9 +140,13 @@ export const productRoutes = new Elysia({ prefix: '/products' })
     )
 
     // ─── PRESIGNED UPLOAD URL FOR CLOUDFLARE R2 ──────────────────
-    .post('/upload-url', async ({ body, companySlug }) => {
+    .post('/upload-url', async ({ body, currentCompanyId }) => {
+        const [company] = await db.select({ slug: companies.slug })
+            .from(companies).where(eq(companies.id, currentCompanyId)).limit(1);
+        const companySlug = company?.slug ?? 'default';
+
         return await privateStorageService.getPresignedUploadUrl({
-            companySlug: companySlug ?? 'default',
+            companySlug,
             fileName: body.fileName,
             contentType: body.contentType,
         });
