@@ -158,14 +158,14 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
                                                     <label class="text-sm font-medium text-muted w-fit ml-1">
                                                         Categoría Padre
                                                     </label>
-                                                    <div class="flex items-center gap-2 p-1.5 pl-3 pr-2 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/50 transition-all duration-200 shadow-xs min-h-9.5">
+                                                    <div class="flex items-center gap-2 p-1 pl-3 pr-2 rounded-xl bg-primary/5 border border-primary/20 hover:bg-primary/8 hover:border-primary/30 transition-all duration-200 shadow-sm min-h-9.5">
                                                         <div class="flex-1 min-w-0">
                                                             <div class="flex items-center gap-2">
-                                                                <TagIcon class="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                                                <TagIcon class="size-4 text-muted shrink-0" />
                                                                 <Link
                                                                     to={`${resolvedCategoryPath()}/${cat().id}/show`}
                                                                     preload="intent"
-                                                                    class="text-xs font-bold text-text uppercase tracking-wide truncate hover:text-primary hover:underline cursor-pointer"
+                                                                    class="text-xs font-bold text-text uppercase tracking-wide truncate hover:underline cursor-pointer"
                                                                     title="Ver detalle de esta categoría"
                                                                 >
                                                                     {cat().name}

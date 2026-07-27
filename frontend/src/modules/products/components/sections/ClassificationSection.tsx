@@ -3,16 +3,19 @@
  * 
  * Features:
  * - Interactive Subtype Card Selector (SIMPLE, COMPUESTO, FABRICADO) with icons & contextual guidance.
- * - Category Autocomplete selector with inline creation shortcut.
- * - Brand Autocomplete selector with inline creation shortcut.
+ * - Category Autocomplete selector with inline creation shortcut and selected card with dynamic path Link.
+ * - Brand Autocomplete selector with inline creation shortcut and selected card with dynamic path Link.
  */
-import { Component, Show, For } from 'solid-js';
+import { Component, Show, For, createMemo } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import { FieldLabel } from '@shared/ui/TextField';
-import { CategorySelect, BrandSelect } from '@shared/ui/selectors';
-import { PlusIcon, FolderIcon } from '@shared/ui/icons';
+import { CategorySelect, BrandSelect, SelectorBreadcrumbs, buildBreadcrumbs, useResolvedSelectorPath } from '@shared/ui/selectors';
+import { PlusIcon, FolderIcon, TagIcon, CloseIcon } from '@shared/ui/icons';
+import Button from '@shared/ui/Button';
 import type { CatalogModeConfig } from '@shared/forms/catalog';
 import type { ProductSubtype } from '@app/schema/enums';
+import { useCategoriesFlat } from '@/modules/categories/data/categories.queries';
+import { useBrandsList } from '@/modules/brands/data/brands.queries';
 import SectionHeader from '../ui/SectionHeader';
 
 interface SubtypeOption {
@@ -54,6 +57,41 @@ interface ClassificationSectionProps {
 }
 
 const ClassificationSection: Component<ClassificationSectionProps> = (props) => {
+    const categoriesFlat = useCategoriesFlat();
+    const brandsQuery = useBrandsList();
+
+    const resolvedCategoryPath = useResolvedSelectorPath('/categories');
+    const resolvedBrandPath = useResolvedSelectorPath('/brands');
+
+    const categoryIdValue = props.form.useStore((s: any) => s.values.category_id);
+    const brandIdValue = props.form.useStore((s: any) => s.values.brand_id);
+
+    const flatCategories = createMemo(() => (categoriesFlat.data ?? []) as any[]);
+    const flatBrands = createMemo(() => (brandsQuery.data ?? []) as any[]);
+
+    const selectedCategory = createMemo(() => {
+        const id = categoryIdValue();
+        if (!id || id <= 0) return null;
+        return flatCategories().find(c => c.id === id) ?? null;
+    });
+
+    const selectedBrand = createMemo(() => {
+        const id = brandIdValue();
+        if (!id) return null;
+        return flatBrands().find(b => b.id === id) ?? null;
+    });
+
+    const categoryBreadcrumbs = createMemo(() => {
+        const cat = selectedCategory();
+        if (!cat) return [];
+        return buildBreadcrumbs(cat.id, flatCategories(), {
+            getId: (c) => c.id,
+            getParentId: (c) => c.parent_id,
+            getName: (c) => c.name,
+            skipSelf: true,
+        });
+    });
+
     return (
         <fieldset class="space-y-4 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
             <SectionHeader 
@@ -157,18 +195,55 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                             Nueva
                         </Link>
                     </div>
+
                     <props.form.Field name="category_id">
                         {(field: any) => {
                             const f = field();
                             return (
-                                <CategorySelect
-                                    value={f.state.value}
-                                    onChange={(id) => f.handleChange(id ?? 0)}
-                                    parentSelectable={false}
-                                    field={f}
-                                    inputPrefix={<FolderIcon class="size-4 text-muted" />}
-                                    placeholder="Seleccionar categoría..."
-                                />
+                                <Show
+                                    when={selectedCategory()}
+                                    fallback={
+                                        <CategorySelect
+                                            value={f.state.value}
+                                            onChange={(id) => f.handleChange(id ?? 0)}
+                                            parentSelectable={false}
+                                            field={f}
+                                            inputPrefix={<FolderIcon class="size-4 text-muted" />}
+                                            placeholder="Seleccionar categoría..."
+                                        />
+                                    }
+                                >
+                                    {(cat) => (
+                                        <div class="flex items-center gap-2 p-1.5 pl-3 pr-2 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/50 transition-all duration-200 shadow-xs min-h-9.5">
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-2">
+                                                    <TagIcon class="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                                    <Link
+                                                        to={`${resolvedCategoryPath()}/${cat().id}/show`}
+                                                        preload="intent"
+                                                        class="text-xs font-bold text-text uppercase tracking-wide truncate hover:text-primary hover:underline cursor-pointer"
+                                                        title="Ver detalle de esta categoría"
+                                                    >
+                                                        {cat().name}
+                                                    </Link>
+                                                </div>
+                                                <SelectorBreadcrumbs 
+                                                    items={categoryBreadcrumbs()} 
+                                                    basePath="/categories" 
+                                                />
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => f.handleChange(0)}
+                                                class="text-muted/60 hover:text-danger hover:bg-transparent p-1 rounded-lg shrink-0 cursor-pointer h-7"
+                                                title="Desvincular categoría"
+                                            >
+                                                <CloseIcon class="size-4" />
+                                            </Button>
+                                        </div>
+                                    )}
+                                </Show>
                             );
                         }}
                     </props.form.Field>
@@ -188,14 +263,50 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                             Nueva
                         </Link>
                     </div>
+
                     <props.form.Field name="brand_id">
                         {(field: any) => {
                             const f = field();
                             return (
-                                <BrandSelect
-                                    value={f.state.value}
-                                    onChange={(id) => f.handleChange(id)}
-                                />
+                                <Show
+                                    when={selectedBrand()}
+                                    fallback={
+                                        <BrandSelect
+                                            value={f.state.value}
+                                            onChange={(id) => f.handleChange(id)}
+                                        />
+                                    }
+                                >
+                                    {(brand) => (
+                                        <div class="flex items-center gap-2 p-1.5 pl-3 pr-2 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/30 hover:border-primary/50 transition-all duration-200 shadow-xs min-h-9.5">
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-2">
+                                                    <TagIcon class="size-4 text-primary shrink-0" />
+                                                    <Link
+                                                        to={`${resolvedBrandPath()}/${brand().id}/show`}
+                                                        preload="intent"
+                                                        class="text-xs font-bold text-text uppercase tracking-wide truncate hover:text-primary hover:underline cursor-pointer"
+                                                        title="Ver detalle de esta marca"
+                                                    >
+                                                        {brand().name}
+                                                    </Link>
+                                                </div>
+                                                <span class="text-[11px] font-semibold text-primary/80 ml-6 block truncate">
+                                                    MARCA SELECCIONADA
+                                                </span>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => f.handleChange(null)}
+                                                class="text-muted/60 hover:text-danger hover:bg-transparent p-1 rounded-lg shrink-0 cursor-pointer h-7"
+                                                title="Desvincular marca"
+                                            >
+                                                <CloseIcon class="size-4" />
+                                            </Button>
+                                        </div>
+                                    )}
+                                </Show>
                             );
                         }}
                     </props.form.Field>
