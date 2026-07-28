@@ -6,6 +6,7 @@ import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/sse';
 import { createHash } from 'crypto';
 import type { ProductFormData } from '@app/schema/frontend';
+import { publicStorageService } from './public-storage.service';
 
 // =============================================================================
 // Types
@@ -565,6 +566,13 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
         if (productData.iva_rate_code !== undefined) updateValues.iva_rate_code = productData.iva_rate_code;
         if (productData.is_active !== undefined) updateValues.is_active = productData.is_active;
 
+        // Fetch current image URLs for deferred R2 cleanup
+        const [currentProduct] = await tx
+            .select({ image_urls: products.image_urls })
+            .from(products)
+            .where(eq(products.id, productId));
+        const oldImageUrls = (currentProduct?.image_urls as string[] | null) ?? [];
+
         const [updated] = await tx
             .update(products)
             .set(updateValues)
@@ -633,6 +641,17 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
         cacheService.invalidate('products:facets:*');
         broadcast('product:updated', updated, 'products');
 
+        // Deferred R2 cleanup: delete images that were removed during edit
+        if (image_urls !== undefined && oldImageUrls.length > 0) {
+            const newUrls = new Set(image_urls ?? []);
+            const removedUrls = oldImageUrls.filter(url => !newUrls.has(url));
+            if (removedUrls.length > 0) {
+                Promise.allSettled(
+                    removedUrls.map(url => publicStorageService.deleteObject(url))
+                ).catch(err => console.warn('[R2] Deferred image cleanup on update failed:', err));
+            }
+        }
+
         return updated;
     });
 }
@@ -670,12 +689,39 @@ export async function restoreProduct(productId: number, userId: number) {
 }
 
 export async function hardDeleteProduct(productId: number) {
+    // Fetch image URLs before deletion for R2 cleanup
+    const productImages = await db
+        .select({ image_urls: products.image_urls })
+        .from(products)
+        .where(eq(products.id, productId));
+    
+    const variantImages = await db
+        .select({ image_urls: productVariants.image_urls })
+        .from(productVariants)
+        .where(eq(productVariants.product_id, productId));
+
     const [deleted] = await db
         .delete(products)
         .where(eq(products.id, productId))
         .returning();
 
     if (!deleted) throw new DomainError('Producto no encontrado', 404);
+
+    // Deferred R2 cleanup (fire-and-forget)
+    const allUrls: string[] = [];
+    if (productImages[0]?.image_urls) {
+        allUrls.push(...(productImages[0].image_urls as string[]));
+    }
+    for (const v of variantImages) {
+        if (v.image_urls && Array.isArray(v.image_urls)) {
+            allUrls.push(...(v.image_urls as string[]));
+        }
+    }
+    if (allUrls.length > 0) {
+        Promise.allSettled(
+            allUrls.map(url => publicStorageService.deleteObject(url))
+        ).catch(err => console.warn('[R2] Deferred product image cleanup failed:', err));
+    }
 
     cacheService.invalidate(`products:*`);
     broadcast('product:deleted', { id: productId }, 'products');

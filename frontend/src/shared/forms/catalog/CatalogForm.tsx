@@ -75,6 +75,7 @@ function buildDefaultValues(mode: CatalogModeConfig, product?: Product): Product
             shared_attributes: p.shared_attributes ?? {},
             extra_specs: p.extra_specs ?? {},
             image_urls: p.image_urls ?? [],
+            components: p.components ?? p.product_components ?? [],
             uom_inventory_id: p.uom_inventory_id ?? 0,
             is_stockable: p.is_stockable ?? (p.product_type === 'PRODUCTO'),
             has_dimensional_tracking: p.has_dimensional_tracking ?? false,
@@ -104,7 +105,7 @@ function buildDefaultValues(mode: CatalogModeConfig, product?: Product): Product
         product_subtype: mode.type === 'SERVICIO' ? null : 'SIMPLE',
         category_id: 0, brand_id: null,
         slug: '', name: '', description: null,
-        shared_attributes: {}, extra_specs: {}, image_urls: [],
+        shared_attributes: {}, extra_specs: {}, image_urls: [], components: [],
         uom_inventory_id: 0, is_stockable: mode.type === 'PRODUCTO',
         has_dimensional_tracking: false,
         min_stock_alert: null, default_base_price: 0, iva_rate_code: 4,
@@ -159,7 +160,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
             const existingUrls = form.getFieldValue('image_urls') ?? [];
             const payload: ProductFormData = {
                 ...value, slug,
-                image_urls: [...existingUrls, ...uploadedUrls],
+                image_urls: existingUrls,
                 shared_attributes: form.getFieldValue('shared_attributes') ?? {},
                 extra_specs: form.getFieldValue('extra_specs') ?? {},
                 variants: value.variants.map((v, i) => ({ ...v, is_default: i === 0 ? true : v.is_default })),
@@ -239,7 +240,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                     <Show when={categoryId() > 0}>
                                         <DynamicAttributeFields
                                             categoryId={() => categoryId() || null}
-                                            values={(form.getFieldValue('shared_attributes') ?? {}) as Record<string, unknown>}
+                                            values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
                                             onChange={(attrs) => form.setFieldValue('shared_attributes', attrs)}
                                             onNameGenerated={(generated) => {
                                                 if (!manualNameOverride()) form.setFieldValue('name', generated);
@@ -368,7 +369,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                         >
                             <CategoryAttributeTags
                                 categoryId={() => categoryId() || null}
-                                values={(sharedAttributes() ?? {}) as Record<string, unknown>}
+                                values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
                                 onAddCustom={(key, value) => {
                                     const current = form.getFieldValue('shared_attributes') ?? {};
                                     form.setFieldValue('shared_attributes', { ...current, [key]: value });

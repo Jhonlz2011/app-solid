@@ -10,7 +10,7 @@ import { Component, Show, For, createMemo } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import { FieldLabel } from '@shared/ui/TextField';
 import { CategorySelect, BrandSelect, SelectorBreadcrumbs, buildBreadcrumbs, useResolvedSelectorPath } from '@shared/ui/selectors';
-import { PlusIcon, FolderIcon, TagIcon, CloseIcon } from '@shared/ui/icons';
+import { PlusIcon, FolderIcon, TagIcon, CloseIcon, ProductIcon, LayersIcon, BoxIcon } from '@shared/ui/icons';
 import Button from '@shared/ui/Button';
 import type { CatalogModeConfig } from '@shared/forms/catalog';
 import type { ProductSubtype } from '@app/schema/enums';
@@ -18,10 +18,12 @@ import { useCategoriesFlat } from '@/modules/categories/data/categories.queries'
 import { useBrandsList } from '@/modules/brands/data/brands.queries';
 import SectionHeader from '../ui/SectionHeader';
 
+import type { JSX } from 'solid-js';
+
 interface SubtypeOption {
     value: ProductSubtype;
     label: string;
-    icon: string;
+    icon: () => JSX.Element;
     description: string;
     badge: string;
 }
@@ -30,21 +32,21 @@ const SUBTYPE_OPTIONS: SubtypeOption[] = [
     {
         value: 'SIMPLE',
         label: 'Simple',
-        icon: '📦',
+        icon: () => <ProductIcon class="size-5" />,
         description: 'Ítem estándar de compra, venta o almacenamiento individual.',
         badge: 'Estándar',
     },
     {
         value: 'COMPUESTO',
         label: 'Compuesto / Kit',
-        icon: '🧩',
+        icon: () => <LayersIcon class="size-5" />,
         description: 'Ensamblado a partir de otros productos (BOM / Kit de venta / Despiece).',
         badge: 'BOM / Kit',
     },
     {
         value: 'FABRICADO',
         label: 'Fabricado',
-        icon: '⚙️',
+        icon: () => <BoxIcon class="size-5" />,
         description: 'Producido mediante órdenes de fabricación con transformación de insumos.',
         badge: 'Producción',
     },
@@ -133,7 +135,7 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                                                     {/* Header: Icon + Label + Badge */}
                                                     <div class="flex items-center justify-between gap-1.5 w-full mb-1">
                                                         <div class="flex items-center gap-1.5 min-w-0">
-                                                            <span class="text-base leading-none">{opt.icon}</span>
+                                                            <span class="text-base leading-none">{opt.icon()}</span>
                                                             <span 
                                                                 class="text-xs font-bold truncate"
                                                                 classList={{

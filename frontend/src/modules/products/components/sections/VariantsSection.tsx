@@ -13,6 +13,7 @@ import {
     DragDropProvider,
     DragDropSensors,
     SortableProvider,
+    createSortable,
     closestCenter,
     type DragEvent,
 } from '@thisbeyond/solid-dnd';
@@ -257,16 +258,23 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                             {(variant, index) => {
                                                 const formIndex = () => index() + 1;
                                                 const variantData = () => (allVariants() as ProductVariantFormData[])[formIndex()];
+                                                const sortableId = () => variant.id ?? `new-${variant.sort_order ?? index()}`;
+                                                const sortable = createSortable(sortableId());
 
                                                 return (
                                                     <div
+                                                        ref={sortable.ref}
                                                         class="grid items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/40 hover:border-primary/30 transition-all group"
+                                                        classList={{ 'opacity-25': sortable.isActiveDraggable }}
                                                         style={{
                                                             'grid-template-columns': `20px 140px ${categoryAttributes().length > 0 ? categoryAttributes().map(() => '110px').join(' ') : ''} 100px 70px 60px`.trim(),
                                                         }}
                                                     >
                                                         {/* Drag handle */}
-                                                        <div class="flex items-center justify-center text-muted/30 group-hover:text-muted cursor-grab">
+                                                        <div
+                                                            {...sortable.dragActivators}
+                                                            class="flex items-center justify-center text-muted/30 group-hover:text-muted cursor-grab"
+                                                        >
                                                             <GripVerticalIcon class="size-3.5" />
                                                         </div>
 
@@ -290,12 +298,8 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                             {(attr) => {
                                                                 const val = () => variantData()?.variant_attributes?.[attr.key];
                                                                 const updateAttr = (newVal: any) => {
-                                                                    const current = props.form.getFieldValue('variants') as ProductVariantFormData[];
-                                                                    if (!current[formIndex()]) return;
-                                                                    const updatedAttrs = { ...(current[formIndex()].variant_attributes ?? {}), [attr.key]: newVal };
-                                                                    const updatedVariants = [...current];
-                                                                    updatedVariants[formIndex()] = { ...updatedVariants[formIndex()], variant_attributes: updatedAttrs };
-                                                                    props.form.setFieldValue('variants', updatedVariants);
+                                                                    const currentAttrs = (props.form.getFieldValue(`variants[${formIndex()}].variant_attributes`) ?? {}) as Record<string, unknown>;
+                                                                    props.form.setFieldValue(`variants[${formIndex()}].variant_attributes` as any, { ...currentAttrs, [attr.key]: newVal });
                                                                 };
 
                                                                 return (

@@ -14,7 +14,7 @@ import { XIcon, PlusIcon, SlidersIcon, HashIcon, CheckIcon, TagIcon } from '@sha
 interface CategoryAttributeTagsProps {
     categoryId: () => number | null;
     /** Current values from shared_attributes to show filled/empty state */
-    values?: Record<string, unknown>;
+    values?: () => Record<string, unknown>;
     /** Callback when user adds a custom attribute key:value */
     onAddCustom?: (key: string, value: string) => void;
 }
@@ -38,16 +38,18 @@ const CategoryAttributeTags: Component<CategoryAttributeTagsProps> = (props) => 
 
     // Custom attributes = keys in values that are NOT in the schema
     const customAttributes = createMemo(() => {
-        if (!props.values) return [];
+        const vals = props.values?.();
+        if (!vals) return [];
         const schemaKeys = new Set(attributes().map(a => a.key));
-        return Object.entries(props.values)
+        return Object.entries(vals)
             .filter(([key]) => !schemaKeys.has(key))
             .map(([key, value]) => ({ key, value: String(value ?? '') }));
     });
 
     const isFilled = (attrKey: string): boolean => {
-        if (!props.values) return false;
-        const val = props.values[attrKey];
+        const vals = props.values?.();
+        if (!vals) return false;
+        const val = vals[attrKey];
         return val !== null && val !== undefined && String(val).trim() !== '';
     };
 
@@ -108,8 +110,9 @@ const CategoryAttributeTags: Component<CategoryAttributeTagsProps> = (props) => 
                         {(attr) => {
                             const filled = () => isFilled(attr.key);
                             const filledValue = () => {
-                                if (!props.values) return '';
-                                const val = props.values[attr.key];
+                                const vals = props.values?.();
+                                if (!vals) return '';
+                                const val = vals[attr.key];
                                 return val !== null && val !== undefined ? String(val) : '';
                             };
 

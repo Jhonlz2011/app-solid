@@ -221,14 +221,14 @@ const Register: Component = () => {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <step1Form.Field name="phone" children={(f) => (
                             <TextField.Root field={f()}>
-                                <TextField.Label>Teléfono (opcional)</TextField.Label>
+                                <TextField.Label>Teléfono</TextField.Label>
                                 <TextField.Input type="tel" placeholder="0999999999" />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )} />
                         <step1Form.Field name="cedula" children={(f) => (
                             <TextField.Root field={f()}>
-                                <TextField.Label>Cédula (opcional)</TextField.Label>
+                                <TextField.Label>Cédula</TextField.Label>
                                 <TextField.Input type="text" placeholder="0912345678" />
                                 <TextField.ErrorMessage />
                             </TextField.Root>

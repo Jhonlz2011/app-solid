@@ -21,7 +21,7 @@ import { PlusIcon, SlidersIcon, HashIcon, CheckIcon, TagIcon } from '@shared/ui/
 interface DynamicAttributeFieldsProps {
     categoryId: () => number | null;
     /** JSONB object: { material: "Acero", norma: "ASTM A36" } */
-    values: Record<string, unknown>;
+    values: () => Record<string, unknown>;
     /** Called with updated JSONB object */
     onChange: (values: Record<string, unknown>) => void;
     /** Called when name_template + values produce a generated name */
@@ -52,7 +52,7 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
 
         let generated = template as string;
         attrs.forEach((attr: any) => {
-            const val = props.values[attr.key];
+            const val = props.values()[attr.key];
             generated = generated.replace(`{${attr.key}}`, val != null ? String(val) : '');
         });
 
@@ -65,13 +65,13 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
 
     // Get the value for an attribute by its key
     const getValue = (attrKey: string): string => {
-        const val = props.values[attrKey];
+        const val = props.values()[attrKey];
         return val != null ? String(val) : '';
     };
 
     // Update a single attribute key in the JSONB object
     const updateValue = (attrKey: string, textVal: string, isNumeric: boolean) => {
-        const updated = { ...props.values };
+        const updated = { ...props.values() };
         if (textVal === '' || textVal == null) {
             delete updated[attrKey]; // Remove empty keys
         } else if (isNumeric) {
@@ -121,7 +121,7 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
                                         parts.push({ type: 'text', content: template.slice(lastIndex, match.index) });
                                     }
                                     const key = match[1];
-                                    const val = props.values[key];
+                                    const val = props.values()[key];
                                     if (val != null && String(val).trim()) {
                                         parts.push({ type: 'filled', content: String(val) });
                                     } else {
@@ -234,9 +234,9 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
                                     <Show when={isBoolean()}>
                                         <div class="flex items-center gap-3 p-3 bg-card rounded-xl border border-border/40 h-full">
                                             <Checkbox
-                                                checked={props.values[attr.key] === true || props.values[attr.key] === 'true'}
+                                                checked={props.values()[attr.key] === true || props.values()[attr.key] === 'true'}
                                                 onChange={(checked: boolean) => {
-                                                    const updated = { ...props.values };
+                                                    const updated = { ...props.values() };
                                                     updated[attr.key] = checked;
                                                     props.onChange(updated);
                                                 }}

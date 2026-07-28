@@ -16,10 +16,7 @@ const ExtraSpecsSection: Component<ExtraSpecsSectionProps> = (props) => {
     const [newKey, setNewKey] = createSignal('');
     const [newValue, setNewValue] = createSignal('');
 
-    const specs = () => {
-        const raw = props.form.getFieldValue('extra_specs') as Record<string, unknown> | undefined;
-        return raw ?? {};
-    };
+    const specs = props.form.useStore((s: any) => s.values.extra_specs ?? {}) as () => Record<string, unknown>;
 
     const entries = () => Object.entries(specs()).filter(([_, v]) => v !== undefined);
 

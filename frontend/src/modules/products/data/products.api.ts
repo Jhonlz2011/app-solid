@@ -186,9 +186,5 @@ export const productSubtypeLabels: Record<ProductSubtype, string> = {
     FABRICADO: 'Fabricado',
 };
 
-export const productTypeIcons: Record<ProductType, string> = {
-    PRODUCTO: '📦',
-    SERVICIO: '🔧',
-};
 
 export { isActiveLabels } from '@shared/constants/labels';
