@@ -1,6 +1,6 @@
 import { and, desc, eq, ilike, or, sql, lt, gt, asc, inArray, type AnyColumn } from '@app/schema';
 import { db, type Tx } from '../db';
-import { products, productVariants, categories, brands, uom } from '@app/schema/tables';
+import { products, productVariants, productComponents, categories, brands, uom } from '@app/schema/tables';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';
 import { broadcast } from '../plugins/sse';
@@ -442,17 +442,20 @@ export async function getProductFacets(
 // Get Single Product (with variants)
 // =============================================================================
 
-export async function getProduct(id: number) {
-    const cacheKey = `products:${id}`;
+export async function getProduct(id: number, companyId: number) {
+    const cacheKey = `products:c${companyId}:${id}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
         const product = await db.query.products.findFirst({
-            where: eq(products.id, id),
+            where: and(eq(products.id, id), eq(products.company_id, companyId)),
             with: {
                 category: true,
                 brand: true,
                 variants: true,
                 uomConversions: true,
+                components: {
+                    with: { componentProduct: true },
+                },
             }
         });
 
@@ -477,7 +480,7 @@ export async function createProduct(payload: ProductPayload, userId: number, com
     }
 
     return db.transaction(async (tx: Tx) => {
-        const { variants, image_urls, ...productData } = payload;
+        const { variants, image_urls, components, ...productData } = payload;
 
         const [created] = await tx
             .insert(products)
@@ -492,7 +495,6 @@ export async function createProduct(payload: ProductPayload, userId: number, com
                 name: productData.name,
                 description: productData.description ?? null,
                 shared_attributes: productData.shared_attributes ?? {},
-                extra_specs: productData.extra_specs ?? {},
                 image_urls: image_urls ?? [],
                 uom_inventory_id: productData.uom_inventory_id,
                 has_dimensional_tracking: productData.has_dimensional_tracking,
@@ -509,6 +511,7 @@ export async function createProduct(payload: ProductPayload, userId: number, com
         if (variants && variants.length > 0) {
             await tx.insert(productVariants).values(
                 variants.map((v, idx) => ({
+                    company_id: companyId,
                     product_id: created.id,
                     sku: v.sku,
                     variant_name: v.variant_name ?? null,
@@ -528,7 +531,21 @@ export async function createProduct(payload: ProductPayload, userId: number, com
             );
         }
 
-        cacheService.invalidate('products:*');
+        // Persist BOM components for COMPUESTO/FABRICADO products
+        if (components && components.length > 0) {
+            await tx.insert(productComponents).values(
+                components.map(c => ({
+                    company_id: companyId,
+                    parent_product_id: created.id,
+                    component_product_id: c.component_product_id,
+                    quantity_per_parent: c.quantity_per_parent.toString(),
+                    is_reversible: c.is_reversible ?? true,
+                    notes: c.notes ?? null,
+                }))
+            );
+        }
+
+        cacheService.invalidate(`products:c${companyId}:*`);
         broadcast('product:created', created, 'products');
 
         return created;
@@ -539,9 +556,9 @@ export async function createProduct(payload: ProductPayload, userId: number, com
 // Update Product (with Variant Sync)
 // =============================================================================
 
-export async function updateProduct(productId: number, payload: Partial<ProductPayload>, userId: number) {
+export async function updateProduct(productId: number, payload: Partial<ProductPayload>, userId: number, companyId: number) {
     return db.transaction(async (tx: Tx) => {
-        const { variants, image_urls, ...productData } = payload;
+        const { variants, image_urls, components, ...productData } = payload;
 
         const updateValues: Partial<typeof products.$inferInsert> = {
             updated_at: new Date(),
@@ -557,7 +574,6 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
         if (productData.name !== undefined) updateValues.name = productData.name;
         if (productData.description !== undefined) updateValues.description = productData.description;
         if (productData.shared_attributes !== undefined) updateValues.shared_attributes = productData.shared_attributes;
-        if (productData.extra_specs !== undefined) updateValues.extra_specs = productData.extra_specs;
         if (image_urls !== undefined) updateValues.image_urls = image_urls;
         if (productData.uom_inventory_id !== undefined) updateValues.uom_inventory_id = productData.uom_inventory_id;
         if (productData.has_dimensional_tracking !== undefined) updateValues.has_dimensional_tracking = productData.has_dimensional_tracking;
@@ -576,7 +592,7 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
         const [updated] = await tx
             .update(products)
             .set(updateValues)
-            .where(eq(products.id, productId))
+            .where(and(eq(products.id, productId), eq(products.company_id, companyId)))
             .returning();
 
         if (!updated) throw new DomainError('Producto no encontrado', 404);
@@ -586,7 +602,10 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
             const existingVariants = await tx
                 .select({ id: productVariants.id })
                 .from(productVariants)
-                .where(eq(productVariants.product_id, productId));
+                .where(and(
+                    eq(productVariants.product_id, productId),
+                    eq(productVariants.company_id, companyId)
+                ));
 
             const existingIds = new Set(existingVariants.map(v => v.id));
             const incomingIds = new Set(
@@ -599,13 +618,15 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
                 await tx.delete(productVariants)
                     .where(and(
                         eq(productVariants.product_id, productId),
-                        inArray(productVariants.id, toDelete)
+                        inArray(productVariants.id, toDelete),
+                        eq(productVariants.company_id, companyId)
                     ));
             }
 
             // UPSERT existing + INSERT new
             for (const v of variants) {
                 const values = {
+                    company_id: companyId,
                     product_id: productId,
                     sku: v.sku,
                     variant_name: v.variant_name ?? null,
@@ -633,12 +654,29 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
             }
         }
 
-        cacheService.invalidate(`products:${productId}`);
-        cacheService.invalidate('products:list:*');
-        cacheService.invalidate('products:sorted:*');
-        cacheService.invalidate('products:total:*');
-        cacheService.invalidate('products:bounds:*');
-        cacheService.invalidate('products:facets:*');
+        // Sync BOM components (delete + re-insert)
+        if (components !== undefined) {
+            await tx.delete(productComponents)
+                .where(and(
+                    eq(productComponents.parent_product_id, productId),
+                    eq(productComponents.company_id, companyId)
+                ));
+
+            if (components.length > 0) {
+                await tx.insert(productComponents).values(
+                    components.map(c => ({
+                        company_id: companyId,
+                        parent_product_id: productId,
+                        component_product_id: c.component_product_id,
+                        quantity_per_parent: c.quantity_per_parent.toString(),
+                        is_reversible: c.is_reversible ?? true,
+                        notes: c.notes ?? null,
+                    }))
+                );
+            }
+        }
+
+        cacheService.invalidate(`products:c${companyId}:*`);
         broadcast('product:updated', updated, 'products');
 
         // Deferred R2 cleanup: delete images that were removed during edit
@@ -660,40 +698,40 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
 // Deactivate / Restore / Hard Delete
 // =============================================================================
 
-export async function deactivateProduct(productId: number, userId: number) {
+export async function deactivateProduct(productId: number, userId: number, companyId: number) {
     const [updated] = await db
         .update(products)
         .set({ is_active: false, updated_at: new Date(), updated_by: userId })
-        .where(eq(products.id, productId))
+        .where(and(eq(products.id, productId), eq(products.company_id, companyId)))
         .returning();
 
     if (!updated) throw new DomainError('Producto no encontrado', 404);
 
-    cacheService.invalidate(`products:*`);
+    cacheService.invalidate(`products:c${companyId}:*`);
     broadcast('product:updated', { id: productId, is_active: false }, 'products');
     return { success: true };
 }
 
-export async function restoreProduct(productId: number, userId: number) {
+export async function restoreProduct(productId: number, userId: number, companyId: number) {
     const [updated] = await db
         .update(products)
         .set({ is_active: true, updated_at: new Date(), updated_by: userId })
-        .where(eq(products.id, productId))
+        .where(and(eq(products.id, productId), eq(products.company_id, companyId)))
         .returning();
 
     if (!updated) throw new DomainError('Producto no encontrado', 404);
 
-    cacheService.invalidate(`products:*`);
+    cacheService.invalidate(`products:c${companyId}:*`);
     broadcast('product:updated', { id: productId, is_active: true }, 'products');
     return { success: true };
 }
 
-export async function hardDeleteProduct(productId: number) {
+export async function hardDeleteProduct(productId: number, companyId: number) {
     // Fetch image URLs before deletion for R2 cleanup
     const productImages = await db
         .select({ image_urls: products.image_urls })
         .from(products)
-        .where(eq(products.id, productId));
+        .where(and(eq(products.id, productId), eq(products.company_id, companyId)));
     
     const variantImages = await db
         .select({ image_urls: productVariants.image_urls })
@@ -702,7 +740,7 @@ export async function hardDeleteProduct(productId: number) {
 
     const [deleted] = await db
         .delete(products)
-        .where(eq(products.id, productId))
+        .where(and(eq(products.id, productId), eq(products.company_id, companyId)))
         .returning();
 
     if (!deleted) throw new DomainError('Producto no encontrado', 404);
@@ -723,7 +761,7 @@ export async function hardDeleteProduct(productId: number) {
         ).catch(err => console.warn('[R2] Deferred product image cleanup failed:', err));
     }
 
-    cacheService.invalidate(`products:*`);
+    cacheService.invalidate(`products:c${companyId}:*`);
     broadcast('product:deleted', { id: productId }, 'products');
     return { success: true };
 }
@@ -732,24 +770,24 @@ export async function hardDeleteProduct(productId: number) {
 // Bulk Operations
 // =============================================================================
 
-export async function bulkDeactivateProducts(ids: number[], userId: number) {
+export async function bulkDeactivateProducts(ids: number[], userId: number, companyId: number) {
     await db
         .update(products)
         .set({ is_active: false, updated_at: new Date(), updated_by: userId })
-        .where(inArray(products.id, ids));
+        .where(and(inArray(products.id, ids), eq(products.company_id, companyId)));
 
-    cacheService.invalidate('products:*');
+    cacheService.invalidate(`products:c${companyId}:*`);
     broadcast('product:updated', { ids, is_active: false }, 'products');
     return { affected: ids.length };
 }
 
-export async function bulkRestoreProducts(ids: number[], userId: number) {
+export async function bulkRestoreProducts(ids: number[], userId: number, companyId: number) {
     await db
         .update(products)
         .set({ is_active: true, updated_at: new Date(), updated_by: userId })
-        .where(inArray(products.id, ids));
+        .where(and(inArray(products.id, ids), eq(products.company_id, companyId)));
 
-    cacheService.invalidate('products:*');
+    cacheService.invalidate(`products:c${companyId}:*`);
     broadcast('product:updated', { ids, is_active: true }, 'products');
     return { affected: ids.length };
 }
@@ -767,8 +805,8 @@ export interface ProductReferences {
     canDelete: boolean;
 }
 
-export async function checkProductReferences(productId: number): Promise<ProductReferences> {
-    const cacheKey = `products:refs:${productId}`;
+export async function checkProductReferences(productId: number, companyId: number): Promise<ProductReferences> {
+    const cacheKey = `products:c${companyId}:refs:${productId}`;
     return cacheService.getOrSet(cacheKey, async () => {
         // Check references via variants (the transactional entity)
         const [refs] = await db
@@ -801,7 +839,7 @@ export async function checkProductReferences(productId: number): Promise<Product
 // SKU Auto-Generation
 // =============================================================================
 
-export async function generateSku(categoryId?: number, brandId?: number): Promise<string> {
+export async function generateSku(companyId: number, categoryId?: number, brandId?: number): Promise<string> {
     return db.transaction(async (tx) => {
         let prefix = 'PRD';
 
@@ -823,7 +861,10 @@ export async function generateSku(categoryId?: number, brandId?: number): Promis
         const [last] = await tx
             .select({ sku: productVariants.sku })
             .from(productVariants)
-            .where(ilike(productVariants.sku, `${prefix}-%`))
+            .where(and(
+                eq(productVariants.company_id, companyId),
+                ilike(productVariants.sku, `${prefix}-%`)
+            ))
             .orderBy(desc(productVariants.sku))
             .limit(1);
 

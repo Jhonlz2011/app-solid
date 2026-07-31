@@ -1,8 +1,4 @@
-/**
- * SalesSection — Pricing and sales configuration.
- * Fields: default_base_price, iva_rate_code, and per-variant price overrides.
- */
-import { Component, Show, For, createMemo } from 'solid-js';
+import { Component, Show, For } from 'solid-js';
 import TextField, { FieldLabel } from '@shared/ui/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import { UomSelect } from '@shared/ui/selectors';
@@ -20,11 +16,12 @@ type SelectOption<T> = { value: T; label: string };
 interface SalesSectionProps {
     form: any;
     hasAttemptedSubmit: () => boolean;
+    additionalVariants: () => ProductVariantFormData[];
 }
 
 const SalesSection: Component<SalesSectionProps> = (props) => {
     const variants = props.form.useStore((s: any) => s.values.variants) as () => ProductVariantFormData[];
-    const additionalVariants = createMemo(() => variants().slice(1));
+    const additionalVariants = () => props.additionalVariants();
 
     return (
         <div class="flex flex-col gap-4 sm:gap-5">

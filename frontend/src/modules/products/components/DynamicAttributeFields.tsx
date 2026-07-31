@@ -10,7 +10,6 @@
  */
 import { Component, For, Show, createEffect, createMemo } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
-import { useCategoryFormSchema } from '@/modules/categories/data/categories.queries';
 import { Badge } from '@shared/ui/Badge';
 import TextField, { FieldLabel } from '@shared/ui/TextField';
 import Checkbox from '@shared/ui/Checkbox';
@@ -19,7 +18,10 @@ import SectionHeader from './ui/SectionHeader';
 import { PlusIcon, SlidersIcon, HashIcon, CheckIcon, TagIcon } from '@shared/ui/icons';
 
 interface DynamicAttributeFieldsProps {
-    categoryId: () => number | null;
+    /** Category attributes from parent query */
+    attributes: () => Array<{ key: string; label: string; type: string; required?: boolean; options?: string[] }>;
+    /** Name template from category */
+    nameTemplate: () => string | null;
     /** JSONB object: { material: "Acero", norma: "ASTM A36" } */
     values: () => Record<string, unknown>;
     /** Called with updated JSONB object */
@@ -31,17 +33,8 @@ interface DynamicAttributeFieldsProps {
 type SelectOption = { value: string; label: string };
 
 const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) => {
-    const schemaQuery = useCategoryFormSchema(props.categoryId);
-
-    // Schema attributes from category_attributes + attribute_definitions
-    const attributes = createMemo(() => {
-        if (!schemaQuery.data) return [];
-        return (schemaQuery.data as any).attributes ?? [];
-    });
-
-    const nameTemplate = createMemo(() => {
-        return (schemaQuery.data as any)?.category?.nameTemplate ?? null;
-    });
+    const attributes = () => props.attributes();
+    const nameTemplate = () => props.nameTemplate();
 
     // Auto-generate name from template whenever values change
     createEffect(() => {
@@ -83,15 +76,39 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
         props.onChange(updated);
     };
 
+    // Memoize template parts parsing — avoids regex re-creation on each render
+    const templateParts = createMemo(() => {
+        const template = nameTemplate();
+        if (!template) return [];
+        const regex = /\{(\w+)\}/g;
+        const parts: Array<{ type: 'text' | 'filled' | 'empty'; content: string }> = [];
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(template as string)) !== null) {
+            if (match.index > lastIndex) {
+                parts.push({ type: 'text', content: (template as string).slice(lastIndex, match.index) });
+            }
+            const key = match[1];
+            const val = props.values()[key];
+            if (val != null && String(val).trim()) {
+                parts.push({ type: 'filled', content: String(val) });
+            } else {
+                const attrDef = attributes().find((a: any) => a.key === key);
+                parts.push({ type: 'empty', content: attrDef?.label ?? key });
+            }
+            lastIndex = regex.lastIndex;
+        }
+        if (lastIndex < (template as string).length) {
+            parts.push({ type: 'text', content: (template as string).slice(lastIndex) });
+        }
+        return parts;
+    });
+
     return (
         <Show when={attributes().length > 0}>
             <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
                 <div class="flex items-center justify-between">
-                    <SectionHeader color="accent" title="Atributos de Categoría">
-                        <Badge variant="primary" class="text-[10px] px-1.5 py-0">
-                            {(schemaQuery.data as any)?.category?.name}
-                        </Badge>
-                    </SectionHeader>
+                    <SectionHeader color="accent" title="Atributos de Categoría" />
                     <Link
                         to="/settings"
                         class="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors font-medium"
@@ -109,51 +126,23 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
                             <span class="text-[10px] text-muted font-mono">{nameTemplate()}</span>
                         </div>
                         <div class="text-sm font-medium text-text/80 font-mono leading-relaxed">
-                            {(() => {
-                                const template = nameTemplate() as string;
-                                const regex = /\{(\w+)\}/g;
-                                const parts: Array<{ type: 'text' | 'filled' | 'empty'; content: string }> = [];
-                                let lastIndex = 0;
-                                let match: RegExpExecArray | null;
-
-                                while ((match = regex.exec(template)) !== null) {
-                                    if (match.index > lastIndex) {
-                                        parts.push({ type: 'text', content: template.slice(lastIndex, match.index) });
-                                    }
-                                    const key = match[1];
-                                    const val = props.values()[key];
-                                    if (val != null && String(val).trim()) {
-                                        parts.push({ type: 'filled', content: String(val) });
-                                    } else {
-                                        const attrDef = attributes().find((a: any) => a.key === key);
-                                        parts.push({ type: 'empty', content: attrDef?.label ?? key });
-                                    }
-                                    lastIndex = regex.lastIndex;
-                                }
-                                if (lastIndex < template.length) {
-                                    parts.push({ type: 'text', content: template.slice(lastIndex) });
-                                }
-
-                                return (
-                                    <For each={parts}>
-                                        {(part) => (
-                                            <>
-                                                {part.type === 'text' && <span>{part.content}</span>}
-                                                {part.type === 'filled' && (
-                                                    <span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold text-xs">
-                                                        {part.content}
-                                                    </span>
-                                                )}
-                                                {part.type === 'empty' && (
-                                                    <span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500/70 font-medium text-xs italic">
-                                                        {part.content}
-                                                    </span>
-                                                )}
-                                            </>
-                                        )}
-                                    </For>
-                                );
-                            })()}
+                        <For each={templateParts()}>
+                            {(part) => (
+                                <>
+                                    {part.type === 'text' && <span>{part.content}</span>}
+                                    {part.type === 'filled' && (
+                                        <span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold text-xs">
+                                            {part.content}
+                                        </span>
+                                    )}
+                                    {part.type === 'empty' && (
+                                        <span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500/70 font-medium text-xs italic">
+                                            {part.content}
+                                        </span>
+                                    )}
+                                </>
+                            )}
+                        </For>
                         </div>
                     </div>
                 </Show>

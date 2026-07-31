@@ -1,4 +1,4 @@
-import { text, integer, boolean, timestamp, numeric, jsonb, index, unique, check } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, numeric, jsonb, index, unique, check, foreignKey } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { productTypeEnum, productSubtypeEnum, priceChangeTypeEnum, priceChangeSourceEnum } from '../enums';
@@ -40,8 +40,6 @@ export const products = pgTableV2("products", {
         .$type<Record<string, unknown>>()
         .default(sql`'{}'::jsonb`) // <-- Directo en el motor DB
         .notNull(),
-    // ONLY for non-structured data (manufacturer notes, technical links, etc.)
-    extra_specs: jsonb("extra_specs").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`),
     description: text("description"),
     // Imagenes optimizadas (inherited by variants unless overridden)
     image_urls: text("image_urls").array().default(sql`ARRAY[]::text[]`),
@@ -50,7 +48,6 @@ export const products = pgTableV2("products", {
 
     // true = este producto tiene ítems dimensionales individuales
     // (planchas con largo/ancho, rollos de cable con metraje remanente)
-    is_stockable: boolean("is_stockable").default(true).notNull(),
     has_dimensional_tracking: boolean("has_dimensional_tracking").default(false),
 
     min_stock_alert: numeric("min_stock_alert", { precision: 12, scale: 4 }).default('0'),
@@ -65,6 +62,8 @@ export const products = pgTableV2("products", {
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
     unique("unq_product_slug_company").on(t.company_id, t.slug),
+    // Enables composite FK from child tables (productVariants, productComponents, etc.)
+    unique("unq_product_id_company").on(t.id, t.company_id),
     index("idx_products_company").on(t.company_id),
     index("idx_products_shared_attrs").using("gin", t.shared_attributes),
     index("idx_products_category").on(t.category_id),
@@ -99,12 +98,13 @@ export const products = pgTableV2("products", {
  */
 export const productVariants = pgTableV2("product_variants", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     product_id: integer("product_id")
         .references(() => products.id, { onDelete: 'cascade' }).notNull(),
 
     // === IDENTIFICATION ===
     // SKU REAL — the unique transactional identifier
-    sku: text("sku").notNull().unique(),
+    sku: text("sku").notNull(),
 
     // Display name of this variant (e.g., "1/4 - Rollo 100m", "Blanco - 3L")
     // NULL → inherits products.name
@@ -149,13 +149,23 @@ export const productVariants = pgTableV2("product_variants", {
 
     sort_order: integer("sort_order").default(0),
 }, (t) => [
+    // SKU unique per tenant (not globally)
+    unique("unq_variant_sku_company").on(t.company_id, t.sku),
+    // Composite FK: ensures variant's company_id matches product's company_id
+    foreignKey({
+        name: "fk_variant_product_tenant",
+        columns: [t.product_id, t.company_id],
+        foreignColumns: [products.id, products.company_id],
+    }),
     index("idx_variants_product").on(t.product_id),
+    index("idx_variants_company").on(t.company_id),
     index("idx_variants_barcode").on(t.barcode),
     // GIN index for filtering by variant attributes
     index("idx_variants_attrs").using("gin", t.variant_attributes),
     // NOTE: Partial unique for is_default needs raw migration:
     // CREATE UNIQUE INDEX unq_variant_default ON product_variants (product_id) WHERE is_default = true;
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 // =============================================================================
 // 3.2 PRODUCT COMPONENTS — For composite products (BOM-like)
@@ -168,6 +178,7 @@ export const productVariants = pgTableV2("product_variants", {
  */
 export const productComponents = pgTableV2("product_components", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     parent_product_id: integer("parent_product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
     component_product_id: integer("component_product_id").references(() => products.id).notNull(),
     quantity_per_parent: numeric("quantity_per_parent", { precision: 6, scale: 2 }).notNull(),
@@ -175,7 +186,9 @@ export const productComponents = pgTableV2("product_components", {
     notes: text("notes"),
 }, (t) => [
     unique("unq_prod_component").on(t.parent_product_id, t.component_product_id),
-]);
+    index("idx_prod_components_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // =============================================================================
 // 3.3 PRODUCT UOM CONVERSIONS — Per-product unit conversions
@@ -187,6 +200,7 @@ export const productComponents = pgTableV2("product_components", {
  */
 export const productUomConversions = pgTableV2("product_uom_conversions", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     product_id: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
 
     from_uom: integer("from_uom").references(() => uom.id).notNull(),
@@ -197,7 +211,9 @@ export const productUomConversions = pgTableV2("product_uom_conversions", {
     notes: text("notes"),
 }, (t) => [
     unique("unq_prod_uom_conv").on(t.product_id, t.from_uom, t.to_uom),
-]);
+    index("idx_prod_uom_conv_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // =============================================================================
 // 3.4 VARIANT PRICE HISTORY — Audit trail for price changes
@@ -229,6 +245,7 @@ export const productUomConversions = pgTableV2("product_uom_conversions", {
  */
 export const variantPriceHistory = pgTableV2("variant_price_history", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     variant_id: integer("variant_id").references(() => productVariants.id, { onDelete: 'cascade' }).notNull(),
     price_type: priceChangeTypeEnum("price_type").notNull(),   // COST | SALE
     old_price: numeric("old_price", { precision: 12, scale: 4 }),
@@ -242,4 +259,6 @@ export const variantPriceHistory = pgTableV2("variant_price_history", {
     index("idx_vph_variant").on(t.variant_id),
     index("idx_vph_variant_type").on(t.variant_id, t.price_type, t.created_at),
     index("idx_vph_date").on(t.created_at),
-]);
+    index("idx_vph_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();

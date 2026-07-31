@@ -27,7 +27,7 @@ import IdentificationSection from '@/modules/products/components/sections/Identi
 import SalesSection from '@/modules/products/components/sections/SalesSection';
 import PurchaseSection from '@/modules/products/components/sections/PurchaseSection';
 import InventorySection from '@/modules/products/components/sections/InventorySection';
-import ExtraSpecsSection from '@/modules/products/components/sections/ExtraSpecsSection';
+
 import VariantsSection from '@/modules/products/components/sections/VariantsSection';
 import BomSection from '@/modules/products/components/sections/BomSection';
 import DynamicAttributeFields from '@/modules/products/components/DynamicAttributeFields';
@@ -73,11 +73,17 @@ function buildDefaultValues(mode: CatalogModeConfig, product?: Product): Product
             name: p.name,
             description: p.description ?? null,
             shared_attributes: p.shared_attributes ?? {},
-            extra_specs: p.extra_specs ?? {},
+
             image_urls: p.image_urls ?? [],
-            components: p.components ?? p.product_components ?? [],
+            components: (p.components ?? p.product_components ?? []).map((c: any) => ({
+                id: c.id,
+                component_product_id: c.component_product_id,
+                quantity_per_parent: Number(c.quantity_per_parent),
+                is_reversible: c.is_reversible ?? true,
+                notes: c.notes ?? null,
+            })),
             uom_inventory_id: p.uom_inventory_id ?? 0,
-            is_stockable: p.is_stockable ?? (p.product_type === 'PRODUCTO'),
+
             has_dimensional_tracking: p.has_dimensional_tracking ?? false,
             min_stock_alert: Number(p.min_stock_alert) || null,
             default_base_price: Number(p.default_base_price) || 0,
@@ -105,8 +111,8 @@ function buildDefaultValues(mode: CatalogModeConfig, product?: Product): Product
         product_subtype: mode.type === 'SERVICIO' ? null : 'SIMPLE',
         category_id: 0, brand_id: null,
         slug: '', name: '', description: null,
-        shared_attributes: {}, extra_specs: {}, image_urls: [], components: [],
-        uom_inventory_id: 0, is_stockable: mode.type === 'PRODUCTO',
+        shared_attributes: {}, image_urls: [], components: [],
+        uom_inventory_id: 0,
         has_dimensional_tracking: false,
         min_stock_alert: null, default_base_price: 0, iva_rate_code: 4,
         is_active: true, variants: [defaultVariant()],
@@ -146,28 +152,36 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                 finally { setIsUploading(false); }
             }
 
-            let slug = value.slug;
+            // Work on a copy to avoid mutating TanStack Form internal state
+            const formValue = structuredClone(value);
+
+            let slug = formValue.slug;
             if (!slug || slug.trim() === '') {
-                slug = await productsApi.generateSku(value.category_id || undefined, value.brand_id || undefined);
+                slug = await productsApi.generateSku(formValue.category_id || undefined, formValue.brand_id || undefined);
             }
-            if (!value.variants[0]?.sku || value.variants[0].sku.trim() === '') {
-                value.variants[0].sku = slug;
+            if (!formValue.variants[0]?.sku || formValue.variants[0].sku.trim() === '') {
+                formValue.variants[0].sku = slug;
             }
-            if (!value.has_dimensional_tracking) {
-                value.variants = value.variants.map(v => ({ ...v, content_quantity: 1, std_length_cm: null, std_width_cm: null }));
+            if (!formValue.has_dimensional_tracking) {
+                formValue.variants = formValue.variants.map(v => ({ ...v, content_quantity: 1, std_length_cm: null, std_width_cm: null }));
             }
 
             const existingUrls = form.getFieldValue('image_urls') ?? [];
             const payload: ProductFormData = {
-                ...value, slug,
+                ...formValue, slug,
                 image_urls: existingUrls,
                 shared_attributes: form.getFieldValue('shared_attributes') ?? {},
-                extra_specs: form.getFieldValue('extra_specs') ?? {},
-                variants: value.variants.map((v, i) => ({ ...v, is_default: i === 0 ? true : v.is_default })),
+                variants: formValue.variants.map((v, i) => ({ ...v, is_default: i === 0 ? true : v.is_default })),
             };
 
             try { await props.onSubmit(payload); }
             catch (err) {
+                // Fire-and-forget cleanup of orphaned R2 images
+                if (uploadedUrls.length > 0) {
+                    Promise.allSettled(
+                        uploadedUrls.map(url => productsApi.deleteImage?.(url))
+                    ).catch(() => {/* silent */});
+                }
                 if (err instanceof ApiError && err.errors?.length) {
                     for (const fe of err.errors) {
                         try { form.setFieldMeta(fe.field as any, (p) => ({ ...p, errorMap: { ...p.errorMap, onSubmit: fe.message } })); }
@@ -178,13 +192,22 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
         },
     }));
 
-    // ── Reactive selectors ────────────────────────────────────────────
+    // ── Reactive selectors ────────────────────────────────────────────────────
     const categoryId = form.useStore((s) => s.values.category_id);
     const productSubtype = form.useStore((s) => s.values.product_subtype);
     const imageUrls = form.useStore((s) => s.values.image_urls);
     const sharedAttributes = form.useStore((s) => s.values.shared_attributes);
+    const variants = form.useStore((s) => s.values.variants);
+
+    // Centralized category schema query — single subscription shared via props
     const categorySchemaQuery = useCategoryFormSchema(() => categoryId() > 0 ? categoryId() : null);
-    const hasTemplate = createMemo(() => !!(categorySchemaQuery.data as any)?.category?.nameTemplate);
+    const categoryAttributes = createMemo(() => (categorySchemaQuery.data as any)?.attributes ?? []);
+    const nameTemplate = createMemo(() => (categorySchemaQuery.data as any)?.category?.nameTemplate ?? null);
+    const hasTemplate = createMemo(() => !!nameTemplate());
+    const categoryName = createMemo(() => (categorySchemaQuery.data as any)?.category?.name ?? '');
+
+    // Pre-computed additional variants — single computation shared via props
+    const additionalVariants = createMemo(() => (variants() as ProductVariantFormData[]).slice(1));
 
     createEffect(() => { categoryId(); setManualNameOverride(false); });
 
@@ -239,10 +262,11 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
 
                                     <Show when={categoryId() > 0}>
                                         <DynamicAttributeFields
-                                            categoryId={() => categoryId() || null}
-                                            values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
-                                            onChange={(attrs) => form.setFieldValue('shared_attributes', attrs)}
-                                            onNameGenerated={(generated) => {
+                                        attributes={categoryAttributes}
+                                        nameTemplate={nameTemplate}
+                                        values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
+                                        onChange={(attrs) => form.setFieldValue('shared_attributes', attrs)}
+                                        onNameGenerated={(generated) => {
                                                 if (!manualNameOverride()) form.setFieldValue('name', generated);
                                             }}
                                         />
@@ -255,15 +279,13 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                         setManualNameOverride={setManualNameOverride}
                                     />
 
-                                    <VariantsSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
+                                    <VariantsSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} categoryAttributes={categoryAttributes} />
 
                                     <Show when={productSubtype() === 'COMPUESTO' || productSubtype() === 'FABRICADO'}>
                                         <BomSection form={form} currentProductId={props.product?.id} />
                                     </Show>
                                     
-                                    <Show when={props.mode.features.extraSpecs}>
-                                        <ExtraSpecsSection form={form} />
-                                    </Show>
+
                                 </div>
                             );
 
@@ -294,25 +316,25 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
 
                                     {/* Tab: Ventas */}
                                     <Show when={props.mode.features.salesTab}>
-                                        <TabsContent value="ventas" forceMount class="hidden data-[selected]:block">
+                                        <TabsContent value="ventas">
                                             <div class="flex flex-col gap-4 sm:gap-5 pt-4">
-                                                <SalesSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
+                                                <SalesSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} additionalVariants={additionalVariants} />
                                             </div>
                                         </TabsContent>
                                     </Show>
 
                                     {/* Tab: Compras */}
                                     <Show when={props.mode.features.purchaseTab}>
-                                        <TabsContent value="compras" forceMount class="hidden data-[selected]:block">
+                                        <TabsContent value="compras">
                                             <div class="flex flex-col gap-4 sm:gap-5 pt-4">
-                                                <PurchaseSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
+                                                <PurchaseSection form={form} hasAttemptedSubmit={hasAttemptedSubmit} additionalVariants={additionalVariants} />
                                             </div>
                                         </TabsContent>
                                     </Show>
 
                                     {/* Tab: Inventario */}
                                     <Show when={props.mode.features.inventoryTab}>
-                                        <TabsContent value="inventario" forceMount class="hidden data-[selected]:block">
+                                        <TabsContent value="inventario">
                                             <div class="flex flex-col gap-4 sm:gap-5 pt-4">
                                                 <InventorySection form={form} hasAttemptedSubmit={hasAttemptedSubmit} />
                                             </div>
@@ -368,7 +390,8 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                             }
                         >
                             <CategoryAttributeTags
-                                categoryId={() => categoryId() || null}
+                                attributes={categoryAttributes}
+                                categoryName={categoryName}
                                 values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
                                 onAddCustom={(key, value) => {
                                     const current = form.getFieldValue('shared_attributes') ?? {};

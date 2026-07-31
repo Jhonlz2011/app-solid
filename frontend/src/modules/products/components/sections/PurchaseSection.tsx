@@ -1,7 +1,3 @@
-/**
- * PurchaseSection — Purchase/cost configuration.
- * Fields: last_cost (variant[0]), per-variant cost overview, calculated margin.
- */
 import { Component, Show, For, createMemo } from 'solid-js';
 import TextField from '@shared/ui/TextField';
 import type { ProductVariantFormData } from '@app/schema/frontend';
@@ -10,12 +6,13 @@ import SectionHeader from '../ui/SectionHeader';
 interface PurchaseSectionProps {
     form: any;
     hasAttemptedSubmit: () => boolean;
+    additionalVariants: () => ProductVariantFormData[];
 }
 
 const PurchaseSection: Component<PurchaseSectionProps> = (props) => {
     const variants = props.form.useStore((s: any) => s.values.variants) as () => ProductVariantFormData[];
     const defaultBasePrice = props.form.useStore((s: any) => s.values.default_base_price) as () => number;
-    const additionalVariants = createMemo(() => variants().slice(1));
+    const additionalVariants = () => props.additionalVariants();
 
     // Calculated margin for the default variant
     const defaultCost = createMemo(() => {

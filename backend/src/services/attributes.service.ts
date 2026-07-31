@@ -1,6 +1,6 @@
 import { eq, asc, and, sql } from '@app/schema';
 import { db } from '../db';
-import { attributeDefinitions, categoryAttributes, categories, productVariants, products } from '@app/schema/tables';
+import { attributeDefinitions, categoryAttributes, categories } from '@app/schema/tables';
 import type { AttributeDataType } from '@app/schema/enums';
 import { DomainError } from './errors';
 import { cacheService } from './cache.service';

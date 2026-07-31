@@ -41,6 +41,14 @@ const variantSchema = t.Object({
     sort_order: t.Optional(t.Number()),
 });
 
+const componentSchema = t.Object({
+    id: t.Optional(t.Nullable(t.Number())),
+    component_product_id: t.Number(),
+    quantity_per_parent: t.Number(),
+    is_reversible: t.Optional(t.Boolean()),
+    notes: t.Optional(t.Nullable(t.String())),
+});
+
 const ProductBodySchema = t.Object({
     product_type: t.Union([t.Literal('PRODUCTO'), t.Literal('SERVICIO')]),
     product_subtype: t.Optional(t.Nullable(t.Union([
@@ -52,7 +60,7 @@ const ProductBodySchema = t.Object({
     name: t.String({ minLength: 1 }),
     description: t.Optional(t.Nullable(t.String())),
     shared_attributes: t.Optional(t.Any()),
-    extra_specs: t.Optional(t.Any()),
+
     image_urls: t.Optional(t.Array(t.String())),
     uom_inventory_id: t.Number(),
     has_dimensional_tracking: t.Boolean(),
@@ -61,6 +69,7 @@ const ProductBodySchema = t.Object({
     iva_rate_code: t.Number(),
     is_active: t.Boolean(),
     variants: t.Array(variantSchema),
+    components: t.Optional(t.Array(componentSchema)),
 });
 
 export const productRoutes = new Elysia({ prefix: '/products' })
@@ -126,8 +135,9 @@ export const productRoutes = new Elysia({ prefix: '/products' })
     )
 
     // ─── GENERATE SKU ────────────────────────────────────────────
-    .get('/generate-sku', ({ query }) =>
+    .get('/generate-sku', ({ query, currentCompanyId }) =>
         generateSku(
+            currentCompanyId,
             query.categoryId ? Number(query.categoryId) : undefined,
             query.brandId ? Number(query.brandId) : undefined,
         ),
@@ -172,7 +182,7 @@ export const productRoutes = new Elysia({ prefix: '/products' })
     })
 
     // ─── GET BY ID ───────────────────────────────────────────────
-    .get('/:id', ({ params }) => getProduct(Number(params.id)),
+    .get('/:id', ({ params, currentCompanyId }) => getProduct(Number(params.id), currentCompanyId),
         {
             params: t.Object({ id: t.Numeric() }),
             permission: 'products.read',
@@ -180,7 +190,7 @@ export const productRoutes = new Elysia({ prefix: '/products' })
     )
 
     // ─── CAN-DELETE CHECK ────────────────────────────────────────
-    .get('/:id/can-delete', ({ params }) => checkProductReferences(Number(params.id)),
+    .get('/:id/can-delete', ({ params, currentCompanyId }) => checkProductReferences(Number(params.id), currentCompanyId),
         {
             params: t.Object({ id: t.Numeric() }),
             permission: 'products.read',
@@ -198,8 +208,8 @@ export const productRoutes = new Elysia({ prefix: '/products' })
     })
 
     // ─── UPDATE ──────────────────────────────────────────────────
-    .put('/:id', ({ params, body, currentUserId }) =>
-        updateProduct(Number(params.id), body as Partial<ProductPayload>, currentUserId),
+    .put('/:id', ({ params, body, currentUserId, currentCompanyId }) =>
+        updateProduct(Number(params.id), body as Partial<ProductPayload>, currentUserId, currentCompanyId),
         {
             params: t.Object({ id: t.Numeric() }),
             body: t.Partial(ProductBodySchema),
@@ -208,8 +218,8 @@ export const productRoutes = new Elysia({ prefix: '/products' })
     )
 
     // ─── DEACTIVATE (Soft Delete) ────────────────────────────────
-    .patch('/:id/deactivate', ({ params, currentUserId }) =>
-        deactivateProduct(Number(params.id), currentUserId),
+    .patch('/:id/deactivate', ({ params, currentUserId, currentCompanyId }) =>
+        deactivateProduct(Number(params.id), currentUserId, currentCompanyId),
         {
             params: t.Object({ id: t.Numeric() }),
             permission: 'products.delete',
@@ -217,8 +227,8 @@ export const productRoutes = new Elysia({ prefix: '/products' })
     )
 
     // ─── RESTORE ─────────────────────────────────────────────────
-    .patch('/:id/restore', ({ params, currentUserId }) =>
-        restoreProduct(Number(params.id), currentUserId),
+    .patch('/:id/restore', ({ params, currentUserId, currentCompanyId }) =>
+        restoreProduct(Number(params.id), currentUserId, currentCompanyId),
         {
             params: t.Object({ id: t.Numeric() }),
             permission: 'products.restore',
@@ -226,8 +236,8 @@ export const productRoutes = new Elysia({ prefix: '/products' })
     )
 
     // ─── HARD DELETE ─────────────────────────────────────────────
-    .delete('/:id', async ({ params, set }) => {
-        await hardDeleteProduct(Number(params.id));
+    .delete('/:id', async ({ params, set, currentCompanyId }) => {
+        await hardDeleteProduct(Number(params.id), currentCompanyId);
         set.status = 204;
     }, {
         params: t.Object({ id: t.Numeric() }),
@@ -235,8 +245,8 @@ export const productRoutes = new Elysia({ prefix: '/products' })
     })
 
     // ─── BULK DEACTIVATE ─────────────────────────────────────────
-    .post('/bulk/delete', ({ body, currentUserId }) =>
-        bulkDeactivateProducts(body.ids, currentUserId),
+    .post('/bulk/delete', ({ body, currentUserId, currentCompanyId }) =>
+        bulkDeactivateProducts(body.ids, currentUserId, currentCompanyId),
         {
             body: t.Object({ ids: t.Array(t.Number()) }),
             permission: 'products.delete',
@@ -244,8 +254,8 @@ export const productRoutes = new Elysia({ prefix: '/products' })
     )
 
     // ─── BULK RESTORE ────────────────────────────────────────────
-    .patch('/bulk/restore', ({ body, currentUserId }) =>
-        bulkRestoreProducts(body.ids, currentUserId),
+    .patch('/bulk/restore', ({ body, currentUserId, currentCompanyId }) =>
+        bulkRestoreProducts(body.ids, currentUserId, currentCompanyId),
         {
             body: t.Object({ ids: t.Array(t.Number()) }),
             permission: 'products.restore',

@@ -20,6 +20,23 @@ interface BomSectionProps {
 export const BomSection: Component<BomSectionProps> = (props) => {
     const components = props.form.useStore((s: any) => s.values.components ?? []) as () => ProductComponentFormData[];
 
+    // Name lookup for BOM components — populated from loaded data + new additions
+    const [componentNames, setComponentNames] = createSignal<Record<number, string>>({});
+
+    // Populate names from server data (edit mode: components[].componentProduct.name)
+    createMemo(() => {
+        const comps = components();
+        const names: Record<number, string> = {};
+        for (const c of comps) {
+            if ((c as any).componentProduct?.name) {
+                names[c.component_product_id] = (c as any).componentProduct.name;
+            }
+        }
+        if (Object.keys(names).length > 0) {
+            setComponentNames(prev => ({ ...prev, ...names }));
+        }
+    });
+
     // New component input draft
     const [selectedProduct, setSelectedProduct] = createSignal<Product | null>(null);
     const [quantity, setQuantity] = createSignal(1);
@@ -32,8 +49,8 @@ export const BomSection: Component<BomSectionProps> = (props) => {
 
         const current = props.form.getFieldValue('components') as ProductComponentFormData[] ?? [];
         
-        // Prevent duplicate components
-        if (current.some(c => c.component_product_id === prod.id)) {
+        // Prevent duplicate components or adding itself (circular dependency)
+        if (current.some(c => c.component_product_id === prod.id) || prod.id === props.currentProductId) {
             return;
         }
 
@@ -46,6 +63,9 @@ export const BomSection: Component<BomSectionProps> = (props) => {
         };
 
         props.form.setFieldValue('components', [...current, newEntry]);
+
+        // Store the name for display
+        setComponentNames(prev => ({ ...prev, [prod.id]: prod.name }));
 
         // Reset draft
         setSelectedProduct(null);
@@ -90,7 +110,7 @@ export const BomSection: Component<BomSectionProps> = (props) => {
                             <div class="grid grid-cols-1 sm:grid-cols-[1fr_100px_100px_36px] gap-3 items-center px-3 py-2.5 rounded-xl bg-card border border-border/40">
                                 <div>
                                     <p class="text-sm font-semibold text-text">
-                                        Producto #{comp.component_product_id}
+                                        {componentNames()[comp.component_product_id] ?? `Producto #${comp.component_product_id}`}
                                     </p>
                                     <Show when={comp.notes}>
                                         <p class="text-[11px] text-muted">{comp.notes}</p>

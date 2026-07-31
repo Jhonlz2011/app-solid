@@ -8,7 +8,7 @@
  * Attribute columns are dynamically derived from the category's attributes.
  * Each variant row shows: attribute values + Price + Active status.
  */
-import { Component, Show, For, createSignal, createMemo, createEffect } from 'solid-js';
+import { Component, Show, For, createSignal, createMemo, createEffect, type Accessor } from 'solid-js';
 import {
     DragDropProvider,
     DragDropSensors,
@@ -18,13 +18,13 @@ import {
     type DragEvent,
 } from '@thisbeyond/solid-dnd';
 import type { ProductVariantFormData } from '@app/schema/frontend';
-import { useCategoryFormSchema } from '@/modules/categories/data/categories.queries';
 import Button from '@shared/ui/Button';
 import { PlusIcon, TrashIcon, GripVerticalIcon, MoreVerticalIcon, CopyIcon } from '@shared/ui/icons';
 
 interface VariantsSectionProps {
     form: any;
     hasAttemptedSubmit: () => boolean;
+    categoryAttributes: Accessor<Array<{ key: string; label: string; type: string; options?: string[] }>>;
 }
 
 const emptyVariant = (sortOrder: number, productName?: string, sharedAttrs?: Record<string, unknown>): ProductVariantFormData => ({
@@ -62,21 +62,12 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
         if (additionalVariants().length > 0) setHasVariants(true);
     });
 
-    // Category attributes for variant columns
-    const schemaQuery = useCategoryFormSchema(() => categoryId() > 0 ? categoryId() : null);
-    const categoryAttributes = createMemo(() => {
-        if (!schemaQuery.data) return [];
-        return ((schemaQuery.data as any).attributes ?? []) as Array<{
-            key: string;
-            label: string;
-            type: string;
-            options?: string[];
-        }>;
-    });
+    // Category attributes passed from parent (eliminates redundant query)
+    const categoryAttributes = () => props.categoryAttributes();
 
-    // DnD
+    // DnD — stable IDs: use DB id for persisted, negative index for new
     const variantIds = createMemo(() =>
-        additionalVariants().map((v, i) => v.id ?? `new-${v.sort_order ?? i}`)
+        additionalVariants().map((v, i) => v.id ?? -(i + 1))
     );
 
     // ── New variant form state ──
@@ -258,8 +249,8 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                             {(variant, index) => {
                                                 const formIndex = () => index() + 1;
                                                 const variantData = () => (allVariants() as ProductVariantFormData[])[formIndex()];
-                                                const sortableId = () => variant.id ?? `new-${variant.sort_order ?? index()}`;
-                                                const sortable = createSortable(sortableId());
+                                                const sortableId = variant.id ?? -(index() + 1);
+                                                const sortable = createSortable(sortableId);
 
                                                 return (
                                                     <div

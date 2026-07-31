@@ -88,10 +88,15 @@ export const categories = pgTableV2("categories", {
 // Stays as metadata catalog for form rendering — no longer referenced by transactional tables
 export const categoryAttributes = pgTableV2("category_attributes", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     category_id: integer("category_id").references(() => categories.id).notNull(),
     attribute_def_id: integer("attribute_def_id").references(() => attributeDefinitions.id).notNull(),
     required: boolean("required").default(false),
     order: integer("order").default(0),
     specific_options: jsonb("specific_options").$type<string[] | null>(),
-}, (t) => [unique("unq_cat_attr").on(t.category_id, t.attribute_def_id)]);
+}, (t) => [
+    unique("unq_cat_attr").on(t.category_id, t.attribute_def_id),
+    index("idx_cat_attrs_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 

@@ -1,13 +1,13 @@
 /**
  * InventorySection — Inventory configuration for physical products.
- * Fields: uom_inventory_id, is_stockable, min_stock_alert, 
+ * Fields: uom_inventory_id, min_stock_alert, 
  *         has_dimensional_tracking + conditional dimensional fields.
  */
 import { Component, Show } from 'solid-js';
 import TextField from '@shared/ui/TextField';
 import Switch from '@shared/ui/Switch';
 import { UomSelect } from '@shared/ui/selectors';
-import { ProductIcon, RulerIcon } from '@shared/ui/icons';
+import { RulerIcon } from '@shared/ui/icons';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import SectionHeader from '../ui/SectionHeader';
 
@@ -18,7 +18,7 @@ interface InventorySectionProps {
 
 const InventorySection: Component<InventorySectionProps> = (props) => {
     const hasDimensional = props.form.useStore((s: any) => s.values.has_dimensional_tracking);
-    const isStockable = props.form.useStore((s: any) => s.values.is_stockable);
+
 
     return (
         <div class="flex flex-col gap-4 sm:gap-5">
@@ -57,30 +57,8 @@ const InventorySection: Component<InventorySectionProps> = (props) => {
                     </props.form.Field>
                 </div>
 
-                {/* Stockable toggle + Dimensional tracking toggle */}
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Is Stockable — read-only computed, but shown for visibility */}
-                    <div class="flex items-center gap-3 p-3 bg-card rounded-xl border border-border/40">
-                        <div class="flex items-center gap-3 flex-1">
-                            <div class="size-8 rounded-lg bg-info/10 flex items-center justify-center text-info">
-                                <ProductIcon class="size-4" />
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium text-text">Producto Stockeable</p>
-                                <p class="text-xs text-muted">Maneja stock físico en bodegas</p>
-                            </div>
-                        </div>
-                        <Show
-                            when={isStockable()}
-                            fallback={
-                                <span class="text-[10px] px-2 py-0.5 rounded-md bg-muted/10 text-muted font-semibold uppercase">No</span>
-                            }
-                        >
-                            <span class="text-[10px] px-2 py-0.5 rounded-md bg-success/10 text-success font-semibold uppercase">Sí</span>
-                        </Show>
-                    </div>
-
-                    {/* Dimensional Tracking */}
+                {/* Dimensional Tracking */}
+                <div class="grid grid-cols-1 gap-3">
                     <props.form.Field name="has_dimensional_tracking">
                         {(field: any) => (
                             <div class="flex items-center gap-3 p-3 bg-card rounded-xl border border-border/40">

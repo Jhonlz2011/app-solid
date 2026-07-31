@@ -8,11 +8,13 @@
  */
 import { Component, Show, For, createMemo, createSignal } from 'solid-js';
 import { TagsInput } from '@ark-ui/solid/tags-input';
-import { useCategoryFormSchema } from '@/modules/categories/data/categories.queries';
 import { XIcon, PlusIcon, SlidersIcon, HashIcon, CheckIcon, TagIcon } from '@shared/ui/icons';
 
 interface CategoryAttributeTagsProps {
-    categoryId: () => number | null;
+    /** Category attributes from parent query */
+    attributes: () => Array<{ key: string; label: string; type: string; required: boolean; options?: string[] }>;
+    /** Category name for display */
+    categoryName: () => string;
     /** Current values from shared_attributes to show filled/empty state */
     values?: () => Record<string, unknown>;
     /** Callback when user adds a custom attribute key:value */
@@ -20,21 +22,10 @@ interface CategoryAttributeTagsProps {
 }
 
 const CategoryAttributeTags: Component<CategoryAttributeTagsProps> = (props) => {
-    const schemaQuery = useCategoryFormSchema(props.categoryId);
     const [customInput, setCustomInput] = createSignal('');
 
-    const attributes = createMemo(() => {
-        if (!schemaQuery.data) return [];
-        return ((schemaQuery.data as any).attributes ?? []) as Array<{
-            key: string;
-            label: string;
-            type: string;
-            required: boolean;
-            options?: string[];
-        }>;
-    });
-
-    const categoryName = createMemo(() => (schemaQuery.data as any)?.category?.name ?? '');
+    const attributes = () => props.attributes();
+    const categoryName = () => props.categoryName();
 
     // Custom attributes = keys in values that are NOT in the schema
     const customAttributes = createMemo(() => {

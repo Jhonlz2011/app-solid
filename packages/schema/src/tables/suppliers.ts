@@ -14,6 +14,7 @@ import { authUsers } from './auth';
 
 export const supplierProducts = pgTableV2("supplier_products", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     supplier_id: integer("supplier_id").references(() => entities.id).notNull(),
     // Primary: which variant (= SKU) does this supplier sell
     variant_id: integer("variant_id").references(() => productVariants.id).notNull(),
@@ -35,7 +36,9 @@ export const supplierProducts = pgTableV2("supplier_products", {
     index("idx_supplier_products_variant").on(t.variant_id),
     // Partial index: active products by supplier (most common query)
     index("idx_sp_supplier_active").on(t.supplier_id).where(sql`${t.is_active} = true`),
-]);
+    index("idx_sp_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // --- PURCHASE ORDERS ---
 

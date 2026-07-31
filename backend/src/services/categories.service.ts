@@ -200,6 +200,7 @@ export async function createCategoryEnhanced(data: CategoryPayload, clientId?: s
         if (data.attributes?.length) {
             await tx.insert(categoryAttributes).values(
                 data.attributes.map(a => ({
+                    company_id: data.companyId,
                     category_id: row.id,
                     attribute_def_id: a.attributeDefId,
                     required: a.required ?? false,
@@ -252,11 +253,12 @@ export async function updateCategoryEnhanced(id: number, data: Partial<CategoryP
             if (data.attributes.length > 0) {
                 await tx.insert(categoryAttributes).values(
                     data.attributes.map(a => ({
+                        company_id: companyId,
                         category_id: id,
                         attribute_def_id: a.attributeDefId,
                         required: a.required ?? false,
                         order: a.order ?? 0,
-                        specific_options: a.specific_options ?? null,
+                        specific_options: a.specificOptions ?? null,
                     }))
                 );
             }

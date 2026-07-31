@@ -121,6 +121,7 @@ export const productsRelations = relations(tables.products, ({ one, many }) => (
 
 // Product Variants = the unified transactional entity (SKU)
 export const productVariantsRelations = relations(tables.productVariants, ({ one, many }) => ({
+    company: one(tables.companies, { fields: [tables.productVariants.company_id], references: [tables.companies.id] }),
     product: one(tables.products, { fields: [tables.productVariants.product_id], references: [tables.products.id] }),
     warehouseLocations: many(tables.productVariantWarehouseLocations),
 
@@ -148,6 +149,7 @@ export const productVariantWarehouseLocationsRelations = relations(tables.produc
 }));
 
 export const productComponentsRelations = relations(tables.productComponents, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.productComponents.company_id], references: [tables.companies.id] }),
     parentProduct: one(tables.products, {
         fields: [tables.productComponents.parent_product_id],
         references: [tables.products.id],
@@ -161,6 +163,7 @@ export const productComponentsRelations = relations(tables.productComponents, ({
 }));
 
 export const productUomConversionsRelations = relations(tables.productUomConversions, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.productUomConversions.company_id], references: [tables.companies.id] }),
     product: one(tables.products, { fields: [tables.productUomConversions.product_id], references: [tables.products.id] }),
 }));
 
@@ -182,6 +185,7 @@ export const warehouseLocationsRelations = relations(tables.warehouseLocations, 
 }));
 
 export const inventoryStockRelations = relations(tables.inventoryStock, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.inventoryStock.company_id], references: [tables.companies.id] }),
     location: one(tables.warehouseLocations, {
         fields: [tables.inventoryStock.location_id],
         references: [tables.warehouseLocations.id],
@@ -193,12 +197,14 @@ export const inventoryStockRelations = relations(tables.inventoryStock, ({ one }
 }));
 
 export const inventoryDimensionalItemsRelations = relations(tables.inventoryDimensionalItems, ({ one, many }) => ({
+    company: one(tables.companies, { fields: [tables.inventoryDimensionalItems.company_id], references: [tables.companies.id] }),
     variant: one(tables.productVariants, { fields: [tables.inventoryDimensionalItems.variant_id], references: [tables.productVariants.id] }),
     location: one(tables.warehouseLocations, { fields: [tables.inventoryDimensionalItems.location_id], references: [tables.warehouseLocations.id] }),
     movements: many(tables.inventoryMovements),
 }));
 
 export const inventoryMovementsRelations = relations(tables.inventoryMovements, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.inventoryMovements.company_id], references: [tables.companies.id] }),
     sourceLocation: one(tables.warehouseLocations, { fields: [tables.inventoryMovements.source_location_id], references: [tables.warehouseLocations.id], relationName: 'sourceLocation' }),
     destinationLocation: one(tables.warehouseLocations, { fields: [tables.inventoryMovements.destination_location_id], references: [tables.warehouseLocations.id], relationName: 'destinationLocation' }),
     variant: one(tables.productVariants, { fields: [tables.inventoryMovements.variant_id], references: [tables.productVariants.id] }),
@@ -286,6 +292,7 @@ export const categoriesRelations = relations(tables.categories, ({ one, many }) 
 }));
 
 export const categoryAttributesRelations = relations(tables.categoryAttributes, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.categoryAttributes.company_id], references: [tables.companies.id] }),
     category: one(tables.categories, { fields: [tables.categoryAttributes.category_id], references: [tables.categories.id] }),
     definition: one(tables.attributeDefinitions, { fields: [tables.categoryAttributes.attribute_def_id], references: [tables.attributeDefinitions.id] }),
 }));
@@ -304,6 +311,7 @@ export const workOrdersRelations = relations(tables.workOrders, ({ one, many }) 
 export const workOrderItemsRelations = relations(tables.workOrderItems, ({ one }) => ({
     workOrder: one(tables.workOrders, { fields: [tables.workOrderItems.work_order_id], references: [tables.workOrders.id] }),
     product: one(tables.products, { fields: [tables.workOrderItems.product_id], references: [tables.products.id] }),
+    variant: one(tables.productVariants, { fields: [tables.workOrderItems.variant_id], references: [tables.productVariants.id] }),
 }));
 
 export const bomTemplatesRelations = relations(tables.bomTemplates, ({ one, many }) => ({
@@ -484,6 +492,7 @@ export const requestReturnItemsRelations = relations(tables.requestReturnItems, 
 // =============================================================================
 
 export const supplierProductsRelations = relations(tables.supplierProducts, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.supplierProducts.company_id], references: [tables.companies.id] }),
     supplier: one(tables.entities, {
         fields: [tables.supplierProducts.supplier_id],
         references: [tables.entities.id],
@@ -659,6 +668,7 @@ export const purchaseQuoteItemsRelations = relations(tables.purchaseQuoteItems, 
 // =============================================================================
 
 export const variantPriceHistoryRelations = relations(tables.variantPriceHistory, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.variantPriceHistory.company_id], references: [tables.companies.id] }),
     variant: one(tables.productVariants, { fields: [tables.variantPriceHistory.variant_id], references: [tables.productVariants.id] }),
     changedByUser: one(tables.authUsers, { fields: [tables.variantPriceHistory.changed_by], references: [tables.authUsers.id] }),
 }));

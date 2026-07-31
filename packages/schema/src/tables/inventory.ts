@@ -60,6 +60,7 @@ export const warehouseLocations = pgTableV2("warehouse_locations", {
 
 // Stock agrupado por UBICACIÓN + VARIANTE (la unidad transaccional)
 export const inventoryStock = pgTableV2("inventory_stock", {
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     location_id: integer("location_id").references(() => warehouseLocations.id, { onDelete: 'restrict' }).notNull(),
     variant_id: integer("variant_id").references(() => productVariants.id, { onDelete: 'restrict' }).notNull(),
     quantity_on_hand: numeric("quantity_on_hand", { precision: 15, scale: 4 }).default('0').notNull(),
@@ -70,7 +71,9 @@ export const inventoryStock = pgTableV2("inventory_stock", {
 }, (t) => [
     primaryKey({ columns: [t.location_id, t.variant_id] }),
     index("idx_inv_stock_variant").on(t.variant_id),
-]);
+    index("idx_inv_stock_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // Ítems dimensionales — piezas con medidas específicas
 // Para UOM=M2 (paneles): TODAS las piezas van aquí, stock = SUM(áreas)
@@ -78,6 +81,7 @@ export const inventoryStock = pgTableV2("inventory_stock", {
 // Piezas con mismas dimensiones se agrupan con quantity
 export const inventoryDimensionalItems = pgTableV2("inventory_dimensional_items", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     location_id: integer("location_id").references(() => warehouseLocations.id).notNull(),
     variant_id: integer("variant_id").references(() => productVariants.id).notNull(),
 
@@ -96,12 +100,15 @@ export const inventoryDimensionalItems = pgTableV2("inventory_dimensional_items"
     index("idx_dim_items_variant").on(t.variant_id, t.location_id),
     // Agrupar: misma ubicación + variante + dimensiones = 1 fila
     unique("unq_dim_item_dims").on(t.location_id, t.variant_id, t.length_cm, t.width_cm),
-]);
+    index("idx_dim_items_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // Movimientos de inventario (Double-Entry Audit Trail)
 export const inventoryMovements = pgTableV2("inventory_movements", {
     id: bigint("id", { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
-    
+    company_id: integer("company_id").references(() => companies.id).notNull(),
+
     // Double entry locations (strict double entry using virtual locations)
     source_location_id: integer("source_location_id").references(() => warehouseLocations.id).notNull(),
     destination_location_id: integer("destination_location_id").references(() => warehouseLocations.id).notNull(),
@@ -134,4 +141,6 @@ export const inventoryMovements = pgTableV2("inventory_movements", {
     index("idx_movements_type_date").on(t.type, t.created_at),
     index("idx_movements_ref").on(t.reference_type, t.reference_id),
     index("idx_movements_product").on(t.product_id),
-]);
+    index("idx_movements_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();

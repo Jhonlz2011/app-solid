@@ -1,5 +1,5 @@
 import { createSelectSchema, createInsertSchema } from 'drizzle-valibot';
-import { pipe, string, minLength, maxLength, trim, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array, number, optional, nullable, forward, check, partialCheck, any, partial, regex } from 'valibot';
+import { pipe, string, minLength, minValue, maxLength, trim, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array, number, optional, nullable, forward, check, partialCheck, any, partial, regex } from 'valibot';
 import * as tables from './tables';
 import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES, PRODUCT_TYPES, PRODUCT_SUBTYPES, ATTRIBUTE_DATA_TYPES, UOM_GROUPS, LOCATION_TYPES } from './enums';
 
@@ -65,7 +65,7 @@ export const ProductFormSchema = object({
     // Classification
     product_type: picklist(PRODUCT_TYPES, 'Tipo de producto requerido'),
     product_subtype: optional(nullable(picklist(PRODUCT_SUBTYPES))),
-    category_id: number('Categoría es requerida'),
+    category_id: pipe(number('Categoría es requerida'), minValue(1, 'Selecciona una categoría')),
     brand_id: optional(nullable(number())),
     // Identification
     slug: string(),  // Can be empty — auto-generated from generateSku() on submit
@@ -73,11 +73,9 @@ export const ProductFormSchema = object({
     description: optional(nullable(string())),
     // Shared attributes (JSONB — common to all variants)
     shared_attributes: optional(any()),
-    extra_specs: optional(any()),
     image_urls: optional(array(string())),
     // UOM & Inventory
     uom_inventory_id: number('UOM de inventario es requerida'),
-    is_stockable: boolean(),
     has_dimensional_tracking: boolean(),
     min_stock_alert: optional(nullable(number())),
     // Pricing defaults

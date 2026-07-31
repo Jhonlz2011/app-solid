@@ -14,7 +14,6 @@ export interface CatalogModeConfig {
         salesTab: boolean;       // Tab 'Ventas' with pricing
         purchaseTab: boolean;    // Tab 'Compras' with costs
         inventoryTab: boolean;   // Tab 'Inventario' with stock/dimensional tracking
-        extraSpecs: boolean;     // Extra specs key-value editor
     };
 }
 
@@ -32,7 +31,6 @@ export const CATALOG_MODES: Record<ProductType, CatalogModeConfig> = {
             salesTab: true,
             purchaseTab: true,
             inventoryTab: true,
-            extraSpecs: true,
         },
     },
     SERVICIO: {
@@ -48,7 +46,6 @@ export const CATALOG_MODES: Record<ProductType, CatalogModeConfig> = {
             salesTab: true,
             purchaseTab: false,
             inventoryTab: false,
-            extraSpecs: false,
         },
     },
 };

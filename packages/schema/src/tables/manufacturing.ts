@@ -38,6 +38,8 @@ export const workOrderItems = pgTableV2("work_order_items", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     work_order_id: integer("work_order_id").references(() => workOrders.id, { onDelete: 'cascade' }).notNull(),
     product_id: integer("product_id").references(() => products.id).notNull(), // El producto a fabricar (ej. Mesa)
+    // Variante específica (opcional — se resuelve al crear manufacturing_order si no se especifica)
+    variant_id: integer("variant_id").references(() => productVariants.id),
     quantity: numeric("quantity", { precision: 12, scale: 4 }).notNull(),
 
     // --- LAS VARIABLES DEL CLIENTE (Paramétricas) ---
@@ -51,6 +53,7 @@ export const workOrderItems = pgTableV2("work_order_items", {
 }, (t) => [
     index("idx_wo_items_order").on(t.work_order_id),
     index("idx_wo_items_product").on(t.product_id),
+    index("idx_wo_items_variant").on(t.variant_id),
 ]);
 
 // Manufacturing Orders — output is a SPECIFIC variant
