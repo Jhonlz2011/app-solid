@@ -5,57 +5,14 @@ import { DomainError } from '../errors';
 import { cacheService } from '../cache.service';
 import { createHash } from 'crypto';
 import type { TaxIdType, PersonType, TaxRegimeType } from '@app/schema/enums';
+import type { EntityPayload, EntityContactPayload as ContactPayload, EntityAddressPayload as AddressPayload } from '@app/schema/shared-dto';
 
 // Entity type discriminator
 export type EntityType = 'client' | 'supplier' | 'employee' | 'carrier';
 
 // Re-export imported types for consumers
 export type { TaxIdType, PersonType, TaxRegimeType };
-
-export interface ContactPayload {
-    name: string;
-    position?: string;
-    email?: string;
-    phone?: string;
-    isPrimary?: boolean;
-}
-
-export interface AddressPayload {
-    addressLine: string;
-    city?: string;
-    country?: string;
-    countryCode?: string;
-    postalCode?: string;
-    isMain?: boolean;
-}
-
-export interface EntityPayload {
-    taxId: string;
-    taxIdType: TaxIdType;
-    personType?: PersonType;
-    businessName: string;
-    tradeName?: string;
-    emailBilling?: string;
-    phone?: string;
-    taxRegimeType?: TaxRegimeType;
-    obligadoContabilidad?: boolean;
-    parteRelacionada?: boolean;
-    // Employee specific
-    department?: string;
-    jobTitle?: string;
-    salaryBase?: number;
-    hireDate?: string;
-    costPerHour?: number;
-    isClient?: boolean;
-    isSupplier?: boolean;
-    isEmployee?: boolean;
-    isCarrier?: boolean;
-    // New relations
-    isRetentionAgent?: boolean;
-    isSpecialContributor?: boolean;
-    contacts?: ContactPayload[];
-    addresses?: AddressPayload[];
-}
+export type { EntityPayload, ContactPayload, AddressPayload };
 
 // =============================================================================
 // Pagination Types
@@ -360,8 +317,8 @@ export async function getCachedBounds(
         const conditions = buildWhereConditions({ companyId, type, search, isCarrier, columnFilters });
         const [result] = await db
             .select({
-                minId: sql<number>`min(\${entities.id})`.mapWith(Number),
-                maxId: sql<number>`max(\${entities.id})`.mapWith(Number),
+                minId: sql<number>`min(${entities.id})`.mapWith(Number),
+                maxId: sql<number>`max(${entities.id})`.mapWith(Number),
             })
             .from(entities)
             .where(and(...conditions));

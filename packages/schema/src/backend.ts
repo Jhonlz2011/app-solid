@@ -100,11 +100,7 @@ const _checkEntityBodySchema: AssertTypeBox<Static<typeof EntityFormSchema>> = {
 
 export const EntityUpdateSchema = Type.Partial(Type.Omit(EntityFormSchema, ['taxId', 'taxIdType']));
 
-/** Aliases for backward compatibility in backend routes (will be refactored) */
-export const SupplierBodySchema = EntityFormSchema;
-export const SupplierUpdateSchema = EntityUpdateSchema;
-export const ClientBodySchema = EntityFormSchema;
-export const ClientUpdateSchema = EntityUpdateSchema;
+// Aliases removed after generic factory refactor
 
 // --- PRODUCTS ---
 export const ProductSelect = createSelectSchema(tables.products);

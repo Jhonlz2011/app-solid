@@ -1,6 +1,6 @@
 import { sql, inArray } from '@app/schema';
 import { db, adminDb, listener, tenantStorage } from '../db';
-import { auditQueue, auditLogs, actionEnum } from '@app/schema/tables';
+import { auditQueue, auditLogs } from '@app/schema/tables';
 
 export interface AuditContext {
     userId?: number | string | null;

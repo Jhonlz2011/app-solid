@@ -1,4 +1,4 @@
-import { and, eq, count } from '@app/schema';
+import { and, eq, count, inArray } from '@app/schema';
 import { db } from '../../db';
 import { entities, entityAddresses, employeeDetails, entityContacts, supplierProducts, workOrders, electronicDocuments } from '@app/schema/tables';
 import { DomainError } from '../errors';
@@ -431,5 +431,94 @@ export async function addAddress(entityId: number, payload: AddressPayload) {
 
         cacheService.invalidate(`entity:${entityId}`);
         return address;
+    });
+}
+
+// =============================================================================
+// Bulk Operations
+// =============================================================================
+
+export async function bulkDeactivateEntities(
+    type: EntityType,
+    ids: number[],
+    audit?: AuditContext
+) {
+    if (ids.length === 0) return { success: true, count: 0 };
+    return withAuditTransaction(audit, async (tx) => {
+        const typeColumn = type === 'client' ? entities.is_client : type === 'supplier' ? entities.is_supplier : type === 'employee' ? entities.is_employee : entities.is_carrier;
+        const existing = await tx
+            .select({ id: entities.id })
+            .from(entities)
+            .where(and(
+                eq(typeColumn, true),
+                eq(entities.is_active, true),
+                inArray(entities.id, ids)
+            ));
+
+        const existingIds = existing.map((e: { id: number }) => e.id);
+        if (existingIds.length === 0) {
+            throw new DomainError('No se encontraron entidades válidas para eliminar', 404);
+        }
+
+        const updatedEntities = await tx.update(entities).set({
+            is_active: false,
+            deleted_at: new Date(),
+        }).where(inArray(entities.id, existingIds))
+          .returning();
+
+        await cacheService.invalidate(`${type}s:*`);
+
+        for (const entity of updatedEntities) {
+            broadcast(RealtimeEvents.ENTITY.UPDATED, {
+                type,
+                entity,
+                clientId: audit?.clientId,
+            }, `${type}s`);
+        }
+
+        return { success: true, count: existingIds.length, deletedIds: existingIds };
+    });
+}
+
+export async function bulkRestoreEntities(
+    type: EntityType,
+    ids: number[],
+    audit?: AuditContext
+) {
+    if (ids.length === 0) return { success: true, count: 0 };
+    return withAuditTransaction(audit, async (tx) => {
+        const typeColumn = type === 'client' ? entities.is_client : type === 'supplier' ? entities.is_supplier : type === 'employee' ? entities.is_employee : entities.is_carrier;
+        const existing = await tx
+            .select({ id: entities.id })
+            .from(entities)
+            .where(and(
+                eq(typeColumn, true),
+                eq(entities.is_active, false),
+                inArray(entities.id, ids)
+            ));
+
+        const existingIds = existing.map((e: { id: number }) => e.id);
+        if (existingIds.length === 0) {
+            throw new DomainError('No se encontraron entidades válidas para restaurar', 404);
+        }
+
+        const updatedEntities = await tx.update(entities).set({
+            is_active: true,
+            deleted_at: null,
+            deleted_by: null,
+        }).where(inArray(entities.id, existingIds))
+          .returning();
+
+        await cacheService.invalidate(`${type}s:*`);
+
+        for (const entity of updatedEntities) {
+            broadcast(RealtimeEvents.ENTITY.UPDATED, {
+                type,
+                entity,
+                clientId: audit?.clientId,
+            }, `${type}s`);
+        }
+
+        return { success: true, count: existingIds.length, restoredIds: existingIds };
     });
 }
