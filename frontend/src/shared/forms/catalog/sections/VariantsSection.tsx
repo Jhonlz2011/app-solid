@@ -18,11 +18,12 @@ import {
     type DragEvent,
 } from '@thisbeyond/solid-dnd';
 import type { ProductVariantFormData } from '@app/schema/frontend';
+import type { CatalogFormApi } from '../catalog-form.types';
 import Button from '@shared/ui/Button';
 import { PlusIcon, TrashIcon, GripVerticalIcon, MoreVerticalIcon, CopyIcon } from '@shared/ui/icons';
 
 interface VariantsSectionProps {
-    form: any;
+    form: CatalogFormApi;
     hasAttemptedSubmit: () => boolean;
     categoryAttributes: Accessor<Array<{ key: string; label: string; type: string; options?: string[] }>>;
 }
@@ -46,9 +47,9 @@ const emptyVariant = (sortOrder: number, productName?: string, sharedAttrs?: Rec
 });
 
 const VariantsSection: Component<VariantsSectionProps> = (props) => {
-    const allVariants = props.form.useStore((s: any) => s.values.variants);
-    const hasDimensionalTracking = props.form.useStore((s: any) => s.values.has_dimensional_tracking);
-    const categoryId = props.form.useStore((s: any) => s.values.category_id);
+    const allVariants = props.form.useStore((s) => s.values.variants);
+    const hasDimensionalTracking = props.form.useStore((s) => s.values.has_dimensional_tracking);
+    const categoryId = props.form.useStore((s) => s.values.category_id);
     const additionalVariants = createMemo(() => (allVariants() as ProductVariantFormData[]).slice(1));
 
     // Inner tab state
@@ -225,7 +226,7 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                         <div class="space-y-2 mb-4 overflow-x-auto">
                             {/* Column headers */}
                             <div
-                                class="grid gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted min-w-[600px]"
+                                class="grid gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted min-w-150"
                                 style={{
                                     'grid-template-columns': `20px 140px ${categoryAttributes().length > 0 ? categoryAttributes().map(() => '110px').join(' ') : ''} 100px 70px 60px`.trim(),
                                 }}
@@ -244,7 +245,7 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                             <DragDropProvider onDragEnd={onDragEnd} collisionDetector={closestCenter}>
                                 <DragDropSensors />
                                 <SortableProvider ids={variantIds()}>
-                                    <div class="space-y-2 min-w-[600px]">
+                                    <div class="space-y-2 min-w-150">
                                         <For each={additionalVariants()}>
                                             {(variant, index) => {
                                                 const formIndex = () => index() + 1;
@@ -271,8 +272,9 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
 
                                                         {/* Variant Name / SKU */}
                                                         <div class="space-y-1">
-                                                            <props.form.Field name={`variants[${formIndex()}].variant_name` as any}>
-                                                                {(field: any) => (
+                                                         
+                                                            <props.form.Field name={`variants[${formIndex()}].variant_name`}>
+                                                                {(field) => (
                                                                     <input
                                                                         type="text"
                                                                         value={field().state.value ?? ''}
@@ -288,9 +290,10 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                         <For each={categoryAttributes()}>
                                                             {(attr) => {
                                                                 const val = () => variantData()?.variant_attributes?.[attr.key];
-                                                                const updateAttr = (newVal: any) => {
+                                                                const updateAttr = (newVal: unknown) => {
                                                                     const currentAttrs = (props.form.getFieldValue(`variants[${formIndex()}].variant_attributes`) ?? {}) as Record<string, unknown>;
-                                                                    props.form.setFieldValue(`variants[${formIndex()}].variant_attributes` as any, { ...currentAttrs, [attr.key]: newVal });
+                                                                
+                                                                    props.form.setFieldValue(`variants[${formIndex()}].variant_attributes`, { ...currentAttrs, [attr.key]: newVal });
                                                                 };
 
                                                                 return (
@@ -324,8 +327,9 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                         </For>
 
                                                         {/* Base Price Override */}
-                                                        <props.form.Field name={`variants[${formIndex()}].base_price` as any}>
-                                                            {(field: any) => (
+                                                       
+                                                        <props.form.Field name={`variants[${formIndex()}].base_price`}>
+                                                            {(field) => (
                                                                 <input
                                                                     type="number"
                                                                     step="0.01"
@@ -342,8 +346,9 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                         </props.form.Field>
 
                                                         {/* Active Status Toggle */}
-                                                        <props.form.Field name={`variants[${formIndex()}].is_active` as any}>
-                                                            {(field: any) => (
+                                                        {/* @ts-expect-error - Dynamic array paths cannot be fully inferred */}
+                                                        <props.form.Field name={`variants[${formIndex()}].is_active`}>
+                                                            {(field) => (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => field().handleChange(!field().state.value)}

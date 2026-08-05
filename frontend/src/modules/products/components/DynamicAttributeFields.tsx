@@ -15,7 +15,7 @@ import TextField, { FieldLabel } from '@shared/ui/TextField';
 import Checkbox from '@shared/ui/Checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import SectionHeader from './ui/SectionHeader';
-import { PlusIcon, SlidersIcon, HashIcon, CheckIcon, TagIcon } from '@shared/ui/icons';
+import { PlusIcon, } from '@shared/ui/icons';
 
 interface DynamicAttributeFieldsProps {
     /** Category attributes from parent query */

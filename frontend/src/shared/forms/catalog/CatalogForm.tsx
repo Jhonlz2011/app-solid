@@ -9,6 +9,7 @@ import { ProductFormSchema } from '@app/schema/frontend';
 import type { ProductFormData, ProductVariantFormData } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
+import type { ProductComponentFormData } from '@app/schema/frontend';
 
 // Shared UI
 import Switch from '@shared/ui/Switch';
@@ -22,14 +23,14 @@ import { productsApi } from '@/modules/products/data/products.api';
 import type { Product } from '@/modules/products/data/products.api';
 
 // Form sections
-import ClassificationSection from '@/modules/products/components/sections/ClassificationSection';
-import IdentificationSection from '@/modules/products/components/sections/IdentificationSection';
-import SalesSection from '@/modules/products/components/sections/SalesSection';
-import PurchaseSection from '@/modules/products/components/sections/PurchaseSection';
-import InventorySection from '@/modules/products/components/sections/InventorySection';
+import ClassificationSection from '@/shared/forms/catalog/sections/ClassificationSection';
+import IdentificationSection from '@/shared/forms/catalog/sections/IdentificationSection';
+import SalesSection from '@/shared/forms/catalog/sections/SalesSection';
+import PurchaseSection from '@/shared/forms/catalog/sections/PurchaseSection';
+import InventorySection from '@/shared/forms/catalog/sections/InventorySection';
 
-import VariantsSection from '@/modules/products/components/sections/VariantsSection';
-import BomSection from '@/modules/products/components/sections/BomSection';
+import VariantsSection from '@/shared/forms/catalog/sections/VariantsSection';
+import BomSection from '@/shared/forms/catalog/sections/BomSection';
 import DynamicAttributeFields from '@/modules/products/components/DynamicAttributeFields';
 import CategoryAttributeTags from '@/modules/products/components/CategoryAttributeTags';
 
@@ -62,7 +63,8 @@ const defaultVariant = (): ProductVariantFormData => ({
 
 function buildDefaultValues(mode: CatalogModeConfig, product?: Product): ProductFormData {
     if (product) {
-        const p = product as any;
+        // Cast to our payload interface + potential relations
+        const p = product as unknown as Partial<ProductFormData> & { product_components?: ProductComponentFormData[], id?: number };
         const variants = p.variants ?? [];
         return {
             product_type: p.product_type,
@@ -75,8 +77,8 @@ function buildDefaultValues(mode: CatalogModeConfig, product?: Product): Product
             shared_attributes: p.shared_attributes ?? {},
 
             image_urls: p.image_urls ?? [],
-            components: (p.components ?? p.product_components ?? []).map((c: any) => ({
-                id: c.id,
+            components: (p.components ?? p.product_components ?? []).map((c) => ({
+                id: c.id ?? null,
                 component_product_id: c.component_product_id,
                 quantity_per_parent: Number(c.quantity_per_parent),
                 is_reversible: c.is_reversible ?? true,
@@ -90,8 +92,8 @@ function buildDefaultValues(mode: CatalogModeConfig, product?: Product): Product
             iva_rate_code: p.iva_rate_code ?? 4,
             is_active: p.is_active ?? true,
             variants: variants.length > 0
-                ? variants.map((v: any) => ({
-                    id: v.id, sku: v.sku, variant_name: v.variant_name ?? null,
+                ? variants.map((v) => ({
+                    id: v.id ?? null, sku: v.sku ?? '', variant_name: v.variant_name ?? null,
                     variant_attributes: v.variant_attributes ?? {},
                     content_quantity: Number(v.content_quantity) || 1,
                     sale_uom_id: v.sale_uom_id ?? null,
@@ -128,8 +130,9 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
 
     onCleanup(() => {
         pendingFiles().forEach((f) => {
-            if ((f as any)._previewUrl) {
-                try { URL.revokeObjectURL((f as any)._previewUrl); } catch {}
+            const fileWithPreview = f as File & { _previewUrl?: string };
+            if (fileWithPreview._previewUrl) {
+                try { URL.revokeObjectURL(fileWithPreview._previewUrl); } catch {}
             }
         });
     });
@@ -184,7 +187,10 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                 }
                 if (err instanceof ApiError && err.errors?.length) {
                     for (const fe of err.errors) {
-                        try { form.setFieldMeta(fe.field as any, (p) => ({ ...p, errorMap: { ...p.errorMap, onSubmit: fe.message } })); }
+                        try {
+                            // @ts-expect-error - Dynamic field strings from backend cannot be statically typed
+                            form.setFieldMeta(fe.field, (p) => ({ ...p, errorMap: { ...p.errorMap, onSubmit: fe.message } }));
+                        }
                         catch { /* field not in form */ }
                     }
                 }
@@ -201,10 +207,15 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
 
     // Centralized category schema query — single subscription shared via props
     const categorySchemaQuery = useCategoryFormSchema(() => categoryId() > 0 ? categoryId() : null);
-    const categoryAttributes = createMemo(() => (categorySchemaQuery.data as any)?.attributes ?? []);
-    const nameTemplate = createMemo(() => (categorySchemaQuery.data as any)?.category?.nameTemplate ?? null);
+    
+    // Create a strict type cast for the response data
+    type CategorySchemaResponse = { attributes?: unknown[], category?: { nameTemplate?: string, name?: string } };
+    const catData = () => (categorySchemaQuery.data as CategorySchemaResponse | undefined);
+
+    const categoryAttributes = createMemo(() => catData()?.attributes ?? []);
+    const nameTemplate = createMemo(() => catData()?.category?.nameTemplate ?? null);
     const hasTemplate = createMemo(() => !!nameTemplate());
-    const categoryName = createMemo(() => (categorySchemaQuery.data as any)?.category?.name ?? '');
+    const categoryName = createMemo(() => catData()?.category?.name ?? '');
 
     // Pre-computed additional variants — single computation shared via props
     const additionalVariants = createMemo(() => (variants() as ProductVariantFormData[]).slice(1));
@@ -229,7 +240,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                 <Show when={isEdit()}>
                     <div class="flex items-center justify-end">
                         <form.Field name="is_active">
-                            {(field: any) => {
+                            {(field) => {
                                 const f = field();
                                 return (
                                     <div class="flex items-center gap-2 px-3 py-1.5 bg-surface/30 rounded-lg border border-border/40">
@@ -310,7 +321,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                     </TabsList>
 
                                     {/* Tab: General */}
-                                    <TabsContent value="general" forceMount class="hidden data-[selected]:block">
+                                    <TabsContent value="general" forceMount class="hidden data-selected:block">
                                         {generalContent}
                                     </TabsContent>
 

@@ -11,7 +11,7 @@ import {
     deleteContact,
     getContacts,
 } from '../services/entities.service';
-import { SupplierBodySchema, SupplierUpdateSchema } from '@app/schema/backend';
+import { EntityFormSchema, SupplierUpdateSchema } from '@app/schema/backend';
 
 /** Parse comma-separated string into array (shared by list + facets) */
 const parseArray = (val?: string) => val?.split(',').filter(Boolean);
@@ -94,7 +94,7 @@ export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
             return supplier;
         },
         {
-            body: SupplierBodySchema,
+            body: EntityFormSchema,
             permission: 'suppliers.create',
         }
     )

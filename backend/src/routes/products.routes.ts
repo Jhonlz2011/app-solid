@@ -17,6 +17,7 @@ import {
     checkProductReferences,
     getProductFacets,
     generateSku,
+    getVariantBySkuOrBarcode,
     type ProductPayload,
 } from '../services/products.service';
 import { privateStorageService } from '../services/private-storage.service';
@@ -179,6 +180,27 @@ export const productRoutes = new Elysia({ prefix: '/products' })
             files: t.Union([t.File(), t.Array(t.File())]),
         }),
         permission: 'products.create',
+    })
+
+    // ─── DELETE PRODUCT IMAGE (R2 cleanup) ───────────────────────
+    .post('/delete-image', async ({ body }) => {
+        if (body.url) {
+            await publicStorageService.deleteObject(body.url);
+        }
+        return { success: true };
+    }, {
+        body: t.Object({ url: t.String() }),
+        permission: 'products.update',
+    })
+
+    // ─── LOOKUP BY SKU/BARCODE (POS/Scanner) ──────────────────────
+    .get('/lookup/:code', async ({ params, currentCompanyId, set }) => {
+        const variant = await getVariantBySkuOrBarcode(params.code, currentCompanyId);
+        if (!variant) { set.status = 404; return { message: 'Variante no encontrada' }; }
+        return variant;
+    }, {
+        params: t.Object({ code: t.String() }),
+        permission: 'products.read',
     })
 
     // ─── GET BY ID ───────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { createSelectSchema, createInsertSchema } from 'drizzle-valibot';
-import { pipe, string, minLength, minValue, maxLength, trim, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array, number, optional, nullable, forward, check, partialCheck, any, partial, regex } from 'valibot';
+import { pipe, string, minLength, minValue, maxLength, trim, object, email, type InferInput, picklist, undefinedable, boolean, union, literal, array, number, optional, nullable, forward, check, partialCheck, any, partial, regex, record, unknown } from 'valibot';
 import * as tables from './tables';
 import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES, PRODUCT_TYPES, PRODUCT_SUBTYPES, ATTRIBUTE_DATA_TYPES, UOM_GROUPS, LOCATION_TYPES } from './enums';
 
@@ -33,7 +33,7 @@ export const ProductVariantFormSchema = object({
     variant_name: optional(nullable(string())),
     // JSONB — dynamic differentiating attributes
     // Ej: { "diametro": "1/4", "diametro_num": 0.25 }
-    variant_attributes: optional(any()),
+    variant_attributes: optional(record(string(), unknown())),
     // Packaging / Content (absorbed from presentations)
     content_quantity: number('Cantidad de contenido requerida'),
     sale_uom_id: optional(nullable(number())),
@@ -72,7 +72,7 @@ export const ProductFormSchema = object({
     name: pipe(string(), minLength(1, 'Nombre es requerido')),
     description: optional(nullable(string())),
     // Shared attributes (JSONB — common to all variants)
-    shared_attributes: optional(any()),
+    shared_attributes: optional(record(string(), unknown())),
     image_urls: optional(array(string())),
     // UOM & Inventory
     uom_inventory_id: number('UOM de inventario es requerida'),
@@ -91,6 +91,14 @@ export const ProductFormSchema = object({
 export type ProductFormData = InferInput<typeof ProductFormSchema>;
 export type ProductVariantFormData = InferInput<typeof ProductVariantFormSchema>;
 export type ProductComponentFormData = InferInput<typeof ProductComponentFormSchema>;
+
+import type { ProductPayload, EntityPayload } from './shared.dto';
+
+// --- Compile-Time Assertions ---
+// Ensures Valibot schema matches exactly the E2E contract interface
+type AssertProductValibot<T extends ProductPayload> = T;
+const _checkProductFormData: AssertProductValibot<ProductFormData> = {} as any as ProductFormData;
+
 
 // --- ATTRIBUTE DEFINITIONS ---
 export const RenameOptionEntry = object({
@@ -164,34 +172,31 @@ export const TaxRegimeTypeSchema = picklist(TAX_REGIME_TYPES);
 
 export const ContactFormSchema = object({
     name: pipe(string(), minLength(1, 'El nombre es requerido')),
-    position: string(),
+    position: string(), // Empty string allowed
     email: union([pipe(string(), email('Correo inválido')), literal('')]),
-    phone: string(),
+    phone: string(), // Empty string allowed
     isPrimary: boolean()
 });
 
 export const AddressFormSchema = object({
     addressLine: pipe(string(), minLength(1, 'La dirección es requerida')),
-    city: string(),
-    country: string(),
-    countryCode: string(),
-    postalCode: string(),
+    city: string(), // Empty string allowed
+    country: string(), // Empty string allowed
+    countryCode: string(), // Empty string allowed
+    postalCode: string(), // Empty string allowed
     isMain: boolean()
 });
 
 // Employee Details sub-schema
 export const EmployeeDetailsFormSchema = object({
-    department: string(),
-    jobTitle: string(),
+    department: string(), // Empty string allowed
+    jobTitle: string(), // Empty string allowed
     salaryBase: optional(number()),
-    hireDate: string(),
+    hireDate: string(), // Empty string allowed
     costPerHour: optional(number()),
 });
 
 // Complete Entity form validation schema
-// Cross-field validation (taxId length by taxIdType, forced personType, etc.)
-// is handled reactively in the UI via createEffect — not in this schema.
-// This schema validates field shapes only.
 export const EntityFormSchema = pipe(
     object({
         // Identification
@@ -210,7 +215,7 @@ export const EntityFormSchema = pipe(
         isEmployee: boolean(),
         isCarrier: boolean(),
         // Tax (SRI)
-        taxRegimeType: undefinedable(TaxRegimeTypeSchema),
+        taxRegimeType: optional(TaxRegimeTypeSchema),
         obligadoContabilidad: boolean(),
         isRetentionAgent: boolean(),
         isSpecialContributor: boolean(),
@@ -245,10 +250,13 @@ export const EntityFormSchema = pipe(
 
 export type EntityFormData = InferInput<typeof EntityFormSchema>;
 export type EmployeeDetailsFormData = InferInput<typeof EmployeeDetailsFormSchema>;
-/** @deprecated Use EntityFormData */
-export type SupplierFormData = EntityFormData;
 export type ContactFormData = InferInput<typeof ContactFormSchema>;
 export type AddressFormData = InferInput<typeof AddressFormSchema>;
+
+// --- Compile-Time Assertions ---
+// Ensures Valibot schema matches exactly the E2E contract interface
+type AssertValibot<T extends EntityPayload> = T;
+const _checkEntityFormData: AssertValibot<EntityFormData> = {} as any as EntityFormData;
 
 // --- WORK ORDERS ---
 export const WorkOrderSelect = createSelectSchema(tables.workOrders);

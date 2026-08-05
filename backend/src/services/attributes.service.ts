@@ -72,7 +72,6 @@ async function generateUniqueKey(label: string, companyId: number): Promise<stri
 // =============================================================================
 // ATTRIBUTE DEFINITIONS — Full CRUD (Tenant-Scoped)
 // =============================================================================
-
 export async function listAttributes(companyId: number) {
     return cacheService.getOrSet(`attributes:c${companyId}:list`, async () => {
         return db.select().from(attributeDefinitions)

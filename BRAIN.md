@@ -736,7 +736,7 @@ PermissionSlug = `${RbacModule}.${RbacAction}`
 Examples: 'suppliers.create', 'invoices.read', 'users.delete'
 ```
 
-**Modules**: `dashboard`, `crm`, `clients`, `visits`, `budgets`, `invoices`, `products`, `services`, `categories`, `brands`, `uom`, `attributes`, `inventory`, `movements`, `orders`, `locations`, `reception_materials`, `remission_guides`, `operations`, `work_orders`, `schedule`, `projects`, `production`, `planning`, `bom`, `dispatch_requests`, `materials`, `quality`, `suppliers`, `purchase_quotes`, `purchase_orders`, `purchase_invoices`, `retentions`, `pos_sell`, `pos_sessions`, `pos_history`, `documents`, `receivable`, `payable`, `hr`, `payroll`, `schedules`, `hours`, `system`, `config`, `users`, `audit`, `roles`, `permissions`, `manufacturing`, `pos`, `menu`, `companies`, `stock_taking`
+**Modules**: `dashboard`, `crm`, `clients`, `visits`, `budgets`, `invoices`, `products`, `services`, `categories`, `brands`, `uom`, `attributes`, `inventory`, `movements`, `orders`, `locations`, `reception_materials`, `remission_guides`, `operations`, `work_orders`, `schedule`, `projects`, `production`, `planning`, `bom`, `dispatch_requests`, `materials`, `quality`, `suppliers`, `purchase_quotes`, `purchase_orders`, `purchase_invoices`, `retentions`, `pos_sell`, `pos_sessions`, `pos_history`, `documents`, `receivable`, `payable`, `hr`, `employees`, `schedules`, `hours`, `system`, `config`, `users`, `audit`, `roles`, `permissions`, `manufacturing`, `pos`, `menu`, `companies`, `stock_taking`
 
 **Actions** (10): `read`, `create`, `update`, `delete`, `restore`, `destroy`, `export`, `import`, `assign`, `unassign`
 

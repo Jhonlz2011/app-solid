@@ -1,17 +1,18 @@
 import { Component, Show, For, createMemo } from 'solid-js';
 import TextField from '@shared/ui/TextField';
 import type { ProductVariantFormData } from '@app/schema/frontend';
-import SectionHeader from '../ui/SectionHeader';
+import type { CatalogFormApi } from '../catalog-form.types';
+import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
 
 interface PurchaseSectionProps {
-    form: any;
+    form: CatalogFormApi;
     hasAttemptedSubmit: () => boolean;
     additionalVariants: () => ProductVariantFormData[];
 }
 
 const PurchaseSection: Component<PurchaseSectionProps> = (props) => {
-    const variants = props.form.useStore((s: any) => s.values.variants) as () => ProductVariantFormData[];
-    const defaultBasePrice = props.form.useStore((s: any) => s.values.default_base_price) as () => number;
+    const variants = props.form.useStore((s) => s.values.variants) as () => ProductVariantFormData[];
+    const defaultBasePrice = props.form.useStore((s) => s.values.default_base_price) as () => number;
     const additionalVariants = () => props.additionalVariants();
 
     // Calculated margin for the default variant
@@ -38,8 +39,8 @@ const PurchaseSection: Component<PurchaseSectionProps> = (props) => {
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Último Costo */}
-                    <props.form.Field name={"variants[0].last_cost" as any}>
-                        {(field: any) => (
+                    <props.form.Field name={"variants[0].last_cost" }>
+                        {(field) => (
                             <TextField.Root field={field()}>
                                 <TextField.Label>Último Costo</TextField.Label>
                                 <TextField.Input
@@ -130,8 +131,9 @@ const PurchaseSection: Component<PurchaseSectionProps> = (props) => {
                                         </div>
 
                                         {/* Cost */}
-                                        <props.form.Field name={`variants[${formIndex()}].last_cost` as any}>
-                                            {(field: any) => (
+                                        {/* @ts-expect-error - Dynamic array paths cannot be fully inferred */}
+                                        <props.form.Field name={`variants[${formIndex()}].last_cost`}>
+                                            {(field) => (
                                                 <input
                                                     type="number"
                                                     step="0.01"

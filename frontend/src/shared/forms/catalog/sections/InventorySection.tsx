@@ -4,20 +4,21 @@
  *         has_dimensional_tracking + conditional dimensional fields.
  */
 import { Component, Show } from 'solid-js';
+import type { CatalogFormApi } from '../catalog-form.types';
 import TextField from '@shared/ui/TextField';
 import Switch from '@shared/ui/Switch';
 import { UomSelect } from '@shared/ui/selectors';
 import { RulerIcon } from '@shared/ui/icons';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
-import SectionHeader from '../ui/SectionHeader';
+import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
 
 interface InventorySectionProps {
-    form: any;
+    form: CatalogFormApi;
     hasAttemptedSubmit: () => boolean;
 }
 
 const InventorySection: Component<InventorySectionProps> = (props) => {
-    const hasDimensional = props.form.useStore((s: any) => s.values.has_dimensional_tracking);
+    const hasDimensional = props.form.useStore((s) => s.values.has_dimensional_tracking);
 
 
     return (
@@ -34,7 +35,7 @@ const InventorySection: Component<InventorySectionProps> = (props) => {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* UOM Inventario */}
                     <props.form.Field name="uom_inventory_id">
-                        {(field: any) => (
+                        {(field) => (
                             <UomSelect
                                 value={field().state.value}
                                 onChange={(id) => id && field().handleChange(id)}
@@ -47,7 +48,7 @@ const InventorySection: Component<InventorySectionProps> = (props) => {
 
                     {/* Stock Mínimo */}
                     <props.form.Field name="min_stock_alert">
-                        {(field: any) => (
+                        {(field) => (
                             <TextField.Root field={field()}>
                                 <TextField.Label>Stock Mínimo</TextField.Label>
                                 <TextField.Input type="number" placeholder="0" min={0} step="0.01" />
@@ -60,7 +61,7 @@ const InventorySection: Component<InventorySectionProps> = (props) => {
                 {/* Dimensional Tracking */}
                 <div class="grid grid-cols-1 gap-3">
                     <props.form.Field name="has_dimensional_tracking">
-                        {(field: any) => (
+                        {(field) => (
                             <div class="flex items-center gap-3 p-3 bg-card rounded-xl border border-border/40">
                                 <Switch field={field()}>
                                     <div class="flex items-center gap-3">
@@ -89,8 +90,8 @@ const InventorySection: Component<InventorySectionProps> = (props) => {
                     />
 
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <props.form.Field name={"variants[0].content_quantity" as any}>
-                            {(field: any) => (
+                        <props.form.Field name={"variants[0].content_quantity" }>
+                            {(field) => (
                                 <TextField.Root field={field()}>
                                     <TextField.Label>Contenido por Unidad *</TextField.Label>
                                     <TextField.Input type="number" min={0.01} step="0.01" placeholder="1" />
@@ -100,8 +101,8 @@ const InventorySection: Component<InventorySectionProps> = (props) => {
                             )}
                         </props.form.Field>
 
-                        <props.form.Field name={"variants[0].std_length_cm" as any}>
-                            {(field: any) => (
+                        <props.form.Field name={"variants[0].std_length_cm" }>
+                            {(field) => (
                                 <TextField.Root field={field()}>
                                     <TextField.Label>Largo estándar (cm)</TextField.Label>
                                     <TextField.Input type="number" step="0.01" min={0} placeholder="Ej: 244" />
@@ -109,8 +110,8 @@ const InventorySection: Component<InventorySectionProps> = (props) => {
                             )}
                         </props.form.Field>
 
-                        <props.form.Field name={"variants[0].std_width_cm" as any}>
-                            {(field: any) => (
+                        <props.form.Field name={"variants[0].std_width_cm" }>
+                            {(field) => (
                                 <TextField.Root field={field()}>
                                     <TextField.Label>Ancho estándar (cm)</TextField.Label>
                                     <TextField.Input type="number" step="0.01" min={0} placeholder="Ej: 122" />

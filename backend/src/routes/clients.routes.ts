@@ -11,7 +11,7 @@ import {
     deleteContact,
     getContacts,
 } from '../services/entities.service';
-import { ClientBodySchema, ClientUpdateSchema } from '@app/schema/backend';
+import { EntityFormSchema, ClientUpdateSchema } from '@app/schema/backend';
 
 /** Parse comma-separated string into array (shared by list + facets) */
 const parseArray = (val?: string) => val?.split(',').filter(Boolean);
@@ -94,7 +94,7 @@ export const clientRoutes = new Elysia({ prefix: '/clients' })
             return client;
         },
         {
-            body: ClientBodySchema,
+            body: EntityFormSchema,
             permission: 'clients.create',
         }
     )

@@ -36,6 +36,7 @@ export const workOrders = pgTableV2("work_orders", {
 // Specific variant resolution happens in manufacturing_orders
 export const workOrderItems = pgTableV2("work_order_items", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     work_order_id: integer("work_order_id").references(() => workOrders.id, { onDelete: 'cascade' }).notNull(),
     product_id: integer("product_id").references(() => products.id).notNull(), // El producto a fabricar (ej. Mesa)
     // Variante específica (opcional — se resuelve al crear manufacturing_order si no se especifica)
@@ -54,11 +55,14 @@ export const workOrderItems = pgTableV2("work_order_items", {
     index("idx_wo_items_order").on(t.work_order_id),
     index("idx_wo_items_product").on(t.product_id),
     index("idx_wo_items_variant").on(t.variant_id),
-]);
+    index("idx_wo_items_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // Manufacturing Orders — output is a SPECIFIC variant
 export const manufacturingOrders = pgTableV2("manufacturing_orders", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     work_order_id: integer("work_order_id").references(() => workOrders.id).notNull(),
 
     // The specific variant being produced
@@ -77,11 +81,14 @@ export const manufacturingOrders = pgTableV2("manufacturing_orders", {
     index("idx_mfg_orders_wo").on(t.work_order_id),
     index("idx_mfg_orders_status").on(t.status),
     index("idx_mfg_orders_variant").on(t.output_variant_id),
-]);
+    index("idx_mfg_orders_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // Actual material consumption — references SPECIFIC variants
 export const manufacturingOrderInputs = pgTableV2("manufacturing_order_inputs", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     manufacturing_order_id: integer("manufacturing_order_id").references(() => manufacturingOrders.id, { onDelete: 'cascade' }).notNull(),
     variant_id: integer("variant_id").references(() => productVariants.id).notNull(),
 
@@ -93,11 +100,14 @@ export const manufacturingOrderInputs = pgTableV2("manufacturing_order_inputs", 
     notes: text("notes"),
 }, (t) => [
     index("idx_mfg_inputs_order").on(t.manufacturing_order_id),
-]);
+    index("idx_mfg_inputs_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // Manufacturing log — actual consumption audit trail
 export const manufacturingLog = pgTableV2("manufacturing_log", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     manufacturing_order_id: integer("manufacturing_order_id").references(() => manufacturingOrders.id).notNull(),
     variant_id: integer("variant_id").references(() => productVariants.id),
     quantity_consumed: numeric("quantity_consumed", { precision: 12, scale: 4 }),
@@ -108,11 +118,14 @@ export const manufacturingLog = pgTableV2("manufacturing_log", {
 }, (t) => [
     index("idx_mfg_log_order").on(t.manufacturing_order_id),
     index("idx_mfg_log_variant").on(t.variant_id),
-]);
+    index("idx_mfg_log_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // HORARIOS DE EMPLEADOS
 export const employeeWorkSchedules = pgTableV2("employee_work_schedules", {
     id: bigint("id", { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     employee_id: integer("employee_id").references(() => entities.id).notNull(),
     work_order_id: integer("work_order_id").references(() => workOrders.id),
 
@@ -159,7 +172,9 @@ export const employeeWorkSchedules = pgTableV2("employee_work_schedules", {
     index("idx_schedule_date").on(t.work_date),
     index("idx_schedule_employee").on(t.employee_id),
     index("idx_schedule_wo").on(t.work_order_id),
-]);
+    index("idx_schedule_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // BOM Templates for parametric products (variable dimensions)
 // Stays at PRODUCT level — templates are generic recipes.
@@ -188,6 +203,7 @@ export const bomTemplates = pgTableV2("bom_templates", {
 // BOM Template Details — components at PRODUCT level (generic)
 export const bomTemplateDetails = pgTableV2("bom_template_details", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     template_id: integer("template_id").references(() => bomTemplates.id, { onDelete: 'cascade' }).notNull(),
     component_product_id: integer("component_product_id").references(() => products.id).notNull(),
 
@@ -204,21 +220,29 @@ export const bomTemplateDetails = pgTableV2("bom_template_details", {
 }, (t) => [
     index("idx_bom_tpl_details_template").on(t.template_id),
     index("idx_bom_tpl_details_component").on(t.component_product_id),
-]);
+    index("idx_bom_tpl_details_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // BOM Headers - stays at product level (recipe for a product concept)
 export const bomHeaders = pgTableV2("bom_headers", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     product_id: integer("product_id").references(() => products.id).notNull(),
     name: text("name").notNull(),
     source_template_id: integer("source_template_id").references(() => bomTemplates.id),
     revision: integer("revision").default(1),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
-});
+}, (t) => [
+    index("idx_bom_headers_product").on(t.product_id),
+    index("idx_bom_headers_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 // BOM Details - components at PRODUCT level (specific variant chosen at manufacturing)
 export const bomDetails = pgTableV2("bom_details", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     bom_id: integer("bom_id").references(() => bomHeaders.id, { onDelete: 'cascade' }).notNull(),
     component_product_id: integer("component_product_id").references(() => products.id).notNull(),
     quantity_factor: numeric("quantity_factor", { precision: 12, scale: 4 }).notNull(),
@@ -239,4 +263,6 @@ export const bomDetails = pgTableV2("bom_details", {
 }, (t) => [
     index("idx_bom_details_bom_component").on(t.bom_id, t.component_product_id),
     index("idx_bom_details_component").on(t.component_product_id),
-]);
+    index("idx_bom_details_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();

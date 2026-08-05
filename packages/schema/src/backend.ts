@@ -41,63 +41,69 @@ export const LocationTypeSchema = Type.Union([
 // ENTITY CRUD SCHEMAS
 // ============================================================================
 
+import type { EntityPayload } from './shared.dto';
+
 export const ContactPayloadSchema = Type.Object({
     name: Type.String(),
-    position: Type.Optional(Type.String()),
-    email: Type.Optional(Type.Union([Type.String({ format: 'email' }), Type.Literal('')])),
-    phone: Type.Optional(Type.String()),
-    isPrimary: Type.Optional(Type.Boolean())
+    position: Type.String(), // String (allows empty)
+    email: Type.Union([Type.String({ format: 'email' }), Type.Literal('')]),
+    phone: Type.String(),
+    isPrimary: Type.Boolean()
 });
 
 export const AddressPayloadSchema = Type.Object({
     addressLine: Type.String(),
-    city: Type.Optional(Type.String()),
-    country: Type.Optional(Type.String()),
-    countryCode: Type.Optional(Type.String()),
-    postalCode: Type.Optional(Type.String()),
-    isMain: Type.Optional(Type.Boolean())
+    city: Type.String(),
+    country: Type.String(),
+    countryCode: Type.String(),
+    postalCode: Type.String(),
+    isMain: Type.Boolean()
 });
 
-// Supplier create/update body schema
-// Note: Aligns with frontend EntityFormSchema in packages/schema/src/frontend.ts
-export const SupplierBodySchema = Type.Object({
+export const EmployeeDetailsPayloadSchema = Type.Object({
+    department: Type.String(),
+    jobTitle: Type.String(),
+    salaryBase: Type.Optional(Type.Number()),
+    hireDate: Type.String(),
+    costPerHour: Type.Optional(Type.Number()),
+});
+
+// Main Entity Form Schema (TypeBox) - Aligned strictly with frontend Valibot schema
+export const EntityFormSchema = Type.Object({
     taxId: Type.String(),
     taxIdType: TaxIdTypeSchema,
-    personType: PersonTypeSchema, // Required - form provides default
+    personType: PersonTypeSchema,
     businessName: Type.String(),
-    tradeName: Type.Optional(Type.String()), // Optional - may be empty string
-    emailBilling: Type.Optional(Type.Union([Type.String({ format: 'email' }), Type.Literal('')])),
-    phone: Type.Optional(Type.String()), // Optional - may be empty string
-    // Role flags
-    isClient: Type.Optional(Type.Boolean()),
-    isSupplier: Type.Optional(Type.Boolean()),
-    isEmployee: Type.Optional(Type.Boolean()),
-    isCarrier: Type.Optional(Type.Boolean()),
-    // Tax (SRI)
-    taxRegimeType: Type.Optional(TaxRegimeTypeSchema), // Optional enum
-    obligadoContabilidad: Type.Optional(Type.Boolean()), // Optional - defaults to false in form
-    isRetentionAgent: Type.Optional(Type.Boolean()),
-    isSpecialContributor: Type.Optional(Type.Boolean()),
-    // Employee Details (optional sub-object)
-    employeeDetails: Type.Optional(Type.Object({
-        department: Type.Optional(Type.String()),
-        jobTitle: Type.Optional(Type.String()),
-        salaryBase: Type.Optional(Type.Number()),
-        hireDate: Type.Optional(Type.String()),
-        costPerHour: Type.Optional(Type.Number()),
-    })),
-    contacts: Type.Optional(Type.Array(ContactPayloadSchema)),
-    addresses: Type.Optional(Type.Array(AddressPayloadSchema)),
+    tradeName: Type.String(),
+    emailBilling: Type.Union([Type.String({ format: 'email' }), Type.Literal('')]),
+    phone: Type.String(),
+    
+    isClient: Type.Boolean(),
+    isSupplier: Type.Boolean(),
+    isEmployee: Type.Boolean(),
+    isCarrier: Type.Boolean(),
+    
+    taxRegimeType: Type.Optional(TaxRegimeTypeSchema),
+    obligadoContabilidad: Type.Boolean(),
+    isRetentionAgent: Type.Boolean(),
+    isSpecialContributor: Type.Boolean(),
+    
+    employeeDetails: Type.Optional(EmployeeDetailsPayloadSchema),
+    contacts: Type.Array(ContactPayloadSchema),
+    addresses: Type.Array(AddressPayloadSchema),
 });
 
-/** Alias for backward compatibility */
-export const EntityBodySchema = SupplierBodySchema;
+// --- Compile-Time Assertions ---
+// Ensures TypeBox schema matches exactly the E2E contract interface
+type AssertTypeBox<T extends EntityPayload> = T;
+const _checkEntityBodySchema: AssertTypeBox<Static<typeof EntityFormSchema>> = {} as any as Static<typeof EntityFormSchema>;
 
-export const SupplierUpdateSchema = Type.Partial(Type.Omit(SupplierBodySchema, ['taxId', 'taxIdType']));
-export const EntityUpdateSchema = SupplierUpdateSchema;
+export const EntityUpdateSchema = Type.Partial(Type.Omit(EntityFormSchema, ['taxId', 'taxIdType']));
 
-// Client schemas (aliases to Entity schema)
-export const ClientBodySchema = EntityBodySchema;
+/** Aliases for backward compatibility in backend routes (will be refactored) */
+export const SupplierBodySchema = EntityFormSchema;
+export const SupplierUpdateSchema = EntityUpdateSchema;
+export const ClientBodySchema = EntityFormSchema;
 export const ClientUpdateSchema = EntityUpdateSchema;
 
 // --- PRODUCTS ---
@@ -118,6 +124,60 @@ export const ProductVariantInsert = createInsertSchema(tables.productVariants, {
 
 export type ProductVariantSelectType = Static<typeof ProductVariantSelect>;
 export type ProductVariantInsertType = Static<typeof ProductVariantInsert>;
+
+// --- PRODUCT E2E SCHEMAS ---
+export const ProductVariantPayloadSchema = Type.Object({
+    id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    sku: Type.String(),
+    variant_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    variant_attributes: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    content_quantity: Type.Number(),
+    sale_uom_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    base_price: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    last_cost: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    barcode: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    image_urls: Type.Optional(Type.Union([Type.Array(Type.String()), Type.Null()])),
+    std_length_cm: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    std_width_cm: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    is_default: Type.Boolean(),
+    is_active: Type.Boolean(),
+    sort_order: Type.Optional(Type.Number()),
+});
+
+export const ProductComponentPayloadSchema = Type.Object({
+    id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    component_product_id: Type.Number(),
+    quantity_per_parent: Type.Number(),
+    is_reversible: Type.Optional(Type.Boolean()),
+    notes: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+});
+
+export const ProductPayloadSchema = Type.Object({
+    product_type: Type.Union([Type.Literal('PRODUCTO'), Type.Literal('SERVICIO')]),
+    product_subtype: Type.Optional(Type.Union([Type.Literal('SIMPLE'), Type.Literal('COMPUESTO'), Type.Literal('FABRICADO'), Type.Null()])),
+    category_id: Type.Number(),
+    brand_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    slug: Type.String(),
+    name: Type.String(),
+    description: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    shared_attributes: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    image_urls: Type.Optional(Type.Array(Type.String())),
+    uom_inventory_id: Type.Number(),
+    has_dimensional_tracking: Type.Boolean(),
+    min_stock_alert: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    default_base_price: Type.Number(),
+    iva_rate_code: Type.Number(),
+    is_active: Type.Boolean(),
+    variants: Type.Array(ProductVariantPayloadSchema),
+    components: Type.Optional(Type.Array(ProductComponentPayloadSchema)),
+});
+
+export type ProductPayloadType = Static<typeof ProductPayloadSchema>;
+
+// --- Compile-Time Assertions ---
+type AssertProductTypeBox<T extends import('./shared.dto').ProductPayload> = T;
+const _checkProductBodySchema: AssertProductTypeBox<Static<typeof ProductPayloadSchema>> = {} as any as Static<typeof ProductPayloadSchema>;
+
 
 // --- ENTITIES ---
 export const EntitySelect = createSelectSchema(tables.entities);

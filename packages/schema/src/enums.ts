@@ -187,7 +187,7 @@ export const RBAC_MODULES = [
     // Finance children
     'documents', 'receivable', 'payable',
     // HR children
-    'hr', 'payroll', 'schedules', 'hours',
+    'hr', 'employees', 'schedules', 'hours',
     // System children
     'system', 'config', 'users', 'audit', 'roles', 'permissions',
     // Other

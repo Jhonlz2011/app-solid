@@ -7,6 +7,7 @@
  * - Brand Autocomplete selector with inline creation shortcut and selected card with dynamic path Link.
  */
 import { Component, Show, For, createMemo } from 'solid-js';
+import type { CatalogFormApi } from '../catalog-form.types';
 import { Link } from '@tanstack/solid-router';
 import { FieldLabel } from '@shared/ui/TextField';
 import { CategorySelect, BrandSelect, SelectorBreadcrumbs, buildBreadcrumbs, useResolvedSelectorPath } from '@shared/ui/selectors';
@@ -16,7 +17,7 @@ import type { CatalogModeConfig } from '@shared/forms/catalog';
 import type { ProductSubtype } from '@app/schema/enums';
 import { useCategoriesFlat } from '@/modules/categories/data/categories.queries';
 import { useBrandsList } from '@/modules/brands/data/brands.queries';
-import SectionHeader from '../ui/SectionHeader';
+import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
 
 import type { JSX } from 'solid-js';
 
@@ -53,7 +54,7 @@ const SUBTYPE_OPTIONS: SubtypeOption[] = [
 ];
 
 interface ClassificationSectionProps {
-    form: any;
+    form: CatalogFormApi;
     mode: CatalogModeConfig;
     hasAttemptedSubmit: () => boolean;
 }
@@ -65,11 +66,13 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
     const resolvedCategoryPath = useResolvedSelectorPath('/categories');
     const resolvedBrandPath = useResolvedSelectorPath('/brands');
 
-    const categoryIdValue = props.form.useStore((s: any) => s.values.category_id);
-    const brandIdValue = props.form.useStore((s: any) => s.values.brand_id);
+    const categoryIdValue = props.form.useStore((s) => s.values.category_id);
+    const brandIdValue = props.form.useStore((s) => s.values.brand_id);
 
-    const flatCategories = createMemo(() => (categoriesFlat.data ?? []) as any[]);
-    const flatBrands = createMemo(() => (brandsQuery.data ?? []) as any[]);
+    type CategoryItem = { id: number; name: string; parent_id: number | null };
+    type BrandItem = { id: number; name: string };
+    const flatCategories = createMemo(() => (categoriesFlat.data ?? []) as CategoryItem[]);
+    const flatBrands = createMemo(() => (brandsQuery.data ?? []) as BrandItem[]);
 
     const selectedCategory = createMemo(() => {
         const id = categoryIdValue();
@@ -105,7 +108,7 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
             {/* Row 1: Subtype Card Selector — Only for PRODUCTO mode */}
             <Show when={props.mode.features.subtype}>
                 <props.form.Field name="product_subtype">
-                    {(field: any) => {
+                    {(field) => {
                         const currentValue = () => (field().state.value ?? 'SIMPLE') as ProductSubtype;
 
                         return (
@@ -199,7 +202,7 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                     </div>
 
                     <props.form.Field name="category_id">
-                        {(field: any) => {
+                        {(field) => {
                             const f = field();
                             return (
                                 <Show
@@ -267,7 +270,7 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                     </div>
 
                     <props.form.Field name="brand_id">
-                        {(field: any) => {
+                        {(field) => {
                             const f = field();
                             return (
                                 <Show

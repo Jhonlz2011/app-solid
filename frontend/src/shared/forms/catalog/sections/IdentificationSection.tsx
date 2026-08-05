@@ -4,13 +4,14 @@
  * SKU and Barcode come from variants[0] (default variant).
  */
 import { Component, Show } from 'solid-js';
+import type { CatalogFormApi } from '../catalog-form.types';
 import TextField from '@shared/ui/TextField';
 import { Badge } from '@shared/ui/Badge';
 import { EditIcon, RotateCcwIcon } from '@shared/ui/icons';
-import SectionHeader from '../ui/SectionHeader';
+import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
 
 interface IdentificationSectionProps {
-    form: any;
+    form: CatalogFormApi;
     hasTemplate: () => boolean;
     manualNameOverride: () => boolean;
     setManualNameOverride: (v: boolean) => void;
@@ -23,7 +24,7 @@ const IdentificationSection: Component<IdentificationSectionProps> = (props) => 
 
             {/* Name */}
             <props.form.Field name="name">
-                {(field: any) => (
+                {(field) => (
                     <TextField.Root field={field()}>
                         <TextField.Label>
                             <span class="flex items-center gap-2">
@@ -66,8 +67,8 @@ const IdentificationSection: Component<IdentificationSectionProps> = (props) => 
 
             {/* SKU + Barcode (from default variant variants[0]) */}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <props.form.Field name={"variants[0].sku" as any}>
-                    {(field: any) => (
+                <props.form.Field name={"variants[0].sku" }>
+                    {(field) => (
                         <TextField.Root field={field()}>
                             <TextField.Label>SKU *</TextField.Label>
                             <TextField.Input type="text" placeholder="Auto-generado al guardar" class="font-mono" />
@@ -77,8 +78,8 @@ const IdentificationSection: Component<IdentificationSectionProps> = (props) => 
                     )}
                 </props.form.Field>
 
-                <props.form.Field name={"variants[0].barcode" as any}>
-                    {(field: any) => (
+                <props.form.Field name={"variants[0].barcode" }>
+                    {(field) => (
                         <TextField.Root field={field()}>
                             <TextField.Label>Código de Barras</TextField.Label>
                             <TextField.Input type="text" class="font-mono" placeholder="EAN/UPC" />
@@ -89,7 +90,7 @@ const IdentificationSection: Component<IdentificationSectionProps> = (props) => 
 
             {/* Description */}
             <props.form.Field name="description">
-                {(field: any) => (
+                {(field) => (
                     <TextField.Root field={field()}>
                         <TextField.Label>Descripción</TextField.Label>
                         <TextField.TextArea

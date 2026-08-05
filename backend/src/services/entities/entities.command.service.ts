@@ -1,0 +1,435 @@
+import { and, eq, count } from '@app/schema';
+import { db } from '../../db';
+import { entities, entityAddresses, employeeDetails, entityContacts, supplierProducts, workOrders, electronicDocuments } from '@app/schema/tables';
+import { DomainError } from '../errors';
+import { cacheService } from '../cache.service';
+import { broadcast } from '../../plugins/sse';
+import { RealtimeEvents } from '@app/schema/realtime-events';
+import { withAuditTransaction, type AuditContext } from '../audit.service';
+import type { EntityType, EntityPayload, ContactPayload, AddressPayload } from './entities.query.service';
+
+// Helper for numeric conversion
+const toDecimal = (val?: number | null): string | undefined =>
+    val !== undefined && val !== null ? val.toString() : undefined;
+
+/** Filter out undefined values to prevent Drizzle from setting columns to NULL */
+function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+    return Object.fromEntries(
+        Object.entries(obj).filter(([_, v]) => v !== undefined)
+    ) as Partial<T>;
+}
+
+// =============================================================================
+// Create Entity
+// =============================================================================
+
+export async function createEntity(type: EntityType, payload: EntityPayload, audit?: AuditContext, companyId?: number) {
+    return await withAuditTransaction(audit, async (tx) => {
+        const [created] = await tx
+            .insert(entities)
+            .values({
+                company_id: companyId!,
+                tax_id: payload.taxId,
+                tax_id_type: payload.taxIdType,
+                person_type: payload.personType ?? 'NATURAL',
+                business_name: payload.businessName,
+                trade_name: payload.tradeName,
+                email_billing: payload.emailBilling,
+                phone: payload.phone,
+                tax_regime_type: payload.taxRegimeType,
+                obligado_contabilidad: payload.obligadoContabilidad ?? false,
+                is_client: type === 'client',
+                is_supplier: type === 'supplier',
+                is_employee: type === 'employee',
+                is_carrier: type === 'carrier' || payload.isCarrier,
+                is_retention_agent: payload.isRetentionAgent ?? false,
+                is_special_contributor: payload.isSpecialContributor ?? false,
+            })
+            .returning();
+
+        if (type === 'employee' || type === 'carrier') {
+            if (payload.employeeDetails) {
+                await tx.insert(employeeDetails).values({
+                    entity_id: created.id,
+                    department: payload.employeeDetails.department,
+                    job_title: payload.employeeDetails.jobTitle,
+                    salary_base: toDecimal(payload.employeeDetails.salaryBase),
+                    hire_date: payload.employeeDetails.hireDate,
+                    cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
+                });
+            }
+        }
+
+        if (payload.addresses && payload.addresses.length > 0) {
+            await tx.insert(entityAddresses).values(
+                payload.addresses.map(addr => ({
+                    entity_id: created.id,
+                    address_line: addr.addressLine,
+                    city: addr.city,
+                    country: addr.country,
+                    country_code: addr.countryCode,
+                    postal_code: addr.postalCode,
+                    is_main: addr.isMain ?? false
+                }))
+            );
+        }
+
+        if (payload.contacts && payload.contacts.length > 0) {
+            await tx.insert(entityContacts).values(
+                payload.contacts.map(contact => ({
+                    entity_id: created.id,
+                    name: contact.name,
+                    position: contact.position,
+                    email: contact.email,
+                    phone: contact.phone,
+                    is_primary: contact.isPrimary ?? false
+                }))
+            );
+        }
+
+        await cacheService.invalidate(`${type}s:*`);
+        broadcast(RealtimeEvents.ENTITY.CREATED, { type, entity: created, clientId: audit?.clientId }, `${type}s`);
+
+        return created;
+    });
+}
+
+// =============================================================================
+// Update Entity
+// =============================================================================
+
+export async function updateEntity(id: number, type: EntityType, payload: Partial<EntityPayload>, audit?: AuditContext, companyId?: number) {
+    return withAuditTransaction(audit, async (tx) => {
+        const whereConditions = [eq(entities.id, id)];
+        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
+        const [updated] = await tx
+            .update(entities)
+            .set(stripUndefined({
+                business_name: payload.businessName,
+                trade_name: payload.tradeName,
+                email_billing: payload.emailBilling,
+                phone: payload.phone,
+                person_type: payload.personType,
+                tax_regime_type: payload.taxRegimeType,
+                obligado_contabilidad: payload.obligadoContabilidad,
+                is_retention_agent: payload.isRetentionAgent,
+                is_special_contributor: payload.isSpecialContributor,
+                is_carrier: payload.isCarrier,
+            }))
+            .where(and(...whereConditions))
+            .returning();
+
+        if (!updated) throw new DomainError('Entidad no encontrada', 404);
+
+        if ((type === 'employee' || type === 'carrier') && payload.employeeDetails) {
+            const result = await tx
+                .update(employeeDetails)
+                .set(stripUndefined({
+                    department: payload.employeeDetails.department,
+                    job_title: payload.employeeDetails.jobTitle,
+                    salary_base: toDecimal(payload.employeeDetails.salaryBase),
+                    hire_date: payload.employeeDetails.hireDate,
+                    cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
+                }))
+                .where(eq(employeeDetails.entity_id, id))
+                .returning();
+            
+            if (result.length === 0) {
+                // Insert if not exists
+                await tx.insert(employeeDetails).values({
+                    entity_id: id,
+                    department: payload.employeeDetails.department,
+                    job_title: payload.employeeDetails.jobTitle,
+                    salary_base: toDecimal(payload.employeeDetails.salaryBase),
+                    hire_date: payload.employeeDetails.hireDate,
+                    cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
+                });
+            }
+        }
+
+        if (payload.addresses) {
+            await tx.delete(entityAddresses).where(eq(entityAddresses.entity_id, id));
+            if (payload.addresses.length > 0) {
+                await tx.insert(entityAddresses).values(
+                    payload.addresses.map(addr => ({
+                        entity_id: id,
+                        address_line: addr.addressLine,
+                        city: addr.city,
+                        country: addr.country,
+                        country_code: addr.countryCode,
+                        postal_code: addr.postalCode,
+                        is_main: addr.isMain ?? false
+                    }))
+                );
+            }
+        }
+
+        if (payload.contacts) {
+            await tx.delete(entityContacts).where(eq(entityContacts.entity_id, id));
+            if (payload.contacts.length > 0) {
+                await tx.insert(entityContacts).values(
+                    payload.contacts.map(contact => ({
+                        entity_id: id,
+                        name: contact.name,
+                        position: contact.position,
+                        email: contact.email,
+                        phone: contact.phone,
+                        is_primary: contact.isPrimary ?? false
+                    }))
+                );
+            }
+        }
+
+        await cacheService.invalidate(`entity:${id}`);
+
+        // Granular cache invalidation
+        const requiresListInvalidation =
+            payload.businessName !== undefined ||
+            payload.taxId !== undefined ||
+            payload.personType !== undefined ||
+            payload.taxIdType !== undefined ||
+            payload.isRetentionAgent !== undefined ||
+            payload.isSpecialContributor !== undefined ||
+            payload.isCarrier !== undefined;
+
+        if (requiresListInvalidation) {
+            await cacheService.invalidate(`${type}s:*`);
+        }
+
+        broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
+
+        return updated;
+    });
+}
+
+// =============================================================================
+// Soft Delete / Restore / Hard Delete
+// =============================================================================
+
+export interface EntityReferences {
+    supplierProducts: number;
+    invoices: number;
+    workOrders: number;
+    total: number;
+    canDelete: boolean;
+}
+
+export async function deactivateEntity(
+    id: number,
+    type: EntityType,
+    deletedBy?: number,
+    audit?: AuditContext,
+    companyId?: number
+) {
+    return withAuditTransaction(audit, async (tx) => {
+        const whereConditions = [eq(entities.id, id)];
+        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
+        const [updated] = await tx
+            .update(entities)
+            .set({
+                is_active: false,
+                deleted_at: new Date(),
+                deleted_by: deletedBy ?? null,
+            })
+            .where(and(...whereConditions))
+            .returning();
+
+        if (!updated) throw new DomainError('Entidad no encontrada', 404);
+
+        await cacheService.invalidate(`entity:${id}`);
+        await cacheService.invalidate(`${type}s:*`);
+        
+        // Broadcast as UPDATED so the frontend knows its new `is_active` state
+        broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
+
+        return { success: true };
+    });
+}
+
+export async function restoreEntity(
+    id: number,
+    type: EntityType,
+    audit?: AuditContext,
+    companyId?: number
+) {
+    return withAuditTransaction(audit, async (tx) => {
+        const whereConditions = [eq(entities.id, id)];
+        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
+        const [updated] = await tx
+            .update(entities)
+            .set({
+                is_active: true,
+                deleted_at: null,
+                deleted_by: null,
+            })
+            .where(and(...whereConditions))
+            .returning();
+
+        if (!updated) throw new DomainError('Entidad no encontrada', 404);
+
+        await cacheService.invalidate(`entity:${id}`);
+        await cacheService.invalidate(`${type}s:*`);
+        broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
+
+        return { success: true };
+    });
+}
+
+export async function checkEntityReferences(id: number): Promise<EntityReferences> {
+    const [[spCount], [docCount], [woCount]] = await Promise.all([
+        db.select({ value: count() }).from(supplierProducts).where(eq(supplierProducts.supplier_id, id)),
+        db.select({ value: count() }).from(electronicDocuments).where(eq(electronicDocuments.entity_id, id)),
+        db.select({ value: count() }).from(workOrders).where(eq(workOrders.client_id, id)),
+    ]);
+
+    const total =
+        (spCount?.value ?? 0) +
+        (docCount?.value ?? 0) +
+        (woCount?.value ?? 0);
+
+    return {
+        supplierProducts: Number(spCount?.value ?? 0),
+        invoices: Number(docCount?.value ?? 0),
+        workOrders: Number(woCount?.value ?? 0),
+        total: Number(total),
+        canDelete: Number(total) === 0,
+    };
+}
+
+export async function hardDeleteEntity(
+    id: number,
+    type: EntityType,
+    audit?: AuditContext,
+    companyId?: number
+) {
+    const refs = await checkEntityReferences(id);
+    if (!refs.canDelete) {
+        throw new DomainError(
+            `No se puede eliminar permanentemente: la entidad tiene ${refs.total} registro(s) relacionado(s)`,
+            409
+        );
+    }
+
+    return withAuditTransaction(audit, async (tx) => {
+        const whereConditions = [eq(entities.id, id)];
+        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
+        const [target] = await tx
+            .select({ id: entities.id })
+            .from(entities)
+            .where(and(...whereConditions));
+
+        if (!target) throw new DomainError('Entidad no encontrada', 404);
+
+        await tx.delete(entities).where(eq(entities.id, id));
+        await cacheService.invalidate(`entity:${id}`);
+        await cacheService.invalidate(`${type}s:*`);
+        broadcast(RealtimeEvents.ENTITY.DELETED, { type, id, clientId: audit?.clientId }, `${type}s`);
+        return { success: true };
+    });
+}
+
+// =============================================================================
+// Contacts CRUD
+// =============================================================================
+
+export async function addContact(entityId: number, payload: ContactPayload) {
+    return db.transaction(async (tx) => {
+        if (payload.isPrimary) {
+            await tx
+                .update(entityContacts)
+                .set({ is_primary: false })
+                .where(eq(entityContacts.entity_id, entityId));
+        }
+
+        const [contact] = await tx
+            .insert(entityContacts)
+            .values({
+                entity_id: entityId,
+                name: payload.name,
+                position: payload.position,
+                email: payload.email,
+                phone: payload.phone,
+                is_primary: payload.isPrimary ?? false,
+            })
+            .returning();
+
+        cacheService.invalidate(`entity:${entityId}`);
+        return contact;
+    });
+}
+
+export async function updateContact(contactId: number, payload: Partial<ContactPayload>) {
+    const [contact] = await db
+        .select()
+        .from(entityContacts)
+        .where(eq(entityContacts.id, contactId));
+
+    if (!contact) throw new DomainError('Contacto no encontrado', 404);
+
+    if (payload.isPrimary) {
+        await db
+            .update(entityContacts)
+            .set({ is_primary: false })
+            .where(eq(entityContacts.entity_id, contact.entity_id));
+    }
+
+    const [updated] = await db
+        .update(entityContacts)
+        .set(stripUndefined({
+            name: payload.name,
+            position: payload.position,
+            email: payload.email,
+            phone: payload.phone,
+            is_primary: payload.isPrimary,
+        }))
+        .where(eq(entityContacts.id, contactId))
+        .returning();
+
+    cacheService.invalidate(`entity:${contact.entity_id}`);
+    return updated;
+}
+
+export async function deleteContact(contactId: number) {
+    const [contact] = await db
+        .select()
+        .from(entityContacts)
+        .where(eq(entityContacts.id, contactId));
+
+    if (!contact) throw new DomainError('Contacto no encontrado', 404);
+
+    await db.delete(entityContacts).where(eq(entityContacts.id, contactId));
+    cacheService.invalidate(`entity:${contact.entity_id}`);
+
+    return { success: true };
+}
+
+// =============================================================================
+// Addresses CRUD
+// =============================================================================
+
+export async function addAddress(entityId: number, payload: AddressPayload) {
+    return db.transaction(async (tx) => {
+        if (payload.isMain) {
+            await tx
+                .update(entityAddresses)
+                .set({ is_main: false })
+                .where(eq(entityAddresses.entity_id, entityId));
+        }
+
+        const [address] = await tx
+            .insert(entityAddresses)
+            .values({
+                entity_id: entityId,
+                address_line: payload.addressLine,
+                city: payload.city,
+                country: payload.country,
+                country_code: payload.countryCode,
+                postal_code: payload.postalCode,
+                is_main: payload.isMain ?? false,
+            })
+            .returning();
+
+        cacheService.invalidate(`entity:${entityId}`);
+        return address;
+    });
+}

@@ -144,24 +144,24 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserW
         },
 
         // -------------------------------------------------------------------
-        // Entidad vinculada
+        // Persona vinculada
         // -------------------------------------------------------------------
         {
             id: 'entity',
             accessorFn: (row) => row.entityName,
             enableSorting: false,
-            meta: { title: 'Entidad' },
+            meta: { title: 'Persona' },
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
-                    title="Entidad"
+                    title="Persona"
                 />
             ),
             cell: (info) => {
                 const user = info.row.original;
                 const name = user.entityName;
                 if (!name) {
-                    return <span class="text-muted text-sm italic">Sin entidad</span>;
+                    return <span class="text-muted text-sm italic">Sin persona</span>;
                 }
                 const isSupplier = user.entityIsSupplier;
                 // Currently deeply nested modaling is only fully implemented for Suppliers.

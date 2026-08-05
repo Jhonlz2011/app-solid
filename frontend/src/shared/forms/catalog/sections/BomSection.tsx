@@ -4,21 +4,22 @@
  */
 import { Component, For, Show, createSignal, createMemo } from 'solid-js';
 import type { ProductComponentFormData } from '@app/schema/frontend';
+import type { CatalogFormApi } from '../catalog-form.types';
 import type { Product } from '@/modules/products/data/products.api';
 import TextField from '@shared/ui/TextField';
 import Button from '@shared/ui/Button';
 import Switch from '@shared/ui/Switch';
 import { ProductSelect } from '@shared/ui/selectors';
 import { PlusIcon, TrashIcon, BeakerIcon } from '@shared/ui/icons';
-import SectionHeader from '../ui/SectionHeader';
+import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
 
 interface BomSectionProps {
-    form: any;
+    form: CatalogFormApi;
     currentProductId?: number;
 }
 
 export const BomSection: Component<BomSectionProps> = (props) => {
-    const components = props.form.useStore((s: any) => s.values.components ?? []) as () => ProductComponentFormData[];
+    const components = props.form.useStore((s) => s.values.components ?? []) as () => Array<ProductComponentFormData & { componentProduct?: { name: string } }>;
 
     // Name lookup for BOM components — populated from loaded data + new additions
     const [componentNames, setComponentNames] = createSignal<Record<number, string>>({});
@@ -28,8 +29,8 @@ export const BomSection: Component<BomSectionProps> = (props) => {
         const comps = components();
         const names: Record<number, string> = {};
         for (const c of comps) {
-            if ((c as any).componentProduct?.name) {
-                names[c.component_product_id] = (c as any).componentProduct.name;
+            if ((c).componentProduct?.name) {
+                names[c.component_product_id] = (c).componentProduct.name;
             }
         }
         if (Object.keys(names).length > 0) {

@@ -119,9 +119,9 @@ const CategoryAttributeTags: Component<CategoryAttributeTagsProps> = (props) => 
                                     <span class="opacity-70">
                                         {renderTypeIcon(attr.type)}
                                     </span>
-                                    <span class="truncate max-w-[100px]">{attr.label}</span>
+                                    <span class="truncate max-w-25">{attr.label}</span>
                                     <Show when={filled() && filledValue()}>
-                                        <span class="text-[9px] font-mono opacity-70 truncate max-w-[60px]">
+                                        <span class="text-[9px] font-mono opacity-70 truncate max-w-15">
                                             = {filledValue()}
                                         </span>
                                     </Show>
@@ -156,7 +156,7 @@ const CategoryAttributeTags: Component<CategoryAttributeTagsProps> = (props) => 
                                                 value={`${attr.key}:${attr.value}`}
                                                 class="inline-flex items-center gap-1 rounded-lg bg-primary/8 border border-primary/20 px-2 py-1 text-[11px] font-medium text-primary select-none"
                                             >
-                                                <TagsInput.ItemText class="truncate max-w-[120px]">
+                                                <TagsInput.ItemText class="truncate max-w-30">
                                                     <span class="font-mono text-[10px] opacity-70">{attr.key}</span>
                                                     <Show when={attr.value}>
                                                         <span class="opacity-50 mx-0.5">:</span>

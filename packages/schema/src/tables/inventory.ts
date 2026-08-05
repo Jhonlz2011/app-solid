@@ -46,6 +46,8 @@ export const warehouseLocations = pgTableV2("warehouse_locations", {
     is_active: boolean("is_active").default(true),
 }, (t) => [
     unique("unq_location_id_company").on(t.id, t.company_id),
+    // Supports composite FK from productVariantWarehouseLocations (location ↔ warehouse integrity)
+    unique("unq_location_id_warehouse").on(t.id, t.warehouse_id),
     index("idx_locations_company").on(t.company_id),
     index("idx_locations_warehouse").on(t.warehouse_id),
     index("idx_locations_parent").on(t.parent_id),

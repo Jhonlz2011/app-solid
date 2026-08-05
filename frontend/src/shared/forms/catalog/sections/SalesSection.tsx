@@ -3,7 +3,8 @@ import TextField, { FieldLabel } from '@shared/ui/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import { UomSelect } from '@shared/ui/selectors';
 import type { ProductVariantFormData } from '@app/schema/frontend';
-import SectionHeader from '../ui/SectionHeader';
+import type { CatalogFormApi } from '../catalog-form.types';
+import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
 
 const IVA_OPTIONS = [
     { value: 0, label: '0% – Exento' },
@@ -14,13 +15,13 @@ const IVA_OPTIONS = [
 type SelectOption<T> = { value: T; label: string };
 
 interface SalesSectionProps {
-    form: any;
+    form: CatalogFormApi;
     hasAttemptedSubmit: () => boolean;
     additionalVariants: () => ProductVariantFormData[];
 }
 
 const SalesSection: Component<SalesSectionProps> = (props) => {
-    const variants = props.form.useStore((s: any) => s.values.variants) as () => ProductVariantFormData[];
+    const variants = props.form.useStore((s) => s.values.variants) as () => ProductVariantFormData[];
     const additionalVariants = () => props.additionalVariants();
 
     return (
@@ -32,7 +33,7 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {/* Precio Base */}
                     <props.form.Field name="default_base_price">
-                        {(field: any) => (
+                        {(field) => (
                             <TextField.Root field={field()}>
                                 <TextField.Label>Precio de Venta *</TextField.Label>
                                 <TextField.Input
@@ -50,7 +51,7 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
 
                     {/* IVA */}
                     <props.form.Field name="iva_rate_code">
-                        {(field: any) => {
+                        {(field) => {
                             const selectedIva = () => IVA_OPTIONS.find(o => o.value === field().state.value);
                             return (
                                 <div class="space-y-1">
@@ -62,7 +63,7 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
                                         optionValue="value"
                                         optionTextValue="label"
                                         placeholder="Seleccionar IVA..."
-                                        itemComponent={(itemProps: any) => (
+                                        itemComponent={(itemProps) => (
                                             <SelectItem item={itemProps.item}>{itemProps.item.rawValue?.label}</SelectItem>
                                         )}
                                     >
@@ -79,8 +80,8 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
                     </props.form.Field>
 
                     {/* UOM de Venta (variante default) */}
-                    <props.form.Field name={"variants[0].sale_uom_id" as any}>
-                        {(field: any) => (
+                    <props.form.Field name={"variants[0].sale_uom_id" }>
+                        {(field) => (
                             <UomSelect
                                 value={field().state.value}
                                 onChange={(id) => field().handleChange(id ?? null)}
@@ -124,8 +125,9 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
                                         </div>
 
                                         {/* Price override */}
-                                        <props.form.Field name={`variants[${formIndex()}].base_price` as any}>
-                                            {(field: any) => (
+                                        {/* @ts-expect-error - Dynamic array paths cannot be fully inferred */}
+                                        <props.form.Field name={`variants[${formIndex()}].base_price`}>
+                                            {(field) => (
                                                 <input
                                                     type="number"
                                                     step="0.01"

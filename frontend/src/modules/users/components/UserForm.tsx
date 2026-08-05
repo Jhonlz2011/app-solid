@@ -202,7 +202,7 @@ const UserForm: Component<UserFormProps> = (props) => {
                     <div class="space-y-3">
                         <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                             <div class="size-1.5 rounded-full bg-emerald-500" />
-                            Entidad vinculada
+                            Persona vinculada
                         </div>
 
                         {/* Selected entity card */}

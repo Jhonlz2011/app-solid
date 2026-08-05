@@ -279,10 +279,10 @@ export const PERMISSIONS = [
     parsePerm('hr.update', 'Editar en talento humano'),
     parsePerm('hr.delete', 'Eliminar en talento humano'),
 
-    parsePerm('payroll.read', 'Ver nómina'),
-    parsePerm('payroll.create', 'Crear nómina'),
-    parsePerm('payroll.update', 'Editar nómina'),
-    parsePerm('payroll.delete', 'Eliminar nómina'),
+    parsePerm('employees.read', 'Ver nómina de empleados'),
+    parsePerm('employees.create', 'Crear nómina de empleados'),
+    parsePerm('employees.update', 'Editar nómina de empleados'),
+    parsePerm('employees.delete', 'Eliminar nómina de empleados'),
 
     parsePerm('schedules.read', 'Ver horarios'),
     parsePerm('schedules.create', 'Crear horarios'),
@@ -411,7 +411,7 @@ export const ROLE_PERMISSIONS: Record<string, (slug: string) => boolean> = {
     rrhh: (slug) => {
         return slug === 'dashboard.read' ||
             slug.startsWith('hr.') ||
-            slug.startsWith('payroll.') ||
+            slug.startsWith('employees.') ||
             slug.startsWith('schedules.') ||
             slug.startsWith('hours.');
     },
@@ -559,7 +559,7 @@ export const MENU_ITEMS: MenuSeedItem[] = [
         permission_prefix: 'hr',
         sort_order: 90,
         children: [
-            { key: 'payroll', label: 'Nómina de Empleados', path: '/payroll', permission_prefix: 'payroll', sort_order: 0, icon: 'M10 2a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v10q.2 1.8 2 2h16q1.8-.2 2-2V8q-.2-1.8-2-2h-4V4q-.2-1.8-2-2zm0 0h4c1 0 2 1 2 2v2H8V4c0-1 1-2 2-2M4 6h16c1 0 2 1 2 2v5c-6 4-14 4-20 0V8c0-1 1-2 2-2m8 5.9zl.1.1.1-.1zM2 13.1c6.1 4 13.9 4 20 0V18c0 1-1 2-2 2H4c-1 0-2-1-2-2z' },
+            { key: 'payroll', label: 'Nómina de Empleados', path: '/employees', permission_prefix: 'employees', sort_order: 0, icon: 'M10 2a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v10q.2 1.8 2 2h16q1.8-.2 2-2V8q-.2-1.8-2-2h-4V4q-.2-1.8-2-2zm0 0h4c1 0 2 1 2 2v2H8V4c0-1 1-2 2-2M4 6h16c1 0 2 1 2 2v5c-6 4-14 4-20 0V8c0-1 1-2 2-2m8 5.9zl.1.1.1-.1zM2 13.1c6.1 4 13.9 4 20 0V18c0 1-1 2-2 2H4c-1 0-2-1-2-2z' },
             { key: 'schedules', label: 'Control de Horarios', path: '/schedules', permission_prefix: 'schedules', sort_order: 1, icon: 'M8 2v2H5a2 2 0 0 0-2 2v14q.2 1.8 2 2h3.5H5c-1 0-2-1-2-2V10h5-5V6c0-1 1-2 2-2h3v2-2h8v2-2h3c1 0 2 1 2 2v1.5V6q-.2-1.8-2-2h-3V2v2H8zm8 8a6 6 0 1 0 0 12 6 6 0 0 0 0-12m0 0a6 6 0 1 1 0 12 6 6 0 0 1 0-12m0 4v2.2l1.6 1-1.5-1z' },
             { key: 'hours_report', label: 'Reporte de Horas', path: '/hours', permission_prefix: 'hours', sort_order: 2, icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
         ],

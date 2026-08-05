@@ -4,6 +4,7 @@ import { createRouter, createRootRoute, createRoute, RouterProvider, Outlet, red
 import MainLayout from './layout/MainLayout';
 import { createAuthRoutes } from './modules/auth/auth.routes';
 import { createSuppliersRoutes } from './modules/suppliers/suppliers.routes';
+import { createEmployeesRoutes } from './modules/employees/employees.routes';
 import { createClientsRoutes } from './modules/clients/clients.routes';
 import { createUsersRoutes } from './modules/users/users.routes';
 import { createProductsRoutes } from './modules/products/products.routes';
@@ -139,6 +140,7 @@ const routeTree = rootRoute.addChildren([
     createSettingsRoutes(layoutRoute),
     profileRoute,
     createSuppliersRoutes(layoutRoute),
+    createEmployeesRoutes(layoutRoute),
     createClientsRoutes(layoutRoute),
     createProductsRoutes(layoutRoute),
     createServicesRoutes(layoutRoute),
