@@ -151,6 +151,8 @@ export const productVariants = pgTableV2("product_variants", {
 }, (t) => [
     // SKU unique per tenant (not globally)
     unique("unq_variant_sku_company").on(t.company_id, t.sku),
+    // Required for composite FKs from child tables (e.g. productVariantWarehouseLocations)
+    unique("unq_variant_id_company").on(t.id, t.company_id),
     // Composite FK: ensures variant's company_id matches product's company_id
     foreignKey({
         name: "fk_variant_product_tenant",
