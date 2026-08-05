@@ -124,6 +124,12 @@ export const uom = pgTableV2("uom", {
     unique("unq_uom_code_company").on(t.code, t.company_id),
     index("idx_uom_company").on(t.company_id),
     index("idx_uom_code").on(t.code),
+    // Prevent tenants from creating UOMs with codes that shadow system UOMs.
+    // Combined with the RLS USING clause, system UOMs are always visible to tenants.
+    // This unique index on (code) WHERE is_system = true prevents duplicate system codes.
+    // The RLS withCheck prevents tenants from inserting system UOMs.
+    // To prevent a tenant from creating code "ML" when system "ML" already exists,
+    // the service layer must check: "does a system UOM with this code exist?" before INSERT.
     pgPolicy('tenant_isolation', {
         as: 'permissive',
         for: 'all',

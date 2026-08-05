@@ -120,6 +120,15 @@ export const productsApi = {
         const data = await res.json();
         return data.urls ?? [];
     },
+    /** Delete a product image from R2 public bucket */
+    deleteImage: async (url: string) => {
+        try {
+            const { error } = await (api.api.products as any)['delete-image'].post({ url });
+            if (error) console.warn('[R2] Failed to delete orphaned image:', error);
+        } catch (err) {
+            console.warn('[R2] deleteImage request failed:', err);
+        }
+    },
 };
 
 // =============================================================================
@@ -146,10 +155,20 @@ export interface ProductFilters {
 }
 
 export interface ProductReferences {
+    inventoryStock: number;
+    inventoryMovements: number;
+    inventoryDimensionalItems: number;
     purchaseOrderItems: number;
     invoiceItems: number;
     workOrderItems: number;
-    inventoryMovements: number;
+    manufacturingOrders: number;
+    manufacturingOrderInputs: number;
+    manufacturingLog: number;
+    supplierProducts: number;
+    goodsReceiptItems: number;
+    materialRequestItems: number;
+    materialRequestDispatches: number;
+    requestReturnItems: number;
     total: number;
     canDelete: boolean;
 }
