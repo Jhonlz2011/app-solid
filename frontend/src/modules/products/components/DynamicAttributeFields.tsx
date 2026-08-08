@@ -14,8 +14,9 @@ import { Badge } from '@shared/ui/Badge';
 import TextField, { FieldLabel } from '@shared/ui/TextField';
 import Checkbox from '@shared/ui/Checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
+import { useResolvedSelectorPath } from '@shared/ui/selectors';
 import SectionHeader from './ui/SectionHeader';
-import { PlusIcon, } from '@shared/ui/icons';
+import { PlusIcon, EditIcon } from '@shared/ui/icons';
 
 interface DynamicAttributeFieldsProps {
     /** Category attributes from parent query */
@@ -28,6 +29,8 @@ interface DynamicAttributeFieldsProps {
     onChange: (values: Record<string, unknown>) => void;
     /** Called when name_template + values produce a generated name */
     onNameGenerated?: (name: string) => void;
+    /** Category ID for deep-linking to attribute management */
+    categoryId: () => number;
 }
 
 type SelectOption = { value: string; label: string };
@@ -36,16 +39,24 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
     const attributes = () => props.attributes();
     const nameTemplate = () => props.nameTemplate();
 
+    // Resolve category path for deep-linking to attribute edit
+    const resolvedCategoryPath = useResolvedSelectorPath('/categories');
+
     // Auto-generate name from template whenever values change
+    // ▶ TRACKING FIX: read the whole values object BEFORE the forEach
+    // so SolidJS can track the dependency on the accessor itself.
     createEffect(() => {
         const template = nameTemplate();
         if (!template || !props.onNameGenerated) return;
         const attrs = attributes();
         if (attrs.length === 0) return;
 
+        // Track the entire values object as a reactive dependency
+        const currentValues = props.values();
+
         let generated = template as string;
-        attrs.forEach((attr: any) => {
-            const val = props.values()[attr.key];
+        attrs.forEach((attr) => {
+            const val = currentValues[attr.key];
             generated = generated.replace(`{${attr.key}}`, val != null ? String(val) : '');
         });
 
@@ -76,76 +87,20 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
         props.onChange(updated);
     };
 
-    // Memoize template parts parsing — avoids regex re-creation on each render
-    const templateParts = createMemo(() => {
-        const template = nameTemplate();
-        if (!template) return [];
-        const regex = /\{(\w+)\}/g;
-        const parts: Array<{ type: 'text' | 'filled' | 'empty'; content: string }> = [];
-        let lastIndex = 0;
-        let match: RegExpExecArray | null;
-        while ((match = regex.exec(template as string)) !== null) {
-            if (match.index > lastIndex) {
-                parts.push({ type: 'text', content: (template as string).slice(lastIndex, match.index) });
-            }
-            const key = match[1];
-            const val = props.values()[key];
-            if (val != null && String(val).trim()) {
-                parts.push({ type: 'filled', content: String(val) });
-            } else {
-                const attrDef = attributes().find((a: any) => a.key === key);
-                parts.push({ type: 'empty', content: attrDef?.label ?? key });
-            }
-            lastIndex = regex.lastIndex;
-        }
-        if (lastIndex < (template as string).length) {
-            parts.push({ type: 'text', content: (template as string).slice(lastIndex) });
-        }
-        return parts;
-    });
-
     return (
         <Show when={attributes().length > 0}>
             <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
                 <div class="flex items-center justify-between">
                     <SectionHeader color="accent" title="Atributos de Categoría" />
                     <Link
-                        to="/settings"
+                        to={`${resolvedCategoryPath()}/${props.categoryId()}/edit/attributes/new`}
+                        preload="intent"
                         class="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors font-medium"
-                        target="_blank"
                     >
                         <PlusIcon class="size-3" />
-                        Gestionar atributos
+                        Agregar atributo
                     </Link>
                 </div>
-
-                <Show when={nameTemplate()}>
-                    <div class="p-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-1.5">
-                        <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Plantilla</span>
-                            <span class="text-[10px] text-muted font-mono">{nameTemplate()}</span>
-                        </div>
-                        <div class="text-sm font-medium text-text/80 font-mono leading-relaxed">
-                        <For each={templateParts()}>
-                            {(part) => (
-                                <>
-                                    {part.type === 'text' && <span>{part.content}</span>}
-                                    {part.type === 'filled' && (
-                                        <span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold text-xs">
-                                            {part.content}
-                                        </span>
-                                    )}
-                                    {part.type === 'empty' && (
-                                        <span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500/70 font-medium text-xs italic">
-                                            {part.content}
-                                        </span>
-                                    )}
-                                </>
-                            )}
-                        </For>
-                        </div>
-                    </div>
-                </Show>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <For each={attributes()}>
@@ -157,22 +112,35 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
                                 ((attr.options ?? []) as string[]).map(o => ({ value: o, label: o }))
                             );
 
+                            // Label with pencil icon for editing this attribute definition
+                            const AttributeLabel = () => (
+                                <FieldLabel>
+                                    <span class="flex items-center gap-1.5">
+                                        {attr.label}
+                                        <Show when={attr.required}>
+                                            <span class="text-danger">*</span>
+                                        </Show>
+                                        <Link
+                                            to={`${resolvedCategoryPath()}/${props.categoryId()}/edit/attributes/${attr.id ?? ''}/edit`}
+                                            preload="intent"
+                                            class="text-muted/40 hover:text-primary transition-colors"
+                                            title={`Editar atributo "${attr.label}"`}
+                                        >
+                                            <EditIcon class="size-3" />
+                                        </Link>
+                                        <Badge variant="secondary" class="text-[9px] px-1 py-0 ml-auto">
+                                            {attr.key}
+                                        </Badge>
+                                    </span>
+                                </FieldLabel>
+                            );
+
                             return (
                                 <div classList={{ 'col-span-2': isSelect() && options().length > 6 }}>
                                     {/* Select type */}
                                     <Show when={isSelect()}>
                                         <div class="space-y-1.5">
-                                            <FieldLabel>
-                                                <span class="flex items-center gap-1.5">
-                                                    {attr.label}
-                                                    <Show when={attr.required}>
-                                                        <span class="text-danger">*</span>
-                                                    </Show>
-                                                    <Badge variant="secondary" class="text-[9px] px-1 py-0 ml-auto">
-                                                        {attr.key}
-                                                    </Badge>
-                                                </span>
-                                            </FieldLabel>
+                                            <AttributeLabel />
                                             <Select
                                                 value={options().find(o => o.value === getValue(attr.key))}
                                                 onChange={(opt: SelectOption | null) => updateValue(attr.key, opt?.value ?? '', false)}
@@ -200,17 +168,7 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
                                             value={getValue(attr.key)}
                                             onChange={(val) => updateValue(attr.key, val, true)}
                                         >
-                                            <TextField.Label>
-                                                <span class="flex items-center gap-1.5">
-                                                    {attr.label}
-                                                    <Show when={attr.required}>
-                                                        <span class="text-danger">*</span>
-                                                    </Show>
-                                                    <Badge variant="secondary" class="text-[9px] px-1 py-0 ml-auto">
-                                                        {attr.key}
-                                                    </Badge>
-                                                </span>
-                                            </TextField.Label>
+                                            <AttributeLabel />
                                             <TextField.Input
                                                 type="text"
                                                 class="font-mono"
@@ -236,6 +194,14 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
                                                         <Show when={attr.required}>
                                                             <span class="text-danger ml-1">*</span>
                                                         </Show>
+                                                        <Link
+                                                            to={`${resolvedCategoryPath()}/${props.categoryId()}/edit/attributes/${attr.id ?? ''}/edit`}
+                                                            preload="intent"
+                                                            class="inline-flex ml-1.5 text-muted/40 hover:text-primary transition-colors align-middle"
+                                                            title={`Editar atributo "${attr.label}"`}
+                                                        >
+                                                            <EditIcon class="size-3" />
+                                                        </Link>
                                                     </p>
                                                     <p class="text-[11px] text-muted font-mono">{attr.key}</p>
                                                 </div>
@@ -249,17 +215,7 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
                                             value={getValue(attr.key)}
                                             onChange={(val) => updateValue(attr.key, val, false)}
                                         >
-                                            <TextField.Label>
-                                                <span class="flex items-center gap-1.5">
-                                                    {attr.label}
-                                                    <Show when={attr.required}>
-                                                        <span class="text-danger">*</span>
-                                                    </Show>
-                                                    <Badge variant="secondary" class="text-[9px] px-1 py-0 ml-auto">
-                                                        {attr.key}
-                                                    </Badge>
-                                                </span>
-                                            </TextField.Label>
+                                            <AttributeLabel />
                                             <TextField.Input type="text" placeholder={attr.label} />
                                         </TextField.Root>
                                     </Show>

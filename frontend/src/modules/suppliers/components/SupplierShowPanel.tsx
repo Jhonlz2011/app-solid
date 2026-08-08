@@ -157,7 +157,7 @@ const SupplierShowPanel: Component<SupplierShowPanelProps> = (props) => {
                                                 Contacto Principal
                                             </div>
                                             <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                <InfoRow label="Email Facturación" value={supplier().email_billing} />
+                                                <InfoRow label="Email Principal" value={supplier().email_billing} />
                                                 <InfoRow label="Teléfono" value={supplier().phone} />
                                             </div>
                                         </div>

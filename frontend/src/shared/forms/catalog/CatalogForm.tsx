@@ -280,6 +280,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                         onNameGenerated={(generated) => {
                                                 if (!manualNameOverride()) form.setFieldValue('name', generated);
                                             }}
+                                        categoryId={categoryId}
                                         />
                                     </Show>
 
@@ -404,6 +405,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                 attributes={categoryAttributes}
                                 categoryName={categoryName}
                                 values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
+                                nameTemplate={nameTemplate}
                                 onAddCustom={(key, value) => {
                                     const current = form.getFieldValue('shared_attributes') ?? {};
                                     form.setFieldValue('shared_attributes', { ...current, [key]: value });

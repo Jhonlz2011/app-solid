@@ -20,7 +20,9 @@ import {
 import type { ProductVariantFormData } from '@app/schema/frontend';
 import type { CatalogFormApi } from '../catalog-form.types';
 import Button from '@shared/ui/Button';
-import { PlusIcon, TrashIcon, GripVerticalIcon, MoreVerticalIcon, CopyIcon } from '@shared/ui/icons';
+import TextField from '@shared/ui/TextField';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
+import { PlusIcon, TrashIcon, GripVerticalIcon, CopyIcon } from '@shared/ui/icons';
 
 interface VariantsSectionProps {
     form: CatalogFormApi;
@@ -272,16 +274,15 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
 
                                                         {/* Variant Name / SKU */}
                                                         <div class="space-y-1">
-                                                         
                                                             <props.form.Field name={`variants[${formIndex()}].variant_name`}>
                                                                 {(field) => (
-                                                                    <input
-                                                                        type="text"
-                                                                        value={field().state.value ?? ''}
-                                                                        onInput={(e) => field().handleChange(e.currentTarget.value || null)}
-                                                                        placeholder={`Variante ${formIndex()}`}
-                                                                        class="w-full bg-card-alt border border-border/60 rounded-md px-2 py-1 text-xs text-text font-medium outline-none focus:border-primary/50"
-                                                                    />
+                                                                    <TextField.Root field={field()}>
+                                                                        <TextField.Input
+                                                                            type="text"
+                                                                            placeholder={`Variante ${formIndex()}`}
+                                                                            class="!py-1 !px-2 !text-xs !rounded-md font-medium"
+                                                                        />
+                                                                    </TextField.Root>
                                                                 )}
                                                             </props.form.Field>
                                                         </div>
@@ -292,7 +293,6 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                                 const val = () => variantData()?.variant_attributes?.[attr.key];
                                                                 const updateAttr = (newVal: unknown) => {
                                                                     const currentAttrs = (props.form.getFieldValue(`variants[${formIndex()}].variant_attributes`) ?? {}) as Record<string, unknown>;
-                                                                
                                                                     props.form.setFieldValue(`variants[${formIndex()}].variant_attributes`, { ...currentAttrs, [attr.key]: newVal });
                                                                 };
 
@@ -301,25 +301,37 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                                         <Show
                                                                             when={attr.type === 'SELECT' && (attr.options ?? []).length > 0}
                                                                             fallback={
-                                                                                <input
-                                                                                    type={attr.type === 'NUMBER' ? 'number' : 'text'}
+                                                                                <TextField.Root
                                                                                     value={val() != null ? String(val()) : ''}
-                                                                                    onInput={(e) => updateAttr(attr.type === 'NUMBER' ? (parseFloat(e.currentTarget.value) || null) : e.currentTarget.value)}
-                                                                                    placeholder={attr.label}
-                                                                                    class="w-full bg-card-alt border border-border/60 rounded-md px-2 py-1 text-xs text-text outline-none focus:border-primary/50"
-                                                                                />
+                                                                                    onChange={(v) => updateAttr(attr.type === 'NUMBER' ? (parseFloat(v) || null) : v)}
+                                                                                >
+                                                                                    <TextField.Input
+                                                                                        type={attr.type === 'NUMBER' ? 'text' : 'text'}
+                                                                                        placeholder={attr.label}
+                                                                                        class="!py-1 !px-2 !text-xs !rounded-md"
+                                                                                    />
+                                                                                </TextField.Root>
                                                                             }
                                                                         >
-                                                                            <select
-                                                                                value={val() != null ? String(val()) : ''}
-                                                                                onChange={(e) => updateAttr(e.currentTarget.value)}
-                                                                                class="w-full bg-card-alt border border-border/60 rounded-md px-2 py-1 text-xs text-text outline-none focus:border-primary/50"
+                                                                            <Select
+                                                                                value={val() != null ? String(val()) : undefined}
+                                                                                onChange={(v: string | null) => updateAttr(v ?? '')}
+                                                                                options={attr.options ?? []}
+                                                                                optionValue={(o: string) => o}
+                                                                                optionTextValue={(o: string) => o}
+                                                                                placeholder={`-- ${attr.label} --`}
+                                                                                itemComponent={(itemProps: any) => (
+                                                                                    <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
+                                                                                )}
+                                                                                class="!gap-0"
                                                                             >
-                                                                                <option value="">-- {attr.label} --</option>
-                                                                                <For each={attr.options ?? []}>
-                                                                                    {(opt) => <option value={opt}>{opt}</option>}
-                                                                                </For>
-                                                                            </select>
+                                                                                <SelectTrigger class="!py-1 !px-2 !text-xs !rounded-md !min-h-0">
+                                                                                    <SelectValue<string> class="!text-xs">
+                                                                                        {(state) => state.selectedOption() ?? `-- ${attr.label} --`}
+                                                                                    </SelectValue>
+                                                                                </SelectTrigger>
+                                                                                <SelectContent />
+                                                                            </Select>
                                                                         </Show>
                                                                     </div>
                                                                 );
@@ -327,21 +339,18 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                         </For>
 
                                                         {/* Base Price Override */}
-                                                       
                                                         <props.form.Field name={`variants[${formIndex()}].base_price`}>
                                                             {(field) => (
-                                                                <input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    min="0"
-                                                                    value={field().state.value ?? ''}
-                                                                    onInput={(e) => {
-                                                                        const val = e.currentTarget.value;
-                                                                        field().handleChange(val === '' ? null : parseFloat(val));
-                                                                    }}
-                                                                    placeholder="Hereda"
-                                                                    class="w-full bg-card-alt border border-border/60 rounded-md px-2 py-1 text-xs font-mono text-text outline-none focus:border-primary/50"
-                                                                />
+                                                                <TextField.Root
+                                                                    value={field().state.value != null ? String(field().state.value) : ''}
+                                                                    onChange={(v) => field().handleChange(v === '' ? null : parseFloat(v))}
+                                                                >
+                                                                    <TextField.Input
+                                                                        type="text"
+                                                                        placeholder="Hereda"
+                                                                        class="!py-1 !px-2 !text-xs !rounded-md font-mono"
+                                                                    />
+                                                                </TextField.Root>
                                                             )}
                                                         </props.form.Field>
 
@@ -447,41 +456,62 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                     />
                                                 }
                                             >
-                                                <select
-                                                    value={newAttrValues()[attr.key] ?? ''}
-                                                    onChange={(e) => setNewAttrValues(prev => ({ ...prev, [attr.key]: e.currentTarget.value }))}
-                                                    class="w-full bg-card-alt border border-border rounded-lg px-2.5 py-2 text-sm text-text outline-none focus:border-primary/50 cursor-pointer appearance-none"
+                                                <Select
+                                                    value={newAttrValues()[attr.key] ?? undefined}
+                                                    onChange={(v: string | null) => setNewAttrValues(prev => ({ ...prev, [attr.key]: v ?? '' }))}
+                                                    options={attr.options ?? []}
+                                                    optionValue={(o: string) => o}
+                                                    optionTextValue={(o: string) => o}
+                                                    placeholder="Seleccionar..."
+                                                    itemComponent={(itemProps: any) => (
+                                                        <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
+                                                    )}
                                                 >
-                                                    <option value="">Seleccionar...</option>
-                                                    <For each={attr.options}>
-                                                        {(opt) => <option value={opt}>{opt}</option>}
-                                                    </For>
-                                                </select>
+                                                    <SelectTrigger>
+                                                        <SelectValue<string>>
+                                                            {(state) => state.selectedOption() ?? 'Seleccionar...'}
+                                                        </SelectValue>
+                                                    </SelectTrigger>
+                                                    <SelectContent />
+                                                </Select>
                                             </Show>
                                         </div>
                                     )}
                                 </For>
 
                                 {/* Price input */}
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
+                                <TextField.Root
                                     value={newPrice()}
-                                    onInput={(e) => setNewPrice(e.currentTarget.value)}
-                                    placeholder="0.00"
-                                    class="w-full bg-card-alt border border-border rounded-lg px-2.5 py-2 text-sm font-mono text-text placeholder:text-muted/40 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/25 transition-all"
-                                />
+                                    onChange={setNewPrice}
+                                >
+                                    <TextField.Input
+                                        type="text"
+                                        placeholder="0.00"
+                                        class="font-mono"
+                                    />
+                                </TextField.Root>
 
                                 {/* Available select */}
-                                <select
+                                <Select
                                     value={newIsActive() ? 'yes' : 'no'}
-                                    onChange={(e) => setNewIsActive(e.currentTarget.value === 'yes')}
-                                    class="w-full bg-card-alt border border-border rounded-lg px-2.5 py-2 text-sm text-text outline-none focus:border-primary/50 cursor-pointer appearance-none"
+                                    onChange={(v: string | null) => setNewIsActive(v === 'yes')}
+                                    options={['yes', 'no']}
+                                    optionValue={(o: string) => o}
+                                    optionTextValue={(o: string) => o === 'yes' ? 'Sí' : 'No'}
+                                    placeholder="Sí"
+                                    itemComponent={(itemProps: any) => (
+                                        <SelectItem item={itemProps.item}>
+                                            {itemProps.item.rawValue === 'yes' ? 'Sí' : 'No'}
+                                        </SelectItem>
+                                    )}
                                 >
-                                    <option value="yes">Sí</option>
-                                    <option value="no">No</option>
-                                </select>
+                                    <SelectTrigger>
+                                        <SelectValue<string>>
+                                            {(state) => state.selectedOption() === 'yes' ? 'Sí' : 'No'}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent />
+                                </Select>
                             </div>
                         </Show>
 

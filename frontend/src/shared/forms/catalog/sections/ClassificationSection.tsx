@@ -283,7 +283,7 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                                     }
                                 >
                                     {(brand) => (
-                                        <div class="flex items-center gap-2 p-1.5 pl-3 pr-2 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/30 hover:border-primary/50 transition-all duration-200 shadow-xs min-h-9.5">
+                                        <div class="flex items-center gap-2 p-1 pl-3 pr-2 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/30 hover:border-primary/50 transition-all duration-200 shadow-xs min-h-9.5">
                                             <div class="flex-1 min-w-0">
                                                 <div class="flex items-center gap-2">
                                                     <TagIcon class="size-4 text-primary shrink-0" />

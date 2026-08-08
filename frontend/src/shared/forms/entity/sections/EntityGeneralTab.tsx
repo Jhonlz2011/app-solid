@@ -439,7 +439,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                     <props.form.Field name="emailBilling">
                         {(field) => (
                             <TextField.Root field={field()}>
-                                <TextField.Label>Email Facturación</TextField.Label>
+                                <TextField.Label>Email Principal</TextField.Label>
                                 <TextField.Input type="email" placeholder="facturacion@empresa.com" />
                                 <TextField.ErrorMessage />
                             </TextField.Root>

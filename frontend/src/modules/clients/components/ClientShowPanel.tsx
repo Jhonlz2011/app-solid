@@ -156,7 +156,7 @@ const ClientShowPanel: Component<ClientShowPanelProps> = (props) => {
                                                 Contacto Principal
                                             </div>
                                             <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                <InfoRow label="Email Facturación" value={client().email_billing} />
+                                                <InfoRow label="Email Principal" value={client().email_billing} />
                                                 <InfoRow label="Teléfono" value={client().phone} />
                                             </div>
                                         </div>
