@@ -72,7 +72,6 @@ const IdentificationSection: Component<IdentificationSectionProps> = (props) => 
                         <TextField.Root field={field()}>
                             <TextField.Label>SKU *</TextField.Label>
                             <TextField.Input type="text" placeholder="Auto-generado al guardar" class="font-mono" />
-                            <TextField.Description>Déjalo vacío para auto-generar</TextField.Description>
                             <TextField.ErrorMessage />
                         </TextField.Root>
                     )}

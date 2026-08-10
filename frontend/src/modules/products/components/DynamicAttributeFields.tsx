@@ -43,15 +43,19 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
     const resolvedCategoryPath = useResolvedSelectorPath('/categories');
 
     // Auto-generate name from template whenever values change
-    // ▶ TRACKING FIX: read the whole values object BEFORE the forEach
-    // so SolidJS can track the dependency on the accessor itself.
+    // ▶ CYCLE-SAFE: serialize values to JSON string so the memo only changes
+    //   when actual attribute content changes, NOT when unrelated form fields
+    //   (like 'name') trigger the store to emit a new object reference.
+    const valuesKey = createMemo(() => JSON.stringify(props.values() ?? {}));
+
     createEffect(() => {
         const template = nameTemplate();
         if (!template || !props.onNameGenerated) return;
         const attrs = attributes();
         if (attrs.length === 0) return;
 
-        // Track the entire values object as a reactive dependency
+        // Track serialized values — prevents infinite loop
+        const _key = valuesKey();
         const currentValues = props.values();
 
         let generated = template as string;

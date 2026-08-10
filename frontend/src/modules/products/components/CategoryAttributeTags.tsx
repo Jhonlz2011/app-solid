@@ -78,10 +78,12 @@ const CategoryAttributeTags: Component<CategoryAttributeTagsProps> = (props) => 
     };
 
     // Memoized template parts parsing for name preview
-    // ▶ TRACKING FIX: read props.values() into a local before property access
+    // ▶ CYCLE-SAFE: use JSON key to avoid reacting to unrelated store changes
+    const valuesKey = createMemo(() => JSON.stringify(props.values?.() ?? {}));
     const templateParts = createMemo(() => {
         const template = props.nameTemplate?.();
         if (!template) return [];
+        const _key = valuesKey(); // track serialized values only
         const currentValues = props.values?.() ?? {};
         const regex = /\{(\w+)\}/g;
         const parts: Array<{ type: 'text' | 'filled' | 'empty'; content: string }> = [];

@@ -202,7 +202,10 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
     const categoryId = form.useStore((s) => s.values.category_id);
     const productSubtype = form.useStore((s) => s.values.product_subtype);
     const imageUrls = form.useStore((s) => s.values.image_urls);
-    const sharedAttributes = form.useStore((s) => s.values.shared_attributes);
+    // Stabilize shared_attributes: serialize in selector → primitive comparison
+    // prevents downstream effects from re-firing when unrelated fields change
+    const sharedAttributesJson = form.useStore((s) => JSON.stringify(s.values.shared_attributes ?? {}));
+    const sharedAttributes = createMemo(() => JSON.parse(sharedAttributesJson()) as Record<string, unknown>);
     const variants = form.useStore((s) => s.values.variants);
 
     // Centralized category schema query — single subscription shared via props

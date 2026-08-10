@@ -53,7 +53,7 @@ const ProductNewSheet: Component<ProductNewSheetProps> = (props) => {
             isOpen={true}
             onClose={navigateAway}
             title="Nuevo Producto"
-            description="Ingresa los datos del nuevo producto"
+            description="Crea un nuevo producto y define sus características"
             size="5xl"
             footer={
                 <>

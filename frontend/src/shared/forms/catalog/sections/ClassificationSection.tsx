@@ -102,7 +102,6 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
             <SectionHeader 
                 color="primary" 
                 title="Tipo y Clasificación" 
-                description="Define la naturaleza del ítem y su jerarquía en el catálogo"
             />
 
             {/* Row 1: Subtype Card Selector — Only for PRODUCTO mode */}
