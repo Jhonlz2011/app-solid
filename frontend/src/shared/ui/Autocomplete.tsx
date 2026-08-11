@@ -190,13 +190,8 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
     const matchedOption = createMemo<T | undefined>(() => {
         const val = props.value;
         if (!val) return undefined;
-        // NOTA: se matchea por optionValue O optionLabel a propósito. Algunos
-        // consumidores (ej. el selector de Marca) pasan como `value` el texto
-        // visible, no el id, y dependen del match por label. Si tus opciones
-        // pueden repetir label, esto puede matchear la opción equivocada —
-        // preferí IDs únicos en optionValue/value cuando puedas.
         return safeOptions().find(
-            opt => props.optionValue(opt) === val || props.optionLabel(opt) === val
+            opt => props.optionLabel(opt) === val
         );
     });
 
@@ -357,27 +352,21 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                         e.currentTarget.select();
                     }}
                     onBlur={() => {
+                        // ── CRITICAL: capture clear decision SYNCHRONOUSLY ──
+                        // Reading reactive state BEFORE the setTimeout ensures
+                        // the decision is based on state at blur-time, not 150ms later.
+                        const shouldClear = (props.clearOnBlur ?? true) && !!props.value && !hasValidSelection();
+
                         setTimeout(() => {
+                            // Only bail if a dropdown interaction is in progress
                             if (isClickingDropdown) return;
 
-                            // Si al perder el foco el texto actual no corresponde
-                            // a una selección real, limpiamos el campo — salvo que
-                            // el consumidor haya pedido explícitamente conservarlo
-                            // con `clearOnBlur={false}`. Se chequea
-                            // `hasValidSelection()` en vez de la membresía en
-                            // `props.options`, porque en combos con búsqueda async
-                            // (ej. SRI) la lista de opciones puede vaciarse/cambiar
-                            // después de seleccionar, y comparar contra
-                            // `props.options` en ese momento daría falsos negativos.
-                            const shouldClear = props.clearOnBlur ?? true;
-                            if (shouldClear && props.value && !hasValidSelection()) {
+                            if (shouldClear) {
                                 clearSelection();
                             }
 
                             setIsFocused(false);
-                            if (props.onBlur) {
-                                props.onBlur();
-                            }
+                            props.onBlur?.();
                         }, BLUR_CLOSE_DELAY_MS);
                     }}
                     onKeyDown={(e) => {

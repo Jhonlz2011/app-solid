@@ -410,6 +410,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                                 onSelect={handleSriSelect('NAME')}
                                 isLoading={nameSearch.isFetching}
                                 hideEmptyState={true}
+                                clearOnBlur={false}
                                 placeholder="Ej: Ingrese 3 letras o más para Autocompletar SRI"
                             />
                             <Autocomplete.ErrorMessage />
