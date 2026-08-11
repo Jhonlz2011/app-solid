@@ -22,25 +22,20 @@ export const BrandSelect: Component<BrandSelectProps> = (props) => {
     const brands = createMemo(() => (brandsQuery.data ?? []) as Brand[]);
     const [search, setSearch] = createSignal('');
 
-    // Filtered by search
     const filteredOptions = createMemo(() => {
         const s = search().toLowerCase().trim();
         if (!s) return brands();
         return brands().filter(b => b.name.toLowerCase().includes(s));
     });
 
-    // Sync search text when props.value changes from outside
+    // Sync search text when props.value changes externally (edit mode, form reset)
     createEffect(() => {
         const val = props.value;
         if (val != null) {
             const brand = brands().find(b => b.id === val);
-            if (brand && search() !== brand.name) {
-                setSearch(brand.name);
-            }
-        } else {
-            if (search() !== '') {
-                setSearch('');
-            }
+            if (brand && search() !== brand.name) setSearch(brand.name);
+        } else if (search() !== '') {
+            setSearch('');
         }
     });
 

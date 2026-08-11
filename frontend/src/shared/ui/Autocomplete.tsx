@@ -4,22 +4,16 @@ import { SearchIcon, XIcon, PlusIcon } from './icons';
 import type { FieldLike } from './form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from './form/form.types';
 
-// ============================================================================
-// CONSTANTES
-// ============================================================================
-// Ventana para ignorar el onInputChange "eco" que Kobalte dispara justo
-// después de confirmar una selección (evita pisar el valor recién elegido).
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * After a selection, Kobalte fires onInputChange with the selected label
+ * (echo effect). This guard window prevents consumers from overwriting
+ * the just-confirmed value.
+ */
 const SELECTION_ECHO_GUARD_MS = 150;
-// Tiempo para distinguir un blur real de un blur causado por hacer click
-// dentro del dropdown (item, botón "Crear nuevo", etc).
-const BLUR_CLOSE_DELAY_MS = 150;
-// Margen extra sobre BLUR_CLOSE_DELAY_MS para liberar `isClickingDropdown`
-// después de "Crear nuevo", garantizando que el blur pendiente ya bail-eó.
-const CREATE_NEW_UNLOCK_DELAY_MS = BLUR_CLOSE_DELAY_MS + 50;
 
-// Este SVG estaba duplicado exacto en dos lugares (el ícono del Control y el
-// fallback de "Buscando..." del Content). Si ya tenés un ícono de spinner en
-// `./icons`, reemplazá esto por ese import en vez de mantener esta copia local.
 const Spinner = (props: { class?: string }) => (
     <svg class={props.class} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -27,9 +21,9 @@ const Spinner = (props: { class?: string }) => (
     </svg>
 );
 
-// ============================================================================
-// CONTEXT
-// ============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// Context (validation bridge with TanStack Form)
+// ─────────────────────────────────────────────────────────────────────────────
 type ValidationState = 'valid' | 'invalid';
 
 interface AutocompleteContextValue {
@@ -41,16 +35,14 @@ interface AutocompleteContextValue {
 const AutocompleteContext = createContext<AutocompleteContextValue>();
 
 const useAutocompleteContext = () => {
-    const context = useContext(AutocompleteContext);
-    if (!context) {
-        throw new Error('Autocomplete components must be used within Autocomplete.Root');
-    }
-    return context;
+    const ctx = useContext(AutocompleteContext);
+    if (!ctx) throw new Error('Autocomplete components must be used within Autocomplete.Root');
+    return ctx;
 };
 
-// ============================================================================
-// ROOT, LABEL, ERROR MESSAGE, DESCRIPTION
-// ============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// Root / Label / ErrorMessage / Description
+// ─────────────────────────────────────────────────────────────────────────────
 interface AutocompleteRootProps {
     field?: FieldLike<any>;
     validationState?: ValidationState;
@@ -85,10 +77,10 @@ const Root = (props: AutocompleteRootProps) => {
 };
 
 const Label = (props: { class?: string; children: JSX.Element }) => {
-    const context = useAutocompleteContext();
+    const ctx = useAutocompleteContext();
     return (
         <label
-            for={context.id}
+            for={ctx.id}
             class={`text-sm font-medium text-muted w-fit ml-1 ${props.class ?? ''}`}
         >
             {props.children}
@@ -97,10 +89,10 @@ const Label = (props: { class?: string; children: JSX.Element }) => {
 };
 
 const ErrorMessage = (props: { class?: string; children?: JSX.Element }) => {
-    const context = useAutocompleteContext();
-    const message = () => context.errorMessage() || props.children;
+    const ctx = useAutocompleteContext();
+    const message = () => ctx.errorMessage() || props.children;
     return (
-        <Show when={context.validationState() === 'invalid' && message()}>
+        <Show when={ctx.validationState() === 'invalid' && message()}>
             <small class={`absolute -bottom-3.5 left-1 text-xs leading-none text-danger font-medium animate-in fade-in slide-in-from-top-1 ${props.class ?? ''}`} role="alert">
                 {message()}
             </small>
@@ -112,19 +104,25 @@ const Description = (props: { class?: string; children: JSX.Element }) => (
     <span class={`text-xs text-muted mt-0.5 ${props.class ?? ''}`}>{props.children}</span>
 );
 
-// ============================================================================
-// INPUT COMPONENT (KOBALTE COMBOBOX WRAPPER)
-// ============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// Input (Kobalte Combobox wrapper)
+// ─────────────────────────────────────────────────────────────────────────────
 export interface AutocompleteInputProps<T> {
+    /** Current text shown in the input (controlled). */
     value: string;
+    /** Fires on every keystroke. */
     onInputChange: (value: string) => void;
+    /** Array of options to display. Filtering is the consumer's responsibility. */
     options: T[];
+    /** Unique key for each option (used internally by Kobalte). */
     optionValue: (option: T) => string;
+    /** Display label for each option. */
     optionLabel: (option: T) => string;
     optionDescription?: (option: T) => string;
     itemRenderer?: (option: T) => JSX.Element;
     inputPrefix?: JSX.Element;
-    onSelect?: (option: T) => void;
+    /** Fires when user selects an option or clears. Receives null on clear. */
+    onSelect?: (option: T | null) => void;
     placeholder?: string;
     disabled?: boolean;
     isLoading?: boolean;
@@ -137,25 +135,22 @@ export interface AutocompleteInputProps<T> {
     createNewLabel?: string;
     onBlur?: () => void;
     /**
-     * Si el usuario escribe texto libre y pierde el foco sin seleccionar
-     * ninguna opción de la lista, controla qué pasa con ese texto:
-     * - `true` (default): se limpia el input (onInputChange('') + onSelect(null)).
-     * - `false`: se conserva tal cual lo dejó el usuario, sin disparar
-     *   onInputChange ni onSelect.
+     * When the user blurs WITHOUT a valid selection:
+     * - `true` (default): clears input and fires onSelect(null).
+     * - `false`: keeps text as-is (free-text mode, e.g. SRI search).
+     *
+     * Internally delegates to Kobalte's `noResetInputOnBlur` prop.
      */
     clearOnBlur?: boolean;
 }
 
 const Input = <T,>(props: AutocompleteInputProps<T>) => {
-    const context = useAutocompleteContext();
+    const ctx = useAutocompleteContext();
     let _lastSelectionTime = 0;
-    let isClickingDropdown = false;
 
+    // ── Dropdown width sync ──────────────────────────────────────────────
     let triggerRef: HTMLDivElement | undefined;
-    const [triggerWidth, setTriggerWidth] = createSignal<number>(0);
-    const [isFocused, setIsFocused] = createSignal<boolean>(false);
-    const [isOpen, setIsOpen] = createSignal<boolean>(false);
-    const [lastConfirmedValue, setLastConfirmedValue] = createSignal<string | null>(null);
+    const [triggerWidth, setTriggerWidth] = createSignal(0);
 
     createEffect(() => {
         if (!triggerRef) return;
@@ -167,26 +162,20 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         onCleanup(() => ro.disconnect());
     });
 
+    // ── Derived state ────────────────────────────────────────────────────
     const safeOptions = createMemo(() => props.options || []);
 
-    // Single source of truth for matching options by label
     const matchedOption = createMemo<T | undefined>(() => {
         const val = props.value;
         if (!val) return undefined;
-        return safeOptions().find(
-            opt => props.optionLabel(opt) === val
-        );
+        return safeOptions().find(opt => props.optionLabel(opt) === val);
     });
 
-    // Pure memo determining if the current text represents a valid selection
-    const isSelectionValid = createMemo<boolean>(() => {
-        const val = props.value;
-        if (!val) return false;
-        if (matchedOption() !== undefined) return true;
-        if (lastConfirmedValue() === val) return true;
-        return false;
-    });
-
+    /**
+     * Kobalte requires a selected item to exist in the options array.
+     * When the current text doesn't match any option, we add it as a
+     * disabled + hidden phantom string so Kobalte doesn't clear it.
+     */
     const dynamicOptions = createMemo<Array<T | string>>(() => {
         const val = props.value;
         const opts: Array<T | string> = [...safeOptions()];
@@ -202,6 +191,11 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         return matchedOption() ?? val;
     });
 
+    /**
+     * Determines if the dropdown should be open based on content availability.
+     * Kobalte's `allowsEmptyCollection` handles the base case, but we need
+     * additional logic for loading states and minimum input length.
+     */
     const shouldShowContent = createMemo(() => {
         if (props.isLoading) return true;
         if (props.onCreateNew) return true;
@@ -210,58 +204,50 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         return (props.value?.length ?? 0) >= (props.minLength ?? 3);
     });
 
-    // Auto-close if content becomes empty while open
-    createEffect(() => {
-        if (isOpen() && !shouldShowContent()) {
-            setIsOpen(false);
-        }
-    });
-
     const clearSelection = () => {
-        setLastConfirmedValue(null);
         props.onInputChange('');
-        props.onSelect?.(null as any);
+        props.onSelect?.(null);
     };
 
     return (
         <KCombobox<T | string>
             class={`flex flex-col gap-1.5 ${props.class ?? ''}`}
             options={dynamicOptions()}
-            validationState={context.validationState()}
-            open={isOpen()}
-            onOpenChange={(open) => {
-                if (!open) {
-                    setIsOpen(false);
-                    isClickingDropdown = false;
-                    setIsFocused(false);
-                } else if ((isFocused() || isClickingDropdown) && shouldShowContent()) {
-                    setIsOpen(true);
-                }
-            }}
+            validationState={ctx.validationState()}
+            // ── Let Kobalte manage open state ──
+            // triggerMode "focus" opens on input focus (replaces manual isFocused/isOpen)
+            triggerMode="focus"
+            allowsEmptyCollection={shouldShowContent()}
+            // ── Input value ──
+            // Kobalte's noResetInputOnBlur is the INVERSE of clearOnBlur
+            noResetInputOnBlur={!(props.clearOnBlur ?? true)}
             onInputChange={(v) => {
+                // Guard against the echo: after selection, Kobalte fires
+                // onInputChange with the selected label. Skip it.
                 if (Date.now() - _lastSelectionTime < SELECTION_ECHO_GUARD_MS) return;
                 props.onInputChange(v);
             }}
+            // ── Selection ──
             value={selectedItem()}
             onChange={(selected) => {
-                isClickingDropdown = false;
                 if (!selected) {
                     clearSelection();
                     return;
                 }
                 if (typeof selected === 'string') {
+                    // Phantom item selected (shouldn't happen, they're disabled)
                     props.onInputChange(selected);
                 } else {
-                    const label = props.optionLabel(selected);
-                    setLastConfirmedValue(label);
                     _lastSelectionTime = Date.now();
                     props.onSelect?.(selected);
                 }
             }}
+            // ── Option accessors ──
             optionValue={(opt) => (typeof opt === 'string' ? opt : props.optionValue(opt))}
             optionTextValue={(opt) => (typeof opt === 'string' ? opt : props.optionLabel(opt))}
             optionLabel={(opt) => (typeof opt === 'string' ? opt : props.optionLabel(opt))}
             optionDisabled={(opt) => typeof opt === 'string'}
+            // Consumer handles filtering — tell Kobalte to show all options
             defaultFilter={() => true}
             disabled={props.disabled}
             placeholder={props.placeholder}
@@ -270,7 +256,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                 if (typeof opt === 'string') {
                     return (
                         <KCombobox.Item item={itemProps.item} class="hidden">
-                             <KCombobox.ItemLabel>{opt}</KCombobox.ItemLabel>
+                            <KCombobox.ItemLabel>{opt}</KCombobox.ItemLabel>
                         </KCombobox.Item>
                     );
                 }
@@ -301,38 +287,12 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                     <div class="mr-2 shrink-0">{props.inputPrefix}</div>
                 </Show>
                 <KCombobox.Input
-                    id={props.inputId || context.id}
+                    id={props.inputId || ctx.id}
                     placeholder={props.placeholder}
-                    class={`flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0 ${isSelectionValid() ? 'cursor-default' : ''}`}
-                    onPointerDown={(e) => {
-                        e.stopPropagation();
-                    }}
-                    onFocus={(e) => {
-                        isClickingDropdown = false;
-                        setIsFocused(true);
-                        e.currentTarget.select();
-                    }}
-                    onBlur={(e) => {
-                        const relatedTarget = e.relatedTarget as HTMLElement | null;
-                        const isFocusInsideTrigger = triggerRef?.contains(relatedTarget);
-
-                        // Capture decision synchronously based on current reactive state
-                        const shouldClear = (props.clearOnBlur ?? true) && !!props.value && !isSelectionValid();
-
-                        setTimeout(() => {
-                            const wasClicking = isClickingDropdown || isFocusInsideTrigger;
-                            isClickingDropdown = false;
-
-                            if (wasClicking) return;
-
-                            if (shouldClear) {
-                                clearSelection();
-                            }
-
-                            setIsFocused(false);
-                            props.onBlur?.();
-                        }, BLUR_CLOSE_DELAY_MS);
-                    }}
+                    class={`flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0 ${matchedOption() ? 'cursor-default' : ''}`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onBlur={() => props.onBlur?.()}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && props.onSearchAction) {
                             props.onSearchAction();
@@ -355,8 +315,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    isClickingDropdown = false;
-                                    setIsOpen(false);
                                     clearSelection();
                                 }}
                                 title="Limpiar"
@@ -366,9 +324,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                         </Show>
                         <KCombobox.Trigger
                             class="cursor-pointer hover:text-primary transition-colors flex items-center justify-center p-0.5 rounded-md border-0 bg-transparent"
-                            onPointerDown={() => {
-                                isClickingDropdown = true;
-                            }}
                             onClick={(e) => {
                                 if (!props.value && props.onSearchAction) {
                                     e.preventDefault();
@@ -391,9 +346,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
 
             <KCombobox.Portal>
                 <KCombobox.Content
-                    onPointerDown={() => {
-                        isClickingDropdown = true;
-                    }}
                     class="relative z-100 min-w-32 overflow-hidden bg-card border border-border shadow-md rounded-xl p-1 transform-origin-var data-expanded:animate-in data-expanded:fade-in-0 data-expanded:zoom-in-95 data-expanded:slide-in-from-top-2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:slide-out-to-top-2"
                     style={{
                         "width": triggerWidth() > 0 ? `${triggerWidth()}px` : "100%",
@@ -417,7 +369,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                     >
                         <KCombobox.Listbox class={`max-h-64 overflow-y-auto outline-none p-1 bg-card text-text transition-opacity duration-200 ${props.isLoading ? 'opacity-50 pointer-events-none' : 'opacity-100 pointer-events-auto'}`} />
                     </Show>
-                    {/* Footer: Create New button */}
                     <Show when={props.onCreateNew}>
                         <div class="border-t border-border/50 p-1">
                             <button
@@ -428,9 +379,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     props.onCreateNew!();
-                                    setTimeout(() => {
-                                        isClickingDropdown = false;
-                                    }, CREATE_NEW_UNLOCK_DELAY_MS);
                                 }}
                             >
                                 <PlusIcon class="size-4" />
