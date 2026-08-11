@@ -155,22 +155,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
     const [triggerWidth, setTriggerWidth] = createSignal<number>(0);
     const [isFocused, setIsFocused] = createSignal<boolean>(false);
     const [isOpen, setIsOpen] = createSignal<boolean>(false);
-
-    // FIX 1 (bug crítico): antes esta señal ("isSelectedState") se resolvía como
-    // `!!props.value`, es decir "hay algo escrito" — no "lo que hay escrito
-    // corresponde a una opción real". Eso hacía imposible distinguir texto libre
-    // sin seleccionar de una selección confirmada, que es justo lo que necesitamos
-    // para poder limpiar el input al perder el foco sin selección válida.
-    const [hasValidSelection, setHasValidSelection] = createSignal<boolean>(!!props.value);
-
-    // Sincroniza cuando el valor llega desde afuera (ej. formulario precargado
-    // en modo edición) y el usuario no está escribiendo activamente.
-    createEffect(() => {
-        const val = props.value;
-        if (!isFocused()) {
-            setHasValidSelection(!!val);
-        }
-    });
+    const [lastConfirmedValue, setLastConfirmedValue] = createSignal<string | null>(null);
 
     createEffect(() => {
         if (!triggerRef) return;
@@ -184,15 +169,22 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
 
     const safeOptions = createMemo(() => props.options || []);
 
-    // Fuente única de "¿el valor actual matchea una opción real?" — antes
-    // dynamicOptions (con .some) y selectedItem (con .find) repetían el mismo
-    // predicado y recorrían props.options cada uno por su lado.
+    // Single source of truth for matching options by label
     const matchedOption = createMemo<T | undefined>(() => {
         const val = props.value;
         if (!val) return undefined;
         return safeOptions().find(
             opt => props.optionLabel(opt) === val
         );
+    });
+
+    // Pure memo determining if the current text represents a valid selection
+    const isSelectionValid = createMemo<boolean>(() => {
+        const val = props.value;
+        if (!val) return false;
+        if (matchedOption() !== undefined) return true;
+        if (lastConfirmedValue() === val) return true;
+        return false;
     });
 
     const dynamicOptions = createMemo<Array<T | string>>(() => {
@@ -210,11 +202,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         return matchedOption() ?? val;
     });
 
-    // FIX 4 (accesibilidad): antes el Content se ocultaba solo con una clase
-    // CSS (`classList hidden`) mientras `open` seguía en `true`, así que
-    // Kobalte reportaba `aria-expanded="true"` con contenido invisible para
-    // lectores de pantalla. Ahora esta misma condición controla el `open`
-    // real del combobox, no solo su apariencia.
     const shouldShowContent = createMemo(() => {
         if (props.isLoading) return true;
         if (props.onCreateNew) return true;
@@ -223,23 +210,17 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         return (props.value?.length ?? 0) >= (props.minLength ?? 3);
     });
 
-    // Si mientras está abierto deja de haber algo que mostrar (ej. el usuario
-    // borró letras y quedó por debajo de minLength), lo cerramos de verdad.
+    // Auto-close if content becomes empty while open
     createEffect(() => {
         if (isOpen() && !shouldShowContent()) {
             setIsOpen(false);
         }
     });
 
-    // Único punto que define "qué significa limpiar la selección". Antes este
-    // mismo par de llamadas (onInputChange('') + onSelect(null)) estaba
-    // repetido en 3 lugares: el onChange de Kobalte cuando selected es null,
-    // el botón "X" de limpiar, y el blur sin selección válida.
     const clearSelection = () => {
+        setLastConfirmedValue(null);
         props.onInputChange('');
-        if (props.onSelect) {
-            props.onSelect(null as any);
-        }
+        props.onSelect?.(null as any);
     };
 
     return (
@@ -259,41 +240,27 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
             }}
             onInputChange={(v) => {
                 if (Date.now() - _lastSelectionTime < SELECTION_ECHO_GUARD_MS) return;
-                if (props.value !== v) {
-                    setHasValidSelection(false);
-                }
                 props.onInputChange(v);
             }}
             value={selectedItem()}
             onChange={(selected) => {
                 isClickingDropdown = false;
                 if (!selected) {
-                    setHasValidSelection(false);
                     clearSelection();
                     return;
                 }
                 if (typeof selected === 'string') {
                     props.onInputChange(selected);
                 } else {
-                    setHasValidSelection(true);
+                    const label = props.optionLabel(selected);
+                    setLastConfirmedValue(label);
                     _lastSelectionTime = Date.now();
-                    if (props.onSelect) {
-                        props.onSelect(selected);
-                    }
+                    props.onSelect?.(selected);
                 }
             }}
             optionValue={(opt) => (typeof opt === 'string' ? opt : props.optionValue(opt))}
             optionTextValue={(opt) => (typeof opt === 'string' ? opt : props.optionLabel(opt))}
             optionLabel={(opt) => (typeof opt === 'string' ? opt : props.optionLabel(opt))}
-            // FIX 2 (bug crítico de datos): se eliminó el escapado manual de
-            // comillas (`.replace(/"/g, "&quot;")`). JSX ya escapa texto al
-            // renderizar, así que ese reemplazo no protegía nada — en cambio
-            // corrompía el valor real para cualquier opción con `"` (ej. `Perno
-            // 1/2"` en tu catálogo de fasteners), guardando literalmente
-          //  "Perno 1/2&quot;" como value/label. Si en algún momento agregaste
-            // eso por un bug puntual de Kobalte con comillas en el value,
-            // resolvelo generando una key sintética estable en vez de tocar
-            // el string de negocio.
             optionDisabled={(opt) => typeof opt === 'string'}
             defaultFilter={() => true}
             disabled={props.disabled}
@@ -301,12 +268,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
             itemComponent={(itemProps) => {
                 const opt = itemProps.item.rawValue;
                 if (typeof opt === 'string') {
-                    // FIX 3 (accesibilidad/teclado): además del `class="hidden"`,
-                    // ahora se marca `optionDisabled` arriba para que Kobalte lo
-                    // excluya de la navegación con flechas. Antes este item
-                    // "fantasma" (el texto libre que no matchea ninguna opción
-                    // real) seguía siendo foco-navegable con el teclado aunque
-                    // fuera invisible.
                     return (
                         <KCombobox.Item item={itemProps.item} class="hidden">
                              <KCombobox.ItemLabel>{opt}</KCombobox.ItemLabel>
@@ -342,7 +303,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                 <KCombobox.Input
                     id={props.inputId || context.id}
                     placeholder={props.placeholder}
-                    class={`flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0 ${hasValidSelection() ? 'cursor-default' : ''}`}
+                    class={`flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0 ${isSelectionValid() ? 'cursor-default' : ''}`}
                     onPointerDown={(e) => {
                         e.stopPropagation();
                     }}
@@ -351,15 +312,18 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                         setIsFocused(true);
                         e.currentTarget.select();
                     }}
-                    onBlur={() => {
-                        // ── CRITICAL: capture clear decision SYNCHRONOUSLY ──
-                        // Reading reactive state BEFORE the setTimeout ensures
-                        // the decision is based on state at blur-time, not 150ms later.
-                        const shouldClear = (props.clearOnBlur ?? true) && !!props.value && !hasValidSelection();
+                    onBlur={(e) => {
+                        const relatedTarget = e.relatedTarget as HTMLElement | null;
+                        const isFocusInsideTrigger = triggerRef?.contains(relatedTarget);
+
+                        // Capture decision synchronously based on current reactive state
+                        const shouldClear = (props.clearOnBlur ?? true) && !!props.value && !isSelectionValid();
 
                         setTimeout(() => {
-                            // Only bail if a dropdown interaction is in progress
-                            if (isClickingDropdown) return;
+                            const wasClicking = isClickingDropdown || isFocusInsideTrigger;
+                            isClickingDropdown = false;
+
+                            if (wasClicking) return;
 
                             if (shouldClear) {
                                 clearSelection();
@@ -392,7 +356,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     isClickingDropdown = false;
-                                    setHasValidSelection(false);
                                     setIsOpen(false);
                                     clearSelection();
                                 }}
@@ -428,12 +391,8 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
 
             <KCombobox.Portal>
                 <KCombobox.Content
-                    ref={(el) => {
-                        if (el) {
-                            el.addEventListener('pointerdown', () => {
-                                isClickingDropdown = true;
-                            });
-                        }
+                    onPointerDown={() => {
+                        isClickingDropdown = true;
                     }}
                     class="relative z-100 min-w-32 overflow-hidden bg-card border border-border shadow-md rounded-xl p-1 transform-origin-var data-expanded:animate-in data-expanded:fade-in-0 data-expanded:zoom-in-95 data-expanded:slide-in-from-top-2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:slide-out-to-top-2"
                     style={{

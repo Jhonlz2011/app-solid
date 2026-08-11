@@ -29,11 +29,18 @@ export const BrandSelect: Component<BrandSelectProps> = (props) => {
         return brands().filter(b => b.name.toLowerCase().includes(s));
     });
 
-    // Sync search text when value arrives from outside (e.g. edit mode preload)
+    // Sync search text when props.value changes from outside
     createEffect(() => {
-        if (props.value && !search()) {
-            const brand = brands().find(b => b.id === props.value);
-            if (brand) setSearch(brand.name);
+        const val = props.value;
+        if (val != null) {
+            const brand = brands().find(b => b.id === val);
+            if (brand && search() !== brand.name) {
+                setSearch(brand.name);
+            }
+        } else {
+            if (search() !== '') {
+                setSearch('');
+            }
         }
     });
 
