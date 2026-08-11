@@ -2,7 +2,7 @@
  * CatalogForm — 2-column layout: Tabs LEFT, Images+Attributes RIGHT.
  * Mode-aware version of ProductForm for both Products and Services.
  */
-import { Component, Show, createSignal, createEffect, createMemo, onCleanup } from 'solid-js';
+import { Component, Show, createSignal, createEffect, createMemo, onCleanup, untrack } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { ProductFormSchema } from '@app/schema/frontend';
@@ -279,9 +279,15 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                         attributes={categoryAttributes}
                                         nameTemplate={nameTemplate}
                                         values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
-                                        onChange={(attrs) => form.setFieldValue('shared_attributes', attrs)}
+                                        onChange={(attrs) => untrack(() => form.setFieldValue('shared_attributes', attrs))}
                                         onNameGenerated={(generated) => {
-                                                if (!manualNameOverride()) form.setFieldValue('name', generated);
+                                                if (!manualNameOverride()) {
+                                                    untrack(() => {
+                                                        if (form.getFieldValue('name') !== generated) {
+                                                            form.setFieldValue('name', generated);
+                                                        }
+                                                    });
+                                                }
                                             }}
                                         categoryId={categoryId}
                                         />
@@ -410,8 +416,10 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                 values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
                                 nameTemplate={nameTemplate}
                                 onAddCustom={(key, value) => {
-                                    const current = form.getFieldValue('shared_attributes') ?? {};
-                                    form.setFieldValue('shared_attributes', { ...current, [key]: value });
+                                    untrack(() => {
+                                        const current = form.getFieldValue('shared_attributes') ?? {};
+                                        form.setFieldValue('shared_attributes', { ...current, [key]: value });
+                                    });
                                 }}
                             />
                         </Show>
