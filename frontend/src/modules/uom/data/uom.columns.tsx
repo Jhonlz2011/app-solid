@@ -26,6 +26,7 @@ import Checkbox from '@shared/ui/Checkbox';
 import { StatusBadge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import { Tooltip } from '@shared/ui/Tooltip';
+import LinkButton from '@shared/ui/LinkButton';
 import Button from '@shared/ui/Button';
 import {
     LockIcon, EditIcon, TrashIcon, RotateCcwIcon,
@@ -197,7 +198,7 @@ export function createUomColumns(handlers: UomColumnHandlers): ColumnDef<UomItem
                 return (
                     <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100" onClick={(e) => e.stopPropagation()}>
                         <Show when={handlers.canEdit && isActive}>
-                                <Button
+                                <LinkButton
                                     to={`/uom/${item.id}/edit`}
                                     preload="intent"
                                     variant="ghost"

@@ -14,19 +14,6 @@ const LazyAttributeNewRoute = lazyRouteComponent(() => import('@modules/attribut
  */
 export const createAttributeModals = (parentRoute: any, basePath = '', fallbackRedirect: any = { to: '/attributes' }) => {
     const prefix = basePath ? `${basePath}/` : '';
-    const segment = basePath || 'attributes';
-    const fallbackPath = typeof fallbackRedirect === 'string' ? fallbackRedirect : (fallbackRedirect.to || '/attributes');
-
-    const getBackTarget = () => {
-        const path = window.location.pathname;
-        const marker = `/${segment}`;
-        const index = path.lastIndexOf(marker);
-        if (index !== -1) {
-            const target = path.substring(0, index);
-            return target || fallbackPath;
-        }
-        return '..';
-    };
 
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
@@ -37,14 +24,7 @@ export const createAttributeModals = (parentRoute: any, basePath = '', fallbackR
                 throw redirect(fallbackRedirect);
             }
         },
-        component: function NestedAttributeNewWrapper() {
-            const navigate = useNavigate();
-            return (
-                <LazyAttributeNewRoute 
-                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
-                />
-            );
-        },
+        component: LazyAttributeNewRoute,
     });
 
     const baseRoute = createRoute({
@@ -70,14 +50,7 @@ export const createAttributeModals = (parentRoute: any, basePath = '', fallbackR
                 staleTime: 1000 * 30,
             });
         },
-        component: function NestedAttributeShowWrapper() {
-            const navigate = useNavigate();
-            return (
-                <LazyAttributeShowRoute 
-                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
-                />
-            );
-        },
+        component: LazyAttributeShowRoute,
     });
 
     const editRoute = createRoute({
@@ -99,14 +72,7 @@ export const createAttributeModals = (parentRoute: any, basePath = '', fallbackR
             });
             return;
         },
-        component: function NestedAttributeEditWrapper() {
-            const navigate = useNavigate();
-            return (
-                <LazyAttributeEditRoute 
-                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
-                />
-            );
-        },
+        component: LazyAttributeEditRoute,
     });
 
     const nestedEditRoute = createRoute({
@@ -118,10 +84,7 @@ export const createAttributeModals = (parentRoute: any, basePath = '', fallbackR
                 throw redirect(fallbackRedirect);
             }
         },
-        component: function NestedEditWrapper() {
-            const navigate = useNavigate();
-            return <LazyAttributeEditRoute onBack={() => navigate({ to: '..', search: true })} />;
-        }
+        component: LazyAttributeEditRoute,
     });
 
     return [

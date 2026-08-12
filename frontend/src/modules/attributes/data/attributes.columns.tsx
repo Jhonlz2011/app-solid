@@ -141,7 +141,7 @@ export function createAttributeColumns(handlers: AttributeColumnHandlers): Colum
                         <Show when={options.length > 0} fallback={<span class="text-xs text-muted">—</span>}>
                             <For each={options.slice(0, 4)}>
                                 {(opt) => (
-                                    <span class="text-[11px] bg-surface px-1.5 py-0.5 rounded border border-border text-muted truncate max-w-[80px]">
+                                    <span class="text-[11px] bg-surface px-1.5 py-0.5 rounded border border-border text-muted truncate max-w-20">
                                         {opt}
                                     </span>
                                 )}

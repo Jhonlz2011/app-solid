@@ -10,11 +10,15 @@ import type { BrandItem } from './brands.api';
 import Checkbox from '@shared/ui/Checkbox';
 import { StatusBadge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
-import ActionMenu from '@shared/ui/ActionMenu';
+import Button from '@shared/ui/Button';
+import { EditIcon, TrashIcon, RotateCcwIcon } from '@shared/ui/icons';
+import LinkButton from '@/shared/ui/LinkButton';
 
 export interface BrandColumnHandlers {
     onDelete: (brand: BrandItem) => void;
     onRestore: (brand: BrandItem) => void;
+    canEdit: boolean;
+    canDelete: boolean;
 }
 
 export function createBrandColumns(handlers: BrandColumnHandlers): ColumnDef<BrandItem>[] {
@@ -85,18 +89,37 @@ export function createBrandColumns(handlers: BrandColumnHandlers): ColumnDef<Bra
         {
             id: 'actions',
             header: '',
-            size: 50,
+            size: 80,
             enableHiding: false,
             cell: (info) => {
                 const brand = info.row.original;
+                const isActive = brand.is_active ?? true;
                 return (
-                    <ActionMenu
-                        module="brands"
-                        isActive={brand.is_active ?? true}
-                        editTo={`/brands/${brand.id}/edit`}
-                        onRestore={() => handlers.onRestore(brand)}
-                        onDelete={() => handlers.onDelete(brand)}
-                    />
+                    <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100" onClick={(e) => e.stopPropagation()}>
+                        <Show when={handlers.canEdit && isActive}>
+                            <LinkButton variant="ghost" size="icon_md" to={`/brands/${brand.id}/edit`} preload="intent" icon={<EditIcon class="size-4"/>} />
+                        </Show>
+                        <Show when={handlers.canDelete && isActive}>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon_md"
+                                class="hover:text-danger hover:bg-danger/10"
+                                onClick={() => handlers.onDelete(brand)}
+                                icon={<TrashIcon class="size-4" />}
+                            />
+                        </Show>
+                        <Show when={handlers.canDelete && !isActive}>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon_md"
+                                class="hover:text-success hover:bg-success/10"
+                                onClick={() => handlers.onRestore(brand)}
+                                icon={<RotateCcwIcon class="size-4" />}
+                            />
+                        </Show>
+                    </div>
                 );
             },
         },

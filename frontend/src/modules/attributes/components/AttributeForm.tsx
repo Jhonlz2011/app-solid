@@ -302,7 +302,7 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
                     setHasAttemptedSubmit(true);
                     form.handleSubmit();
                 }}
-                class="flex flex-col gap-5"
+                class="flex flex-col gap-4 py-4"
             >
                 {/* ─── Section 1: Identity ─── */}
                 <section class="space-y-5">
@@ -322,7 +322,7 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
                     {/* Label field */}
                     <form.Field name="label">
                         {(field) => (
-                            <TextField.Root field={field()} class='mt-4 gap-2'>
+                            <TextField.Root field={field()} class='gap-2'>
                                 <TextField.Label class='text-text text-sm font-semibold' >Etiqueta *</TextField.Label>
                                 <TextField.Input type="text" placeholder="Ej: Voltaje de Entrada, Color, Talla..." />
                                 <TextField.ErrorMessage />
@@ -369,7 +369,7 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
 
                 {/* ─── Section 3: Options (conditional) ─── */}
                 <Show when={showOptionsInput()}>
-                    <section class="animate-in fade-in slide-in-from-top-2 duration-300 mt-2 mb-4">
+                    <section class="animate-in fade-in slide-in-from-top-2 duration-300 mt-2">
                         <fieldset class={`
                             rounded-xl border-2 bg-surface/10 pb-2 relative transition-colors
                            border-border/60 hover:border-border-strong

@@ -15,19 +15,6 @@ const LazyCategoryNewRoute = lazyRouteComponent(() => import('@modules/categorie
  */
 export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRedirect: any = { to: '/categories' }) => {
     const prefix = basePath ? `${basePath}/` : '';
-    const segment = basePath || 'categories';
-    const fallbackPath = typeof fallbackRedirect === 'string' ? fallbackRedirect : (fallbackRedirect.to || '/categories');
-
-    const getBackTarget = () => {
-        const path = window.location.pathname;
-        const marker = `/${segment}`;
-        const index = path.lastIndexOf(marker);
-        if (index !== -1) {
-            const target = path.substring(0, index);
-            return target || fallbackPath;
-        }
-        return '..';
-    };
 
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
@@ -38,14 +25,7 @@ export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRe
                 throw redirect(fallbackRedirect);
             }
         },
-        component: function NestedCategoryNewWrapper() {
-            const navigate = useNavigate();
-            return (
-                <LazyCategoryNewRoute 
-                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
-                />
-            );
-        },
+        component: LazyCategoryNewRoute,
     });
 
     const newShowRoute = createRoute({
@@ -60,32 +40,13 @@ export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRe
                 staleTime: 1000 * 30,
             });
         },
-        component: function NestedShowWrapper() {
-            const navigate = useNavigate();
-            return (
-                <LazyCategoryShowRoute 
-                    onBack={() => {
-                        const path = window.location.pathname;
-                        const marker = '/new';
-                        const index = path.lastIndexOf(marker);
-                        if (index !== -1) {
-                            navigate({ to: path.substring(0, index + marker.length), search: true });
-                        } else {
-                            navigate({ to: '..', search: true });
-                        }
-                    }} 
-                />
-            );
-        }
+        component: LazyCategoryShowRoute,
     });
 
     const newNestedEditRoute = createRoute({
         getParentRoute: () => newShowRoute,
         path: `edit`,
-        component: function NestedEditWrapper() {
-            const navigate = useNavigate();
-            return <LazyCategoryEditRoute onBack={() => navigate({ to: '..', search: true })} />;
-        }
+        component: LazyCategoryEditRoute,
     });
 
     const baseRoute = createRoute({
@@ -111,14 +72,7 @@ export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRe
                 staleTime: 1000 * 30,
             });
         },
-        component: function NestedCategoryShowWrapper() {
-            const navigate = useNavigate();
-            return (
-                <LazyCategoryShowRoute 
-                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
-                />
-            );
-        },
+        component: LazyCategoryShowRoute,
     });
 
     const editRoute = createRoute({
@@ -140,14 +94,7 @@ export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRe
             });
             return;
         },
-        component: function NestedCategoryEditWrapper() {
-            const navigate = useNavigate();
-            return (
-                <LazyCategoryEditRoute 
-                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
-                />
-            );
-        },
+        component: LazyCategoryEditRoute,
     });
 
     const nestedEditRoute = createRoute({
@@ -159,10 +106,7 @@ export const createCategoryModals = (parentRoute: any, basePath = '', fallbackRe
                 throw redirect(fallbackRedirect);
             }
         },
-        component: function NestedEditWrapper() {
-            const navigate = useNavigate();
-            return <LazyCategoryEditRoute onBack={() => navigate({ to: '..', search: true })} />;
-        }
+        component: LazyCategoryEditRoute,
     });
 
     // Nest attribute creation modals inside newRoute and editRoute
