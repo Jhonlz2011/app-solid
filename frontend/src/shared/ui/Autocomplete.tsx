@@ -147,6 +147,7 @@ export interface AutocompleteInputProps<T> {
 const Input = <T,>(props: AutocompleteInputProps<T>) => {
     const ctx = useAutocompleteContext();
     let _lastSelectionTime = 0;
+    let inputRef: HTMLInputElement | undefined;
 
     // ── Dropdown width sync ──────────────────────────────────────────────
     let triggerRef: HTMLDivElement | undefined;
@@ -172,26 +173,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
     });
 
     /**
-     * Kobalte requires a selected item to exist in the options array.
-     * When the current text doesn't match any option, we add it as a
-     * disabled + hidden phantom string so Kobalte doesn't clear it.
-     */
-    const dynamicOptions = createMemo<Array<T | string>>(() => {
-        const val = props.value;
-        const opts: Array<T | string> = [...safeOptions()];
-        if (val && !matchedOption()) {
-            opts.push(val);
-        }
-        return opts;
-    });
-
-    const selectedItem = createMemo<T | string | null>(() => {
-        const val = props.value;
-        if (!val) return null;
-        return matchedOption() ?? val;
-    });
-
-    /**
      * Determines if the dropdown should be open based on content availability.
      * Kobalte's `allowsEmptyCollection` handles the base case, but we need
      * additional logic for loading states and minimum input length.
@@ -207,12 +188,16 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
     const clearSelection = () => {
         props.onInputChange('');
         props.onSelect?.(null);
+        if (inputRef) {
+            inputRef.value = '';
+            inputRef.dispatchEvent(new Event('input', { bubbles: true, cancelable: false }));
+        }
     };
 
     return (
-        <KCombobox<T | string>
+        <KCombobox<T>
             class={`flex flex-col gap-1.5 ${props.class ?? ''}`}
-            options={dynamicOptions()}
+            options={safeOptions()}
             validationState={ctx.validationState()}
             // ── Let Kobalte manage open state ──
             // triggerMode "focus" opens on input focus (replaces manual isFocused/isOpen)
@@ -228,38 +213,25 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                 props.onInputChange(v);
             }}
             // ── Selection ──
-            value={selectedItem()}
+            value={matchedOption() ?? null}
             onChange={(selected) => {
                 if (!selected) {
                     clearSelection();
                     return;
                 }
-                if (typeof selected === 'string') {
-                    // Phantom item selected (shouldn't happen, they're disabled)
-                    props.onInputChange(selected);
-                } else {
-                    _lastSelectionTime = Date.now();
-                    props.onSelect?.(selected);
-                }
+                _lastSelectionTime = Date.now();
+                props.onSelect?.(selected);
             }}
             // ── Option accessors ──
-            optionValue={(opt) => (typeof opt === 'string' ? opt : props.optionValue(opt))}
-            optionTextValue={(opt) => (typeof opt === 'string' ? opt : props.optionLabel(opt))}
-            optionLabel={(opt) => (typeof opt === 'string' ? opt : props.optionLabel(opt))}
-            optionDisabled={(opt) => typeof opt === 'string'}
+            optionValue={props.optionValue}
+            optionTextValue={props.optionLabel}
+            optionLabel={props.optionLabel}
             // Consumer handles filtering — tell Kobalte to show all options
             defaultFilter={() => true}
             disabled={props.disabled}
             placeholder={props.placeholder}
             itemComponent={(itemProps) => {
                 const opt = itemProps.item.rawValue;
-                if (typeof opt === 'string') {
-                    return (
-                        <KCombobox.Item item={itemProps.item} class="hidden">
-                            <KCombobox.ItemLabel>{opt}</KCombobox.ItemLabel>
-                        </KCombobox.Item>
-                    );
-                }
                 return (
                     <KCombobox.Item
                         item={itemProps.item}
@@ -287,6 +259,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                     <div class="mr-2 shrink-0">{props.inputPrefix}</div>
                 </Show>
                 <KCombobox.Input
+                    ref={inputRef}
                     id={props.inputId || ctx.id}
                     placeholder={props.placeholder}
                     class={`flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0 ${matchedOption() ? 'cursor-default' : ''}`}
