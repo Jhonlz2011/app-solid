@@ -15,7 +15,7 @@ import type { ProductComponentFormData } from '@app/schema/frontend';
 import Switch from '@shared/ui/Switch';
 import { FileUploadDropzone } from '@shared/ui/FileUpload';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
-import { TagIcon, UploadIcon } from '@shared/ui/icons';
+import { UploadIcon, InfoIcon } from '@shared/ui/icons';
 
 // Data
 import { useCategoryFormSchema } from '@/modules/categories/data/categories.queries';
@@ -32,9 +32,10 @@ import InventorySection from '@/shared/forms/catalog/sections/InventorySection';
 import VariantsSection from '@/shared/forms/catalog/sections/VariantsSection';
 import BomSection from '@/shared/forms/catalog/sections/BomSection';
 import DynamicAttributeFields from '@/modules/products/components/DynamicAttributeFields';
-import CategoryAttributeTags from '@/modules/products/components/CategoryAttributeTags';
+import NameTemplatePreview from '@shared/forms/catalog/sections/NameTemplatePreview';
 
 import type { CatalogModeConfig } from './catalog-form.utils';
+import { createTabErrorSelector, resolveTabFlags } from '@shared/forms/useTabErrors';
 
 export interface CatalogFormProps {
     mode: CatalogModeConfig;
@@ -109,7 +110,7 @@ function buildDefaultValues(mode: CatalogModeConfig, product?: Product): Product
         };
     }
     return {
-        product_type: mode.type, 
+        product_type: mode.type,
         product_subtype: mode.type === 'SERVICIO' ? null : 'SIMPLE',
         category_id: 0, brand_id: null,
         slug: '', name: '', description: null,
@@ -132,7 +133,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
         pendingFiles().forEach((f) => {
             const fileWithPreview = f as File & { _previewUrl?: string };
             if (fileWithPreview._previewUrl) {
-                try { URL.revokeObjectURL(fileWithPreview._previewUrl); } catch {}
+                try { URL.revokeObjectURL(fileWithPreview._previewUrl); } catch { }
             }
         });
     });
@@ -146,7 +147,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
             let uploadedUrls: string[] = [];
             if (pendingFiles().length > 0) {
                 setIsUploading(true);
-                try { 
+                try {
                     uploadedUrls = await productsApi.uploadImages(pendingFiles());
                     const existing = form.getFieldValue('image_urls') ?? [];
                     form.setFieldValue('image_urls', [...existing, ...uploadedUrls]);
@@ -183,7 +184,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                 if (uploadedUrls.length > 0) {
                     Promise.allSettled(
                         uploadedUrls.map(url => productsApi.deleteImage?.(url))
-                    ).catch(() => {/* silent */});
+                    ).catch(() => {/* silent */ });
                 }
                 if (err instanceof ApiError && err.errors?.length) {
                     for (const fe of err.errors) {
@@ -210,7 +211,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
 
     // Centralized category schema query — single subscription shared via props
     const categorySchemaQuery = useCategoryFormSchema(() => categoryId() > 0 ? categoryId() : null);
-    
+
     // Create a strict type cast for the response data
     type CategorySchemaResponse = { attributes?: unknown[], category?: { nameTemplate?: string, name?: string } };
     const catData = () => (categorySchemaQuery.data as CategorySchemaResponse | undefined);
@@ -218,7 +219,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
     const categoryAttributes = createMemo(() => catData()?.attributes ?? []);
     const nameTemplate = createMemo(() => catData()?.category?.nameTemplate ?? null);
     const hasTemplate = createMemo(() => !!nameTemplate());
-    const categoryName = createMemo(() => catData()?.category?.name ?? '');
+
 
     // Pre-computed additional variants — single computation shared via props
     const additionalVariants = createMemo(() => (variants() as ProductVariantFormData[]).slice(1));
@@ -264,7 +265,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                         {/* ── Determine if we need tabs ── */}
                         {(() => {
                             const hasTabs = props.mode.features.salesTab || props.mode.features.purchaseTab || props.mode.features.inventoryTab;
-                            
+
                             // ── General content (shared between tabbed and non-tabbed) ──
                             const generalContent = (
                                 <div class="flex flex-col gap-4 sm:gap-5 pt-4">
@@ -276,11 +277,11 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
 
                                     <Show when={categoryId() > 0}>
                                         <DynamicAttributeFields
-                                        attributes={categoryAttributes}
-                                        nameTemplate={nameTemplate}
-                                        values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
-                                        onChange={(attrs) => untrack(() => form.setFieldValue('shared_attributes', attrs))}
-                                        onNameGenerated={(generated) => {
+                                            attributes={categoryAttributes}
+                                            nameTemplate={nameTemplate}
+                                            values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
+                                            onChange={(attrs) => untrack(() => form.setFieldValue('shared_attributes', attrs))}
+                                            onNameGenerated={(generated) => {
                                                 if (!manualNameOverride()) {
                                                     untrack(() => {
                                                         if (form.getFieldValue('name') !== generated) {
@@ -289,7 +290,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                                     });
                                                 }
                                             }}
-                                        categoryId={categoryId}
+                                            categoryId={categoryId}
                                         />
                                     </Show>
 
@@ -305,7 +306,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                     <Show when={productSubtype() === 'COMPUESTO' || productSubtype() === 'FABRICADO'}>
                                         <BomSection form={form} currentProductId={props.product?.id} />
                                     </Show>
-                                    
+
 
                                 </div>
                             );
@@ -317,18 +318,34 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
 
                             return (
                                 <Tabs defaultValue="general">
-                                    <TabsList>
-                                        <TabsTrigger value="general">General</TabsTrigger>
-                                        <Show when={props.mode.features.salesTab}>
-                                            <TabsTrigger value="ventas">Ventas</TabsTrigger>
-                                        </Show>
-                                        <Show when={props.mode.features.purchaseTab}>
-                                            <TabsTrigger value="compras">Compras</TabsTrigger>
-                                        </Show>
-                                        <Show when={props.mode.features.inventoryTab}>
-                                            <TabsTrigger value="inventario">Inventario</TabsTrigger>
-                                        </Show>
-                                    </TabsList>
+                                    <div class="sticky top-0 z-20 max-w-full bg-card pt-4 pb-2">
+                                        <form.Subscribe
+                                            selector={createTabErrorSelector(hasAttemptedSubmit, {
+                                                general: { prefixes: [], isDefault: true },
+                                                ventas: { prefixes: ['default_base_price', 'iva_rate_code', 'variants[0].sale_uom_id'] },
+                                                compras: { prefixes: ['variants[0].last_cost'] },
+                                                inventario: { prefixes: ['uom_inventory_id', 'min_stock_alert', 'has_dimensional_tracking', 'variants[0].content_quantity', 'variants[0].std_length_cm', 'variants[0].std_width_cm'] },
+                                            })}
+                                        >
+                                            {(flagsAccessor) => {
+                                                const getFlags = () => resolveTabFlags(flagsAccessor as any);
+                                                return (
+                                                    <TabsList>
+                                                        <TabsTrigger value="general" hasError={getFlags().general}><InfoIcon />General</TabsTrigger>
+                                                        <Show when={props.mode.features.salesTab}>
+                                                            <TabsTrigger value="ventas" hasError={getFlags().ventas}>Ventas</TabsTrigger>
+                                                        </Show>
+                                                        <Show when={props.mode.features.purchaseTab}>
+                                                            <TabsTrigger value="compras" hasError={getFlags().compras}>Compras</TabsTrigger>
+                                                        </Show>
+                                                        <Show when={props.mode.features.inventoryTab}>
+                                                            <TabsTrigger value="inventario" hasError={getFlags().inventario}>Inventario</TabsTrigger>
+                                                        </Show>
+                                                    </TabsList>
+                                                );
+                                            }}
+                                        </form.Subscribe>
+                                    </div>
 
                                     {/* Tab: General */}
                                     <TabsContent value="general" forceMount class="hidden data-selected:block">
@@ -399,30 +416,12 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                             </Show>
                         </div>
 
-                        {/* Category Attribute Tags */}
-                        <Show
-                            when={categoryId() > 0}
-                            fallback={
-                                <div class="bg-surface/30 rounded-2xl border border-dashed border-border/40 p-5 flex flex-col items-center justify-center text-center min-h-[100px]">
-                                    <TagIcon class="size-6 text-muted/30 mb-1.5" />
-                                    <p class="text-xs font-medium text-muted">Selecciona una categoría</p>
-                                    <p class="text-[10px] text-muted/60 mt-0.5">Los atributos aparecerán aquí</p>
-                                </div>
-                            }
-                        >
-                            <CategoryAttributeTags
-                                attributes={categoryAttributes}
-                                categoryName={categoryName}
-                                values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
-                                nameTemplate={nameTemplate}
-                                onAddCustom={(key, value) => {
-                                    untrack(() => {
-                                        const current = form.getFieldValue('shared_attributes') ?? {};
-                                        form.setFieldValue('shared_attributes', { ...current, [key]: value });
-                                    });
-                                }}
-                            />
-                        </Show>
+                        {/* Name Template Preview */}
+                        <NameTemplatePreview
+                            attributes={categoryAttributes}
+                            values={() => (sharedAttributes() ?? {}) as Record<string, unknown>}
+                            nameTemplate={nameTemplate}
+                        />
                     </div>
                 </div>
             </form>

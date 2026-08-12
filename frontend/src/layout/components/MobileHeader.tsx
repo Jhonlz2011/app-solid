@@ -6,6 +6,8 @@ import { useMobileSidebar } from '@shared/store/layout.store';
 import { clickOutside } from '@shared/directives/clickOutside';
 import { useLogout } from '@modules/auth/hooks/useLogout';
 import { UserMenuDropdown } from './UserMenuDropdown';
+import { useSearchPalette } from '@shared/store/layout.store';
+import { SearchIcon } from '@shared/ui/icons';
 
 // Register directive
 false && clickOutside;
@@ -13,6 +15,7 @@ false && clickOutside;
 const MobileHeader: Component = () => {
     const auth = useAuth();
     const { open: openSidebar } = useMobileSidebar();
+    const { open: openSearch } = useSearchPalette();
     const [showUserMenu, setShowUserMenu] = createSignal(false);
     
     const { handleLogout, isLoggingOut } = useLogout();
@@ -34,6 +37,18 @@ const MobileHeader: Component = () => {
                 <svg class="size-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
+            </button>
+
+            {/* Buscador Centrado para Móvil */}
+            <button
+                onClick={openSearch}
+                class="flex-1 max-w-64 mx-4 h-9 px-3 rounded-xl bg-card-alt/60 border border-border/80 flex items-center justify-between text-muted hover:bg-card-alt hover:text-heading transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg shadow-sm"
+                aria-label="Abrir buscador"
+            >
+                <div class="flex items-center gap-2 overflow-hidden">
+                    <SearchIcon class="size-4 shrink-0" />
+                    <span class="text-sm font-medium truncate">Buscar...</span>
+                </div>
             </button>
 
             <div class="relative" use:clickOutside={() => setShowUserMenu(false)}>

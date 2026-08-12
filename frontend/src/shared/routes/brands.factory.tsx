@@ -1,4 +1,4 @@
-import { createRoute, lazyRouteComponent, redirect, useNavigate } from '@tanstack/solid-router';
+import { createRoute, lazyRouteComponent, redirect } from '@tanstack/solid-router';
 
 const LazyBrandNewRoute = lazyRouteComponent(() => import('@modules/brands/components/BrandNewSheet'));
 const LazyBrandEditRoute = lazyRouteComponent(() => import('@modules/brands/components/BrandEditSheet'));
@@ -8,19 +8,6 @@ const LazyBrandEditRoute = lazyRouteComponent(() => import('@modules/brands/comp
  */
 export const createBrandModals = (parentRoute: any, basePath = '', fallbackRedirect: any = { to: '/brands' }) => {
     const prefix = basePath ? `${basePath}/` : '';
-    const segment = basePath || 'brands';
-    const fallbackPath = typeof fallbackRedirect === 'string' ? fallbackRedirect : (fallbackRedirect.to || '/brands');
-
-    const getBackTarget = () => {
-        const path = window.location.pathname;
-        const marker = `/${segment}`;
-        const index = path.lastIndexOf(marker);
-        if (index !== -1) {
-            const target = path.substring(0, index);
-            return target || fallbackPath;
-        }
-        return '..';
-    };
 
     const newRoute = createRoute({
         getParentRoute: () => parentRoute,
@@ -31,14 +18,7 @@ export const createBrandModals = (parentRoute: any, basePath = '', fallbackRedir
                 throw redirect(fallbackRedirect);
             }
         },
-        component: function NestedBrandNewWrapper() {
-            const navigate = useNavigate();
-            return (
-                <LazyBrandNewRoute 
-                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
-                />
-            );
-        },
+        component: LazyBrandNewRoute,
     });
 
     const baseRoute = createRoute({
@@ -61,14 +41,7 @@ export const createBrandModals = (parentRoute: any, basePath = '', fallbackRedir
                 throw redirect(fallbackRedirect);
             }
         },
-        component: function NestedBrandEditWrapper() {
-            const navigate = useNavigate();
-            return (
-                <LazyBrandEditRoute 
-                    onClose={() => navigate({ to: getBackTarget(), search: true })} 
-                />
-            );
-        },
+        component: LazyBrandEditRoute,
     });
 
     return [

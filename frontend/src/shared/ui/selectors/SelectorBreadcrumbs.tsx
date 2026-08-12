@@ -10,6 +10,8 @@ export interface BreadcrumbItem {
 export interface SelectorBreadcrumbsProps {
     items: BreadcrumbItem[];
     basePath: string; // e.g. '/categories' o '/locations'
+    /** Suffix appended after /$id (default: 'show'). Use 'edit' for entities without a show route (e.g. brands). */
+    linkSuffix?: 'show' | 'edit';
 }
 
 /**
@@ -97,7 +99,7 @@ export const SelectorBreadcrumbs: Component<SelectorBreadcrumbsProps> = (props) 
                     {(part, i) => (
                         <div class="flex items-center shrink-0">
                             <Link
-                                to={`${resolvedPath()}/${part.id}/show`}
+                                to={`${resolvedPath()}/${part.id}/${props.linkSuffix ?? 'show'}`}
                                 preload="intent"
                                 class="max-w-37.5 truncate text-primary-strong hover:underline cursor-pointer"
                             >

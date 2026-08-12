@@ -4,6 +4,7 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { EntityFormSchema, type EntityFormData, type TaxIdTypeForm, type PersonType, type TaxRegimeType } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
+import { createTabErrorSelector, resolveTabFlags } from '@shared/forms/useTabErrors';
 
 import { createDefaultEntityFormValues, EMPTY_EMPLOYEE_DETAILS } from './entity-form.utils';
 
@@ -188,27 +189,14 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                 <Tabs defaultValue="general" class="w-full h-full flex flex-col">
                     <div class="sticky top-0 z-20 max-w-full bg-card pt-4 pb-2">
                         <form.Subscribe 
-                            selector={(state) => {
-                                const meta = (state.fieldMeta || {}) as Record<string, { errors?: unknown[]; errorMap?: { onSubmit?: string }; isTouched?: boolean }>;
-                                const keys = Object.keys(meta);
-                                const isAttempted = state.isSubmitted || hasAttemptedSubmit();
-                                
-                                const isErrVisible = (k: string) => {
-                                    const f = meta[k];
-                                    if (!f?.errors || f.errors.length === 0) return false;
-                                    const hasSubmitError = f.errorMap?.onSubmit !== undefined;
-                                    return f.isTouched || isAttempted || hasSubmitError;
-                                };
-
-                                return {
-                                    general: keys.some(k => !k.startsWith('contacts') && !k.startsWith('addresses') && isErrVisible(k)),
-                                    contacts: keys.some(k => k.startsWith('contacts') && isErrVisible(k)),
-                                    addresses: keys.some(k => k.startsWith('addresses') && isErrVisible(k)),
-                                };
-                            }}
+                            selector={createTabErrorSelector(hasAttemptedSubmit, {
+                                general: { prefixes: [], isDefault: true },
+                                contacts: { prefixes: ['contacts'] },
+                                addresses: { prefixes: ['addresses'] },
+                            })}
                         >
                             {(flagsAccessor) => {
-                                const getFlags = () => (typeof flagsAccessor === 'function' ? flagsAccessor() : flagsAccessor) || { general: false, contacts: false, addresses: false };
+                                const getFlags = () => resolveTabFlags(flagsAccessor as any);
                                 
                                 return (
                                     <TabsList class="flex overflow-x-auto shadow-sm rounded-xl">

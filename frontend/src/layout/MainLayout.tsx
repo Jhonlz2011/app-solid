@@ -9,6 +9,7 @@ import { toast } from 'solid-sonner';
 import { useQueryClient } from '@tanstack/solid-query';
 import { connect as connectSSE, disconnect as disconnectSSE } from '@shared/store/sse.store';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
+import { GlobalSearchPalette } from './components/search/GlobalSearchPalette';
 
 export const LayoutSkeleton: Component = () => {
     return (
@@ -131,6 +132,7 @@ const MainLayout: Component = () => {
         <div class="flex h-dvh bg-background overflow-hidden relative">
             <MobileHeader />
             <Sidebar />
+            <GlobalSearchPalette />
 
             <main class="flex-1 relative min-w-0 bg-background overflow-hidden">
                 <div class="flex flex-col h-full pt-14 sm:pt-0 overflow-hidden relative min-h-0">

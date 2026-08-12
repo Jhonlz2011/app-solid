@@ -1,4 +1,6 @@
-import { Component, Show, createSignal, createEffect } from 'solid-js';
+import { Component, Show, createSignal, createEffect, untrack } from 'solid-js';
+import { isNetworkError } from '@shared/utils/api-errors';
+import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { useParams } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
@@ -37,11 +39,20 @@ const BrandEditSheet: Component<BrandEditSheetProps> = (props) => {
         validators: { onChange: BrandFormSchema, onSubmit: BrandFormSchema },
         onSubmit: async ({ value }) => {
             if (brandId() === 0) return;
+            if (isOffline()) {
+                updateMut.mutate({ id: brandId(), data: { name: value.name, website: value.website || undefined } });
+                showOfflineSavedToast();
+                navigateAway();
+                return;
+            }
             updateMut.mutate(
                 { id: brandId(), data: { name: value.name, website: value.website || undefined } },
                 {
                     onSuccess: () => { toast.success('Marca actualizada'); navigateAway(); },
-                    onError: (err: any) => toast.error(err.message || 'Error al actualizar'),
+                    onError: (err: any) => {
+                        if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
+                        toast.error(err.message || 'Error al actualizar');
+                    },
                 },
             );
         },
@@ -50,8 +61,10 @@ const BrandEditSheet: Component<BrandEditSheetProps> = (props) => {
     createEffect(() => {
         const b = brand();
         if (b) {
-            form.setFieldValue('name', b.name);
-            form.setFieldValue('website', b.website ?? '');
+            untrack(() => {
+                form.setFieldValue('name', b.name);
+                form.setFieldValue('website', b.website ?? '');
+            });
         }
     });
 
@@ -59,9 +72,18 @@ const BrandEditSheet: Component<BrandEditSheetProps> = (props) => {
         const b = brand();
         if (!b) return;
         const isActive = b.is_active ?? true;
+        if (isOffline()) {
+            (isActive ? deactivateMut : restoreMut).mutate(b.id);
+            showOfflineSavedToast();
+            navigateAway();
+            return;
+        }
         (isActive ? deactivateMut : restoreMut).mutate(b.id, {
             onSuccess: () => { toast.success(isActive ? 'Marca desactivada' : 'Marca restaurada'); navigateAway(); },
-            onError: (err: any) => toast.error(err.message || 'Error'),
+            onError: (err: any) => {
+                if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
+                toast.error(err.message || 'Error');
+            },
         });
     };
 

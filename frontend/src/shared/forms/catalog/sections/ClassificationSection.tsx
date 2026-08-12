@@ -287,10 +287,10 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                                                 <div class="flex items-center gap-2">
                                                     <TagIcon class="size-4 text-primary shrink-0" />
                                                     <Link
-                                                        to={`${resolvedBrandPath()}/${brand().id}/show`}
+                                                        to={`${resolvedBrandPath()}/${brand().id}/edit`}
                                                         preload="intent"
                                                         class="text-xs font-bold text-text uppercase tracking-wide truncate hover:text-primary hover:underline cursor-pointer"
-                                                        title="Ver detalle de esta marca"
+                                                        title="Editar esta marca"
                                                     >
                                                         {brand().name}
                                                     </Link>
