@@ -8,9 +8,9 @@ import { hasFieldError, getFieldError, FormSubmissionContext } from './form/form
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 /**
- * After selecting an option, Kobalte fires onInputChange with the label
- * of the selected item (echo effect). This guard prevents consumers from
- * overwriting the just-confirmed value during that window.
+ * After a selection, Kobalte fires onInputChange with the selected label
+ * (echo effect). This guard window prevents consumers from overwriting
+ * the just-confirmed value.
  */
 const SELECTION_ECHO_GUARD_MS = 150;
 
@@ -105,7 +105,7 @@ const Description = (props: { class?: string; children: JSX.Element }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Input (Kobalte Combobox wrapper — controlled inputValue)
+// Input (Kobalte Combobox wrapper)
 // ─────────────────────────────────────────────────────────────────────────────
 export interface AutocompleteInputProps<T> {
     /** Current text shown in the input (controlled). */
@@ -114,14 +114,14 @@ export interface AutocompleteInputProps<T> {
     onInputChange: (value: string) => void;
     /** Array of options to display. Filtering is the consumer's responsibility. */
     options: T[];
-    /** Unique key for each option. */
+    /** Unique key for each option (used internally by Kobalte). */
     optionValue: (option: T) => string;
     /** Display label for each option. */
     optionLabel: (option: T) => string;
     optionDescription?: (option: T) => string;
     itemRenderer?: (option: T) => JSX.Element;
     inputPrefix?: JSX.Element;
-    /** Fires when user selects an option. Receives null on clear. */
+    /** Fires when user selects an option or clears. Receives null on clear. */
     onSelect?: (option: T | null) => void;
     placeholder?: string;
     disabled?: boolean;
@@ -138,6 +138,8 @@ export interface AutocompleteInputProps<T> {
      * When the user blurs WITHOUT a valid selection:
      * - `true` (default): clears input and fires onSelect(null).
      * - `false`: keeps text as-is (free-text mode, e.g. SRI search).
+     *
+     * Internally delegates to Kobalte's `noResetInputOnBlur` prop.
      */
     clearOnBlur?: boolean;
 }
@@ -163,14 +165,37 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
     // ── Derived state ────────────────────────────────────────────────────
     const safeOptions = createMemo(() => props.options || []);
 
-    /** Does the current input text exactly match an option label? */
     const matchedOption = createMemo<T | undefined>(() => {
         const val = props.value;
         if (!val) return undefined;
         return safeOptions().find(opt => props.optionLabel(opt) === val);
     });
 
-    /** Controls when the dropdown should be open based on content. */
+    /**
+     * Kobalte requires a selected item to exist in the options array.
+     * When the current text doesn't match any option, we add it as a
+     * disabled + hidden phantom string so Kobalte doesn't clear it.
+     */
+    const dynamicOptions = createMemo<Array<T | string>>(() => {
+        const val = props.value;
+        const opts: Array<T | string> = [...safeOptions()];
+        if (val && !matchedOption()) {
+            opts.push(val);
+        }
+        return opts;
+    });
+
+    const selectedItem = createMemo<T | string | null>(() => {
+        const val = props.value;
+        if (!val) return null;
+        return matchedOption() ?? val;
+    });
+
+    /**
+     * Determines if the dropdown should be open based on content availability.
+     * Kobalte's `allowsEmptyCollection` handles the base case, but we need
+     * additional logic for loading states and minimum input length.
+     */
     const shouldShowContent = createMemo(() => {
         if (props.isLoading) return true;
         if (props.onCreateNew) return true;
@@ -185,39 +210,56 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
     };
 
     return (
-        <KCombobox<T>
+        <KCombobox<T | string>
             class={`flex flex-col gap-1.5 ${props.class ?? ''}`}
-            // ── Options: pure T[], no phantom strings needed ──
-            options={safeOptions()}
+            options={dynamicOptions()}
             validationState={ctx.validationState()}
+            // ── Let Kobalte manage open state ──
+            // triggerMode "focus" opens on input focus (replaces manual isFocused/isOpen)
             triggerMode="focus"
             allowsEmptyCollection={shouldShowContent()}
-            // ── Input text: CONTROLLED by consumer ──
-            inputValue={props.value}
+            // ── Input value ──
+            // Kobalte's noResetInputOnBlur is the INVERSE of clearOnBlur
+            noResetInputOnBlur={!(props.clearOnBlur ?? true)}
             onInputChange={(v) => {
+                // Guard against the echo: after selection, Kobalte fires
+                // onInputChange with the selected label. Skip it.
                 if (Date.now() - _lastSelectionTime < SELECTION_ECHO_GUARD_MS) return;
                 props.onInputChange(v);
             }}
-            // ── Selection: real option or null ──
-            value={matchedOption() ?? null}
+            // ── Selection ──
+            value={selectedItem()}
             onChange={(selected) => {
-                if (selected) {
+                if (!selected) {
+                    clearSelection();
+                    return;
+                }
+                if (typeof selected === 'string') {
+                    // Phantom item selected (shouldn't happen, they're disabled)
+                    props.onInputChange(selected);
+                } else {
                     _lastSelectionTime = Date.now();
                     props.onSelect?.(selected);
-                } else {
-                    clearSelection();
                 }
             }}
-            // ── Option accessors: pure T, no string checks ──
-            optionValue={props.optionValue}
-            optionTextValue={props.optionLabel}
-            optionLabel={props.optionLabel}
-            // Consumer handles filtering
+            // ── Option accessors ──
+            optionValue={(opt) => (typeof opt === 'string' ? opt : props.optionValue(opt))}
+            optionTextValue={(opt) => (typeof opt === 'string' ? opt : props.optionLabel(opt))}
+            optionLabel={(opt) => (typeof opt === 'string' ? opt : props.optionLabel(opt))}
+            optionDisabled={(opt) => typeof opt === 'string'}
+            // Consumer handles filtering — tell Kobalte to show all options
             defaultFilter={() => true}
             disabled={props.disabled}
             placeholder={props.placeholder}
             itemComponent={(itemProps) => {
                 const opt = itemProps.item.rawValue;
+                if (typeof opt === 'string') {
+                    return (
+                        <KCombobox.Item item={itemProps.item} class="hidden">
+                            <KCombobox.ItemLabel>{opt}</KCombobox.ItemLabel>
+                        </KCombobox.Item>
+                    );
+                }
                 return (
                     <KCombobox.Item
                         item={itemProps.item}
@@ -250,13 +292,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                     class={`flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0 ${matchedOption() ? 'cursor-default' : ''}`}
                     onPointerDown={(e) => e.stopPropagation()}
                     onFocus={(e) => e.currentTarget.select()}
-                    onBlur={() => {
-                        // clearOnBlur: clear text if no valid selection on blur
-                        if ((props.clearOnBlur ?? true) && props.value && !matchedOption()) {
-                            clearSelection();
-                        }
-                        props.onBlur?.();
-                    }}
+                    onBlur={() => props.onBlur?.()}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && props.onSearchAction) {
                             props.onSearchAction();

@@ -2,7 +2,7 @@
  * WarehouseSelect — Reusable warehouse autocomplete with search + clear.
  * Uses `useWarehousesList()` internally.
  */
-import { Component, Show, createMemo, createSignal, createEffect } from 'solid-js';
+import { Component, Show, createMemo, createSignal, createEffect, on } from 'solid-js';
 import { useWarehousesList } from '@modules/settings/data/warehouses.queries';
 import { Autocomplete } from '@shared/ui/Autocomplete';
 import { WarehouseIcon } from '@shared/ui/icons';
@@ -36,8 +36,7 @@ export const WarehouseSelect: Component<WarehouseSelectProps> = (props) => {
     });
 
     // Sync display text from external value
-    createEffect(() => {
-        const v = props.value;
+    createEffect(on(() => props.value, (v) => {
         if (v && warehouses().length > 0) {
             const wh = warehouses().find(w => w.id === v);
             if (wh) {
@@ -46,7 +45,7 @@ export const WarehouseSelect: Component<WarehouseSelectProps> = (props) => {
         } else if (!v) {
             setSearch('');
         }
-    });
+    }, { defer: false }));
 
     return (
         <Autocomplete.Root field={props.field}>

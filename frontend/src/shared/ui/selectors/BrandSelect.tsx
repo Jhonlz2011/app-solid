@@ -2,7 +2,7 @@
  * BrandSelect — Reusable brand autocomplete with search.
  * Uses `useBrandsList()` internally.
  */
-import { Component, Show, createMemo, createSignal, createEffect } from 'solid-js';
+import { Component, Show, createMemo, createSignal, createEffect, on } from 'solid-js';
 import { useBrandsList } from '@modules/brands/data/brands.queries';
 import { Autocomplete } from '@shared/ui/Autocomplete';
 
@@ -29,15 +29,14 @@ export const BrandSelect: Component<BrandSelectProps> = (props) => {
     });
 
     // Sync search text when props.value changes externally (edit mode, form reset)
-    createEffect(() => {
-        const val = props.value;
+    createEffect(on(() => props.value, (val) => {
         if (val != null) {
             const brand = brands().find(b => b.id === val);
             if (brand && search() !== brand.name) setSearch(brand.name);
         } else if (search() !== '') {
             setSearch('');
         }
-    });
+    }, { defer: false }));
 
     return (
         <Autocomplete.Root field={props.field}>
