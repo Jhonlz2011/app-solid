@@ -143,7 +143,9 @@ export const Sidebar: Component = () => {
             >
                 <SidebarHeader toggleCollapse={toggleCollapse} />
 
-                <SidebarSearch />
+                <Show when={!isMobileViewport()}>
+                    <SidebarSearch />
+                </Show>
 
                 <SidebarNav items={menuItems()} />
 

@@ -68,6 +68,23 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
     // Category attributes passed from parent (eliminates redundant query)
     const categoryAttributes = () => props.categoryAttributes();
 
+    // ── Responsive grid columns ──
+    // Uses minmax() for attribute columns so the grid compresses gracefully
+    const gridColumns = createMemo(() => {
+        const attrs = categoryAttributes();
+        const attrCols = attrs.length > 0
+            ? attrs.map(() => 'minmax(80px, 120px)').join(' ')
+            : '';
+        return `20px minmax(100px, 140px) ${attrCols} minmax(80px, 100px) 60px 56px`.trim();
+    });
+
+    // Dynamic min-width so the scroll container adapts to actual column count
+    const gridMinWidth = createMemo(() => {
+        const baseWidth = 20 + 140 + 100 + 60 + 56; // drag + name + price + status + actions
+        const attrWidth = categoryAttributes().length * 90;
+        return `${baseWidth + attrWidth}px`;
+    });
+
     // DnD — stable IDs: use DB id for persisted, negative index for new
     const variantIds = createMemo(() =>
         additionalVariants().map((v, i) => v.id ?? -(i + 1))
@@ -225,18 +242,19 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                         }
                     >
                         {/* POS/ERP High-Density Matrix Table */}
-                        <div class="space-y-2 mb-4 overflow-x-auto">
+                        <div class="space-y-2 mb-4 overflow-x-auto scrollbar-thin">
                             {/* Column headers */}
                             <div
-                                class="grid gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted min-w-150"
+                                class="grid gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted"
                                 style={{
-                                    'grid-template-columns': `20px 140px ${categoryAttributes().length > 0 ? categoryAttributes().map(() => '110px').join(' ') : ''} 100px 70px 60px`.trim(),
+                                    'grid-template-columns': gridColumns(),
+                                    'min-width': gridMinWidth(),
                                 }}
                             >
                                 <div />
-                                <div>Nombre / SKU</div>
+                                <div class="truncate">Nombre / SKU</div>
                                 <For each={categoryAttributes()}>
-                                    {(attr) => <div class="truncate">{attr.label}</div>}
+                                    {(attr) => <div class="truncate" title={attr.label}>{attr.label}</div>}
                                 </For>
                                 <div>Precio</div>
                                 <div>Estado</div>
@@ -247,7 +265,7 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                             <DragDropProvider onDragEnd={onDragEnd} collisionDetector={closestCenter}>
                                 <DragDropSensors />
                                 <SortableProvider ids={variantIds()}>
-                                    <div class="space-y-2 min-w-150">
+                                    <div class="space-y-2">
                                         <Index each={additionalVariants()}>
                                             {(variant, index) => {
                                                 const formIndex = () => index + 1;
@@ -261,7 +279,8 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                         class="grid items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/40 hover:border-primary/30 transition-all group"
                                                         classList={{ 'opacity-25': sortable.isActiveDraggable }}
                                                         style={{
-                                                            'grid-template-columns': `20px 140px ${categoryAttributes().length > 0 ? categoryAttributes().map(() => '110px').join(' ') : ''} 100px 70px 60px`.trim(),
+                                                            'grid-template-columns': gridColumns(),
+                                                            'min-width': gridMinWidth(),
                                                         }}
                                                     >
                                                         {/* Drag handle */}
@@ -425,7 +444,7 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                         >
                             <div class="grid gap-3"
                                 style={{
-                                    'grid-template-columns': `${categoryAttributes().map(() => '1fr').join(' ')} 120px 80px`.trim(),
+                                    'grid-template-columns': `${categoryAttributes().map(() => 'minmax(80px, 1fr)').join(' ')} minmax(80px, 120px) 80px`.trim(),
                                 }}
                             >
                                 {/* Attribute column headers */}
