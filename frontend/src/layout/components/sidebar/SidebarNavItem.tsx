@@ -78,6 +78,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
 
     // Toggle submenu for items with children
     const handleToggleSubmenu = () => {
+        if (props.item.status === 'development') return;
         if (hasChildren() && !collapsed()) {
             toggleMenu(props.item.id);
         }
@@ -85,6 +86,11 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
 
     // Keyboard Handler
     const handleKeyDown = (e: KeyboardEvent) => {
+        if (props.item.status === 'development') {
+            if (e.key === 'Enter' || e.key === ' ') e.preventDefault();
+            return;
+        }
+
         if (collapsed()) {
             if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight') {
                 e.preventDefault();
@@ -122,13 +128,17 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
 
     const shouldShowTooltip = () => collapsed() && activeTooltipId() === props.item.id && tooltipRect();
 
+    const isDevelopment = props.item.status === 'development';
+
     // Base classes for the interactive element
     const baseClasses = `group w-full flex items-center gap-3 h-11 px-4 rounded-xl relative
         text-muted transition-colors duration-200
-        hover:bg-primary/8 hover:text-heading
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg focus-visible:text-text`;
+        ${isDevelopment 
+            ? 'opacity-60 cursor-not-allowed grayscale' 
+            : 'hover:bg-primary/8 hover:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg focus-visible:text-text'
+        }`;
 
-    const activeClasses = `data-[state=active]:bg-primary/12 data-[state=active]:text-primary-strong data-[state=active]:font-semibold
+    const activeClasses = isDevelopment ? '' : `data-[state=active]:bg-primary/12 data-[state=active]:text-primary-strong data-[state=active]:font-semibold
         data-[state=active]:shadow-[inset_3px_0_0_var(--color-primary-strong)]
         data-[state=parent-active]:text-primary-strong`;
 
@@ -164,9 +174,18 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                             }}
                         >
                             <span class="whitespace-nowrap">{props.item.label}</span>
-                            <ChevronDownIcon
-                                class={`size-4 shrink-0 ml-2 opacity-50 group-hover:opacity-80 transition-transform duration-300 ${isExpanded() ? 'rotate-180' : ''}`}
-                            />
+                            <div class="flex items-center gap-2">
+                                <Show when={isDevelopment}>
+                                    <div class="flex items-center justify-center size-5 bg-card/50 rounded border border-border/50 shrink-0 shadow-xs">
+                                        <svg class="size-3 text-muted/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                        </svg>
+                                    </div>
+                                </Show>
+                                <ChevronDownIcon
+                                    class={`size-4 shrink-0 opacity-50 group-hover:opacity-80 transition-transform duration-300 ${isExpanded() ? 'rotate-180' : ''}`}
+                                />
+                            </div>
                         </div>
                     </button>
                 }
@@ -193,13 +212,20 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
 
                     {/* Text Container */}
                     <div
-                        class="flex-1 overflow-hidden transition-[opacity,max-width] duration-300 ease-[cubic-bezier(0.2,0,0,1)]"
+                        class="flex-1 flex items-center justify-between overflow-hidden transition-[opacity,max-width] duration-300 ease-[cubic-bezier(0.2,0,0,1)]"
                         classList={{
                             'opacity-100 max-w-[200px]': !collapsed(),
                             'opacity-0 max-w-0': collapsed()
                         }}
                     >
                         <span class="whitespace-nowrap">{props.item.label}</span>
+                        <Show when={isDevelopment}>
+                            <div class="flex items-center justify-center size-5 bg-card/50 rounded border border-border/50 shrink-0 shadow-xs">
+                                <svg class="size-3 text-muted/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                        </Show>
                     </div>
                 </Link>
             </Show>
@@ -240,54 +266,70 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                         <Show when={hasChildren()}>
                             <ul class="space-y-0.5" role="menu">
                                 <For each={props.item.children!}>
-                                    {(child) => (
-                                    <li role="none">
-                                        <Link
-                                            to={child.path || '#'}
-                                            role="menuitem"
-                                            onClick={() => {
-                                                setActiveTooltipId(null);
-                                                if (isMobileOpen()) setIsMobileOpen(false);
-                                            }}
-                                            onKeyDown={(e: KeyboardEvent) => {
-                                                const links = Array.from(tooltipRef?.querySelectorAll('a[role="menuitem"]') || []) as HTMLAnchorElement[];
-                                                const currentIndex = links.indexOf(e.currentTarget! as HTMLAnchorElement);
-                                                const isFirst = currentIndex === 0;
-                                                const isLast = currentIndex === links.length - 1;
-
-                                                if (e.key === 'ArrowDown') {
-                                                    e.preventDefault();
-                                                    links[(currentIndex + 1) % links.length]?.focus();
-                                                } else if (e.key === 'ArrowUp') {
-                                                    e.preventDefault();
-                                                    links[currentIndex === 0 ? links.length - 1 : currentIndex - 1]?.focus();
-                                                } else if (e.key === 'Tab') {
-                                                    if (e.shiftKey && isFirst) {
+                                    {(child) => {
+                                        const isChildDev = child.status === 'development';
+                                        return (
+                                        <li role="none">
+                                            <Link
+                                                to={child.path || '#'}
+                                                role="menuitem"
+                                                onClick={(e) => {
+                                                    if (isChildDev) {
                                                         e.preventDefault();
-                                                        links[links.length - 1]?.focus();
-                                                    } else if (!e.shiftKey && isLast) {
-                                                        e.preventDefault();
-                                                        links[0]?.focus();
+                                                        return;
                                                     }
-                                                } else if (e.key === 'Escape' || e.key === 'ArrowLeft') {
-                                                    e.preventDefault();
                                                     setActiveTooltipId(null);
-                                                    itemRef?.focus();
-                                                }
-                                            }}
-                                            class="flex z-100 items-center gap-2 px-2 py-2 rounded-lg text-sm transition-all hover:bg-primary/10 hover:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset focus-visible:text-heading"
-                                            classList={{
-                                                'bg-primary/10 text-primary-strong font-medium': isActive(child.path),
-                                                'text-muted': !isActive(child.path)
-                                            }}
-                                        >
-                                            <svg class="size-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={child.icon} />
-                                            </svg>
-                                            <span class="truncate">{child.label}</span>
-                                        </Link>
-                                    </li>
-                                    )}
+                                                    if (isMobileOpen()) setIsMobileOpen(false);
+                                                }}
+                                                onKeyDown={(e: KeyboardEvent) => {
+                                                    const links = Array.from(tooltipRef?.querySelectorAll('a[role="menuitem"]') || []) as HTMLAnchorElement[];
+                                                    const currentIndex = links.indexOf(e.currentTarget! as HTMLAnchorElement);
+                                                    const isFirst = currentIndex === 0;
+                                                    const isLast = currentIndex === links.length - 1;
+
+                                                    if (e.key === 'ArrowDown') {
+                                                        e.preventDefault();
+                                                        links[(currentIndex + 1) % links.length]?.focus();
+                                                    } else if (e.key === 'ArrowUp') {
+                                                        e.preventDefault();
+                                                        links[currentIndex === 0 ? links.length - 1 : currentIndex - 1]?.focus();
+                                                    } else if (e.key === 'Tab') {
+                                                        if (e.shiftKey && isFirst) {
+                                                            e.preventDefault();
+                                                            links[links.length - 1]?.focus();
+                                                        } else if (!e.shiftKey && isLast) {
+                                                            e.preventDefault();
+                                                            links[0]?.focus();
+                                                        }
+                                                    } else if (e.key === 'Escape' || e.key === 'ArrowLeft') {
+                                                        e.preventDefault();
+                                                        setActiveTooltipId(null);
+                                                        itemRef?.focus();
+                                                    }
+                                                }}
+                                                class={`flex justify-between z-100 items-center gap-2 px-2 py-2 rounded-lg text-sm transition-all ${
+                                                    isChildDev
+                                                        ? 'text-muted/50 cursor-not-allowed bg-transparent'
+                                                        : (isActive(child.path) ? 'bg-primary/10 text-primary-strong font-medium' : 'text-muted hover:bg-primary/10 hover:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset focus-visible:text-heading')
+                                                }`}
+                                            >
+                                                <div class="flex items-center gap-2 truncate">
+                                                    <svg class="size-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={child.icon} />
+                                                    </svg>
+                                                    <span class="truncate">{child.label}</span>
+                                                </div>
+                                                <Show when={isChildDev}>
+                                                    <div class="flex items-center justify-center size-4 bg-card/50 rounded border border-border/50 shrink-0">
+                                                        <svg class="size-2.5 text-muted/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                        </svg>
+                                                    </div>
+                                                </Show>
+                                            </Link>
+                                        </li>
+                                        );
+                                    }}
                                 </For>
                             </ul>
                         </Show>
