@@ -6,6 +6,7 @@ CREATE TYPE "public"."invoice_status" AS ENUM('DRAFT', 'SIGNED', 'SENDING', 'AUT
 CREATE TYPE "public"."justification_type" AS ENUM('LIBRE', 'FALTA', 'IESS', 'VACACIONES', 'FERIADO', 'SAB', 'DOM');--> statement-breakpoint
 CREATE TYPE "public"."location_type" AS ENUM('VIEW', 'INTERNAL', 'SUPPLIER', 'CUSTOMER', 'ADJUSTMENT', 'PRODUCTION');--> statement-breakpoint
 CREATE TYPE "public"."material_request_status" AS ENUM('PENDING', 'APPROVED', 'IN_TRANSIT', 'RECEIVED', 'COMPLETED');--> statement-breakpoint
+CREATE TYPE "public"."menu_item_status" AS ENUM('active', 'development', 'deprecated');--> statement-breakpoint
 CREATE TYPE "public"."movement_reference_type" AS ENUM('INVOICE', 'PURCHASE_ORDER', 'MANUFACTURING_ORDER', 'MATERIAL_REQUEST', 'ADJUSTMENT', 'POS_SALE', 'RETURN');--> statement-breakpoint
 CREATE TYPE "public"."movement_type" AS ENUM('PURCHASE', 'SALE', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_OUTPUT', 'ADJUSTMENT', 'TRANSFER_OUT', 'TRANSFER_IN');--> statement-breakpoint
 CREATE TYPE "public"."payment_method_sri" AS ENUM('01', '15', '16', '17', '18', '19', '20', '21');--> statement-breakpoint
@@ -68,6 +69,7 @@ CREATE TABLE "entities" (
 	"is_supplier" boolean DEFAULT false,
 	"is_employee" boolean DEFAULT false,
 	"is_carrier" boolean DEFAULT false,
+	"is_system" boolean DEFAULT false,
 	"tax_regime_type" "tax_regime_type" DEFAULT 'GENERAL',
 	"is_retention_agent" boolean DEFAULT false,
 	"is_special_contributor" boolean DEFAULT false,
@@ -116,11 +118,11 @@ CREATE TABLE "companies" (
 	"obligado_contabilidad" boolean DEFAULT false NOT NULL,
 	"contribuyente_especial" text,
 	"agente_retencion" text,
-	"rimpe_type" text,
+	"rimpe_type" "tax_regime_type",
 	"sri_environment" text DEFAULT '2' NOT NULL,
 	"logo_url" text,
 	"primary_color" text DEFAULT '#2563eb' NOT NULL,
-	"secondary_color" text DEFAULT '#64748b' NOT NULL,
+	"theme_color" text DEFAULT '#64748b' NOT NULL,
 	"login_bg_url" text,
 	"email" text,
 	"phone" text,
@@ -218,6 +220,7 @@ CREATE TABLE "categories" (
 ALTER TABLE "categories" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "category_attributes" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "category_attributes_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"category_id" integer NOT NULL,
 	"attribute_def_id" integer NOT NULL,
 	"required" boolean DEFAULT false,
@@ -226,6 +229,7 @@ CREATE TABLE "category_attributes" (
 	CONSTRAINT "unq_cat_attr" UNIQUE("category_id","attribute_def_id")
 );
 --> statement-breakpoint
+ALTER TABLE "category_attributes" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "auth_menu_items" (
 	"id" smallint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "auth_menu_items_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 32767 START WITH 1 CACHE 1),
 	"key" text NOT NULL,
@@ -235,7 +239,7 @@ CREATE TABLE "auth_menu_items" (
 	"parent_id" smallint,
 	"sort_order" smallint DEFAULT 0,
 	"permission_prefix" text,
-	"is_active" boolean DEFAULT true,
+	"status" "menu_item_status" DEFAULT 'active',
 	CONSTRAINT "auth_menu_items_key_unique" UNIQUE("key")
 );
 --> statement-breakpoint
@@ -341,6 +345,7 @@ CREATE TABLE "_audit_queue" (
 --> statement-breakpoint
 CREATE TABLE "product_components" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "product_components_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"parent_product_id" integer NOT NULL,
 	"component_product_id" integer NOT NULL,
 	"quantity_per_parent" numeric(6, 2) NOT NULL,
@@ -349,8 +354,10 @@ CREATE TABLE "product_components" (
 	CONSTRAINT "unq_prod_component" UNIQUE("parent_product_id","component_product_id")
 );
 --> statement-breakpoint
+ALTER TABLE "product_components" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "product_uom_conversions" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "product_uom_conversions_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"product_id" integer NOT NULL,
 	"from_uom" integer NOT NULL,
 	"to_uom" integer NOT NULL,
@@ -360,8 +367,10 @@ CREATE TABLE "product_uom_conversions" (
 	CONSTRAINT "unq_prod_uom_conv" UNIQUE("product_id","from_uom","to_uom")
 );
 --> statement-breakpoint
+ALTER TABLE "product_uom_conversions" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "product_variants" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "product_variants_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"product_id" integer NOT NULL,
 	"sku" text NOT NULL,
 	"variant_name" text,
@@ -377,9 +386,11 @@ CREATE TABLE "product_variants" (
 	"is_default" boolean DEFAULT false,
 	"is_active" boolean DEFAULT true,
 	"sort_order" integer DEFAULT 0,
-	CONSTRAINT "product_variants_sku_unique" UNIQUE("sku")
+	CONSTRAINT "unq_variant_sku_company" UNIQUE("company_id","sku"),
+	CONSTRAINT "unq_variant_id_company" UNIQUE("id","company_id")
 );
 --> statement-breakpoint
+ALTER TABLE "product_variants" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "products" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "products_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -390,11 +401,9 @@ CREATE TABLE "products" (
 	"slug" text NOT NULL,
 	"name" text NOT NULL,
 	"shared_attributes" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	"extra_specs" jsonb DEFAULT '{}'::jsonb,
 	"description" text,
 	"image_urls" text[] DEFAULT ARRAY[]::text[],
 	"uom_inventory_id" integer NOT NULL,
-	"is_stockable" boolean DEFAULT true NOT NULL,
 	"has_dimensional_tracking" boolean DEFAULT false,
 	"min_stock_alert" numeric(12, 4) DEFAULT '0',
 	"default_base_price" numeric(12, 4) DEFAULT '0',
@@ -405,12 +414,14 @@ CREATE TABLE "products" (
 	"updated_by" integer,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "unq_product_slug_company" UNIQUE("company_id","slug"),
+	CONSTRAINT "unq_product_id_company" UNIQUE("id","company_id"),
 	CONSTRAINT "chk_iva_rate_code" CHECK (iva_rate_code IN (0, 2, 3, 4, 6, 7))
 );
 --> statement-breakpoint
 ALTER TABLE "products" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "variant_price_history" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "variant_price_history_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"variant_id" integer NOT NULL,
 	"price_type" "price_change_type" NOT NULL,
 	"old_price" numeric(12, 4),
@@ -421,6 +432,7 @@ CREATE TABLE "variant_price_history" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "variant_price_history" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "goods_receipt_items" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "goods_receipt_items_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"receipt_id" integer NOT NULL,
@@ -477,6 +489,7 @@ CREATE TABLE "purchase_orders" (
 ALTER TABLE "purchase_orders" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "supplier_products" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "supplier_products_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"supplier_id" integer NOT NULL,
 	"variant_id" integer NOT NULL,
 	"supplier_sku" text,
@@ -493,8 +506,10 @@ CREATE TABLE "supplier_products" (
 	CONSTRAINT "unq_supplier_variant" UNIQUE("supplier_id","variant_id")
 );
 --> statement-breakpoint
+ALTER TABLE "supplier_products" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "inventory_dimensional_items" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "inventory_dimensional_items_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"location_id" integer NOT NULL,
 	"variant_id" integer NOT NULL,
 	"length_cm" numeric(12, 4) NOT NULL,
@@ -505,8 +520,10 @@ CREATE TABLE "inventory_dimensional_items" (
 	CONSTRAINT "unq_dim_item_dims" UNIQUE("location_id","variant_id","length_cm","width_cm")
 );
 --> statement-breakpoint
+ALTER TABLE "inventory_dimensional_items" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "inventory_movements" (
 	"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "inventory_movements_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"source_location_id" integer NOT NULL,
 	"destination_location_id" integer NOT NULL,
 	"variant_id" integer NOT NULL,
@@ -525,7 +542,9 @@ CREATE TABLE "inventory_movements" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "inventory_movements" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "inventory_stock" (
+	"company_id" integer NOT NULL,
 	"location_id" integer NOT NULL,
 	"variant_id" integer NOT NULL,
 	"quantity_on_hand" numeric(15, 4) DEFAULT '0' NOT NULL,
@@ -534,6 +553,7 @@ CREATE TABLE "inventory_stock" (
 	CONSTRAINT "inventory_stock_location_id_variant_id_pk" PRIMARY KEY("location_id","variant_id")
 );
 --> statement-breakpoint
+ALTER TABLE "inventory_stock" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "warehouse_locations" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "warehouse_locations_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -544,7 +564,8 @@ CREATE TABLE "warehouse_locations" (
 	"type" "location_type" DEFAULT 'INTERNAL' NOT NULL,
 	"depth" integer DEFAULT 0 NOT NULL,
 	"is_active" boolean DEFAULT true,
-	CONSTRAINT "unq_location_id_company" UNIQUE("id","company_id")
+	CONSTRAINT "unq_location_id_company" UNIQUE("id","company_id"),
+	CONSTRAINT "unq_location_id_warehouse" UNIQUE("id","warehouse_id")
 );
 --> statement-breakpoint
 ALTER TABLE "warehouse_locations" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -600,6 +621,7 @@ CREATE TABLE "technical_visits" (
 --> statement-breakpoint
 CREATE TABLE "bom_details" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "bom_details_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"bom_id" integer NOT NULL,
 	"component_product_id" integer NOT NULL,
 	"quantity_factor" numeric(12, 4) NOT NULL,
@@ -611,8 +633,10 @@ CREATE TABLE "bom_details" (
 	"is_optional" boolean DEFAULT false
 );
 --> statement-breakpoint
+ALTER TABLE "bom_details" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "bom_headers" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "bom_headers_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"product_id" integer NOT NULL,
 	"name" text NOT NULL,
 	"source_template_id" integer,
@@ -620,8 +644,10 @@ CREATE TABLE "bom_headers" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "bom_headers" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "bom_template_details" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "bom_template_details_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"template_id" integer NOT NULL,
 	"component_product_id" integer NOT NULL,
 	"quantity_formula" text NOT NULL,
@@ -632,6 +658,7 @@ CREATE TABLE "bom_template_details" (
 	"processing_notes" text
 );
 --> statement-breakpoint
+ALTER TABLE "bom_template_details" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "bom_templates" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "bom_templates_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -647,6 +674,7 @@ CREATE TABLE "bom_templates" (
 ALTER TABLE "bom_templates" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "employee_work_schedules" (
 	"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "employee_work_schedules_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"employee_id" integer NOT NULL,
 	"work_order_id" integer,
 	"work_date" timestamp with time zone NOT NULL,
@@ -676,8 +704,10 @@ CREATE TABLE "employee_work_schedules" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "employee_work_schedules" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "manufacturing_log" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "manufacturing_log_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"manufacturing_order_id" integer NOT NULL,
 	"variant_id" integer,
 	"quantity_consumed" numeric(12, 4),
@@ -686,8 +716,10 @@ CREATE TABLE "manufacturing_log" (
 	"created_by" integer
 );
 --> statement-breakpoint
+ALTER TABLE "manufacturing_log" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "manufacturing_order_inputs" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "manufacturing_order_inputs_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"manufacturing_order_id" integer NOT NULL,
 	"variant_id" integer NOT NULL,
 	"planned_quantity" numeric(12, 4) NOT NULL,
@@ -697,8 +729,10 @@ CREATE TABLE "manufacturing_order_inputs" (
 	"notes" text
 );
 --> statement-breakpoint
+ALTER TABLE "manufacturing_order_inputs" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "manufacturing_orders" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "manufacturing_orders_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"work_order_id" integer NOT NULL,
 	"output_variant_id" integer NOT NULL,
 	"target_quantity" numeric(12, 4) DEFAULT '1',
@@ -710,10 +744,13 @@ CREATE TABLE "manufacturing_orders" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "manufacturing_orders" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "work_order_items" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "work_order_items_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
 	"work_order_id" integer NOT NULL,
 	"product_id" integer NOT NULL,
+	"variant_id" integer,
 	"quantity" numeric(12, 4) NOT NULL,
 	"custom_width" numeric(10, 4),
 	"custom_length" numeric(10, 4),
@@ -721,6 +758,7 @@ CREATE TABLE "work_order_items" (
 	"requested_uom" integer
 );
 --> statement-breakpoint
+ALTER TABLE "work_order_items" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "work_orders" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "work_orders_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"company_id" integer NOT NULL,
@@ -1100,12 +1138,14 @@ CREATE TABLE "purchase_quotes" (
 --> statement-breakpoint
 ALTER TABLE "purchase_quotes" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "product_variant_warehouse_locations" (
+	"company_id" integer NOT NULL,
 	"variant_id" integer NOT NULL,
 	"warehouse_id" integer NOT NULL,
 	"default_location_id" integer NOT NULL,
 	CONSTRAINT "product_variant_warehouse_locations_variant_id_warehouse_id_pk" PRIMARY KEY("variant_id","warehouse_id")
 );
 --> statement-breakpoint
+ALTER TABLE "product_variant_warehouse_locations" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "email_logs" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "email_logs_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"user_id" integer,
@@ -1133,6 +1173,7 @@ ALTER TABLE "attribute_definitions" ADD CONSTRAINT "attribute_definitions_compan
 ALTER TABLE "brands" ADD CONSTRAINT "brands_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "categories" ADD CONSTRAINT "categories_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "categories" ADD CONSTRAINT "categories_parent_id_categories_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."categories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "category_attributes" ADD CONSTRAINT "category_attributes_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "category_attributes" ADD CONSTRAINT "category_attributes_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "category_attributes" ADD CONSTRAINT "category_attributes_attribute_def_id_attribute_definitions_id_fk" FOREIGN KEY ("attribute_def_id") REFERENCES "public"."attribute_definitions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_menu_items" ADD CONSTRAINT "auth_menu_items_parent_id_auth_menu_items_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."auth_menu_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1150,19 +1191,24 @@ ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_auth_users_id_fk" FOREIG
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_user_id_auth_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."auth_users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product_components" ADD CONSTRAINT "product_components_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_components" ADD CONSTRAINT "product_components_parent_product_id_products_id_fk" FOREIGN KEY ("parent_product_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_components" ADD CONSTRAINT "product_components_component_product_id_products_id_fk" FOREIGN KEY ("component_product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product_uom_conversions" ADD CONSTRAINT "product_uom_conversions_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_uom_conversions" ADD CONSTRAINT "product_uom_conversions_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_uom_conversions" ADD CONSTRAINT "product_uom_conversions_from_uom_uom_id_fk" FOREIGN KEY ("from_uom") REFERENCES "public"."uom"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_uom_conversions" ADD CONSTRAINT "product_uom_conversions_to_uom_uom_id_fk" FOREIGN KEY ("to_uom") REFERENCES "public"."uom"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product_variants" ADD CONSTRAINT "product_variants_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_variants" ADD CONSTRAINT "product_variants_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_variants" ADD CONSTRAINT "product_variants_sale_uom_id_uom_id_fk" FOREIGN KEY ("sale_uom_id") REFERENCES "public"."uom"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product_variants" ADD CONSTRAINT "fk_variant_product_tenant" FOREIGN KEY ("product_id","company_id") REFERENCES "public"."products"("id","company_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_brand_id_brands_id_fk" FOREIGN KEY ("brand_id") REFERENCES "public"."brands"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_uom_inventory_id_uom_id_fk" FOREIGN KEY ("uom_inventory_id") REFERENCES "public"."uom"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_created_by_auth_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."auth_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_updated_by_auth_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."auth_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "variant_price_history" ADD CONSTRAINT "variant_price_history_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "variant_price_history" ADD CONSTRAINT "variant_price_history_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "variant_price_history" ADD CONSTRAINT "variant_price_history_changed_by_auth_users_id_fk" FOREIGN KEY ("changed_by") REFERENCES "public"."auth_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "goods_receipt_items" ADD CONSTRAINT "goods_receipt_items_receipt_id_goods_receipts_id_fk" FOREIGN KEY ("receipt_id") REFERENCES "public"."goods_receipts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1179,17 +1225,21 @@ ALTER TABLE "purchase_orders" ADD CONSTRAINT "purchase_orders_supplier_id_entiti
 ALTER TABLE "purchase_orders" ADD CONSTRAINT "purchase_orders_work_order_id_work_orders_id_fk" FOREIGN KEY ("work_order_id") REFERENCES "public"."work_orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "purchase_orders" ADD CONSTRAINT "purchase_orders_destination_warehouse_id_warehouses_id_fk" FOREIGN KEY ("destination_warehouse_id") REFERENCES "public"."warehouses"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "purchase_orders" ADD CONSTRAINT "purchase_orders_created_by_auth_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."auth_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "supplier_products" ADD CONSTRAINT "supplier_products_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "supplier_products" ADD CONSTRAINT "supplier_products_supplier_id_entities_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "supplier_products" ADD CONSTRAINT "supplier_products_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "supplier_products" ADD CONSTRAINT "supplier_products_purchase_uom_uom_id_fk" FOREIGN KEY ("purchase_uom") REFERENCES "public"."uom"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory_dimensional_items" ADD CONSTRAINT "inventory_dimensional_items_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory_dimensional_items" ADD CONSTRAINT "inventory_dimensional_items_location_id_warehouse_locations_id_fk" FOREIGN KEY ("location_id") REFERENCES "public"."warehouse_locations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory_dimensional_items" ADD CONSTRAINT "inventory_dimensional_items_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_source_location_id_warehouse_locations_id_fk" FOREIGN KEY ("source_location_id") REFERENCES "public"."warehouse_locations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_destination_location_id_warehouse_locations_id_fk" FOREIGN KEY ("destination_location_id") REFERENCES "public"."warehouse_locations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_dimensional_item_id_inventory_dimensional_items_id_fk" FOREIGN KEY ("dimensional_item_id") REFERENCES "public"."inventory_dimensional_items"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_created_by_auth_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."auth_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory_stock" ADD CONSTRAINT "inventory_stock_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory_stock" ADD CONSTRAINT "inventory_stock_location_id_warehouse_locations_id_fk" FOREIGN KEY ("location_id") REFERENCES "public"."warehouse_locations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory_stock" ADD CONSTRAINT "inventory_stock_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "warehouse_locations" ADD CONSTRAINT "warehouse_locations_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1203,28 +1253,37 @@ ALTER TABLE "quotations" ADD CONSTRAINT "quotations_technical_visit_id_technical
 ALTER TABLE "quotations" ADD CONSTRAINT "quotations_created_by_auth_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."auth_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "technical_visits" ADD CONSTRAINT "technical_visits_client_id_entities_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "technical_visits" ADD CONSTRAINT "technical_visits_assigned_employee_id_entities_id_fk" FOREIGN KEY ("assigned_employee_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "bom_details" ADD CONSTRAINT "bom_details_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bom_details" ADD CONSTRAINT "bom_details_bom_id_bom_headers_id_fk" FOREIGN KEY ("bom_id") REFERENCES "public"."bom_headers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bom_details" ADD CONSTRAINT "bom_details_component_product_id_products_id_fk" FOREIGN KEY ("component_product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "bom_headers" ADD CONSTRAINT "bom_headers_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bom_headers" ADD CONSTRAINT "bom_headers_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bom_headers" ADD CONSTRAINT "bom_headers_source_template_id_bom_templates_id_fk" FOREIGN KEY ("source_template_id") REFERENCES "public"."bom_templates"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "bom_template_details" ADD CONSTRAINT "bom_template_details_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bom_template_details" ADD CONSTRAINT "bom_template_details_template_id_bom_templates_id_fk" FOREIGN KEY ("template_id") REFERENCES "public"."bom_templates"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bom_template_details" ADD CONSTRAINT "bom_template_details_component_product_id_products_id_fk" FOREIGN KEY ("component_product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bom_templates" ADD CONSTRAINT "bom_templates_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bom_templates" ADD CONSTRAINT "bom_templates_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "employee_work_schedules" ADD CONSTRAINT "employee_work_schedules_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "employee_work_schedules" ADD CONSTRAINT "employee_work_schedules_employee_id_entities_id_fk" FOREIGN KEY ("employee_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "employee_work_schedules" ADD CONSTRAINT "employee_work_schedules_work_order_id_work_orders_id_fk" FOREIGN KEY ("work_order_id") REFERENCES "public"."work_orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "manufacturing_log" ADD CONSTRAINT "manufacturing_log_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "manufacturing_log" ADD CONSTRAINT "manufacturing_log_manufacturing_order_id_manufacturing_orders_id_fk" FOREIGN KEY ("manufacturing_order_id") REFERENCES "public"."manufacturing_orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "manufacturing_log" ADD CONSTRAINT "manufacturing_log_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "manufacturing_log" ADD CONSTRAINT "manufacturing_log_scrap_item_id_inventory_dimensional_items_id_fk" FOREIGN KEY ("scrap_item_id") REFERENCES "public"."inventory_dimensional_items"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "manufacturing_log" ADD CONSTRAINT "manufacturing_log_created_by_auth_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."auth_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "manufacturing_order_inputs" ADD CONSTRAINT "manufacturing_order_inputs_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "manufacturing_order_inputs" ADD CONSTRAINT "manufacturing_order_inputs_manufacturing_order_id_manufacturing_orders_id_fk" FOREIGN KEY ("manufacturing_order_id") REFERENCES "public"."manufacturing_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "manufacturing_order_inputs" ADD CONSTRAINT "manufacturing_order_inputs_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "manufacturing_order_inputs" ADD CONSTRAINT "manufacturing_order_inputs_added_by_auth_users_id_fk" FOREIGN KEY ("added_by") REFERENCES "public"."auth_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "manufacturing_orders" ADD CONSTRAINT "manufacturing_orders_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "manufacturing_orders" ADD CONSTRAINT "manufacturing_orders_work_order_id_work_orders_id_fk" FOREIGN KEY ("work_order_id") REFERENCES "public"."work_orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "manufacturing_orders" ADD CONSTRAINT "manufacturing_orders_output_variant_id_product_variants_id_fk" FOREIGN KEY ("output_variant_id") REFERENCES "public"."product_variants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "manufacturing_orders" ADD CONSTRAINT "manufacturing_orders_assigned_supervisor_id_entities_id_fk" FOREIGN KEY ("assigned_supervisor_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "work_order_items" ADD CONSTRAINT "work_order_items_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "work_order_items" ADD CONSTRAINT "work_order_items_work_order_id_work_orders_id_fk" FOREIGN KEY ("work_order_id") REFERENCES "public"."work_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "work_order_items" ADD CONSTRAINT "work_order_items_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "work_order_items" ADD CONSTRAINT "work_order_items_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "work_order_items" ADD CONSTRAINT "work_order_items_requested_uom_uom_id_fk" FOREIGN KEY ("requested_uom") REFERENCES "public"."uom"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "work_orders" ADD CONSTRAINT "work_orders_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "work_orders" ADD CONSTRAINT "work_orders_client_id_entities_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1296,9 +1355,10 @@ ALTER TABLE "purchase_quotes" ADD CONSTRAINT "purchase_quotes_company_id_compani
 ALTER TABLE "purchase_quotes" ADD CONSTRAINT "purchase_quotes_supplier_id_entities_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "purchase_quotes" ADD CONSTRAINT "purchase_quotes_converted_po_id_purchase_orders_id_fk" FOREIGN KEY ("converted_po_id") REFERENCES "public"."purchase_orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "purchase_quotes" ADD CONSTRAINT "purchase_quotes_created_by_auth_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."auth_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "product_variant_warehouse_locations_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "product_variant_warehouse_locations_warehouse_id_warehouses_id_fk" FOREIGN KEY ("warehouse_id") REFERENCES "public"."warehouses"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "product_variant_warehouse_locations_default_location_id_warehouse_locations_id_fk" FOREIGN KEY ("default_location_id") REFERENCES "public"."warehouse_locations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "product_variant_warehouse_locations_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "fk_pvwl_variant_tenant" FOREIGN KEY ("variant_id","company_id") REFERENCES "public"."product_variants"("id","company_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "fk_pvwl_warehouse_tenant" FOREIGN KEY ("warehouse_id","company_id") REFERENCES "public"."warehouses"("id","company_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product_variant_warehouse_locations" ADD CONSTRAINT "fk_pvwl_location_warehouse" FOREIGN KEY ("default_location_id","warehouse_id") REFERENCES "public"."warehouse_locations"("id","warehouse_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "email_logs" ADD CONSTRAINT "email_logs_user_id_auth_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."auth_users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idx_carrier_drivers_carrier_id" ON "carrier_drivers" USING btree ("carrier_id");--> statement-breakpoint
 CREATE INDEX "idx_carrier_vehicles_carrier_id" ON "carrier_vehicles" USING btree ("carrier_id");--> statement-breakpoint
@@ -1324,9 +1384,10 @@ CREATE INDEX "idx_categories_parent" ON "categories" USING btree ("parent_id");-
 CREATE INDEX "idx_categories_active" ON "categories" USING btree ("is_active");--> statement-breakpoint
 CREATE INDEX "idx_categories_company" ON "categories" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_categories_path_gist" ON "categories" USING gist ("path");--> statement-breakpoint
+CREATE INDEX "idx_cat_attrs_company" ON "category_attributes" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_menu_parent" ON "auth_menu_items" USING btree ("parent_id");--> statement-breakpoint
 CREATE INDEX "idx_menu_order" ON "auth_menu_items" USING btree ("parent_id","sort_order");--> statement-breakpoint
-CREATE INDEX "idx_menu_active" ON "auth_menu_items" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX "idx_menu_active" ON "auth_menu_items" USING btree ("status");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_perm_module_action" ON "auth_permissions" USING btree ("module","action");--> statement-breakpoint
 CREATE INDEX "idx_perm_module" ON "auth_permissions" USING btree ("module");--> statement-breakpoint
 CREATE INDEX "idx_role_perms_by_perm" ON "auth_role_permissions" USING btree ("permission_id");--> statement-breakpoint
@@ -1346,7 +1407,10 @@ CREATE INDEX "idx_sessions_company" ON "sessions" USING btree ("company_id");-->
 CREATE INDEX "idx_audit_target" ON "audit_logs" USING btree ("table_name","record_id");--> statement-breakpoint
 CREATE INDEX "idx_audit_user" ON "audit_logs" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "idx_audit_company" ON "audit_logs" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_prod_components_company" ON "product_components" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_prod_uom_conv_company" ON "product_uom_conversions" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_variants_product" ON "product_variants" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX "idx_variants_company" ON "product_variants" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_variants_barcode" ON "product_variants" USING btree ("barcode");--> statement-breakpoint
 CREATE INDEX "idx_variants_attrs" ON "product_variants" USING gin ("variant_attributes");--> statement-breakpoint
 CREATE INDEX "idx_products_company" ON "products" USING btree ("company_id");--> statement-breakpoint
@@ -1357,6 +1421,7 @@ CREATE INDEX "idx_products_cat_active" ON "products" USING btree ("category_id",
 CREATE INDEX "idx_vph_variant" ON "variant_price_history" USING btree ("variant_id");--> statement-breakpoint
 CREATE INDEX "idx_vph_variant_type" ON "variant_price_history" USING btree ("variant_id","price_type","created_at");--> statement-breakpoint
 CREATE INDEX "idx_vph_date" ON "variant_price_history" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "idx_vph_company" ON "variant_price_history" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_gri_receipt" ON "goods_receipt_items" USING btree ("receipt_id");--> statement-breakpoint
 CREATE INDEX "idx_gri_variant" ON "goods_receipt_items" USING btree ("variant_id");--> statement-breakpoint
 CREATE INDEX "idx_gr_po" ON "goods_receipts" USING btree ("purchase_order_id");--> statement-breakpoint
@@ -1370,13 +1435,17 @@ CREATE INDEX "idx_po_wo" ON "purchase_orders" USING btree ("work_order_id");--> 
 CREATE INDEX "idx_po_company" ON "purchase_orders" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_supplier_products_variant" ON "supplier_products" USING btree ("variant_id");--> statement-breakpoint
 CREATE INDEX "idx_sp_supplier_active" ON "supplier_products" USING btree ("supplier_id") WHERE "supplier_products"."is_active" = true;--> statement-breakpoint
+CREATE INDEX "idx_sp_company" ON "supplier_products" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_dim_items_variant" ON "inventory_dimensional_items" USING btree ("variant_id","location_id");--> statement-breakpoint
+CREATE INDEX "idx_dim_items_company" ON "inventory_dimensional_items" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_movements_src_loc" ON "inventory_movements" USING btree ("source_location_id","variant_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_movements_dest_loc" ON "inventory_movements" USING btree ("destination_location_id","variant_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_movements_type_date" ON "inventory_movements" USING btree ("type","created_at");--> statement-breakpoint
 CREATE INDEX "idx_movements_ref" ON "inventory_movements" USING btree ("reference_type","reference_id");--> statement-breakpoint
 CREATE INDEX "idx_movements_product" ON "inventory_movements" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX "idx_movements_company" ON "inventory_movements" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_inv_stock_variant" ON "inventory_stock" USING btree ("variant_id");--> statement-breakpoint
+CREATE INDEX "idx_inv_stock_company" ON "inventory_stock" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_locations_company" ON "warehouse_locations" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_locations_warehouse" ON "warehouse_locations" USING btree ("warehouse_id");--> statement-breakpoint
 CREATE INDEX "idx_locations_parent" ON "warehouse_locations" USING btree ("parent_id");--> statement-breakpoint
@@ -1390,21 +1459,31 @@ CREATE INDEX "idx_visits_client" ON "technical_visits" USING btree ("client_id")
 CREATE INDEX "idx_visits_date" ON "technical_visits" USING btree ("visit_date");--> statement-breakpoint
 CREATE INDEX "idx_bom_details_bom_component" ON "bom_details" USING btree ("bom_id","component_product_id");--> statement-breakpoint
 CREATE INDEX "idx_bom_details_component" ON "bom_details" USING btree ("component_product_id");--> statement-breakpoint
+CREATE INDEX "idx_bom_details_company" ON "bom_details" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_bom_headers_product" ON "bom_headers" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX "idx_bom_headers_company" ON "bom_headers" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_bom_tpl_details_template" ON "bom_template_details" USING btree ("template_id");--> statement-breakpoint
 CREATE INDEX "idx_bom_tpl_details_component" ON "bom_template_details" USING btree ("component_product_id");--> statement-breakpoint
+CREATE INDEX "idx_bom_tpl_details_company" ON "bom_template_details" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_bom_templates_category" ON "bom_templates" USING btree ("category_id");--> statement-breakpoint
 CREATE INDEX "idx_bom_templates_company" ON "bom_templates" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_schedule_date" ON "employee_work_schedules" USING btree ("work_date");--> statement-breakpoint
 CREATE INDEX "idx_schedule_employee" ON "employee_work_schedules" USING btree ("employee_id");--> statement-breakpoint
 CREATE INDEX "idx_schedule_wo" ON "employee_work_schedules" USING btree ("work_order_id");--> statement-breakpoint
+CREATE INDEX "idx_schedule_company" ON "employee_work_schedules" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_mfg_log_order" ON "manufacturing_log" USING btree ("manufacturing_order_id");--> statement-breakpoint
 CREATE INDEX "idx_mfg_log_variant" ON "manufacturing_log" USING btree ("variant_id");--> statement-breakpoint
+CREATE INDEX "idx_mfg_log_company" ON "manufacturing_log" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_mfg_inputs_order" ON "manufacturing_order_inputs" USING btree ("manufacturing_order_id");--> statement-breakpoint
+CREATE INDEX "idx_mfg_inputs_company" ON "manufacturing_order_inputs" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_mfg_orders_wo" ON "manufacturing_orders" USING btree ("work_order_id");--> statement-breakpoint
 CREATE INDEX "idx_mfg_orders_status" ON "manufacturing_orders" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "idx_mfg_orders_variant" ON "manufacturing_orders" USING btree ("output_variant_id");--> statement-breakpoint
+CREATE INDEX "idx_mfg_orders_company" ON "manufacturing_orders" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_wo_items_order" ON "work_order_items" USING btree ("work_order_id");--> statement-breakpoint
 CREATE INDEX "idx_wo_items_product" ON "work_order_items" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX "idx_wo_items_variant" ON "work_order_items" USING btree ("variant_id");--> statement-breakpoint
+CREATE INDEX "idx_wo_items_company" ON "work_order_items" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_wo_status" ON "work_orders" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "idx_wo_client" ON "work_orders" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "idx_wo_dates" ON "work_orders" USING btree ("start_date","delivery_date");--> statement-breakpoint
@@ -1454,6 +1533,8 @@ CREATE INDEX "idx_pqi_variant" ON "purchase_quote_items" USING btree ("variant_i
 CREATE INDEX "idx_pq_company" ON "purchase_quotes" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_pq_supplier" ON "purchase_quotes" USING btree ("supplier_id");--> statement-breakpoint
 CREATE INDEX "idx_pq_status" ON "purchase_quotes" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_pvwl_company" ON "product_variant_warehouse_locations" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_pvwl_location" ON "product_variant_warehouse_locations" USING btree ("default_location_id");--> statement-breakpoint
 CREATE INDEX "idx_email_logs_resend_id" ON "email_logs" USING btree ("resend_id");--> statement-breakpoint
 CREATE INDEX "idx_email_logs_to_email" ON "email_logs" USING btree ("to_email");--> statement-breakpoint
 CREATE INDEX "idx_email_logs_status" ON "email_logs" USING btree ("status");--> statement-breakpoint
@@ -1465,6 +1546,7 @@ CREATE POLICY "tenant_isolation" ON "uom" AS PERMISSIVE FOR ALL TO public USING 
 CREATE POLICY "tenant_isolation" ON "attribute_definitions" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "brands" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "categories" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "category_attributes" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "auth_role_permissions" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "auth_roles" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "auth_user_roles" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
@@ -1474,11 +1556,27 @@ CREATE POLICY "tenant_isolation" ON "auth_users" AS PERMISSIVE FOR ALL TO public
 CREATE POLICY "tenant_isolation" ON "sessions" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer
             OR id = current_setting('app.current_session_id', true)) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "audit_logs" AS PERMISSIVE FOR ALL TO public USING (company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "product_components" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "product_uom_conversions" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "product_variants" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "products" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "variant_price_history" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "purchase_orders" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "supplier_products" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "inventory_dimensional_items" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "inventory_movements" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "inventory_stock" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "warehouse_locations" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "warehouses" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "bom_details" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "bom_headers" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "bom_template_details" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "bom_templates" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "employee_work_schedules" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "manufacturing_log" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "manufacturing_order_inputs" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "manufacturing_orders" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "work_order_items" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "work_orders" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "document_sequences" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "electronic_documents" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
@@ -1486,4 +1584,5 @@ CREATE POLICY "tenant_isolation" ON "cash_registers" AS PERMISSIVE FOR ALL TO pu
 CREATE POLICY "tenant_isolation" ON "accounts_payable" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "accounts_receivable" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "fiscal_periods" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
-CREATE POLICY "tenant_isolation" ON "purchase_quotes" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);
+CREATE POLICY "tenant_isolation" ON "purchase_quotes" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "product_variant_warehouse_locations" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);

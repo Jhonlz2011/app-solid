@@ -1,5 +1,5 @@
 {
-  "id": "61fa9611-8eb6-4cba-b24a-fefa7318f665",
+  "id": "872e24d8-e425-459a-9692-32f6939b3f1a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -354,6 +354,13 @@
         },
         "is_carrier": {
           "name": "is_carrier",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "is_system": {
+          "name": "is_system",
           "type": "boolean",
           "primaryKey": false,
           "notNull": false,
@@ -893,7 +900,8 @@
         },
         "rimpe_type": {
           "name": "rimpe_type",
-          "type": "text",
+          "type": "tax_regime_type",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
@@ -917,8 +925,8 @@
           "notNull": true,
           "default": "'#2563eb'"
         },
-        "secondary_color": {
-          "name": "secondary_color",
+        "theme_color": {
+          "name": "theme_color",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -1925,6 +1933,12 @@
             "cycle": false
           }
         },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "category_id": {
           "name": "category_id",
           "type": "integer",
@@ -1958,8 +1972,37 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_cat_attrs_company": {
+          "name": "idx_cat_attrs_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
+        "category_attributes_company_id_companies_id_fk": {
+          "name": "category_attributes_company_id_companies_id_fk",
+          "tableFrom": "category_attributes",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "category_attributes_category_id_categories_id_fk": {
           "name": "category_attributes_category_id_categories_id_fk",
           "tableFrom": "category_attributes",
@@ -1998,9 +2041,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.auth_menu_items": {
       "name": "auth_menu_items",
@@ -2066,12 +2120,13 @@
           "primaryKey": false,
           "notNull": false
         },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
+        "status": {
+          "name": "status",
+          "type": "menu_item_status",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false,
-          "default": true
+          "default": "'active'"
         }
       },
       "indexes": {
@@ -2115,7 +2170,7 @@
           "name": "idx_menu_active",
           "columns": [
             {
-              "expression": "is_active",
+              "expression": "status",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3336,6 +3391,12 @@
             "cycle": false
           }
         },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "parent_product_id": {
           "name": "parent_product_id",
           "type": "integer",
@@ -3368,8 +3429,37 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_prod_components_company": {
+          "name": "idx_prod_components_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
+        "product_components_company_id_companies_id_fk": {
+          "name": "product_components_company_id_companies_id_fk",
+          "tableFrom": "product_components",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "product_components_parent_product_id_products_id_fk": {
           "name": "product_components_parent_product_id_products_id_fk",
           "tableFrom": "product_components",
@@ -3408,9 +3498,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.product_uom_conversions": {
       "name": "product_uom_conversions",
@@ -3432,6 +3533,12 @@
             "cache": "1",
             "cycle": false
           }
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "product_id": {
           "name": "product_id",
@@ -3471,8 +3578,37 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_prod_uom_conv_company": {
+          "name": "idx_prod_uom_conv_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
+        "product_uom_conversions_company_id_companies_id_fk": {
+          "name": "product_uom_conversions_company_id_companies_id_fk",
+          "tableFrom": "product_uom_conversions",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "product_uom_conversions_product_id_products_id_fk": {
           "name": "product_uom_conversions_product_id_products_id_fk",
           "tableFrom": "product_uom_conversions",
@@ -3525,9 +3661,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.product_variants": {
       "name": "product_variants",
@@ -3549,6 +3696,12 @@
             "cache": "1",
             "cycle": false
           }
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "product_id": {
           "name": "product_id",
@@ -3663,6 +3816,21 @@
           "method": "btree",
           "with": {}
         },
+        "idx_variants_company": {
+          "name": "idx_variants_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "idx_variants_barcode": {
           "name": "idx_variants_barcode",
           "columns": [
@@ -3695,6 +3863,19 @@
         }
       },
       "foreignKeys": {
+        "product_variants_company_id_companies_id_fk": {
+          "name": "product_variants_company_id_companies_id_fk",
+          "tableFrom": "product_variants",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "product_variants_product_id_products_id_fk": {
           "name": "product_variants_product_id_products_id_fk",
           "tableFrom": "product_variants",
@@ -3720,21 +3901,56 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "fk_variant_product_tenant": {
+          "name": "fk_variant_product_tenant",
+          "tableFrom": "product_variants",
+          "tableTo": "products",
+          "columnsFrom": [
+            "product_id",
+            "company_id"
+          ],
+          "columnsTo": [
+            "id",
+            "company_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "product_variants_sku_unique": {
-          "name": "product_variants_sku_unique",
+        "unq_variant_sku_company": {
+          "name": "unq_variant_sku_company",
           "nullsNotDistinct": false,
           "columns": [
+            "company_id",
             "sku"
+          ]
+        },
+        "unq_variant_id_company": {
+          "name": "unq_variant_id_company",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "company_id"
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.products": {
       "name": "products",
@@ -3808,13 +4024,6 @@
           "notNull": true,
           "default": "'{}'::jsonb"
         },
-        "extra_specs": {
-          "name": "extra_specs",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'{}'::jsonb"
-        },
         "description": {
           "name": "description",
           "type": "text",
@@ -3833,13 +4042,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        },
-        "is_stockable": {
-          "name": "is_stockable",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
         },
         "has_dimensional_tracking": {
           "name": "has_dimensional_tracking",
@@ -4075,6 +4277,14 @@
             "company_id",
             "slug"
           ]
+        },
+        "unq_product_id_company": {
+          "name": "unq_product_id_company",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "company_id"
+          ]
         }
       },
       "policies": {
@@ -4117,6 +4327,12 @@
             "cache": "1",
             "cycle": false
           }
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "variant_id": {
           "name": "variant_id",
@@ -4227,9 +4443,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_vph_company": {
+          "name": "idx_vph_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "variant_price_history_company_id_companies_id_fk": {
+          "name": "variant_price_history_company_id_companies_id_fk",
+          "tableFrom": "variant_price_history",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "variant_price_history_variant_id_product_variants_id_fk": {
           "name": "variant_price_history_variant_id_product_variants_id_fk",
           "tableFrom": "variant_price_history",
@@ -4259,9 +4503,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.goods_receipt_items": {
       "name": "goods_receipt_items",
@@ -5004,6 +5259,12 @@
             "cycle": false
           }
         },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "supplier_id": {
           "name": "supplier_id",
           "type": "integer",
@@ -5118,9 +5379,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_sp_company": {
+          "name": "idx_sp_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "supplier_products_company_id_companies_id_fk": {
+          "name": "supplier_products_company_id_companies_id_fk",
+          "tableFrom": "supplier_products",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "supplier_products_supplier_id_entities_id_fk": {
           "name": "supplier_products_supplier_id_entities_id_fk",
           "tableFrom": "supplier_products",
@@ -5172,9 +5461,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.inventory_dimensional_items": {
       "name": "inventory_dimensional_items",
@@ -5196,6 +5496,12 @@
             "cache": "1",
             "cycle": false
           }
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "location_id": {
           "name": "location_id",
@@ -5263,9 +5569,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_dim_items_company": {
+          "name": "idx_dim_items_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "inventory_dimensional_items_company_id_companies_id_fk": {
+          "name": "inventory_dimensional_items_company_id_companies_id_fk",
+          "tableFrom": "inventory_dimensional_items",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "inventory_dimensional_items_location_id_warehouse_locations_id_fk": {
           "name": "inventory_dimensional_items_location_id_warehouse_locations_id_fk",
           "tableFrom": "inventory_dimensional_items",
@@ -5306,9 +5640,20 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.inventory_movements": {
       "name": "inventory_movements",
@@ -5330,6 +5675,12 @@
             "cache": "1",
             "cycle": false
           }
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "source_location_id": {
           "name": "source_location_id",
@@ -5542,9 +5893,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_movements_company": {
+          "name": "idx_movements_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "inventory_movements_company_id_companies_id_fk": {
+          "name": "inventory_movements_company_id_companies_id_fk",
+          "tableFrom": "inventory_movements",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "inventory_movements_source_location_id_warehouse_locations_id_fk": {
           "name": "inventory_movements_source_location_id_warehouse_locations_id_fk",
           "tableFrom": "inventory_movements",
@@ -5626,14 +6005,31 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.inventory_stock": {
       "name": "inventory_stock",
       "schema": "",
       "columns": {
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "location_id": {
           "name": "location_id",
           "type": "integer",
@@ -5683,9 +6079,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_inv_stock_company": {
+          "name": "idx_inv_stock_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "inventory_stock_company_id_companies_id_fk": {
+          "name": "inventory_stock_company_id_companies_id_fk",
+          "tableFrom": "inventory_stock",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "inventory_stock_location_id_warehouse_locations_id_fk": {
           "name": "inventory_stock_location_id_warehouse_locations_id_fk",
           "tableFrom": "inventory_stock",
@@ -5723,9 +6147,20 @@
         }
       },
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.warehouse_locations": {
       "name": "warehouse_locations",
@@ -5901,6 +6336,14 @@
           "columns": [
             "id",
             "company_id"
+          ]
+        },
+        "unq_location_id_warehouse": {
+          "name": "unq_location_id_warehouse",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "warehouse_id"
           ]
         }
       },
@@ -6519,6 +6962,12 @@
             "cycle": false
           }
         },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "bom_id": {
           "name": "bom_id",
           "type": "integer",
@@ -6615,9 +7064,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_bom_details_company": {
+          "name": "idx_bom_details_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "bom_details_company_id_companies_id_fk": {
+          "name": "bom_details_company_id_companies_id_fk",
+          "tableFrom": "bom_details",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "bom_details_bom_id_bom_headers_id_fk": {
           "name": "bom_details_bom_id_bom_headers_id_fk",
           "tableFrom": "bom_details",
@@ -6647,9 +7124,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.bom_headers": {
       "name": "bom_headers",
@@ -6671,6 +7159,12 @@
             "cache": "1",
             "cycle": false
           }
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "product_id": {
           "name": "product_id",
@@ -6705,8 +7199,52 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_bom_headers_product": {
+          "name": "idx_bom_headers_product",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_bom_headers_company": {
+          "name": "idx_bom_headers_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
+        "bom_headers_company_id_companies_id_fk": {
+          "name": "bom_headers_company_id_companies_id_fk",
+          "tableFrom": "bom_headers",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "bom_headers_product_id_products_id_fk": {
           "name": "bom_headers_product_id_products_id_fk",
           "tableFrom": "bom_headers",
@@ -6736,9 +7274,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.bom_template_details": {
       "name": "bom_template_details",
@@ -6760,6 +7309,12 @@
             "cache": "1",
             "cycle": false
           }
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "template_id": {
           "name": "template_id",
@@ -6845,9 +7400,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_bom_tpl_details_company": {
+          "name": "idx_bom_tpl_details_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "bom_template_details_company_id_companies_id_fk": {
+          "name": "bom_template_details_company_id_companies_id_fk",
+          "tableFrom": "bom_template_details",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "bom_template_details_template_id_bom_templates_id_fk": {
           "name": "bom_template_details_template_id_bom_templates_id_fk",
           "tableFrom": "bom_template_details",
@@ -6877,9 +7460,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.bom_templates": {
       "name": "bom_templates",
@@ -7052,6 +7646,12 @@
             "cache": "1",
             "cycle": false
           }
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "employee_id": {
           "name": "employee_id",
@@ -7284,9 +7884,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_schedule_company": {
+          "name": "idx_schedule_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "employee_work_schedules_company_id_companies_id_fk": {
+          "name": "employee_work_schedules_company_id_companies_id_fk",
+          "tableFrom": "employee_work_schedules",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "employee_work_schedules_employee_id_entities_id_fk": {
           "name": "employee_work_schedules_employee_id_entities_id_fk",
           "tableFrom": "employee_work_schedules",
@@ -7316,9 +7944,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.manufacturing_log": {
       "name": "manufacturing_log",
@@ -7340,6 +7979,12 @@
             "cache": "1",
             "cycle": false
           }
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "manufacturing_order_id": {
           "name": "manufacturing_order_id",
@@ -7409,9 +8054,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_mfg_log_company": {
+          "name": "idx_mfg_log_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "manufacturing_log_company_id_companies_id_fk": {
+          "name": "manufacturing_log_company_id_companies_id_fk",
+          "tableFrom": "manufacturing_log",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "manufacturing_log_manufacturing_order_id_manufacturing_orders_id_fk": {
           "name": "manufacturing_log_manufacturing_order_id_manufacturing_orders_id_fk",
           "tableFrom": "manufacturing_log",
@@ -7467,9 +8140,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.manufacturing_order_inputs": {
       "name": "manufacturing_order_inputs",
@@ -7491,6 +8175,12 @@
             "cache": "1",
             "cycle": false
           }
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "manufacturing_order_id": {
           "name": "manufacturing_order_id",
@@ -7551,9 +8241,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_mfg_inputs_company": {
+          "name": "idx_mfg_inputs_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "manufacturing_order_inputs_company_id_companies_id_fk": {
+          "name": "manufacturing_order_inputs_company_id_companies_id_fk",
+          "tableFrom": "manufacturing_order_inputs",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "manufacturing_order_inputs_manufacturing_order_id_manufacturing_orders_id_fk": {
           "name": "manufacturing_order_inputs_manufacturing_order_id_manufacturing_orders_id_fk",
           "tableFrom": "manufacturing_order_inputs",
@@ -7596,9 +8314,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.manufacturing_orders": {
       "name": "manufacturing_orders",
@@ -7620,6 +8349,12 @@
             "cache": "1",
             "cycle": false
           }
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "work_order_id": {
           "name": "work_order_id",
@@ -7726,9 +8461,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_mfg_orders_company": {
+          "name": "idx_mfg_orders_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "manufacturing_orders_company_id_companies_id_fk": {
+          "name": "manufacturing_orders_company_id_companies_id_fk",
+          "tableFrom": "manufacturing_orders",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "manufacturing_orders_work_order_id_work_orders_id_fk": {
           "name": "manufacturing_orders_work_order_id_work_orders_id_fk",
           "tableFrom": "manufacturing_orders",
@@ -7771,9 +8534,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.work_order_items": {
       "name": "work_order_items",
@@ -7796,6 +8570,12 @@
             "cycle": false
           }
         },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "work_order_id": {
           "name": "work_order_id",
           "type": "integer",
@@ -7807,6 +8587,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "quantity": {
           "name": "quantity",
@@ -7869,9 +8655,52 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_wo_items_variant": {
+          "name": "idx_wo_items_variant",
+          "columns": [
+            {
+              "expression": "variant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_wo_items_company": {
+          "name": "idx_wo_items_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "work_order_items_company_id_companies_id_fk": {
+          "name": "work_order_items_company_id_companies_id_fk",
+          "tableFrom": "work_order_items",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "work_order_items_work_order_id_work_orders_id_fk": {
           "name": "work_order_items_work_order_id_work_orders_id_fk",
           "tableFrom": "work_order_items",
@@ -7898,6 +8727,19 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
+        "work_order_items_variant_id_product_variants_id_fk": {
+          "name": "work_order_items_variant_id_product_variants_id_fk",
+          "tableFrom": "work_order_items",
+          "tableTo": "product_variants",
+          "columnsFrom": [
+            "variant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "work_order_items_requested_uom_uom_id_fk": {
           "name": "work_order_items_requested_uom_uom_id_fk",
           "tableFrom": "work_order_items",
@@ -7914,9 +8756,20 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.work_orders": {
       "name": "work_orders",
@@ -12195,6 +13048,12 @@
       "name": "product_variant_warehouse_locations",
       "schema": "",
       "columns": {
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "variant_id": {
           "name": "variant_id",
           "type": "integer",
@@ -12214,45 +13073,95 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_pvwl_company": {
+          "name": "idx_pvwl_company",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_pvwl_location": {
+          "name": "idx_pvwl_location",
+          "columns": [
+            {
+              "expression": "default_location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
-        "product_variant_warehouse_locations_variant_id_product_variants_id_fk": {
-          "name": "product_variant_warehouse_locations_variant_id_product_variants_id_fk",
+        "product_variant_warehouse_locations_company_id_companies_id_fk": {
+          "name": "product_variant_warehouse_locations_company_id_companies_id_fk",
+          "tableFrom": "product_variant_warehouse_locations",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "fk_pvwl_variant_tenant": {
+          "name": "fk_pvwl_variant_tenant",
           "tableFrom": "product_variant_warehouse_locations",
           "tableTo": "product_variants",
           "columnsFrom": [
-            "variant_id"
+            "variant_id",
+            "company_id"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "company_id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "product_variant_warehouse_locations_warehouse_id_warehouses_id_fk": {
-          "name": "product_variant_warehouse_locations_warehouse_id_warehouses_id_fk",
+        "fk_pvwl_warehouse_tenant": {
+          "name": "fk_pvwl_warehouse_tenant",
           "tableFrom": "product_variant_warehouse_locations",
           "tableTo": "warehouses",
           "columnsFrom": [
-            "warehouse_id"
+            "warehouse_id",
+            "company_id"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "company_id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "product_variant_warehouse_locations_default_location_id_warehouse_locations_id_fk": {
-          "name": "product_variant_warehouse_locations_default_location_id_warehouse_locations_id_fk",
+        "fk_pvwl_location_warehouse": {
+          "name": "fk_pvwl_location_warehouse",
           "tableFrom": "product_variant_warehouse_locations",
           "tableTo": "warehouse_locations",
           "columnsFrom": [
-            "default_location_id"
+            "default_location_id",
+            "warehouse_id"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "warehouse_id"
           ],
-          "onDelete": "restrict",
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -12266,9 +13175,20 @@
         }
       },
       "uniqueConstraints": {},
-      "policies": {},
+      "policies": {
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "company_id = current_setting('app.current_company_id', true)::integer",
+          "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
+        }
+      },
       "checkConstraints": {},
-      "isRLSEnabled": false
+      "isRLSEnabled": true
     },
     "public.email_logs": {
       "name": "email_logs",
@@ -12514,6 +13434,15 @@
         "IN_TRANSIT",
         "RECEIVED",
         "COMPLETED"
+      ]
+    },
+    "public.menu_item_status": {
+      "name": "menu_item_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "development",
+        "deprecated"
       ]
     },
     "public.movement_reference_type": {

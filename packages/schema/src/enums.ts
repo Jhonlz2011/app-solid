@@ -84,6 +84,9 @@ export const BUSINESS_TYPES = [
     'MANUFACTURA', 'CONSTRUCCION', 'IMPORTADORA',
 ] as const;
 
+export const MENU_ITEM_STATUSES = ['active', 'development', 'deprecated'] as const;
+
+
 // SaaS plans
 export const SAAS_PLANS = ['free', 'starter', 'pro', 'enterprise'] as const;
 
@@ -123,11 +126,12 @@ export type PriceChangeType = typeof PRICE_CHANGE_TYPES[number];
 export type PriceChangeSource = typeof PRICE_CHANGE_SOURCES[number];
 export type BusinessType = typeof BUSINESS_TYPES[number];
 export type SaasPlan = typeof SAAS_PLANS[number];
+export type MenuItemStatus = typeof MENU_ITEM_STATUSES[number];
 
 // ============================================================================
 // PG ENUMS - For Drizzle schema definitions
 // ============================================================================
-
+export const menuItemStatusEnum = pgEnum('menu_item_status', MENU_ITEM_STATUSES);
 export const taxIdTypeEnum = pgEnum('tax_id_type', TAX_ID_TYPES);
 export const personTypeEnum = pgEnum('person_type', PERSON_TYPES);
 export const taxRegimeTypeEnum = pgEnum('tax_regime_type', TAX_REGIME_TYPES);

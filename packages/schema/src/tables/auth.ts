@@ -3,12 +3,15 @@ import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { entities } from './entities';
 import { companies } from './config';
+import { menuItemStatusEnum } from '../enums';
 
 
 // 2. Custom Type para INET: Validación nativa de IPs en Postgres
 const inet = customType<{ data: string }>({
   dataType() { return 'inet'; },
 });
+
+
 
 // --- 8. AUTH ---
 export const authUsers = pgTableV2("auth_users", {
@@ -119,12 +122,12 @@ export const authMenuItems = pgTableV2("auth_menu_items", {
     parent_id: smallint("parent_id"),                   // Self-reference for tree hierarchy
     sort_order: smallint("sort_order").default(0),      // For custom ordering
     permission_prefix: text("permission_prefix"),      // 'products' -> maps to authPermissions.module
-    is_active: boolean("is_active").default(true),
+    status: menuItemStatusEnum("status").default('active'),
 }, (t) => [
     foreignKey({ columns: [t.parent_id], foreignColumns: [t.id] }),
     index("idx_menu_parent").on(t.parent_id),
     index("idx_menu_order").on(t.parent_id, t.sort_order),
-    index("idx_menu_active").on(t.is_active),
+    index("idx_menu_active").on(t.status),
 ]);
 
 /**

@@ -6,14 +6,14 @@
  * stored in products.shared_attributes). Each key is the attribute_definition.key,
  * each value is the user-entered value.
  *
- * Uses shared UI components (TextField, Select) for consistent design.
+ * Uses shared UI components (TextField, Autocomplete, Checkbox) for consistent design.
  */
-import { Component, For, Show, createEffect, createMemo } from 'solid-js';
+import { Component, For, Show, createEffect, createMemo, createSignal } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import { Badge } from '@shared/ui/Badge';
 import TextField, { FieldLabel } from '@shared/ui/TextField';
 import Checkbox from '@shared/ui/Checkbox';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
+import { Autocomplete } from '@shared/ui/Autocomplete';
 import { useResolvedSelectorPath } from '@shared/ui/selectors';
 import SectionHeader from './ui/SectionHeader';
 import { PlusIcon, EditIcon } from '@shared/ui/icons';
@@ -143,27 +143,29 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
                                 <div classList={{ 'col-span-2': isSelect() && options().length > 6 }}>
                                     {/* Select type */}
                                     <Show when={isSelect()}>
-                                        <div class="space-y-1.5">
-                                            <AttributeLabel />
-                                            <Select
-                                                value={options().find(o => o.value === getValue(attr.key))}
-                                                onChange={(opt: SelectOption | null) => updateValue(attr.key, opt?.value ?? '', false)}
-                                                options={options()}
-                                                optionValue="value"
-                                                optionTextValue="label"
-                                                placeholder="Seleccionar..."
-                                                itemComponent={(itemProps: any) => (
-                                                    <SelectItem item={itemProps.item}>{itemProps.item.rawValue?.label}</SelectItem>
-                                                )}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue<SelectOption>>
-                                                        {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
-                                                    </SelectValue>
-                                                </SelectTrigger>
-                                                <SelectContent />
-                                            </Select>
-                                        </div>
+                                        {(() => {
+                                            const [filterText, setFilterText] = createSignal('');
+                                            const filteredOptions = createMemo(() => {
+                                                const q = filterText().toLowerCase();
+                                                if (!q) return options();
+                                                return options().filter(o => o.label.toLowerCase().includes(q));
+                                            });
+                                            return (
+                                                <Autocomplete.Root>
+                                                    <AttributeLabel />
+                                                    <Autocomplete.Input<SelectOption>
+                                                        value={getValue(attr.key)}
+                                                        onInputChange={(v) => setFilterText(v)}
+                                                        options={filteredOptions()}
+                                                        optionValue={(o) => o.value}
+                                                        optionLabel={(o) => o.label}
+                                                        onSelect={(opt) => updateValue(attr.key, opt?.value ?? '', false)}
+                                                        placeholder="Seleccionar..."
+                                                        minLength={0}
+                                                    />
+                                                </Autocomplete.Root>
+                                            );
+                                        })()}
                                     </Show>
 
                                     {/* Number type */}
@@ -215,13 +217,29 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
 
                                     {/* Text type (default) */}
                                     <Show when={!isSelect() && !isNumber() && !isBoolean()}>
-                                        <TextField.Root
-                                            value={getValue(attr.key)}
-                                            onChange={(val) => updateValue(attr.key, val, false)}
-                                        >
-                                            <AttributeLabel />
-                                            <TextField.Input type="text" placeholder={attr.label} />
-                                        </TextField.Root>
+                                        {(() => {
+                                            const textOptions = createMemo(() =>
+                                                ((attr.options ?? []) as string[]).filter(o =>
+                                                    !getValue(attr.key) || o.toLowerCase().includes(getValue(attr.key).toLowerCase())
+                                                )
+                                            );
+                                            return (
+                                                <Autocomplete.Root>
+                                                    <AttributeLabel />
+                                                    <Autocomplete.Input<string>
+                                                        value={getValue(attr.key)}
+                                                        onInputChange={(v) => updateValue(attr.key, v, false)}
+                                                        options={textOptions()}
+                                                        optionValue={(o) => o}
+                                                        optionLabel={(o) => o}
+                                                        onSelect={(opt) => updateValue(attr.key, opt ?? '', false)}
+                                                        placeholder={attr.label}
+                                                        minLength={0}
+                                                        clearOnBlur={false}
+                                                    />
+                                                </Autocomplete.Root>
+                                            );
+                                        })()}
                                     </Show>
                                 </div>
                             );

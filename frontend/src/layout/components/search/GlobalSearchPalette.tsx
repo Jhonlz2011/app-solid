@@ -10,6 +10,7 @@ interface SearchableItem {
     label: string;
     icon: string;
     path: string;
+    status: string;
     breadcrumbs: string[];
 }
 
@@ -37,6 +38,7 @@ export const GlobalSearchPalette: Component = () => {
                         label: item.label,
                         icon: item.icon || '',
                         path: item.path,
+                        status: item.status || 'active',
                         breadcrumbs
                     });
                 }
@@ -104,13 +106,15 @@ export const GlobalSearchPalette: Component = () => {
             scrollToActiveItem();
         } else if (e.key === 'Enter') {
             e.preventDefault();
-            if (items[selectedIndex()]) {
-                handleSelectItem(items[selectedIndex()]);
+            const item = items[selectedIndex()];
+            if (item && item.status !== 'development') {
+                handleSelectItem(item);
             }
         }
     };
 
     const handleSelectItem = (item: SearchableItem) => {
+        if (item.status === 'development') return;
         navigate({ to: item.path });
         closeSearch();
         if (isMobileOpen()) {
@@ -208,8 +212,8 @@ export const GlobalSearchPalette: Component = () => {
                                                         <div 
                                                             class="size-8 rounded-lg flex items-center justify-center shrink-0 transition-colors"
                                                             classList={{
-                                                                'bg-primary/20 text-primary-strong': isActive(),
-                                                                'bg-card text-muted group-hover:bg-card-alt': !isActive()
+                                                                'bg-primary/20 text-primary-strong': isActive() && item.status !== 'development',
+                                                                'bg-card text-muted group-hover:bg-card-alt': !isActive() || item.status === 'development'
                                                             }}
                                                         >
                                                             <svg class="size-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,7 +223,11 @@ export const GlobalSearchPalette: Component = () => {
 
                                                         {/* Detalles del texto */}
                                                         <div class="flex flex-col min-w-0">
-                                                            <span class="text-sm font-semibold truncate group-data-[active=true]:text-primary-strong text-heading">
+                                                            <span class="text-sm font-semibold truncate group-data-[active=true]:text-primary-strong text-heading"
+                                                                classList={{
+                                                                    'opacity-50 line-through decoration-muted': item.status === 'development'
+                                                                }}
+                                                            >
                                                                 {item.label}
                                                             </span>
                                                             {/* Migas de pan de navegación */}
@@ -229,12 +237,23 @@ export const GlobalSearchPalette: Component = () => {
                                                         </div>
                                                     </div>
 
-                                                    {/* Indicador de acción (Enter) */}
-                                                    <Show when={isActive()}>
-                                                        <span class="text-[10px] font-sans font-semibold text-primary/70 bg-primary/20 border border-primary/30 rounded-md px-1.5 py-0.5">
-                                                            Enter ↵
-                                                        </span>
-                                                    </Show>
+                                                    <div class="flex items-center gap-2">
+                                                        {/* Icono de Candado si está en desarrollo */}
+                                                        <Show when={item.status === 'development'}>
+                                                            <div class="flex items-center justify-center size-5 bg-card/50 rounded border border-border/50 shrink-0">
+                                                                <svg class="size-3 text-muted/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                                </svg>
+                                                            </div>
+                                                        </Show>
+
+                                                        {/* Indicador de acción (Enter) */}
+                                                        <Show when={isActive() && item.status !== 'development'}>
+                                                            <span class="text-[10px] font-sans font-semibold text-primary/70 bg-primary/20 border border-primary/30 rounded-md px-1.5 py-0.5">
+                                                                Enter ↵
+                                                            </span>
+                                                        </Show>
+                                                    </div>
                                                 </li>
                                             );
                                         }}

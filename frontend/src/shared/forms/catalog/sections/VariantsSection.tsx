@@ -22,6 +22,8 @@ import type { CatalogFormApi } from '../catalog-form.types';
 import Button from '@shared/ui/Button';
 import TextField from '@shared/ui/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
+import { Autocomplete } from '@shared/ui/Autocomplete';
+import Checkbox from '@shared/ui/Checkbox';
 import { PlusIcon, TrashIcon, GripVerticalIcon, CopyIcon } from '@shared/ui/icons';
 
 interface VariantsSectionProps {
@@ -319,36 +321,40 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                                 return (
                                                                     <div>
                                                                         <Show
-                                                                            when={attr.type === 'SELECT' && (attr.options ?? []).length > 0}
+                                                                            when={attr.type === 'BOOLEAN'}
                                                                             fallback={
-                                                                                <input
-                                                                                    type="text"
-                                                                                    value={val() != null ? String(val()) : ''}
-                                                                                    onInput={(e) => updateAttr(attr.type === 'NUMBER' ? (parseFloat(e.currentTarget.value) || null) : e.currentTarget.value)}
-                                                                                    placeholder={attr.label}
-                                                                                    class="w-full bg-card-alt border border-border rounded-md px-2 py-1 text-xs text-text outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/25 transition-colors"
-                                                                                />
+                                                                                <Show
+                                                                                    when={(attr.options ?? []).length > 0}
+                                                                                    fallback={
+                                                                                        <input
+                                                                                            type={attr.type === 'NUMBER' ? 'number' : 'text'}
+                                                                                            value={val() != null ? String(val()) : ''}
+                                                                                            onInput={(e) => updateAttr(attr.type === 'NUMBER' ? (parseFloat(e.currentTarget.value) || null) : e.currentTarget.value)}
+                                                                                            placeholder={attr.label}
+                                                                                            class="w-full bg-card-alt border border-border rounded-md px-2 py-1 text-xs text-text outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/25 transition-colors"
+                                                                                        />
+                                                                                    }
+                                                                                >
+                                                                                    <Autocomplete.Root>
+                                                                                        <Autocomplete.Input<string>
+                                                                                            value={val() != null ? String(val()) : ''}
+                                                                                            onInputChange={() => {}}
+                                                                                            options={attr.options ?? []}
+                                                                                            optionValue={(o) => o}
+                                                                                            optionLabel={(o) => o}
+                                                                                            onSelect={(opt) => updateAttr(opt ?? '')}
+                                                                                            placeholder={attr.label}
+                                                                                            minLength={0}
+                                                                                            clearOnBlur={false}
+                                                                                        />
+                                                                                    </Autocomplete.Root>
+                                                                                </Show>
                                                                             }
                                                                         >
-                                                                            <Select
-                                                                                value={val() != null ? String(val()) : undefined}
-                                                                                onChange={(v: string | null) => updateAttr(v ?? '')}
-                                                                                options={attr.options ?? []}
-                                                                                optionValue={(o: string) => o}
-                                                                                optionTextValue={(o: string) => o}
-                                                                                placeholder={`-- ${attr.label} --`}
-                                                                                itemComponent={(itemProps: any) => (
-                                                                                    <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
-                                                                                )}
-                                                                                class="!gap-0"
-                                                                            >
-                                                                                <SelectTrigger class="!py-1 !px-2 !text-xs !rounded-md !min-h-0">
-                                                                                    <SelectValue<string> class="!text-xs">
-                                                                                        {(state) => state.selectedOption() ?? `-- ${attr.label} --`}
-                                                                                    </SelectValue>
-                                                                                </SelectTrigger>
-                                                                                <SelectContent />
-                                                                            </Select>
+                                                                            <Checkbox
+                                                                                checked={val() === true}
+                                                                                onChange={(checked) => updateAttr(checked)}
+                                                                            />
                                                                         </Show>
                                                                     </div>
                                                                 );
@@ -463,35 +469,40 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                     {(attr) => (
                                         <div>
                                             <Show
-                                                when={attr.options && attr.options.length > 0}
+                                                when={attr.type === 'BOOLEAN'}
                                                 fallback={
-                                                    <input
-                                                        type={attr.type === 'NUMBER' ? 'number' : 'text'}
-                                                        value={newAttrValues()[attr.key] ?? ''}
-                                                        onInput={(e) => setNewAttrValues(prev => ({ ...prev, [attr.key]: e.currentTarget.value }))}
-                                                        placeholder={attr.label}
-                                                        class="w-full bg-card-alt border border-border rounded-lg px-2.5 py-2 text-sm text-text placeholder:text-muted/40 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/25 transition-all"
-                                                    />
+                                                    <Show
+                                                        when={attr.options && attr.options.length > 0}
+                                                        fallback={
+                                                            <input
+                                                                type={attr.type === 'NUMBER' ? 'number' : 'text'}
+                                                                value={newAttrValues()[attr.key] ?? ''}
+                                                                onInput={(e) => setNewAttrValues(prev => ({ ...prev, [attr.key]: e.currentTarget.value }))}
+                                                                placeholder={attr.label}
+                                                                class="w-full bg-card-alt border border-border rounded-lg px-2.5 py-2 text-sm text-text placeholder:text-muted/40 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/25 transition-all"
+                                                            />
+                                                        }
+                                                    >
+                                                        <Autocomplete.Root>
+                                                            <Autocomplete.Input<string>
+                                                                value={newAttrValues()[attr.key] ?? ''}
+                                                                onInputChange={() => {}}
+                                                                options={attr.options ?? []}
+                                                                optionValue={(o) => o}
+                                                                optionLabel={(o) => o}
+                                                                onSelect={(opt) => setNewAttrValues(prev => ({ ...prev, [attr.key]: opt ?? '' }))}
+                                                                placeholder={attr.label}
+                                                                minLength={0}
+                                                                clearOnBlur={false}
+                                                            />
+                                                        </Autocomplete.Root>
+                                                    </Show>
                                                 }
                                             >
-                                                <Select
-                                                    value={newAttrValues()[attr.key] ?? undefined}
-                                                    onChange={(v: string | null) => setNewAttrValues(prev => ({ ...prev, [attr.key]: v ?? '' }))}
-                                                    options={attr.options ?? []}
-                                                    optionValue={(o: string) => o}
-                                                    optionTextValue={(o: string) => o}
-                                                    placeholder="Seleccionar..."
-                                                    itemComponent={(itemProps: any) => (
-                                                        <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
-                                                    )}
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue<string>>
-                                                            {(state) => state.selectedOption() ?? 'Seleccionar...'}
-                                                        </SelectValue>
-                                                    </SelectTrigger>
-                                                    <SelectContent />
-                                                </Select>
+                                                <Checkbox
+                                                    checked={newAttrValues()[attr.key] === 'true'}
+                                                    onChange={(checked) => setNewAttrValues(prev => ({ ...prev, [attr.key]: String(checked) }))}
+                                                />
                                             </Show>
                                         </div>
                                     )}

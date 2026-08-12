@@ -11,6 +11,7 @@ export interface ModuleConfig {
     icon?: string;
     path?: string;
     permission?: string;
+    status?: string;
     children?: ModuleConfig[];
 }
 
@@ -24,6 +25,7 @@ interface DbMenuItem {
     sort_order: number | null;
     permission_prefix: string | null;
     is_active: boolean | null;
+    status: string | null;
 }
 
 /**
@@ -177,6 +179,7 @@ function buildMenuTree(menus: DbMenuItem[]): ModuleConfig[] {
             icon: menu.icon ?? undefined,
             path: menu.path ?? undefined,
             permission: menu.permission_prefix ? `${menu.permission_prefix}.read` : undefined,
+            status: menu.status ?? undefined,
             children: [],
         });
     }

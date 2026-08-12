@@ -17,19 +17,19 @@ async function seedMenuItems() {
                 key: item.key,
                 label: item.label,
                 icon: item.icon,
-                path: item.path || null,
                 parent_id: null,
                 sort_order: item.sort_order,
                 permission_prefix: item.permission_prefix || null,
+                status: item.status || 'active',
             })
             .onConflictDoUpdate({
                 target: authMenuItems.key,
                 set: {
                     label: item.label,
-                    icon: item.icon,
                     path: item.path || null,
                     sort_order: item.sort_order,
                     permission_prefix: item.permission_prefix || null,
+                    status: item.status || 'active',
                 }
             })
             .returning({ id: authMenuItems.id });
@@ -52,20 +52,20 @@ async function seedMenuItems() {
                     key: child.key,
                     label: child.label,
                     icon: child.icon,
-                    path: child.path || null,
                     parent_id: parentId,
                     sort_order: child.sort_order,
                     permission_prefix: child.permission_prefix || null,
+                    status: child.status || 'active',
                 })
                 .onConflictDoUpdate({
                     target: authMenuItems.key,
                     set: {
                         label: child.label,
                         icon: child.icon,
-                        path: child.path || null,
                         parent_id: parentId,
                         sort_order: child.sort_order,
                         permission_prefix: child.permission_prefix || null,
+                        status: child.status || 'active',
                     }
                 })
                 .returning({ id: authMenuItems.id });
