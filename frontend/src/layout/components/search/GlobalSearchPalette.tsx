@@ -133,7 +133,7 @@ export const GlobalSearchPalette: Component = () => {
         <Show when={isSearchOpen()}>
             <Portal>
                 <div 
-                    class="fixed inset-0 z-[999] flex items-start justify-center p-4 pt-[10vh] overflow-y-auto"
+                    class="fixed inset-0 z-999 flex items-start justify-center p-4 pt-[10vh] overflow-y-auto"
                     onKeyDown={handlePaletteKeyDown}
                 >
                     {/* Backdrop de desenfoque */}

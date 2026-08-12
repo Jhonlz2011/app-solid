@@ -8,6 +8,7 @@ export interface ModuleConfig {
     icon?: string;
     path?: string;
     permission?: string;
+    status?: string;
     children?: ModuleConfig[];
 }
 

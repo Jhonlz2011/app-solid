@@ -24,7 +24,6 @@ interface DbMenuItem {
     parent_id: number | null;
     sort_order: number | null;
     permission_prefix: string | null;
-    is_active: boolean | null;
     status: string | null;
 }
 
@@ -39,7 +38,7 @@ export async function getMenuForUser(userId: number): Promise<ModuleConfig[]> {
         cacheService.getOrSet('menus:all', async () => {
             return db.select()
                 .from(authMenuItems)
-                .where(eq(authMenuItems.is_active, true))
+                // We fetch all items, including 'development', to show them locked in the UI
                 .orderBy(asc(authMenuItems.sort_order));
         }, 86400),
     ]);
@@ -57,7 +56,6 @@ export async function getFullMenuTree(): Promise<ModuleConfig[]> {
     const allMenus = await cacheService.getOrSet('menus:all', async () => {
         return db.select()
             .from(authMenuItems)
-            .where(eq(authMenuItems.is_active, true))
             .orderBy(asc(authMenuItems.sort_order));
     }, 86400);
 
