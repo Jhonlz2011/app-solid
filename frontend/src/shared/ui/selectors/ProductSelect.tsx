@@ -2,7 +2,7 @@
  * ProductSelect — Reusable autocomplete selector for Products.
  * Used in BOM component selection, document lines, etc.
  */
-import { Component, Show, createMemo, createSignal } from 'solid-js';
+import { Component, Show, createMemo, createSignal, createEffect } from 'solid-js';
 import { useProducts } from '@/modules/products/data/products.queries';
 import type { Product } from '@/modules/products/data/products.api';
 import { Autocomplete } from '@shared/ui/Autocomplete';
@@ -32,11 +32,14 @@ export const ProductSelect: Component<ProductSelectProps> = (props) => {
         return raw;
     });
 
-    // Auto-fill input text if value is already set
-    createMemo(() => {
-        if (props.value && !search()) {
-            const found = products().find(p => p.id === props.value);
-            if (found) setSearch(found.name);
+    // Sync search text when props.value changes externally (edit mode, form reset)
+    createEffect(() => {
+        const val = props.value;
+        if (val != null) {
+            const found = products().find(p => p.id === val);
+            if (found && search() !== found.name) setSearch(found.name);
+        } else if (search() !== '') {
+            setSearch('');
         }
     });
 

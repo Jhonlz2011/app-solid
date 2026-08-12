@@ -92,17 +92,6 @@ export const WarehouseSelect: Component<WarehouseSelectProps> = (props) => {
                         setSearch('');
                     }
                 }}
-                onBlur={() => {
-                    const v = props.value;
-                    if (v && warehouses().length > 0) {
-                        const wh = warehouses().find(w => w.id === v);
-                        if (wh) {
-                            setSearch(`${wh.code} — ${wh.name}`);
-                        }
-                    } else if (!v) {
-                        setSearch('');
-                    }
-                }}
             />
             <Autocomplete.ErrorMessage />
         </Autocomplete.Root>
