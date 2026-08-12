@@ -1,10 +1,9 @@
-import { Component, createSignal, Show, Index, onCleanup, createEffect, on, batch, createMemo } from 'solid-js';
+import { Component, createSignal, Show, Index, batch, createMemo } from 'solid-js';
 import type { EntityFormData, TaxIdTypeForm, PersonType, TaxRegimeType } from '@app/schema/frontend';
 import { useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { api } from '@shared/lib/eden';
 import type { SriSupplierResponse } from '@modules/sri/sri.types';
-import { useSriSearchByName } from '@modules/sri/sri.queries';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 
 import {
@@ -20,7 +19,7 @@ import {
 import TextField, { FieldLabel } from '@shared/ui/TextField';
 import Checkbox from '@shared/ui/Checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
-import { Autocomplete } from '@shared/ui/Autocomplete';
+import { SriBusinessNameSelect } from '@shared/ui/selectors';
 import { InfoIcon, SearchIcon, BriefcaseIcon } from '@shared/ui/icons';
 import { useAuth } from '@modules/auth/store/auth.store';
 import Tooltip from '@shared/ui/Tooltip';
@@ -81,13 +80,6 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
     // =========================================================================
     const [isSearchingRuc, setIsSearchingRuc] = createSignal(false);
     const [sriError, setSriError] = createSignal('');
-    const [sriNameQuery, setSriNameQuery] = createSignal(props.form.store.state.values.businessName ?? '');
-    const nameSearch = useSriSearchByName(sriNameQuery);
-    
-    let nameDebounce: ReturnType<typeof setTimeout>;
-    onCleanup(() => clearTimeout(nameDebounce));
-
-    const [isPristineEdit, setIsPristineEdit] = createSignal(props.isEdit());
 
     const triggerRucSearch = async () => {
         const val = props.form.getFieldValue('taxId');
@@ -138,19 +130,12 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
     };
 
     const handleNameInput = (value: string) => {
-        if (isPristineEdit()) {
-            if (value === props.form.getFieldValue('businessName')) return;
-            setIsPristineEdit(false);
-        }
         if (props.form.getFieldValue('businessName') === value) return;
         props.form.setFieldValue('businessName', value);
-        clearTimeout(nameDebounce);
-        nameDebounce = setTimeout(() => setSriNameQuery(value), 400);
     };
 
     const handleSriSelect = (source: 'RUC' | 'NAME') => (supplierResult: SriSupplierResponse | null) => {
         if (!supplierResult) return;
-        clearTimeout(nameDebounce);
 
         batch(() => {
             props.form.setFieldValue('taxId', supplierResult.ruc);
@@ -166,7 +151,6 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
 
         if (source === 'NAME') {
             queryClient.setQueryData(['sri', 'by-name', supplierResult.razonSocial], [supplierResult]);
-            setSriNameQuery(supplierResult.razonSocial);
         }
 
         if (supplierResult.city) {
@@ -179,16 +163,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
         }
     };
 
-    let lastToastedQuery = '';
-    createEffect(() => {
-        if (isPristineEdit()) return;
-        if (!nameSearch.isFetching && nameSearch.isSuccess && nameSearch.data && nameSearch.data.length === 0 && sriNameQuery().length >= 3) {
-            if (lastToastedQuery !== sriNameQuery()) {
-                toast.error(`No se encontraron resultados en el SRI para "${sriNameQuery()}".`);
-                lastToastedQuery = sriNameQuery();
-            }
-        }
-    });
+
 
     return (
         <div class="w-full space-y-6">
@@ -382,39 +357,13 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
 
                 <props.form.Field name="businessName">
                     {(field) => (
-                        <Autocomplete.Root field={field()}>
-                            <Autocomplete.Label>Razón Social (Búsqueda SRI)</Autocomplete.Label>
-                            <Autocomplete.Input<SriSupplierResponse>
-                                inputId="businessName-input"
-                                value={field().state.value}
-                                onInputChange={handleNameInput}
-                                options={field().state.value.length >= 3 ? (nameSearch.data ?? []) : []}
-                                optionValue={(opt) => opt.razonSocial}
-                                optionLabel={(opt) => opt.razonSocial}
-                                itemRenderer={(opt) => (
-                                    <div class="flex flex-col w-full gap-1 min-w-0">
-                                        <div class="flex w-full items-center justify-between gap-1 min-w-0">
-                                            <span class="font-medium text-text truncate max-w-[70%] flex-1 min-w-0">{opt.razonSocial}</span>
-                                            <span class={`shrink-0 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${opt.isActive ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'}`}>
-                                                {opt.isActive ? 'Activo' : 'Suspendido'}
-                                            </span>
-                                        </div>
-                                        <div class="flex w-full items-center gap-2 text-xs text-muted min-w-0">
-                                            <span class="font-mono bg-surface-alt px-1.5 py-0.5 rounded border border-border shrink-0">{opt.ruc}</span>
-                                            <Show when={opt.nombreComercial && opt.nombreComercial !== opt.razonSocial}>
-                                                <span class="truncate flex-1 min-w-0">({opt.nombreComercial})</span>
-                                            </Show>
-                                        </div>
-                                    </div>
-                                )}
-                                onSelect={handleSriSelect('NAME')}
-                                isLoading={nameSearch.isFetching}
-                                hideEmptyState={true}
-                                clearOnBlur={false}
-                                placeholder="Ej: Ingrese 3 letras o más para Autocompletar SRI"
-                            />
-                            <Autocomplete.ErrorMessage />
-                        </Autocomplete.Root>
+                        <SriBusinessNameSelect
+                            value={field().state.value}
+                            onInputChange={handleNameInput}
+                            onSelect={handleSriSelect('NAME')}
+                            field={field()}
+                            label="Razón Social (Búsqueda SRI)"
+                        />
                     )}
                 </props.form.Field>
 

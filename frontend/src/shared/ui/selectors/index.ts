@@ -6,5 +6,6 @@ export { LocationSelect, type LocationSelectProps } from './LocationSelect';
 export { AttributeSelect, type AttributeSelectProps } from './AttributeSelect';
 export { SelectorBreadcrumbs, buildBreadcrumbs, useResolvedSelectorPath, type SelectorBreadcrumbsProps, type BreadcrumbItem } from './SelectorBreadcrumbs';
 export { ProductSelect, type ProductSelectProps } from './ProductSelect';
+export { SriBusinessNameSelect, type SriBusinessNameSelectProps } from './SriBusinessNameSelect';
 
 
