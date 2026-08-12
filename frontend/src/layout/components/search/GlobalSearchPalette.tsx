@@ -3,7 +3,7 @@ import { Portal } from 'solid-js/web';
 import { useNavigate } from '@tanstack/solid-router';
 import { useModules, ModuleConfig } from '@shared/store/modules.store';
 import { useSearchPalette, useMobileSidebar } from '@shared/store/layout.store';
-import { SearchIcon, SearchXIcon } from '@shared/ui/icons';
+import { SearchIcon, SearchXIcon, LockIcon } from '@shared/ui/icons';
 
 interface SearchableItem {
     id: string;
@@ -200,7 +200,7 @@ export const GlobalSearchPalette: Component = () => {
                                                     aria-selected={isActive()}
                                                     onClick={() => handleSelectItem(item)}
                                                     onMouseEnter={() => setSelectedIndex(index())}
-                                                    data-active={isActive()}
+                                                    data-active={isActive() ? 'true' : undefined}
                                                     class="group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-150"
                                                     classList={{
                                                         'bg-primary/10 text-primary-strong': isActive(),
@@ -241,9 +241,7 @@ export const GlobalSearchPalette: Component = () => {
                                                         {/* Icono de Candado si está en desarrollo */}
                                                         <Show when={item.status === 'development'}>
                                                             <div class="flex items-center justify-center size-5 bg-card/50 rounded border border-border/50 shrink-0">
-                                                                <svg class="size-3 text-muted/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                                </svg>
+                                                                <LockIcon class="size-3 text-muted/60" />
                                                             </div>
                                                         </Show>
 
