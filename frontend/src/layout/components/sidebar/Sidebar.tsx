@@ -55,6 +55,7 @@ export const Sidebar: Component = () => {
             label: m.label,
             icon: m.icon || '',
             path: m.path,
+            status: m.status,
             children: m.children?.map(mapItem)
         });
         return modules().map(mapItem);

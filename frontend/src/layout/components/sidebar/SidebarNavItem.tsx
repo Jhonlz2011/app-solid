@@ -4,6 +4,7 @@ import { Link, useLocation } from '@tanstack/solid-router';
 import type { MenuItem } from './types';
 import { SidebarSubmenu } from './SidebarSubmenu';
 import { useSidebar } from './SidebarContext';
+import { useSidebarTooltip } from './useSidebarTooltip';
 import { ChevronDownIcon, LockIcon } from '@shared/ui/icons';
 
 interface SidebarNavItemProps {
@@ -32,39 +33,18 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
     ));
 
     // --- TOOLTIP LOGIC ---
-    const [tooltipRect, setTooltipRect] = createSignal<{ top: number, left: number } | null>(null);
-    let itemRef: HTMLElement | undefined;
-    let tooltipRef: HTMLDivElement | undefined;
-    let hoverTimeout: ReturnType<typeof setTimeout>;
+    const tooltip = useSidebarTooltip(props.item.id);
     let focusTimeout: ReturnType<typeof setTimeout>;
 
     onCleanup(() => {
-        clearTimeout(hoverTimeout);
         clearTimeout(focusTimeout);
     });
 
     const focusFirstTooltipLink = () => {
         focusTimeout = setTimeout(() => {
-            const firstLink = tooltipRef?.querySelector('a') as HTMLAnchorElement | null;
+            const firstLink = tooltip.getTooltipRef()?.querySelector('a') as HTMLAnchorElement | null;
             firstLink?.focus();
         }, 50);
-    };
-
-    const handleMouseEnter = () => {
-        if (!collapsed()) return;
-        clearTimeout(hoverTimeout);
-        if (itemRef) {
-            const rect = itemRef.getBoundingClientRect();
-            setTooltipRect({ top: rect.top + rect.height / 2, left: rect.right + 12 });
-        }
-        setActiveTooltipId(props.item.id);
-    };
-
-    const handleMouseLeave = () => {
-        if (!collapsed()) return;
-        hoverTimeout = setTimeout(() => {
-            if (activeTooltipId() === props.item.id) setActiveTooltipId(null);
-        }, 150);
     };
 
     // --- RENDER LOGIC ---
@@ -95,17 +75,13 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
             if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight') {
                 e.preventDefault();
                 if (hasChildren()) {
-                    if (itemRef) {
-                        const rect = itemRef.getBoundingClientRect();
-                        setTooltipRect({ top: rect.top + rect.height / 2, left: rect.right + 12 });
-                    }
-                    setActiveTooltipId(props.item.id);
+                    tooltip.handleMouseEnter();
                     focusFirstTooltipLink();
                 }
                 // For items without children, let the Link handle navigation
             } else if (e.key === 'Escape' || e.key === 'ArrowLeft') {
                 e.preventDefault();
-                setActiveTooltipId(null);
+                tooltip.hideTooltip();
             }
             return;
         }
@@ -119,14 +95,12 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
 
     const handleTooltipFocusOut = (e: FocusEvent) => {
         const relatedTarget = e.relatedTarget as HTMLElement | null;
-        const isInsideTooltip = tooltipRef?.contains(relatedTarget);
-        const isInsideItem = itemRef?.contains(relatedTarget);
+        const isInsideTooltip = tooltip.getTooltipRef()?.contains(relatedTarget);
+        const isInsideItem = tooltip.getTriggerRef()?.contains(relatedTarget);
         if (!isInsideTooltip && !isInsideItem) {
-            setActiveTooltipId(null);
+            tooltip.hideTooltip();
         }
     };
-
-    const shouldShowTooltip = () => collapsed() && activeTooltipId() === props.item.id && tooltipRect();
 
     const isDevelopment = props.item.status === 'development';
 
@@ -150,13 +124,13 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                 fallback={
                     /* Parent item with children - uses button */
                     <button
-                        ref={(el) => { itemRef = el; }}
+                        ref={tooltip.setTriggerRef}
                         type="button"
                         data-state={dataState()}
                         onClick={handleToggleSubmenu}
                         onKeyDown={handleKeyDown}
-                        onMouseEnter={handleMouseEnter}
-                        onMouseLeave={handleMouseLeave}
+                        onMouseEnter={tooltip.handleMouseEnter}
+                        onMouseLeave={tooltip.handleMouseLeave}
                         class={`${baseClasses} ${activeClasses} cursor-pointer`}
                     >
                         {/* Icon Container */}
@@ -191,14 +165,14 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                 {/* Navigable item - uses Link (supports right-click open in new tab) */}
                 <Link
                     to={props.item.path!}
-                    ref={(el) => { itemRef = el; }}
+                    ref={tooltip.setTriggerRef}
                     data-state={dataState()}
                     onClick={() => {
                         if (isMobileOpen()) setIsMobileOpen(false);
                     }}
                     onKeyDown={handleKeyDown}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
+                    onMouseEnter={tooltip.handleMouseEnter}
+                    onMouseLeave={tooltip.handleMouseLeave}
                     class={`${baseClasses} ${activeClasses}`}
                 >
                     {/* Icon Container */}
@@ -235,21 +209,21 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
             </Show>
 
             {/* Tooltip Portal (collapsed mode) */}
-            <Show when={shouldShowTooltip()}>
+            <Show when={tooltip.shouldShowTooltip()}>
                 <Portal>
                     <div
-                        ref={tooltipRef}
+                        ref={tooltip.setTooltipRef}
                         class="fixed z-9999 min-w-[180px] p-2 bg-surface backdrop-blur-lg border border-border/80 rounded-xl shadow-2xl
                                animate-in fade-in slide-in-from-left-2 duration-150"
-                        style={{ top: `${tooltipRect()?.top}px`, left: `${tooltipRect()?.left}px`, transform: 'translateY(-50%)' }}
-                        onMouseEnter={() => clearTimeout(hoverTimeout)}
-                        onMouseLeave={handleMouseLeave}
+                        style={{ top: `${tooltip.tooltipRect()?.top}px`, left: `${tooltip.tooltipRect()?.left}px`, transform: 'translateY(-50%)' }}
+                        onMouseEnter={tooltip.cancelHide}
+                        onMouseLeave={tooltip.handleMouseLeave}
                         onFocusOut={handleTooltipFocusOut}
                         onKeyDown={(e) => {
                             if (e.key === 'Escape' || e.key === 'ArrowLeft') {
                                 e.preventDefault();
-                                setActiveTooltipId(null);
-                                itemRef?.focus();
+                                tooltip.hideTooltip();
+                                tooltip.getTriggerRef()?.focus();
                             }
                         }}
                     >
@@ -274,11 +248,11 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                                                         e.preventDefault();
                                                         return;
                                                     }
-                                                    setActiveTooltipId(null);
+                                                    tooltip.hideTooltip();
                                                     if (isMobileOpen()) setIsMobileOpen(false);
                                                 }}
                                                 onKeyDown={(e: KeyboardEvent) => {
-                                                    const links = Array.from(tooltipRef?.querySelectorAll('a[role="menuitem"]') || []) as HTMLAnchorElement[];
+                                                    const links = Array.from(tooltip.getTooltipRef()?.querySelectorAll('a[role="menuitem"]') || []) as HTMLAnchorElement[];
                                                     const currentIndex = links.indexOf(e.currentTarget! as HTMLAnchorElement);
                                                     const isFirst = currentIndex === 0;
                                                     const isLast = currentIndex === links.length - 1;
@@ -299,8 +273,8 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                                                         }
                                                     } else if (e.key === 'Escape' || e.key === 'ArrowLeft') {
                                                         e.preventDefault();
-                                                        setActiveTooltipId(null);
-                                                        itemRef?.focus();
+                                                        tooltip.hideTooltip();
+                                                        tooltip.getTriggerRef()?.focus();
                                                     }
                                                 }}
                                                 class={`flex justify-between z-100 items-center gap-2 px-2 py-2 rounded-lg text-sm transition-all ${
