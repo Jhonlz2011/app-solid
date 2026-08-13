@@ -25,7 +25,7 @@ import {
     FilterIcon, CopyIcon, RotateCcwIcon, ChevronsUpDownIcon,
 } from '@shared/ui/icons';
 
-import type { RbacAction } from '@app/schema/enums';
+import type { RbacModule } from '@app/schema/enums';
 
 interface EntityPageProps {
     title: string;
@@ -34,7 +34,7 @@ interface EntityPageProps {
     description: string;
     state: EntityState;
     entityNamePlural: string;
-    permissionKey: RbacAction;
+    permissionKey: RbacModule;
     newRoutePath: string; // e.g., '/suppliers/new'
     CustomFilterSheet?: Component<any>; // Optional override for filters
     CustomDeleteDialog?: Component<any>; // Optional override for delete dialog

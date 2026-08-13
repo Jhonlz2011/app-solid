@@ -207,6 +207,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
             triggerMode="focus"
             allowsEmptyCollection={shouldShowContent()}
             // ── Input value ──
+            inputValue={props.value}
             // Kobalte's noResetInputOnBlur is the INVERSE of clearOnBlur
             noResetInputOnBlur={!(props.clearOnBlur ?? true)}
             onInputChange={(v) => {
