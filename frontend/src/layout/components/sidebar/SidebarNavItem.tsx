@@ -213,7 +213,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                 <Portal>
                     <div
                         ref={tooltip.setTooltipRef}
-                        class="fixed z-9999 min-w-[180px] p-2 bg-surface backdrop-blur-lg border border-border/80 rounded-xl shadow-2xl
+                        class="fixed z-9999 min-w-45 p-2 bg-surface backdrop-blur-lg border border-border/80 rounded-xl shadow-2xl
                                animate-in fade-in slide-in-from-left-2 duration-150"
                         style={{ top: `${tooltip.tooltipRect()?.top}px`, left: `${tooltip.tooltipRect()?.left}px`, transform: 'translateY(-50%)' }}
                         onMouseEnter={tooltip.cancelHide}
