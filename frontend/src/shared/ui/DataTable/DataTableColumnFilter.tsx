@@ -52,27 +52,30 @@ export const DataTableColumnFilter: Component<DataTableColumnFilterProps> = (pro
     const [open, setOpen] = createSignal(false);
     let scrollContainerRef: HTMLDivElement | undefined;
 
-    const activeCount = () => props.selected.length;
+    const options = () => props.options || [];
+    const selected = () => props.selected || [];
+
+    const activeCount = () => selected().length;
     const hasActiveFilters = () => activeCount() > 0;
 
     // Client-side filtered options
     const filteredOptions = createMemo(() => {
         const search = filterSearch().toLowerCase();
-        if (!search) return props.options;
-        return props.options.filter(opt => opt.label.toLowerCase().includes(search));
+        if (!search) return options();
+        return options().filter(opt => opt.label.toLowerCase().includes(search));
     });
 
     // Auto-prune stale selections: if all selected values disappeared from options
     // (e.g. last "Inactivo" record was restored), clear the filter automatically.
     createEffect(() => {
-        const selected = props.selected;
-        if (selected.length === 0) return;
+        const sel = selected();
+        if (sel.length === 0) return;
 
-        const availableValues = new Set(props.options.map(o => o.value));
-        const validSelections = selected.filter(v => availableValues.has(v));
+        const availableValues = new Set(options().map(o => o.value));
+        const validSelections = sel.filter(v => availableValues.has(v));
 
         // Only auto-clear if ALL selections became stale (the filtered category vanished entirely)
-        if (validSelections.length < selected.length) {
+        if (validSelections.length < sel.length) {
             props.onSelectionChange(validSelections);
         }
     });
@@ -83,17 +86,17 @@ export const DataTableColumnFilter: Component<DataTableColumnFilterProps> = (pro
     // All visible filtered options are selected
     const allFilteredSelected = createMemo(() => {
         if (filteredOptions().length === 0) return false;
-        const sel = new Set(props.selected);
-        return filteredOptions().every(o => sel.has(o.value));
+        const selSet = new Set(selected());
+        return filteredOptions().every(o => selSet.has(o.value));
     });
 
     const someFilteredSelected = createMemo(() => {
-        const sel = new Set(props.selected);
-        return filteredOptions().some(o => sel.has(o.value));
+        const selSet = new Set(selected());
+        return filteredOptions().some(o => selSet.has(o.value));
     });
 
     const toggleOption = (value: string) => {
-        const current = new Set(props.selected);
+        const current = new Set(selected());
         if (current.has(value)) current.delete(value);
         else current.add(value);
         props.onSelectionChange(Array.from(current));
@@ -278,9 +281,9 @@ const VirtualizedOptionsList: Component<VirtualizedOptionsListProps> = (props) =
     const selectedSet = createMemo(() => new Set(props.selected));
 
     const virtualizer = createVirtualizer({
-        get count() { return props.options.length; },
-        getScrollElement: () => props.scrollContainerRef ?? null,
-        estimateSize: () => 36,
+        get count() { return filteredOptions().length; },
+        getScrollElement: () => scrollContainerRef,
+        estimateSize: () => 36, // 36px height per item
         overscan: 5,
     });
 

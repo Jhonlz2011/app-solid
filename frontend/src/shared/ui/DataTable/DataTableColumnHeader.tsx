@@ -171,7 +171,7 @@ export function DataTableColumnHeader<TData, TValue>(
                     onSelectionChange={props.onFilterChange!}
                     title={props.title}
                     isLoading={props.isFilterLoading}
-                    enableVirtualization={props.filterOptions!.length > 50}
+                    enableVirtualization={(props.filterOptions?.length ?? 0) > 50}
                 />
             </Show>
         </div>
