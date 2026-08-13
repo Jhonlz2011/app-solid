@@ -115,7 +115,7 @@ export async function validateSession(sessionId: string) {
 
   // Expired — cleanup and reject
   if (session.expires_at < new Date()) {
-    await db.delete(sessions).where(eq(sessions.id, sessionId));
+    await adminDb.delete(sessions).where(eq(sessions.id, sessionId));
     cacheService.invalidate(cacheKey);
     return null;
   }
@@ -127,7 +127,7 @@ export async function validateSession(sessionId: string) {
 
   if (remainingMs < thresholdMs) {
     const newExpiry = new Date(Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
-    await db.update(sessions)
+    await adminDb.update(sessions)
       .set({ expires_at: newExpiry })
       .where(eq(sessions.id, sessionId));
     session.expires_at = newExpiry;
@@ -401,30 +401,32 @@ export async function login(email: string, password: string, userAgent?: string,
   const expiresAt = new Date(Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
 
   // Limit active sessions
-  const activeSessions = await db
-    .select({ id: sessions.id })
-    .from(sessions)
-    .where(eq(sessions.user_id, user.id))
-    .orderBy(sessions.created_at);
+  await withTenantContext({ companyId: user.company_id }, async () => {
+    const activeSessions = await db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(eq(sessions.user_id, user.id))
+      .orderBy(sessions.created_at);
 
-  const MAX = MAX_SESSIONS;
-  if (activeSessions.length >= MAX) {
-    const toDelete = activeSessions.slice(0, activeSessions.length - MAX + 1);
-    await db.delete(sessions).where(inArray(sessions.id, toDelete.map(s => s.id)));
-  }
+    const MAX = MAX_SESSIONS;
+    if (activeSessions.length >= MAX) {
+      const toDelete = activeSessions.slice(0, activeSessions.length - MAX + 1);
+      await db.delete(sessions).where(inArray(sessions.id, toDelete.map(s => s.id)));
+    }
 
-  // Insert session + update last_login in parallel
-  await Promise.all([
-    db.insert(sessions).values({
-      id: sessionId,
-      user_id: user.id,
-      company_id: user.company_id,
-      expires_at: expiresAt,
-      user_agent: userAgent,
-      ip_address: ipAddress,
-    }),
-    db.update(users).set({ last_login: new Date() }).where(eq(users.id, user.id)),
-  ]);
+    // Insert session + update last_login in parallel
+    await Promise.all([
+      db.insert(sessions).values({
+        id: sessionId,
+        user_id: user.id,
+        company_id: user.company_id,
+        expires_at: expiresAt,
+        user_agent: userAgent,
+        ip_address: ipAddress,
+      }),
+      db.update(users).set({ last_login: new Date() }).where(eq(users.id, user.id)),
+    ]);
+  });
 
   // Broadcast session update
   broadcast(RealtimeEvents.USER.SESSION_CREATED, { id: user.id, sessionId }, `user:${user.id}`);
@@ -450,7 +452,7 @@ export async function login(email: string, password: string, userAgent?: string,
 
 export async function logout(sessionId: string) {
   // Delete session from DB and retrieve user_id in one go
-  const deleted = await db
+  const deleted = await adminDb
     .delete(sessions)
     .where(eq(sessions.id, sessionId))
     .returning({ user_id: sessions.user_id });
