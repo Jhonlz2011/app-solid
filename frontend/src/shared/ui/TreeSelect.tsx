@@ -12,7 +12,7 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { createVirtualizer } from "@tanstack/solid-virtual";
-import { XIcon, ChevronRightIcon, TagIcon } from "./icons";
+import { XIcon, ChevronRightIcon } from "./icons";
 import type { FieldLike } from "./form/form.types";
 import {
   hasFieldError,

@@ -157,6 +157,10 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                 props.form.pushFieldValue('addresses', {
                     addressLine: '', city: supplierResult.city, country: 'Ecuador', countryCode: 'EC', postalCode: '', isMain: true,
                 });
+            } else {
+                props.form.setFieldValue('addresses[0].city', supplierResult.city);
+                props.form.setFieldValue('addresses[0].country', 'Ecuador');
+                props.form.setFieldValue('addresses[0].countryCode', 'EC');
             }
         }
     };

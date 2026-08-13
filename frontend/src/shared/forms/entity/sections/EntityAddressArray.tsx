@@ -17,21 +17,6 @@ const AddressRow: Component<AddressRowProps> = (props) => {
     const [localCountry, setLocalCountry] = createSignal('');
     const [localCountryCode, setLocalCountryCode] = createSignal('');
     const [inputText, setInputText] = createSignal('');
-    const [hydrated, setHydrated] = createSignal(false);
-
-    createEffect(() => {
-        const addr = props.form.store.state.values.addresses?.[props.index];
-        if (!addr) return;
-        const city = addr.city || '';
-        const country = addr.country || '';
-        const code = addr.countryCode || '';
-        if (!hydrated() && city) {
-            setHydrated(true);
-            setLocalCountry(country);
-            setLocalCountryCode(code);
-            setInputText(city && country ? `${city}, ${country}` : city);
-        }
-    });
 
     const handleCitySelect = (city: GeoNameCity | null) => {
         if (!city) return;
@@ -68,7 +53,23 @@ const AddressRow: Component<AddressRowProps> = (props) => {
             </div>
             <div class="col-span-12 sm:col-span-6 md:col-span-4">
                 <props.form.Field name={`addresses[${props.index}].city`}>
-                    {(subField: any) => (
+                    {(subField: any) => {
+                        createEffect(() => {
+                            const currentCity = subField().state.value;
+                            if (currentCity && currentCity !== inputText().split(',')[0].trim()) {
+                                const country = props.form.getFieldValue(`addresses[${props.index}].country`) || '';
+                                const code = props.form.getFieldValue(`addresses[${props.index}].countryCode`) || '';
+                                setLocalCountry(country);
+                                setLocalCountryCode(code);
+                                setInputText(country ? `${currentCity}, ${country}` : currentCity);
+                            } else if (!currentCity && inputText()) {
+                                setLocalCountry('');
+                                setLocalCountryCode('');
+                                setInputText('');
+                            }
+                        });
+
+                        return (
                         <Autocomplete.Root field={subField()}>
                             <Autocomplete.Label>Ciudad</Autocomplete.Label>
                             <Autocomplete.Input<GeoNameCity>
@@ -108,7 +109,7 @@ const AddressRow: Component<AddressRowProps> = (props) => {
                             />
                             <Autocomplete.ErrorMessage />
                         </Autocomplete.Root>
-                    )}
+                    ); }}
                 </props.form.Field>
             </div>
             <div class="col-span-12 sm:col-span-6 md:col-span-2">

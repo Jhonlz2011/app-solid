@@ -214,9 +214,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
             validationState={ctx.validationState()}
             triggerMode="focus"
             allowsEmptyCollection={shouldShowContent()}
-            // ── Input value ──
-            inputValue={props.value}
-            // Kobalte's noResetInputOnBlur is the INVERSE of clearOnBlur
             noResetInputOnBlur={!(props.clearOnBlur ?? true)}
             onInputChange={(v) => {
                 // Guard against the echo: after selection, Kobalte fires
