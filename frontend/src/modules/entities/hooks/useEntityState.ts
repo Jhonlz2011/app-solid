@@ -1,3 +1,9 @@
+/**
+ * useEntityState.ts — Generic hook for Entities State
+ *
+ * Encapsulates the table state, SSE, queries, mutations, and filter sheet
+ * logic for any generic entity (suppliers, clients, employees, etc.).
+ */
 import { createSignal, createMemo, batch } from 'solid-js';
 import { useQueryClient } from '@tanstack/solid-query';
 import { useNavigate } from '@tanstack/solid-router';
@@ -5,54 +11,63 @@ import { toast } from 'solid-sonner';
 import { copyToClipboard } from '@shared/utils/clipboard';
 import { buildFilterOptions } from '@shared/utils/facets.utils';
 import { isActiveLabels } from '@shared/constants/labels';
-import { taxIdTypeLabels, personTypeLabels } from '../models/employee.types';
 import { useDataTable } from '@shared/hooks/useDataTable';
 import { useDataTableSSE, useRealtimeInvalidation } from '@shared/hooks/useDataTableSSE';
 import { useAuth } from '@/modules/auth/store/auth.store';
 
-import {
-    useEmployees,
-    useEmployeeFacets,
-} from '../data/employees.queries';
-import {
-    useDeleteEmployee,
-    useBulkDeleteEmployee,
-    useBulkRestoreEmployee,
-    useRestoreEmployee,
-} from '../data/employees.mutations';
-import { employeeKeys } from '../data/employees.keys';
-import { employeesApi, type EmployeeListItem } from '../data/employees.api';
-import type { EmployeeFilters } from '../models/employee.types';
-import { createEmployeeColumns } from '../data/employee.columns';
+import type { EntityApi, EntityListItem } from '../data/entities.api';
+import type { EntityQueries } from '../data/entities.queries';
+import type { EntityMutations } from '../data/entities.mutations';
+import type { EntityKeys } from '../data/entities.keys';
+import type { EntityFilters } from '@app/schema/shared-dto';
 
-export function useEmployeesState() {
+interface UseEntityStateConfig {
+    api: EntityApi;
+    keys: EntityKeys;
+    queries: EntityQueries;
+    mutations: EntityMutations;
+    createColumns: (props: any) => any;
+    sseRoom: string;
+    permissionKey: string;
+    taxIdTypeLabels?: Record<string, string>;
+    personTypeLabels?: Record<string, string>;
+    entityNamePlural?: string; // e.g., 'proveedores'
+}
+
+export function useEntityState(config: UseEntityStateConfig) {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const auth = useAuth();
+    const entityNamePlural = config.entityNamePlural || 'entidades';
 
+    // Filter sheet
     const [personTypeFilter, setPersonTypeFilter] = createSignal<string[]>([]);
     const [taxIdTypeFilter, setTaxIdTypeFilter] = createSignal<string[]>([]);
     const [isActiveFilter, setIsActiveFilter] = createSignal<string[]>([]);
     const [businessNameFilter, setBusinessNameFilter] = createSignal<string[]>([]);
     const [showFilterSheet, setShowFilterSheet] = createSignal(false);
 
-    const [deleteTarget, setDeleteTarget] = createSignal<EmployeeListItem | null>(null);
+    // Delete / Restore confirmation state
+    const [deleteTarget, setDeleteTarget] = createSignal<EntityListItem | null>(null);
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = createSignal(false);
     const [showBulkRestoreConfirm, setShowBulkRestoreConfirm] = createSignal(false);
 
-    useDataTableSSE({ room: 'employees', queryKey: employeeKeys.lists() });
-    useRealtimeInvalidation([...employeeKeys.all, 'facets']);
+    // ─── SSE ─────────────────────────────────────────────────────
+    useDataTableSSE({ room: config.sseRoom, queryKey: config.keys.lists() });
+    useRealtimeInvalidation([...config.keys.all, 'facets']);
 
-    let getQueryData = () => [] as EmployeeListItem[];
+    // ─── Table State ─────────────────────────────────────────────
+    let getQueryData = () => [] as EntityListItem[];
     let getQueryMeta = () => undefined as any;
 
-    const tableState = useDataTable<EmployeeListItem>({
+    const tableState = useDataTable<EntityListItem>({
         data: () => getQueryData(),
         meta: () => getQueryMeta(),
         isCursorBased: true
     });
 
-    const filters = (): EmployeeFilters => ({
+    // ─── Query Filters ───────────────────────────────────────────
+    const filters = (): EntityFilters => ({
         cursor: tableState.isSortedMode() ? undefined : tableState.cursor(),
         direction: tableState.isSortedMode() ? undefined : tableState.direction(),
         sortBy: tableState.sortBy(),
@@ -66,10 +81,11 @@ export function useEmployeesState() {
         businessName: businessNameFilter().length > 0 ? businessNameFilter() : undefined,
     });
 
-    const employeesQuery = useEmployees(filters);
-    getQueryData = () => employeesQuery.data?.data ?? [];
-    getQueryMeta = () => employeesQuery.data?.meta;
-    const facetsQuery = useEmployeeFacets(
+    // ─── Queries & Mutations ─────────────────────────────────────
+    const entitiesQuery = config.queries.useList(filters);
+    getQueryData = () => entitiesQuery.data?.data ?? [];
+    getQueryMeta = () => entitiesQuery.data?.meta;
+    const facetsQuery = config.queries.useFacets(
         () => tableState.search() || undefined,
         () => ({
             personType: personTypeFilter().length > 0 ? personTypeFilter() : undefined,
@@ -79,26 +95,29 @@ export function useEmployeesState() {
         })
     );
 
-    const deleteMutation = useDeleteEmployee();
-    const bulkRestoreMutation = useBulkRestoreEmployee();
-    const bulkDeleteMutation = useBulkDeleteEmployee();
-    const restoreMutation = useRestoreEmployee();
+    const deleteMutation = config.mutations.useDelete();
+    const bulkRestoreMutation = config.mutations.useBulkRestore();
+    const bulkDeleteMutation = config.mutations.useBulkDelete();
+    const restoreMutation = config.mutations.useRestore();
 
-    const employees = () => employeesQuery.data?.data ?? [];
-    const meta = () => employeesQuery.data?.meta;
+    // ─── Derived Data ────────────────────────────────────────────
+    const entities = () => entitiesQuery.data?.data ?? [];
+    const meta = () => entitiesQuery.data?.meta;
 
     const selectedActiveCount = () => tableState.selectedItems().filter(s => s.is_active).length;
     const selectedInactiveCount = () => tableState.selectedItems().filter(s => !s.is_active).length;
 
+    // ─── Navigation Handlers ─────────────────────────────────────
     const handleClosePanel = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: undefined, id: undefined, from: undefined }) } as any);
-    const handlePrefetch = (s: EmployeeListItem) => {
+    const handlePrefetch = (s: EntityListItem) => {
         queryClient.prefetchQuery({
-            queryKey: employeeKeys.detail(s.id),
-            queryFn: () => employeesApi.get(s.id),
+            queryKey: config.keys.detail(s.id),
+            queryFn: () => config.api.get(s.id),
             staleTime: 1000 * 60 * 5,
         });
     };
 
+    // ─── Action Handlers ─────────────────────────────────────────
     const handleCopySelection = async () => {
         const selected = tableState.selectedItems();
         if (selected.length === 0) return;
@@ -111,16 +130,16 @@ export function useEmployeesState() {
             return parts.join(' | ');
         }).join('\n');
         const ok = await copyToClipboard(text);
-        if (ok) toast.success(`Copiado ${selected.length} empleados al portapapeles`);
+        if (ok) toast.success(`Copiado ${selected.length} ${entityNamePlural} al portapapeles`);
         else toast.error('Error al copiar al portapapeles');
         tableState.setRowSelection({});
     };
 
-    const handleDelete = (employee: EmployeeListItem) => setDeleteTarget(employee);
+    const handleDelete = (entity: EntityListItem) => setDeleteTarget(entity);
 
-    const handleRestore = (employee: EmployeeListItem) => {
-        restoreMutation.mutate(employee.id, {
-            onSuccess: () => toast.success(`Se ha restaurado '${employee.business_name}'`),
+    const handleRestore = (entity: EntityListItem) => {
+        restoreMutation.mutate(entity.id, {
+            onSuccess: () => toast.success(`Se ha restaurado '${entity.business_name}'`),
             onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
@@ -131,7 +150,7 @@ export function useEmployeesState() {
         const ids = tableState.selectedItems().filter(s => s.is_active).map(s => s.id);
         if (ids.length === 0) return;
         bulkDeleteMutation.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} empleados eliminados`); tableState.setRowSelection({}); setShowBulkDeleteConfirm(false); },
+            onSuccess: () => { toast.success(`${ids.length} ${entityNamePlural} eliminados`); tableState.setRowSelection({}); setShowBulkDeleteConfirm(false); },
             onError: (err: any) => toast.error(err.message || 'Error al eliminar'),
         });
     };
@@ -140,7 +159,7 @@ export function useEmployeesState() {
         const ids = tableState.selectedItems().filter(s => !s.is_active).map(s => s.id);
         if (ids.length === 0) return;
         bulkRestoreMutation.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} empleados restaurados`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },
+            onSuccess: () => { toast.success(`${ids.length} ${entityNamePlural} restaurados`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },
             onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
@@ -149,13 +168,15 @@ export function useEmployeesState() {
         batch(() => { setter(selected); tableState.setCursor(undefined); tableState.setDirection('first'); });
     };
 
+    // ─── Filter Options ──────────────────────────────────────────
     const businessNameFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'business_name'));
-    const taxIdTypeFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'tax_id_type', taxIdTypeLabels));
-    const personTypeFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'person_type', personTypeLabels));
+    const taxIdTypeFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'tax_id_type', config.taxIdTypeLabels));
+    const personTypeFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'person_type', config.personTypeLabels));
     const isActiveFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'is_active', isActiveLabels));
 
+    // ─── Column Definitions ──────────────────────────────────────
     const columns = createMemo(() =>
-        createEmployeeColumns({
+        config.createColumns({
             onDelete: handleDelete,
             onRestore: handleRestore,
             auth,
@@ -169,24 +190,39 @@ export function useEmployeesState() {
     );
 
     return {
+        // ...Spread all base table handlers and state
         ...tableState,
+
+        // State
         auth, handleClosePanel,
         showFilterSheet, setShowFilterSheet, deleteTarget, setDeleteTarget,
         showBulkDeleteConfirm, setShowBulkDeleteConfirm, showBulkRestoreConfirm, setShowBulkRestoreConfirm,
-        employeesQuery, facetsQuery, employees, meta,
+
+        // Query results
+        entitiesQuery, facetsQuery, entities, meta,
         selectedActiveCount, selectedInactiveCount,
+
+        // Mutations
         deleteMutation, bulkDeleteMutation, bulkRestoreMutation,
+
+        // Handlers
         handlePrefetch, handleCopySelection, handleDelete, handleRestore, handleBulkDelete,
         confirmBulkDelete, confirmBulkRestore, handleFilterChange, filters,
+
+        // Column definitions
         columns,
+
+        // Filter configs (for FilterSheet)
         filterSheetConfig: {
             personType: { options: personTypeFilterOptions, selected: personTypeFilter, onChange: handleFilterChange(setPersonTypeFilter), isLoading: () => facetsQuery.isPending },
             taxIdType: { options: taxIdTypeFilterOptions, selected: taxIdTypeFilter, onChange: handleFilterChange(setTaxIdTypeFilter), isLoading: () => facetsQuery.isPending },
             isActive: { options: isActiveFilterOptions, selected: isActiveFilter, onChange: handleFilterChange(setIsActiveFilter), isLoading: () => facetsQuery.isPending },
             businessName: { options: businessNameFilterOptions, selected: businessNameFilter, onChange: handleFilterChange(setBusinessNameFilter), isLoading: () => facetsQuery.isPending },
         },
+
+        // Filter active indicator
         hasActiveFilters: () => personTypeFilter().length > 0 || taxIdTypeFilter().length > 0 || isActiveFilter().length > 0 || businessNameFilter().length > 0,
     };
 }
 
-export type EmployeesState = ReturnType<typeof useEmployeesState>;
+export type EntityState = ReturnType<typeof useEntityState>;

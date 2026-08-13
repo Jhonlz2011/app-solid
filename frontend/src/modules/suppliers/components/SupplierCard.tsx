@@ -13,6 +13,8 @@ import { EditIcon, TrashIcon, RotateCcwIcon} from '@shared/ui/icons';
 import Checkbox from '@shared/ui/Checkbox';
 import { cn } from '@shared/lib/utils';
 import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/Button';
+
 
 export interface SupplierCardProps {
     supplier: SupplierListItem;
@@ -122,7 +124,7 @@ export const SupplierCard: Component<SupplierCardProps> = (props) => {
                         </>
                     }
                 >
-                    <Button
+                    <LinkButton
                         to={`/suppliers/${props.supplier.id}/edit`}
                         variant="ghost"
                         size="icon"
@@ -131,7 +133,7 @@ export const SupplierCard: Component<SupplierCardProps> = (props) => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <EditIcon class="size-4" />
-                    </Button>
+                    </LinkButton>
                     <Button
                         variant="ghost"
                         size="icon"

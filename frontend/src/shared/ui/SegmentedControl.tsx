@@ -14,13 +14,12 @@ type SegmentedControlItemLabelProps = ComponentProps<typeof KSegmentedControl.It
 
 // 1. ROOT (Accepts children, uses Tailwind CSS v4 container query responsive @sm:)
 export const SegmentedControl: ParentComponent<SegmentedControlRootProps & { class?: string; onChange?: (value: any) => void }> = (props) => {
-    const [local, others] = splitProps(props, ['class', 'onChange', 'onValueChange', 'value']);
+    const [local, others] = splitProps(props, ['class', 'onChange', 'value']);
     return (
         <KSegmentedControl 
             value={local.value ?? ''}
             onChange={(val) => {
                 local.onChange?.(val);
-                (local as any).onValueChange?.(val);
             }}
             {...others}
             class={cn(

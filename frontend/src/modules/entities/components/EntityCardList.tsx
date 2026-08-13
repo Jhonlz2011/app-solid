@@ -1,37 +1,29 @@
 /**
- * ClientCardList — Mobile infinite-scroll card list for clients.
- *
- * Uses:
- * - `createInfiniteQuery` (TanStack Query) to accumulate paginated data
- * - IntersectionObserver sentinel at the bottom to auto-fetch next pages
- * - Simple <For> loop — 20 items/page keeps DOM lean without needing virtualizer
+ * EntityCardList.tsx — Generic Mobile Infinite-scroll list for entities.
  */
 import { Component, createMemo, onMount, onCleanup, For, Show } from 'solid-js';
 import type { RowSelectionState } from '@tanstack/solid-table';
-import { useInfiniteClients } from '../data/clients.queries';
-import type { ClientListItem } from '../data/clients.api';
-import type { EntityFilters as ClientFilters } from '@app/schema/shared-dto';
-import { ClientCard } from './ClientCard';
 import { Skeleton } from '@shared/ui/Skeleton';
 import { EmptyState } from '@shared/ui/EmptyState';
 import { UsersIcon } from '@shared/ui/icons';
 
-type MobileFilters = Omit<ClientFilters, 'cursor' | 'direction'>;
-
-export interface ClientCardListProps {
-    filters: () => MobileFilters;
+export interface EntityCardListProps {
+    filters: () => any;
     rowSelection: () => RowSelectionState;
     onRowSelectionChange: (sel: RowSelectionState) => void;
-    onDelete: (client: ClientListItem) => void;
-    onRestore: (client: ClientListItem) => void;
+    onDelete: (entity: any) => void;
+    onRestore: (entity: any) => void;
+    queryHook: (filters: () => any) => any;
+    emptyMessage?: string;
+    CustomCard?: Component<any>; // Allow overriding the card layout if needed
 }
 
-export const ClientCardList: Component<ClientCardListProps> = (props) => {
-    const query = useInfiniteClients(props.filters);
+export const EntityCardList: Component<EntityCardListProps> = (props) => {
+    // We expect queryHook to be the `useInfinite` hook
+    const query = props.queryHook(props.filters);
 
-    // Flatten all accumulated pages into a single reactive list
-    const items = createMemo<ClientListItem[]>(() =>
-        query.data?.pages.flatMap((p) => p.data) ?? []
+    const items = createMemo<any[]>(() =>
+        query.data?.pages.flatMap((p: any) => p.data) ?? []
     );
 
     const hasItems = () => items().length > 0;
@@ -39,7 +31,6 @@ export const ClientCardList: Component<ClientCardListProps> = (props) => {
     const isFetchingNextPage = () => query.isFetchingNextPage;
     const totalLoaded = () => items().length;
 
-    // Sentinel element: when it enters the viewport, load next page
     let sentinelRef: HTMLDivElement | undefined;
 
     onMount(() => {
@@ -57,7 +48,6 @@ export const ClientCardList: Component<ClientCardListProps> = (props) => {
 
     return (
         <div class="flex flex-col h-full overflow-y-auto">
-            {/* First-page skeleton */}
             <Show when={query.isPending}>
                 <For each={Array(8).fill(0)}>
                     {() => (
@@ -74,55 +64,50 @@ export const ClientCardList: Component<ClientCardListProps> = (props) => {
                 </For>
             </Show>
 
-            {/* Empty state */}
             <Show when={!query.isPending && !hasItems()}>
                 <div class="flex-1 flex items-center justify-center p-8">
                     <EmptyState
                         icon={<UsersIcon />}
-                        message="No hay clientes"
+                        message={props.emptyMessage || "No hay registros"}
                         description="Crea uno nuevo para comenzar"
                     />
                 </div>
             </Show>
 
-            {/* Cards */}
             <Show when={!query.isPending && hasItems()}>
                 <For each={items()}>
-                    {(client) => {
-                        const id = String(client.id);
+                    {(entity) => {
+                        const id = String(entity.id);
                         return (
-                            <ClientCard
-                                client={client}
-                                isSelected={!!props.rowSelection()[id]}
-                                onSelect={(checked) => {
-                                    const next = { ...props.rowSelection() };
-                                    if (checked) next[id] = true;
-                                    else delete next[id];
-                                    props.onRowSelectionChange(next);
-                                }}
-                                // onView={props.onView}
-                                // onEdit={props.onEdit}
-                                onDelete={props.onDelete}
-                                onRestore={props.onRestore}
-                            />
+                            <Show when={props.CustomCard}>
+                                {props.CustomCard && <props.CustomCard
+                                    entity={entity}
+                                    isSelected={!!props.rowSelection()[id]}
+                                    onSelect={(checked: boolean) => {
+                                        const next = { ...props.rowSelection() };
+                                        if (checked) next[id] = true;
+                                        else delete next[id];
+                                        props.onRowSelectionChange(next);
+                                    }}
+                                    onDelete={props.onDelete}
+                                    onRestore={props.onRestore}
+                                />}
+                            </Show>
                         );
                     }}
                 </For>
 
-                {/* Intersection observer sentinel — triggers next-page fetch */}
                 <div ref={sentinelRef} class="h-2" />
 
-                {/* Loading more spinner */}
                 <Show when={isFetchingNextPage()}>
                     <div class="flex justify-center py-4">
                         <div class="size-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                     </div>
                 </Show>
 
-                {/* End of list */}
                 <Show when={!hasNextPage()}>
                     <p class="text-center text-xs text-muted py-4">
-                        {totalLoaded()} clientes en total
+                        {totalLoaded()} registros en total
                     </p>
                 </Show>
             </Show>

@@ -3,18 +3,9 @@ import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { EmployeeListItem } from '../data/employees.api';
 import { useAuth } from '@/modules/auth/store/auth.store';
-import Checkbox from '@shared/ui/Checkbox';
-import { Badge, StatusBadge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
-import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
-import ActionMenu from '@shared/ui/ActionMenu';
-
-export interface ColumnFilterConfig {
-    options: () => FilterOption[];
-    selected: () => string[];
-    onChange: (selected: string[]) => void;
-    isLoading: () => boolean;
-}
+import type { ColumnFilterConfig } from '@modules/entities/data/createEntityColumns';
+import { createBaseEntityColumns } from '@modules/entities/data/createEntityColumns';
 
 export interface EmployeeColumnHandlers {
     onDelete: (employee: EmployeeListItem) => void;
@@ -29,27 +20,13 @@ export interface EmployeeColumnHandlers {
 }
 
 export function createEmployeeColumns(handlers: EmployeeColumnHandlers): ColumnDef<EmployeeListItem>[] {
+    const base = createBaseEntityColumns<EmployeeListItem>({
+        ...handlers,
+        permissionKey: 'employees',
+    });
+
     return [
-        {
-            id: 'select',
-            header: ({ table }) => (
-                <Checkbox
-                    indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={(checked) => table.toggleAllPageRowsSelected(checked)}/>
-            ),
-            cell: ({ row }) => (
-                <div onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                        checked={row.getIsSelected()}
-                        onChange={(checked) => row.toggleSelected(checked)}
-                    />
-                </div>
-            ),
-            size: 36,
-            enableSorting: false,
-            enableHiding: false,
-        },
+        base.select,
         {
             accessorKey: 'business_name',
             header: ({ column }) => (
