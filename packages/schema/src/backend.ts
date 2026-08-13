@@ -292,7 +292,7 @@ export const PublicUser = Type.Object({
 export const AuthUserResponse = Type.Composite([
     PublicUser,
     Type.Object({
-        companySlug: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        companySlug: Type.String(),
         roles: Type.Array(Type.String()),
         permissions: Type.Array(Type.String()),
         entity: Type.Optional(Type.Object({

@@ -20,7 +20,7 @@ import { FloppyDiskIcon } from '@shared/ui/icons';
 interface ServiceEditSheetProps {
     serviceId?: number;
     onClose?: () => void;
-    onBack?: () => void;
+
 }
 
 const ServiceEditSheet: Component<ServiceEditSheetProps> = (props) => {
@@ -64,7 +64,6 @@ const ServiceEditSheet: Component<ServiceEditSheetProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            onBack={props.onBack}
             title="Editar Servicio"
             description="Modifica los datos del servicio"
             size="5xl"

@@ -17,7 +17,7 @@ import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 import UomForm from './UomForm';
 
-interface UomEditSheetProps { onClose?: () => void; onBack?: () => void; }
+interface UomEditSheetProps { onClose?: () => void; }
 
 const UomEditSheet: Component<UomEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => { uomId?: string };
@@ -73,7 +73,7 @@ const UomEditSheet: Component<UomEditSheetProps> = (props) => {
 
     return (
         <Sheet
-            bindDismiss={bindDismiss} isOpen={true} onClose={navigateAway} onBack={props.onBack}
+            bindDismiss={bindDismiss} isOpen={true} onClose={navigateAway}
             title={isSystem() ? 'Unidad del Sistema' : 'Editar Unidad de Medida'}
             description={isSystem() ? 'Las unidades del sistema son de solo lectura' : 'Modifica los datos de la unidad'}
             size="md"

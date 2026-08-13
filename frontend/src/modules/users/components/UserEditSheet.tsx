@@ -18,7 +18,7 @@ import type { EntityOption } from './UserForm';
 interface UserEditSheetProps {
     userId?: number;
     onClose?: () => void;
-    onBack?: () => void;
+
 }
 
 const UserEditSheet: Component<UserEditSheetProps> = (props) => {
@@ -99,7 +99,6 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            onBack={props.onBack}
             title="Editar Usuario"
             description="Modifica los datos de la cuenta"
             size="lg"

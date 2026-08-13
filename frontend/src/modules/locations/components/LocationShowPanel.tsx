@@ -18,7 +18,7 @@ import { useAuth } from '@modules/auth/store/auth.store';
 interface LocationShowPanelProps {
     locationId?: number;
     onClose?: () => void;
-    onBack?: () => void;
+
 }
 
 const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
@@ -39,7 +39,6 @@ const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            onBack={props.onBack}
             title="Detalles de la Ubicación"
             description="Información completa de esta ubicación"
             size="xl"

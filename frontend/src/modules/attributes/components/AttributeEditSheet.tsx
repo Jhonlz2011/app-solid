@@ -16,7 +16,7 @@ import { FloppyDiskIcon } from '@shared/ui/icons';
 interface AttributeEditSheetProps {
     attributeId?: number;
     onClose?: () => void;
-    onBack?: () => void;
+
 }
 
 const AttributeEditSheet: Component<AttributeEditSheetProps> = (props) => {
@@ -64,7 +64,6 @@ const AttributeEditSheet: Component<AttributeEditSheetProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            onBack={props.onBack}
             title="Editar Atributo"
             description="Modifica los datos del atributo"
             size="xl"

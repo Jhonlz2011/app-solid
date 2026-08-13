@@ -15,7 +15,7 @@ import Button from '@shared/ui/Button';
 import LocationForm from './LocationForm';
 import type { LocationFormData } from '@app/schema/frontend';
 
-interface LocationEditSheetProps { onClose?: () => void; onBack?: () => void; }
+interface LocationEditSheetProps { onClose?: () => void; }
 
 const LocationEditSheet: Component<LocationEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => { locationId?: string };
@@ -71,7 +71,7 @@ const LocationEditSheet: Component<LocationEditSheetProps> = (props) => {
 
     return (
         <Sheet
-            bindDismiss={bindDismiss} isOpen={true} onClose={navigateAway} onBack={props.onBack}
+            bindDismiss={bindDismiss} isOpen={true} onClose={navigateAway}
             title="Editar Ubicación"
             description="Modifica los datos de la ubicación"
             size="md"

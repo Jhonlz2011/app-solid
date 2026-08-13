@@ -21,7 +21,7 @@ import { FloppyDiskIcon } from '@shared/ui/icons';
 interface ProductEditSheetProps {
     productId?: number;
     onClose?: () => void;
-    onBack?: () => void;
+
 }
 
 const ProductEditSheet: Component<ProductEditSheetProps> = (props) => {
@@ -65,7 +65,6 @@ const ProductEditSheet: Component<ProductEditSheetProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            onBack={props.onBack}
             title="Editar Producto"
             description="Modifica los datos del producto"
             size="5xl"

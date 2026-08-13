@@ -16,7 +16,7 @@ import { FloppyDiskIcon } from '@shared/ui/icons';
 interface CategoryEditSheetProps {
     categoryId?: number;
     onClose?: () => void;
-    onBack?: () => void;
+
 }
 
 const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
@@ -99,7 +99,6 @@ const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            onBack={props.onBack}
             title="Editar Categoría"
             description="Modifica los datos de la categoría"
             size="xxl"

@@ -11,8 +11,7 @@ const activeSheets: string[] = [];
 interface SheetProps {
     isOpen: boolean;
     onClose: () => void;
-    /** Optional back handler — shows a back arrow button in the header */
-    onBack?: () => void;
+
     title?: string;
     description?: string;
     children: JSX.Element;
@@ -74,8 +73,7 @@ const Sheet: Component<SheetProps> = (rawProps) => {
         if (isClosing()) return;
         setIsClosing(true);
         dismissTimeout = setTimeout(() => {
-            if (props.onBack) props.onBack();
-            else props.onClose();
+            props.onClose();
         }, 200); // 200ms duration for the exit animation
     };
 
@@ -94,12 +92,11 @@ const Sheet: Component<SheetProps> = (rawProps) => {
     return (
         <Show when={props.isOpen}>
             <Portal>
-                <div class={cn("fixed inset-0 flex justify-end", props.onBack ? "z-[60]" : "z-50")}>
+                <div class={cn("fixed inset-0 flex justify-end z-50")}>
                     {/* Overlay */}
                     <div
                         class={cn(
-                            "fixed inset-0 transition-opacity duration-200 fill-mode-forwards",
-                            props.onBack ? "bg-black/30" : "bg-black/60 backdrop-blur-sm",
+                            "fixed inset-0 transition-opacity duration-200 fill-mode-forwards bg-black/60 backdrop-blur-sm",
                             isClosing() ? "opacity-0" : "animate-in fade-in opacity-100"
                         )}
                         onClick={handleDismiss}
@@ -110,27 +107,15 @@ const Sheet: Component<SheetProps> = (rawProps) => {
                             `relative z-50 h-full w-full ${sizeClasses[props.size as keyof typeof sizeClasses]}`,
                             `bg-card border-l border-border shadow-2xl flex flex-col fill-mode-forwards`,
                             !isClosing() 
-                                ? props.onBack 
-                                    ? "animate-in fade-in zoom-in-95 duration-200"
-                                    : "animate-in slide-in-from-right duration-300" 
-                                : props.onBack 
-                                    ? "animate-out fade-out zoom-out-95 duration-200" 
-                                    : "animate-out slide-out-to-right duration-200"
+                                ? "animate-in slide-in-from-right duration-300" 
+                                : "animate-out slide-out-to-right duration-200"
                         )}
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header — flex-none, always visible */}
                         <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/10 flex-none">
                             <div class="flex items-center gap-3">
-                                <Show when={props.onBack}>
-                                    <button
-                                        onClick={handleDismiss}
-                                        class="p-2 rounded-lg hover:bg-surface text-muted hover:text-text transition-colors cursor-pointer -ml-1"
-                                        aria-label="Volver"
-                                    >
-                                        <ChevronLeftIcon class="size-4" />
-                                    </button>
-                                </Show>
+
                                 <div class="flex items-center gap-2">
                                     <Show when={props.title}>
                                         <h2 class="text-lg font-semibold text-text">{props.title}</h2>

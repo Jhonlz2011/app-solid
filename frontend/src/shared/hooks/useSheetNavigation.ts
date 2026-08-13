@@ -2,7 +2,7 @@ import { useNavigate, useParentMatches } from '@tanstack/solid-router';
 
 interface SheetNavigationProps {
     onClose?: () => void;
-    onBack?: () => void;
+
 }
 
 /**
@@ -16,7 +16,7 @@ interface SheetNavigationProps {
  *
  * Behaviour:
  *   - close() → triggers the Sheet exit animation (via dismissFn), then calls
- *               onBack → onClose → navigate('..')  in that priority order.
+ *               onClose → navigate('..')  in that priority order.
  *   - bindDismiss → wires up the internal Sheet dismiss function so the
  *                   animation always runs before actual navigation.
  */
@@ -35,7 +35,7 @@ export function useSheetNavigation(props: SheetNavigationProps) {
      * so overlay-click and X-button also call the right handler.
      */
      const navigateAway = () => {
-        if (props.onBack) return props.onBack();
+
         if (props.onClose) return props.onClose();
 
         // Fallback genérico: sube al padre en el ÁRBOL DE RUTAS,

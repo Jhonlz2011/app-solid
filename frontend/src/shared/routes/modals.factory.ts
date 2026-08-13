@@ -1,13 +1,10 @@
 import { createRoute, redirect } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
+import type { RbacModule } from '@app/schema/enums';
 
 type PermissionAction = 'canAdd' | 'canEdit';
 
-/**
- * DRY: permission-guarded beforeLoad. Always bounces to where THIS
- * factory instance was mounted (parentRoute.fullPath).
- */
-function guardPermission(entityKey: string, action: PermissionAction, parentRoute: any) {
+function guardPermission(entityKey: RbacModule, action: PermissionAction, parentRoute: any) {
     return async () => {
         const { useAuth } = await import('@modules/auth/store/auth.store');
         if (!useAuth()[action](entityKey)) {
@@ -16,7 +13,6 @@ function guardPermission(entityKey: string, action: PermissionAction, parentRout
     };
 }
 
-/** DRY: invisible /$id bounce-back */
 function bounceToParent(parentRoute: any) {
     return () => { throw redirect({ to: parentRoute.fullPath }); };
 }
@@ -27,14 +23,13 @@ interface DetailConfig {
     staleTime?: number;
 }
 
-/** DRY: prefetch-on-load for show/edit detail routes. */
 function createDetailLoader(idParam: string, detail?: DetailConfig, extraPreload?: (id: number) => Promise<void>) {
     return async ({ params }: { params: Record<string, string> }) => {
         const id = Number(params[idParam]);
         if (isNaN(id)) return;
-        
+
         const promises: Promise<any>[] = [];
-        
+
         if (detail) {
             promises.push(
                 queryClient.prefetchQuery({
@@ -44,7 +39,7 @@ function createDetailLoader(idParam: string, detail?: DetailConfig, extraPreload
                 })
             );
         }
-        
+
         if (extraPreload) {
             promises.push(extraPreload(id));
         }
@@ -55,27 +50,38 @@ function createDetailLoader(idParam: string, detail?: DetailConfig, extraPreload
     };
 }
 
+/**
+ * Aplica `nestInEdit` a UNA instancia concreta de ruta Edit. Cada entry
+ * point que renderiza `components.Edit` (sibling, show/edit, new/show/edit)
+ * es un nodo distinto del árbol, así que cada uno necesita su PROPIO set de
+ * rutas hijas — `nestInEdit` se invoca una vez por entry point, generando
+ * objetos de ruta independientes parentados a esa instancia específica.
+ */
+function attachEditChildren(editRouteInstance: any, nestInEdit?: (editRoute: any) => any[]) {
+    const children = nestInEdit?.(editRouteInstance) ?? [];
+    if (children.length) editRouteInstance.addChildren(children);
+    return editRouteInstance;
+}
+
 export interface EntityModalsConfig {
-    entityKey: string;
+    entityKey: RbacModule;
     idParam: string;
     components: {
         New: any;
         Edit: any;
-        Show?: any; // omit for flat entities without a detail page
+        Show?: any;
     };
-    detail?: DetailConfig; // required if Show is present
+    detail?: DetailConfig;
     showPreload?: (id: number) => Promise<void>;
     editPreload?: (id: number) => Promise<void>;
-    /** Attach other factories inside the `new` and/or `edit` sheet */
     nestInNew?: (newRoute: any) => any[];
+    /** Se aplica a TODOS los entry points que renderizan el Edit sheet:
+     *  el `/edit` sibling, el `show/edit` anidado, y (si allowShowFromNew)
+     *  `new/$id/show/edit`. Cada uno recibe su propio árbol de hijos. */
     nestInEdit?: (editRoute: any) => any[];
-    /** Enable /new/$id/show(/edit) — link to an EXISTING record from inside the create flow */
     allowShowFromNew?: boolean;
 }
 
-/**
- * Standardized deep-nested modal factory for any catalog entity.
- */
 export function createEntityModals(parentRoute: any, basePath = '', config: EntityModalsConfig) {
     const prefix = basePath ? `${basePath}/` : '';
     const { entityKey, idParam, components, detail } = config;
@@ -97,13 +103,16 @@ export function createEntityModals(parentRoute: any, basePath = '', config: Enti
             loader: (detail || config.showPreload) ? createDetailLoader(idParam, detail, config.showPreload) : undefined,
             component: components.Show,
         });
-        const newShowEditRoute = createRoute({
-            getParentRoute: () => newShowRoute,
-            path: `edit`,
-            beforeLoad: guardPermission(entityKey, 'canEdit', parentRoute),
-            loader: config.editPreload ? createDetailLoader(idParam, undefined, config.editPreload) : undefined,
-            component: components.Edit,
-        });
+        const newShowEditRoute = attachEditChildren(
+            createRoute({
+                getParentRoute: () => newShowRoute,
+                path: `edit`,
+                beforeLoad: guardPermission(entityKey, 'canEdit', parentRoute),
+                loader: config.editPreload ? createDetailLoader(idParam, undefined, config.editPreload) : undefined,
+                component: components.Edit,
+            }),
+            config.nestInEdit
+        );
         newChildren.push(newShowRoute.addChildren([newShowEditRoute]));
     }
 
@@ -121,16 +130,16 @@ export function createEntityModals(parentRoute: any, basePath = '', config: Enti
         beforeLoad: bounceToParent(parentRoute),
     });
 
-    const editRoute = createRoute({
-        getParentRoute: () => baseRoute,
-        path: `edit`,
-        beforeLoad: guardPermission(entityKey, 'canEdit', parentRoute),
-        loader: (detail || config.editPreload) ? createDetailLoader(idParam, detail, config.editPreload) : undefined,
-        component: components.Edit,
-    });
-
-    const editChildren = config.nestInEdit?.(editRoute) ?? [];
-    if (editChildren.length) editRoute.addChildren(editChildren);
+    const editRoute = attachEditChildren(
+        createRoute({
+            getParentRoute: () => baseRoute,
+            path: `edit`,
+            beforeLoad: guardPermission(entityKey, 'canEdit', parentRoute),
+            loader: (detail || config.editPreload) ? createDetailLoader(idParam, detail, config.editPreload) : undefined,
+            component: components.Edit,
+        }),
+        config.nestInEdit
+    );
 
     const baseChildren: any[] = [indexRoute, editRoute];
 
@@ -141,13 +150,16 @@ export function createEntityModals(parentRoute: any, basePath = '', config: Enti
             loader: (detail || config.showPreload) ? createDetailLoader(idParam, detail, config.showPreload) : undefined,
             component: components.Show,
         });
-        const nestedEditRoute = createRoute({
-            getParentRoute: () => showRoute,
-            path: `edit`,
-            beforeLoad: guardPermission(entityKey, 'canEdit', parentRoute),
-            loader: config.editPreload ? createDetailLoader(idParam, undefined, config.editPreload) : undefined,
-            component: components.Edit,
-        });
+        const nestedEditRoute = attachEditChildren(
+            createRoute({
+                getParentRoute: () => showRoute,
+                path: `edit`,
+                beforeLoad: guardPermission(entityKey, 'canEdit', parentRoute),
+                loader: config.editPreload ? createDetailLoader(idParam, undefined, config.editPreload) : undefined,
+                component: components.Edit,
+            }),
+            config.nestInEdit
+        );
         baseChildren.push(showRoute.addChildren([nestedEditRoute]));
     }
 

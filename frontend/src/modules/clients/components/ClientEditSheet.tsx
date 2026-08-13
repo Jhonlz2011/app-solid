@@ -16,7 +16,7 @@ import { FloppyDiskIcon } from '@shared/ui/icons';
 interface ClientEditSheetProps {
     clientId?: number;
     onClose?: () => void;
-    onBack?: () => void;
+
 }
 
 const ClientEditSheet: Component<ClientEditSheetProps> = (props) => {
@@ -61,7 +61,6 @@ const ClientEditSheet: Component<ClientEditSheetProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            onBack={props.onBack}
             title="Editar Cliente"
             description="Modifica los datos del cliente"
             size="xxxxl"

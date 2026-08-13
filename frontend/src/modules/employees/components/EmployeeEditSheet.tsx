@@ -16,7 +16,7 @@ import { FloppyDiskIcon } from '@shared/ui/icons';
 interface EmployeeEditSheetProps {
     employeeId?: number;
     onClose?: () => void;
-    onBack?: () => void;
+
 }
 
 const EmployeeEditSheet: Component<EmployeeEditSheetProps> = (props) => {
@@ -61,7 +61,6 @@ const EmployeeEditSheet: Component<EmployeeEditSheetProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            onBack={props.onBack}
             title="Editar Empleado"
             description="Modifica los datos del empleado"
             size="xxxxl"

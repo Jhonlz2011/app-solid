@@ -16,7 +16,7 @@ import { FloppyDiskIcon } from '@shared/ui/icons';
 interface SupplierEditSheetProps {
     supplierId?: number;
     onClose?: () => void;
-    onBack?: () => void;
+
 }
 
 const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
@@ -61,7 +61,6 @@ const SupplierEditSheet: Component<SupplierEditSheetProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            onBack={props.onBack}
             title="Editar Proveedor"
             description="Modifica los datos del proveedor"
             size="xxxxl"

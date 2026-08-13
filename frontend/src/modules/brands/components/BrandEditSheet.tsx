@@ -17,7 +17,7 @@ import TextField from '@shared/ui/TextField';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 
-interface BrandEditSheetProps { onClose?: () => void; onBack?: () => void; }
+interface BrandEditSheetProps { onClose?: () => void; }
 
 const BrandEditSheet: Component<BrandEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => { brandId?: string };
@@ -91,7 +91,7 @@ const BrandEditSheet: Component<BrandEditSheetProps> = (props) => {
 
     return (
         <Sheet
-            bindDismiss={bindDismiss} isOpen={true} onClose={navigateAway} onBack={props.onBack}
+            bindDismiss={bindDismiss} isOpen={true} onClose={navigateAway}
             title="Editar Marca" description="Modifica los datos de la marca" size="sm"
             footer={
                 <>

@@ -15,7 +15,7 @@ import { useAuth } from '@modules/auth/store/auth.store';
 interface CategoryShowPanelProps {
     categoryId?: number;
     onClose?: () => void;
-    onBack?: () => void;
+
 }
 
 const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
@@ -41,7 +41,6 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            onBack={props.onBack}
             title="Detalles de la Categoría"
             description="Información completa de jerarquía y propiedades"
             size="xxxl"

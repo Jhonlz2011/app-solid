@@ -18,7 +18,7 @@ import Checkbox from '@shared/ui/Checkbox';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 
-interface WarehouseEditSheetProps { onClose?: () => void; onBack?: () => void; }
+interface WarehouseEditSheetProps { onClose?: () => void; }
 
 const WarehouseEditSheet: Component<WarehouseEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => { warehouseId?: string };
@@ -92,7 +92,7 @@ const WarehouseEditSheet: Component<WarehouseEditSheetProps> = (props) => {
 
     return (
         <Sheet
-            bindDismiss={bindDismiss} isOpen={true} onClose={navigateAway} onBack={props.onBack}
+            bindDismiss={bindDismiss} isOpen={true} onClose={navigateAway}
             title="Editar Bodega" description="Modifica los datos de la bodega" size="sm"
             footer={
                 <>
