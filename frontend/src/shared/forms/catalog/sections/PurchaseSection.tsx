@@ -130,8 +130,7 @@ const PurchaseSection: Component<PurchaseSectionProps> = (props) => {
                                             </span>
                                         </div>
 
-                                        {/* Cost */}
-                                        {/* @ts-expect-error - Dynamic array paths cannot be fully inferred */}
+                                        {/* Cost */}   
                                         <props.form.Field name={`variants[${formIndex()}].last_cost`}>
                                             {(field) => (
                                                 <input

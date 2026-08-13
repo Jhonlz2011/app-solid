@@ -18,9 +18,9 @@ export const SegmentedControl: ParentComponent<SegmentedControlRootProps & { cla
     return (
         <KSegmentedControl 
             value={local.value ?? ''}
-            onValueChange={(val) => {
+            onChange={(val) => {
                 local.onChange?.(val);
-                local.onValueChange?.(val);
+                (local as any).onValueChange?.(val);
             }}
             {...others}
             class={cn(

@@ -14,6 +14,7 @@ export const entitiesRelations = relations(tables.entities, ({ one, many }) => (
     addresses: many(tables.entityAddresses),
     contacts: many(tables.entityContacts),
     workSchedules: many(tables.employeeWorkSchedules),
+    defaultPriceList: one(tables.priceLists, { fields: [tables.entities.default_price_list_id], references: [tables.priceLists.id] }),
 }));
 
 export const entityAddressesRelations = relations(tables.entityAddresses, ({ one }) => ({
@@ -671,4 +672,20 @@ export const variantPriceHistoryRelations = relations(tables.variantPriceHistory
     company: one(tables.companies, { fields: [tables.variantPriceHistory.company_id], references: [tables.companies.id] }),
     variant: one(tables.productVariants, { fields: [tables.variantPriceHistory.variant_id], references: [tables.productVariants.id] }),
     changedByUser: one(tables.authUsers, { fields: [tables.variantPriceHistory.changed_by], references: [tables.authUsers.id] }),
+}));
+
+// =============================================================================
+// 17. Price Lists
+// =============================================================================
+
+export const priceListsRelations = relations(tables.priceLists, ({ one, many }) => ({
+    company: one(tables.companies, { fields: [tables.priceLists.company_id], references: [tables.companies.id] }),
+    items: many(tables.priceListItems),
+    entities: many(tables.entities),
+}));
+
+export const priceListItemsRelations = relations(tables.priceListItems, ({ one }) => ({
+    priceList: one(tables.priceLists, { fields: [tables.priceListItems.price_list_id], references: [tables.priceLists.id] }),
+    product: one(tables.products, { fields: [tables.priceListItems.product_id], references: [tables.products.id] }),
+    variant: one(tables.productVariants, { fields: [tables.priceListItems.variant_id], references: [tables.productVariants.id] }),
 }));

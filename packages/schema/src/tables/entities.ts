@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { taxIdTypeEnum, personTypeEnum, taxRegimeTypeEnum } from '../enums';
 import { companies } from './config';
+import { priceLists } from './pricing';
 
 // --- 1. ENTITIES (CORE) ---
 export const entities = pgTableV2("entities", {
@@ -24,6 +25,7 @@ export const entities = pgTableV2("entities", {
     is_retention_agent: boolean("is_retention_agent").default(false),
     is_special_contributor: boolean("is_special_contributor").default(false),
     obligado_contabilidad: boolean("obligado_contabilidad").default(false).notNull(),
+    default_price_list_id: integer("default_price_list_id").references(() => priceLists.id),
     is_active: boolean("is_active").default(true),
     updated_at: timestamp("updated_at", TZ)
         .defaultNow()

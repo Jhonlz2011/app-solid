@@ -308,7 +308,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                                 }
                             }}
                         >
-                            <Show when={props.value}>
+                            <Show when={!props.value}>
                                 <KCombobox.Icon class="size-4 flex items-center justify-center">
                                     <ChevronsUpDownIcon class="size-4" />
                                 </KCombobox.Icon>

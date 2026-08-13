@@ -105,13 +105,13 @@ export const UomSelect: Component<UomSelectProps> = (props) => {
                                 <span class="flex items-center gap-2">
                                     <Dynamic component={groupMeta?.icon ?? BoxIcon} class="size-3.5 opacity-70" />
                                     <span class="font-mono text-xs text-primary font-bold">{opt.code}</span>
-                                    <span class="text-sm">{opt.name}</span>
+                                    <span>{opt.name}</span>
                                 </span>
                             );
                         }}
                     </SelectValue>
                 </SelectTrigger>
-                <SelectContent class="max-h-[320px]" />
+                <SelectContent class="max-h-80" />
             </Select>
             <Show when={props.error}>
                 <small class="text-xs text-danger font-medium ml-1">{props.error}</small>
