@@ -25,7 +25,7 @@ interface GeoNamesApiResponse {
 // Service
 // =============================================================================
 
-const GEONAMES_BASE_URL = 'http://api.geonames.org/searchJSON';
+const GEONAMES_BASE_URL = 'https://secure.geonames.org/searchJSON';
 const CACHE_TTL = 86400; // 24 hours — city data is static
 
 export const geonamesService = {
@@ -45,7 +45,7 @@ export const geonamesService = {
                 // cities: 'cities15000',
                 orderby: 'population',
                 countryBias:'EC',
-                username: env.GEONAMES_USERNAME,
+                username: env.GEONAMES_USERNAME || 'demo',
             });
 
             const response = await fetch(`${GEONAMES_BASE_URL}?${params}`);
@@ -61,13 +61,14 @@ export const geonamesService = {
             // Deduplicate by city name + country code (GeoNames can return duplicates)
             const seen = new Map<string, GeoNameCity>();
             for (const lugar of data.geonames) {
-                const key = `${lugar.name}_${lugar.countryCode}`;
+                const countryCode = (lugar.countryCode || 'EC').toLowerCase();
+                const key = `${lugar.name}_${lugar.countryCode || 'EC'}`;
                 if (!seen.has(key)) {
                     seen.set(key, {
                         ciudad: lugar.name,
                         pais: lugar.countryName,
-                        codigo: lugar.countryCode,
-                        bandera: `https://flagcdn.com/${lugar.countryCode.toLowerCase()}.svg`,
+                        codigo: lugar.countryCode || 'EC',
+                        bandera: `https://flagcdn.com/${countryCode}.svg`,
                     });
                 }
             }

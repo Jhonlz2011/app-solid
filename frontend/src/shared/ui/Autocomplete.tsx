@@ -1,4 +1,4 @@
-import { Show, createMemo, createContext, useContext, createUniqueId, JSX, createSignal, createEffect, onCleanup } from 'solid-js';
+import { Show, createMemo, createContext, useContext, createUniqueId, JSX, createSignal, createEffect, onCleanup, on } from 'solid-js';
 import { Combobox as KCombobox } from '@kobalte/core/combobox';
 import { SearchIcon, ChevronsUpDownIcon, XIcon, PlusIcon } from './icons';
 import type { FieldLike } from './form/form.types';
@@ -153,6 +153,14 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
     const ctx = useAutocompleteContext();
     let _lastSelectionTime = 0;
     let inputRef: HTMLInputElement | undefined;
+
+    createEffect(on(() => props.value, (val) => {
+        const nextVal = val ?? '';
+        if (inputRef && inputRef.value !== nextVal) {
+            inputRef.value = nextVal;
+            inputRef.dispatchEvent(new Event('input', { bubbles: true, cancelable: false }));
+        }
+    }, { defer: false }));
 
     // ── Dropdown width sync ──────────────────────────────────────────────
     let triggerRef: HTMLDivElement | undefined;

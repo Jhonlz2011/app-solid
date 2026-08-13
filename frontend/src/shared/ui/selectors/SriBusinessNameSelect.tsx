@@ -3,7 +3,7 @@
  * Encapsulates the debounced SRI name search, custom item rendering,
  * and free-text mode (clearOnBlur=false).
  */
-import { Component, Show, createSignal, onCleanup } from 'solid-js';
+import { Component, Show, createSignal, createEffect, onCleanup, on } from 'solid-js';
 import { useSriSearchByName } from '@modules/sri/sri.queries';
 import type { SriSupplierResponse } from '@modules/sri/sri.types';
 import { Autocomplete } from '@shared/ui/Autocomplete';
@@ -25,17 +25,28 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
     let debounceTimer: ReturnType<typeof setTimeout>;
     onCleanup(() => clearTimeout(debounceTimer));
 
+    createEffect(on(() => props.value, (val) => {
+        clearTimeout(debounceTimer);
+        const query = val ?? '';
+        if (!query || query.length < 3) {
+            setSriQuery('');
+        } else {
+            debounceTimer = setTimeout(() => setSriQuery(query), 400);
+        }
+    }, { defer: true }));
+
     const nameSearch = useSriSearchByName(sriQuery);
 
     const handleInputChange = (value: string) => {
         props.onInputChange(value);
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => setSriQuery(value), 400);
     };
 
     const handleSelect = (result: SriSupplierResponse | null) => {
+        clearTimeout(debounceTimer);
         if (result) {
             setSriQuery(result.razonSocial);
+        } else {
+            setSriQuery('');
         }
         props.onSelect(result);
     };
