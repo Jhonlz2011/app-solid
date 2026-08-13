@@ -217,7 +217,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                 props.onInputChange(v);
             }}
             // ── Selection ──
-            value={matchedOption() ?? null}
             onChange={(selected) => {
                 if (!selected) {
                     clearSelection();

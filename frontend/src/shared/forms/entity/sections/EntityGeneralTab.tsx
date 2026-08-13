@@ -137,17 +137,15 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
     const handleSriSelect = (source: 'RUC' | 'NAME') => (supplierResult: SriSupplierResponse | null) => {
         if (!supplierResult) return;
 
-        batch(() => {
-            props.form.setFieldValue('taxId', supplierResult.ruc);
-            props.form.setFieldValue('businessName', supplierResult.razonSocial);
-            props.form.setFieldValue('tradeName', supplierResult.nombreComercial ?? '');
-            props.form.setFieldValue('taxIdType', 'RUC');
-            props.form.setFieldValue('personType', supplierResult.isSociedad ? 'JURIDICA' : 'NATURAL');
-            props.form.setFieldValue('obligadoContabilidad', !!supplierResult.obligadoContabilidad);
-            props.form.setFieldValue('isRetentionAgent', !!supplierResult.agenteRetencion);
-            props.form.setFieldValue('isSpecialContributor', !!supplierResult.contribuyenteEspecial);
-            props.form.setFieldValue('taxRegimeType', supplierResult.isRimpe ? 'RIMPE_EMPRENDEDOR' : 'GENERAL');
-        });
+        props.form.setFieldValue('taxId', supplierResult.ruc);
+        props.form.setFieldValue('businessName', supplierResult.razonSocial);
+        props.form.setFieldValue('tradeName', supplierResult.nombreComercial ?? '');
+        props.form.setFieldValue('taxIdType', 'RUC');
+        props.form.setFieldValue('personType', supplierResult.isSociedad ? 'JURIDICA' : 'NATURAL');
+        props.form.setFieldValue('obligadoContabilidad', !!supplierResult.obligadoContabilidad);
+        props.form.setFieldValue('isRetentionAgent', !!supplierResult.agenteRetencion);
+        props.form.setFieldValue('isSpecialContributor', !!supplierResult.contribuyenteEspecial);
+        props.form.setFieldValue('taxRegimeType', supplierResult.isRimpe ? 'RIMPE_EMPRENDEDOR' : 'GENERAL');
 
         if (source === 'NAME') {
             queryClient.setQueryData(['sri', 'by-name', supplierResult.razonSocial], [supplierResult]);
