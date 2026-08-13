@@ -1,4 +1,4 @@
-import { useNavigate } from '@tanstack/solid-router';
+import { useNavigate, useParentMatches } from '@tanstack/solid-router';
 
 interface SheetNavigationProps {
     onClose?: () => void;
@@ -22,6 +22,7 @@ interface SheetNavigationProps {
  */
 export function useSheetNavigation(props: SheetNavigationProps) {
     const navigate = useNavigate();
+    const parentMatches = useParentMatches(); // signal: () => RouteMatch[]
     let dismissFn: (() => void) | undefined;
 
     /** Called by <Sheet bindDismiss={...}> to expose the animated dismiss fn */
@@ -33,10 +34,24 @@ export function useSheetNavigation(props: SheetNavigationProps) {
      * Navigates "away" without animation — used as the Sheet's onClose prop
      * so overlay-click and X-button also call the right handler.
      */
-    const navigateAway = () => {
-        if (props.onBack) props.onBack();
-        else if (props.onClose) props.onClose();
-        else navigate({ to: '..', search: true });
+     const navigateAway = () => {
+        if (props.onBack) return props.onBack();
+        if (props.onClose) return props.onClose();
+
+        // Fallback genérico: sube al padre en el ÁRBOL DE RUTAS,
+        // no al "path menos un segmento". Esto resuelve
+        //   /products/new/categories/new -> /products/new
+        // en vez de -> /products/new/categories (ruta inexistente),
+        // sin importar cuántos segmentos de URL ocupe el `path`
+        // de la ruta hija (categories/new cuenta como UNA sola ruta).
+        const matches = parentMatches();
+        const immediateParent = matches[matches.length - 1];
+
+        if (immediateParent) {
+            navigate({ to: immediateParent.pathname, search: true });
+        } else {
+            navigate({ to: '/', search: true });
+        }
     };
 
     /**
