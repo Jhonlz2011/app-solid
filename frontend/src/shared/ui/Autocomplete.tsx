@@ -1,8 +1,9 @@
 import { Show, createMemo, createContext, useContext, createUniqueId, JSX, createSignal, createEffect, onCleanup } from 'solid-js';
 import { Combobox as KCombobox } from '@kobalte/core/combobox';
-import { SearchIcon, XIcon, PlusIcon } from './icons';
+import { SearchIcon, ChevronsUpDownIcon, XIcon, PlusIcon } from './icons';
 import type { FieldLike } from './form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from './form/form.types';
+import { cn } from '@shared/lib/utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -66,7 +67,7 @@ const Root = (props: AutocompleteRootProps) => {
     return (
         <AutocompleteContext.Provider value={{ id, validationState, errorMessage }}>
             <div
-                class={`relative flex flex-col gap-1 ${props.class ?? ''}`}
+                class={cn('relative flex flex-col gap-1', props.class)}
                 data-valid={validationState() !== 'invalid'}
                 data-invalid={validationState() === 'invalid'}
             >
@@ -81,7 +82,7 @@ const Label = (props: { class?: string; children: JSX.Element }) => {
     return (
         <label
             for={ctx.id}
-            class={`text-sm font-medium text-muted w-fit ml-1 ${props.class ?? ''}`}
+            class={cn('text-sm font-medium text-muted w-fit ml-1', props.class)}
         >
             {props.children}
         </label>
@@ -93,7 +94,7 @@ const ErrorMessage = (props: { class?: string; children?: JSX.Element }) => {
     const message = () => ctx.errorMessage() || props.children;
     return (
         <Show when={ctx.validationState() === 'invalid' && message()}>
-            <small class={`absolute -bottom-3.5 left-1 text-xs leading-none text-danger font-medium animate-in fade-in slide-in-from-top-1 ${props.class ?? ''}`} role="alert">
+            <small class={cn('absolute -bottom-3.5 left-1 text-xs leading-none text-danger font-medium animate-in fade-in slide-in-from-top-1', props.class)} role="alert">
                 {message()}
             </small>
         </Show>
@@ -101,7 +102,7 @@ const ErrorMessage = (props: { class?: string; children?: JSX.Element }) => {
 };
 
 const Description = (props: { class?: string; children: JSX.Element }) => (
-    <span class={`text-xs text-muted mt-0.5 ${props.class ?? ''}`}>{props.children}</span>
+    <span class={cn('text-xs text-muted mt-0.5', props.class)}>{props.children}</span>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -128,6 +129,10 @@ export interface AutocompleteInputProps<T> {
     isLoading?: boolean;
     hideEmptyState?: boolean;
     class?: string;
+    triggerClass?: string;
+    inputClass?: string;
+    contentClass?: string;
+    itemClass?: string;
     onSearchAction?: () => void;
     minLength?: number;
     inputId?: string;
@@ -196,11 +201,9 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
 
     return (
         <KCombobox<T>
-            class={`flex flex-col gap-1.5 ${props.class ?? ''}`}
+            class={cn('flex flex-col gap-1.5', props.class)}
             options={safeOptions()}
             validationState={ctx.validationState()}
-            // ── Let Kobalte manage open state ──
-            // triggerMode "focus" opens on input focus (replaces manual isFocused/isOpen)
             triggerMode="focus"
             allowsEmptyCollection={shouldShowContent()}
             // ── Input value ──
@@ -235,7 +238,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                 return (
                     <KCombobox.Item
                         item={itemProps.item}
-                        class="relative flex w-full min-w-0 overflow-hidden cursor-pointer select-none items-center justify-between rounded-lg p-2 text-sm outline-none transition-colors duration-150 text-text-secondary data-highlighted:bg-primary-soft data-highlighted:text-primary-strong data-selected:text-primary data-selected:font-medium"
+                        class={cn("relative flex w-full min-w-0 overflow-hidden cursor-pointer select-none items-center justify-between rounded-lg p-2 text-sm outline-none transition-colors duration-150 text-text-secondary data-highlighted:bg-primary-soft data-highlighted:text-primary-strong data-selected:text-primary data-selected:font-medium", props.itemClass)}
                     >
                         <Show when={props.itemRenderer} fallback={
                             <div class="flex flex-col min-w-0 w-full">
@@ -253,7 +256,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         >
             <KCombobox.Control
                 ref={triggerRef}
-                class="group flex w-full items-center justify-between cursor-text px-3 rounded-xl border transition-all duration-200 bg-card-alt border-border text-text hover:bg-card hover:border-border-strong focus-within:border-primary/65 focus-within:ring-2 focus-within:ring-primary/25 data-disabled:cursor-not-allowed data-disabled:opacity-50 data-invalid:border-red-500/50 data-invalid:focus-within:ring-red-500/25"
+                class={cn("group flex w-full items-center justify-between cursor-text px-3 rounded-xl border transition-all duration-200 bg-card-alt border-border text-text hover:bg-card hover:border-border-strong focus-within:border-primary/65 focus-within:ring-2 focus-within:ring-primary/25 data-disabled:cursor-not-allowed data-disabled:opacity-50 data-invalid:border-red-500/50 data-invalid:focus-within:ring-red-500/25", props.triggerClass)}
             >
                 <Show when={props.inputPrefix}>
                     <div class="mr-2 shrink-0">{props.inputPrefix}</div>
@@ -262,7 +265,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                     ref={inputRef}
                     id={props.inputId || ctx.id}
                     placeholder={props.placeholder}
-                    class={`flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0 ${matchedOption() ? 'cursor-default' : ''}`}
+                    class={cn("flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0", matchedOption() ? 'cursor-default' : '', props.inputClass)}
                     onPointerDown={(e) => e.stopPropagation()}
                     onFocus={(e) => e.currentTarget.select()}
                     onBlur={() => props.onBlur?.()}
@@ -296,7 +299,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                             </button>
                         </Show>
                         <KCombobox.Trigger
-                            class="cursor-pointer hover:text-primary transition-colors flex items-center justify-center p-0.5 rounded-md border-0 bg-transparent"
+                            class="cursor-pointer transition-colors flex items-center justify-center p-0.5 rounded-md border-0 bg-transparent"
                             onClick={(e) => {
                                 if (!props.value && props.onSearchAction) {
                                     e.preventDefault();
@@ -305,11 +308,9 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                                 }
                             }}
                         >
-                            <Show when={props.value} fallback={<SearchIcon class="size-4" />}>
+                            <Show when={props.value}>
                                 <KCombobox.Icon class="size-4 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="size-4 text-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                                    </svg>
+                                    <ChevronsUpDownIcon class="size-4" />
                                 </KCombobox.Icon>
                             </Show>
                         </KCombobox.Trigger>
@@ -319,7 +320,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
 
             <KCombobox.Portal>
                 <KCombobox.Content
-                    class="relative z-100 min-w-32 overflow-hidden bg-card border border-border shadow-md rounded-xl p-1 transform-origin-var data-expanded:animate-in data-expanded:fade-in-0 data-expanded:zoom-in-95 data-expanded:slide-in-from-top-2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:slide-out-to-top-2"
+                    class={cn("relative z-100 min-w-32 overflow-hidden bg-card border border-border shadow-md rounded-xl p-1 transform-origin-var data-expanded:animate-in data-expanded:fade-in-0 data-expanded:zoom-in-95 data-expanded:slide-in-from-top-2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:slide-out-to-top-2", props.contentClass)}
                     style={{
                         "width": triggerWidth() > 0 ? `${triggerWidth()}px` : "100%",
                         "max-width": triggerWidth() > 0 ? `${triggerWidth()}px` : "calc(100vw - 2rem)",

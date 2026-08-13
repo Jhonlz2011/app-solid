@@ -346,6 +346,8 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                                                             placeholder={attr.label}
                                                                                             minLength={0}
                                                                                             clearOnBlur={false}
+                                                                                            triggerClass="px-2 py-1 rounded-md h-[26px] min-h-[26px]"
+                                                                                            inputClass="py-0 text-xs"
                                                                                         />
                                                                                     </Autocomplete.Root>
                                                                                 </Show>

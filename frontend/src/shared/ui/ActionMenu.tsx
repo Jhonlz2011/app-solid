@@ -41,7 +41,7 @@ const ActionMenu: Component<ActionMenuProps> = (props) => {
                 <DropdownMenu.Trigger variant="ghost" class="size-8 p-0 data-expanded:bg-card-alt data-expanded:opacity-100" title="Acciones">
                     <MoreVerticalIcon class="size-4" />
                 </DropdownMenu.Trigger>
-                <DropdownMenu.Content class="min-w-[160px]">
+                <DropdownMenu.Content class="min-w-40">
                     <Show when={props.showTo || props.showSearch}>
                         <DropdownMenu.Item to={props.showTo} search={props.showSearch} preload="intent">
                             <EyeIcon class="size-4 mr-2" />
