@@ -25,6 +25,8 @@ import {
     FilterIcon, CopyIcon, RotateCcwIcon, ChevronsUpDownIcon,
 } from '@shared/ui/icons';
 
+import type { RbacAction } from '@app/schema/enums';
+
 interface EntityPageProps {
     title: string;
     icon: JSX.Element;
@@ -32,7 +34,7 @@ interface EntityPageProps {
     description: string;
     state: EntityState;
     entityNamePlural: string;
-    permissionKey: string;
+    permissionKey: RbacAction;
     newRoutePath: string; // e.g., '/suppliers/new'
     CustomFilterSheet?: Component<any>; // Optional override for filters
     CustomDeleteDialog?: Component<any>; // Optional override for delete dialog
@@ -107,13 +109,16 @@ export const EntityPage: Component<EntityPageProps> = (props) => {
                         when={!isMobile()}
                         fallback={
                             <EntityCardList
-                                filters={state.filters}
+                                items={state.entities()}
+                                isLoading={state.entitiesQuery.isPending}
                                 rowSelection={state.rowSelection}
                                 onRowSelectionChange={state.setRowSelection}
                                 onDelete={state.handleDelete}
                                 onRestore={state.handleRestore}
-                                query={state.entitiesQuery as any}
                                 emptyMessage={`No hay ${props.entityNamePlural}`}
+                                hasNextPage={state.hasNextPage()}
+                                onLoadNext={state.handleNextPage}
+                                isFetchingNext={state.entitiesQuery.isFetching}
                             />
                         }
                     >

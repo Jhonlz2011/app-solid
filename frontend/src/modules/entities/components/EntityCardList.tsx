@@ -8,27 +8,24 @@ import { EmptyState } from '@shared/ui/EmptyState';
 import { UsersIcon } from '@shared/ui/icons';
 
 export interface EntityCardListProps {
-    filters: () => any;
+    items: any[];
+    isLoading: boolean;
     rowSelection: () => RowSelectionState;
     onRowSelectionChange: (sel: RowSelectionState) => void;
     onDelete: (entity: any) => void;
     onRestore: (entity: any) => void;
-    query: any;
     emptyMessage?: string;
     CustomCard?: Component<any>; // Allow overriding the card layout if needed
+    hasNextPage?: boolean;
+    onLoadNext?: () => void;
+    isFetchingNext?: boolean;
 }
 
 export const EntityCardList: Component<EntityCardListProps> = (props) => {
-    const query = props.query;
-
-    const items = createMemo<any[]>(() =>
-        query.data?.pages.flatMap((p: any) => p.data) ?? []
-    );
-
-    const hasItems = () => items().length > 0;
-    const hasNextPage = () => !!query.hasNextPage;
-    const isFetchingNextPage = () => query.isFetchingNextPage;
-    const totalLoaded = () => items().length;
+    const hasItems = () => (props.items || []).length > 0;
+    const hasNextPage = () => !!props.hasNextPage;
+    const isFetchingNextPage = () => !!props.isFetchingNext;
+    const totalLoaded = () => (props.items || []).length;
 
     let sentinelRef: HTMLDivElement | undefined;
 
@@ -36,7 +33,7 @@ export const EntityCardList: Component<EntityCardListProps> = (props) => {
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting && hasNextPage() && !isFetchingNextPage()) {
-                    query.fetchNextPage();
+                    props.onLoadNext?.();
                 }
             },
             { threshold: 0.1 }
@@ -47,7 +44,7 @@ export const EntityCardList: Component<EntityCardListProps> = (props) => {
 
     return (
         <div class="flex flex-col h-full overflow-y-auto">
-            <Show when={query.isPending}>
+            <Show when={props.isLoading}>
                 <For each={Array(8).fill(0)}>
                     {() => (
                         <div class="flex items-start gap-3 px-4 py-3.5 border-b border-border">
@@ -63,7 +60,7 @@ export const EntityCardList: Component<EntityCardListProps> = (props) => {
                 </For>
             </Show>
 
-            <Show when={!query.isPending && !hasItems()}>
+            <Show when={!props.isLoading && !hasItems()}>
                 <div class="flex-1 flex items-center justify-center p-8">
                     <EmptyState
                         icon={<UsersIcon />}
@@ -73,8 +70,8 @@ export const EntityCardList: Component<EntityCardListProps> = (props) => {
                 </div>
             </Show>
 
-            <Show when={!query.isPending && hasItems()}>
-                <For each={items()}>
+            <Show when={!props.isLoading && hasItems()}>
+                <For each={props.items || []}>
                     {(entity) => {
                         const id = String(entity.id);
                         return (
