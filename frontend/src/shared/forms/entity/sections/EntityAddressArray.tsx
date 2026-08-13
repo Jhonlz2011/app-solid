@@ -35,6 +35,8 @@ const AddressRow: Component<AddressRowProps> = (props) => {
         setLocalCountry('');
         const cityPart = val.includes(',') ? val.split(',')[0].trim() : val;
         props.form.setFieldValue(`addresses[${props.index}].city`, cityPart);
+        props.form.setFieldValue(`addresses[${props.index}].country`, '');
+        props.form.setFieldValue(`addresses[${props.index}].countryCode`, '');
         cities.setSearch(cityPart);
     };
 

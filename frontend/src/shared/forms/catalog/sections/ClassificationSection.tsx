@@ -295,9 +295,6 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                                                         {brand().name}
                                                     </Link>
                                                 </div>
-                                                <span class="text-[11px] font-semibold text-primary/80 ml-6 block truncate">
-                                                    MARCA SELECCIONADA
-                                                </span>
                                             </div>
                                             <Button
                                                 variant="ghost"
