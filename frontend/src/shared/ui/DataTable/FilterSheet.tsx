@@ -32,23 +32,26 @@ interface FilterGroupProps {
 const FilterGroup: Component<FilterGroupProps> = (props) => {
     const [search, setSearch] = createSignal('');
 
+    const options = () => props.options || [];
+    const selected = () => props.selected || [];
+
     const filtered = () => {
         const q = search().toLowerCase();
-        if (!q) return props.options;
-        return props.options.filter((o) => o.label.toLowerCase().includes(q));
+        if (!q) return options();
+        return options().filter((o) => o.label.toLowerCase().includes(q));
     };
 
-    const isSelected = (value: string) => props.selected.includes(value);
+    const isSelected = (value: string) => selected().includes(value);
 
     const toggle = (value: string) => {
-        const current = new Set(props.selected);
+        const current = new Set(selected());
         if (current.has(value)) current.delete(value);
         else current.add(value);
         props.onSelectionChange([...current]);
     };
 
     const clearAll = () => props.onSelectionChange([]);
-    const activeCount = () => props.selected.length;
+    const activeCount = () => selected().length;
 
     return (
         <div class="mb-4">
@@ -75,7 +78,7 @@ const FilterGroup: Component<FilterGroupProps> = (props) => {
             </div>
 
             {/* Options — show search only when more than 4 */}
-            <Show when={props.options.length > 4}>
+            <Show when={options().length > 4}>
                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border mb-2">
                     <SearchIcon class="size-3.5 text-muted shrink-0" />
                     <input
@@ -166,10 +169,10 @@ export const FilterSheet: Component<FilterSheetProps> = (props) => {
     const groups = () => props.groups;
 
     const totalActive = () =>
-        groups().reduce((acc, g) => acc + (props.filters[g.key]?.selected().length ?? 0), 0);
+        groups().reduce((acc, g) => acc + (props.filters[g.key]?.selected?.()?.length ?? 0), 0);
 
     const clearAll = () => {
-        groups().forEach((g) => props.filters[g.key]?.onChange([]));
+        groups().forEach((g) => props.filters[g.key]?.onChange?.([]));
     };
 
     return (
@@ -205,10 +208,10 @@ export const FilterSheet: Component<FilterSheetProps> = (props) => {
                         <Show when={config()}>
                             <FilterGroup
                                 title={group.label}
-                                options={config().options()}
-                                selected={config().selected()}
-                                onSelectionChange={config().onChange}
-                                isLoading={config().isLoading()}
+                                options={config()?.options?.()}
+                                selected={config()?.selected?.()}
+                                onSelectionChange={config()?.onChange}
+                                isLoading={config()?.isLoading?.()}
                             />
                         </Show>
                     );
