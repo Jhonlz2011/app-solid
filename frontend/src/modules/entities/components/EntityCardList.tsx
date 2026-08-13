@@ -13,14 +13,13 @@ export interface EntityCardListProps {
     onRowSelectionChange: (sel: RowSelectionState) => void;
     onDelete: (entity: any) => void;
     onRestore: (entity: any) => void;
-    queryHook: (filters: () => any) => any;
+    query: any;
     emptyMessage?: string;
     CustomCard?: Component<any>; // Allow overriding the card layout if needed
 }
 
 export const EntityCardList: Component<EntityCardListProps> = (props) => {
-    // We expect queryHook to be the `useInfinite` hook
-    const query = props.queryHook(props.filters);
+    const query = props.query;
 
     const items = createMemo<any[]>(() =>
         query.data?.pages.flatMap((p: any) => p.data) ?? []

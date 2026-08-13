@@ -112,7 +112,7 @@ export const EntityPage: Component<EntityPageProps> = (props) => {
                                 onRowSelectionChange={state.setRowSelection}
                                 onDelete={state.handleDelete}
                                 onRestore={state.handleRestore}
-                                queryHook={state.entitiesQuery as any}
+                                query={state.entitiesQuery as any}
                                 emptyMessage={`No hay ${props.entityNamePlural}`}
                             />
                         }
