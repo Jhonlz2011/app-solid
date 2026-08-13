@@ -1,54 +1,12 @@
-import { createRoute, lazyRouteComponent, redirect } from '@tanstack/solid-router';
+import { lazyRouteComponent } from '@tanstack/solid-router';
+import { createEntityModals } from '@shared/routes/modals.factory';
 
 const LazyBrandNewRoute = lazyRouteComponent(() => import('@modules/brands/components/BrandNewSheet'));
 const LazyBrandEditRoute = lazyRouteComponent(() => import('@modules/brands/components/BrandEditSheet'));
 
-/**
- * Creates deep nested modal routes for Brands.
- */
-export const createBrandModals = (parentRoute: any, basePath = '', fallbackRedirect: any = { to: '/brands' }) => {
-    const prefix = basePath ? `${basePath}/` : '';
-
-    const newRoute = createRoute({
-        getParentRoute: () => parentRoute,
-        path: `${prefix}new`,
-        beforeLoad: async () => {
-            const { useAuth } = await import('@modules/auth/store/auth.store');
-            if (!useAuth().canAdd('brands')) {
-                throw redirect(fallbackRedirect);
-            }
-        },
-        component: LazyBrandNewRoute,
+export const createBrandModals = (parentRoute: any, basePath = '') =>
+    createEntityModals(parentRoute, basePath, {
+        entityKey: 'brands',
+        idParam: 'brandId',
+        components: { New: LazyBrandNewRoute, Edit: LazyBrandEditRoute },
     });
-
-    const baseRoute = createRoute({
-        getParentRoute: () => parentRoute,
-        path: `${prefix}$brandId`,
-    });
-
-    const indexRoute = createRoute({
-        getParentRoute: () => baseRoute,
-        path: `/`,
-        beforeLoad: () => { throw redirect(fallbackRedirect); }
-    });
-
-    const editRoute = createRoute({
-        getParentRoute: () => baseRoute,
-        path: `edit`,
-        beforeLoad: async () => {
-            const { useAuth } = await import('@modules/auth/store/auth.store');
-            if (!useAuth().canEdit('brands')) {
-                throw redirect(fallbackRedirect);
-            }
-        },
-        component: LazyBrandEditRoute,
-    });
-
-    return [
-        newRoute,
-        baseRoute.addChildren([
-            indexRoute,
-            editRoute,
-        ])
-    ];
-};

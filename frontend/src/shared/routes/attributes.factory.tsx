@@ -1,98 +1,16 @@
-import { createRoute, lazyRouteComponent, redirect, useNavigate } from '@tanstack/solid-router';
-import { queryClient } from '@shared/lib/queryClient';
+import { lazyRouteComponent } from '@tanstack/solid-router';
+import { createEntityModals } from '@shared/routes/modals.factory';
 import { attributeKeys } from '@modules/attributes/data/attributes.keys';
 import { attributesApi } from '@modules/attributes/data/attributes.api';
 
-// --- Lazy Loaders ---
+const LazyAttributeNewRoute = lazyRouteComponent(() => import('@modules/attributes/components/AttributeNewSheet'));
 const LazyAttributeShowRoute = lazyRouteComponent(() => import('@modules/attributes/components/AttributeShowPanel'));
 const LazyAttributeEditRoute = lazyRouteComponent(() => import('@modules/attributes/components/AttributeEditSheet'));
-const LazyAttributeNewRoute = lazyRouteComponent(() => import('@modules/attributes/components/AttributeNewSheet'));
 
-/**
- * Creates deep nested modal routes for Attributes.
- * Pattern: /attributes/new, /attributes/$attributeId/show, /attributes/$attributeId/edit
- */
-export const createAttributeModals = (parentRoute: any, basePath = '', fallbackRedirect: any = { to: '/attributes' }) => {
-    const prefix = basePath ? `${basePath}/` : '';
-
-    const newRoute = createRoute({
-        getParentRoute: () => parentRoute,
-        path: `${prefix}new`,
-        beforeLoad: async () => {
-            const { useAuth } = await import('@modules/auth/store/auth.store');
-            if (!useAuth().canAdd('attributes')) {
-                throw redirect(fallbackRedirect);
-            }
-        },
-        component: LazyAttributeNewRoute,
+export const createAttributeModals = (parentRoute: any, basePath = '') =>
+    createEntityModals(parentRoute, basePath, {
+        entityKey: 'attributes',
+        idParam: 'attributeId',
+        components: { New: LazyAttributeNewRoute, Show: LazyAttributeShowRoute, Edit: LazyAttributeEditRoute },
+        detail: { queryKey: attributeKeys.detail, queryFn: attributesApi.get },
     });
-
-    const baseRoute = createRoute({
-        getParentRoute: () => parentRoute,
-        path: `${prefix}$attributeId`,
-    });
-
-    const indexRoute = createRoute({
-        getParentRoute: () => baseRoute,
-        path: `/`,
-        beforeLoad: () => { throw redirect(fallbackRedirect); }
-    });
-
-    const showRoute = createRoute({
-        getParentRoute: () => baseRoute,
-        path: `show`,
-        loader: async ({ params }) => {
-            const id = Number(params.attributeId);
-            if (isNaN(id)) return;
-            return await queryClient.prefetchQuery({
-                queryKey: attributeKeys.detail(id),
-                queryFn: () => attributesApi.get(id),
-                staleTime: 1000 * 30,
-            });
-        },
-        component: LazyAttributeShowRoute,
-    });
-
-    const editRoute = createRoute({
-        getParentRoute: () => baseRoute,
-        path: `edit`,
-        beforeLoad: async () => {
-            const { useAuth } = await import('@modules/auth/store/auth.store');
-            if (!useAuth().canEdit('attributes')) {
-                throw redirect(fallbackRedirect);
-            }
-        },
-        loader: async ({ params }) => {
-            const id = Number(params.attributeId);
-            if (isNaN(id)) return;
-            await queryClient.prefetchQuery({
-                queryKey: attributeKeys.detail(id),
-                queryFn: () => attributesApi.get(id),
-                staleTime: 1000 * 30,
-            });
-            return;
-        },
-        component: LazyAttributeEditRoute,
-    });
-
-    const nestedEditRoute = createRoute({
-        getParentRoute: () => showRoute,
-        path: `edit`,
-        beforeLoad: async () => {
-            const { useAuth } = await import('@modules/auth/store/auth.store');
-            if (!useAuth().canEdit('attributes')) {
-                throw redirect(fallbackRedirect);
-            }
-        },
-        component: LazyAttributeEditRoute,
-    });
-
-    return [
-        newRoute,
-        baseRoute.addChildren([
-            indexRoute,
-            showRoute.addChildren([nestedEditRoute]),
-            editRoute
-        ])
-    ];
-};
