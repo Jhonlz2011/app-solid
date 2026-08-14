@@ -161,7 +161,10 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
             // Solo despachamos el evento 'input' si el usuario realmente tiene el foco,
             // de lo contrario, Kobalte se puede confundir y abrir el dropdown en background.
             if (document.activeElement === inputRef) {
-                inputRef.dispatchEvent(new Event('input', { bubbles: true, cancelable: false }));
+                // Prevenir el glitch donde el dropdown se abre instantáneamente tras seleccionar
+                if (Date.now() - _lastSelectionTime > SELECTION_ECHO_GUARD_MS) {
+                    inputRef.dispatchEvent(new Event('input', { bubbles: true, cancelable: false }));
+                }
             }
         }
     }, { defer: false }));
