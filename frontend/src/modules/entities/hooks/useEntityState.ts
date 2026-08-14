@@ -32,6 +32,7 @@ interface UseEntityStateConfig {
     taxIdTypeLabels?: Record<string, string>;
     personTypeLabels?: Record<string, string>;
     entityNamePlural?: string; // e.g., 'proveedores'
+    entityNameSingular?: string; // e.g., 'proveedor'
 }
 
 export function useEntityState(config: UseEntityStateConfig) {
@@ -96,6 +97,7 @@ export function useEntityState(config: UseEntityStateConfig) {
     );
 
     const deleteMutation = config.mutations.useDelete();
+    const hardDeleteMutation = config.mutations.useHardDelete();
     const bulkRestoreMutation = config.mutations.useBulkRestore();
     const bulkDeleteMutation = config.mutations.useBulkDelete();
     const restoreMutation = config.mutations.useRestore();
@@ -202,7 +204,12 @@ export function useEntityState(config: UseEntityStateConfig) {
         selectedActiveCount, selectedInactiveCount,
 
         // Mutations
-        deleteMutation, bulkDeleteMutation, bulkRestoreMutation,
+        deleteMutation, hardDeleteMutation, bulkDeleteMutation, bulkRestoreMutation,
+
+        // Query helpers & config
+        useCheckReferences: config.queries.useCheckReferences,
+        permissionKey: config.permissionKey,
+        entityNameSingular: config.entityNameSingular || (config.entityNamePlural?.endsWith('es') ? config.entityNamePlural.slice(0, -2) : config.entityNamePlural?.slice(0, -1)) || 'registro',
 
         // Handlers
         handlePrefetch, handleCopySelection, handleDelete, handleRestore, handleBulkDelete,

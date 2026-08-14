@@ -18,6 +18,7 @@ import Button from '@shared/ui/Button';
 import LinkButton from '@shared/ui/LinkButton';
 import ConfirmDialog from '@shared/ui/ConfirmDialog';
 import { EntityCardList } from '../components/EntityCardList';
+import EntityDeleteDialog from '../components/EntityDeleteDialog';
 
 // Icons
 import {
@@ -34,6 +35,7 @@ interface EntityPageProps {
     description: string;
     state: EntityState;
     entityNamePlural: string;
+    entityNameSingular?: string;
     permissionKey: RbacModule;
     newRoutePath: string; // e.g., '/suppliers/new'
     CustomFilterSheet?: Component<any>; // Optional override for filters
@@ -215,11 +217,26 @@ export const EntityPage: Component<EntityPageProps> = (props) => {
             </Show>
 
             {/* Dialogs */}
-            <Show when={props.CustomDeleteDialog}>
+            <Show
+                when={props.CustomDeleteDialog}
+                fallback={
+                    <EntityDeleteDialog
+                        entity={state.deleteTarget()}
+                        permissionKey={props.permissionKey}
+                        entityNameSingular={props.entityNameSingular || state.entityNameSingular}
+                        useCheckReferences={state.useCheckReferences}
+                        deleteMutation={state.deleteMutation}
+                        hardDeleteMutation={state.hardDeleteMutation}
+                        onClose={() => state.setDeleteTarget(null)}
+                    />
+                }
+            >
                 {props.CustomDeleteDialog && <props.CustomDeleteDialog
                     entity={state.deleteTarget()}
+                    client={state.deleteTarget()}
+                    supplier={state.deleteTarget()}
+                    employee={state.deleteTarget()}
                     onClose={() => state.setDeleteTarget(null)}
-                    onSuccess={() => toast.success('Eliminado correctamente')}
                 />}
             </Show>
             <ConfirmDialog

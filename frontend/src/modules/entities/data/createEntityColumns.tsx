@@ -2,7 +2,7 @@ import { Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import Checkbox from '@shared/ui/Checkbox';
-import { StatusBadge } from '@shared/ui/Badge';
+import { StatusBadge, Badge } from '@shared/ui/Badge';
 import ActionMenu from '@shared/ui/ActionMenu';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
@@ -35,6 +35,10 @@ export interface BaseEntityListItem {
     email_billing?: string | null;
     phone?: string | null;
     trade_name?: string | null;
+    tax_regime_type?: string | null;
+    obligado_contabilidad?: boolean | null;
+    is_retention_agent?: boolean | null;
+    is_special_contributor?: boolean | null;
 }
 
 export function createBaseEntityColumns<T extends BaseEntityListItem>(
@@ -44,6 +48,7 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
     businessName: ColumnDef<T>;
     taxId: ColumnDef<T>;
     contactInfo: ColumnDef<T>;
+    fiscal: ColumnDef<T>;
     isActive: ColumnDef<T>;
     actions: ColumnDef<T>;
 } {
@@ -156,7 +161,7 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
                     <div class="min-w-0">
                         <Show when={email}>
                             <div class="text-sm truncate" title={email}>
-                                <a href={`mailto:${email}`} class="hover:underline text-primary" onClick={(e) => e.stopPropagation()}>
+                                <a href={`mailto:${email}`} class="hover:underline text-strong" onClick={(e) => e.stopPropagation()}>
                                     {email}
                                 </a>
                             </div>
@@ -165,6 +170,66 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
                             <div class="text-xs text-muted truncate" title={phone}>{phone}</div>
                         </Show>
                         <Show when={!email && !phone}>
+                            <span class="text-muted/50 text-xs">—</span>
+                        </Show>
+                    </div>
+                );
+            },
+        } as ColumnDef<T>,
+        fiscal: {
+            id: 'fiscal',
+            header: ({ column }) => <DataTableColumnHeader column={column} title="Fiscal" />,
+            meta: { title: 'Fiscal' },
+            size: 160,
+            cell: (info) => {
+                const entity = info.row.original;
+                const hasRegime = () => !!entity.tax_regime_type && entity.tax_regime_type !== 'GENERAL';
+                const hasFlags = () => !!entity.obligado_contabilidad || !!entity.is_retention_agent || !!entity.is_special_contributor;
+                const hasAny = () => hasRegime() || hasFlags();
+
+                return (
+                    <div class="flex flex-col gap-1 min-w-0">
+                        <Show when={hasRegime()}>
+                            <Badge
+                                variant="default"
+                                class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0 rounded w-max border-border/60"
+                                title={`Régimen: ${entity.tax_regime_type}`}
+                            >
+                                {entity.tax_regime_type}
+                            </Badge>
+                        </Show>
+                        <Show when={hasFlags()}>
+                            <div class="flex flex-wrap gap-1">
+                                <Show when={entity.obligado_contabilidad}>
+                                    <Badge
+                                        variant="success"
+                                        class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0 rounded"
+                                        title="Obligado a llevar contabilidad"
+                                    >
+                                        Obl. Cont.
+                                    </Badge>
+                                </Show>
+                                <Show when={entity.is_retention_agent}>
+                                    <Badge
+                                        variant="info"
+                                        class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0 rounded"
+                                        title="Agente de Retención"
+                                    >
+                                        Ag. Ret.
+                                    </Badge>
+                                </Show>
+                                <Show when={entity.is_special_contributor}>
+                                    <Badge
+                                        variant="warning"
+                                        class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0 rounded"
+                                        title="Contribuyente Especial"
+                                    >
+                                        Contr. Esp.
+                                    </Badge>
+                                </Show>
+                            </div>
+                        </Show>
+                        <Show when={!hasAny()}>
                             <span class="text-muted/50 text-xs">—</span>
                         </Show>
                     </div>

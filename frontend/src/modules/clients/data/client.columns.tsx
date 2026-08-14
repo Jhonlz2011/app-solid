@@ -55,6 +55,7 @@ export function createClientColumns(handlers: ClientColumnHandlers): ColumnDef<C
                 );
             },
         },
+        base.fiscal,
         base.contactInfo,
         base.isActive,
         base.actions,

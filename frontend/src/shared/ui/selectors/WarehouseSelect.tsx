@@ -2,7 +2,7 @@
  * WarehouseSelect — Reusable warehouse autocomplete with search + clear.
  * Uses `useWarehousesList()` internally.
  */
-import { Component, Show, createMemo, createSignal, createEffect, on } from 'solid-js';
+import { Component, Show, createMemo, createSignal, createEffect } from 'solid-js';
 import { useWarehousesList } from '@modules/settings/data/warehouses.queries';
 import { Autocomplete } from '@shared/ui/Autocomplete';
 import { WarehouseIcon } from '@shared/ui/icons';
@@ -35,17 +35,22 @@ export const WarehouseSelect: Component<WarehouseSelectProps> = (props) => {
         });
     });
 
-    // Sync display text from external value
-    createEffect(on(() => props.value, (v) => {
-        if (v && warehouses().length > 0) {
-            const wh = warehouses().find(w => w.id === v);
+    // Sync display text from external value or when warehouses finish loading
+    createEffect(() => {
+        const v = props.value;
+        const list = warehouses();
+        if (v && list.length > 0) {
+            const wh = list.find(w => w.id === v);
             if (wh) {
-                setSearch(`${wh.code} — ${wh.name}`);
+                const label = `${wh.code} — ${wh.name}`;
+                if (search() !== label) {
+                    setSearch(label);
+                }
             }
-        } else if (!v) {
+        } else if (!v && search() !== '') {
             setSearch('');
         }
-    }, { defer: false }));
+    });
 
     return (
         <Autocomplete.Root field={props.field}>
@@ -60,6 +65,7 @@ export const WarehouseSelect: Component<WarehouseSelectProps> = (props) => {
                 optionValue={(w) => String(w.id)}
                 optionLabel={(w) => `${w.code} — ${w.name}`}
                 placeholder={props.placeholder ?? 'Todas las bodegas'}
+                isLoading={warehousesQuery.isLoading}
                 hideEmptyState={false}
                 minLength={0}
                 inputPrefix={<WarehouseIcon class="size-4 text-muted" />}

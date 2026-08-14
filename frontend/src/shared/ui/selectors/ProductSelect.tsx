@@ -2,7 +2,7 @@
  * ProductSelect — Reusable autocomplete selector for Products.
  * Used in BOM component selection, document lines, etc.
  */
-import { Component, Show, createMemo, createSignal, createEffect, on } from 'solid-js';
+import { Component, Show, createMemo, createSignal, createEffect, onCleanup } from 'solid-js';
 import { useProducts } from '@/modules/products/data/products.queries';
 import type { Product } from '@/modules/products/data/products.api';
 import { Autocomplete } from '@shared/ui/Autocomplete';
@@ -16,12 +16,19 @@ export interface ProductSelectProps {
     field?: any;
 }
 
+const getProductLabel = (p: Product) => `${p.name}${p.slug ? ` (${p.slug})` : ''}`;
+
 export const ProductSelect: Component<ProductSelectProps> = (props) => {
-    const [search, setSearch] = createSignal('');
+    const [localQuery, setLocalQuery] = createSignal('');
+    const [debouncedQuery, setDebouncedQuery] = createSignal('');
+    const [selectedName, setSelectedName] = createSignal<string | null>(null);
+
+    let debounceTimer: ReturnType<typeof setTimeout>;
+    onCleanup(() => clearTimeout(debounceTimer));
 
     const productsQuery = useProducts(() => ({
         limit: 30,
-        search: search() || undefined,
+        search: debouncedQuery() || undefined,
     }));
 
     const products = createMemo(() => {
@@ -32,15 +39,59 @@ export const ProductSelect: Component<ProductSelectProps> = (props) => {
         return raw;
     });
 
-    // Sync search text when props.value changes externally (edit mode, form reset)
-    createEffect(on(() => props.value, (val) => {
+    // Sync search text when props.value changes externally or products finish loading
+    createEffect(() => {
+        const val = props.value;
+        const list = products();
         if (val != null) {
-            const found = products().find(p => p.id === val);
-            if (found && search() !== found.name) setSearch(found.name);
-        } else if (search() !== '') {
-            setSearch('');
+            const found = list.find(p => p.id === val);
+            if (found) {
+                const label = getProductLabel(found);
+                if (localQuery() !== label) {
+                    setLocalQuery(label);
+                    setSelectedName(label);
+                }
+            }
+        } else if (localQuery() !== '') {
+            setLocalQuery('');
+            setSelectedName(null);
         }
-    }, { defer: false }));
+    });
+
+    const handleInputChange = (val: string) => {
+        setLocalQuery(val);
+        if (val === '') {
+            clearTimeout(debounceTimer);
+            setDebouncedQuery('');
+        }
+        if (val === selectedName()) {
+            return;
+        }
+        setSelectedName(null);
+    };
+
+    const handleSearchAction = (val: string) => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            setDebouncedQuery(val.trim());
+        }, 300);
+    };
+
+    const handleSelect = (prod: Product | null) => {
+        clearTimeout(debounceTimer);
+        if (prod) {
+            const label = getProductLabel(prod);
+            props.onChange(prod);
+            setLocalQuery(label);
+            setSelectedName(label);
+            setDebouncedQuery('');
+        } else {
+            props.onChange(null);
+            setLocalQuery('');
+            setSelectedName(null);
+            setDebouncedQuery('');
+        }
+    };
 
     return (
         <Autocomplete.Root field={props.field}>
@@ -48,23 +99,17 @@ export const ProductSelect: Component<ProductSelectProps> = (props) => {
                 <Autocomplete.Label>{props.label ?? 'Producto Componente'}</Autocomplete.Label>
             </Show>
             <Autocomplete.Input<Product>
-                value={search()}
-                onInputChange={setSearch}
+                value={localQuery()}
+                onInputChange={handleInputChange}
+                onSearchAction={handleSearchAction}
                 options={products()}
                 optionValue={(p) => String(p.id)}
-                optionLabel={(p) => `${p.name}${p.slug ? ` (${p.slug})` : ''}`}
+                optionLabel={getProductLabel}
                 placeholder={props.placeholder ?? 'Buscar producto por nombre o SKU...'}
-                hideEmptyState={false}
+                isLoading={productsQuery.isFetching && selectedName() !== localQuery()}
+                hideEmptyState={selectedName() === localQuery()}
                 minLength={0}
-                onSelect={(prod) => {
-                    if (prod) {
-                        props.onChange(prod);
-                        setSearch(prod.name);
-                    } else {
-                        props.onChange(null);
-                        setSearch('');
-                    }
-                }}
+                onSelect={handleSelect}
             />
             <Autocomplete.ErrorMessage />
         </Autocomplete.Root>

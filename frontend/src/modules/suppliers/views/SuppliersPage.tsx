@@ -10,7 +10,6 @@ import { supplierMutations } from '../data/suppliers.mutations';
 import { createSupplierColumns } from '../data/supplier.columns';
 import { taxIdTypeLabels, personTypeLabels } from '../models/supplier.types';
 import { SupplierFilterSheet } from '../components/SupplierFilterSheet';
-import SupplierDeleteDialog from '../components/SupplierDeleteDialog';
 
 const SuppliersPage: Component = () => {
     const state = useEntityState({
@@ -34,10 +33,10 @@ const SuppliersPage: Component = () => {
             description="Gestiona los proveedores de tu negocio. Puedes agregar, editar, eliminar y buscar proveedores."
             state={state}
             entityNamePlural="proveedores"
+            entityNameSingular="proveedor"
             permissionKey="suppliers"
             newRoutePath="/suppliers/new"
             CustomFilterSheet={SupplierFilterSheet}
-            CustomDeleteDialog={SupplierDeleteDialog}
         />
     );
 };

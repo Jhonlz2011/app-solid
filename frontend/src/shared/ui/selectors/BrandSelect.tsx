@@ -2,7 +2,7 @@
  * BrandSelect — Reusable brand autocomplete with search.
  * Uses `useBrandsList()` internally.
  */
-import { Component, Show, createMemo, createSignal, createEffect, on } from 'solid-js';
+import { Component, Show, createMemo, createSignal, createEffect } from 'solid-js';
 import { useBrandsList } from '@modules/brands/data/brands.queries';
 import { Autocomplete } from '@shared/ui/Autocomplete';
 
@@ -28,15 +28,19 @@ export const BrandSelect: Component<BrandSelectProps> = (props) => {
         return brands().filter(b => b.name.toLowerCase().includes(s));
     });
 
-    // Sync search text when props.value changes externally (edit mode, form reset)
-    createEffect(on(() => props.value, (val) => {
+    // Sync search text when props.value changes externally or brands finish loading
+    createEffect(() => {
+        const val = props.value;
+        const list = brands();
         if (val != null) {
-            const brand = brands().find(b => b.id === val);
-            if (brand && search() !== brand.name) setSearch(brand.name);
+            const brand = list.find(b => b.id === val);
+            if (brand && search() !== brand.name) {
+                setSearch(brand.name);
+            }
         } else if (search() !== '') {
             setSearch('');
         }
-    }, { defer: false }));
+    });
 
     return (
         <Autocomplete.Root field={props.field}>
@@ -50,6 +54,7 @@ export const BrandSelect: Component<BrandSelectProps> = (props) => {
                 optionValue={(b) => String(b.id)}
                 optionLabel={(b) => b.name}
                 placeholder={props.placeholder ?? 'Buscar marca...'}
+                isLoading={brandsQuery.isLoading}
                 hideEmptyState={false}
                 minLength={0}
                 onCreateNew={props.onCreateNew}

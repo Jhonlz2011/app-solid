@@ -1,13 +1,11 @@
 import { Component, Show, For } from 'solid-js';
 import { useParams, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
-import { useEmployee } from '../data/employees.queries';
 import { EditIcon, UserIcon, InfoIcon, MapPinIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
 import Button from '@shared/ui/Button';
 import LinkButton from '@shared/ui/LinkButton';
 import Sheet from '@shared/ui/Sheet';
-import { personTypeLabels, taxIdTypeLabels, taxRegimeTypeLabels } from '../models/employee.types';
 import { StatusBadge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';

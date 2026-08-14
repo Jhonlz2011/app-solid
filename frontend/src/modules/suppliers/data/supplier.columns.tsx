@@ -54,6 +54,7 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
                 );
             },
         },
+        base.fiscal,
         base.contactInfo,
         base.isActive,
         base.actions,

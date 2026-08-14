@@ -10,7 +10,6 @@ import { clientMutations } from '../data/clients.mutations';
 import { createClientColumns } from '../data/client.columns';
 import { taxIdTypeLabels, personTypeLabels } from '../models/client.types';
 import { ClientFilterSheet } from '../components/ClientFilterSheet';
-import ClientDeleteDialog from '../components/ClientDeleteDialog';
 
 const ClientsPage: Component = () => {
     const state = useEntityState({
@@ -34,10 +33,10 @@ const ClientsPage: Component = () => {
             description="Gestiona los clientes de tu negocio. Puedes agregar, editar, eliminar y buscar clientes."
             state={state}
             entityNamePlural="clientes"
+            entityNameSingular="cliente"
             permissionKey="clients"
             newRoutePath="/clients/new"
             CustomFilterSheet={ClientFilterSheet}
-            CustomDeleteDialog={ClientDeleteDialog}
         />
     );
 };
