@@ -61,9 +61,12 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
         if (city) {
             setSelectedCity(city.ciudad);
             setLocalQuery(city.ciudad);
+            setCityQuery('');
             props.onSelect(city);
         } else {
             setSelectedCity(null);
+            setLocalQuery('');
+            setCityQuery('');
             props.onSelect(null);
         }
     };

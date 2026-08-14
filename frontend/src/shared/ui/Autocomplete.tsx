@@ -147,6 +147,11 @@ export interface AutocompleteInputProps<T> {
      * Internally delegates to Kobalte's `noResetInputOnBlur` prop.
      */
     clearOnBlur?: boolean;
+    /**
+     * Interaction mode to open the combobox menu.
+     * Defaults to 'input' so menu opens on typing/interaction rather than focus re-entry.
+     */
+    triggerMode?: 'input' | 'focus' | 'manual';
 }
 
 const Input = <T,>(props: AutocompleteInputProps<T>) => {
@@ -202,7 +207,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         props.onSelect?.(null);
         if (inputRef) {
             inputRef.value = '';
-            inputRef.dispatchEvent(new Event('input', { bubbles: true, cancelable: false }));
         }
     };
 
@@ -211,10 +215,11 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
             class={cn('flex flex-col gap-1.5', props.class)}
             options={safeOptions()}
             validationState={ctx.validationState()}
-            triggerMode="focus"
+            triggerMode={props.triggerMode ?? 'input'}
+            closeOnSelection={true}
             allowsEmptyCollection={shouldShowContent()}
             noResetInputOnBlur={!(props.clearOnBlur ?? true)}
-            value={matchedOption() ? [matchedOption()!] : undefined}
+            value={matchedOption() ?? null}
             onInputChange={(v) => {
                 // Guard against the echo: after selection, Kobalte fires
                 // onInputChange with the selected label. Skip it.

@@ -21,7 +21,7 @@ export interface SriBusinessNameSelectProps {
 
 export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (props) => {
     const [localQuery, setLocalQuery] = createSignal(props.value || '');
-    const [sriQuery, setSriQuery] = createSignal(props.value || '');
+    const [sriQuery, setSriQuery] = createSignal('');
     const [selectedName, setSelectedName] = createSignal<string | null>(props.value || null);
 
     let debounceTimer: ReturnType<typeof setTimeout>;
@@ -33,7 +33,6 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
         if (nextVal !== localQuery()) {
             setLocalQuery(nextVal);
             setSelectedName(nextVal || null);
-            setSriQuery(nextVal);
         }
     }, { defer: true }));
 
@@ -70,6 +69,7 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
         if (result) {
             setSelectedName(result.razonSocial);
             setLocalQuery(result.razonSocial);
+            setSriQuery('');
         } else {
             setSelectedName(null);
             setLocalQuery('');
