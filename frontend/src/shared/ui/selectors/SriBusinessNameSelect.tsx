@@ -88,7 +88,7 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
                 value={localQuery()}
                 onInputChange={handleInputChange}
                 onSearchAction={handleSearchAction}
-                options={selectedName() === localQuery() ? [] : (localQuery().length >= 3 ? (nameSearch.data ?? []) : [])}
+                options={localQuery().length >= 3 ? (nameSearch.data ?? []) : []}
                 optionValue={(opt) => opt.ruc}
                 optionLabel={(opt) => opt.razonSocial}
                 itemRenderer={(opt) => (

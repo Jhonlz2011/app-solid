@@ -77,7 +77,7 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
                 value={localQuery()}
                 onInputChange={handleInputChange}
                 onSearchAction={handleSearchAction}
-                options={selectedCity() === localQuery() ? [] : (cities.data ?? [])}
+                options={cities.data ?? []}
                 optionValue={(c) => c.ciudad}
                 optionLabel={(c) => c.ciudad}
                 onSelect={handleSelect}

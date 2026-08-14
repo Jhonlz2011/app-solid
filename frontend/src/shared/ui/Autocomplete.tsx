@@ -158,14 +158,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         const nextVal = val ?? '';
         if (inputRef && inputRef.value !== nextVal) {
             inputRef.value = nextVal;
-            // Solo despachamos el evento 'input' si el usuario realmente tiene el foco,
-            // de lo contrario, Kobalte se puede confundir y abrir el dropdown en background.
-            if (document.activeElement === inputRef) {
-                // Prevenir el glitch donde el dropdown se abre instantáneamente tras seleccionar
-                if (Date.now() - _lastSelectionTime > SELECTION_ECHO_GUARD_MS) {
-                    inputRef.dispatchEvent(new Event('input', { bubbles: true, cancelable: false }));
-                }
-            }
         }
     }, { defer: false }));
 
@@ -222,6 +214,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
             triggerMode="focus"
             allowsEmptyCollection={shouldShowContent()}
             noResetInputOnBlur={!(props.clearOnBlur ?? true)}
+            value={matchedOption() ? [matchedOption()!] : undefined}
             onInputChange={(v) => {
                 // Guard against the echo: after selection, Kobalte fires
                 // onInputChange with the selected label. Skip it.
@@ -280,7 +273,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                     class={cn("flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0", matchedOption() ? 'cursor-default' : '', props.inputClass)}
                     onPointerDown={(e) => e.stopPropagation()}
                     onFocus={(e) => e.currentTarget.select()}
-                    onBlur={() => props.onBlur?.()}
                     onInput={(e) => {
                         if (e.isTrusted && props.onSearchAction) {
                             props.onSearchAction(e.currentTarget.value);
@@ -290,6 +282,9 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                         if (e.key === 'Enter' && props.onSearchAction) {
                             props.onSearchAction(e.currentTarget.value);
                         }
+                    }}
+                    onBlur={() => {
+                        props.onBlur?.();
                     }}
                 />
                 <div class="ml-2 flex shrink-0 items-center justify-center text-muted group-hover:text-text-secondary transition-colors h-full">
