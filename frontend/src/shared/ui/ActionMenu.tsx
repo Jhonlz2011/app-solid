@@ -28,7 +28,6 @@ export interface ActionMenuProps {
 
 const ActionMenu: Component<ActionMenuProps> = (props) => {
     const auth = useAuth();
-    
     // Internal permission validators based on the provided module string
     const canEdit = () => auth.canEdit(props.module as any);
     const canDelete = () => auth.canDelete(props.module as any) && props.isActive;

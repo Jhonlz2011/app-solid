@@ -2,7 +2,6 @@ import { Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { ClientListItem } from '../data/clients.api';
-import { useAuth } from '@/modules/auth/store/auth.store';
 import { Badge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { ColumnFilterConfig } from '@modules/entities/data/createEntityColumns';
@@ -11,7 +10,6 @@ import { createBaseEntityColumns } from '@modules/entities/data/createEntityColu
 export interface ClientColumnHandlers {
     onDelete: (client: ClientListItem) => void;
     onRestore: (client: ClientListItem) => void;
-    auth: ReturnType<typeof useAuth>;
     filters?: {
         businessName?: ColumnFilterConfig;
         taxIdType?: ColumnFilterConfig;
@@ -23,7 +21,7 @@ export interface ClientColumnHandlers {
 export function createClientColumns(handlers: ClientColumnHandlers): ColumnDef<ClientListItem>[] {
     const base = createBaseEntityColumns<ClientListItem>({
         ...handlers,
-        permissionKey: 'clients',
+        baseRoute: 'clients',
     });
 
     return [

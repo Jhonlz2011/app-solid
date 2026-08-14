@@ -2,7 +2,6 @@ import { Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { SupplierListItem } from '../data/suppliers.api';
-import { useAuth } from '@/modules/auth/store/auth.store';
 import { Badge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { ColumnFilterConfig } from '@modules/entities/data/createEntityColumns';
@@ -11,7 +10,6 @@ import { createBaseEntityColumns } from '@modules/entities/data/createEntityColu
 export interface SupplierColumnHandlers {
     onDelete: (supplier: SupplierListItem) => void;
     onRestore: (supplier: SupplierListItem) => void;
-    auth: ReturnType<typeof useAuth>;
     filters?: {
         businessName?: ColumnFilterConfig;
         taxIdType?: ColumnFilterConfig;
@@ -23,9 +21,8 @@ export interface SupplierColumnHandlers {
 export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnDef<SupplierListItem>[] {
     const base = createBaseEntityColumns<SupplierListItem>({
         ...handlers,
-        permissionKey: 'suppliers',
+        baseRoute: 'suppliers',
     });
-
     return [
         base.select,
         {
@@ -80,10 +77,10 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
                     class="min-w-0 block cursor-pointer group/cell"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div class="font-medium text-text truncate group-hover/cell:text-primary transition-colors duration-150">
+                    <div class="font-mono text-sm font-semibold text-primary group-hover/cell:underline underline-offset-2 transition-colors duration-150">
                         {info.getValue<string>()}
                     </div>
-                    <div class="text-xs text-muted truncate">{info.row.original.tax_id_type}</div>
+                    <div class="text-xs text-muted">{info.row.original.tax_id_type}</div>
                 </Link>
             ),
         },
@@ -101,11 +98,19 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             ),
             meta: { title: 'Tipo de Persona' },
             size: 120,
-            cell: (info) => (
-                <Badge variant="outline" class="font-normal border-border/50 text-muted bg-surface/30">
-                    {info.getValue<string>() === 'natural' ? 'Natural' : 'Jurídica'}
-                </Badge>
-            ),
+            cell: (info) => {
+                const type = info.getValue<string>();
+                const isJuridica = type === 'JURIDICA';
+
+                return (
+                    <Badge
+                        variant={isJuridica ? 'primary' : 'info'}
+                        class="text-[11px] uppercase tracking-wider border-primary/20"
+                    >
+                        {isJuridica ? 'Jurídica' : 'Natural'}
+                    </Badge>
+                );
+            },
         },
         {
             id: 'contact_info',

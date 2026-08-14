@@ -2,15 +2,15 @@ import { Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { EmployeeListItem } from '../data/employees.api';
-import { useAuth } from '@/modules/auth/store/auth.store';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { ColumnFilterConfig } from '@modules/entities/data/createEntityColumns';
 import { createBaseEntityColumns } from '@modules/entities/data/createEntityColumns';
+import { StatusBadge } from '@modules/entities/components/StatusBadge';
+import { ActionMenu } from '@modules/entities/components/ActionMenu';
 
 export interface EmployeeColumnHandlers {
     onDelete: (employee: EmployeeListItem) => void;
     onRestore: (employee: EmployeeListItem) => void;
-    auth: ReturnType<typeof useAuth>;
     filters?: {
         businessName?: ColumnFilterConfig;
         taxIdType?: ColumnFilterConfig;
@@ -22,7 +22,7 @@ export interface EmployeeColumnHandlers {
 export function createEmployeeColumns(handlers: EmployeeColumnHandlers): ColumnDef<EmployeeListItem>[] {
     const base = createBaseEntityColumns<EmployeeListItem>({
         ...handlers,
-        permissionKey: 'employees',
+        baseRoute: 'employees',
     });
 
     return [

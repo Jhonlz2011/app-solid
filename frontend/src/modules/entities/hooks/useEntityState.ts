@@ -179,7 +179,6 @@ export function useEntityState(config: UseEntityStateConfig) {
         config.createColumns({
             onDelete: handleDelete,
             onRestore: handleRestore,
-            auth,
             filters: {
                 businessName: { options: businessNameFilterOptions, selected: businessNameFilter, onChange: handleFilterChange(setBusinessNameFilter), isLoading: () => facetsQuery.isPending },
                 taxIdType: { options: taxIdTypeFilterOptions, selected: taxIdTypeFilter, onChange: handleFilterChange(setTaxIdTypeFilter), isLoading: () => facetsQuery.isPending },

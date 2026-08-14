@@ -16,8 +16,7 @@ export interface ColumnFilterConfig {
 export interface BaseEntityHandlers<T> {
     onDelete: (entity: T) => void;
     onRestore: (entity: T) => void;
-    auth: { canDelete: (key: string) => boolean; canEdit: (key: string) => boolean };
-    permissionKey: string;
+    baseRoute: string;
     filters?: {
         isActive?: ColumnFilterConfig;
         [key: string]: ColumnFilterConfig | undefined;
@@ -67,15 +66,7 @@ export function createBaseEntityColumns<T extends { id: number; is_active: boole
             ),
             meta: { title: 'Estado' },
             size: 110,
-            cell: (info) => {
-                const isActive = info.getValue<boolean>();
-                return (
-                    <StatusBadge
-                        status={isActive ? 'active' : 'inactive'}
-                        label={isActive ? 'Activo' : 'Inactivo'}
-                    />
-                );
-            },
+            cell: (info) => <StatusBadge isActive={info.getValue<boolean>()} />,
         },
         actions: {
             id: 'actions',
@@ -83,21 +74,18 @@ export function createBaseEntityColumns<T extends { id: number; is_active: boole
             enableHiding: false,
             cell: ({ row }) => {
                 const entity = row.original;
-                const pKey = handlers.permissionKey;
                 return (
                     <ActionMenu
-                        items={[
-                            {
-                                label: entity.is_active ? 'Eliminar' : 'Restaurar',
-                                icon: entity.is_active ? 'trash' : 'rotate-ccw',
-                                onClick: () => entity.is_active ? handlers.onDelete(entity) : handlers.onRestore(entity),
-                                destructive: entity.is_active,
-                                show: entity.is_active ? handlers.auth.canDelete(pKey) : handlers.auth.canEdit(pKey),
-                            }
-                        ]}
+                        module={handlers.baseRoute}
+                        isActive={entity.is_active ?? false}
+                        showTo={`/${handlers.baseRoute}/${entity.id}/show`}
+                        editTo={`/${handlers.baseRoute}/${entity.id}/edit`}
+                        onRestore={() => handlers.onRestore(entity)}
+                        onDelete={() => handlers.onDelete(entity)}
                     />
                 );
             },
         },
+        
     };
 }
