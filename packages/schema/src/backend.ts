@@ -68,6 +68,19 @@ export const EmployeeDetailsPayloadSchema = Type.Object({
     costPerHour: Type.Optional(Type.Number()),
 });
 
+export const CarrierVehiclePayloadSchema = Type.Object({
+    licensePlate: Type.String(),
+    description: Type.Optional(Type.String()),
+    isActive: Type.Optional(Type.Boolean()),
+});
+
+export const CarrierDriverPayloadSchema = Type.Object({
+    identificationNumber: Type.String(),
+    fullName: Type.String(),
+    phone: Type.Optional(Type.String()),
+    isActive: Type.Optional(Type.Boolean()),
+});
+
 // Main Entity Form Schema (TypeBox) - Aligned strictly with frontend Valibot schema
 export const EntityFormSchema = Type.Object({
     taxId: Type.String(),
@@ -91,6 +104,8 @@ export const EntityFormSchema = Type.Object({
     employeeDetails: Type.Optional(EmployeeDetailsPayloadSchema),
     contacts: Type.Array(ContactPayloadSchema),
     addresses: Type.Array(AddressPayloadSchema),
+    vehicles: Type.Optional(Type.Array(CarrierVehiclePayloadSchema)),
+    drivers: Type.Optional(Type.Array(CarrierDriverPayloadSchema)),
 });
 
 // --- Compile-Time Assertions ---

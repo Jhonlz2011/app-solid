@@ -8,13 +8,14 @@ import { createTabErrorSelector, resolveTabFlags } from '@shared/forms/useTabErr
 
 import { createDefaultEntityFormValues, EMPTY_EMPLOYEE_DETAILS } from './entity-form.utils';
 
-import { InfoIcon, MapPinIcon, UsersIcon } from '@shared/ui/icons';
+import { InfoIcon, MapPinIcon, UsersIcon, TruckIcon } from '@shared/ui/icons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 
 // Subcomponents
 import { EntityGeneralTab } from './sections/EntityGeneralTab';
 import { EntityContactsArray } from './sections/EntityContactsArray';
 import { EntityAddressArray } from './sections/EntityAddressArray';
+import { EntityCarrierTab } from './sections/EntityCarrierTab';
 
 export interface EntityFormProps {
     // The entity object from the API response
@@ -55,6 +56,17 @@ export interface EntityFormProps {
             country_code?: string | null;
             postal_code?: string | null;
             is_main?: boolean | null;
+        }> | null;
+        vehicles?: Array<{
+            license_plate: string;
+            description?: string | null;
+            is_active?: boolean | null;
+        }> | null;
+        drivers?: Array<{
+            identification_number: string;
+            full_name: string;
+            phone?: string | null;
+            is_active?: boolean | null;
         }> | null;
     };
     onSubmit: (data: EntityFormData) => Promise<void>;
@@ -103,6 +115,17 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                     postalCode: a.postal_code ?? '',
                     isMain: a.is_main ?? false
                 })) ?? [],
+                vehicles: e.vehicles?.map((v) => ({
+                    licensePlate: v.license_plate ?? '',
+                    description: v.description ?? '',
+                    isActive: v.is_active ?? true,
+                })) ?? [],
+                drivers: e.drivers?.map((d) => ({
+                    identificationNumber: d.identification_number ?? '',
+                    fullName: d.full_name ?? '',
+                    phone: d.phone ?? '',
+                    isActive: d.is_active ?? true,
+                })) ?? [],
             };
         }
         return createDefaultEntityFormValues(props.lockedRoles);
@@ -140,6 +163,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
     const isEmployeeVal = form.useStore((s) => s.values.isEmployee);
     const isSupplierVal = form.useStore((s) => s.values.isSupplier);
     const isClientVal = form.useStore((s) => s.values.isClient);
+    const isCarrierVal = form.useStore((s) => s.values.isCarrier);
     const hasEmployeeDetails = form.useStore((s) => !!s.values.employeeDetails);
 
     createEffect(on(taxIdType, (type) => {
@@ -172,7 +196,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
         }
     }, { defer: true }));
 
-    const showContacts = () => isEmployeeVal() || isSupplierVal() || isClientVal();
+    const showContacts = () => isEmployeeVal() || isSupplierVal() || isClientVal() || isCarrierVal();
 
     return (
         <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
@@ -193,6 +217,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                 general: { prefixes: [], isDefault: true },
                                 contacts: { prefixes: ['contacts'] },
                                 addresses: { prefixes: ['addresses'] },
+                                carrier: { prefixes: ['vehicles', 'drivers'] },
                             })}
                         >
                             {(flagsAccessor) => {
@@ -217,6 +242,15 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                                 </TabsTrigger>
                                             )}
                                         </form.Subscribe>
+                                        <Show when={isCarrierVal()}>
+                                            <form.Subscribe selector={(state) => (state.values.vehicles?.length || 0) + (state.values.drivers?.length || 0)}>
+                                                {(count) => (
+                                                    <TabsTrigger value="carrier" count={count()} hasError={getFlags().carrier}>
+                                                        <TruckIcon class="size-4" /> Transporte
+                                                    </TabsTrigger>
+                                                )}
+                                            </form.Subscribe>
+                                        </Show>
                                     </TabsList>
                                 );
                             }}
@@ -237,9 +271,16 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                         <TabsContent value="addresses" forceMount={false} class="w-full max-w-5xl">
                             <EntityAddressArray form={form} />
                         </TabsContent>
+
+                        <Show when={isCarrierVal()}>
+                            <TabsContent value="carrier" forceMount={false} class="w-full max-w-5xl">
+                                <EntityCarrierTab form={form} />
+                            </TabsContent>
+                        </Show>
                     </div>
                 </Tabs>
             </form>
         </FormSubmissionContext.Provider>
     );
 };
+

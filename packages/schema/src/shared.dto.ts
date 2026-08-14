@@ -93,6 +93,19 @@ export interface EmployeeDetailsPayload {
     costPerHour?: number;
 }
 
+export interface CarrierVehiclePayload {
+    licensePlate: string;
+    description?: string;
+    isActive?: boolean;
+}
+
+export interface CarrierDriverPayload {
+    identificationNumber: string;
+    fullName: string;
+    phone?: string;
+    isActive?: boolean;
+}
+
 export interface EntityPayload {
     taxId: string;
     taxIdType: 'RUC' | 'CEDULA' | 'PASAPORTE' | 'EXTERIOR' | 'CONSUMIDOR_FINAL';
@@ -115,6 +128,8 @@ export interface EntityPayload {
     employeeDetails?: EmployeeDetailsPayload;
     contacts: EntityContactPayload[];
     addresses: EntityAddressPayload[];
+    vehicles?: CarrierVehiclePayload[];
+    drivers?: CarrierDriverPayload[];
 }
 
 export interface ProductVariantPayload {

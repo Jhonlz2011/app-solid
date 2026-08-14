@@ -196,6 +196,19 @@ export const EmployeeDetailsFormSchema = object({
     costPerHour: optional(number()),
 });
 
+export const CarrierVehicleFormSchema = object({
+    licensePlate: pipe(string(), minLength(1, 'La placa es requerida')),
+    description: optional(string()),
+    isActive: optional(boolean()),
+});
+
+export const CarrierDriverFormSchema = object({
+    identificationNumber: pipe(string(), minLength(1, 'La identificación es requerida')),
+    fullName: pipe(string(), minLength(1, 'El nombre es requerido')),
+    phone: optional(string()),
+    isActive: optional(boolean()),
+});
+
 // Complete Entity form validation schema
 export const EntityFormSchema = pipe(
     object({
@@ -224,6 +237,8 @@ export const EntityFormSchema = pipe(
         // Relations
         contacts: array(ContactFormSchema),
         addresses: array(AddressFormSchema),
+        vehicles: optional(array(CarrierVehicleFormSchema)),
+        drivers: optional(array(CarrierDriverFormSchema)),
     }),
     forward(
         check((input) => {
@@ -252,6 +267,8 @@ export type EntityFormData = InferInput<typeof EntityFormSchema>;
 export type EmployeeDetailsFormData = InferInput<typeof EmployeeDetailsFormSchema>;
 export type ContactFormData = InferInput<typeof ContactFormSchema>;
 export type AddressFormData = InferInput<typeof AddressFormSchema>;
+export type CarrierVehicleFormData = InferInput<typeof CarrierVehicleFormSchema>;
+export type CarrierDriverFormData = InferInput<typeof CarrierDriverFormSchema>;
 
 // --- Compile-Time Assertions ---
 // Ensures Valibot schema matches exactly the E2E contract interface

@@ -1,6 +1,6 @@
 import { and, desc, eq, ilike, or, sql, lt, gt, asc, inArray, count, type AnyColumn } from '@app/schema';
 import { db } from '../../db';
-import { entities, entityAddresses, entityContacts, employeeDetails } from '@app/schema/tables';
+import { entities, entityAddresses, entityContacts, employeeDetails, carrierVehicles, carrierDrivers } from '@app/schema/tables';
 import { DomainError } from '../errors';
 import { cacheService } from '../cache.service';
 import { createHash } from 'crypto';
@@ -409,9 +409,11 @@ export async function getEntity(id: number, companyId?: number) {
         const [entity] = await db.select().from(entities).where(and(...conditions));
         if (!entity) throw new DomainError('Entidad no encontrada', 404);
 
-        const [addresses, contacts] = await Promise.all([
+        const [addresses, contacts, vehicles, drivers] = await Promise.all([
             db.select().from(entityAddresses).where(eq(entityAddresses.entity_id, id)),
             db.select().from(entityContacts).where(eq(entityContacts.entity_id, id)),
+            entity.is_carrier ? db.select().from(carrierVehicles).where(eq(carrierVehicles.carrier_id, id)) : Promise.resolve([]),
+            entity.is_carrier ? db.select().from(carrierDrivers).where(eq(carrierDrivers.carrier_id, id)) : Promise.resolve([]),
         ]);
 
         let details = null;
@@ -423,7 +425,7 @@ export async function getEntity(id: number, companyId?: number) {
             details = empDetails || null;
         }
 
-        return { ...entity, addresses, contacts, employeeDetails: details };
+        return { ...entity, addresses, contacts, employeeDetails: details, vehicles, drivers };
     }, 3600);
 }
 

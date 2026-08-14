@@ -73,6 +73,19 @@ export const EMPTY_EMPLOYEE_DETAILS = {
     costPerHour: undefined as number | undefined,
 };
 
+export const EMPTY_CARRIER_VEHICLE = {
+    licensePlate: '',
+    description: '',
+    isActive: true,
+};
+
+export const EMPTY_CARRIER_DRIVER = {
+    identificationNumber: '',
+    fullName: '',
+    phone: '',
+    isActive: true,
+};
+
 export function createDefaultEntityFormValues(
     lockedRoles?: Partial<Record<'isClient' | 'isSupplier' | 'isEmployee' | 'isCarrier', boolean>>
 ): EntityFormData {
@@ -95,6 +108,8 @@ export function createDefaultEntityFormValues(
         employeeDetails: undefined,
         contacts: [],
         addresses: [],
+        vehicles: [],
+        drivers: [],
     };
 }
 

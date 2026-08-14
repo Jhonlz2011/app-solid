@@ -14,7 +14,23 @@ export const entitiesRelations = relations(tables.entities, ({ one, many }) => (
     addresses: many(tables.entityAddresses),
     contacts: many(tables.entityContacts),
     workSchedules: many(tables.employeeWorkSchedules),
+    vehicles: many(tables.carrierVehicles),
+    drivers: many(tables.carrierDrivers),
     defaultPriceList: one(tables.priceLists, { fields: [tables.entities.default_price_list_id], references: [tables.priceLists.id] }),
+}));
+
+export const carrierVehiclesRelations = relations(tables.carrierVehicles, ({ one }) => ({
+    carrier: one(tables.entities, {
+        fields: [tables.carrierVehicles.carrier_id],
+        references: [tables.entities.id],
+    }),
+}));
+
+export const carrierDriversRelations = relations(tables.carrierDrivers, ({ one }) => ({
+    carrier: one(tables.entities, {
+        fields: [tables.carrierDrivers.carrier_id],
+        references: [tables.entities.id],
+    }),
 }));
 
 export const entityAddressesRelations = relations(tables.entityAddresses, ({ one }) => ({

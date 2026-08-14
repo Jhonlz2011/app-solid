@@ -1,6 +1,6 @@
 import { and, eq, count, inArray } from '@app/schema';
 import { db } from '../../db';
-import { entities, entityAddresses, employeeDetails, entityContacts, supplierProducts, workOrders, electronicDocuments } from '@app/schema/tables';
+import { entities, entityAddresses, employeeDetails, entityContacts, carrierVehicles, carrierDrivers, supplierProducts, workOrders, electronicDocuments } from '@app/schema/tables';
 import { DomainError } from '../errors';
 import { cacheService } from '../cache.service';
 import { broadcast } from '../../plugins/sse';
@@ -38,16 +38,16 @@ export async function createEntity(type: EntityType, payload: EntityPayload, aud
                 phone: payload.phone,
                 tax_regime_type: payload.taxRegimeType,
                 obligado_contabilidad: payload.obligadoContabilidad ?? false,
-                is_client: type === 'client',
-                is_supplier: type === 'supplier',
-                is_employee: type === 'employee',
-                is_carrier: type === 'carrier' || payload.isCarrier,
+                is_client: type === 'client' || (payload.isClient ?? false),
+                is_supplier: type === 'supplier' || (payload.isSupplier ?? false),
+                is_employee: type === 'employee' || (payload.isEmployee ?? false),
+                is_carrier: type === 'carrier' || (payload.isCarrier ?? false),
                 is_retention_agent: payload.isRetentionAgent ?? false,
                 is_special_contributor: payload.isSpecialContributor ?? false,
             })
             .returning();
 
-        if (type === 'employee' || type === 'carrier') {
+        if (type === 'employee' || payload.isEmployee || type === 'carrier') {
             if (payload.employeeDetails) {
                 await tx.insert(employeeDetails).values({
                     entity_id: created.id,
@@ -87,6 +87,30 @@ export async function createEntity(type: EntityType, payload: EntityPayload, aud
             );
         }
 
+        if (payload.isCarrier || type === 'carrier') {
+            if (payload.vehicles && payload.vehicles.length > 0) {
+                await tx.insert(carrierVehicles).values(
+                    payload.vehicles.map(v => ({
+                        carrier_id: created.id,
+                        license_plate: v.licensePlate.toUpperCase().trim(),
+                        description: v.description || null,
+                        is_active: v.isActive ?? true,
+                    }))
+                );
+            }
+            if (payload.drivers && payload.drivers.length > 0) {
+                await tx.insert(carrierDrivers).values(
+                    payload.drivers.map(d => ({
+                        carrier_id: created.id,
+                        identification_number: d.identificationNumber.trim(),
+                        full_name: d.fullName.trim(),
+                        phone: d.phone || null,
+                        is_active: d.isActive ?? true,
+                    }))
+                );
+            }
+        }
+
         await cacheService.invalidate(`${type}s:*`);
         broadcast(RealtimeEvents.ENTITY.CREATED, { type, entity: created, clientId: audit?.clientId }, `${type}s`);
 
@@ -114,6 +138,9 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
                 obligado_contabilidad: payload.obligadoContabilidad,
                 is_retention_agent: payload.isRetentionAgent,
                 is_special_contributor: payload.isSpecialContributor,
+                is_client: payload.isClient,
+                is_supplier: payload.isSupplier,
+                is_employee: payload.isEmployee,
                 is_carrier: payload.isCarrier,
             }))
             .where(and(...whereConditions))
@@ -121,7 +148,7 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
 
         if (!updated) throw new DomainError('Entidad no encontrada', 404);
 
-        if ((type === 'employee' || type === 'carrier') && payload.employeeDetails) {
+        if ((type === 'employee' || payload.isEmployee || type === 'carrier') && payload.employeeDetails) {
             const result = await tx
                 .update(employeeDetails)
                 .set(stripUndefined({
@@ -175,6 +202,35 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
                         email: contact.email,
                         phone: contact.phone,
                         is_primary: contact.isPrimary ?? false
+                    }))
+                );
+            }
+        }
+
+        if (payload.vehicles) {
+            await tx.delete(carrierVehicles).where(eq(carrierVehicles.carrier_id, id));
+            if (payload.vehicles.length > 0) {
+                await tx.insert(carrierVehicles).values(
+                    payload.vehicles.map(v => ({
+                        carrier_id: id,
+                        license_plate: v.licensePlate.toUpperCase().trim(),
+                        description: v.description || null,
+                        is_active: v.isActive ?? true,
+                    }))
+                );
+            }
+        }
+
+        if (payload.drivers) {
+            await tx.delete(carrierDrivers).where(eq(carrierDrivers.carrier_id, id));
+            if (payload.drivers.length > 0) {
+                await tx.insert(carrierDrivers).values(
+                    payload.drivers.map(d => ({
+                        carrier_id: id,
+                        identification_number: d.identificationNumber.trim(),
+                        full_name: d.fullName.trim(),
+                        phone: d.phone || null,
+                        is_active: d.isActive ?? true,
                     }))
                 );
             }

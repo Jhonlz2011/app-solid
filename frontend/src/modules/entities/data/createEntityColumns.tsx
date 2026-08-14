@@ -161,13 +161,13 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
                     <div class="min-w-0">
                         <Show when={email}>
                             <div class="text-sm truncate" title={email}>
-                                <a href={`mailto:${email}`} class="hover:underline text-strong" onClick={(e) => e.stopPropagation()}>
+                                <a href={`mailto:${email}`} class="hover:underline text-primary-strong" onClick={(e) => e.stopPropagation()}>
                                     {email}
                                 </a>
                             </div>
                         </Show>
                         <Show when={phone}>
-                            <div class="text-xs text-muted truncate" title={phone}>{phone}</div>
+                            <div class="text-xs text-muted truncate">{phone}</div>
                         </Show>
                         <Show when={!email && !phone}>
                             <span class="text-muted/50 text-xs">—</span>
@@ -254,6 +254,5 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
                 );
             },
         },
-        
     };
 }
