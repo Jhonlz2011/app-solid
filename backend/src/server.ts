@@ -25,6 +25,7 @@ import { uploadsRoutes } from './routes/uploads.routes';
 import { inventoryRoutes } from './routes/inventory.routes';
 import { locationsRoutes } from './routes/locations.routes';
 import { companyRoutes } from './routes/company.routes';
+import { vehiclesRoutes } from './routes/vehicles.routes';
 import { webhooksRoutes } from './routes/webhooks.routes';
 
 // Plugins
@@ -171,6 +172,7 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(inventoryRoutes)
   .use(locationsRoutes)
   .use(companyRoutes)
+  .use(vehiclesRoutes)
   .use(staticPlugin({ assets: 'public', prefix: '/' }));
 
 // Server configuration with optional Unix Socket support

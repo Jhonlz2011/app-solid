@@ -99,6 +99,15 @@ export interface CarrierVehiclePayload {
     isActive?: boolean;
 }
 
+export interface CompanyVehicleItem {
+    id: number;
+    company_id: number;
+    carrier_id: number | null;
+    license_plate: string;
+    description: string | null;
+    is_active: boolean;
+}
+
 export interface CarrierDriverPayload {
     identificationNumber: string;
     fullName: string;

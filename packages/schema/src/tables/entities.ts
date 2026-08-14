@@ -82,20 +82,25 @@ export const entityAddresses = pgTableV2("entity_addresses", {
     is_main: boolean("is_main").default(false),
 });
 
-// --- 2. VEHÍCULOS DEL TRANSPORTISTA (Para la placa de la Guía de Remisión) ---
+// --- 2. VEHÍCULOS DEL TRANSPORTISTA Y FLOTA DE LA EMPRESA (Para la Guía de Remisión) ---
 export const carrierVehicles = pgTableV2("carrier_vehicles", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    carrier_id: integer("carrier_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
+    // NULL = Vehículo de la Flota Propia de la Empresa
+    // NOT NULL = Vehículo de un Transportista / Proveedor externo
+    carrier_id: integer("carrier_id").references(() => entities.id, { onDelete: 'cascade' }),
     // OBLIGATORIO PARA SRI: Etiqueta <placa> en el XML de la Guía de Remisión
     license_plate: text("license_plate").notNull(), 
     // Útil para UI del ERP ("Seleccione el camión Hino 500")
     description: text("description"),  
     is_active: boolean("is_active").default(true).notNull(),
 }, (t) => [
+    index("idx_carrier_vehicles_company_id").on(t.company_id),
     index("idx_carrier_vehicles_carrier_id").on(t.carrier_id),
     // Índice parcial para buscar rápidamente por placa vehículos activos
     index("idx_active_vehicles_plate").on(t.license_plate).where(sql`${t.is_active} = true`),
-]);
+    tenantPolicy(),
+]).enableRLS();
 
 export const carrierDrivers = pgTableV2("carrier_drivers", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),

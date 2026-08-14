@@ -130,6 +130,60 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         component: FiscalSettings,
     });
 
+    // ── Vehicles ──
+    const VehiclesSettings = lazyRouteComponent(() => import('./views/VehiclesSettings'));
+    const { vehiclesApi } = await import('./data/vehicles.api');
+    const { vehicleKeys } = await import('./data/vehicles.keys');
+
+    const vehiclesRoute = createRoute({
+        getParentRoute: () => settingsRoute,
+        path: 'vehicles',
+        loader: async () => {
+            await queryClient.prefetchQuery({
+                queryKey: vehicleKeys.list(),
+                queryFn: () => vehiclesApi.list(),
+                staleTime: 1000 * 60 * 5,
+            });
+        },
+        component: VehiclesSettings,
+    });
+
+    const vehicleNewRoute = createRoute({
+        getParentRoute: () => vehiclesRoute,
+        path: 'new',
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canAdd('config')) {
+                throw redirect({ to: '/settings/vehicles' });
+            }
+        },
+        component: lazyRouteComponent(() => import('./components/vehicles/VehicleNewSheet')),
+    });
+
+    const vehicleBaseRoute = createRoute({
+        getParentRoute: () => vehiclesRoute,
+        path: '$vehicleId',
+    });
+
+    const vehicleEditRoute = createRoute({
+        getParentRoute: () => vehicleBaseRoute,
+        path: 'edit',
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('config')) {
+                throw redirect({ to: '/settings/vehicles' });
+            }
+        },
+        component: lazyRouteComponent(() => import('./components/vehicles/VehicleEditSheet')),
+    });
+
+    vehiclesRoute.addChildren([
+        vehicleNewRoute,
+        vehicleBaseRoute.addChildren([
+            vehicleEditRoute,
+        ]),
+    ]);
+
     // ── Return single parent with children ──
     return settingsRoute.addChildren([
         attributesRedirectRoute,
@@ -137,5 +191,6 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         companyRoute,
         brandingRoute,
         fiscalRoute,
+        vehiclesRoute,
     ]);
 };

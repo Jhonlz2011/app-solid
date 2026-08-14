@@ -25,6 +25,7 @@ import {
     PaintBrushIcon,
     BriefcaseIcon,
     ShieldIcon,
+    TruckIcon,
 } from '@shared/ui/icons';
 
 // ── Page header icon ──
@@ -60,6 +61,7 @@ const SECTION_GROUPS: SectionGroup[] = [
         sections: [
             { key: 'company', path: '/settings/company', label: 'Datos Generales', icon: BriefcaseIcon, available: true },
             { key: 'fiscal_settings', path: '/settings/fiscal', label: 'Datos Fiscales', icon: ShieldIcon, available: true },
+            { key: 'vehicles', path: '/settings/vehicles', label: 'Vehículos', icon: TruckIcon, available: true, newAction: '/settings/vehicles/new', newLabel: 'Nuevo Vehículo' },
         ],
     },
     {

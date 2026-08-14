@@ -29,8 +29,18 @@ export const EntityCarrierTab: Component<EntityCarrierTabProps> = (props) => {
         ]);
     };
 
+    const isEmployee = () => props.form.state.values.isEmployee;
+
     return (
         <div class="space-y-6">
+            <Show when={isEmployee()}>
+                <div class="flex items-start gap-3 p-3.5 bg-primary/5 border border-primary/15 rounded-2xl text-xs text-muted leading-relaxed">
+                    <TruckIcon class="size-5 text-primary shrink-0 mt-0.5" />
+                    <div>
+                        <span class="font-semibold text-text">Flota Propia de la Empresa:</span> Los empleados pueden conducir cualquiera de los vehículos registrados centralizadamente en <strong class="text-text">Configuración &gt; Vehículos</strong> al emitir Guías de Remisión. No es necesario duplicar placas aquí a menos que el empleado disponga de un vehículo exclusivo o propio.
+                    </div>
+                </div>
+            </Show>
             {/* ================================================================= */}
             {/* 1. SECCIÓN DE VEHÍCULOS / FLOTA                                   */}
             {/* ================================================================= */}

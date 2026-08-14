@@ -20,6 +20,10 @@ export const entitiesRelations = relations(tables.entities, ({ one, many }) => (
 }));
 
 export const carrierVehiclesRelations = relations(tables.carrierVehicles, ({ one }) => ({
+    company: one(tables.companies, {
+        fields: [tables.carrierVehicles.company_id],
+        references: [tables.companies.id],
+    }),
     carrier: one(tables.entities, {
         fields: [tables.carrierVehicles.carrier_id],
         references: [tables.entities.id],
@@ -602,6 +606,7 @@ export const companiesRelations = relations(tables.companies, ({ many }) => ({
     users: many(tables.authUsers),
     products: many(tables.products),
     warehouses: many(tables.warehouses),
+    vehicles: many(tables.carrierVehicles),
     documents: many(tables.electronicDocuments),
     workOrders: many(tables.workOrders),
     purchaseOrders: many(tables.purchaseOrders),

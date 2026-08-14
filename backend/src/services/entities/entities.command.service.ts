@@ -91,6 +91,7 @@ export async function createEntity(type: EntityType, payload: EntityPayload, aud
             if (payload.vehicles && payload.vehicles.length > 0) {
                 await tx.insert(carrierVehicles).values(
                     payload.vehicles.map(v => ({
+                        company_id: companyId!,
                         carrier_id: created.id,
                         license_plate: v.licensePlate.toUpperCase().trim(),
                         description: v.description || null,
@@ -212,6 +213,7 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
             if (payload.vehicles.length > 0) {
                 await tx.insert(carrierVehicles).values(
                     payload.vehicles.map(v => ({
+                        company_id: updated.company_id,
                         carrier_id: id,
                         license_plate: v.licensePlate.toUpperCase().trim(),
                         description: v.description || null,
