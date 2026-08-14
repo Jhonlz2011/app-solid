@@ -2,7 +2,6 @@ import { Elysia, t } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
 import { staticPlugin } from '@elysiajs/static';
-
 // Routes
 import { authRoutes } from './routes/auth.routes';
 import { productRoutes } from './routes/products.routes';

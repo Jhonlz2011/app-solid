@@ -1,10 +1,9 @@
-import { Component, createSignal, createEffect, Index, Show } from 'solid-js';
-import { useGeoNamesCities, type GeoNameCity } from '@shared/hooks/useGeoNamesCities';
+import { Component, Index, Show } from 'solid-js';
 import TextField from '@shared/ui/TextField';
-import { Autocomplete } from '@shared/ui/Autocomplete';
 import { TrashIcon, PlusIcon } from '@shared/ui/icons';
 import Button from '@shared/ui/Button';
 import type { EntityFormApi } from '../entity-form.types';
+import { CitySelect } from '@shared/ui/selectors';
 
 interface AddressRowProps {
     form: EntityFormApi;
@@ -13,33 +12,6 @@ interface AddressRowProps {
 }
 
 const AddressRow: Component<AddressRowProps> = (props) => {
-    const cities = useGeoNamesCities();
-    const [localCountry, setLocalCountry] = createSignal('');
-    const [localCountryCode, setLocalCountryCode] = createSignal('');
-    const [inputText, setInputText] = createSignal('');
-
-    const handleCitySelect = (city: GeoNameCity | null) => {
-        if (!city) return;
-        props.form.setFieldValue(`addresses[${props.index}].city`, city.ciudad);
-        props.form.setFieldValue(`addresses[${props.index}].country`, city.pais);
-        props.form.setFieldValue(`addresses[${props.index}].countryCode`, city.codigo);
-        setLocalCountry(city.pais);
-        setLocalCountryCode(city.codigo);
-        setInputText(`${city.ciudad}, ${city.pais}`);
-    };
-
-    const handleInputChange = (val: string) => {
-        if (val === inputText()) return;
-        setInputText(val);
-        setLocalCountryCode('');
-        setLocalCountry('');
-        const cityPart = val.includes(',') ? val.split(',')[0].trim() : val;
-        props.form.setFieldValue(`addresses[${props.index}].city`, cityPart);
-        props.form.setFieldValue(`addresses[${props.index}].country`, '');
-        props.form.setFieldValue(`addresses[${props.index}].countryCode`, '');
-        cities.setSearch(cityPart);
-    };
-
     return (
         <div class="relative grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-card rounded-xl border border-border/50 shadow-sm animate-in slide-in-from-top-2">
             <div class="col-span-12 md:col-span-5">
@@ -53,67 +25,37 @@ const AddressRow: Component<AddressRowProps> = (props) => {
                     )}
                 </props.form.Field>
             </div>
+            
             <div class="col-span-12 sm:col-span-6 md:col-span-4">
                 <props.form.Field name={`addresses[${props.index}].city`}>
                     {(subField: any) => {
-                        createEffect(() => {
-                            const currentCity = subField().state.value;
-                            if (currentCity && currentCity !== inputText().split(',')[0].trim()) {
-                                const country = props.form.getFieldValue(`addresses[${props.index}].country`) || '';
-                                const code = props.form.getFieldValue(`addresses[${props.index}].countryCode`) || '';
-                                setLocalCountry(country);
-                                setLocalCountryCode(code);
-                                setInputText(country ? `${currentCity}, ${country}` : currentCity);
-                            } else if (!currentCity && inputText()) {
-                                setLocalCountry('');
-                                setLocalCountryCode('');
-                                setInputText('');
-                            }
-                        });
-
+                        const countryCode = props.form.useStore(s => s.values.addresses[props.index]?.countryCode);
+                        
                         return (
-                        <Autocomplete.Root field={subField()}>
-                            <Autocomplete.Label>Ciudad</Autocomplete.Label>
-                            <Autocomplete.Input<GeoNameCity>
-                                value={inputText()}
-                                onInputChange={handleInputChange}
-                                options={cities.query.data ?? []}
-                                optionValue={(c) => `${c.ciudad}, ${c.pais}`}
-                                optionLabel={(c) => `${c.ciudad}, ${c.pais}`}
-                                onSelect={handleCitySelect}
-                                isLoading={cities.query.isFetching}
+                            <CitySelect
+                                field={subField()}
+                                label="Ciudad/Cantón"
+                                value={subField().state.value || ''}
+                                countryCode={countryCode() || ''}
                                 placeholder="Buscar ciudad..."
-                                minLength={2}
-                                inputPrefix={
-                                    localCountryCode() ? (
-                                        <img
-                                            src={`https://flagcdn.com/${localCountryCode().toLowerCase()}.svg`}
-                                            alt={localCountryCode()}
-                                            class="size-5 rounded-sm object-cover shadow-sm"
-                                            loading="lazy"
-                                        />
-                                    ) : undefined
-                                }
-                                itemRenderer={(city) => (
-                                    <div class="flex items-center gap-2.5 w-full min-w-0">
-                                        <img
-                                            src={city.bandera}
-                                            alt={city.codigo}
-                                            class="size-5 rounded-sm object-cover shadow-sm shrink-0"
-                                            loading="lazy"
-                                        />
-                                        <div class="flex flex-col min-w-0 flex-1">
-                                            <span class="font-medium text-text truncate w-full" title={city.ciudad}>{city.ciudad}</span>
-                                            <span class="text-xs text-muted truncate w-full" title={city.pais}>{city.pais}</span>
-                                        </div>
-                                    </div>
-                                )}
+                                onInputChange={(val) => {
+                                    props.form.setFieldValue(`addresses[${props.index}].city`, val);
+                                    props.form.setFieldValue(`addresses[${props.index}].country`, '');
+                                    props.form.setFieldValue(`addresses[${props.index}].countryCode`, '');
+                                }}
+                                onSelect={(city) => {
+                                    if (city) {
+                                        props.form.setFieldValue(`addresses[${props.index}].city`, city.ciudad);
+                                        props.form.setFieldValue(`addresses[${props.index}].country`, city.pais);
+                                        props.form.setFieldValue(`addresses[${props.index}].countryCode`, city.codigo);
+                                    }
+                                }}
                             />
-                            <Autocomplete.ErrorMessage />
-                        </Autocomplete.Root>
-                    ); }}
+                        );
+                    }}
                 </props.form.Field>
             </div>
+
             <div class="col-span-12 sm:col-span-6 md:col-span-2">
                 <props.form.Field name={`addresses[${props.index}].postalCode`}>
                     {(subField: any) => (
@@ -125,6 +67,7 @@ const AddressRow: Component<AddressRowProps> = (props) => {
                     )}
                 </props.form.Field>
             </div>
+
             <div class="col-span-12 md:col-span-1 flex items-center justify-end md:justify-center pt-5">
                 <button
                     type="button"
@@ -157,7 +100,14 @@ export const EntityAddressArray: Component<EntityAddressArrayProps> = (props) =>
                             size="sm"
                             variant="outline"
                             class="gap-1.5"
-                            onClick={() => field().pushValue({ addressLine: '', city: '', country: 'Ecuador', countryCode: 'EC', postalCode: '', isMain: field().state.value.length === 0 })}
+                            onClick={() => field().pushValue({ 
+                                addressLine: '', 
+                                city: '', 
+                                country: 'Ecuador', 
+                                countryCode: 'EC', 
+                                postalCode: '', 
+                                isMain: field().state.value.length === 0 
+                            })}
                         >
                             <PlusIcon class="size-4" /> Añadir Dirección
                         </Button>

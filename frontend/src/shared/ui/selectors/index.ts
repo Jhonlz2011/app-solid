@@ -5,7 +5,6 @@ export { WarehouseSelect, type WarehouseSelectProps } from './WarehouseSelect';
 export { LocationSelect, type LocationSelectProps } from './LocationSelect';
 export { AttributeSelect, type AttributeSelectProps } from './AttributeSelect';
 export { SelectorBreadcrumbs, buildBreadcrumbs, useResolvedSelectorPath, type SelectorBreadcrumbsProps, type BreadcrumbItem } from './SelectorBreadcrumbs';
+export { CitySelect, type CitySelectProps } from './CitySelect';
 export { ProductSelect, type ProductSelectProps } from './ProductSelect';
 export { SriBusinessNameSelect, type SriBusinessNameSelectProps } from './SriBusinessNameSelect';
-
-
