@@ -30,44 +30,19 @@ export interface GeoNameCity {
  *   ...
  * />
  */
-export function useGeoNamesCities() {
-    const [search, setSearch] = createSignal('');
-    const [debouncedSearch, setDebouncedSearch] = createSignal('');
-
-    let debounceTimer: ReturnType<typeof setTimeout>;
-    onCleanup(() => clearTimeout(debounceTimer));
-
-    const updateSearch = (value: string) => {
-        setSearch(value);
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            setDebouncedSearch(value.trim());
-        }, 400);
-    };
-
-    const query = createQuery(() => ({
-        queryKey: ['geonames', 'cities', debouncedSearch()],
+export function useGeoNamesCities(querySignal: () => string) {
+    return createQuery(() => ({
+        queryKey: ['geonames', 'cities', querySignal()],
         queryFn: async () => {
-            const q = debouncedSearch();
+            const q = querySignal();
+            if (q.length < 2) return [];
+            
             const { data, error } = await (api.api.geonames.cities as any).get({ query: { q } });
             if (error) throw new Error(String(error.value));
-            return (data ?? []) as GeoNameCity[];
+            return JSON.parse(JSON.stringify(data ?? [])) as GeoNameCity[];
         },
-        enabled: debouncedSearch().length >= 2,
+        enabled: querySignal().length >= 2,
         staleTime: 1000 * 60 * 60 * 24, // 24h — city data is static
         gcTime: 1000 * 60 * 60 * 24,
     }));
-
-    const cancelSearch = () => clearTimeout(debounceTimer);
-
-    return {
-        /** Current input value (raw, not debounced) */
-        search,
-        /** Update the search input — automatically debounces the API call */
-        setSearch: updateSearch,
-        /** Cancel any pending debounced API call */
-        cancelSearch,
-        /** TanStack Query result with city options */
-        query,
-    };
 }

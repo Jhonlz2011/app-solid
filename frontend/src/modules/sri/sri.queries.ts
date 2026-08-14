@@ -18,7 +18,7 @@ export function useSriSearchByRuc(querySignal: () => string) {
             });
             
             if (error) throw new Error(String(error.value));
-            return data as SriSupplierResponse[];
+            return JSON.parse(JSON.stringify(data ?? [])) as SriSupplierResponse[];
         },
         enabled: querySignal().length === 13,
         staleTime: 1000 * 60 * 60 * 24, // 24 hours
@@ -42,7 +42,7 @@ export function useSriSearchByName(querySignal: () => string) {
             });
             
             if (error) throw new Error(String(error.value));
-            return data as SriSupplierResponse[];
+            return JSON.parse(JSON.stringify(data ?? [])) as SriSupplierResponse[];
         },
         enabled: querySignal().length >= 3,
         staleTime: 1000 * 60 * 60 * 24, // 24 hours

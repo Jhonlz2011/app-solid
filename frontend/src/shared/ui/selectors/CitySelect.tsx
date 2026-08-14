@@ -14,9 +14,13 @@ export interface CitySelectProps {
 }
 
 export const CitySelect: Component<CitySelectProps> = (props) => {
-    const cities = useGeoNamesCities();
+    const [cityQuery, setCityQuery] = createSignal('');
+    const cities = useGeoNamesCities(cityQuery);
     const [localQuery, setLocalQuery] = createSignal(props.value || '');
     const [selectedCity, setSelectedCity] = createSignal<string | null>(props.value || null);
+
+    let debounceTimer: ReturnType<typeof setTimeout>;
+    onCleanup(() => clearTimeout(debounceTimer));
 
     // Sync external value to local state ONLY if it's different, to prevent loops
     createEffect(on(() => props.value, (val) => {
@@ -30,7 +34,8 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
         setLocalQuery(val);
         
         if (val === '') {
-            cities.setSearch('');
+            clearTimeout(debounceTimer);
+            setCityQuery('');
         }
 
         if (val === selectedCity()) {
@@ -43,11 +48,16 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
     };
 
     const handleSearchAction = (val: string) => {
-        cities.setSearch(val);
+        clearTimeout(debounceTimer);
+        if (val.length >= 2) {
+            debounceTimer = setTimeout(() => setCityQuery(val.trim()), 400);
+        } else {
+            setCityQuery('');
+        }
     };
 
     const handleSelect = (city: GeoNameCity | null) => {
-        cities.cancelSearch();
+        clearTimeout(debounceTimer);
         if (city) {
             setSelectedCity(city.ciudad);
             setLocalQuery(city.ciudad);
@@ -67,11 +77,11 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
                 value={localQuery()}
                 onInputChange={handleInputChange}
                 onSearchAction={handleSearchAction}
-                options={selectedCity() === localQuery() ? [] : (cities.query.data ?? [])}
+                options={selectedCity() === localQuery() ? [] : (cities.data ?? [])}
                 optionValue={(c) => c.ciudad}
                 optionLabel={(c) => c.ciudad}
                 onSelect={handleSelect}
-                isLoading={cities.query.isFetching}
+                isLoading={cities.isFetching}
                 placeholder={props.placeholder ?? 'Buscar ciudad...'}
                 minLength={2}
                 clearOnBlur={false}
