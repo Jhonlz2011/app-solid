@@ -1,6 +1,6 @@
-import { Show, createMemo, createContext, useContext, createUniqueId, JSX, createSignal, createEffect, onCleanup, on } from 'solid-js';
+import { Show, createMemo, createContext, useContext, createUniqueId, JSX, createEffect, on } from 'solid-js';
 import { Combobox as KCombobox } from '@kobalte/core/combobox';
-import { SearchIcon, ChevronsUpDownIcon, XIcon, PlusIcon } from './icons';
+import { ChevronsUpDownIcon, XIcon, PlusIcon } from './icons';
 import type { FieldLike } from './form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from './form/form.types';
 import { cn } from '@shared/lib/utils';
@@ -166,20 +166,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         }
     }, { defer: false }));
 
-    // ── Dropdown width sync ──────────────────────────────────────────────
-    let triggerRef: HTMLDivElement | undefined;
-    const [triggerWidth, setTriggerWidth] = createSignal(0);
-
-    createEffect(() => {
-        if (!triggerRef) return;
-        setTriggerWidth(triggerRef.offsetWidth);
-        const ro = new ResizeObserver(() => {
-            if (triggerRef) setTriggerWidth(triggerRef.offsetWidth);
-        });
-        ro.observe(triggerRef);
-        onCleanup(() => ro.disconnect());
-    });
-
     // ── Derived state ────────────────────────────────────────────────────
     const safeOptions = createMemo(() => props.options || []);
 
@@ -216,6 +202,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
             options={safeOptions()}
             validationState={ctx.validationState()}
             triggerMode={props.triggerMode ?? 'input'}
+            sameWidth={true}
             closeOnSelection={true}
             allowsEmptyCollection={shouldShowContent()}
             noResetInputOnBlur={!(props.clearOnBlur ?? true)}
@@ -265,7 +252,6 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
             }}
         >
             <KCombobox.Control
-                ref={triggerRef}
                 class={cn("group flex w-full items-center justify-between cursor-text px-3 rounded-xl border transition-all duration-200 bg-card-alt border-border text-text hover:bg-card hover:border-border-strong focus-within:border-primary/65 focus-within:ring-2 focus-within:ring-primary/25 data-disabled:cursor-not-allowed data-disabled:opacity-50 data-invalid:border-red-500/50 data-invalid:focus-within:ring-red-500/25", props.triggerClass)}
             >
                 <Show when={props.inputPrefix}>
@@ -297,7 +283,25 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                         <Spinner class="animate-spin size-4 text-current" />
                     </Show>
                     <Show when={!props.isLoading}>
-                        <Show when={props.value}>
+                        <Show
+                            when={props.value}
+                            fallback={
+                                <KCombobox.Trigger
+                                    class="cursor-pointer transition-colors flex items-center justify-center p-0.5 rounded-md border-0 bg-transparent"
+                                    onClick={(e) => {
+                                        if (props.onSearchAction) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            props.onSearchAction('');
+                                        }
+                                    }}
+                                >
+                                    <KCombobox.Icon class="size-4 flex items-center justify-center">
+                                        <ChevronsUpDownIcon class="size-4" />
+                                    </KCombobox.Icon>
+                                </KCombobox.Trigger>
+                            }
+                        >
                             <button
                                 type="button"
                                 class="cursor-pointer hover:text-danger rounded-md p-0.5 transition-colors flex items-center justify-center border-0 bg-transparent outline-none focus:text-danger focus:ring-0"
@@ -315,33 +319,13 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                                 <XIcon class="size-3.5" strokeWidth={3} />
                             </button>
                         </Show>
-                        <KCombobox.Trigger
-                            class="cursor-pointer transition-colors flex items-center justify-center p-0.5 rounded-md border-0 bg-transparent"
-                            onClick={(e) => {
-                                if (!props.value && props.onSearchAction) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    props.onSearchAction('');
-                                }
-                            }}
-                        >
-                            <Show when={!props.value}>
-                                <KCombobox.Icon class="size-4 flex items-center justify-center">
-                                    <ChevronsUpDownIcon class="size-4" />
-                                </KCombobox.Icon>
-                            </Show>
-                        </KCombobox.Trigger>
                     </Show>
                 </div>
             </KCombobox.Control>
 
             <KCombobox.Portal>
                 <KCombobox.Content
-                    class={cn("relative z-100 min-w-32 overflow-hidden bg-card border border-border shadow-md rounded-xl p-1 transform-origin-var data-expanded:animate-in data-expanded:fade-in-0 data-expanded:zoom-in-95 data-expanded:slide-in-from-top-2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:slide-out-to-top-2", props.contentClass)}
-                    style={{
-                        "width": triggerWidth() > 0 ? `${triggerWidth()}px` : "100%",
-                        "max-width": triggerWidth() > 0 ? `${triggerWidth()}px` : "calc(100vw - 2rem)",
-                    }}
+                    class={cn("relative z-100 min-w-32 max-w-[calc(100vw-2rem)] overflow-hidden bg-card border border-border shadow-md rounded-xl p-1 transform-origin-var data-expanded:animate-in data-expanded:fade-in-0 data-expanded:zoom-in-95 data-expanded:slide-in-from-top-2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:slide-out-to-top-2", props.contentClass)}
                 >
                     <Show
                         when={safeOptions().length > 0}
