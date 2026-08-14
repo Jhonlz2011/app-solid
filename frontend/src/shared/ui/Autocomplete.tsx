@@ -158,7 +158,11 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
         const nextVal = val ?? '';
         if (inputRef && inputRef.value !== nextVal) {
             inputRef.value = nextVal;
-            inputRef.dispatchEvent(new Event('input', { bubbles: true, cancelable: false }));
+            // Solo despachamos el evento 'input' si el usuario realmente tiene el foco,
+            // de lo contrario, Kobalte se puede confundir y abrir el dropdown en background.
+            if (document.activeElement === inputRef) {
+                inputRef.dispatchEvent(new Event('input', { bubbles: true, cancelable: false }));
+            }
         }
     }, { defer: false }));
 

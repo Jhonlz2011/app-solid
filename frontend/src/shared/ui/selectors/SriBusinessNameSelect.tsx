@@ -21,6 +21,7 @@ export interface SriBusinessNameSelectProps {
 
 export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (props) => {
     const [sriQuery, setSriQuery] = createSignal(props.value || '');
+    const [selectedName, setSelectedName] = createSignal<string | null>(props.value || null);
 
     let debounceTimer: ReturnType<typeof setTimeout>;
     onCleanup(() => clearTimeout(debounceTimer));
@@ -30,22 +31,29 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
         const query = val ?? '';
         if (!query || query.length < 3) {
             setSriQuery('');
+            setSelectedName(null);
         } else {
-            debounceTimer = setTimeout(() => setSriQuery(query), 400);
+            debounceTimer = setTimeout(() => {
+                setSriQuery(query);
+                setSelectedName(query);
+            }, 400);
         }
     }, { defer: true }));
 
     const nameSearch = useSriSearchByName(sriQuery);
 
     const handleInputChange = (value: string) => {
+        if (value !== selectedName()) setSelectedName(null);
         props.onInputChange(value);
     };
 
     const handleSelect = (result: SriSupplierResponse | null) => {
         clearTimeout(debounceTimer);
         if (result) {
+            setSelectedName(result.razonSocial);
             setSriQuery(result.razonSocial);
         } else {
+            setSelectedName(null);
             setSriQuery('');
         }
         props.onSelect(result);
@@ -60,7 +68,7 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
                 inputId={props.inputId ?? 'businessName-input'}
                 value={props.value}
                 onInputChange={handleInputChange}
-                options={props.value.length >= 3 ? (nameSearch.data ?? []) : []}
+                options={selectedName() === props.value ? [] : (props.value.length >= 3 ? (nameSearch.data ?? []) : [])}
                 optionValue={(opt) => opt.ruc}
                 optionLabel={(opt) => opt.razonSocial}
                 itemRenderer={(opt) => (

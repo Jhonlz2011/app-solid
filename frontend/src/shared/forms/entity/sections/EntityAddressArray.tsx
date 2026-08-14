@@ -28,31 +28,31 @@ const AddressRow: Component<AddressRowProps> = (props) => {
             
             <div class="col-span-12 sm:col-span-6 md:col-span-4">
                 <props.form.Field name={`addresses[${props.index}].city`}>
-                    {(subField: any) => {
-                        const countryCode = props.form.useStore(s => s.values.addresses[props.index]?.countryCode);
-                        
-                        return (
-                            <CitySelect
-                                field={subField()}
-                                label="Ciudad/Cantón"
-                                value={subField().state.value || ''}
-                                countryCode={countryCode() || ''}
-                                placeholder="Buscar ciudad..."
-                                onInputChange={(val) => {
-                                    props.form.setFieldValue(`addresses[${props.index}].city`, val);
-                                    props.form.setFieldValue(`addresses[${props.index}].country`, '');
-                                    props.form.setFieldValue(`addresses[${props.index}].countryCode`, '');
-                                }}
-                                onSelect={(city) => {
-                                    if (city) {
-                                        props.form.setFieldValue(`addresses[${props.index}].city`, city.ciudad);
-                                        props.form.setFieldValue(`addresses[${props.index}].country`, city.pais);
-                                        props.form.setFieldValue(`addresses[${props.index}].countryCode`, city.codigo);
-                                    }
-                                }}
-                            />
-                        );
-                    }}
+                    {(cityField: any) => (
+                        <props.form.Field name={`addresses[${props.index}].countryCode`}>
+                            {(countryCodeField: any) => (
+                                <CitySelect
+                                    field={cityField()}
+                                    label="Ciudad/Cantón"
+                                    value={cityField().state.value || ''}
+                                    countryCode={countryCodeField().state.value || ''}
+                                    placeholder="Buscar ciudad..."
+                                    onInputChange={(val) => {
+                                        props.form.setFieldValue(`addresses[${props.index}].city`, val);
+                                        props.form.setFieldValue(`addresses[${props.index}].country`, '');
+                                        props.form.setFieldValue(`addresses[${props.index}].countryCode`, '');
+                                    }}
+                                    onSelect={(city) => {
+                                        if (city) {
+                                            props.form.setFieldValue(`addresses[${props.index}].city`, city.ciudad);
+                                            props.form.setFieldValue(`addresses[${props.index}].country`, city.pais);
+                                            props.form.setFieldValue(`addresses[${props.index}].countryCode`, city.codigo);
+                                        }
+                                    }}
+                                />
+                            )}
+                        </props.form.Field>
+                    )}
                 </props.form.Field>
             </div>
 

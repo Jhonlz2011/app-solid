@@ -16,25 +16,30 @@ export interface CitySelectProps {
 export const CitySelect: Component<CitySelectProps> = (props) => {
     const cities = useGeoNamesCities();
     const [localQuery, setLocalQuery] = createSignal(props.value || '');
+    const [selectedCity, setSelectedCity] = createSignal<string | null>(props.value || null);
 
     // Sync external value to local state ONLY if it's different, to prevent loops
     createEffect(on(() => props.value, (val) => {
         if (val !== localQuery()) {
             setLocalQuery(val ?? '');
+            setSelectedCity(val ?? null);
         }
     }, { defer: true }));
 
     const handleInputChange = (val: string) => {
         setLocalQuery(val);
+        if (val !== selectedCity()) setSelectedCity(null);
         props.onInputChange(val);
         cities.setSearch(val);
     };
 
     const handleSelect = (city: GeoNameCity | null) => {
         if (city) {
+            setSelectedCity(city.ciudad);
             setLocalQuery(city.ciudad);
             props.onSelect(city);
         } else {
+            setSelectedCity(null);
             props.onSelect(null);
         }
     };
@@ -47,7 +52,7 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
             <Autocomplete.Input<GeoNameCity>
                 value={localQuery()}
                 onInputChange={handleInputChange}
-                options={cities.query.data ?? []}
+                options={selectedCity() === localQuery() ? [] : (cities.query.data ?? [])}
                 optionValue={(c) => c.ciudad}
                 optionLabel={(c) => c.ciudad}
                 onSelect={handleSelect}
@@ -55,7 +60,7 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
                 placeholder={props.placeholder ?? 'Buscar ciudad...'}
                 minLength={2}
                 clearOnBlur={false}
-                hideEmptyState={false}
+                hideEmptyState={selectedCity() === localQuery()}
                 inputPrefix={
                     props.countryCode ? (
                         <img
