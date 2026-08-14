@@ -92,7 +92,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                     queryFn: async () => {
                         const { data: resData, error } = await api.api.sri['by-ruc'].get({ query: { q: val } });
                         if (error) throw new Error(String(error.value));
-                        return resData as SriSupplierResponse[];
+                        return JSON.parse(JSON.stringify(resData ?? [])) as SriSupplierResponse[];
                     },
                     staleTime: 1000 * 60 * 60 * 24,
                 });

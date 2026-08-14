@@ -22,7 +22,10 @@ const handleGlobalError = (error: any) => {
 // Configurar persister con IndexedDB para usar con PersistQueryClientProvider
 export const persister = {
   persistClient: async (client: any) => {
-    await set('tanstack-query-cache', client);
+    // Strip proxies, symbols or non-serializable objects (like Eden Treaty responses)
+    // before passing to IDB, which relies on structuredClone and throws DataCloneError otherwise.
+    const cleanClient = JSON.parse(JSON.stringify(client));
+    await set('tanstack-query-cache', cleanClient);
   },
   restoreClient: async () => {
     return await get('tanstack-query-cache');
