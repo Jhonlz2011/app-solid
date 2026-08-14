@@ -25,65 +25,8 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
     });
     return [
         base.select,
-        {
-            accessorKey: 'business_name',
-            header: ({ column }) => (
-                <DataTableColumnHeader
-                    column={column}
-                    title="Razón Social"
-                    filterOptions={handlers.filters?.businessName?.options()}
-                    selectedFilters={handlers.filters?.businessName?.selected()}
-                    onFilterChange={handlers.filters?.businessName?.onChange}
-                    isFilterLoading={handlers.filters?.businessName?.isLoading()}
-                />
-            ),
-            meta: { title: 'Razón Social' },
-            size: 210,
-            cell: (info) => (
-                <Link
-                    to={`/suppliers/${info.row.original.id}/show`}
-                    preload="intent"
-                    class="min-w-0 block cursor-pointer group/cell"
-                    title={info.getValue<string>()}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div class="font-medium text-text truncate group-hover/cell:text-primary transition-colors duration-150">
-                        {info.getValue<string>()}
-                    </div>
-                    <Show when={info.row.original.trade_name}>
-                        <div class="text-xs text-muted truncate">{info.row.original.trade_name}</div>
-                    </Show>
-                </Link>
-            ),
-        },
-        {
-            accessorKey: 'tax_id',
-            header: ({ column }) => (
-                <DataTableColumnHeader
-                    column={column}
-                    title="Identificación"
-                    filterOptions={handlers.filters?.taxIdType?.options()}
-                    selectedFilters={handlers.filters?.taxIdType?.selected()}
-                    onFilterChange={handlers.filters?.taxIdType?.onChange}
-                    isFilterLoading={handlers.filters?.taxIdType?.isLoading()}
-                />
-            ),
-            meta: { title: 'Identificación' },
-            size: 170,
-            cell: (info) => (
-                <Link
-                    to={`/suppliers/${info.row.original.id}/show`}
-                    preload="intent"
-                    class="min-w-0 block cursor-pointer group/cell"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div class="font-mono text-sm font-semibold text-primary group-hover/cell:underline underline-offset-2 transition-colors duration-150">
-                        {info.getValue<string>()}
-                    </div>
-                    <div class="text-xs text-muted">{info.row.original.tax_id_type}</div>
-                </Link>
-            ),
-        },
+        base.businessName,
+        base.taxId,
         {
             accessorKey: 'person_type',
             header: ({ column }) => (
@@ -93,7 +36,7 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
                     filterOptions={handlers.filters?.personType?.options()}
                     selectedFilters={handlers.filters?.personType?.selected()}
                     onFilterChange={handlers.filters?.personType?.onChange}
-                    isFilterLoading={handlers.filters?.personType?.isLoading()}
+                    isFilterLoading={handlers.filters?.personType?.isLoading?.()}
                 />
             ),
             meta: { title: 'Tipo de Persona' },
@@ -101,7 +44,6 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
             cell: (info) => {
                 const type = info.getValue<string>();
                 const isJuridica = type === 'JURIDICA';
-
                 return (
                     <Badge
                         variant={isJuridica ? 'primary' : 'info'}
@@ -112,33 +54,7 @@ export function createSupplierColumns(handlers: SupplierColumnHandlers): ColumnD
                 );
             },
         },
-        {
-            id: 'contact_info',
-            header: () => (
-                <div class="flex items-center gap-1.5 h-full px-2 font-medium text-muted">
-                    <span>Contacto</span>
-                </div>
-            ),
-            meta: { title: 'Contacto' },
-            size: 180,
-            enableSorting: false,
-            cell: ({ row }) => {
-                const p = row.original;
-                return (
-                    <div class="flex flex-col min-w-0">
-                        <Show when={p.email_billing}>
-                            <div class="text-xs text-text truncate" title={p.email_billing!}>{p.email_billing}</div>
-                        </Show>
-                        <Show when={p.phone}>
-                            <div class="text-xs text-muted truncate" title={p.phone!}>{p.phone}</div>
-                        </Show>
-                        <Show when={!p.email_billing && !p.phone}>
-                            <span class="text-muted/50 text-xs">—</span>
-                        </Show>
-                    </div>
-                );
-            },
-        },
+        base.contactInfo,
         base.isActive,
         base.actions,
     ];

@@ -5,8 +5,6 @@ import type { EmployeeListItem } from '../data/employees.api';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { ColumnFilterConfig } from '@modules/entities/data/createEntityColumns';
 import { createBaseEntityColumns } from '@modules/entities/data/createEntityColumns';
-import { StatusBadge } from '@modules/entities/components/StatusBadge';
-import { ActionMenu } from '@modules/entities/components/ActionMenu';
 
 export interface EmployeeColumnHandlers {
     onDelete: (employee: EmployeeListItem) => void;
@@ -58,46 +56,8 @@ export function createEmployeeColumns(handlers: EmployeeColumnHandlers): ColumnD
                 </Link>
             ),
         },
-        {
-            accessorKey: 'tax_id',
-            header: ({ column }) => (
-                <DataTableColumnHeader
-                    column={column}
-                    title="Identificación"
-                    filterOptions={handlers.filters?.taxIdType?.options()}
-                    selectedFilters={handlers.filters?.taxIdType?.selected()}
-                    onFilterChange={handlers.filters?.taxIdType?.onChange}
-                    isFilterLoading={handlers.filters?.taxIdType?.isLoading()}
-                />
-            ),
-            meta: { title: 'Identificación' },
-            size: 170,
-            cell: (info) => (
-                <Link
-                    to={`/employees/${info.row.original.id}/show`}
-                    preload="intent"
-                    class="block cursor-pointer group/cell"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div class="font-mono text-sm font-semibold text-primary group-hover/cell:underline underline-offset-2 transition-colors duration-150">
-                        {info.getValue<string>()}
-                    </div>
-                    <div class="text-xs text-muted">{info.row.original.tax_id_type}</div>
-                </Link>
-            ),
-        },
-        {
-            accessorKey: 'email_billing',
-            header: ({ column }) => <DataTableColumnHeader column={column} title="Contacto" />,
-            meta: { title: 'Contacto' },
-            size: 200,
-            cell: (info) => (
-                <div class="min-w-0">
-                    <div class="text-sm truncate">{info.getValue<string>()}</div>
-                    <div class="text-xs text-muted truncate">{info.row.original.phone}</div>
-                </div>
-            ),
-        },
+        base.taxId,
+        base.contactInfo,
         {
             accessorKey: 'employeeDetails.department',
             id: 'department',
@@ -110,40 +70,7 @@ export function createEmployeeColumns(handlers: EmployeeColumnHandlers): ColumnD
                 </div>
             ),
         },
-        {
-            accessorKey: 'is_active',
-            header: ({ column }) => (
-                <DataTableColumnHeader
-                    column={column}
-                    title="Estado"
-                    filterOptions={handlers.filters?.isActive?.options()}
-                    selectedFilters={handlers.filters?.isActive?.selected()}
-                    onFilterChange={handlers.filters?.isActive?.onChange}
-                    isFilterLoading={handlers.filters?.isActive?.isLoading()}
-                />
-            ),
-            meta: { title: 'Estado' },
-            size: 120,
-            cell: (info) => <StatusBadge isActive={info.getValue<boolean>()} />,
-        },
-        {
-            id: 'actions',
-            header: '',
-            size: 50,
-            enableHiding: false,
-            cell: (info) => {
-                const employee = info.row.original;
-                return (
-                    <ActionMenu
-                        module="employees"
-                        isActive={employee.is_active ?? false}
-                        showTo={`/employees/${employee.id}/show`}
-                        editTo={`/employees/${employee.id}/edit`}
-                        onRestore={() => handlers.onRestore(employee)}
-                        onDelete={() => handlers.onDelete(employee)}
-                    />
-                );
-            },
-        },
+        base.isActive,
+        base.actions,
     ];
 }
