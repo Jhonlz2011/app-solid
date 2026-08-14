@@ -168,9 +168,9 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
 
 
     return (
-        <div class="w-full space-y-6">
+        <div class="w-full space-y-4">
             {/* --- Roles Section --- */}
-            <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
+            <fieldset class="bg-surface/30 p-4 rounded-2xl border border-border/40">
                 <div class="flex items-center gap-2 mb-2">
                     <div class="w-1.5 h-4 bg-warning rounded-full"></div>
                     <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Tipo de Entidad</h3>

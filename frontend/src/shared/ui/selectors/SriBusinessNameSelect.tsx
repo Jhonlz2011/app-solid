@@ -20,40 +20,47 @@ export interface SriBusinessNameSelectProps {
 }
 
 export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (props) => {
+    const [localQuery, setLocalQuery] = createSignal(props.value || '');
     const [sriQuery, setSriQuery] = createSignal(props.value || '');
     const [selectedName, setSelectedName] = createSignal<string | null>(props.value || null);
 
     let debounceTimer: ReturnType<typeof setTimeout>;
     onCleanup(() => clearTimeout(debounceTimer));
 
+    // Sync external changes (e.g. form reset or programmatic set)
     createEffect(on(() => props.value, (val) => {
-        clearTimeout(debounceTimer);
-        const query = val ?? '';
-        if (!query || query.length < 3) {
-            setSriQuery('');
-            setSelectedName(null);
-        } else {
-            debounceTimer = setTimeout(() => {
-                setSriQuery(query);
-                setSelectedName(query);
-            }, 400);
+        const nextVal = val ?? '';
+        if (nextVal !== localQuery()) {
+            setLocalQuery(nextVal);
+            setSelectedName(nextVal || null);
+            setSriQuery(nextVal);
         }
     }, { defer: true }));
 
     const nameSearch = useSriSearchByName(sriQuery);
 
     const handleInputChange = (value: string) => {
+        setLocalQuery(value);
         if (value !== selectedName()) setSelectedName(null);
         props.onInputChange(value);
+        
+        clearTimeout(debounceTimer);
+        if (value.length >= 3) {
+            debounceTimer = setTimeout(() => setSriQuery(value), 400);
+        } else {
+            setSriQuery('');
+        }
     };
 
     const handleSelect = (result: SriSupplierResponse | null) => {
         clearTimeout(debounceTimer);
         if (result) {
             setSelectedName(result.razonSocial);
+            setLocalQuery(result.razonSocial);
             setSriQuery(result.razonSocial);
         } else {
             setSelectedName(null);
+            setLocalQuery('');
             setSriQuery('');
         }
         props.onSelect(result);
@@ -66,9 +73,9 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
             </Show>
             <Autocomplete.Input<SriSupplierResponse>
                 inputId={props.inputId ?? 'businessName-input'}
-                value={props.value}
+                value={localQuery()}
                 onInputChange={handleInputChange}
-                options={selectedName() === props.value ? [] : (props.value.length >= 3 ? (nameSearch.data ?? []) : [])}
+                options={selectedName() === localQuery() ? [] : (localQuery().length >= 3 ? (nameSearch.data ?? []) : [])}
                 optionValue={(opt) => opt.ruc}
                 optionLabel={(opt) => opt.razonSocial}
                 itemRenderer={(opt) => (

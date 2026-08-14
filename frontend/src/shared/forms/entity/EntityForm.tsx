@@ -224,7 +224,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                     </div>
 
                     <div class="pt-3">
-                        <TabsContent value="general" class="w-full space-y-6">
+                        <TabsContent value="general">
                             <EntityGeneralTab form={form} isEdit={isEdit} lockedRoles={props.lockedRoles} />
                         </TabsContent>
 

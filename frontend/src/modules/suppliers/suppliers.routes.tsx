@@ -37,7 +37,7 @@ export const createSuppliersRoutes = (layoutRoute: any) => {
 
     suppliersRoute.addChildren([
         ...createSupplierModals(suppliersRoute),
-        ...createUserModals(suppliersRoute, 'user', '/suppliers')
+        ...createUserModals(suppliersRoute, 'user')
     ]);
 
     return suppliersRoute;
