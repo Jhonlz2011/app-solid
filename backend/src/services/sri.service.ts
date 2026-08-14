@@ -73,7 +73,8 @@ export class SriService {
     
     if (searchTerms.length === 0) return [];
     
-    const formattedQuery = searchTerms.map(word => `${word}:*`).join(' & ');
+    // No agregamos :* a palabras de 1 o 2 letras para que PostgreSQL pueda eliminarlas si son stopwords (ej: 'S', 'Y', 'A').
+    const formattedQuery = searchTerms.map(word => word.length <= 2 ? word : `${word}:*`).join(' & ');
     const tsQuery = sql`to_tsquery('spanish'::regconfig, f_unaccent(${formattedQuery}))`;
 
     // 🌪️ PASO 1: EL EMBUDO FÍSICO

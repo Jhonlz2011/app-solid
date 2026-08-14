@@ -108,8 +108,8 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
                     </div>
                 )}
                 onSelect={handleSelect}
-                isLoading={nameSearch.isFetching}
-                hideEmptyState={true}
+                isLoading={nameSearch.isFetching && selectedName() !== localQuery()}
+                hideEmptyState={selectedName() === localQuery()}
                 clearOnBlur={false}
                 placeholder={props.placeholder ?? 'Ingrese 3 letras o más para Autocompletar SRI'}
             />

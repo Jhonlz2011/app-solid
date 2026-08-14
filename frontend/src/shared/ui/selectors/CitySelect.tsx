@@ -81,7 +81,7 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
                 optionValue={(c) => c.ciudad}
                 optionLabel={(c) => c.ciudad}
                 onSelect={handleSelect}
-                isLoading={cities.isFetching}
+                isLoading={cities.isFetching && selectedCity() !== localQuery()}
                 placeholder={props.placeholder ?? 'Buscar ciudad...'}
                 minLength={2}
                 clearOnBlur={false}
