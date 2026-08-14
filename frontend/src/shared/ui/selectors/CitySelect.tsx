@@ -29,6 +29,10 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
     const handleInputChange = (val: string) => {
         setLocalQuery(val);
         
+        if (val === '') {
+            cities.setSearch('');
+        }
+
         if (val === selectedCity()) {
             props.onInputChange(val);
             return;
@@ -36,10 +40,14 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
 
         setSelectedCity(null);
         props.onInputChange(val);
+    };
+
+    const handleSearchAction = (val: string) => {
         cities.setSearch(val);
     };
 
     const handleSelect = (city: GeoNameCity | null) => {
+        cities.cancelSearch();
         if (city) {
             setSelectedCity(city.ciudad);
             setLocalQuery(city.ciudad);
@@ -58,6 +66,7 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
             <Autocomplete.Input<GeoNameCity>
                 value={localQuery()}
                 onInputChange={handleInputChange}
+                onSearchAction={handleSearchAction}
                 options={selectedCity() === localQuery() ? [] : (cities.query.data ?? [])}
                 optionValue={(c) => c.ciudad}
                 optionLabel={(c) => c.ciudad}

@@ -133,7 +133,7 @@ export interface AutocompleteInputProps<T> {
     inputClass?: string;
     contentClass?: string;
     itemClass?: string;
-    onSearchAction?: () => void;
+    onSearchAction?: (value: string) => void;
     minLength?: number;
     inputId?: string;
     onCreateNew?: () => void;
@@ -278,9 +278,14 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                     onPointerDown={(e) => e.stopPropagation()}
                     onFocus={(e) => e.currentTarget.select()}
                     onBlur={() => props.onBlur?.()}
+                    onInput={(e) => {
+                        if (e.isTrusted && props.onSearchAction) {
+                            props.onSearchAction(e.currentTarget.value);
+                        }
+                    }}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && props.onSearchAction) {
-                            props.onSearchAction();
+                            props.onSearchAction(e.currentTarget.value);
                         }
                     }}
                 />
@@ -313,7 +318,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                                 if (!props.value && props.onSearchAction) {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    props.onSearchAction();
+                                    props.onSearchAction('');
                                 }
                             }}
                         >

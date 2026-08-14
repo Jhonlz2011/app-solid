@@ -42,6 +42,11 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
     const handleInputChange = (value: string) => {
         setLocalQuery(value);
         
+        if (value === '') {
+            clearTimeout(debounceTimer);
+            setSriQuery('');
+        }
+
         if (value === selectedName()) {
             props.onInputChange(value);
             return;
@@ -49,7 +54,9 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
 
         setSelectedName(null);
         props.onInputChange(value);
-        
+    };
+
+    const handleSearchAction = (value: string) => {
         clearTimeout(debounceTimer);
         if (value.length >= 3) {
             debounceTimer = setTimeout(() => setSriQuery(value), 400);
@@ -63,7 +70,6 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
         if (result) {
             setSelectedName(result.razonSocial);
             setLocalQuery(result.razonSocial);
-            setSriQuery(result.razonSocial);
         } else {
             setSelectedName(null);
             setLocalQuery('');
@@ -81,6 +87,7 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
                 inputId={props.inputId ?? 'businessName-input'}
                 value={localQuery()}
                 onInputChange={handleInputChange}
+                onSearchAction={handleSearchAction}
                 options={selectedName() === localQuery() ? [] : (localQuery().length >= 3 ? (nameSearch.data ?? []) : [])}
                 optionValue={(opt) => opt.ruc}
                 optionLabel={(opt) => opt.razonSocial}

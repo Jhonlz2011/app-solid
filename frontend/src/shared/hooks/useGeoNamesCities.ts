@@ -58,11 +58,15 @@ export function useGeoNamesCities() {
         gcTime: 1000 * 60 * 60 * 24,
     }));
 
+    const cancelSearch = () => clearTimeout(debounceTimer);
+
     return {
         /** Current input value (raw, not debounced) */
         search,
         /** Update the search input — automatically debounces the API call */
         setSearch: updateSearch,
+        /** Cancel any pending debounced API call */
+        cancelSearch,
         /** TanStack Query result with city options */
         query,
     };
