@@ -28,7 +28,13 @@ export const CitySelect: Component<CitySelectProps> = (props) => {
 
     const handleInputChange = (val: string) => {
         setLocalQuery(val);
-        if (val !== selectedCity()) setSelectedCity(null);
+        
+        if (val === selectedCity()) {
+            props.onInputChange(val);
+            return;
+        }
+
+        setSelectedCity(null);
         props.onInputChange(val);
         cities.setSearch(val);
     };

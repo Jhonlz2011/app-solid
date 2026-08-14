@@ -41,7 +41,13 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
 
     const handleInputChange = (value: string) => {
         setLocalQuery(value);
-        if (value !== selectedName()) setSelectedName(null);
+        
+        if (value === selectedName()) {
+            props.onInputChange(value);
+            return;
+        }
+
+        setSelectedName(null);
         props.onInputChange(value);
         
         clearTimeout(debounceTimer);
