@@ -1,6 +1,6 @@
 // src/services/sri.service.ts
 import { sql, desc, eq } from '@app/schema';
-import { sriDb } from '../db';
+import { referenceDb } from '../db';
 import { sriProduccion } from '@app/schema/sri';
 
 export class SriService {
@@ -8,7 +8,7 @@ export class SriService {
         const cleanQuery = query.trim();
         if (cleanQuery.length !== 13) return [];
 
-        return await sriDb
+        return await referenceDb
             .select({
                 ruc: sriProduccion.numero_ruc,
                 razonSocial: sriProduccion.razon_social,
@@ -41,7 +41,7 @@ export class SriService {
     //     const formattedQuery = searchTerms.map(word => `${word}:*`).join(' & ');
     //     const tsQuery = sql`to_tsquery('spanish'::regconfig, f_unaccent(${formattedQuery}))`;
 
-    //     return await sriDb
+    //     return await referenceDb
     //         .select({
     //             ruc: sriProduccion.numero_ruc,
     //             razonSocial: sriProduccion.razon_social,
@@ -77,7 +77,7 @@ export class SriService {
     const tsQuery = sql`to_tsquery('spanish'::regconfig, f_unaccent(${formattedQuery}))`;
 
     // 🌪️ PASO 1: EL EMBUDO FÍSICO
-    const subquery = sriDb
+    const subquery = referenceDb
         .select()
         .from(sriProduccion)
         .where(sql`${sriProduccion.vector_busqueda} @@ ${tsQuery}`)
@@ -85,7 +85,7 @@ export class SriService {
         .limit(300) 
         .as('sq'); 
 
-    return await sriDb
+    return await referenceDb
         .select({
             ruc: subquery.numero_ruc,
             razonSocial: subquery.razon_social,

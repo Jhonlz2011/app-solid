@@ -280,7 +280,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                         }
                     }}
                 />
-                <div class="ml-2 flex shrink-0 items-center justify-center gap-1.5 text-muted group-hover:text-text-secondary transition-colors h-full">
+                <div class="ml-2 flex shrink-0 items-center justify-center text-muted group-hover:text-text-secondary transition-colors h-full">
                     <Show when={props.isLoading}>
                         <Spinner class="animate-spin size-4 text-current" />
                     </Show>

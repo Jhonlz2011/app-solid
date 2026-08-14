@@ -18,7 +18,8 @@
         "./sri": "./src/tables/sri.ts",
         "./shared-dto": "./src/shared.dto.ts",
         "./rbac-dto": "./src/rbac.dto.ts",
-        "./profile-dto": "./src/profile.dto.ts"
+        "./profile-dto": "./src/profile.dto.ts",
+        "./localidades": "./src/tables/localidades.ts"
     },
     "typesVersions": {
         "*": {
@@ -60,6 +61,9 @@
             ],
             "profile-dto": [
                 "./src/profile.dto.ts"
+            ],
+            "localidades": [
+                "./src/tables/localidades.ts"
             ]
         }
     },

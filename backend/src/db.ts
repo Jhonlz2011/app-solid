@@ -27,7 +27,7 @@ const queryClientSri = postgres(env.SRI_DATABASE_URL, {
     idle_timeout: 20 // Cierra conexiones inactivas rápido
 });
 
-export const sriDb = drizzle(queryClientSri, { logger: env.NODE_ENV === 'development' });
+export const referenceDb = drizzle(queryClientSri, { logger: env.NODE_ENV === 'development' });
 
 // Cliente dedicado para escuchar notificaciones (LISTEN)
 // Postgres requiere una conexión dedicada para LISTEN/NOTIFY
