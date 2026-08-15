@@ -5,8 +5,6 @@ import { eq } from '@app/schema';
 import { authGuard } from '../../plugins/auth-guard';
 import { rbac } from '../../plugins/rbac';
 import {
-    listProducts,
-    getProduct,
     createProduct,
     updateProduct,
     deactivateProduct,
@@ -14,12 +12,11 @@ import {
     hardDeleteProduct,
     bulkDeactivateProducts,
     bulkRestoreProducts,
-    checkProductReferences,
-    getProductFacets,
+} from './products.command.service';
+import { listProducts,getProduct, checkProductReferences, getProductFacets,
     generateSku,
     getVariantBySkuOrBarcode,
-    type ProductPayload,
-};
+    } from './products.query.service'
 import { publicStorageService } from '../../core/storage';
 import {
     ProductPayloadSchema,
@@ -30,6 +27,7 @@ import {
     GenerateSkuQuerySchema,
     IdParamSchema,
     BulkIdsBodySchema,
+    type ProductPayload
 } from '@app/schema/backend';
 
 export const productRoutes = new Elysia({ prefix: '/products' })
