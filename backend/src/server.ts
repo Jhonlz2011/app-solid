@@ -26,15 +26,17 @@ import { webhooksRoutes } from './modules/webhooks';
 
 // Plugins
 import { rateLimit } from './plugins/rate-limit';
-import { ssePlugin } from './core/sse/sse';
+import { ssePlugin } from './core/sse';
 import { rbac } from './plugins/rbac';
 import { errorHandlerPlugin } from './plugins/error-handler';
 
 // Services & Config
 
 import { env } from './config/env';
-import { initSSERedisAdapter } from './core/sse/sse';
+import { initSSERedisAdapter } from './core/sse';
 import { serveSpa } from './core/spa';
+
+import { startAuditWorker } from './modules/audit';
 
 const allowedOrigins = new Set([
   env.FRONTEND_URL,
