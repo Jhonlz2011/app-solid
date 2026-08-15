@@ -16,8 +16,6 @@ import {
 export const locationsRoutes = new Elysia({ prefix: '/locations' })
     .use(authGuard)
     .use(rbac)
-
-    // List all locations (optionally filtered by warehouse)
     .get(
         '/',
         ({ query, currentCompanyId }) => {

@@ -14,14 +14,6 @@ import type { UomItem } from './uom.api';
 import { UOM_GROUP_META, formatBaseFactor } from './uom.constants';
 import type { UomGroup } from '@app/schema/enums';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
-
-/** Filter configuration for a column — uses accessors for SolidJS reactivity */
-export interface ColumnFilterConfig {
-    options: () => FilterOption[];
-    selected: () => string[];
-    onChange: (selected: string[]) => void;
-    isLoading: () => boolean;
-}
 import Checkbox from '@shared/ui/Checkbox';
 import { StatusBadge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
@@ -31,6 +23,14 @@ import Button from '@shared/ui/Button';
 import {
     LockIcon, EditIcon, TrashIcon, RotateCcwIcon,
 } from '@shared/ui/icons';
+
+/** Filter configuration for a column — uses accessors for SolidJS reactivity */
+export interface ColumnFilterConfig {
+    options: () => FilterOption[];
+    selected: () => string[];
+    onChange: (selected: string[]) => void;
+    isLoading: () => boolean;
+}
 
 export interface UomColumnHandlers {
     onEdit: (uom: UomItem) => void;

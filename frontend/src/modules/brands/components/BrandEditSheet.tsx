@@ -7,9 +7,8 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { BrandFormSchema, type BrandFormData } from '@app/schema/frontend';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
-import { useBrandsList } from '../data/brands.queries';
+import { useBrand } from '../data/brands.queries';
 import { useUpdateBrand, useDeactivateBrand, useRestoreBrand } from '../data/brands.mutations';
-import type { BrandItem } from '../data/brands.api';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
@@ -26,12 +25,12 @@ const BrandEditSheet: Component<BrandEditSheetProps> = (props) => {
 
     const brandId = () => { const p = Number(params()?.brandId); return Number.isFinite(p) ? p : 0; };
 
-    const brandsQuery = useBrandsList();
+    const brandQuery = useBrand(brandId);
     const updateMut = useUpdateBrand();
     const deactivateMut = useDeactivateBrand();
     const restoreMut = useRestoreBrand();
 
-    const brand = () => (brandsQuery.data ?? []).find((b: BrandItem) => b.id === brandId()) ?? null;
+    const brand = () => brandQuery.data ?? null;
 
     const form = createForm(() => ({
         defaultValues: { name: '', website: '' } as BrandFormData,
@@ -109,7 +108,7 @@ const BrandEditSheet: Component<BrandEditSheetProps> = (props) => {
             }
         >
             <Show when={brandId() > 0} fallback={<div class="py-12 text-center text-muted">ID de marca inválido</div>}>
-                <Show when={!brandsQuery.isLoading} fallback={<SkeletonLoader type="text" count={2} />}>
+                <Show when={!brandQuery.isLoading} fallback={<SkeletonLoader type="text" count={2} />}>
                     <Show when={brand()} fallback={<div class="py-12 text-center text-muted">Marca no encontrada</div>}>
                         <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
                             <form id="brand-edit-form" onSubmit={(e) => { e.preventDefault(); setHasAttemptedSubmit(true); form.handleSubmit(); }} class="space-y-5 py-2">

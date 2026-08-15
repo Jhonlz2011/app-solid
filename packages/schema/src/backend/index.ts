@@ -4,7 +4,6 @@
 
 // Pure TypeScript DTOs (Zero-dependency contracts)
 export * from '../dto';
-
 // Domain-Specific TypeBox Validation Schemas & Inferred Types
 export * from './common.dto';
 export * from './auth.dto';

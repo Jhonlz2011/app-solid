@@ -1,5 +1,5 @@
 import { Component, createSignal } from 'solid-js';
-import { useAuth } from '@/modules/auth/store/auth.store';
+import { useAuth } from '@modules/auth/store/auth.store';
 import { useCheckCategoryReferences } from '../data/categories.queries';
 import { useDeactivateCategory, useHardDeleteCategory } from '../data/categories.mutations';
 import { CategoryNode } from '../data/categories.api';

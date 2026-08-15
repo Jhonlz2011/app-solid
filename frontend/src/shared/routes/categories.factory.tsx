@@ -1,8 +1,8 @@
 import { lazyRouteComponent } from '@tanstack/solid-router';
 import { createEntityModals } from '@shared/routes/modals.factory';
 import { createAttributeModals } from '@shared/routes/attributes.factory';
-import { categorieKeys } from '@/modules/categories/data/categories.keys';
-import { categoriesApi } from '@/modules/categories/data/categories.api';
+import { categoryKeys } from '@modules/categories/data/categories.keys';
+import { categoriesApi } from '@modules/categories/data/categories.api';
 
 const LazyCategoryNewRoute = lazyRouteComponent(() => import('@modules/categories/components/CategoryNewSheet'));
 const LazyCategoryShowRoute = lazyRouteComponent(() => import('@modules/categories/components/CategoryShowPanel'));

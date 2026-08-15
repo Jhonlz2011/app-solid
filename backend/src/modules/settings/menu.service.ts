@@ -1,7 +1,7 @@
 import { db } from '../../core/db';
 import { authMenuItems } from '@app/schema/tables';
 import { eq, asc, sql } from '@app/schema';
-import { getUserPermissions, getUserRoles } from '../users/rbac.service';
+import { getUserPermissions, getUserRoles } from '../users';
 import { cacheService } from '../../core/cache';
 
 // Keep backward-compatible interface

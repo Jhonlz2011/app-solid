@@ -12,24 +12,15 @@ import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { AttributeItem } from './attributes.api';
 import type { AttributeDataType } from '@app/schema/frontend';
-import { ATTRIBUTE_TYPE_LABELS } from './attributes.constants';
+import { ATTRIBUTE_TYPE_LABELS, ATTRIBUTE_TYPE_COLORS } from './attributes.constants';
 import type { ColumnFilterConfig } from '@shared/ui/DataTable';
-
-
-
 import Checkbox from '@shared/ui/Checkbox';
 import { StatusBadge, Badge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
-import Button from '@shared/ui/Button';
 import { EditIcon, TrashIcon, RotateCcwIcon } from '@shared/ui/icons';
-import LinkButton from '@/shared/ui/LinkButton';
+import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 
-const TYPE_COLORS: Record<AttributeDataType, string> = {
-    TEXT: 'primary',
-    NUMBER: 'info',
-    SELECT: 'warning',
-    BOOLEAN: 'success',
-};
 
 export interface AttributeColumnHandlers {
     onEdit: (attr: AttributeItem) => void;
@@ -117,7 +108,7 @@ export function createAttributeColumns(handlers: AttributeColumnHandlers): Colum
             cell: (info) => {
                 const typeKey = info.getValue<string>() as AttributeDataType;
                 const typeLabel = ATTRIBUTE_TYPE_LABELS[typeKey] ?? typeKey;
-                const typeColor = TYPE_COLORS[typeKey] ?? 'outline';
+                const typeColor = ATTRIBUTE_TYPE_COLORS[typeKey] ?? 'outline';
                 return (
                     <Badge variant={typeColor as any} class="text-[10px] px-1.5 py-0">
                         {typeLabel}

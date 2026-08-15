@@ -1,5 +1,5 @@
 import { Component, createSignal } from 'solid-js';
-import { useAuth } from '@/modules/auth/store/auth.store';
+import { useAuth } from '@modules/auth/store/auth.store';
 import { useCheckUomReferences } from '../data/uom.queries';
 import { useDeactivateUom, useHardDeleteUom } from '../data/uom.mutations';
 import type { UomItem } from '../data/uom.api';

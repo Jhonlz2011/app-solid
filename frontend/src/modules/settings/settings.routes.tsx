@@ -134,8 +134,6 @@ export const createSettingsRoutes = (layoutRoute: any) => {
     });
 
     // ── Vehicles ──
- 
-
     const vehiclesRoute = createRoute({
         getParentRoute: () => settingsRoute,
         path: 'vehicles',

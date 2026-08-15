@@ -1,5 +1,5 @@
-import { pipe, string, minLength, object, picklist, boolean, array, number, optional, nullable, forward, check, any, partial, trim, type InferInput } from 'valibot';
-import { ATTRIBUTE_DATA_TYPES } from '../enums';
+import { pipe, string, minLength, maxLength, object, picklist, boolean, array, number, optional, nullable, union, forward, check, any, partial, trim, type InferInput } from 'valibot';
+import { ATTRIBUTE_DATA_TYPES, UOM_GROUPS } from '../enums';
 
 // --- ATTRIBUTE DEFINITIONS ---
 export const RenameOptionEntry = object({
@@ -67,3 +67,12 @@ export const FamilyFormSchema = object({
     description: optional(nullable(string())),
 });
 export type FamilyFormData = InferInput<typeof FamilyFormSchema>;
+
+// --- UNITS OF MEASURE (UOM) ---
+export const UomFormSchema = object({
+    code: pipe(string(), trim(), minLength(1, 'El código es requerido'), maxLength(10, 'Máx 10 caracteres')),
+    name: pipe(string(), trim(), minLength(1, 'El nombre es requerido')),
+    uom_group: picklist(UOM_GROUPS, 'Grupo es requerido'),
+    base_factor: optional(nullable(union([string(), number()]))),
+});
+export type UomFormData = InferInput<typeof UomFormSchema>;

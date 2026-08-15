@@ -1,17 +1,18 @@
 /**
  * useBrandsState — Centralized state management for BrandsPage.
- * Follows the useSuppliersState pattern with server-side pagination.
+ * Follows the useSuppliersState pattern with server-side pagination and real-time SSE.
  */
-import { createSignal, createMemo, batch } from 'solid-js';
+import { createSignal, createMemo } from 'solid-js';
 import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { copyToClipboard } from '@shared/utils/clipboard';
 import { useDataTable } from '@shared/hooks/useDataTable';
-import { useAuth } from '@/modules/auth/store/auth.store';
+import { useRealtimeInvalidation } from '@shared/hooks/useDataTableSSE';
+import { useAuth } from '@modules/auth/store/auth.store';
 import { useBrands } from '../data/brands.queries';
 import { useDeactivateBrand, useRestoreBrand, useBulkDeactivateBrand, useBulkRestoreBrand } from '../data/brands.mutations';
 import { brandKeys } from '../data/brands.keys';
-import { brandsApi, type BrandItem, type BrandFilters } from '../data/brands.api';
+import { type BrandItem, type BrandFilters } from '../data/brands.api';
 import { createBrandColumns } from '../data/brands.columns';
 
 export function useBrandsState() {
@@ -47,6 +48,9 @@ export function useBrandsState() {
     const brandsQuery = useBrands(filters);
     getQueryData = () => (brandsQuery.data as any)?.data ?? [];
     getQueryMeta = () => (brandsQuery.data as any)?.meta;
+
+    // Realtime SSE: auto-invalidate on brand create/update/deactivate across tabs/users
+    useRealtimeInvalidation(brandKeys.all);
 
     const deactivateMut = useDeactivateBrand();
     const restoreMut = useRestoreBrand();

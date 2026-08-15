@@ -1,4 +1,4 @@
-// Sidebar Components - Re-exports
+// Sidebar Components
 export { Sidebar } from './Sidebar';
 export { SidebarHeader } from './SidebarHeader';
 export { SidebarSearch } from './SidebarSearch';

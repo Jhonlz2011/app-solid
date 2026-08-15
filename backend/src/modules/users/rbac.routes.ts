@@ -28,7 +28,7 @@ import {
     getUserAuditLog,
     adminResetPassword,
     setUserEntity,
-} from './rbac.service';
+} from './index';
 import { getActiveSessions, revokeSession } from '../auth';
 import {
     RoleBodySchema,

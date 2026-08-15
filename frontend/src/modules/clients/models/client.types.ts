@@ -11,10 +11,6 @@ export type Client = Awaited<ReturnType<typeof clientsApi.get>>;
 // List response type
 export type ClientsResponse = Awaited<ReturnType<typeof clientsApi.list>>;
 
-// Re-export for convenience
-export type { TaxIdType, PersonType, TaxRegimeType };
-export type { ContactFormData, AddressFormData } from '@app/schema/frontend';
-
 // UI Label mappings (We omit CONSUMIDOR_FINAL intentionally for the Form UI)
 export const taxIdTypeLabels: Partial<Record<TaxIdType, string>> = {
     RUC: 'RUC',
@@ -33,6 +29,3 @@ export const taxRegimeTypeLabels: Record<TaxRegimeType, string> = {
     RIMPE_EMPRENDEDOR: 'RIMPE Emprendedor',
     GENERAL: 'Régimen General',
 };
-
-// Re-export shared labels for backward compatibility
-export { isActiveLabels } from '@shared/constants/labels';

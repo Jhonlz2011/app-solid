@@ -2,7 +2,7 @@ import { Component, Show, For } from 'solid-js';
 import { useParams, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useAttributeDetail } from '../data/attributes.queries';
-import { ATTRIBUTE_TYPE_LABELS } from '../data/attributes.constants';
+import { ATTRIBUTE_TYPE_LABELS, ATTRIBUTE_TYPE_BADGE_CLASSES } from '../data/attributes.constants';
 import type { AttributeDataType } from '@app/schema/frontend';
 import { EditIcon, InfoIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
@@ -12,7 +12,7 @@ import { StatusBadge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
 import { useAuth } from '@modules/auth/store/auth.store';
-import LinkButton from '@/shared/ui/LinkButton';
+import LinkButton from '@shared/ui/LinkButton';
 
 interface AttributeShowPanelProps {
     attributeId?: number;
@@ -94,7 +94,7 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                                                 <p class="text-sm font-mono text-muted/80">{attribute().key}</p>
                                                 <div class="flex gap-2 items-center mt-1">
                                                     <StatusBadge isActive={attribute().is_active} />
-                                                    <span class="text-[10px] font-bold text-info bg-info/10 uppercase py-0.5 px-2 rounded-sm tracking-wider">
+                                                    <span class={`text-[10px] font-bold uppercase py-0.5 px-2 rounded-sm tracking-wider border ${ATTRIBUTE_TYPE_BADGE_CLASSES[attribute().type as AttributeDataType] ?? 'text-info bg-info/10 border-info/20'}`}>
                                                         {ATTRIBUTE_TYPE_LABELS[attribute().type as AttributeDataType] ?? attribute().type}
                                                     </span>
                                                 </div>

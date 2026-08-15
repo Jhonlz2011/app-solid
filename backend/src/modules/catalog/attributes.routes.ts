@@ -18,11 +18,9 @@ import {
     IdParamSchema,
     SuccessResponseSchema,
 } from '@app/schema/backend';
-
 export const attributeRoutes = new Elysia({ prefix: '/attributes' })
     .use(authGuard)
     .use(rbac)
-
     // List all attributes for the current tenant
     .get('/', ({ currentCompanyId }) => listAttributes(currentCompanyId), {
         permission: 'attributes.read',
@@ -86,7 +84,6 @@ export const attributeRoutes = new Elysia({ prefix: '/attributes' })
             permission: 'attributes.delete',
         }
     )
-
     // Restore a soft-deleted attribute
     .patch(
         '/:id/restore',
@@ -96,7 +93,6 @@ export const attributeRoutes = new Elysia({ prefix: '/attributes' })
             permission: 'attributes.restore',
         }
     )
-
     // Hard delete (blocks if used by categories)
     .delete(
         '/:id',

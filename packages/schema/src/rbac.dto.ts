@@ -1,11 +1,9 @@
 // ============================================================================
 // RBAC Response DTOs — Single source of truth for Users/Roles/Permissions API
-// Derived from rbac.service.ts and auth.service.ts actual return shapes
 // ============================================================================
 
 import type { PaginationMeta, BaseFilters } from './shared.dto';
 
-// --- User List Item (from getAllUsersWithRoles — rbac.service.ts L399-448) ---
 // Includes JOINed entity fields via LEFT JOIN on entities table
 export interface UserListItemDto {
     id: number;
@@ -24,7 +22,6 @@ export interface UserListItemDto {
     roles: { id: number; name: string }[];
 }
 
-// --- User Detail (from getUserById — rbac.service.ts L531-570) ---
 export interface UserDetailDto {
     id: number;
     username: string;
@@ -53,7 +50,6 @@ export interface UserSessionDto {
     is_current: boolean;
 }
 
-// --- User References (from checkUserReferences — rbac.service.ts L907-921) ---
 export interface UserReferencesDto {
     roles: number;
     activeSessions: number;
@@ -61,7 +57,6 @@ export interface UserReferencesDto {
     canDelete: boolean;
 }
 
-// --- Audit Log Entry (from getUserAuditLog — rbac.service.ts L954-993) ---
 // Real fields from audit_logs table + LEFT JOIN auth_users
 export interface AuditLogEntryDto {
     id: string;                          // uuid v7
@@ -81,7 +76,6 @@ export interface AuditLogResponseDto {
     meta: PaginationMeta;
 }
 
-// --- Role (from getAllRoles — rbac.service.ts L154-181) ---
 export interface RoleDto {
     id: number;
     name: string;
@@ -91,7 +85,6 @@ export interface RoleDto {
     permissionCount: number;
 }
 
-// --- Role Detail (from getRoleById — rbac.service.ts L575-592) ---
 export interface RoleDetailDto {
     id: number;
     name: string;
@@ -103,7 +96,6 @@ export interface RoleDetailDto {
     userCount: number;
 }
 
-// --- Role Users (from getUsersByRole — rbac.service.ts L722-734) ---
 export interface RoleUserDto {
     id: number;
     username: string;
@@ -111,7 +103,6 @@ export interface RoleUserDto {
     isActive: boolean | null;
 }
 
-// --- Permissions (from getAllPermissions — rbac.service.ts L253-273) ---
 export interface PermissionDto {
     id: number;
     module: string;
@@ -125,33 +116,28 @@ export interface PermissionsResponseDto {
     grouped: Record<string, PermissionDto[]>;
 }
 
-// --- Role Permission (from getRolePermissions — rbac.service.ts L278-290) ---
 export interface RolePermissionDto {
     id: number;
     slug: string;
     description: string | null;
 }
 
-// --- Success response (deactivate, restore, hardDelete, assignRoles, etc.) ---
 export interface SuccessDto {
     success: true;
 }
 
-// --- Entity Picker (shared across modules for entity selection) ---
 export interface EntityPickerItemDto {
     id: number;
     businessName: string;
     taxId: string;
 }
 
-// --- Batch operation result ---
 export interface BatchResultDto {
     userId: number;
     success: boolean;
     error?: string;
 }
 
-// --- Users Filters (extends BaseFilters with RBAC-specific fields) ---
 export interface UsersFilters extends BaseFilters {
     isActive?: string[];
     roles?: string[];

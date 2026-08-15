@@ -23,11 +23,11 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
             return brandsService.list({
                 cursor: query.cursor,
                 direction: query.direction as any,
-                limit: query.limit ? Number(query.limit) : undefined,
+                limit: query.limit,
                 search: query.search,
                 sortBy: query.sortBy,
                 sortOrder: query.sortOrder as 'asc' | 'desc' | undefined,
-                page: query.page ? Number(query.page) : undefined,
+                page: query.page,
                 isActive: parseArray(query.isActive),
             }, currentCompanyId);
         },
@@ -41,6 +41,16 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
     .get('/all', ({ currentCompanyId }) => brandsService.listAll(currentCompanyId), {
         permission: 'brands.read',
     })
+
+    // Get single brand by ID
+    .get(
+        '/:id',
+        ({ params, currentCompanyId }) => brandsService.getById(params.id, currentCompanyId),
+        {
+            params: IdParamSchema,
+            permission: 'brands.read',
+        }
+    )
 
     // Create
     .post(
@@ -59,7 +69,7 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
     // Update
     .put(
         '/:id',
-        ({ params, body, currentCompanyId }) => brandsService.update(Number(params.id), body, currentCompanyId),
+        ({ params, body, currentCompanyId }) => brandsService.update(params.id, body, currentCompanyId),
         {
             params: IdParamSchema,
             body: BrandUpdateSchema,
@@ -70,7 +80,7 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
     // Deactivate
     .patch(
         '/:id/deactivate',
-        ({ params, currentCompanyId }) => brandsService.deactivate(Number(params.id), currentCompanyId),
+        ({ params, currentCompanyId }) => brandsService.deactivate(params.id, currentCompanyId),
         {
             params: IdParamSchema,
             permission: 'brands.delete',
@@ -80,7 +90,7 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
     // Restore
     .patch(
         '/:id/restore',
-        ({ params, currentCompanyId }) => brandsService.restore(Number(params.id), currentCompanyId),
+        ({ params, currentCompanyId }) => brandsService.restore(params.id, currentCompanyId),
         {
             params: IdParamSchema,
             permission: 'brands.restore',

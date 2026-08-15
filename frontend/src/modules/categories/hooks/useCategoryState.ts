@@ -11,7 +11,7 @@
 import { createSignal, createMemo } from 'solid-js';
 import type { RowSelectionState } from '@tanstack/solid-table';
 import { useAuth } from '@modules/auth/store/auth.store';
-import { categorieKeys } from '../data/categories.keys';
+import { categoryKeys } from '../data/categories.keys';
 import { useDataTableSSE } from '@shared/hooks/useDataTableSSE';
 import { useCategoriesFlat } from '../data/categories.queries';
 import {
@@ -42,7 +42,7 @@ export function useCategoryState() {
     const bulkRestoreMut = useBulkRestoreCategories();
 
     // SSE invalidation
-    useDataTableSSE({ room: 'categories', queryKey: categorieKeys.list() });
+    useDataTableSSE({ room: 'categories', queryKey: categoryKeys.categories });
 
     // ─── Table Instance ──────────────────────────────────────────
     const [tableInstance, setTableInstance] = createSignal<any>();

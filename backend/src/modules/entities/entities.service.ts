@@ -6,9 +6,9 @@ import {
     getEntityFacets, 
     getEntity, 
     type EntityType,
-    type EntityPayload
-} from './entities.query.service';
+} from './index';
 
+import type { EntityPayload } from '@app/schema/shared-dto'
 import { 
     createEntity, 
     updateEntity, 

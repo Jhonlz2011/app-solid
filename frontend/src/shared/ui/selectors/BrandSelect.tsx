@@ -5,8 +5,8 @@
 import { Component, Show, createMemo, createSignal, createEffect } from 'solid-js';
 import { useBrandsList } from '@modules/brands/data/brands.queries';
 import { Autocomplete } from '@shared/ui/Autocomplete';
+import type { BrandItem } from '@app/schema/dto';
 
-type Brand = { id: number; name: string };
 
 export interface BrandSelectProps {
     value: number | null | undefined;
@@ -19,7 +19,7 @@ export interface BrandSelectProps {
 
 export const BrandSelect: Component<BrandSelectProps> = (props) => {
     const brandsQuery = useBrandsList();
-    const brands = createMemo(() => (brandsQuery.data ?? []) as Brand[]);
+    const brands = createMemo(() => (brandsQuery.data ?? []) as BrandItem[]);
     const [search, setSearch] = createSignal('');
 
     const filteredOptions = createMemo(() => {
@@ -47,7 +47,7 @@ export const BrandSelect: Component<BrandSelectProps> = (props) => {
             <Show when={props.label !== undefined}>
                 <Autocomplete.Label>{props.label ?? 'Marca'}</Autocomplete.Label>
             </Show>
-            <Autocomplete.Input<Brand>
+            <Autocomplete.Input<BrandItem>
                 value={search()}
                 onInputChange={setSearch}
                 options={filteredOptions()}

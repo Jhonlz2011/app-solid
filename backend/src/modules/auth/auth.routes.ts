@@ -10,7 +10,7 @@ import {
   revokeSession,
   verifyEmail,
   resendVerification,
-} from './auth.service';
+} from './index';
 import {
   AuthRegisterDto,
   AuthLoginDto,

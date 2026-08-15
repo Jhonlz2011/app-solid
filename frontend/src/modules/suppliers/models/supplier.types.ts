@@ -1,19 +1,5 @@
 // Supplier types - UI constants and type definitions
-import { suppliersApi } from '../data/suppliers.api';
 import type { TaxIdType, PersonType, TaxRegimeType } from '@app/schema/frontend';
-
-// Centralized filter/reference types
-export type { EntityFilters as SupplierFilters } from '@app/schema/shared-dto';
-export type { EntityReferences as SupplierReferences } from '@app/schema/shared-dto';
-
-// Infer Supplier type from API response (single item with relations)
-export type Supplier = Awaited<ReturnType<typeof suppliersApi.get>>;
-// List response type
-export type SuppliersResponse = Awaited<ReturnType<typeof suppliersApi.list>>;
-
-// Re-export for convenience
-export type { TaxIdType, PersonType, TaxRegimeType };
-export type { ContactFormData, AddressFormData } from '@app/schema/frontend';
 
 // UI Label mappings (We omit CONSUMIDOR_FINAL intentionally for the Form UI)
 export const taxIdTypeLabels: Partial<Record<TaxIdType, string>> = {
@@ -34,5 +20,5 @@ export const taxRegimeTypeLabels: Record<TaxRegimeType, string> = {
     GENERAL: 'Régimen General',
 };
 
-// Re-export shared labels for backward compatibility
+// shared labels for backward compatibility
 export { isActiveLabels } from '@shared/constants/labels';

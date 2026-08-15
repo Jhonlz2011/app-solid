@@ -43,7 +43,7 @@ export const createUsersRoutes = (layoutRoute: any) => {
     // Inject deep nested modals
     usersRoute.addChildren([
         ...createUserModals(usersRoute),
-        ...createSupplierModals(usersRoute, 'supplier', '/users')
+        ...createSupplierModals(usersRoute, 'supplier')
     ]);
 
     return usersRoute;

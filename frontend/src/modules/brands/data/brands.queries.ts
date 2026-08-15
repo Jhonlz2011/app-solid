@@ -42,6 +42,18 @@ export function useBrands(filters: () => BrandFilters) {
 }
 
 /**
+ * Single brand detail query by ID.
+ */
+export function useBrand(id: () => number) {
+    return createQuery(() => ({
+        queryKey: brandKeys.detail(id()),
+        queryFn: () => brandsApi.get(id()),
+        enabled: id() > 0,
+        staleTime: 1000 * 60 * 5,
+    }));
+}
+
+/**
  * Simple list of all active brands (for selectors/autocomplete).
  */
 export function useBrandsList() {

@@ -2,7 +2,7 @@ import { db, adminDb, withTenantContext } from '../../core/db';
 import { authUsers as users, sessions, companies, sriEstablishments, entities, authUserRoles, authRoles, authVerificationTokens } from '@app/schema/tables';
 import { eq, and, inArray, or, sql } from '@app/schema';
 import type { TaxRegimeType } from '@app/schema/enums';
-import { getUserRoles, getUserPermissions } from '../users/rbac.service';
+import { getUserRoles, getUserPermissions } from '../users';
 import { broadcast } from '../../core/sse';
 import { SESSION_EXPIRE_DAYS, getVerificationLink } from '../../config/auth';
 import { cacheService } from '../../core/cache';
@@ -19,11 +19,6 @@ import { emailService } from '../../core/email';
 import { verifyTurnstileToken } from '../../core/security';
 import { AuthError, generateSessionToken, hashToken } from './session.service';
 import { mapEntity } from './profile.service';
-
-// Re-export sub-services for backward-compatible facade
-export * from './session.service';
-export * from './verification.service';
-export * from './profile.service';
 
 const MAX_SESSIONS = 5;
 

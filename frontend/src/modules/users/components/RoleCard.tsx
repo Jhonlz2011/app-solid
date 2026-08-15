@@ -1,5 +1,5 @@
 import { Component, JSX, Show } from 'solid-js';
-import type { Role } from '../models/users.types';
+import type { RoleDto } from '@app/schema/rbac-dto';
 import { RoleBadge } from '@shared/ui/Badge';
 import { EditIcon, TrashIcon, KeyIcon, UsersIcon, MoreVerticalIcon, ShieldIcon, EyeIcon } from '@shared/ui/icons';
 import Button from '@shared/ui/Button';
@@ -46,7 +46,7 @@ const ROLE_ACCENT_COLORS: Record<string, string> = {
 const DEFAULT_ACCENT = 'from-info/70 via-info/30';
 
 interface RoleCardProps {
-    role: Role;
+    role: RoleDto;
     onEdit: () => void;
     onDelete: () => void;
     onUsersClick: () => void;

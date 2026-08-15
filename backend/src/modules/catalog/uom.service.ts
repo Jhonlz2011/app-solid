@@ -6,6 +6,7 @@ import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
+import type { UomItem, UomPayload, UomUpdatePayload, UomReferences } from '@app/schema/dto';
 
 // =============================================================================
 // UOM Service — Tenant-Aware with System Guard
@@ -16,7 +17,7 @@ export const uomService = {
      * Simple catalog list (all UOMs).
      * Returns system + tenant's own UOMs, both active and inactive.
      */
-    async listUoms(companyId: number) {
+    async listUoms(companyId: number): Promise<UomItem[]> {
         return cacheService.getOrSet(`uom:c${companyId}:catalog`, async () => {
             return db.select().from(uom)
                 .where(or(isNull(uom.company_id), eq(uom.company_id, companyId))!)
@@ -25,10 +26,23 @@ export const uomService = {
     },
 
     /**
+     * Get a single UOM by id (accessible if system UOM or owned by company).
+     */
+    async getById(id: number, companyId: number): Promise<UomItem> {
+        const [item] = await db.select().from(uom)
+            .where(and(
+                eq(uom.id, id),
+                or(isNull(uom.company_id), eq(uom.company_id, companyId))!
+            ));
+        if (!item) throw new DomainError('Unidad no encontrada', 404);
+        return item;
+    },
+
+    /**
      * Create a tenant-scoped UOM.
      * Always sets company_id and is_system = false.
      */
-    async create(data: { code: string; name: string; uom_group: string; base_factor?: string }, companyId: number) {
+    async create(data: UomPayload, companyId: number, clientId?: string): Promise<UomItem> {
         const codeUpper = data.code.toUpperCase();
 
         // Check global uniqueness: system UOM codes can't be shadowed
@@ -44,14 +58,18 @@ export const uomService = {
         const [created] = await db.insert(uom).values({
             code: codeUpper,
             name: data.name,
-            uom_group: data.uom_group as UomGroup,
-            base_factor: data.base_factor,
+            uom_group: data.uom_group,
+            base_factor: data.base_factor ? String(data.base_factor) : null,
             company_id: companyId,
             is_system: false,
         }).returning();
 
         await cacheService.invalidate(`uom:c${companyId}:*`);
-        broadcast(RealtimeEvents.ENTITY.CREATED, { id: created.id, entity: created }, 'uom');
+        broadcast(
+            RealtimeEvents.ENTITY.CREATED,
+            { type: 'uom', id: created.id, entity: created, clientId },
+            RealtimeEvents.ROOMS.UOM
+        );
         return created;
     },
 
@@ -60,15 +78,18 @@ export const uomService = {
      * BLOCKS updates to system UOMs (is_system = true).
      * Only allows updates to the tenant's own UOMs.
      */
-    async update(id: number, data: Partial<{ name: string; uom_group: string; base_factor: string; is_active: boolean }>, companyId: number) {
+    async update(id: number, data: UomUpdatePayload, companyId: number, clientId?: string): Promise<UomItem> {
         // Fetch the UOM first to check ownership and system flag
         const [existing] = await db.select().from(uom).where(eq(uom.id, id));
         if (!existing) throw new DomainError('Unidad no encontrada', 404);
         if (existing.is_system) throw new DomainError('Las unidades del sistema no pueden ser modificadas', 403);
         if (existing.company_id !== companyId) throw new DomainError('No tienes permisos para modificar esta unidad', 403);
 
-        const updateData: Record<string, unknown> = { ...data, updated_at: new Date() };
-        if (data.uom_group) updateData.uom_group = data.uom_group as UomGroup;
+        const updateData: Record<string, unknown> = { updated_at: new Date() };
+        if (data.name !== undefined) updateData.name = data.name;
+        if (data.uom_group !== undefined) updateData.uom_group = data.uom_group;
+        if (data.base_factor !== undefined) updateData.base_factor = data.base_factor ? String(data.base_factor) : null;
+        if (data.is_active !== undefined) updateData.is_active = data.is_active;
 
         const [updated] = await db.update(uom)
             .set(updateData as any)
@@ -76,7 +97,11 @@ export const uomService = {
             .returning();
 
         await cacheService.invalidate(`uom:c${companyId}:*`);
-        broadcast(RealtimeEvents.ENTITY.UPDATED, { id: updated.id, entity: updated }, 'uom');
+        broadcast(
+            RealtimeEvents.ENTITY.UPDATED,
+            { type: 'uom', id: updated.id, entity: updated, clientId },
+            RealtimeEvents.ROOMS.UOM
+        );
         return updated;
     },
 
@@ -84,7 +109,7 @@ export const uomService = {
      * Soft delete (deactivate) — sets is_active = false.
      * BLOCKS deactivation of system UOMs.
      */
-    async deactivate(id: number, companyId: number) {
+    async deactivate(id: number, companyId: number, clientId?: string): Promise<UomItem> {
         const [existing] = await db.select().from(uom).where(eq(uom.id, id));
         if (!existing) throw new DomainError('Unidad no encontrada', 404);
         if (existing.is_system) throw new DomainError('Las unidades del sistema no pueden ser desactivadas', 403);
@@ -96,14 +121,18 @@ export const uomService = {
             .returning();
 
         await cacheService.invalidate(`uom:c${companyId}:*`);
-        broadcast(RealtimeEvents.ENTITY.UPDATED, { id: updated.id, entity: updated }, 'uom');
+        broadcast(
+            RealtimeEvents.ENTITY.UPDATED,
+            { type: 'uom', id: updated.id, entity: updated, clientId },
+            RealtimeEvents.ROOMS.UOM
+        );
         return updated;
     },
 
     /**
      * Restore a soft-deleted UOM back to active.
      */
-    async restore(id: number, companyId: number) {
+    async restore(id: number, companyId: number, clientId?: string): Promise<UomItem> {
         const [existing] = await db.select().from(uom).where(eq(uom.id, id));
         if (!existing) throw new DomainError('Unidad no encontrada', 404);
         if (existing.is_system) throw new DomainError('Las unidades del sistema no pueden ser modificadas', 403);
@@ -115,7 +144,11 @@ export const uomService = {
             .returning();
 
         await cacheService.invalidate(`uom:c${companyId}:*`);
-        broadcast(RealtimeEvents.ENTITY.UPDATED, { id: updated.id, entity: updated }, 'uom');
+        broadcast(
+            RealtimeEvents.ENTITY.UPDATED,
+            { type: 'uom', id: updated.id, entity: updated, clientId },
+            RealtimeEvents.ROOMS.UOM
+        );
         return updated;
     },
 
@@ -131,7 +164,7 @@ export const uomService = {
      *   work_order_items.requested_uom  → workOrderItems
      *   purchase_quote_items.purchase_uom → quoteItems
      */
-    async checkReferences(id: number, companyId?: number) {
+    async checkReferences(id: number, companyId?: number): Promise<UomReferences> {
         /** Safe count — returns 0 if the table doesn't exist yet (unmigrated). */
         const countQuery = async (query: ReturnType<typeof db.select>): Promise<number> => {
             try {
@@ -164,7 +197,7 @@ export const uomService = {
      * Hard delete a tenant UOM by id.
      * BLOCKS deletion of system UOMs and UOMs with references.
      */
-    async hardDelete(id: number, companyId: number) {
+    async hardDelete(id: number, companyId: number, clientId?: string): Promise<{ success: boolean }> {
         const [existing] = await db.select().from(uom).where(eq(uom.id, id));
         if (!existing) throw new DomainError('Unidad no encontrada', 404);
         if (existing.is_system) throw new DomainError('Las unidades del sistema no pueden ser eliminadas', 403);
@@ -176,7 +209,11 @@ export const uomService = {
 
         await db.delete(uom).where(and(eq(uom.id, id), eq(uom.company_id, companyId)));
         await cacheService.invalidate(`uom:c${companyId}:*`);
-        broadcast(RealtimeEvents.ENTITY.DELETED, { id }, 'uom');
+        broadcast(
+            RealtimeEvents.ENTITY.DELETED,
+            { type: 'uom', id, clientId },
+            RealtimeEvents.ROOMS.UOM
+        );
         return { success: true };
     },
 };

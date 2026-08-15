@@ -1,33 +1,18 @@
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
+import type {
+    BrandItem,
+    BrandPayload,
+    BrandUpdatePayload,
+    BrandFilters,
+    BrandReferences,
+} from '@app/schema/dto';
+
+// Re-export shared contracts for local module consumers
+export type { BrandItem, BrandPayload, BrandUpdatePayload, BrandFilters, BrandReferences };
 
 // =============================================================================
-// Types
-// =============================================================================
-
-export interface BrandItem {
-    id: number;
-    company_id: number;
-    name: string;
-    website: string | null;
-    is_active: boolean | null;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface BrandFilters {
-    cursor?: string;
-    direction?: 'first' | 'next' | 'prev' | 'last';
-    limit?: number;
-    search?: string;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-    page?: number;
-    isActive?: string[];
-}
-
-// =============================================================================
-// API Wrappers — Brands (new top-level /api/brands)
+// API Wrappers — Brands (/api/brands)
 // =============================================================================
 
 export const brandsApi = {
@@ -48,46 +33,53 @@ export const brandsApi = {
         return data!;
     },
 
+    /** Get single brand by ID */
+    get: async (id: number): Promise<BrandItem> => {
+        const { data, error } = await api.api.brands({ id }).get();
+        if (error) throwApiError(error);
+        return data as unknown as BrandItem;
+    },
+
     /** Simple list for selectors (all active) */
     listAll: async (): Promise<BrandItem[]> => {
         const { data, error } = await (api.api.brands as any).all.get();
-        if (error) throw new Error(String(error.value));
-        return data as BrandItem[];
+        if (error) throwApiError(error);
+        return data as unknown as BrandItem[];
     },
 
-    create: async (body: { name: string; website?: string }) => {
+    create: async (body: BrandPayload): Promise<BrandItem> => {
         const { data, error } = await api.api.brands.post(body as any);
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as BrandItem;
     },
 
-    update: async (id: number, body: Partial<{ name: string; website: string; is_active: boolean }>) => {
-        const { data, error } = await (api.api.brands as any)({ id }).put(body);
+    update: async (id: number, body: BrandUpdatePayload): Promise<BrandItem> => {
+        const { data, error } = await api.api.brands({ id }).put(body as any);
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as BrandItem;
     },
 
-    deactivate: async (id: number) => {
+    deactivate: async (id: number): Promise<BrandItem> => {
         const { data, error } = await (api.api.brands as any)({ id }).deactivate.patch();
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as BrandItem;
     },
 
-    restore: async (id: number) => {
+    restore: async (id: number): Promise<BrandItem> => {
         const { data, error } = await (api.api.brands as any)({ id }).restore.patch();
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as BrandItem;
     },
 
-    bulkDeactivate: async (ids: number[]) => {
+    bulkDeactivate: async (ids: number[]): Promise<{ success: boolean; count: number }> => {
         const { data, error } = await api.api.brands.bulk.delete({ ids });
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as { success: boolean; count: number };
     },
 
-    bulkRestore: async (ids: number[]) => {
+    bulkRestore: async (ids: number[]): Promise<{ success: boolean; count: number }> => {
         const { data, error } = await (api.api.brands.bulk.restore as any).patch({ ids });
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as { success: boolean; count: number };
     },
 };

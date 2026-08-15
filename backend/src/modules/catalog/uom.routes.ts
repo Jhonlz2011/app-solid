@@ -9,6 +9,7 @@ import {
     IdParamSchema,
     SuccessResponseSchema,
 } from '@app/schema/backend';
+import type { UomPayload, UomUpdatePayload } from '@app/schema/dto';
 
 export const uomRoutes = new Elysia({ prefix: '/uom' })
     .use(authGuard)
@@ -19,11 +20,25 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
         permission: 'uom.read',
     })
 
+    // Get single UOM by id (system UOMs or owned by company)
+    .get(
+        '/:id',
+        ({ params, currentCompanyId }) => uomService.getById(params.id, currentCompanyId),
+        {
+            params: IdParamSchema,
+            permission: 'uom.read',
+        }
+    )
+
     // Create (tenant-scoped, never system)
     .post(
         '/',
-        async ({ body, set, currentCompanyId }) => {
-            const created = await uomService.create(body, currentCompanyId);
+        async ({ body, set, headers, currentCompanyId }) => {
+            const created = await uomService.create(
+                body as UomPayload,
+                currentCompanyId,
+                headers['x-client-id']
+            );
             set.status = 201;
             return created;
         },
@@ -36,7 +51,13 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
     // Update by integer id (blocks system UOMs)
     .put(
         '/:id',
-        ({ params, body, currentCompanyId }) => uomService.update(params.id, body, currentCompanyId),
+        ({ params, body, headers, currentCompanyId }) =>
+            uomService.update(
+                params.id,
+                body as UomUpdatePayload,
+                currentCompanyId,
+                headers['x-client-id']
+            ),
         {
             params: IdParamSchema,
             body: UomUpdateSchema,
@@ -47,7 +68,7 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
     // Check references before hard delete
     .get(
         '/:id/references',
-        ({ params }) => uomService.checkReferences(params.id),
+        ({ params, currentCompanyId }) => uomService.checkReferences(params.id, currentCompanyId),
         {
             params: IdParamSchema,
             response: UomReferencesResponseSchema,
@@ -58,9 +79,8 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
     // Soft delete (deactivate) — sets is_active = false
     .patch(
         '/:id/deactivate',
-        async ({ params, set, currentCompanyId }) => {
-            await uomService.deactivate(params.id, currentCompanyId);
-            set.status = 204;
+        async ({ params, headers, currentCompanyId }) => {
+            return uomService.deactivate(params.id, currentCompanyId, headers['x-client-id']);
         },
         {
             params: IdParamSchema,
@@ -71,7 +91,8 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
     // Restore a soft-deleted UOM back to active
     .patch(
         '/:id/restore',
-        ({ params, currentCompanyId }) => uomService.restore(params.id, currentCompanyId),
+        ({ params, headers, currentCompanyId }) =>
+            uomService.restore(params.id, currentCompanyId, headers['x-client-id']),
         {
             params: IdParamSchema,
             permission: 'uom.restore',
@@ -81,8 +102,8 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
     // Hard delete (blocks system UOMs and UOMs with references)
     .delete(
         '/:id',
-        async ({ params, currentCompanyId }) => {
-            await uomService.hardDelete(params.id, currentCompanyId);
+        async ({ params, headers, currentCompanyId }) => {
+            await uomService.hardDelete(params.id, currentCompanyId, headers['x-client-id']);
             return { success: true } as const;
         },
         {

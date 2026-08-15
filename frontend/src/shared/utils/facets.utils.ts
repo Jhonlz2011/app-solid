@@ -5,10 +5,6 @@
  */
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 import type { FacetData } from '@app/schema/shared-dto';
-
-// Re-export for backward compatibility
-export type { FacetData };
-
 /**
  * Convert a specific facet key from the backend response into FilterOption[].
  *

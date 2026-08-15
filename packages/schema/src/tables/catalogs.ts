@@ -1,6 +1,7 @@
-import { text, integer, boolean, jsonb, foreignKey, index, unique, timestamp } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, jsonb, foreignKey, index, unique, timestamp, numeric, pgPolicy } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
-import { attributeDataTypeEnum } from '../enums';
+import { attributeDataTypeEnum, uomGroupEnum } from '../enums';
 import { companies, ltree } from './config';
 
 // =============================================================================
@@ -100,3 +101,37 @@ export const categoryAttributes = pgTableV2("category_attributes", {
     tenantPolicy(),
 ]).enableRLS();
 
+// =============================================================================
+// UOM — Units of Measure (ISO-standard & Tenant-Scoped)
+// =============================================================================
+
+export const uom = pgTableV2("uom", {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    // Grupo lógico: VOLUMEN, LONGITUD, PESO, AREA, CANTIDAD, TIEMPO, DATA
+    uom_group: uomGroupEnum("uom_group").notNull(),
+    // Factor al "base" del grupo (1 L para volumen, 1 M para longitud)
+    // Ej: ML → 0.001, GL → 3.785, CM → 0.01
+    // Permite conversión automática dentro del grupo
+    base_factor: numeric("base_factor", { precision: 15, scale: 8 }),
+    // Multi-tenant: NULL = system UOM (visible to all), integer = tenant-scoped
+    company_id: integer("company_id").references(() => companies.id),
+    // System UOMs (from seed) are immutable — tenants cannot edit or deactivate them
+    is_system: boolean("is_system").default(false).notNull(),
+    is_active: boolean("is_active").default(true),
+    created_at: timestamp("created_at", TZ).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
+}, (t) => [
+    unique("unq_uom_code_company").on(t.code, t.company_id),
+    index("idx_uom_company").on(t.company_id),
+    index("idx_uom_code").on(t.code),
+    pgPolicy('tenant_isolation', {
+        as: 'permissive',
+        for: 'all',
+        to: 'public',
+        using: sql`company_id = current_setting('app.current_company_id', true)::integer
+            OR (company_id IS NULL AND is_system = true)`,
+        withCheck: sql`company_id = current_setting('app.current_company_id', true)::integer`,
+    }),
+]).enableRLS();

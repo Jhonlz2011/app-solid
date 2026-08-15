@@ -1,5 +1,5 @@
 import { Component, createSignal } from 'solid-js';
-import { useAuth } from '@/modules/auth/store/auth.store';
+import { useAuth } from '@modules/auth/store/auth.store';
 import { useCheckAttributeReferences } from '../data/attributes.queries';
 import { useDeactivateAttribute, useHardDeleteAttribute } from '../data/attributes.mutations';
 import type { AttributeItem } from '../data/attributes.api';

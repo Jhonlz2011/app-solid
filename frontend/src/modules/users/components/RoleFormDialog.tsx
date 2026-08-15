@@ -10,8 +10,7 @@ import {
 import {
     useCreateRole, useUpdateRole, useUpdateRolePermissions,
 } from '../data/users.mutations';
-
-import type { Role } from '../models/users.types';
+import type { RoleDto } from '@app/schema/rbac-dto';
 import { ShieldIcon } from '@/shared/ui/icons';
 
 // =============================================================================
@@ -57,7 +56,7 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
         ([open, _id, data]) => {
             if (!open) return;
             if (isEdit() && data) {
-                const rd = data as Role;
+                const rd = data as RoleDto;
                 setRoleName(rd.name ?? '');
                 setRoleDescription(rd.description ?? '');
             } else if (!isEdit()) {
@@ -91,7 +90,7 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
 
     // ── Derived ──────────────────────────────────────────────────────────────
     const selectedSet = createMemo(() => new Set(selectedPermIds()));
-    const roleData = () => roleQuery.data as Role | undefined;
+    const roleData = () => roleQuery.data as RoleDto | undefined;
     const isSystem = () => isEdit() && (roleData()?.is_system ?? false);
     const isPending = () =>
         createMutation.isPending || updateRoleMutation.isPending || updatePermsMutation.isPending;

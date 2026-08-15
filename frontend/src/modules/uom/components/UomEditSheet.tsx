@@ -7,9 +7,8 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { UomFormSchema, type UomFormData } from '@app/schema/frontend';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
-import { useUomList } from '../data/uom.queries';
+import { useUom } from '../data/uom.queries';
 import { useUpdateUom } from '../data/uom.mutations';
-import type { UomItem } from '../data/uom.api';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { FloppyDiskIcon, LockIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
@@ -28,10 +27,10 @@ const UomEditSheet: Component<UomEditSheetProps> = (props) => {
 
     const uomId = () => Number(params()?.uomId) || 0;
 
-    const uomQuery = useUomList();
+    const uomQuery = useUom(uomId);
     const updateMut = useUpdateUom();
 
-    const uomItem = () => ((uomQuery.data ?? []) as UomItem[]).find(u => u.id === uomId()) ?? null;
+    const uomItem = () => uomQuery.data ?? null;
     const isSystem = () => uomItem()?.is_system ?? false;
     const isEditable = () => !isSystem() && canEdit();
 

@@ -2,7 +2,7 @@ import { Component, For, Show, createSignal, createMemo } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { UserFormSchema, UserCreateSchema, type UserFormData } from '@app/schema/frontend';
-import type { Role } from '../models/users.types';
+import type { RoleDto } from '@app/schema/rbac-dto';
 import { TextField } from '@shared/ui/TextField';
 import { Autocomplete } from '@shared/ui/Autocomplete';
 import Checkbox from '@shared/ui/Checkbox';
@@ -32,7 +32,7 @@ export interface UserFormProps {
         entityId?: number | null;
     };
     formId?: string;
-    roles: Role[];
+    roles: RoleDto[];
     rolesLoading?: boolean;
     /** Show password field (new user creation) */
     showPassword?: boolean;
@@ -76,7 +76,6 @@ const UserForm: Component<UserFormProps> = (props) => {
     };
 
     // ── Form ─────────────────────────────────────────────────────────────────
-
     const form = createForm(() => {
         const schema = props.showPassword ? UserCreateSchema : UserFormSchema;
         return {

@@ -1,5 +1,5 @@
 import { Component, For, Show, createSignal } from 'solid-js';
-import type { AuditLogEntry } from '../../models/users.types';
+export type { AuditLogEntryDto } from '@app/schema/rbac-dto';
 import { formatSessionDate } from '@shared/utils/session.utils';
 import { AUDIT_ACTION_LABELS, TABLE_NAME_LABELS, computeDiff } from '@shared/utils/audit.utils';
 import Button from '@shared/ui/Button';
@@ -10,7 +10,7 @@ import { useUserAuditLog } from '../../data/users.queries';
 
 // ─── Inline Diff Table ───────────────────────────────────────────────────────
 
-const AuditDiffView: Component<{ entry: AuditLogEntry }> = (props) => {
+const AuditDiffView: Component<{ entry: AuditLogEntryDto }> = (props) => {
     const action = () => props.entry.action;
     const oldData = () => props.entry.oldData as Record<string, unknown> | null | undefined;
     const newData = () => props.entry.newData as Record<string, unknown> | null | undefined;
@@ -75,7 +75,7 @@ const UserActivityTab: Component<{ userId: number }> = (props) => {
         setExpandedIds(next);
     };
 
-    const hasDiffData = (entry: AuditLogEntry) => {
+    const hasDiffData = (entry: AuditLogEntryDto) => {
         return entry.oldData || entry.newData;
     };
 
@@ -118,7 +118,7 @@ const UserActivityTab: Component<{ userId: number }> = (props) => {
 
                     <div class="space-y-1">
                         <For each={entries()}>
-                            {(entry: AuditLogEntry) => {
+                            {(entry: AuditLogEntryDto) => {
                                 const actionInfo = () => AUDIT_ACTION_LABELS[entry.action] ?? {
                                     label: entry.action,
                                     color: 'bg-gray-500/15 text-gray-600',

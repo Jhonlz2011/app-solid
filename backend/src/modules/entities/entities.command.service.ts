@@ -6,7 +6,8 @@ import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
-import type { EntityType, EntityPayload, ContactPayload, AddressPayload } from './entities.query.service';
+import type { EntityPayload, EntityContactPayload, EntityAddressPayload } from '@app/schema/shared-dto';
+import type { EntityType } from './entities.query.service'
 
 // Helper for numeric conversion
 const toDecimal = (val?: number | null): string | undefined =>
@@ -418,7 +419,7 @@ export async function hardDeleteEntity(
 // Contacts CRUD
 // =============================================================================
 
-export async function addContact(entityId: number, payload: ContactPayload, companyId?: number) {
+export async function addContact(entityId: number, payload: EntityContactPayload, companyId?: number) {
     return db.transaction(async (tx) => {
         if (companyId) {
             const [ent] = await tx
@@ -456,7 +457,7 @@ export async function addContact(entityId: number, payload: ContactPayload, comp
     });
 }
 
-export async function updateContact(contactId: number, payload: Partial<ContactPayload>, companyId?: number) {
+export async function updateContact(contactId: number, payload: Partial<EntityContactPayload>, companyId?: number) {
     const [contact] = await db
         .select()
         .from(entityContacts)
@@ -529,7 +530,7 @@ export async function deleteContact(contactId: number, companyId?: number) {
 // Addresses CRUD
 // =============================================================================
 
-export async function addAddress(entityId: number, payload: AddressPayload, companyId?: number) {
+export async function addAddress(entityId: number, payload: EntityAddressPayload, companyId?: number) {
     return db.transaction(async (tx) => {
         if (companyId) {
             const [ent] = await tx

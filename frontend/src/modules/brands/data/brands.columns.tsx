@@ -10,9 +10,9 @@ import type { BrandItem } from './brands.api';
 import Checkbox from '@shared/ui/Checkbox';
 import { StatusBadge } from '@shared/ui/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
-import Button from '@shared/ui/Button';
 import { EditIcon, TrashIcon, RotateCcwIcon } from '@shared/ui/icons';
-import LinkButton from '@/shared/ui/LinkButton';
+import Button from '@shared/ui/Button';
+import LinkButton from '@shared/ui/LinkButton';
 
 export interface BrandColumnHandlers {
     onDelete: (brand: BrandItem) => void;

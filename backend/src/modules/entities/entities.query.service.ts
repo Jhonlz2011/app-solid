@@ -1,18 +1,11 @@
-import { and, eq, ilike, or, asc, inArray, count, type AnyColumn } from '@app/schema';
+import { and, eq, ilike, or, asc, inArray, type AnyColumn } from '@app/schema';
 import { db } from '../../core/db';
 import { entities, entityAddresses, entityContacts, employeeDetails, carrierVehicles, carrierDrivers } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import type { TaxIdType, PersonType, TaxRegimeType } from '@app/schema/enums';
-import type { EntityPayload, EntityContactPayload as ContactPayload, EntityAddressPayload as AddressPayload } from '@app/schema/shared-dto';
 
 // Entity type discriminator
 export type EntityType = 'client' | 'supplier' | 'employee' | 'carrier';
-
-// Re-export imported types for consumers
-export type { TaxIdType, PersonType, TaxRegimeType };
-export type { EntityPayload, ContactPayload, AddressPayload };
-
 // =============================================================================
 // Pagination Types
 // =============================================================================

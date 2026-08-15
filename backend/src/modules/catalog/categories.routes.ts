@@ -75,7 +75,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
 
     .get(
         '/:id',
-        ({ params, currentCompanyId }) => getCategoryEnhanced(Number(params.id), currentCompanyId),
+        ({ params, currentCompanyId }) => getCategoryEnhanced(params.id, currentCompanyId),
         {
             params: IdParamSchema,
             permission: 'categories.read',
@@ -83,7 +83,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
     )
     .get(
         '/:id/form-schema',
-        ({ params, currentCompanyId }) => getCategoryFormSchema(Number(params.id), currentCompanyId),
+        ({ params, currentCompanyId }) => getCategoryFormSchema(params.id, currentCompanyId),
         {
             params: IdParamSchema,
             permission: 'categories.read',
@@ -91,7 +91,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
     )
     .get(
         '/:id/references',
-        ({ params, currentCompanyId }) => checkCategoryReferences(Number(params.id), currentCompanyId),
+        ({ params, currentCompanyId }) => checkCategoryReferences(params.id, currentCompanyId),
         {
             params: IdParamSchema,
             permission: 'categories.read',
@@ -116,7 +116,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
         '/:id',
         ({ params, body, headers, currentCompanyId }) =>
             updateCategoryEnhanced(
-                Number(params.id),
+                params.id,
                 body as Partial<CategoryPayload>,
                 currentCompanyId,
                 headers['x-client-id']
@@ -132,7 +132,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
         async ({ params, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
             return deactivateCategory(
-                Number(params.id),
+                params.id,
                 currentCompanyId,
                 headers['x-client-id'],
                 { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
@@ -148,7 +148,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
         async ({ params, headers, currentUserId, currentCompanyId, request }) => {
             const { ipAddress } = getIpAndUserAgent(request);
             return restoreCategory(
-                Number(params.id),
+                params.id,
                 currentCompanyId,
                 headers['x-client-id'],
                 { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] }
@@ -163,7 +163,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
         '/:id/reparent',
         ({ params, body, headers, currentCompanyId }) =>
             reparentCategory(
-                Number(params.id),
+                params.id,
                 body.parent_id,
                 currentCompanyId,
                 headers['x-client-id']
@@ -186,7 +186,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
     .delete(
         '/:id',
         async ({ params, headers, currentCompanyId }) => {
-            await hardDeleteCategory(Number(params.id), currentCompanyId, headers['x-client-id']);
+            await hardDeleteCategory(params.id, currentCompanyId, headers['x-client-id']);
             return { success: true } as const;
         },
         {

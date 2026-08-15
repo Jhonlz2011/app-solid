@@ -19,8 +19,7 @@ import {
     type DragEvent,
 } from '@thisbeyond/solid-dnd';
 import { type AttributeItem } from '@modules/attributes/data/attributes.api';
-import { useAttributeList } from '@modules/attributes/data/attributes.queries';
-import { ATTRIBUTE_TYPE_LABELS } from '@modules/attributes/data/attributes.constants';
+import { ATTRIBUTE_TYPE_LABELS, ATTRIBUTE_TYPE_COLORS } from '@modules/attributes/data/attributes.constants';
 import type { CategoryAttributeEntry } from '@app/schema/frontend';
 import { AttributeSelect } from '@shared/ui/selectors/AttributeSelect';
 import Checkbox from '@shared/ui/Checkbox';
@@ -71,8 +70,8 @@ const SortableAttributeRow: Component<{
                     <span class="text-sm font-medium text-text truncate">
                         {props.def()?.label ?? `ID ${props.attributeDefId}`}
                     </span>
-                    <Badge variant="primary" class="text-[10px] px-1.5 py-0">
-                        {ATTRIBUTE_TYPE_LABELS[props.def()?.type!] ?? props.def()?.type}
+                    <Badge variant={(props.def()?.type ? ATTRIBUTE_TYPE_COLORS[props.def()!.type] : 'primary') as any} class="text-[10px] px-1.5 py-0">
+                        {props.def()?.type ? ATTRIBUTE_TYPE_LABELS[props.def()!.type] : props.def()?.type}
                     </Badge>
                 </div>
                 <span class="text-[11px] text-muted font-mono">{props.def()?.key}</span>
@@ -234,8 +233,8 @@ const CategoryAttributesPicker: Component<CategoryAttributesPickerProps> = (prop
                             return (
                                 <div class="flex items-center gap-2 px-3 py-2.5 bg-card border border-primary/30 rounded-xl shadow-xl">
                                     <span class="text-sm font-medium text-text">{itemDef?.label ?? `ID ${draggable?.id}`}</span>
-                                    <Badge variant="primary" class="text-[10px] px-1.5 py-0">
-                                        {ATTRIBUTE_TYPE_LABELS[itemDef?.type as keyof typeof ATTRIBUTE_TYPE_LABELS] ?? itemDef?.type}
+                                    <Badge variant={(itemDef?.type ? ATTRIBUTE_TYPE_COLORS[itemDef.type] : 'primary') as any} class="text-[10px] px-1.5 py-0">
+                                        {itemDef?.type ? ATTRIBUTE_TYPE_LABELS[itemDef.type] : itemDef?.type}
                                     </Badge>
                                 </div>
                             );

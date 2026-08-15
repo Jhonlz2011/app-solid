@@ -1,35 +1,10 @@
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { AttributeFormData, AttributeDataType } from '@app/schema/frontend';
+import type { AttributeFormData } from '@app/schema/frontend';
+import type { AttributeItem, AttributeDetail, AttributeReferences } from '@app/schema/dto';
 
-// =============================================================================
-// Types
-// =============================================================================
-
-export interface AttributeItem {
-    id: number;
-    company_id: number;
-    key: string;
-    label: string;
-    type: AttributeDataType;
-    default_options: string[] | null;
-    is_active: boolean | null;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface AttributeDetail extends AttributeItem {
-    usedInCategories: Array<{
-        categoryId: number;
-        categoryName: string;
-        required: boolean | null;
-    }>;
-}
-
-export interface AttributeReferences {
-    categories: number;
-    total: number;
-}
+// Re-export shared contracts for local module consumers
+export type { AttributeItem, AttributeDetail, AttributeReferences };
 
 // =============================================================================
 // API Wrappers
@@ -48,13 +23,13 @@ export const attributesApi = {
         return data as unknown as AttributeDetail;
     },
 
-    create: async (body: AttributeFormData) => {
+    create: async (body: AttributeFormData): Promise<AttributeItem> => {
         const { data, error } = await api.api.attributes.post(body as any);
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as AttributeItem;
     },
 
-    update: async (id: number, body: AttributeFormData) => {
+    update: async (id: number, body: AttributeFormData): Promise<AttributeItem> => {
         // Extract renamedOptions before sending — they're part of the form data
         const { renamedOptions, ...rest } = body;
         const payload: Record<string, any> = { ...rest };
@@ -63,29 +38,29 @@ export const attributesApi = {
         }
         const { data, error } = await api.api.attributes({ id }).put(payload as any);
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as AttributeItem;
     },
 
-    deactivate: async (id: number) => {
+    deactivate: async (id: number): Promise<void> => {
         const { error } = await (api.api.attributes as any)({ id }).deactivate.patch();
         if (error) throwApiError(error);
     },
 
-    restore: async (id: number) => {
+    restore: async (id: number): Promise<AttributeItem> => {
         const { data, error } = await (api.api.attributes as any)({ id }).restore.patch();
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as AttributeItem;
     },
 
     checkReferences: async (id: number): Promise<AttributeReferences> => {
         const { data, error } = await (api.api.attributes as any)({ id }).references.get();
         if (error) throwApiError(error);
-        return data! as AttributeReferences;
+        return data as unknown as AttributeReferences;
     },
 
-    hardDelete: async (id: number) => {
+    hardDelete: async (id: number): Promise<{ success: boolean }> => {
         const { data, error } = await (api.api.attributes as any)({ id }).delete();
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as { success: boolean };
     },
 };

@@ -8,6 +8,8 @@ import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
 import type { ProductFormData } from '@app/schema/frontend';
 import type { ProductType, ProductSubtype } from '@app/schema/frontend';
+import type { FacetData } from '@app/schema/shared-dto';
+
 
 // =============================================================================
 // API Fetchers
@@ -172,10 +174,6 @@ export interface ProductReferences {
     total: number;
     canDelete: boolean;
 }
-
-/** Facet response type from API */
-export type FacetData = Record<string, { value: string; label?: string; count: number }[]>;
-
 // =============================================================================
 // Query Keys
 // =============================================================================

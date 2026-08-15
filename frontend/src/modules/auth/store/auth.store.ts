@@ -3,7 +3,7 @@ import { createStore } from "solid-js/store";
 import { batch } from "solid-js";
 import { authApi } from "../api/auth.api";
 import { profileApi } from "@modules/profile/data/profile.api";
-import type { ProfileDto } from '@app/schema/profile-dto';
+import type { ProfileDto } from '@app/schema/shared-dto';
 import type { RbacModule, PermissionSlug } from '@app/schema/enums';
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";

@@ -11,9 +11,10 @@ import { rbacKeys } from './users.keys';
 import { usersApi } from './users.api';
 import type {
     UsersFilters,
-    FacetData,
-    UserReferences,
-} from '../models/users.types';
+    UserReferencesDto,
+} from '@app/schema/rbac-dto';
+import type { FacetData } from '@app/schema/shared-dto';
+
 
 // =============================================================================
 // Entity Picker
@@ -158,7 +159,7 @@ export function useUserSessions(userId: () => number) {
 export function useCheckUserReferences(id: () => number | null, enabled: () => boolean) {
     return createQuery(() => ({
         queryKey: rbacKeys.canDelete(id()!),
-        queryFn: async (): Promise<UserReferences> => {
+        queryFn: async (): Promise<UserReferencesDto> => {
             return await usersApi.canDeleteUser(id()!) as UserReferences;
         },
         enabled: enabled() && id() !== null,

@@ -29,6 +29,9 @@ export const RealtimeEvents = {
         USERS: 'users',
         LOCATIONS: 'locations',
         CATEGORIES: 'categories',
+        ATTRIBUTES: 'attributes',
+        BRANDS: 'brands',
+        UOM: 'uom',
     },
 } as const;
 
@@ -50,7 +53,7 @@ export interface BaseEventPayload<TEntity = Record<string, unknown>> {
 }
 
 export type EntityEventPayload<TEntity = Record<string, unknown>> = BaseEventPayload<TEntity> & {
-    type: 'supplier' | 'client' | 'employee' | 'carrier';
+    type?: 'supplier' | 'client' | 'employee' | 'carrier' | 'attribute' | 'brand' | 'category' | 'uom' | 'product' | 'location';
 };
 
 export type UserEventPayload<TUser = Record<string, unknown>> = BaseEventPayload<TUser>;

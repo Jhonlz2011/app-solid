@@ -2,14 +2,14 @@
 import { Component, Show, createMemo } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
-import type { Profile } from '../models/profile.types';
+import type { ProfileDto } from '@app/schema/shared-dto';
 import { UpdateProfileSchema } from '@app/schema/frontend';
 import { TextField } from '@shared/ui/TextField';
 import Button from '@shared/ui/Button';
 import { AlertCircleIcon, FloppyDiskIcon } from '@shared/ui/icons';
 
 interface AccountSectionProps {
-    profile: Profile;
+    profile: ProfileDto;
     onUpdate: (data: { username?: string; email?: string }) => Promise<void>;
     isUpdating: boolean;
 }

@@ -1,21 +1,11 @@
 import { eq, asc, and, sql } from '@app/schema';
 import { db } from '../../core/db';
 import { attributeDefinitions, categoryAttributes, categories } from '@app/schema/tables';
-import type { AttributeDataType } from '@app/schema/enums';
+import type { AttributeDefPayload, AttributeItem, AttributeDetail, AttributeReferences } from '@app/schema/dto';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/sse';
-
-// =============================================================================
-// Types
-// =============================================================================
-
-export interface AttributeDefPayload {
-    label: string;
-    type: AttributeDataType;
-    defaultOptions?: string[] | null;
-    renamedOptions?: Array<{ from: string; to: string }>;
-}
+import { RealtimeEvents } from '@app/schema/realtime-events';
 
 // =============================================================================
 // Helpers
@@ -72,7 +62,8 @@ async function generateUniqueKey(label: string, companyId: number): Promise<stri
 // =============================================================================
 // ATTRIBUTE DEFINITIONS — Full CRUD (Tenant-Scoped)
 // =============================================================================
-export async function listAttributes(companyId: number) {
+
+export async function listAttributes(companyId: number): Promise<AttributeItem[]> {
     return cacheService.getOrSet(`attributes:c${companyId}:list`, async () => {
         return db.select().from(attributeDefinitions)
             .where(eq(attributeDefinitions.company_id, companyId))
@@ -80,12 +71,12 @@ export async function listAttributes(companyId: number) {
     }, 3600);
 }
 
-export async function getAttribute(id: number, companyId: number) {
+export async function getAttribute(id: number, companyId: number): Promise<AttributeDetail> {
     const [attr] = await db.select().from(attributeDefinitions)
         .where(and(eq(attributeDefinitions.id, id), eq(attributeDefinitions.company_id, companyId)));
     if (!attr) throw new DomainError('Atributo no encontrado', 404);
 
-    // Get categories using this attribute
+    // Get categories using this attribute (strictly tenant-guarded)
     const usedIn = await db
         .select({
             categoryId: categoryAttributes.category_id,
@@ -93,13 +84,24 @@ export async function getAttribute(id: number, companyId: number) {
             required: categoryAttributes.required,
         })
         .from(categoryAttributes)
-        .innerJoin(categories, eq(categories.id, categoryAttributes.category_id))
-        .where(eq(categoryAttributes.attribute_def_id, id));
+        .innerJoin(
+            categories,
+            and(
+                eq(categories.id, categoryAttributes.category_id),
+                eq(categories.company_id, companyId)
+            )
+        )
+        .where(
+            and(
+                eq(categoryAttributes.attribute_def_id, id),
+                eq(categoryAttributes.company_id, companyId)
+            )
+        );
 
     return { ...attr, usedInCategories: usedIn };
 }
 
-export async function createAttribute(data: AttributeDefPayload, companyId: number) {
+export async function createAttribute(data: AttributeDefPayload, companyId: number): Promise<AttributeItem> {
     // Auto-generate key from label
     const key = await generateUniqueKey(data.label, companyId);
 
@@ -112,11 +114,11 @@ export async function createAttribute(data: AttributeDefPayload, companyId: numb
     }).returning();
 
     await cacheService.invalidate(`attributes:c${companyId}:*`);
-    broadcast('attribute:created', created, 'attributes');
+    broadcast(RealtimeEvents.ENTITY.CREATED, { type: 'attribute', id: created.id, entity: created }, RealtimeEvents.ROOMS.ATTRIBUTES);
     return created;
 }
 
-export async function updateAttribute(id: number, data: Partial<AttributeDefPayload>, companyId: number) {
+export async function updateAttribute(id: number, data: Partial<AttributeDefPayload>, companyId: number): Promise<AttributeItem> {
     // Verify ownership
     const [existing] = await db.select().from(attributeDefinitions)
         .where(and(eq(attributeDefinitions.id, id), eq(attributeDefinitions.company_id, companyId)));
@@ -140,7 +142,7 @@ export async function updateAttribute(id: number, data: Partial<AttributeDefPayl
                 .where(and(eq(attributeDefinitions.id, id), eq(attributeDefinitions.company_id, companyId)))
                 .returning();
 
-            // 2. Cascade renames into category_attributes.specific_options
+            // 2. Cascade renames into category_attributes.specific_options (tenant-guarded)
             for (const { from, to } of renames) {
                 await tx.execute(sql`
                     UPDATE category_attributes
@@ -154,6 +156,7 @@ export async function updateAttribute(id: number, data: Partial<AttributeDefPayl
                         FROM jsonb_array_elements(specific_options) AS elem
                     )
                     WHERE attribute_def_id = ${id}
+                      AND company_id = ${companyId}
                       AND specific_options IS NOT NULL
                       AND specific_options @> ${sql`${JSON.stringify([from])}::jsonb`}
                 `);
@@ -182,7 +185,7 @@ export async function updateAttribute(id: number, data: Partial<AttributeDefPayl
         if (!updated) throw new DomainError('Atributo no encontrado', 404);
         await cacheService.invalidate(`attributes:c${companyId}:*`);
         await cacheService.invalidate(`categories:c${companyId}:*`);
-        broadcast('attribute:updated', updated, 'attributes');
+        broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
         return updated;
     }
 
@@ -194,14 +197,14 @@ export async function updateAttribute(id: number, data: Partial<AttributeDefPayl
 
     if (!updated) throw new DomainError('Atributo no encontrado', 404);
     await cacheService.invalidate(`attributes:c${companyId}:*`);
-    broadcast('attribute:updated', updated, 'attributes');
+    broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
     return updated;
 }
 
 /**
  * Deactivate — single UPDATE with tenant guard (no separate SELECT needed).
  */
-export async function deactivateAttribute(id: number, companyId: number) {
+export async function deactivateAttribute(id: number, companyId: number): Promise<AttributeItem> {
     const [updated] = await db.update(attributeDefinitions)
         .set({ is_active: false, updated_at: new Date() })
         .where(and(eq(attributeDefinitions.id, id), eq(attributeDefinitions.company_id, companyId)))
@@ -209,14 +212,14 @@ export async function deactivateAttribute(id: number, companyId: number) {
     if (!updated) throw new DomainError('Atributo no encontrado', 404);
 
     await cacheService.invalidate(`attributes:c${companyId}:*`);
-    broadcast('attribute:updated', updated, 'attributes');
+    broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
     return updated;
 }
 
 /**
  * Restore — single UPDATE with tenant guard (no separate SELECT needed).
  */
-export async function restoreAttribute(id: number, companyId: number) {
+export async function restoreAttribute(id: number, companyId: number): Promise<AttributeItem> {
     const [updated] = await db.update(attributeDefinitions)
         .set({ is_active: true, updated_at: new Date() })
         .where(and(eq(attributeDefinitions.id, id), eq(attributeDefinitions.company_id, companyId)))
@@ -224,7 +227,7 @@ export async function restoreAttribute(id: number, companyId: number) {
     if (!updated) throw new DomainError('Atributo no encontrado', 404);
 
     await cacheService.invalidate(`attributes:c${companyId}:*`);
-    broadcast('attribute:updated', updated, 'attributes');
+    broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
     return updated;
 }
 
@@ -232,7 +235,7 @@ export async function restoreAttribute(id: number, companyId: number) {
  * Check references before hard delete.
  * Validates tenant ownership first, then counts category_attributes linking to this definition.
  */
-export async function checkAttributeReferences(id: number, companyId: number) {
+export async function checkAttributeReferences(id: number, companyId: number): Promise<AttributeReferences> {
     // Verify attribute belongs to tenant
     const [attr] = await db.select({ id: attributeDefinitions.id })
         .from(attributeDefinitions)
@@ -243,7 +246,12 @@ export async function checkAttributeReferences(id: number, companyId: number) {
         count: sql<number>`count(*)`.mapWith(Number),
     })
         .from(categoryAttributes)
-        .where(eq(categoryAttributes.attribute_def_id, id));
+        .where(
+            and(
+                eq(categoryAttributes.attribute_def_id, id),
+                eq(categoryAttributes.company_id, companyId)
+            )
+        );
 
     const categoryCount = result?.count ?? 0;
 
@@ -257,7 +265,7 @@ export async function checkAttributeReferences(id: number, companyId: number) {
  * Hard delete — permanently removes an attribute definition.
  * Blocks deletion if used by any category.
  */
-export async function hardDeleteAttribute(id: number, companyId: number) {
+export async function hardDeleteAttribute(id: number, companyId: number): Promise<{ success: true }> {
     const [existing] = await db.select().from(attributeDefinitions)
         .where(and(eq(attributeDefinitions.id, id), eq(attributeDefinitions.company_id, companyId)));
     if (!existing) throw new DomainError('Atributo no encontrado', 404);
@@ -270,6 +278,6 @@ export async function hardDeleteAttribute(id: number, companyId: number) {
 
     await db.delete(attributeDefinitions).where(and(eq(attributeDefinitions.id, id), eq(attributeDefinitions.company_id, companyId)));
     await cacheService.invalidate(`attributes:c${companyId}:*`);
-    broadcast('attribute:deleted', { id }, 'attributes');
+    broadcast(RealtimeEvents.ENTITY.DELETED, { type: 'attribute', id }, RealtimeEvents.ROOMS.ATTRIBUTES);
     return { success: true };
 }

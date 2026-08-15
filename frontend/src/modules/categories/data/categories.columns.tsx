@@ -15,7 +15,7 @@ import { Badge, StatusBadge, CounterBadge } from '@shared/ui/Badge';
 import Checkbox from '@shared/ui/Checkbox';
 import ActionMenu from '@shared/ui/ActionMenu';
 import DropdownMenu from '@shared/ui/DropdownMenu';
-import { useAuth } from '@/modules/auth/store/auth.store';
+import { useAuth } from '@modules/auth/store/auth.store';
 import { ChevronRightIcon, ChevronDownIcon, PlusIcon, FolderIcon, FolderOpenIcon } from '@shared/ui/icons';
 import { cn } from '@shared/lib/utils';
 import type { CategoryNode } from './categories.api';

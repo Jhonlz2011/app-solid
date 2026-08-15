@@ -2,8 +2,8 @@ import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-route
 import { queryClient } from '@shared/lib/queryClient';
 import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
 import { categoriesApi } from './data/categories.api';
-import { categorieKeys } from './data/categories.keys';
-import { createCategoryModals } from '@/shared/routes/categories.factory';
+import { categoryKeys } from './data/categories.keys';
+import { createCategoryModals } from '@shared/routes/categories.factory';
 
 const categoriesPage = lazyRouteComponent(() => import('./views/CategoryPage'));
 
