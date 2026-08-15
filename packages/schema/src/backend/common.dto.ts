@@ -6,8 +6,8 @@ import { Type, type Static } from '@sinclair/typebox';
 
 /** Common offset-based pagination query parameters */
 export const PaginationQuerySchema = Type.Object({
-    page: Type.Optional(Type.Numeric()),
-    limit: Type.Optional(Type.Numeric()),
+    page: Type.Optional(Type.Number()),
+    limit: Type.Optional(Type.Number()),
     search: Type.Optional(Type.String()),
     sortBy: Type.Optional(Type.String()),
     sortOrder: Type.Optional(Type.Union([Type.Literal('asc'), Type.Literal('desc')])),
@@ -31,7 +31,7 @@ export const BulkIdsBodySchema = Type.Object({
 
 /** Common numeric ID route parameter */
 export const IdParamSchema = Type.Object({
-    id: Type.Numeric(),
+    id: Type.Number(),
 });
 
 /** Common generic success response envelope */
