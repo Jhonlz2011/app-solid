@@ -4,7 +4,7 @@ import { brands } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/sse';
-import { CursorPaginator, type PaginationMeta, type PaginatedResult } from '../../core/db/paginator';
+import { CursorPaginator } from '../../core/db/paginator';
 
 // =============================================================================
 // Pagination Types
@@ -24,7 +24,6 @@ export interface BrandListFilters extends BrandColumnFilters {
     page?: number;
 }
 
-export type { PaginationMeta, PaginatedResult };
 
 /** Whitelist of sortable columns */
 export const SORTABLE_COLUMNS: Record<string, AnyColumn> = {

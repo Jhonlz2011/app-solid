@@ -5,9 +5,6 @@
 
 import type { PaginationMeta, BaseFilters } from './shared.dto';
 
-// Re-export shared types for convenience
-export type { PaginationMeta, FacetData, BaseFilters } from './shared.dto';
-
 // --- User List Item (from getAllUsersWithRoles — rbac.service.ts L399-448) ---
 // Includes JOINed entity fields via LEFT JOIN on entities table
 export interface UserListItemDto {

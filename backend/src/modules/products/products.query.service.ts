@@ -4,14 +4,9 @@ import { products, productVariants, categories, brands, uom } from '@app/schema/
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { CursorPaginator } from '../../core/db/paginator';
-import type { PaginationMeta, PaginatedResult } from '../../core/db/paginator';
-
 // =============================================================================
 // Types & Column Whitelists
 // =============================================================================
-
-export type { PaginationMeta, PaginatedResult };
-
 export interface ProductColumnFilters {
     categoryId?: string[];
     brandId?: string[];

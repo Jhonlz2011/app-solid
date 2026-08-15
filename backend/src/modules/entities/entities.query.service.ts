@@ -39,7 +39,6 @@ export interface ListFilters extends ColumnFilters {
     page?: number;
 }
 
-export type { PaginationMeta, PaginatedResult } from '../../core/db/paginator';
 import { CursorPaginator } from '../../core/db/paginator';
 
 export const SORTABLE_COLUMNS: Record<string, AnyColumn> = {
