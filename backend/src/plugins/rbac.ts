@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { ForbiddenError, UnauthorizedError } from '../services/errors';
+import { ForbiddenError, UnauthorizedError } from '../core/errors';
 import { type PermissionSlug, SYSTEM_ROLES } from '@app/schema/enums';
 
 /**

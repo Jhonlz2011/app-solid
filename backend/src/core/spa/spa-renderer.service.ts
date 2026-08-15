@@ -1,8 +1,8 @@
-import { adminDb } from '../core/db';
+import { adminDb } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import type { TenantBrandingResponseDtoType } from '@app/schema/backend';
-import { env } from '../config/env';
+import { env } from '../../config/env';
 import { resolveSlugFromHost, getContrastColor, isHexColor, THEME_PRESETS, BRANDING_DEFAULTS } from '@app/schema/utils';
 
 // Cache in-memory in production with a TTL (e.g., 5 minutes)

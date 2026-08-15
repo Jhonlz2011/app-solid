@@ -1,9 +1,9 @@
 import { db } from '../../core/db';
 import { companies } from '@app/schema/tables';
-import { eq } from '@app/schema';
-import { invalidateTenantCache } from '../../services/spa-renderer.service';
+import { invalidateTenantCache } from '../../core/spa';
 import type { CompanySettingsBodyType } from '@app/schema/backend';
-import { publicStorageService } from '../../services/public-storage.service';
+import { publicStorageService } from '../../core/storage';
+
 
 /**
  * Maps camelCase form field names → snake_case DB column setters.

@@ -19,8 +19,7 @@ import {
     generateSku,
     getVariantBySkuOrBarcode,
     type ProductPayload,
-} from './products.service';
-import { publicStorageService } from '../../services/public-storage.service';
+import { publicStorageService } from '../../core/storage';
 import {
     ProductPayloadSchema,
     ProductUploadImagesBodySchema,

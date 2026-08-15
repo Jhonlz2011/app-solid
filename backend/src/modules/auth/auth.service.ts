@@ -13,7 +13,8 @@ import {
   seedCompanyMenus,
   seedCompanyUOMs,
   seedCompanyVirtualLocations,
-} from '../../services/tenant-provisioning.service';
+  seedCompanyWarehouse,
+} from './provisioning.service';
 import { emailService } from '../../core/email';
 import { verifyTurnstileToken } from '../../core/security';
 import { AuthError, generateSessionToken, hashToken } from './session.service';
@@ -126,6 +127,7 @@ export async function register(
     await seedCompanyMenus(tx);
     await seedCompanyUOMs(tx, company.id);
     await seedCompanyVirtualLocations(tx, company.id);
+    await seedCompanyWarehouse(tx, company.id, company.main_address, ownerEntity.id);
 
     const rawToken = generateSessionToken();
     const tokenHash = hashToken(rawToken);

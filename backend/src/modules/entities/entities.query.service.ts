@@ -1,4 +1,4 @@
-import { and, eq, ilike, or, sql, lt, gt, asc, inArray, count, type AnyColumn } from '@app/schema';
+import { and, eq, ilike, or, asc, inArray, count, type AnyColumn } from '@app/schema';
 import { db } from '../../core/db';
 import { entities, entityAddresses, entityContacts, employeeDetails, carrierVehicles, carrierDrivers } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';

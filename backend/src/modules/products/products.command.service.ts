@@ -5,7 +5,7 @@ import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/sse';
 import type { ProductPayload } from '@app/schema/backend';
-import { publicStorageService } from '../../services/public-storage.service';
+import { publicStorageService } from '../../core/storage';
 import { checkProductReferences } from './products.query.service';
 
 // =============================================================================

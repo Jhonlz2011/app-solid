@@ -10,7 +10,7 @@
 import type { Tx } from '../../core/db';
 import {
     authRoles, authPermissions, authRolePermissions, authUserRoles,
-    authMenuItems, warehouseLocations, uom,
+    authMenuItems, warehouses, warehouseLocations, uom,
 } from '@app/schema/tables';
 
 // @ts-ignore — relative path to seeds is valid at runtime
@@ -182,5 +182,48 @@ export async function seedCompanyVirtualLocations(tx: Tx, companyId: number) {
             depth: 0,
             is_active: true,
         }).onConflictDoNothing();
+    }
+}
+
+/**
+ * Seeds default physical warehouse (Bodega Principal) and its default internal location (General).
+ */
+export async function seedCompanyWarehouse(
+    tx: Tx,
+    companyId: number,
+    companyAddress?: string,
+    managerEntityId?: number
+) {
+    // 1. Create default physical warehouse
+    const [mainWarehouse] = await tx
+        .insert(warehouses)
+        .values({
+            company_id: companyId,
+            code: 'BOD-001',
+            name: 'Bodega Principal',
+            address: companyAddress || 'Matriz',
+            is_active: true,
+            is_mobile: false,
+            manager_id: managerEntityId || null,
+        })
+        .onConflictDoNothing()
+        .returning({ id: warehouses.id });
+
+    const warehouseId = mainWarehouse?.id;
+    if (warehouseId) {
+        // 2. Create default root internal location
+        await tx
+            .insert(warehouseLocations)
+            .values({
+                company_id: companyId,
+                warehouse_id: warehouseId,
+                parent_id: null,
+                name: 'General',
+                path: 'general',
+                type: 'INTERNAL',
+                depth: 0,
+                is_active: true,
+            })
+            .onConflictDoNothing();
     }
 }

@@ -30,7 +30,7 @@ import { db, adminDb } from '../../core/db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
-import { getTenantBySlug } from '../../services/spa-renderer.service';
+import { getTenantBySlug } from '../../core/spa';
 
 export const authRoutes = new Elysia({ prefix: '/auth' })
   .use(ipPlugin)

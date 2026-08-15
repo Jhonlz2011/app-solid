@@ -1,7 +1,8 @@
 import { Elysia } from 'elysia';
 import { authGuard } from '../../plugins/auth-guard';
 import { companyService } from './company.service';
-import { publicStorageService } from '../../services/public-storage.service';
+import { publicStorageService } from '../../core/storage';
+
 import {
     CompanySettingsBodySchema,
     UploadLogoBodySchema,

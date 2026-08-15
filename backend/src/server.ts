@@ -34,8 +34,7 @@ import { errorHandlerPlugin } from './plugins/error-handler';
 
 import { env } from './config/env';
 import { initSSERedisAdapter } from './core/sse/sse';
-import { startAuditWorker } from './modules/audit/audit.service';
-import { serveSpa } from './services/spa-renderer.service';
+import { serveSpa } from './core/spa';
 
 const allowedOrigins = new Set([
   env.FRONTEND_URL,

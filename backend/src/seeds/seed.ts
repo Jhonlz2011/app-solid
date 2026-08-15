@@ -1,7 +1,7 @@
 // src/seeds/seed.ts
 // Run with: bun run db:seed
 import { db, withTenantContext } from '../core/db';
-import { authPermissions, authRoles, authRolePermissions, authUserRoles, authUsers, uom, entities, companies, sriEstablishments, authMenuItems, warehouseLocations } from '@app/schema/tables';
+import { authPermissions, authRoles, authRolePermissions, authUserRoles, authUsers, uom, entities, companies, sriEstablishments, authMenuItems, warehouses, warehouseLocations } from '@app/schema/tables';
 import { sql } from '@app/schema';
 import { PERMISSIONS, ROLES, ROLE_PERMISSIONS, UOM_DATA, DERIVED_UOM_DATA, MENU_ITEMS } from './seed-data';
 
@@ -226,6 +226,40 @@ async function seed() {
                 }).onConflictDoNothing();
             }
             console.log('   ✅ Virtual locations seeded/verified');
+
+            // 7.6 Create default physical warehouse and root location
+            console.log('🏢 Seeding default physical warehouse and location...');
+            let [mainWh] = await db
+                .select({ id: warehouses.id })
+                .from(warehouses)
+                .where(sql`${warehouses.company_id} = ${devCompany.id} AND ${warehouses.code} = 'BOD-001'`)
+                .limit(1);
+
+            if (!mainWh) {
+                const [insertedWh] = await db.insert(warehouses).values({
+                    company_id: devCompany.id,
+                    code: 'BOD-001',
+                    name: 'Bodega Principal',
+                    address: devCompany.main_address || 'Matriz',
+                    is_active: true,
+                    is_mobile: false,
+                }).returning({ id: warehouses.id });
+                mainWh = insertedWh;
+            }
+
+            if (mainWh) {
+                await db.insert(warehouseLocations).values({
+                    company_id: devCompany.id,
+                    warehouse_id: mainWh.id,
+                    parent_id: null,
+                    name: 'General',
+                    path: 'general',
+                    type: 'INTERNAL',
+                    depth: 0,
+                    is_active: true,
+                }).onConflictDoNothing();
+            }
+            console.log('   ✅ Default warehouse (BOD-001) & location seeded/verified');
 
             // 8. Create Default Users
             console.log('👤 Creating default users...');
