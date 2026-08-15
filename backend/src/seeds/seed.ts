@@ -1,6 +1,6 @@
 // src/seeds/seed.ts
 // Run with: bun run db:seed
-import { db, withTenantContext } from '../db';
+import { db, withTenantContext } from '../core/db';
 import { authPermissions, authRoles, authRolePermissions, authUserRoles, authUsers, uom, entities, companies, sriEstablishments, authMenuItems, warehouseLocations } from '@app/schema/tables';
 import { sql } from '@app/schema';
 import { PERMISSIONS, ROLES, ROLE_PERMISSIONS, UOM_DATA, DERIVED_UOM_DATA, MENU_ITEMS } from './seed-data';

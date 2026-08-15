@@ -1,4 +1,4 @@
-import { redis } from '../config/redis';
+import { redis } from '../core/cache/redis';
 import { getIpAndUserAgent } from './ip';
 
 const MAX_ATTEMPTS = 3;
@@ -20,7 +20,6 @@ export const registerRateLimit = async ({ request, set }: { request: any, set: a
     if (attempts > MAX_ATTEMPTS) {
         const ttl = await redis.ttl(key);
         const retryAfter = ttl > 0 ? ttl : WINDOW_SECONDS;
-
         set.status = 429;
         set.headers['Retry-After'] = retryAfter.toString();
         return new Response(JSON.stringify({

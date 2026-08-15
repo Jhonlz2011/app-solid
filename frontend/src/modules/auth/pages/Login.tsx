@@ -3,12 +3,12 @@ import { toast } from 'solid-sonner';
 import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
-import { AuthLoginSchema, type AuthLoginDto } from '@app/schema/frontend';
-import type { DiscoverTenantItemType, AuthUserResponseType } from '@app/schema/backend';
+import { AuthLoginSchema, type AuthLoginFormData } from '@app/schema/frontend';
+import type { DiscoverTenantItemDto, AuthUserResponseDto } from '@app/schema/shared-dto';
 import { actions } from '@modules/auth/store/auth.store';
 import { authApi } from '../api/auth.api';
 import { useBranding, getSubdomain, applyBranding } from '../store/branding.store';
-import { AuthError } from '@modules/auth/types/auth.types';
+import { ApiError } from '@shared/utils/api-errors';
 import Input from '@shared/ui/Input';
 import Button from '@shared/ui/Button';
 import Turnstile from '@shared/ui/Turnstile';
@@ -39,7 +39,7 @@ const Login: Component = () => {
 
   // UI state
   const [showTenants, setShowTenants] = createSignal(false);
-  const [discoveredTenants, setDiscoveredTenants] = createSignal<DiscoverTenantItemType[]>([]);
+  const [discoveredTenants, setDiscoveredTenants] = createSignal<DiscoverTenantItemDto[]>([]);
   const [loadingTenants, setLoadingTenants] = createSignal(false);
 
   // Turnstile token state
@@ -67,7 +67,7 @@ const Login: Component = () => {
     }
   };
 
-  const handleSelectTenant = async (tenant: DiscoverTenantItemType) => {
+  const handleSelectTenant = async (tenant: DiscoverTenantItemDto) => {
     setLoadingTenants(true);
     try {
       const tenantInfo = await authApi.getTenantInfo(tenant.slug);
@@ -86,7 +86,7 @@ const Login: Component = () => {
       email: '',
       password: '',
       companyId: undefined,
-    } as AuthLoginDto,
+    } as AuthLoginFormData,
     validatorAdapter: valibotValidator(),
     validators: { onSubmit: AuthLoginSchema },
     onSubmit: async ({ value }) => {
@@ -111,7 +111,7 @@ const Login: Component = () => {
           return;
         }
 
-        const successRes = res as { user: AuthUserResponseType & { companySlug?: string }; sessionId: string };
+        const successRes = res as { user: AuthUserResponseDto & { companySlug?: string }; sessionId: string };
         const companySlug = successRes?.user?.companySlug;
 
         const searchParams = typeof search === 'function' ? search() : search;
@@ -132,7 +132,7 @@ const Login: Component = () => {
         form.setFieldValue('companyId', undefined);
         // Turnstile token stays valid for retries — only Turnstile itself invalidates it via expired-callback
         let msg = 'Error al iniciar sesión';
-        if (err instanceof AuthError || err instanceof Error) msg = err.message;
+        if (err instanceof ApiError || err instanceof Error) msg = err.message;
         toast.error(msg);
       }
     },

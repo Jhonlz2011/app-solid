@@ -8,7 +8,7 @@ import { Component, For, Show, splitProps, JSX, createSignal, onCleanup, createU
 import { ImageCropper } from '@ark-ui/solid';
 import Modal from './Modal';
 import { cn } from '../lib/utils';
-import type { CropCoordinates } from '@app/schema';
+import type { CropCoordinates } from '@app/schema/shared-dto';
 import { 
     XIcon, 
     RectangleHorizontalIcon, 

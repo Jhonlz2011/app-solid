@@ -3,42 +3,38 @@ import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
 import { staticPlugin } from '@elysiajs/static';
 // Routes
-import { authRoutes } from './routes/auth.routes';
-import { productRoutes } from './routes/products.routes';
-import { clientRoutes } from './routes/clients.routes';
-import { supplierRoutes } from './routes/suppliers.routes';
-import { employeeRoutes } from './routes/employees.routes';
-import { brandRoutes } from './routes/brands.routes';
-import { uomRoutes } from './routes/uom.routes';
-import { categoryRoutes } from './routes/categories.routes';
-import { attributeRoutes } from './routes/attributes.routes';
-import { invoiceRoutes } from './routes/invoices.routes';
-import { modulesRoutes } from './routes/modules.routes';
-import { sriRoutes } from './routes/sri.routes';
-import { geonamesRoutes } from './routes/geonames.routes';
-import { electronicDocumentsRoutes } from './routes/electronic-documents.routes';
-import { quotationRoutes } from './routes/quotations.routes';
-import { employeeSchedulesRoutes } from './routes/employee-schedules.routes';
-import { rbacRoutes } from './routes/rbac.routes';
-import { entityRoutes } from './routes/entities.routes';
-import { uploadsRoutes } from './routes/uploads.routes';
-import { inventoryRoutes } from './routes/inventory.routes';
-import { locationsRoutes } from './routes/locations.routes';
-import { companyRoutes } from './routes/company.routes';
-import { vehiclesRoutes } from './routes/vehicles.routes';
-import { webhooksRoutes } from './routes/webhooks.routes';
+import { authRoutes } from './modules/auth';
+import { productRoutes } from './modules/products';
+import { clientRoutes } from './modules/entities';
+import { supplierRoutes } from './modules/entities';
+import { employeeRoutes } from './modules/entities';
+import { brandRoutes } from './modules/catalog';
+import { uomRoutes } from './modules/catalog';
+import { categoryRoutes } from './modules/catalog';
+import { attributeRoutes } from './modules/catalog';
+import { modulesRoutes } from './modules/settings';
+import { sriRoutes } from './modules/references';
+import { geonamesRoutes } from './modules/references';
+
+import { rbacRoutes } from './modules/users';
+import { entityRoutes } from './modules/entities';
+import { uploadsRoutes } from './modules/storage';
+import { locationsRoutes } from './modules/inventory';
+import { companyRoutes } from './modules/settings';
+import { vehiclesRoutes } from './modules/settings';
+import { webhooksRoutes } from './modules/webhooks';
 
 // Plugins
 import { rateLimit } from './plugins/rate-limit';
-import { ssePlugin } from './plugins/sse';
+import { ssePlugin } from './core/sse/sse';
 import { rbac } from './plugins/rbac';
 import { errorHandlerPlugin } from './plugins/error-handler';
 
 // Services & Config
 
 import { env } from './config/env';
-import { initSSERedisAdapter } from './plugins/sse';
-import { startAuditWorker } from './services/audit.service';
+import { initSSERedisAdapter } from './core/sse/sse';
+import { startAuditWorker } from './modules/audit/audit.service';
 import { serveSpa } from './services/spa-renderer.service';
 
 const allowedOrigins = new Set([
@@ -134,7 +130,8 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
       ],
     }
   }))
-  // Core plugins
+  // Global error handler — mounted BEFORE all routes to guarantee interception
+  .use(errorHandlerPlugin)
   // Health check — público, antes de auth guard (usado por OfflineBanner PWA)
   .get('/health', () => ({ status: 'ok', ts: Date.now() }))
   .use(authRoutes)
@@ -148,8 +145,6 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
     message: 'Demasiadas peticiones, intenta más tarde',
     skipIf: (request: Request) => request.url.includes('/swagger')
   }))
-  // Global error handler
-  .use(errorHandlerPlugin)
   // Domain routes
   .use(clientRoutes)
   .use(supplierRoutes)
@@ -159,17 +154,12 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(attributeRoutes)
   .use(brandRoutes)
   .use(uomRoutes)
-  .use(invoiceRoutes)
   .use(modulesRoutes)
-  .use(electronicDocumentsRoutes)
-  .use(quotationRoutes)
-  .use(employeeSchedulesRoutes)
   .use(rbacRoutes)
   .use(entityRoutes)
   .use(sriRoutes)
   .use(geonamesRoutes)
   .use(uploadsRoutes)
-  .use(inventoryRoutes)
   .use(locationsRoutes)
   .use(companyRoutes)
   .use(vehiclesRoutes)

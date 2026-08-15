@@ -10,7 +10,6 @@ import { StatusBadge } from '@shared/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
 import { useAuth } from '@modules/auth/store/auth.store';
-
 // We need a specific useEmployee query since it wasn't exported in employees.queries.ts
 import { createQuery } from '@tanstack/solid-query';
 import { employeesApi } from '../data/employees.api';

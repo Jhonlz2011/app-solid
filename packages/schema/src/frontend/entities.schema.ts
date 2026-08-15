@@ -1,0 +1,107 @@
+import { pipe, string, minLength, object, email, picklist, boolean, union, literal, array, number, optional, forward, check, type InferInput } from 'valibot';
+import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES } from '../enums';
+import type { EntityPayload } from '../dto/entities.dto';
+
+// --- REUSABLE ENUM SCHEMAS ---
+export const TaxIdTypeSchema = picklist(TAX_ID_TYPES);
+export const TaxIdTypeFormSchema = picklist(TAX_ID_TYPES_FORM);
+export const PersonTypeSchema = picklist(PERSON_TYPES);
+export const TaxRegimeTypeSchema = picklist(TAX_REGIME_TYPES);
+
+// --- SUB-SCHEMAS ---
+export const ContactFormSchema = object({
+    name: pipe(string(), minLength(1, 'El nombre es requerido')),
+    position: string(),
+    email: union([pipe(string(), email('Correo inválido')), literal('')]),
+    phone: string(),
+    isPrimary: boolean(),
+});
+
+export const AddressFormSchema = object({
+    addressLine: pipe(string(), minLength(1, 'La dirección es requerida')),
+    city: string(),
+    country: string(),
+    countryCode: string(),
+    postalCode: string(),
+    isMain: boolean(),
+});
+
+export const EmployeeDetailsFormSchema = object({
+    department: string(),
+    jobTitle: string(),
+    salaryBase: optional(number()),
+    hireDate: string(),
+    costPerHour: optional(number()),
+});
+
+export const CarrierVehicleFormSchema = object({
+    licensePlate: pipe(string(), minLength(1, 'La placa es requerida')),
+    description: optional(string()),
+    isActive: optional(boolean()),
+});
+
+export const CarrierDriverFormSchema = object({
+    identificationNumber: pipe(string(), minLength(1, 'La identificación es requerida')),
+    fullName: pipe(string(), minLength(1, 'El nombre es requerido')),
+    phone: optional(string()),
+    isActive: optional(boolean()),
+});
+
+// Complete Entity form validation schema
+export const EntityFormSchema = pipe(
+    object({
+        taxId: pipe(string(), minLength(1, 'La identificación es requerida')),
+        taxIdType: TaxIdTypeFormSchema,
+        personType: PersonTypeSchema,
+        businessName: pipe(string(), minLength(3, 'Razón social requerida')),
+        tradeName: string(),
+        emailBilling: union([pipe(string(), email('Correo inválido')), literal('')]),
+        phone: string(),
+        isClient: boolean(),
+        isSupplier: boolean(),
+        isEmployee: boolean(),
+        isCarrier: boolean(),
+        taxRegimeType: optional(TaxRegimeTypeSchema),
+        obligadoContabilidad: boolean(),
+        isRetentionAgent: boolean(),
+        isSpecialContributor: boolean(),
+        employeeDetails: optional(EmployeeDetailsFormSchema),
+        contacts: array(ContactFormSchema),
+        addresses: array(AddressFormSchema),
+        vehicles: optional(array(CarrierVehicleFormSchema)),
+        drivers: optional(array(CarrierDriverFormSchema)),
+    }),
+    forward(
+        check((input) => {
+            if (input.taxIdType === 'CEDULA') return /^\d{10}$/.test(input.taxId);
+            return true;
+        }, 'La Cédula debe tener 10 dígitos numéricos'),
+        ['taxId']
+    ),
+    forward(
+        check((input) => {
+            if (input.taxIdType === 'RUC') return /^\d{13}$/.test(input.taxId);
+            return true;
+        }, 'El RUC debe tener 13 dígitos numéricos'),
+        ['taxId']
+    ),
+    forward(
+        check((input) => {
+            if (input.taxIdType === 'PASAPORTE') return /^[A-Za-z0-9]+$/.test(input.taxId);
+            return true;
+        }, 'El Pasaporte debe ser alfanumérico'),
+        ['taxId']
+    )
+);
+
+export type EntityFormData = InferInput<typeof EntityFormSchema>;
+export type EmployeeDetailsFormData = InferInput<typeof EmployeeDetailsFormSchema>;
+export type ContactFormData = InferInput<typeof ContactFormSchema>;
+export type AddressFormData = InferInput<typeof AddressFormSchema>;
+export type CarrierVehicleFormData = InferInput<typeof CarrierVehicleFormSchema>;
+export type CarrierDriverFormData = InferInput<typeof CarrierDriverFormSchema>;
+
+// Compile-Time Assertion: Ensures Valibot schema matches exactly the E2E contract interface
+type AssertValibot<T extends EntityPayload> = T;
+const _checkEntityFormData: AssertValibot<EntityFormData> = {} as any as EntityFormData;
+void _checkEntityFormData;

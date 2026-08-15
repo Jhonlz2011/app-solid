@@ -1,8 +1,8 @@
 import { Elysia } from 'elysia';
-import { UnauthorizedError, ForbiddenError } from '../services/errors';
-import { validateSession } from '../services/auth.service';
+import { UnauthorizedError, ForbiddenError } from '../core/errors';
+import { validateSession } from '../modules/auth';
 import { COOKIE_OPTIONS } from '../config/auth';
-import { db, adminDb, tenantStorage } from '../db';
+import { db, adminDb, tenantStorage } from '../core/db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';

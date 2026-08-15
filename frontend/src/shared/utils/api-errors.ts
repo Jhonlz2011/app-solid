@@ -5,11 +5,12 @@ import { isApiError, type ApiErrorResponse } from '@app/schema/errors';
  *
  * Eden's `error.value` can be:
  * - An object (already our ApiErrorResponse shape from the backend)
+ * - An object with { message / summary / error } fields
  * - A string (JSON-encoded or plain text)
  * - null/undefined
  *
  * This utility normalises all cases into a single ApiErrorResponse shape
- * that can be consumed by TanStack Form's setFieldMeta.
+ * that can be consumed by TanStack Form's setFieldMeta and UI toasts.
  */
 export function parseApiError(edenError: unknown): ApiErrorResponse {
     // 1. Direct ApiErrorResponse object (most common path from Eden)
@@ -19,11 +20,32 @@ export function parseApiError(edenError: unknown): ApiErrorResponse {
         // value is already an ApiErrorResponse object
         if (isApiError(val)) return val;
 
+        // value is an object with message / summary / error properties
+        if (val && typeof val === 'object') {
+            const msg = typeof val.message === 'string' ? val.message
+                : typeof val.summary === 'string' ? val.summary
+                : typeof val.error === 'string' ? val.error
+                : null;
+            if (msg) {
+                return {
+                    code: typeof val.code === 'string' ? val.code : 'INTERNAL_ERROR',
+                    message: msg,
+                    errors: Array.isArray(val.errors) ? val.errors : undefined,
+                };
+            }
+        }
+
         // value is a JSON string from the backend
         if (typeof val === 'string') {
             try {
                 const parsed = JSON.parse(val);
                 if (isApiError(parsed)) return parsed;
+                if (parsed && typeof parsed === 'object') {
+                    const msg = parsed.message || parsed.summary || parsed.error;
+                    if (typeof msg === 'string') {
+                        return { code: parsed.code || 'INTERNAL_ERROR', message: msg, errors: parsed.errors };
+                    }
+                }
             } catch {
                 // Not JSON — use as plain message
                 return { code: 'INTERNAL_ERROR', message: val };
@@ -39,12 +61,28 @@ export function parseApiError(edenError: unknown): ApiErrorResponse {
     // 3. ApiErrorResponse thrown directly
     if (isApiError(edenError)) return edenError;
 
-    // 4. String
+    // 4. Loose object with message / error
+    if (edenError && typeof edenError === 'object') {
+        const obj = edenError as any;
+        const msg = typeof obj.message === 'string' ? obj.message
+            : typeof obj.summary === 'string' ? obj.summary
+            : typeof obj.error === 'string' ? obj.error
+            : null;
+        if (msg) {
+            return {
+                code: typeof obj.code === 'string' ? obj.code : 'INTERNAL_ERROR',
+                message: msg,
+                errors: Array.isArray(obj.errors) ? obj.errors : undefined,
+            };
+        }
+    }
+
+    // 5. String
     if (typeof edenError === 'string') {
         return { code: 'INTERNAL_ERROR', message: edenError };
     }
 
-    // 5. Fallback
+    // 6. Fallback
     return { code: 'INTERNAL_ERROR', message: 'Error desconocido del servidor' };
 }
 

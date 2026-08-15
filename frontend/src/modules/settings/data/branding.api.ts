@@ -1,7 +1,7 @@
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
 import type { CompanySettingsFormData } from '@app/schema/frontend';
-import type { CropCoordinates } from '@app/schema';
+import type { CropCoordinates } from '@app/schema/shared-dto';
 
 /**
  * Branding API wrappers.

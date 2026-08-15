@@ -289,13 +289,23 @@ export const taxRetentionsRelations = relations(tables.taxRetentions, ({ one }) 
 // 6. Visits & Quotations
 // =============================================================================
 
+export const technicalVisitsRelations = relations(tables.technicalVisits, ({ one, many }) => ({
+    company: one(tables.companies, { fields: [tables.technicalVisits.company_id], references: [tables.companies.id] }),
+    client: one(tables.entities, { fields: [tables.technicalVisits.client_id], references: [tables.entities.id] }),
+    assignedEmployee: one(tables.entities, { fields: [tables.technicalVisits.assigned_employee_id], references: [tables.entities.id] }),
+    quotations: many(tables.quotations),
+}));
+
 export const quotationsRelations = relations(tables.quotations, ({ one, many }) => ({
+    company: one(tables.companies, { fields: [tables.quotations.company_id], references: [tables.companies.id] }),
     client: one(tables.entities, { fields: [tables.quotations.client_id], references: [tables.entities.id] }),
     technicalVisit: one(tables.technicalVisits, { fields: [tables.quotations.technical_visit_id], references: [tables.technicalVisits.id] }),
     items: many(tables.quotationItems),
+    createdBy: one(tables.authUsers, { fields: [tables.quotations.created_by], references: [tables.authUsers.id] }),
 }));
 
 export const quotationItemsRelations = relations(tables.quotationItems, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.quotationItems.company_id], references: [tables.companies.id] }),
     quotation: one(tables.quotations, { fields: [tables.quotationItems.quotation_id], references: [tables.quotations.id] }),
     variant: one(tables.productVariants, { fields: [tables.quotationItems.variant_id], references: [tables.productVariants.id] }),
 }));

@@ -1,4 +1,4 @@
-import { adminDb } from '../db';
+import { adminDb } from '../core/db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import type { TenantBrandingResponseDtoType } from '@app/schema/backend';

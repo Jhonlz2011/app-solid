@@ -5,38 +5,37 @@
  * Type-safe — payload types inferred from backend schema contracts.
  */
 import { api } from '@shared/lib/eden';
-import { AuthError } from '../types/auth-error';
-import type { AuthRegisterDtoType } from '@app/schema/backend';
+import { throwApiError } from '@shared/utils/api-errors';
+import type { AuthRegisterPayload } from '@app/schema/shared-dto';
 
 export const authApi = {
     login: async (credentials: { email: string; password: string; companyId?: number; turnstileToken?: string }, signal?: AbortSignal) => {
         const { data, error } = await api.api.auth.login.post(credentials, { fetch: { signal } });
-        if (error) throw new AuthError(error.value, 'Login fallido');
+        if (error) throwApiError(error);
         return data!;
     },
 
-
-    register: async (payload: AuthRegisterDtoType, signal?: AbortSignal) => {
+    register: async (payload: AuthRegisterPayload, signal?: AbortSignal) => {
         const { data, error } = await api.api.auth.register.post(payload, { fetch: { signal } });
-        if (error) throw new AuthError(error.value, 'Registro fallido');
+        if (error) throwApiError(error);
         return data!;
     },
 
     checkSlug: async (slug: string) => {
         const { data, error } = await api.api.auth['check-slug']({ slug }).get();
-        if (error) throw new AuthError(error.value, 'Error verificando slug');
+        if (error) throwApiError(error);
         return data!;
     },
 
     checkRuc: async (ruc: string) => {
         const { data, error } = await api.api.auth['check-ruc']({ ruc }).get();
-        if (error) throw new AuthError(error.value, 'Error verificando RUC');
+        if (error) throwApiError(error);
         return data!;
     },
 
     getTenantInfo: async (slug?: string) => {
         const { data, error } = await api.api.auth['tenant-info'].get({ query: { slug } });
-        if (error) throw new AuthError(error.value, 'Error al obtener información corporativa');
+        if (error) throwApiError(error);
         return data!;
     },
 

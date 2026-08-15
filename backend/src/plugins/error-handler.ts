@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { DomainError } from '../services/errors';
+import { DomainError } from '../core/errors';
 
 // PG column name -> camelCase form field mapping
 const PG_COLUMN_TO_FIELD: Record<string, string> = {

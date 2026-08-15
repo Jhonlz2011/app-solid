@@ -3,7 +3,7 @@ import { createStore } from "solid-js/store";
 import { batch } from "solid-js";
 import { authApi } from "../api/auth.api";
 import { profileApi } from "@modules/profile/data/profile.api";
-import type { User } from "../types/auth.types";
+import type { ProfileDto } from '@app/schema/profile-dto';
 import type { RbacModule, PermissionSlug } from '@app/schema/enums';
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
@@ -18,13 +18,13 @@ const SESSION_FLAG_KEY = 'hasSession';
 // Current session ID — used to compare with WS revoke events
 let currentSessionId: string | null = null;
 
-// Helper to strip non-serializable fields from User before sending via BroadcastChannel
-const sanitizeUser = ({ id, username, email, roles, permissions, entity }: User): Partial<User> =>
+// Helper to strip non-serializable fields from ProfileDto before sending via BroadcastChannel
+const sanitizeUser = ({ id, username, email, roles, permissions, entity }: ProfileDto): Partial<ProfileDto> =>
     ({ id, username, email, roles, permissions, entity });
 
 // --- ESTADO REACTIVO ---
 interface AuthState {
-    user: User | null;
+    user: ProfileDto | null;
     status: 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
 }
 
@@ -58,9 +58,9 @@ export const actions = {
             }
 
             // Normal login success path
-            const successData = data as { user: User; sessionId: string };
+            const successData = data as { user: ProfileDto; sessionId: string };
             currentSessionId = successData.sessionId ?? null;
-            const user: User = { ...successData.user, sessionId: successData.sessionId };
+            const user: ProfileDto = { ...successData.user, sessionId: successData.sessionId };
             batch(() => {
                 setState('user', user);
                 setState('status', 'authenticated');
@@ -115,7 +115,7 @@ export const actions = {
     },
 
     // Update user profile in store (for fine-grained reactivity)
-    updateUser: (updates: Partial<User>, shouldBroadcast = true) => {
+    updateUser: (updates: Partial<ProfileDto>, shouldBroadcast = true) => {
         if (!state.user) return;
         const updatedUser = { ...state.user, ...updates };
         setState('user', updatedUser);
@@ -125,7 +125,7 @@ export const actions = {
     },
 
     // Direct session injection — used after register to avoid redundant GET /me
-    setSession: (userData: User, sessionId: string) => {
+    setSession: (userData: ProfileDto, sessionId: string) => {
         currentSessionId = sessionId;
         batch(() => {
             setState('user', userData);

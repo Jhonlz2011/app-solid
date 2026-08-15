@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia';
-import { redis } from '../config/redis';
+import { redis } from '../core/cache/redis';
 
 export const rateLimit = (options: {
   max?: number;

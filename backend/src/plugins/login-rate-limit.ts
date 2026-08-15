@@ -1,4 +1,4 @@
-import { redis } from '../config/redis';
+import { redis } from '../core/cache/redis';
 import { getIpAndUserAgent } from './ip';
 
 const MAX_ATTEMPTS = 5;

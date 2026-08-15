@@ -3,7 +3,6 @@ import { useParams } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useProduct } from '../data/products.queries';
 import { productTypeLabels, productSubtypeLabels } from '../data/products.api';
-import type { Product } from '../data/products.api';
 import Sheet from '@shared/ui/Sheet';
 import Button from '@shared/ui/Button';
 import LinkButton from '@shared/ui/LinkButton';

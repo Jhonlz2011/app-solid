@@ -2,7 +2,7 @@ import { createMutation, useQueryClient } from '@tanstack/solid-query';
 import { brandingApi } from './branding.api';
 import { brandingKeys } from './branding.keys';
 import type { CompanySettingsFormData } from '@app/schema/frontend';
-import type { CropCoordinates } from '@app/schema';
+import type { CropCoordinates } from '@app/schema/shared-dto';
 import { applyBranding, getSubdomain } from '@modules/auth/store/branding.store';
 import { toast } from 'solid-sonner';
 
