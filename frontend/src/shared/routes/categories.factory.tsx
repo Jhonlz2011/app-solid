@@ -13,7 +13,7 @@ export const createCategoryModals = (parentRoute: any, basePath = '') =>
         entityKey: 'categories',
         idParam: 'categoryId',
         components: { New: LazyCategoryNewRoute, Show: LazyCategoryShowRoute, Edit: LazyCategoryEditRoute },
-        detail: { queryKey: categorieKeys.categoryDetail, queryFn: categoriesApi.getCategory },
+        detail: { queryKey: categoryKeys.categoryDetail, queryFn: categoriesApi.getCategory },
         allowShowFromNew: true,
         nestInNew: (newRoute) => createAttributeModals(newRoute, 'attributes'),
         nestInEdit: (editRoute) => createAttributeModals(editRoute, 'attributes'),
