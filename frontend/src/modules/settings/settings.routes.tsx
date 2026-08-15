@@ -8,6 +8,9 @@ import { warehouseKeys } from './data/warehouses.keys';
 import { brandingApi } from './data/branding.api';
 import { brandingKeys } from './data/branding.keys';
 
+import { vehiclesApi } from './data/vehicles.api';
+import { vehicleKeys } from './data/vehicles.keys';
+
 // Lazy-loaded views
 const SettingsPage = lazyRouteComponent(() => import('./views/SettingsPage'));
 const WarehouseList = lazyRouteComponent(() => import('./components/warehouses/WarehouseList'));
@@ -131,9 +134,7 @@ export const createSettingsRoutes = (layoutRoute: any) => {
     });
 
     // ── Vehicles ──
-    const VehiclesSettings = lazyRouteComponent(() => import('./views/VehiclesSettings'));
-    const { vehiclesApi } = await import('./data/vehicles.api');
-    const { vehicleKeys } = await import('./data/vehicles.keys');
+ 
 
     const vehiclesRoute = createRoute({
         getParentRoute: () => settingsRoute,
@@ -145,7 +146,7 @@ export const createSettingsRoutes = (layoutRoute: any) => {
                 staleTime: 1000 * 60 * 5,
             });
         },
-        component: VehiclesSettings,
+        component: lazyRouteComponent(() => import('./views/VehiclesSettings')),
     });
 
     const vehicleNewRoute = createRoute({
