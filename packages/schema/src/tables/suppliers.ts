@@ -4,7 +4,8 @@ import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { purchaseOrderStatusEnum } from '../enums';
 import { entities } from './entities';
 import { products, productVariants } from './products';
-import { uom, companies } from './config';
+import { companies } from './config';
+import { uom } from './catalogs'
 import { workOrders } from './manufacturing';
 import { warehouses } from './inventory';
 import { authUsers } from './auth';

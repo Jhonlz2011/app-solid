@@ -1,7 +1,6 @@
 import { and, eq, or, sql, asc, desc, isNull } from '@app/schema';
 import { db } from '../../core/db';
 import { uom } from '@app/schema/tables';
-import type { UomGroup } from '@app/schema/enums';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/sse';

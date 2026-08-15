@@ -2,8 +2,8 @@ import { text, integer, boolean, timestamp, numeric, jsonb, index, unique, check
 import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { productTypeEnum, productSubtypeEnum, priceChangeTypeEnum, priceChangeSourceEnum } from '../enums';
-import { uom, companies } from './config';
-import { categories, brands } from './catalogs';
+import { companies } from './config';
+import { uom, categories, brands } from './catalogs';
 import { authUsers } from './auth';
 
 // =============================================================================

@@ -7,7 +7,7 @@ import { electronicDocuments } from './documents';
 import { purchaseOrders } from './suppliers';
 import { productVariants } from './products';
 import { authUsers } from './auth';
-import { uom } from './config';
+import { uom } from './catalogs';
 
 // =============================================================================
 // ACCOUNTS RECEIVABLE — Cuentas por Cobrar

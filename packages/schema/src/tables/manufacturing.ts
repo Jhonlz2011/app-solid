@@ -4,8 +4,8 @@ import { workOrderStatusEnum, productionStatusEnum, justificationTypeEnum, bomCa
 import { entities } from './entities';
 import { quotations } from './visits';
 import { products, productVariants } from './products';
-import { uom, companies } from './config';
-import { categories } from './catalogs';
+import {  companies } from './config';
+import { uom, categories } from './catalogs';
 import { authUsers } from './auth';
 import { inventoryDimensionalItems } from './inventory';
 
