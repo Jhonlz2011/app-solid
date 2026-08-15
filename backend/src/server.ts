@@ -5,19 +5,16 @@ import { staticPlugin } from '@elysiajs/static';
 // Routes
 import { authRoutes } from './modules/auth';
 import { productRoutes } from './modules/products';
-import { clientRoutes } from './modules/entities';
-import { supplierRoutes } from './modules/entities';
-import { employeeRoutes } from './modules/entities';
-import { brandRoutes } from './modules/catalog';
-import { uomRoutes } from './modules/catalog';
-import { categoryRoutes } from './modules/catalog';
-import { attributeRoutes } from './modules/catalog';
+import {
+  clientRoutes,
+  supplierRoutes,
+  employeeRoutes,
+  entityRoutes,
+} from './modules/entities';
+import { brandRoutes, uomRoutes, categoryRoutes, attributeRoutes } from './modules/catalog';
 import { modulesRoutes } from './modules/settings';
-import { sriRoutes } from './modules/references';
-import { geonamesRoutes } from './modules/references';
-
+import { sriRoutes, geonamesRoutes } from './modules/references';
 import { rbacRoutes } from './modules/users';
-import { entityRoutes } from './modules/entities';
 import { uploadsRoutes } from './modules/storage';
 import { locationsRoutes } from './modules/inventory';
 import { companyRoutes } from './modules/settings';

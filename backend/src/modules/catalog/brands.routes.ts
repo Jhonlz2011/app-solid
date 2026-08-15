@@ -6,9 +6,12 @@ import {
     BrandBodySchema,
     BrandUpdateSchema,
     BrandListQuerySchema,
+    BrandReferencesResponseSchema,
     BulkIdsBodySchema,
     IdParamSchema,
+    SuccessResponseSchema,
 } from '@app/schema/backend';
+import type { BrandPayload, BrandUpdatePayload } from '@app/schema/dto';
 
 const parseArray = (val?: string) => val?.split(',').filter(Boolean);
 
@@ -52,11 +55,26 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
         }
     )
 
+    // Check references before hard delete
+    .get(
+        '/:id/references',
+        ({ params, currentCompanyId }) => brandsService.checkReferences(params.id, currentCompanyId),
+        {
+            params: IdParamSchema,
+            response: BrandReferencesResponseSchema,
+            permission: 'brands.read',
+        }
+    )
+
     // Create
     .post(
         '/',
-        async ({ body, set, currentCompanyId }) => {
-            const brand = await brandsService.create(body, currentCompanyId);
+        async ({ body, set, headers, currentCompanyId }) => {
+            const brand = await brandsService.create(
+                body as BrandPayload,
+                currentCompanyId,
+                headers['x-client-id']
+            );
             set.status = 201;
             return brand;
         },
@@ -69,7 +87,13 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
     // Update
     .put(
         '/:id',
-        ({ params, body, currentCompanyId }) => brandsService.update(params.id, body, currentCompanyId),
+        ({ params, body, headers, currentCompanyId }) =>
+            brandsService.update(
+                params.id,
+                body as BrandUpdatePayload,
+                currentCompanyId,
+                headers['x-client-id']
+            ),
         {
             params: IdParamSchema,
             body: BrandUpdateSchema,
@@ -80,7 +104,8 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
     // Deactivate
     .patch(
         '/:id/deactivate',
-        ({ params, currentCompanyId }) => brandsService.deactivate(params.id, currentCompanyId),
+        ({ params, headers, currentCompanyId }) =>
+            brandsService.deactivate(params.id, currentCompanyId, headers['x-client-id']),
         {
             params: IdParamSchema,
             permission: 'brands.delete',
@@ -90,17 +115,33 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
     // Restore
     .patch(
         '/:id/restore',
-        ({ params, currentCompanyId }) => brandsService.restore(params.id, currentCompanyId),
+        ({ params, headers, currentCompanyId }) =>
+            brandsService.restore(params.id, currentCompanyId, headers['x-client-id']),
         {
             params: IdParamSchema,
             permission: 'brands.restore',
         }
     )
 
+    // Hard delete
+    .delete(
+        '/:id',
+        async ({ params, headers, currentCompanyId }) => {
+            await brandsService.hardDelete(params.id, currentCompanyId, headers['x-client-id']);
+            return { success: true } as const;
+        },
+        {
+            params: IdParamSchema,
+            response: SuccessResponseSchema,
+            permission: 'brands.destroy',
+        }
+    )
+
     // Bulk deactivate
     .delete(
         '/bulk',
-        ({ body, currentCompanyId }) => brandsService.bulkDeactivate(body.ids, currentCompanyId),
+        ({ body, headers, currentCompanyId }) =>
+            brandsService.bulkDeactivate(body.ids, currentCompanyId, headers['x-client-id']),
         {
             body: BulkIdsBodySchema,
             permission: 'brands.delete',
@@ -110,7 +151,8 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
     // Bulk restore
     .patch(
         '/bulk/restore',
-        ({ body, currentCompanyId }) => brandsService.bulkRestore(body.ids, currentCompanyId),
+        ({ body, headers, currentCompanyId }) =>
+            brandsService.bulkRestore(body.ids, currentCompanyId, headers['x-client-id']),
         {
             body: BulkIdsBodySchema,
             permission: 'brands.restore',

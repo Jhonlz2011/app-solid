@@ -5,7 +5,7 @@
  * suppliers, clients, employees, and carriers using Elysia/Eden.
  */
 import { throwApiError } from '@shared/utils/api-errors';
-import type { EntityFilters, EntityReferences } from '@app/schema/shared-dto';
+import type { EntityFilters, EntityReferences } from '@app/schema/dto';
 
 export function createEntityApi(endpoint: any) {
     return {

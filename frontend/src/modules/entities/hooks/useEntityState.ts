@@ -19,7 +19,7 @@ import type { EntityApi, EntityListItem } from '../data/entities.api';
 import type { EntityQueries } from '../data/entities.queries';
 import type { EntityMutations } from '../data/entities.mutations';
 import type { EntityKeys } from '../data/entities.keys';
-import type { EntityFilters } from '@app/schema/shared-dto';
+import type { EntityFilters } from '@app/schema/dto';
 
 interface UseEntityStateConfig {
     api: EntityApi;

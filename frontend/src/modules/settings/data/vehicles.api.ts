@@ -1,6 +1,6 @@
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { CarrierVehiclePayload, CompanyVehicleItem } from '@app/schema/shared-dto';
+import type { CarrierVehiclePayload, CompanyVehicleItem } from '@app/schema/dto';
 
 export const vehiclesApi = {
     list: async (): Promise<CompanyVehicleItem[]> => {

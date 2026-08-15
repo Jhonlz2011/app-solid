@@ -1,6 +1,6 @@
 import { createStore } from "solid-js/store";
 import { authApi } from "../api/auth.api";
-import type { TenantBrandingDto } from '@app/schema/shared-dto';
+import type { TenantBrandingDto } from '@app/schema/dto';
 import { getContrastColor } from '@app/schema/utils/color';
 import { THEME_PRESETS } from '@app/schema/utils';
 import { resolveSlugFromHost } from '@app/schema/utils';

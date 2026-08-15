@@ -1,7 +1,7 @@
 // Profile Header Component
 import { Component, For, createMemo, Show } from 'solid-js';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
-import type { ProfileDto } from '@app/schema/shared-dto';
+import type { ProfileDto } from '@app/schema/dto';
 import { Badge, RoleBadge } from '@shared/ui/Badge';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { Skeleton } from '@shared/ui/Skeleton';

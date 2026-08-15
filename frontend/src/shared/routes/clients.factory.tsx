@@ -3,14 +3,14 @@ import { createEntityModals } from '@shared/routes/modals.factory';
 import { clientKeys } from '@modules/clients/data/clients.keys';
 import { clientsApi } from '@modules/clients/data/clients.api';
 
-const LazyClientShowRoute = lazyRouteComponent(() => import('@modules/clients/components/ClientShowPanel'));
-const LazyClientEditRoute = lazyRouteComponent(() => import('@modules/clients/components/ClientEditSheet'));
-const LazyClientNewRoute = lazyRouteComponent(() => import('@modules/clients/components/ClientNewSheet'));
+const LazyEntityShowRoute = lazyRouteComponent(() => import('@modules/entities/components/EntityShowPanel'));
+const LazyEntityEditRoute = lazyRouteComponent(() => import('@modules/entities/components/EntityEditSheet'));
+const LazyEntityNewRoute = lazyRouteComponent(() => import('@modules/entities/components/EntityNewSheet'));
 
 export const createClientsModals = (parentRoute: any, basePath = '') =>
     createEntityModals(parentRoute, basePath, {
         entityKey: 'clients',
         idParam: 'clientId',
-        components: { New: LazyClientNewRoute, Show: LazyClientShowRoute, Edit: LazyClientEditRoute },
+        components: { New: LazyEntityNewRoute, Show: LazyEntityShowRoute, Edit: LazyEntityEditRoute },
         detail: { queryKey: clientKeys.detail, queryFn: clientsApi.get },
     });

@@ -3,7 +3,7 @@ import { db } from '../../core/db';
 import { carrierVehicles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
-import type { CarrierVehiclePayload } from '@app/schema/shared-dto';
+import type { CarrierVehiclePayload } from '@app/schema/dto';
 
 export const vehiclesService = {
     async list(companyId: number) {

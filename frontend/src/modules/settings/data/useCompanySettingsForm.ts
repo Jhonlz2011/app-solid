@@ -2,7 +2,7 @@ import { createSignal, createEffect, createMemo, onCleanup, untrack } from 'soli
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CompanySettingsFormSchema, type CompanySettingsFormData } from '@app/schema/frontend';
-import type { CropCoordinates } from '@app/schema/shared-dto';
+import type { CropCoordinates } from '@app/schema/dto';
 import { BRANDING_DEFAULTS } from '@app/schema/utils';
 import { toast } from 'solid-sonner';
 import { useCompanyBranding } from './branding.queries';

@@ -1,7 +1,7 @@
 import { Component, createSignal } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useAuth } from '@/modules/auth/store/auth.store';
-import type { EntityReferences } from '@app/schema/shared-dto';
+import type { EntityReferences } from '@app/schema/dto';
 import type { RbacModule } from '@app/schema/enums';
 import type { EntityListItem } from '../data/entities.api';
 import DeleteDialog from '@shared/ui/DeleteDialog';

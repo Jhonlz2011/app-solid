@@ -9,7 +9,6 @@ import { employeeQueries } from '../data/employees.queries';
 import { employeeMutations } from '../data/employees.mutations';
 import { createEmployeeColumns } from '../data/employee.columns';
 import { taxIdTypeLabels, personTypeLabels } from '../models/employee.types';
-import EmployeeFilterSheet from '../components/EmployeeFilterSheet';
 
 const EmployeesPage: Component = () => {
     const state = useEntityState({
@@ -36,7 +35,6 @@ const EmployeesPage: Component = () => {
             entityNameSingular="empleado"
             permissionKey="employees"
             newRoutePath="/employees/new"
-            CustomFilterSheet={EmployeeFilterSheet}
         />
     );
 };

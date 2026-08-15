@@ -1,12 +1,7 @@
-/**
- * ClientFilterSheet — Thin wrapper over the shared FilterSheet.
- *
- * Only defines the client-specific filter groups and passes them through.
- */
 import { Component } from 'solid-js';
 import { FilterSheet, type FilterConfig } from '@shared/ui/DataTable/FilterSheet';
 
-export interface ClientFilterSheetProps {
+export interface EntityFilterSheetProps {
     isOpen: boolean;
     onClose: () => void;
     filters: {
@@ -15,6 +10,7 @@ export interface ClientFilterSheetProps {
         isActive: FilterConfig;
         businessName: FilterConfig;
     };
+    entityNamePlural?: string;
 }
 
 const GROUPS = [
@@ -24,12 +20,14 @@ const GROUPS = [
     { key: 'businessName', label: 'Razón Social' },
 ];
 
-export const ClientFilterSheet: Component<ClientFilterSheetProps> = (props) => (
+export const EntityFilterSheet: Component<EntityFilterSheetProps> = (props) => (
     <FilterSheet
         isOpen={props.isOpen}
         onClose={props.onClose}
         filters={props.filters}
         groups={GROUPS}
-        entityName="clientes"
+        entityName={props.entityNamePlural ?? 'entidades'}
     />
 );
+
+export default EntityFilterSheet;

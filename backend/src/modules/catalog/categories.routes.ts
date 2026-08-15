@@ -15,14 +15,15 @@ import {
     hardDeleteCategory,
     bulkDeactivateCategories,
     bulkRestoreCategories,
-    type CategoryPayload,
 } from './categories.service';
+import type { CategoryPayload } from '@app/schema/dto';
 import {
     CategoryBodySchema,
     CategoryUpdateSchema,
     CategoryReparentSchema,
     CategoryReorderSchema,
     CategoryListQuerySchema,
+    CategoryReferencesResponseSchema,
     BulkIdsBodySchema,
     IdParamSchema,
     SuccessResponseSchema,
@@ -94,6 +95,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
         ({ params, currentCompanyId }) => checkCategoryReferences(params.id, currentCompanyId),
         {
             params: IdParamSchema,
+            response: CategoryReferencesResponseSchema,
             permission: 'categories.read',
         }
     )

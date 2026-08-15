@@ -1,24 +1,29 @@
 /**
  * EntityCardList.tsx — Generic Mobile Infinite-scroll list for entities.
  */
-import { Component, createMemo, onMount, onCleanup, For, Show } from 'solid-js';
+import { Component, onMount, onCleanup, For, Show } from 'solid-js';
 import type { RowSelectionState } from '@tanstack/solid-table';
 import { Skeleton } from '@shared/ui/Skeleton';
 import { EmptyState } from '@shared/ui/EmptyState';
 import { UsersIcon } from '@shared/ui/icons';
+import { EntityCard } from './EntityCard';
+import type { EntityListItem } from '../data/entities.api';
+import type { RbacModule } from '@app/schema/enums';
 
 export interface EntityCardListProps {
-    items: any[];
+    items: EntityListItem[];
     isLoading: boolean;
     rowSelection: () => RowSelectionState;
     onRowSelectionChange: (sel: RowSelectionState) => void;
-    onDelete: (entity: any) => void;
-    onRestore: (entity: any) => void;
+    onDelete: (entity: EntityListItem) => void;
+    onRestore: (entity: EntityListItem) => void;
     emptyMessage?: string;
-    CustomCard?: Component<any>; // Allow overriding the card layout if needed
+    CustomCard?: Component<any>;
     hasNextPage?: boolean;
     onLoadNext?: () => void;
     isFetchingNext?: boolean;
+    basePath?: string;
+    permissionKey?: RbacModule;
 }
 
 export const EntityCardList: Component<EntityCardListProps> = (props) => {
@@ -75,19 +80,39 @@ export const EntityCardList: Component<EntityCardListProps> = (props) => {
                     {(entity) => {
                         const id = String(entity.id);
                         return (
-                            <Show when={props.CustomCard}>
-                                {props.CustomCard && <props.CustomCard
-                                    entity={entity}
-                                    isSelected={!!props.rowSelection()[id]}
-                                    onSelect={(checked: boolean) => {
-                                        const next = { ...props.rowSelection() };
-                                        if (checked) next[id] = true;
-                                        else delete next[id];
-                                        props.onRowSelectionChange(next);
-                                    }}
-                                    onDelete={props.onDelete}
-                                    onRestore={props.onRestore}
-                                />}
+                            <Show
+                                when={props.CustomCard}
+                                fallback={
+                                    <EntityCard
+                                        entity={entity}
+                                        isSelected={!!props.rowSelection()[id]}
+                                        onSelect={(checked: boolean) => {
+                                            const next = { ...props.rowSelection() };
+                                            if (checked) next[id] = true;
+                                            else delete next[id];
+                                            props.onRowSelectionChange(next);
+                                        }}
+                                        onDelete={props.onDelete}
+                                        onRestore={props.onRestore}
+                                        basePath={props.basePath}
+                                        permissionKey={props.permissionKey}
+                                    />
+                                }
+                            >
+                                {(Card) => (
+                                    <Card()
+                                        entity={entity}
+                                        isSelected={!!props.rowSelection()[id]}
+                                        onSelect={(checked: boolean) => {
+                                            const next = { ...props.rowSelection() };
+                                            if (checked) next[id] = true;
+                                            else delete next[id];
+                                            props.onRowSelectionChange(next);
+                                        }}
+                                        onDelete={props.onDelete}
+                                        onRestore={props.onRestore}
+                                    />
+                                )}
                             </Show>
                         );
                     }}

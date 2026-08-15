@@ -3,8 +3,8 @@ import { clientsApi } from '../data/clients.api';
 import type { TaxIdType, PersonType, TaxRegimeType } from '@app/schema/frontend';
 
 // Centralized filter/reference types
-export type { EntityFilters as ClientFilters } from '@app/schema/shared-dto';
-export type { EntityReferences as ClientReferences } from '@app/schema/shared-dto';
+export type { EntityFilters as ClientFilters } from '@app/schema/dto';
+export type { EntityReferences as ClientReferences } from '@app/schema/dto';
 
 // Infer Client type from API response (single item with relations)
 export type Client = Awaited<ReturnType<typeof clientsApi.get>>;

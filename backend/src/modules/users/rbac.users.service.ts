@@ -1,6 +1,6 @@
 import { db } from '../../core/db';
 import { authUsers, authUserRoles, authRoles, entities, auditLogs, sessions } from '@app/schema/tables';
-import { eq, sql, count, and, inArray, ilike, or, asc, desc } from '@app/schema';
+import { eq, sql, count, and, inArray, ilike, or, asc, desc, type SQL } from '@app/schema';
 import { cacheService } from '../../core/cache';
 import { DomainError } from '../../core/errors';
 import { broadcast } from '../../core/sse/sse';
@@ -19,11 +19,12 @@ export interface UsersListFilters {
     roles?: string[];
 }
 
-export const USERS_SORT_WHITELIST: Record<string, any> = {
+// Allowed columns for sorting (whitelist prevents SQL injection)
+export const USERS_SORT_WHITELIST: Record<string, typeof authUsers.username> = {
     username: authUsers.username,
     email: authUsers.email,
-    isActive: authUsers.is_active,
-    lastLogin: authUsers.last_login,
+    created_at: authUsers.created_at,
+    is_active: authUsers.is_active,
 };
 
 /**
@@ -34,11 +35,12 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
     const limit = Math.min(100, Math.max(1, filters.limit ?? 15));
     const offset = (page - 1) * limit;
 
-    const conditions = [];
+    const conditions: SQL[] = [];
     if (companyId) conditions.push(eq(authUsers.company_id, companyId));
     if (filters.search) {
         const term = `%${filters.search}%`;
-        conditions.push(or(ilike(authUsers.username, term), ilike(authUsers.email, term)));
+        const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term));
+        if (searchCond) conditions.push(searchCond);
     }
     if (filters.isActive && filters.isActive.length > 0) {
         const boolValues = filters.isActive.map(v => v === 'true');

@@ -71,6 +71,18 @@ export const brandsApi = {
         return data as unknown as BrandItem;
     },
 
+    checkReferences: async (id: number): Promise<BrandReferences> => {
+        const { data, error } = await (api.api.brands as any)({ id }).references.get();
+        if (error) throwApiError(error);
+        return data! as BrandReferences;
+    },
+
+    hardDelete: async (id: number): Promise<{ success: boolean }> => {
+        const { data, error } = await (api.api.brands as any)({ id }).delete();
+        if (error) throwApiError(error);
+        return data as unknown as { success: boolean };
+    },
+
     bulkDeactivate: async (ids: number[]): Promise<{ success: boolean; count: number }> => {
         const { data, error } = await api.api.brands.bulk.delete({ ids });
         if (error) throwApiError(error);

@@ -66,15 +66,12 @@ export interface FilterBuildOptions {
     excludeFilterKey?: string;
 }
 
-export function buildWhereConditions(opts: FilterBuildOptions) {
-    const conditions = [];
-
-    // Tenant isolation — always filter by company
-    conditions.push(eq(products.company_id, opts.companyId));
+export function buildWhereConditions(opts: FilterBuildOptions): SQL[] {
+    const conditions: SQL[] = [eq(products.company_id, opts.companyId)];
 
     if (opts.search) {
         const pattern = `%${opts.search}%`;
-        conditions.push(or(
+        const searchCondition = or(
             ilike(products.name, pattern),
             ilike(products.slug, pattern),
             ilike(products.description, pattern),
@@ -85,7 +82,8 @@ export function buildWhereConditions(opts: FilterBuildOptions) {
                 AND pv.company_id = ${opts.companyId}
                 AND (pv.sku ILIKE ${pattern} OR pv.barcode ILIKE ${pattern})
             )`
-        ));
+        );
+        if (searchCondition) conditions.push(searchCondition);
     }
 
     const cf = opts.filters || opts.columnFilters;

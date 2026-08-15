@@ -13,7 +13,7 @@ import type {
     UsersFilters,
     UserReferencesDto,
 } from '@app/schema/rbac-dto';
-import type { FacetData } from '@app/schema/shared-dto';
+import type { FacetData } from '@app/schema/dto';
 
 
 // =============================================================================

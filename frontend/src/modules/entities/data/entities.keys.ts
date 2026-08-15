@@ -1,4 +1,4 @@
-import type { EntityFilters } from '@app/schema/shared-dto';
+import type { EntityFilters } from '@app/schema/dto';
 
 export function createEntityKeys(entityName: string) {
     const all = [entityName] as const;

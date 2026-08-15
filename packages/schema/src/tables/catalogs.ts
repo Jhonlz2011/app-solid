@@ -73,6 +73,8 @@ export const categories = pgTableV2("categories", {
     requires_return: boolean("requires_return").default(false),
 
     is_active: boolean("is_active").default(true),
+    created_at: timestamp("created_at", TZ).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
     foreignKey({ columns: [t.parent_id], foreignColumns: [t.id] }),
     index("idx_categories_parent").on(t.parent_id),
@@ -95,6 +97,8 @@ export const categoryAttributes = pgTableV2("category_attributes", {
     required: boolean("required").default(false),
     order: integer("order").default(0),
     specific_options: jsonb("specific_options").$type<string[] | null>(),
+    created_at: timestamp("created_at", TZ).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
     unique("unq_cat_attr").on(t.category_id, t.attribute_def_id),
     index("idx_cat_attrs_company").on(t.company_id),

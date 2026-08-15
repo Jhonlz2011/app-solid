@@ -14,7 +14,6 @@ import type {
     CategoryReferences,
     CategoryReorderItem,
 } from '@app/schema/dto';
-export type { CategoryPayload };
 
 // Helper: slugify for ltree path segments (ascii, lowercase, dots replaced)
 function slugifyPath(name: string): string {
@@ -281,7 +280,7 @@ export async function updateCategoryEnhanced(id: number, data: Partial<CategoryP
             .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
         if (!existing) throw new DomainError('Categoría no encontrada', 404);
 
-        const updateValues: Record<string, any> = {};
+        const updateValues: Record<string, any> = { updated_at: new Date() };
         if (data.name !== undefined) updateValues.name = data.name;
         if (data.parentId !== undefined) updateValues.parent_id = data.parentId;
         if (data.description !== undefined) updateValues.description = data.description;
@@ -318,6 +317,8 @@ export async function updateCategoryEnhanced(id: number, data: Partial<CategoryP
                         required: a.required ?? false,
                         order: a.order ?? 0,
                         specific_options: (a.specificOptions as string[] | null) ?? null,
+                        created_at: new Date(),
+                        updated_at: new Date(),
                     }))
                 );
             }
@@ -344,7 +345,8 @@ export async function deactivateCategory(id: number, companyId: number, clientId
         // Cascade: deactivate this node + all descendants via ltree
         await tx.execute(sql`
             UPDATE categories
-            SET is_active = false
+            SET is_active = false,
+                updated_at = now()
             WHERE company_id = ${companyId}
               AND path <@ ${existing.path}::ltree
         `);
@@ -368,7 +370,7 @@ export async function restoreCategory(id: number, companyId: number, clientId?: 
             .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
         if (!existing) throw new DomainError('Categoría no encontrada', 404);
 
-        const [updated] = await tx.update(categories).set({ is_active: true })
+        const [updated] = await tx.update(categories).set({ is_active: true, updated_at: new Date() })
             .where(and(eq(categories.id, id), eq(categories.company_id, companyId))).returning();
 
         await cacheService.invalidate(`categories:c${companyId}:*`);
@@ -391,7 +393,7 @@ export async function reorderCategories(items: CategoryReorderItem[], companyId:
     await db.transaction(async (tx) => {
         for (const item of items) {
             await tx.update(categories)
-                .set({ sort_order: item.sort_order })
+                .set({ sort_order: item.sort_order, updated_at: new Date() })
                 .where(and(eq(categories.id, item.id), eq(categories.company_id, companyId)));
         }
     });
@@ -442,13 +444,15 @@ export async function reparentCategory(id: number, newParentId: number | null, c
         parent_id: newParentId,
         path: newPath,
         depth: newDepth,
+        updated_at: new Date(),
     }).where(and(eq(categories.id, id), eq(categories.company_id, companyId))).returning();
 
     // Cascade to all descendants: update path prefix + adjust depth
     await db.execute(sql`
         UPDATE categories
         SET path = (${newPath} || substr(path::text, ${oldPath.length + 1}))::ltree,
-            depth = depth + ${depthDiff}
+            depth = depth + ${depthDiff},
+            updated_at = now()
         WHERE company_id = ${companyId}
           AND path <@ ${oldPath}::ltree
           AND id != ${id}

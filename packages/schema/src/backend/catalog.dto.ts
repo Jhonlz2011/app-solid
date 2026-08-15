@@ -169,9 +169,15 @@ export const CategoryListQuerySchema = Type.Object({
     flat: Type.Optional(Type.String()),
 });
 
+export const CategoryReferencesResponseSchema = Type.Object({
+    products: Type.Number(),
+    total: Type.Number(),
+});
+
 export type CategoryAttributeEntryType = Static<typeof CategoryAttributeEntrySchema>;
 export type CategoryBodyType = Static<typeof CategoryBodySchema>;
 export type CategoryUpdateType = Static<typeof CategoryUpdateSchema>;
 export type CategoryReparentType = Static<typeof CategoryReparentSchema>;
 export type CategoryReorderType = Static<typeof CategoryReorderSchema>;
 export type CategoryListQueryType = Static<typeof CategoryListQuerySchema>;
+export type CategoryReferencesResponseType = Static<typeof CategoryReferencesResponseSchema>;

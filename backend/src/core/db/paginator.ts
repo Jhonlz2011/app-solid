@@ -1,9 +1,9 @@
-import { sql, and, eq, lt, gt, asc, desc, inArray, type AnyColumn, type SQL, type PgTableWithColumns, type PgColumn } from '@app/schema';
+import { sql, and, eq, lt, gt, asc, desc, inArray, type AnyColumn, type SQL, type PgColumn, type Table } from '@app/schema';
 import { db } from './db';
 import { cacheService } from '../cache/cache.service';
 import { createHash } from 'crypto';
 
-export interface PaginationParams<TFilters = Record<string, unknown>> {
+export interface PaginationParams<TFilters = Record<string, any>> {
     cursor?: string;
     direction?: 'first' | 'next' | 'prev' | 'last';
     limit?: number;
@@ -29,7 +29,7 @@ export interface PaginatedResult<T> {
     meta: PaginationMeta;
 }
 
-export interface CursorPaginatorConfig<TTable extends PgTableWithColumns<any> = PgTableWithColumns<any>, TFilters = Record<string, unknown>> {
+export interface CursorPaginatorConfig<TTable extends Table<any> = Table<any>, TFilters = Record<string, any>> {
     table: TTable;
     idColumn: PgColumn<any>;
     companyIdColumn: PgColumn<any>;
@@ -45,14 +45,14 @@ export interface CursorPaginatorConfig<TTable extends PgTableWithColumns<any> = 
     }) => SQL[];
 }
 
-export class CursorPaginator<TTable extends PgTableWithColumns<any> = PgTableWithColumns<any>, TFilters extends Record<string, unknown> = Record<string, unknown>> {
-    private readonly table: PgTableWithColumns<any>;
+export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = Record<string, any>> {
+    private readonly table: Table<any>;
 
     constructor(private config: CursorPaginatorConfig<TTable, TFilters>) {
-        this.table = config.table as PgTableWithColumns<any>;
+        this.table = config.table as Table<any>;
     }
 
-    private hashKey(obj: Record<string, unknown>): string {
+    private hashKey(obj: unknown): string {
         return createHash('md5').update(JSON.stringify(obj)).digest('hex').slice(0, 12);
     }
 
@@ -284,7 +284,7 @@ export class CursorPaginator<TTable extends PgTableWithColumns<any> = PgTableWit
         columns: TColumnKey[],
         columnMap: Record<TColumnKey, PgColumn<any>>,
         filterKeyMap: Record<TColumnKey, string>,
-        labelJoins: Partial<Record<TColumnKey, { table: PgTableWithColumns<any>; nameCol: PgColumn<any>; idCol: PgColumn<any> }>> = {},
+        labelJoins: Partial<Record<TColumnKey, { table: Table<any>; nameCol: PgColumn<any>; idCol: PgColumn<any> }>> = {},
         filters: { search?: string } & Partial<TFilters> = {},
         companyId: number = 0
     ): Promise<Record<string, { value: string; label?: string; count: number }[]>> {
@@ -345,14 +345,14 @@ export class CursorPaginator<TTable extends PgTableWithColumns<any> = PgTableWit
     }
 }
 
-export class FacetedFilterEngine<TTable extends PgTableWithColumns<any> = PgTableWithColumns<any>, TFilters extends Record<string, unknown> = Record<string, unknown>> {
+export class FacetedFilterEngine<TTable extends Table<any> = Table<any>, TFilters = Record<string, any>> {
     constructor(private paginator: CursorPaginator<TTable, TFilters>) {}
 
     async getFacets<TColumnKey extends string>(
         columns: TColumnKey[],
         columnMap: Record<TColumnKey, PgColumn<any>>,
         filterKeyMap: Record<TColumnKey, string>,
-        labelJoins: Partial<Record<TColumnKey, { table: PgTableWithColumns<any>; nameCol: PgColumn<any>; idCol: PgColumn<any> }>> = {},
+        labelJoins: Partial<Record<TColumnKey, { table: Table<any>; nameCol: PgColumn<any>; idCol: PgColumn<any> }>> = {},
         filters: { search?: string } & Partial<TFilters> = {},
         companyId: number = 0
     ) {

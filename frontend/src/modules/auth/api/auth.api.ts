@@ -6,7 +6,7 @@
  */
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { AuthRegisterPayload } from '@app/schema/shared-dto';
+import type { AuthRegisterPayload } from '@app/schema/dto';
 
 export const authApi = {
     login: async (credentials: { email: string; password: string; companyId?: number; turnstileToken?: string }, signal?: AbortSignal) => {

@@ -5,7 +5,7 @@ import { createQuery, createInfiniteQuery, keepPreviousData, useQueryClient } fr
 import { createEffect } from 'solid-js';
 import type { EntityApi } from './entities.api';
 import type { EntityKeys } from './entities.keys';
-import type { EntityFilters, FacetData, EntityReferences } from '@app/schema/shared-dto';
+import type { EntityFilters, FacetData, EntityReferences } from '@app/schema/dto';
 
 export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndpoint: any) {
     return {

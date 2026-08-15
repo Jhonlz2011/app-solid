@@ -9,13 +9,12 @@ import { clientQueries } from '../data/clients.queries';
 import { clientMutations } from '../data/clients.mutations';
 import { createClientColumns } from '../data/client.columns';
 import { taxIdTypeLabels, personTypeLabels } from '../models/client.types';
-import { ClientFilterSheet } from '../components/ClientFilterSheet';
 
 const ClientsPage: Component = () => {
     const state = useEntityState({
         api: clientsApi,
         keys: clientKeys,
-        queries: clientQueries as any, // SRI methods are mixed in, cast is fine
+        queries: clientQueries,
         mutations: clientMutations,
         createColumns: createClientColumns,
         sseRoom: 'clients',
@@ -36,7 +35,6 @@ const ClientsPage: Component = () => {
             entityNameSingular="cliente"
             permissionKey="clients"
             newRoutePath="/clients/new"
-            CustomFilterSheet={ClientFilterSheet}
         />
     );
 };

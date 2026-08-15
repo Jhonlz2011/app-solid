@@ -6,8 +6,8 @@ import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
-import type { EntityPayload, EntityContactPayload, EntityAddressPayload } from '@app/schema/shared-dto';
-import type { EntityType } from './entities.query.service'
+import type { EntityPayload, EntityContactPayload, EntityAddressPayload, EntityReferences } from '@app/schema/dto';
+import type { EntityType } from './entities.query.service';
 
 // Helper for numeric conversion
 const toDecimal = (val?: number | null): string | undefined =>
@@ -24,12 +24,12 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
 // Create Entity
 // =============================================================================
 
-export async function createEntity(type: EntityType, payload: EntityPayload, audit?: AuditContext, companyId?: number) {
+export async function createEntity(type: EntityType, payload: EntityPayload, audit: AuditContext | undefined, companyId: number) {
     return await withAuditTransaction(audit, async (tx) => {
         const [created] = await tx
             .insert(entities)
             .values({
-                company_id: companyId!,
+                company_id: companyId,
                 tax_id: payload.taxId,
                 tax_id_type: payload.taxIdType,
                 person_type: payload.personType ?? 'NATURAL',
@@ -92,7 +92,7 @@ export async function createEntity(type: EntityType, payload: EntityPayload, aud
             if (payload.vehicles && payload.vehicles.length > 0) {
                 await tx.insert(carrierVehicles).values(
                     payload.vehicles.map(v => ({
-                        company_id: companyId!,
+                        company_id: companyId,
                         carrier_id: created.id,
                         license_plate: v.licensePlate.toUpperCase().trim(),
                         description: v.description || null,
@@ -113,7 +113,8 @@ export async function createEntity(type: EntityType, payload: EntityPayload, aud
             }
         }
 
-        await cacheService.invalidate(companyId ? `${type}s:c${companyId}:*` : `${type}s:*`);
+        await cacheService.invalidate(`${type}s:c${companyId}:*`);
+        await cacheService.invalidate(`entities:c${companyId}:*`);
         broadcast(RealtimeEvents.ENTITY.CREATED, { type, entity: created, clientId: audit?.clientId }, `${type}s`);
 
         return created;
@@ -124,10 +125,8 @@ export async function createEntity(type: EntityType, payload: EntityPayload, aud
 // Update Entity
 // =============================================================================
 
-export async function updateEntity(id: number, type: EntityType, payload: Partial<EntityPayload>, audit?: AuditContext, companyId?: number) {
+export async function updateEntity(id: number, type: EntityType, payload: Partial<EntityPayload>, audit: AuditContext | undefined, companyId: number) {
     return withAuditTransaction(audit, async (tx) => {
-        const whereConditions = [eq(entities.id, id)];
-        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
         const [updated] = await tx
             .update(entities)
             .set(stripUndefined({
@@ -144,8 +143,9 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
                 is_supplier: payload.isSupplier,
                 is_employee: payload.isEmployee,
                 is_carrier: payload.isCarrier,
+                updated_at: new Date(),
             }))
-            .where(and(...whereConditions))
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId)))
             .returning();
 
         if (!updated) throw new DomainError('Entidad no encontrada', 404);
@@ -164,7 +164,6 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
                 .returning();
             
             if (result.length === 0) {
-                // Insert if not exists
                 await tx.insert(employeeDetails).values({
                     entity_id: id,
                     department: payload.employeeDetails.department,
@@ -214,7 +213,7 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
             if (payload.vehicles.length > 0) {
                 await tx.insert(carrierVehicles).values(
                     payload.vehicles.map(v => ({
-                        company_id: updated.company_id,
+                        company_id: companyId,
                         carrier_id: id,
                         license_plate: v.licensePlate.toUpperCase().trim(),
                         description: v.description || null,
@@ -239,25 +238,9 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
             }
         }
 
-        if (companyId) {
-            await cacheService.invalidate(`entity:c${companyId}:${id}`);
-        } else {
-            await cacheService.invalidate(`entity:${id}`);
-        }
-
-        // Granular cache invalidation
-        const requiresListInvalidation =
-            payload.businessName !== undefined ||
-            payload.taxId !== undefined ||
-            payload.personType !== undefined ||
-            payload.taxIdType !== undefined ||
-            payload.isRetentionAgent !== undefined ||
-            payload.isSpecialContributor !== undefined ||
-            payload.isCarrier !== undefined;
-
-        if (requiresListInvalidation) {
-            await cacheService.invalidate(companyId ? `${type}s:c${companyId}:*` : `${type}s:*`);
-        }
+        await cacheService.invalidate(`entity:c${companyId}:${id}`);
+        await cacheService.invalidate(`${type}s:c${companyId}:*`);
+        await cacheService.invalidate(`entities:c${companyId}:*`);
 
         broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
 
@@ -269,45 +252,31 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
 // Soft Delete / Restore / Hard Delete
 // =============================================================================
 
-export interface EntityReferences {
-    supplierProducts: number;
-    invoices: number;
-    workOrders: number;
-    total: number;
-    canDelete: boolean;
-}
-
 export async function deactivateEntity(
     id: number,
     type: EntityType,
-    deletedBy?: number,
-    audit?: AuditContext,
-    companyId?: number
+    deletedBy: number | undefined,
+    audit: AuditContext | undefined,
+    companyId: number
 ) {
     return withAuditTransaction(audit, async (tx) => {
-        const whereConditions = [eq(entities.id, id)];
-        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
         const [updated] = await tx
             .update(entities)
             .set({
                 is_active: false,
                 deleted_at: new Date(),
                 deleted_by: deletedBy ?? null,
+                updated_at: new Date(),
             })
-            .where(and(...whereConditions))
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId)))
             .returning();
 
         if (!updated) throw new DomainError('Entidad no encontrada', 404);
 
-        if (companyId) {
-            await cacheService.invalidate(`entity:c${companyId}:${id}`);
-            await cacheService.invalidate(`${type}s:c${companyId}:*`);
-        } else {
-            await cacheService.invalidate(`entity:${id}`);
-            await cacheService.invalidate(`${type}s:*`);
-        }
+        await cacheService.invalidate(`entity:c${companyId}:${id}`);
+        await cacheService.invalidate(`${type}s:c${companyId}:*`);
+        await cacheService.invalidate(`entities:c${companyId}:*`);
         
-        // Broadcast as UPDATED so the frontend knows its new `is_active` state
         broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
 
         return { success: true };
@@ -317,51 +286,43 @@ export async function deactivateEntity(
 export async function restoreEntity(
     id: number,
     type: EntityType,
-    audit?: AuditContext,
-    companyId?: number
+    audit: AuditContext | undefined,
+    companyId: number
 ) {
     return withAuditTransaction(audit, async (tx) => {
-        const whereConditions = [eq(entities.id, id)];
-        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
         const [updated] = await tx
             .update(entities)
             .set({
                 is_active: true,
                 deleted_at: null,
                 deleted_by: null,
+                updated_at: new Date(),
             })
-            .where(and(...whereConditions))
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId)))
             .returning();
 
         if (!updated) throw new DomainError('Entidad no encontrada', 404);
 
-        if (companyId) {
-            await cacheService.invalidate(`entity:c${companyId}:${id}`);
-            await cacheService.invalidate(`${type}s:c${companyId}:*`);
-        } else {
-            await cacheService.invalidate(`entity:${id}`);
-            await cacheService.invalidate(`${type}s:*`);
-        }
+        await cacheService.invalidate(`entity:c${companyId}:${id}`);
+        await cacheService.invalidate(`${type}s:c${companyId}:*`);
+        await cacheService.invalidate(`entities:c${companyId}:*`);
         broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
 
         return { success: true };
     });
 }
 
-export async function checkEntityReferences(id: number, companyId?: number): Promise<EntityReferences> {
-    const spConditions = [eq(supplierProducts.supplier_id, id)];
-    if (companyId) spConditions.push(eq(supplierProducts.company_id, companyId));
-
-    const docConditions = [eq(electronicDocuments.entity_id, id)];
-    if (companyId) docConditions.push(eq(electronicDocuments.company_id, companyId));
-
-    const woConditions = [eq(workOrders.client_id, id)];
-    if (companyId) woConditions.push(eq(workOrders.company_id, companyId));
-
+export async function checkEntityReferences(id: number, companyId: number): Promise<EntityReferences> {
     const [[spCount], [docCount], [woCount]] = await Promise.all([
-        db.select({ value: count() }).from(supplierProducts).where(and(...spConditions)),
-        db.select({ value: count() }).from(electronicDocuments).where(and(...docConditions)),
-        db.select({ value: count() }).from(workOrders).where(and(...woConditions)),
+        db.select({ value: count() }).from(supplierProducts).where(
+            and(eq(supplierProducts.supplier_id, id), eq(supplierProducts.company_id, companyId))
+        ),
+        db.select({ value: count() }).from(electronicDocuments).where(
+            and(eq(electronicDocuments.entity_id, id), eq(electronicDocuments.company_id, companyId))
+        ),
+        db.select({ value: count() }).from(workOrders).where(
+            and(eq(workOrders.client_id, id), eq(workOrders.company_id, companyId))
+        ),
     ]);
 
     const total =
@@ -381,8 +342,8 @@ export async function checkEntityReferences(id: number, companyId?: number): Pro
 export async function hardDeleteEntity(
     id: number,
     type: EntityType,
-    audit?: AuditContext,
-    companyId?: number
+    audit: AuditContext | undefined,
+    companyId: number
 ) {
     const refs = await checkEntityReferences(id, companyId);
     if (!refs.canDelete) {
@@ -393,23 +354,19 @@ export async function hardDeleteEntity(
     }
 
     return withAuditTransaction(audit, async (tx) => {
-        const whereConditions = [eq(entities.id, id)];
-        if (companyId) whereConditions.push(eq(entities.company_id, companyId));
         const [target] = await tx
             .select({ id: entities.id })
             .from(entities)
-            .where(and(...whereConditions));
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId)));
 
         if (!target) throw new DomainError('Entidad no encontrada', 404);
 
-        await tx.delete(entities).where(and(...whereConditions));
-        if (companyId) {
-            await cacheService.invalidate(`entity:c${companyId}:${id}`);
-            await cacheService.invalidate(`${type}s:c${companyId}:*`);
-        } else {
-            await cacheService.invalidate(`entity:${id}`);
-            await cacheService.invalidate(`${type}s:*`);
-        }
+        await tx.delete(entities).where(and(eq(entities.id, id), eq(entities.company_id, companyId)));
+        
+        await cacheService.invalidate(`entity:c${companyId}:${id}`);
+        await cacheService.invalidate(`${type}s:c${companyId}:*`);
+        await cacheService.invalidate(`entities:c${companyId}:*`);
+        
         broadcast(RealtimeEvents.ENTITY.DELETED, { type, id, clientId: audit?.clientId }, `${type}s`);
         return { success: true };
     });
@@ -419,15 +376,13 @@ export async function hardDeleteEntity(
 // Contacts CRUD
 // =============================================================================
 
-export async function addContact(entityId: number, payload: EntityContactPayload, companyId?: number) {
+export async function addContact(entityId: number, payload: EntityContactPayload, companyId: number) {
     return db.transaction(async (tx) => {
-        if (companyId) {
-            const [ent] = await tx
-                .select({ id: entities.id })
-                .from(entities)
-                .where(and(eq(entities.id, entityId), eq(entities.company_id, companyId)));
-            if (!ent) throw new DomainError('Entidad no encontrada', 404);
-        }
+        const [ent] = await tx
+            .select({ id: entities.id })
+            .from(entities)
+            .where(and(eq(entities.id, entityId), eq(entities.company_id, companyId)));
+        if (!ent) throw new DomainError('Entidad no encontrada', 404);
 
         if (payload.isPrimary) {
             await tx
@@ -448,16 +403,12 @@ export async function addContact(entityId: number, payload: EntityContactPayload
             })
             .returning();
 
-        if (companyId) {
-            await cacheService.invalidate(`entity:c${companyId}:${entityId}`);
-        } else {
-            await cacheService.invalidate(`entity:${entityId}`);
-        }
+        await cacheService.invalidate(`entity:c${companyId}:${entityId}`);
         return contact;
     });
 }
 
-export async function updateContact(contactId: number, payload: Partial<EntityContactPayload>, companyId?: number) {
+export async function updateContact(contactId: number, payload: Partial<EntityContactPayload>, companyId: number) {
     const [contact] = await db
         .select()
         .from(entityContacts)
@@ -465,13 +416,11 @@ export async function updateContact(contactId: number, payload: Partial<EntityCo
 
     if (!contact) throw new DomainError('Contacto no encontrado', 404);
 
-    if (companyId) {
-        const [ent] = await db
-            .select({ id: entities.id })
-            .from(entities)
-            .where(and(eq(entities.id, contact.entity_id), eq(entities.company_id, companyId)));
-        if (!ent) throw new DomainError('Entidad no encontrada', 404);
-    }
+    const [ent] = await db
+        .select({ id: entities.id })
+        .from(entities)
+        .where(and(eq(entities.id, contact.entity_id), eq(entities.company_id, companyId)));
+    if (!ent) throw new DomainError('Entidad no encontrada', 404);
 
     if (payload.isPrimary) {
         await db
@@ -492,15 +441,11 @@ export async function updateContact(contactId: number, payload: Partial<EntityCo
         .where(eq(entityContacts.id, contactId))
         .returning();
 
-    if (companyId) {
-        await cacheService.invalidate(`entity:c${companyId}:${contact.entity_id}`);
-    } else {
-        await cacheService.invalidate(`entity:${contact.entity_id}`);
-    }
+    await cacheService.invalidate(`entity:c${companyId}:${contact.entity_id}`);
     return updated;
 }
 
-export async function deleteContact(contactId: number, companyId?: number) {
+export async function deleteContact(contactId: number, companyId: number) {
     const [contact] = await db
         .select()
         .from(entityContacts)
@@ -508,20 +453,14 @@ export async function deleteContact(contactId: number, companyId?: number) {
 
     if (!contact) throw new DomainError('Contacto no encontrado', 404);
 
-    if (companyId) {
-        const [ent] = await db
-            .select({ id: entities.id })
-            .from(entities)
-            .where(and(eq(entities.id, contact.entity_id), eq(entities.company_id, companyId)));
-        if (!ent) throw new DomainError('Entidad no encontrada', 404);
-    }
+    const [ent] = await db
+        .select({ id: entities.id })
+        .from(entities)
+        .where(and(eq(entities.id, contact.entity_id), eq(entities.company_id, companyId)));
+    if (!ent) throw new DomainError('Entidad no encontrada', 404);
 
     await db.delete(entityContacts).where(eq(entityContacts.id, contactId));
-    if (companyId) {
-        await cacheService.invalidate(`entity:c${companyId}:${contact.entity_id}`);
-    } else {
-        await cacheService.invalidate(`entity:${contact.entity_id}`);
-    }
+    await cacheService.invalidate(`entity:c${companyId}:${contact.entity_id}`);
 
     return { success: true };
 }
@@ -530,15 +469,13 @@ export async function deleteContact(contactId: number, companyId?: number) {
 // Addresses CRUD
 // =============================================================================
 
-export async function addAddress(entityId: number, payload: EntityAddressPayload, companyId?: number) {
+export async function addAddress(entityId: number, payload: EntityAddressPayload, companyId: number) {
     return db.transaction(async (tx) => {
-        if (companyId) {
-            const [ent] = await tx
-                .select({ id: entities.id })
-                .from(entities)
-                .where(and(eq(entities.id, entityId), eq(entities.company_id, companyId)));
-            if (!ent) throw new DomainError('Entidad no encontrada', 404);
-        }
+        const [ent] = await tx
+            .select({ id: entities.id })
+            .from(entities)
+            .where(and(eq(entities.id, entityId), eq(entities.company_id, companyId)));
+        if (!ent) throw new DomainError('Entidad no encontrada', 404);
 
         if (payload.isMain) {
             await tx
@@ -560,11 +497,7 @@ export async function addAddress(entityId: number, payload: EntityAddressPayload
             })
             .returning();
 
-        if (companyId) {
-            await cacheService.invalidate(`entity:c${companyId}:${entityId}`);
-        } else {
-            await cacheService.invalidate(`entity:${entityId}`);
-        }
+        await cacheService.invalidate(`entity:c${companyId}:${entityId}`);
         return address;
     });
 }
@@ -576,8 +509,8 @@ export async function addAddress(entityId: number, payload: EntityAddressPayload
 export async function bulkDeactivateEntities(
     type: EntityType,
     ids: number[],
-    audit?: AuditContext,
-    companyId?: number
+    audit: AuditContext | undefined,
+    companyId: number
 ) {
     if (ids.length === 0) return { success: true, count: 0 };
     return withAuditTransaction(audit, async (tx) => {
@@ -585,9 +518,9 @@ export async function bulkDeactivateEntities(
         const conditions = [
             eq(typeColumn, true),
             eq(entities.is_active, true),
+            eq(entities.company_id, companyId),
             inArray(entities.id, ids),
         ];
-        if (companyId) conditions.push(eq(entities.company_id, companyId));
 
         const existing = await tx
             .select({ id: entities.id })
@@ -599,16 +532,15 @@ export async function bulkDeactivateEntities(
             throw new DomainError('No se encontraron entidades válidas para eliminar', 404);
         }
 
-        const updateConditions = [inArray(entities.id, existingIds)];
-        if (companyId) updateConditions.push(eq(entities.company_id, companyId));
-
         const updatedEntities = await tx.update(entities).set({
             is_active: false,
             deleted_at: new Date(),
-        }).where(and(...updateConditions))
+            updated_at: new Date(),
+        }).where(and(eq(entities.company_id, companyId), inArray(entities.id, existingIds)))
           .returning();
 
-        await cacheService.invalidate(companyId ? `${type}s:c${companyId}:*` : `${type}s:*`);
+        await cacheService.invalidate(`${type}s:c${companyId}:*`);
+        await cacheService.invalidate(`entities:c${companyId}:*`);
 
         for (const entity of updatedEntities) {
             broadcast(RealtimeEvents.ENTITY.UPDATED, {
@@ -625,8 +557,8 @@ export async function bulkDeactivateEntities(
 export async function bulkRestoreEntities(
     type: EntityType,
     ids: number[],
-    audit?: AuditContext,
-    companyId?: number
+    audit: AuditContext | undefined,
+    companyId: number
 ) {
     if (ids.length === 0) return { success: true, count: 0 };
     return withAuditTransaction(audit, async (tx) => {
@@ -634,9 +566,9 @@ export async function bulkRestoreEntities(
         const conditions = [
             eq(typeColumn, true),
             eq(entities.is_active, false),
+            eq(entities.company_id, companyId),
             inArray(entities.id, ids),
         ];
-        if (companyId) conditions.push(eq(entities.company_id, companyId));
 
         const existing = await tx
             .select({ id: entities.id })
@@ -648,17 +580,16 @@ export async function bulkRestoreEntities(
             throw new DomainError('No se encontraron entidades válidas para restaurar', 404);
         }
 
-        const updateConditions = [inArray(entities.id, existingIds)];
-        if (companyId) updateConditions.push(eq(entities.company_id, companyId));
-
         const updatedEntities = await tx.update(entities).set({
             is_active: true,
             deleted_at: null,
             deleted_by: null,
-        }).where(and(...updateConditions))
+            updated_at: new Date(),
+        }).where(and(eq(entities.company_id, companyId), inArray(entities.id, existingIds)))
           .returning();
 
-        await cacheService.invalidate(companyId ? `${type}s:c${companyId}:*` : `${type}s:*`);
+        await cacheService.invalidate(`${type}s:c${companyId}:*`);
+        await cacheService.invalidate(`entities:c${companyId}:*`);
 
         for (const entity of updatedEntities) {
             broadcast(RealtimeEvents.ENTITY.UPDATED, {

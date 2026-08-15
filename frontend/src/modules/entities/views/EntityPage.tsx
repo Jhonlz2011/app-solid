@@ -28,6 +28,8 @@ import {
 
 import type { RbacModule } from '@app/schema/enums';
 
+import { EntityFilterSheet } from '../components/EntityFilterSheet';
+
 interface EntityPageProps {
     title: string;
     icon: JSX.Element;
@@ -45,6 +47,7 @@ interface EntityPageProps {
 export const EntityPage: Component<EntityPageProps> = (props) => {
     const isMobile = useIsMobile();
     const state = props.state;
+    const basePath = () => props.newRoutePath.replace('/new', '');
 
     return (
         <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
@@ -84,7 +87,7 @@ export const EntityPage: Component<EntityPageProps> = (props) => {
                         <Button variant="ghost" icon={<DownloadIcon />} onClick={() => toast.info('Exportación próximamente')}>
                             <span class="hidden sm:inline">Exportar</span>
                         </Button>
-                        <Show when={isMobile() && props.CustomFilterSheet}>
+                        <Show when={isMobile()}>
                             <Button
                                 variant="ghost"
                                 class="relative"
@@ -121,6 +124,8 @@ export const EntityPage: Component<EntityPageProps> = (props) => {
                                 hasNextPage={state.hasNextPage()}
                                 onLoadNext={state.handleNextPage}
                                 isFetchingNext={state.entitiesQuery.isFetching}
+                                basePath={basePath()}
+                                permissionKey={props.permissionKey}
                             />
                         }
                     >
@@ -208,12 +213,24 @@ export const EntityPage: Component<EntityPageProps> = (props) => {
             </DataTableSelectionBar>
 
             {/* Filter Sheet (Mobile) */}
-            <Show when={props.CustomFilterSheet}>
-                {props.CustomFilterSheet && <props.CustomFilterSheet
-                    isOpen={state.showFilterSheet()}
-                    onClose={() => state.setShowFilterSheet(false)}
-                    filters={state.filterSheetConfig}
-                />}
+            <Show
+                when={props.CustomFilterSheet}
+                fallback={
+                    <EntityFilterSheet
+                        isOpen={state.showFilterSheet()}
+                        onClose={() => state.setShowFilterSheet(false)}
+                        filters={state.filterSheetConfig}
+                        entityNamePlural={props.entityNamePlural}
+                    />
+                }
+            >
+                {(Custom) => (
+                    <Custom()
+                        isOpen={state.showFilterSheet()}
+                        onClose={() => state.setShowFilterSheet(false)}
+                        filters={state.filterSheetConfig}
+                    />
+                )}
             </Show>
 
             {/* Dialogs */}

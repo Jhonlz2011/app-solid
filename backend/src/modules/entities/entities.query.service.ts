@@ -1,11 +1,14 @@
-import { and, eq, ilike, or, asc, inArray, type AnyColumn } from '@app/schema';
+import { and, eq, ilike, or, asc, inArray, type AnyColumn, type SQL } from '@app/schema';
 import { db } from '../../core/db';
 import { entities, entityAddresses, entityContacts, employeeDetails, carrierVehicles, carrierDrivers } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
+import { CursorPaginator } from '../../core/db/paginator';
+import type { EntityPickerItem } from '@app/schema/dto';
 
 // Entity type discriminator
 export type EntityType = 'client' | 'supplier' | 'employee' | 'carrier';
+
 // =============================================================================
 // Pagination Types
 // =============================================================================
@@ -32,8 +35,6 @@ export interface ListFilters extends ColumnFilters {
     page?: number;
 }
 
-import { CursorPaginator } from '../../core/db/paginator';
-
 export const SORTABLE_COLUMNS: Record<string, AnyColumn> = {
     id: entities.id,
     business_name: entities.business_name,
@@ -59,9 +60,8 @@ export interface FilterBuildOptions {
     excludeFilterKey?: string;
 }
 
-export function buildWhereConditions(opts: FilterBuildOptions) {
-    const conditions = [];
-    conditions.push(eq(entities.company_id, opts.companyId));
+export function buildWhereConditions(opts: FilterBuildOptions): SQL[] {
+    const conditions: SQL[] = [eq(entities.company_id, opts.companyId)];
 
     if (opts.type) {
         switch (opts.type) {
@@ -89,13 +89,12 @@ export function buildWhereConditions(opts: FilterBuildOptions) {
 
     if (opts.search) {
         const pattern = `%${opts.search}%`;
-        conditions.push(
-            or(
-                ilike(entities.business_name, pattern),
-                ilike(entities.tax_id, pattern),
-                ilike(entities.trade_name, pattern)
-            )
+        const searchCondition = or(
+            ilike(entities.business_name, pattern),
+            ilike(entities.tax_id, pattern),
+            ilike(entities.trade_name, pattern)
         );
+        if (searchCondition) conditions.push(searchCondition);
     }
 
     const cf = opts.filters || opts.columnFilters;
@@ -247,13 +246,13 @@ export async function getEntityFacets(
 // Get Single Entity
 // =============================================================================
 
-export async function getEntity(id: number, companyId?: number) {
-    const cacheKey = companyId ? `entity:c${companyId}:${id}` : `entity:${id}`;
+export async function getEntity(id: number, companyId: number) {
+    const cacheKey = `entity:c${companyId}:${id}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
-        const conditions = [eq(entities.id, id)];
-        if (companyId) conditions.push(eq(entities.company_id, companyId));
-        const [entity] = await db.select().from(entities).where(and(...conditions));
+        const [entity] = await db.select().from(entities).where(
+            and(eq(entities.id, id), eq(entities.company_id, companyId))
+        );
         if (!entity) throw new DomainError('Entidad no encontrada', 404);
 
         const [addresses, contacts, vehicles, drivers] = await Promise.all([
@@ -276,39 +275,36 @@ export async function getEntity(id: number, companyId?: number) {
     }, 3600);
 }
 
-export async function getContacts(entityId: number, companyId?: number) {
-    if (companyId) {
-        const [ent] = await db
-            .select({ id: entities.id })
-            .from(entities)
-            .where(and(eq(entities.id, entityId), eq(entities.company_id, companyId)));
-        if (!ent) throw new DomainError('Entidad no encontrada', 404);
-    }
+export async function getContacts(entityId: number, companyId: number) {
+    const [ent] = await db
+        .select({ id: entities.id })
+        .from(entities)
+        .where(and(eq(entities.id, entityId), eq(entities.company_id, companyId)));
+    if (!ent) throw new DomainError('Entidad no encontrada', 404);
+
     return db.select().from(entityContacts).where(eq(entityContacts.entity_id, entityId));
 }
 
-export async function getAddresses(entityId: number, companyId?: number) {
-    if (companyId) {
-        const [ent] = await db
-            .select({ id: entities.id })
-            .from(entities)
-            .where(and(eq(entities.id, entityId), eq(entities.company_id, companyId)));
-        if (!ent) throw new DomainError('Entidad no encontrada', 404);
-    }
+export async function getAddresses(entityId: number, companyId: number) {
+    const [ent] = await db
+        .select({ id: entities.id })
+        .from(entities)
+        .where(and(eq(entities.id, entityId), eq(entities.company_id, companyId)));
+    if (!ent) throw new DomainError('Entidad no encontrada', 404);
+
     return db.select().from(entityAddresses).where(eq(entityAddresses.entity_id, entityId));
 }
 
-export async function listForPicker(companyId: number, search?: string, limit: number = 200) {
-    const conditions = [eq(entities.company_id, companyId), eq(entities.is_active, true)];
+export async function listForPicker(companyId: number, search?: string, limit: number = 200): Promise<EntityPickerItem[]> {
+    const conditions: SQL[] = [eq(entities.company_id, companyId), eq(entities.is_active, true)];
 
     if (search && search.length >= 1) {
         const term = `%${search}%`;
-        conditions.push(
-            or(
-                ilike(entities.business_name, term),
-                ilike(entities.tax_id, term),
-            )!,
+        const searchCond = or(
+            ilike(entities.business_name, term),
+            ilike(entities.tax_id, term)
         );
+        if (searchCond) conditions.push(searchCond);
     }
 
     const rows = await db

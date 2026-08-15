@@ -2,7 +2,7 @@ import { Component } from 'solid-js';
 import { useNavigate } from '@tanstack/solid-router';
 import { useVehiclesList } from '../data/vehicles.queries';
 import { useUpdateVehicle, useDeleteVehicle } from '../data/vehicles.mutations';
-import type { CompanyVehicleItem } from '@app/schema/shared-dto';
+import type { CompanyVehicleItem } from '@app/schema/dto';
 import { TruckIcon } from '@shared/ui/icons';
 import SettingsTable, { type SettingsColumn } from '../components/shared/SettingsTable';
 

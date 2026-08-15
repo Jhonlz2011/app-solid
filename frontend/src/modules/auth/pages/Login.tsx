@@ -4,7 +4,7 @@ import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { AuthLoginSchema, type AuthLoginFormData } from '@app/schema/frontend';
-import type { DiscoverTenantItemDto, AuthUserResponseDto } from '@app/schema/shared-dto';
+import type { DiscoverTenantItemDto, AuthUserResponseDto } from '@app/schema/dto';
 import { actions } from '@modules/auth/store/auth.store';
 import { authApi } from '../api/auth.api';
 import { useBranding, getSubdomain, applyBranding } from '../store/branding.store';

@@ -8,7 +8,6 @@ import { supplierQueries } from '../data/suppliers.queries';
 import { supplierMutations } from '../data/suppliers.mutations';
 import { createSupplierColumns } from '../data/supplier.columns';
 import { taxIdTypeLabels, personTypeLabels } from '../models/supplier.types';
-import { SupplierFilterSheet } from '../components/SupplierFilterSheet';
 
 const SuppliersPage: Component = () => {
     const state = useEntityState({
@@ -35,7 +34,6 @@ const SuppliersPage: Component = () => {
             entityNameSingular="proveedor"
             permissionKey="suppliers"
             newRoutePath="/suppliers/new"
-            CustomFilterSheet={SupplierFilterSheet}
         />
     );
 };

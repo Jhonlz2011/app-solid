@@ -2,7 +2,7 @@ import { createMutation, useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { vehiclesApi } from './vehicles.api';
 import { vehicleKeys } from './vehicles.keys';
-import type { CarrierVehiclePayload } from '@app/schema/shared-dto';
+import type { CarrierVehiclePayload } from '@app/schema/dto';
 
 export function useCreateVehicle() {
     const queryClient = useQueryClient();

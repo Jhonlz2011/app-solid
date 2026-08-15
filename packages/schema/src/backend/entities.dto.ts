@@ -130,12 +130,21 @@ export const EntityPickerItemSchema = Type.Object({
     taxId: Type.String(),
 });
 
+export const EntityReferencesResponseSchema = Type.Object({
+    supplierProducts: Type.Number(),
+    invoices: Type.Number(),
+    workOrders: Type.Number(),
+    total: Type.Number(),
+    canDelete: Type.Boolean(),
+});
+
 export type EntityFormType = Static<typeof EntityFormSchema>;
 export type EntityUpdateType = Static<typeof EntityUpdateSchema>;
 export type EntityPickerQueryType = Static<typeof EntityPickerQuerySchema>;
 export type EntityListQueryType = Static<typeof EntityListQuerySchema>;
 export type EntityFacetsQueryType = Static<typeof EntityFacetsQuerySchema>;
 export type EntityPickerItemType = Static<typeof EntityPickerItemSchema>;
+export type EntityReferencesResponseType = Static<typeof EntityReferencesResponseSchema>;
 
 // Employee Schedules
 export const EmployeeScheduleReportQuerySchema = Type.Object({
