@@ -1,85 +1,57 @@
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { LocationType } from '@app/schema/enums';
+import type {
+    LocationItem,
+    LocationNode,
+    LocationPayload,
+    LocationUpdatePayload,
+    LocationReferences,
+} from '@app/schema/dto';
 
-// =============================================================================
-// Types
-// =============================================================================
-
-export interface LocationItem {
-    id: number;
-    company_id: number;
-    warehouse_id: number | null;
-    parent_id: number | null;
-    name: string;
-    path: string;
-    type: LocationType;
-    depth: number;
-    is_active: boolean | null;
-    // Joined from warehouses table
-    warehouse_name: string | null;
-    warehouse_code: string | null;
-    /** Cantidad total de productos con stock en esta ubicación */
-    product_count: number;
-}
-
-/** Extended with subRows for TanStack Table tree rendering */
-export interface LocationNode extends LocationItem {
-    subRows?: LocationNode[];
-}
-
-export interface LocationReferences {
-    stock: number;
-    movementsSrc: number;
-    movementsDest: number;
-    dimensionalItems: number;
-    total: number;
-}
-
-// =============================================================================
-// API Client
-// =============================================================================
+// Re-export shared contracts for local module consumers
+export type { LocationItem, LocationNode, LocationPayload, LocationUpdatePayload, LocationReferences };
 
 export const locationsApi = {
     list: async (warehouseId?: number): Promise<LocationItem[]> => {
-        const query = warehouseId ? { warehouseId: String(warehouseId) } : {};
+        const query = warehouseId !== undefined ? { warehouseId: String(warehouseId) } : {};
         const { data, error } = await api.api.locations.get({ query });
         if (error) throwApiError(error);
         return data as unknown as LocationItem[];
     },
 
-    create: async (body: {
-        warehouse_id?: number | null;
-        parent_id?: number | null;
-        name: string;
-        type?: LocationType;
-    }) => {
-        const { data, error } = await api.api.locations.post(body);
+    get: async (id: number): Promise<LocationItem> => {
+        const { data, error } = await api.api.locations({ id }).get();
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as LocationItem;
     },
 
-    update: async (id: number, body: Partial<{ name: string; type: LocationType; warehouse_id: number | null; parent_id: number | null; is_active: boolean }>) => {
+    create: async (body: LocationPayload): Promise<LocationItem> => {
+        const { data, error } = await api.api.locations.post(body as any);
+        if (error) throwApiError(error);
+        return data as unknown as LocationItem;
+    },
+
+    update: async (id: number, body: LocationUpdatePayload): Promise<LocationItem> => {
         const { data, error } = await (api.api.locations as any)({ id }).put(body);
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as LocationItem;
     },
 
-    reparent: async (id: number, parentId: number | null) => {
+    reparent: async (id: number, parentId: number | null): Promise<LocationItem> => {
         const { data, error } = await (api.api.locations as any)({ id }).reparent.patch({ parent_id: parentId });
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as LocationItem;
     },
 
-    deactivate: async (id: number) => {
+    deactivate: async (id: number): Promise<void> => {
         const { error } = await (api.api.locations as any)({ id }).deactivate.patch();
         if (error) throwApiError(error);
     },
 
-    restore: async (id: number) => {
+    restore: async (id: number): Promise<LocationItem> => {
         const { data, error } = await (api.api.locations as any)({ id }).restore.patch();
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as LocationItem;
     },
 
     checkReferences: async (id: number): Promise<LocationReferences> => {
@@ -88,10 +60,10 @@ export const locationsApi = {
         return data! as LocationReferences;
     },
 
-    hardDelete: async (id: number) => {
+    hardDelete: async (id: number): Promise<{ success: boolean }> => {
         const { data, error } = await (api.api.locations as any)({ id }).delete();
         if (error) throwApiError(error);
-        return data!;
+        return data as unknown as { success: boolean };
     },
 
     bulkDeactivate: async (ids: number[]) => {

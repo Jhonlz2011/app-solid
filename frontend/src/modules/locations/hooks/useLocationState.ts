@@ -46,7 +46,7 @@ export function useLocationState() {
     const bulkRestoreMut = useBulkRestoreLocations();
 
     // SSE invalidation
-    useDataTableSSE({ room: 'locations', queryKey: locationKeys.list() });
+    useDataTableSSE({ room: 'locations', queryKey: locationKeys.all });
 
     // ─── Table Instance ──────────────────────────────────────────
     const [tableInstance, setTableInstance] = createSignal<any>();

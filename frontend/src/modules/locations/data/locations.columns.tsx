@@ -14,7 +14,7 @@ import { Badge, CounterBadge, StatusBadge } from "@shared/ui/Badge";
 import Checkbox from "@shared/ui/Checkbox";
 import ActionMenu from "@shared/ui/ActionMenu";
 import DropdownMenu from "@shared/ui/DropdownMenu";
-import { useAuth } from "@/modules/auth/store/auth.store";
+import { useAuth } from "@modules/auth/store/auth.store";
 import {
   ChevronRightIcon,
   ChevronDownIcon,

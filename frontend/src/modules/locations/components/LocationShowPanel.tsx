@@ -1,7 +1,7 @@
 import { Component, Show } from 'solid-js';
 import { useParams, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
-import { useLocationList } from '../data/locations.queries';
+import { useLocation } from '../data/locations.queries';
 import { LOCATION_TYPE_META } from '../data/locations.constants';
 import type { LocationType } from '@app/schema/enums';
 import type { LocationItem } from '../data/locations.api';
@@ -31,8 +31,8 @@ const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
         return Number.isFinite(parsed) ? parsed : 0;
     };
 
-    const locationQuery = useLocationList();
-    const locationItem = () => ((locationQuery.data ?? []) as LocationItem[]).find(l => l.id === locationId()) ?? null;
+    const locationQuery = useLocation(locationId);
+    const locationItem = () => locationQuery.data ?? null;
 
     return (
         <Sheet

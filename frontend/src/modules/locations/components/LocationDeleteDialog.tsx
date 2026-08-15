@@ -1,5 +1,5 @@
 import { Component, createSignal } from 'solid-js';
-import { useAuth } from '@/modules/auth/store/auth.store';
+import { useAuth } from '@modules/auth/store/auth.store';
 import { useCheckLocationReferences } from '../data/locations.queries';
 import { useDeactivateLocation, useHardDeleteLocation } from '../data/locations.mutations';
 import type { LocationItem } from '../data/locations.api';

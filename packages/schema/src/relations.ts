@@ -200,6 +200,14 @@ export const warehousesRelations = relations(tables.warehouses, ({ one, many }) 
 
 export const warehouseLocationsRelations = relations(tables.warehouseLocations, ({ one, many }) => ({
     warehouse: one(tables.warehouses, { fields: [tables.warehouseLocations.warehouse_id], references: [tables.warehouses.id] }),
+    parent: one(tables.warehouseLocations, {
+        fields: [tables.warehouseLocations.parent_id],
+        references: [tables.warehouseLocations.id],
+        relationName: 'parent_child_location',
+    }),
+    children: many(tables.warehouseLocations, {
+        relationName: 'parent_child_location',
+    }),
     stock: many(tables.inventoryStock),
     dimensionalItems: many(tables.inventoryDimensionalItems),
     warehouseDefaults: many(tables.productVariantWarehouseLocations),

@@ -1,4 +1,4 @@
-import { Type, type Static } from '@sinclair/typebox';
+import { Type, type Static } from './typebox';
 
 // ============================================================================
 // WAREHOUSES & LOCATIONS
@@ -50,7 +50,22 @@ export const LocationReparentSchema = Type.Object({
 });
 
 export const LocationListQuerySchema = Type.Object({
-    warehouseId: Type.Optional(Type.String()),
+    warehouseId: Type.Optional(Type.Numeric()),
+});
+
+export const LocationReferencesResponseSchema = Type.Object({
+    stock: Type.Number(),
+    movementsSrc: Type.Number(),
+    movementsDest: Type.Number(),
+    dimensionalItems: Type.Number(),
+    total: Type.Number(),
+});
+
+export const WarehouseReferencesResponseSchema = Type.Object({
+    locations: Type.Number(),
+    stock: Type.Number(),
+    movements: Type.Number(),
+    total: Type.Number(),
 });
 
 export type LocationTypeType = Static<typeof LocationTypeSchema>;
@@ -60,3 +75,5 @@ export type LocationBodyType = Static<typeof LocationBodySchema>;
 export type LocationUpdateType = Static<typeof LocationUpdateSchema>;
 export type LocationReparentType = Static<typeof LocationReparentSchema>;
 export type LocationListQueryType = Static<typeof LocationListQuerySchema>;
+export type LocationReferencesResponseType = Static<typeof LocationReferencesResponseSchema>;
+export type WarehouseReferencesResponseType = Static<typeof WarehouseReferencesResponseSchema>;

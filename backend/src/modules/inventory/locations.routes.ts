@@ -12,6 +12,7 @@ import {
     IdParamSchema,
     SuccessResponseSchema,
 } from '@app/schema/backend';
+import type { LocationPayload, LocationUpdatePayload } from '@app/schema/dto';
 
 export const locationsRoutes = new Elysia({ prefix: '/locations' })
     .use(authGuard)
@@ -19,7 +20,7 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
     .get(
         '/',
         ({ query, currentCompanyId }) => {
-            const warehouseId = query.warehouseId ? Number(query.warehouseId) : undefined;
+            const warehouseId = query.warehouseId !== undefined ? Number(query.warehouseId) : undefined;
             return locationsService.list(currentCompanyId, warehouseId);
         },
         {
@@ -61,11 +62,25 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
         }
     )
 
+    // Get single location by id
+    .get(
+        '/:id',
+        ({ params, currentCompanyId }) => locationsService.getById(params.id, currentCompanyId),
+        {
+            params: IdParamSchema,
+            permission: 'locations.read',
+        }
+    )
+
     // Create a new location
     .post(
         '/',
         async ({ body, set, headers, currentCompanyId }) => {
-            const location = await locationsService.create(body, currentCompanyId, headers['x-client-id']);
+            const location = await locationsService.create(
+                body as LocationPayload,
+                currentCompanyId,
+                headers['x-client-id']
+            );
             set.status = 201;
             return location;
         },
@@ -78,7 +93,13 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
     // Update a location
     .put(
         '/:id',
-        ({ params, body, headers, currentCompanyId }) => locationsService.update(params.id, body, currentCompanyId, headers['x-client-id']),
+        ({ params, body, headers, currentCompanyId }) =>
+            locationsService.update(
+                params.id,
+                body as LocationUpdatePayload,
+                currentCompanyId,
+                headers['x-client-id']
+            ),
         {
             params: IdParamSchema,
             body: LocationUpdateSchema,
@@ -89,7 +110,13 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
     // Reparent — Drag & Drop: move location under a new parent (or to root)
     .patch(
         '/:id/reparent',
-        ({ params, body, headers, currentCompanyId }) => locationsService.reparent(params.id, body.parent_id, currentCompanyId, headers['x-client-id']),
+        ({ params, body, headers, currentCompanyId }) =>
+            locationsService.reparent(
+                params.id,
+                body.parent_id,
+                currentCompanyId,
+                headers['x-client-id']
+            ),
         {
             params: IdParamSchema,
             body: LocationReparentSchema,

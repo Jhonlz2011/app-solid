@@ -4,9 +4,8 @@ import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import { isNetworkError } from '@shared/utils/api-errors';
 import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
-import { useLocationList } from '../data/locations.queries';
+import { useLocation } from '../data/locations.queries';
 import { useUpdateLocation } from '../data/locations.mutations';
-import type { LocationItem } from '../data/locations.api';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { FloppyDiskIcon } from '@shared/ui/icons';
 import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
@@ -25,10 +24,10 @@ const LocationEditSheet: Component<LocationEditSheetProps> = (props) => {
 
     const locationId = () => Number(params()?.locationId) || 0;
 
-    const locationQuery = useLocationList();
+    const locationQuery = useLocation(locationId);
     const updateMut = useUpdateLocation();
 
-    const locationItem = () => ((locationQuery.data ?? []) as LocationItem[]).find(l => l.id === locationId()) ?? null;
+    const locationItem = () => locationQuery.data ?? null;
 
     const handleSubmit = async (data: LocationFormData) => {
         if (!locationId() || !canEdit()) return;

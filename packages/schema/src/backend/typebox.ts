@@ -5,7 +5,6 @@ export interface FileOptions extends SchemaOptions {
     minSize?: number | string;
     maxSize?: number | string;
 }
-
 /**
  * Extended TypeBox builder that includes Elysia-compatible types:
  * - Type.File()
