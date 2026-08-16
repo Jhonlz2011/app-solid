@@ -33,16 +33,18 @@ import { getIpAndUserAgent } from '../../plugins/ip';
 export const categoryRoutes = new Elysia({ prefix: '/categories' })
     .use(authGuard)
     .use(rbac)
+    // ─── LIST CATEGORIES (flat or tree) ───────────────────────────
     .get(
         '/',
-        ({ query, currentCompanyId }) => listCategoriesEnhanced(currentCompanyId, query.flat === 'true'),
+        ({ query, currentCompanyId }) =>
+            listCategoriesEnhanced(currentCompanyId, query.flat === 'true' || query.flat === true),
         {
             query: CategoryListQuerySchema,
             permission: 'categories.read',
         }
     )
 
-    // Bulk routes — BEFORE /:id to avoid route conflicts
+    // ─── BULK & STATIC ROUTES (BEFORE /:id to prevent route shadowing) ───
     .delete(
         '/bulk',
         async ({ body, headers, currentUserId, currentCompanyId, request }) => {
@@ -73,7 +75,17 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
             permission: 'categories.restore',
         }
     )
+    .patch(
+        '/reorder',
+        ({ body, headers, currentCompanyId }) =>
+            reorderCategories(body.items, currentCompanyId, headers['x-client-id']),
+        {
+            body: CategoryReorderSchema,
+            permission: 'categories.update',
+        }
+    )
 
+    // ─── PARAMETERIZED ROUTES (/:id) ─────────────────────────────
     .get(
         '/:id',
         ({ params, currentCompanyId }) => getCategoryEnhanced(params.id, currentCompanyId),
@@ -173,15 +185,6 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
         {
             params: IdParamSchema,
             body: CategoryReparentSchema,
-            permission: 'categories.update',
-        }
-    )
-    .patch(
-        '/reorder',
-        ({ body, headers, currentCompanyId }) =>
-            reorderCategories(body.items, currentCompanyId, headers['x-client-id']),
-        {
-            body: CategoryReorderSchema,
             permission: 'categories.update',
         }
     )

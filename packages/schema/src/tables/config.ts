@@ -14,6 +14,8 @@ import { taxRegimeTypeEnum } from '../enums';
  */
 export const ltree = customType<{ data: string }>({
     dataType() { return 'ltree'; },
+    toDriver(val: string): string { return val; },
+    fromDriver(val: unknown): string { return val !== null && val !== undefined ? String(val) : ''; },
 });
 
 // =============================================================================

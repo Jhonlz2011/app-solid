@@ -21,85 +21,85 @@ export type {
 };
 
 // =============================================================================
-// API Client
+// API Client — Categories (/api/categories)
 // =============================================================================
 
 export const categoriesApi = {
     listCategories: async (flat = false): Promise<CategoryNode[]> => {
         const { data, error } = await api.api.categories.get({ query: { flat: flat ? 'true' : undefined } });
         if (error) throwApiError(error);
-        return data as unknown as CategoryNode[];
+        return (data as CategoryNode[]) || [];
     },
 
     getCategory: async (id: number): Promise<CategoryDetail> => {
         const { data, error } = await api.api.categories({ id }).get();
         if (error) throwApiError(error);
-        return data as unknown as CategoryDetail;
+        return data as CategoryDetail;
     },
 
     getCategoryFormSchema: async (id: number): Promise<CategoryFormSchemaData> => {
-        const { data, error } = await (api.api.categories as any)({ id })['form-schema'].get();
+        const { data, error } = await api.api.categories({ id })['form-schema'].get();
         if (error) throwApiError(error);
-        return data as unknown as CategoryFormSchemaData;
+        return data as CategoryFormSchemaData;
     },
 
     createCategory: async (body: CategoryFormData): Promise<CategoryNode> => {
         const { data, error } = await api.api.categories.post(body as any);
         if (error) throwApiError(error);
-        return data as unknown as CategoryNode;
+        return data as CategoryNode;
     },
 
     updateCategory: async (id: number, body: CategoryUpdateData): Promise<CategoryNode> => {
         const { data, error } = await api.api.categories({ id }).put(body as any);
         if (error) throwApiError(error);
-        return data as unknown as CategoryNode;
+        return data as CategoryNode;
     },
 
     reparent: async (id: number, parentId: number | null): Promise<CategoryNode> => {
-        const { data, error } = await (api.api.categories as any)({ id }).reparent.patch({ parent_id: parentId });
+        const { data, error } = await api.api.categories({ id }).reparent.patch({ parent_id: parentId });
         if (error) throwApiError(error);
-        return data as unknown as CategoryNode;
+        return data as CategoryNode;
     },
 
     deactivateCategory: async (id: number): Promise<CategoryNode> => {
-        const { data, error } = await (api.api.categories as any)({ id }).deactivate.patch();
+        const { data, error } = await api.api.categories({ id }).deactivate.patch();
         if (error) throwApiError(error);
-        return data as unknown as CategoryNode;
+        return data as CategoryNode;
     },
 
     restoreCategory: async (id: number): Promise<CategoryNode> => {
-        const { data, error } = await (api.api.categories as any)({ id }).restore.patch();
+        const { data, error } = await api.api.categories({ id }).restore.patch();
         if (error) throwApiError(error);
-        return data as unknown as CategoryNode;
+        return data as CategoryNode;
     },
 
     checkReferences: async (id: number): Promise<CategoryReferences> => {
-        const { data, error } = await (api.api.categories as any)({ id }).references.get();
+        const { data, error } = await api.api.categories({ id }).references.get();
         if (error) throwApiError(error);
-        return data as unknown as CategoryReferences;
+        return data as CategoryReferences;
     },
 
     hardDelete: async (id: number): Promise<{ success: boolean }> => {
-        const { data, error } = await (api.api.categories as any)({ id }).delete();
+        const { data, error } = await api.api.categories({ id }).delete();
         if (error) throwApiError(error);
-        return data as unknown as { success: boolean };
+        return data as { success: boolean };
     },
 
     reorderCategories: async (items: Array<{ id: number; sort_order: number }>): Promise<{ updated: number }> => {
-        const { data, error } = await (api.api.categories as any).reorder.patch({ items });
+        const { data, error } = await api.api.categories.reorder.patch({ items });
         if (error) throwApiError(error);
-        return data as unknown as { updated: number };
+        return data as { updated: number };
     },
 
     bulkDeactivate: async (ids: number[]): Promise<{ success: boolean; count: number }> => {
-        const { data, error } = await (api.api.categories as any).bulk.delete({ ids });
+        const { data, error } = await api.api.categories.bulk.delete({ ids });
         if (error) throwApiError(error);
-        return data as unknown as { success: boolean; count: number };
+        return data as { success: boolean; count: number };
     },
 
     bulkRestore: async (ids: number[]): Promise<{ success: boolean; count: number }> => {
-        const { data, error } = await (api.api.categories as any).bulk.restore.patch({ ids });
+        const { data, error } = await api.api.categories.bulk.restore.patch({ ids });
         if (error) throwApiError(error);
-        return data as unknown as { success: boolean; count: number };
+        return data as { success: boolean; count: number };
     },
 };

@@ -166,7 +166,7 @@ export const CategoryReorderSchema = Type.Object({
 });
 
 export const CategoryListQuerySchema = Type.Object({
-    flat: Type.Optional(Type.String()),
+    flat: Type.Optional(Type.Union([Type.String(), Type.Boolean()])),
 });
 
 export const CategoryReferencesResponseSchema = Type.Object({
