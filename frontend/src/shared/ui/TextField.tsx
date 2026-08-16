@@ -228,7 +228,7 @@ const Label = (props: TextFieldLabelProps) => {
 export const FieldLabel = (props: FieldLabelProps) => {
     const [local, others] = splitProps(props, ['class', 'children', 'tooltip', 'tooltipPlacement']);
     return (
-        <div class="flex items-center gap-1.5 ml-1 mb-1 w-fit">
+        <div class="flex items-center gap-1.5 ml-1 mb-0.5 w-fit">
             <label
                 class={`text-sm font-medium text-muted block ${local.class ?? ''}`}
                 {...others}

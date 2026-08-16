@@ -1,5 +1,6 @@
 import { JSX, Show } from 'solid-js';
 import { cn } from '../lib/utils';
+import { SpinnerIcon } from './icons';
 
 export const BUTTON_VARIANTS = {
   primary: "bg-primary text-on-primary hover:bg-primary/90 active:scale-[0.97] transition-all duration-200 border border-transparent shadow-lg shadow-primary/20",
@@ -35,14 +36,47 @@ export type ButtonVariant = keyof typeof BUTTON_VARIANTS;
 export type ButtonSize = keyof typeof BUTTON_SIZES;
 export type ButtonRadius = keyof typeof BUTTON_RADII;
 
+export interface ButtonVariantOptions {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  radius?: ButtonRadius;
+  fullWidth?: boolean;
+  loading?: boolean;
+  hasLoadingText?: boolean;
+  className?: string;
+  class?: string;
+}
+
 export interface SharedButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   radius?: ButtonRadius;
   fullWidth?: boolean;
   loading?: boolean;
-  loadingText?: JSX.Element;
+  loadingText?: JSX.Element | string;
   icon?: JSX.Element;
+}
+
+export function buttonVariants(options?: ButtonVariantOptions): string {
+  const variant = options?.variant ?? 'primary';
+  const size = options?.size ?? 'md';
+  const radius = options?.radius ?? 'lg';
+  const fullWidth = options?.fullWidth;
+  const loading = options?.loading;
+  const hasLoadingText = options?.hasLoadingText;
+
+  return cn(
+    "inline-flex items-center justify-center gap-2 font-medium cursor-pointer select-none",
+    "outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
+    "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
+    BUTTON_VARIANTS[variant],
+    BUTTON_SIZES[size],
+    BUTTON_RADII[radius],
+    fullWidth && 'w-full',
+    (loading && !hasLoadingText) && 'relative text-transparent! transition-none hover:text-transparent!',
+    options?.className,
+    options?.class
+  );
 }
 
 export function getButtonClasses(params: {
@@ -51,25 +85,25 @@ export function getButtonClasses(params: {
   radius: ButtonRadius;
   fullWidth?: boolean;
   loading?: boolean;
-  loadingText?: any;
+  loadingText?: JSX.Element | string;
   className?: string;
+  class?: string;
 }) {
-  return cn(
-    "inline-flex items-center justify-center gap-2 font-medium cursor-pointer select-none",
-    "outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
-    "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
-    BUTTON_VARIANTS[params.variant],
-    BUTTON_SIZES[params.size],
-    BUTTON_RADII[params.radius],
-    params.fullWidth && 'w-full',
-    (params.loading && !params.loadingText) && 'relative text-transparent! transition-none hover:text-transparent!',
-    params.className
-  );
+  return buttonVariants({
+    variant: params.variant,
+    size: params.size,
+    radius: params.radius,
+    fullWidth: params.fullWidth,
+    loading: params.loading,
+    hasLoadingText: Boolean(params.loadingText),
+    className: params.className,
+    class: params.class,
+  });
 }
 
 export interface ButtonContentProps {
   loading?: boolean;
-  loadingText?: JSX.Element;
+  loadingText?: JSX.Element | string;
   icon?: JSX.Element;
   children?: JSX.Element;
 }
@@ -92,20 +126,14 @@ export function ButtonContent(props: ButtonContentProps) {
         fallback={
           <>
             <div class="absolute inset-0 flex items-center justify-center">
-              <svg class="animate-spin size-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <SpinnerIcon class="size-5 text-current" />
             </div>
             <span class="invisible">{props.children}</span>
           </>
         }
       >
         <div class="flex items-center justify-center gap-2">
-          <svg class="animate-spin size-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
+          <SpinnerIcon class="size-4 text-current" />
           <Show when={typeof props.loadingText === 'string'} fallback={props.loadingText}>
             <span>{props.loadingText}</span>
           </Show>

@@ -58,7 +58,7 @@ export function DataTableColumnHeader<TData, TValue>(
                     </Show>
                 </DropdownMenu.Trigger>
 
-                <DropdownMenu.Content class="min-w-[170px] space-y-1">
+                <DropdownMenu.Content class="min-w-42.5 space-y-1">
                     {/* Sorting options - toggleable */}
                     <Show when={canSort()}>
                         <DropdownMenu.Item
@@ -162,7 +162,6 @@ export function DataTableColumnHeader<TData, TValue>(
                     <PinOffIcon class="size-3.5" />
                 </button>
             </Show>
-
             {/* Column filter popover */}
             <Show when={props.filterOptions && props.onFilterChange}>
                 <DataTableColumnFilter

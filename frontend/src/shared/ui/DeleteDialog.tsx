@@ -1,4 +1,4 @@
-import { Component, Show, For, createSignal, JSX, createEffect } from 'solid-js';
+import { Component, Show, For, createSignal, JSX, createEffect, mergeProps } from 'solid-js';
 import { Dialog } from '@kobalte/core';
 import Button from './Button';
 import Popover from './Popover';
@@ -33,7 +33,23 @@ export interface DeleteDialogProps {
     preventHardDeleteSuggestion?: JSX.Element;
 }
 
-const DeleteDialog: Component<DeleteDialogProps> = (props) => {
+export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
+    const props = mergeProps(
+        {
+            allowHardDelete: false,
+            isLoading: false,
+            softDeleteTitle: 'Eliminar',
+            softDeleteDesc: 'El registro quedará inactivo y podrá restaurarse en cualquier momento.',
+            hardDeleteTitle: 'Destruir permanentemente',
+            hardDeleteDesc: 'Se eliminará de forma definitiva sin posibilidad de recuperación.',
+            softLoadingText: 'Eliminando...',
+            hardLoadingText: 'Destruyendo...',
+            preventHardDeleteText: 'No se puede destruir',
+            preventHardDeleteReason: 'Registros vinculados que lo impiden:',
+        },
+        rawProps
+    );
+
     const [mode, setMode] = createSignal<'soft' | 'hard'>('soft');
     
     createEffect(() => {
@@ -43,7 +59,10 @@ const DeleteDialog: Component<DeleteDialogProps> = (props) => {
     });
 
     const handleOpenChange = (open: boolean) => {
-        if (!open) { setMode('soft'); props.onClose(); }
+        if (!open) {
+            setMode('soft');
+            props.onClose();
+        }
     };
 
     const confirmDisabled = () =>
@@ -52,17 +71,20 @@ const DeleteDialog: Component<DeleteDialogProps> = (props) => {
     return (
         <Dialog.Root open={props.isOpen} onOpenChange={handleOpenChange}>
             <Dialog.Portal>
-                <Dialog.Overlay class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-in fade-in" />
-
-                <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
-                    <Dialog.Content class={cn(
-                        'bg-card border-t sm:border border-border',
-                        'rounded-t-2xl sm:rounded-2xl shadow-2xl',
-                        'w-full sm:max-w-md',
-                        'animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 fade-in',
-                        'overflow-hidden'
-                    )}>
-
+                <Dialog.Overlay
+                    class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:duration-150"
+                />
+                <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
+                    <Dialog.Content
+                        class={cn(
+                            'pointer-events-auto bg-card border-t sm:border border-border',
+                            'rounded-t-2xl sm:rounded-2xl shadow-2xl',
+                            'w-full sm:max-w-md',
+                            'animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 fade-in duration-150',
+                            'data-[closed]:animate-out data-[closed]:slide-out-to-bottom sm:data-[closed]:slide-out-to-bottom-0 data-[closed]:zoom-out-95 data-[closed]:fade-out-0 data-[closed]:duration-150',
+                            'overflow-hidden outline-none'
+                        )}
+                    >
                         {/* ── Header ──────────────────────────────── */}
                         <div class="flex items-start justify-between px-5 sm:px-6 pt-5 sm:pt-6 pb-4">
                             <div class="flex items-center gap-3 sm:gap-4">
@@ -73,12 +95,17 @@ const DeleteDialog: Component<DeleteDialogProps> = (props) => {
                                     <Dialog.Title class="text-base sm:text-lg font-semibold text-text">
                                         {props.title}
                                     </Dialog.Title>
-                                    <p
-                                        class="text-sm text-muted mt-0.5 truncate max-w-50 sm:max-w-65"
-                                        title={props.description}
+                                    <Show
+                                        when={props.description}
+                                        fallback={<Dialog.Description class="sr-only">Confirmación de eliminación</Dialog.Description>}
                                     >
-                                        {props.description}
-                                    </p>
+                                        <Dialog.Description
+                                            class="text-sm text-muted mt-0.5 truncate max-w-50 sm:max-w-65"
+                                            title={props.description}
+                                        >
+                                            {props.description}
+                                        </Dialog.Description>
+                                    </Show>
                                 </div>
                             </div>
                             <Dialog.CloseButton class="p-1.5 rounded-lg hover:bg-surface text-muted cursor-pointer transition-colors shrink-0 -mr-1 -mt-1">
@@ -87,7 +114,6 @@ const DeleteDialog: Component<DeleteDialogProps> = (props) => {
                         </div>
 
                         <div class="px-5 sm:px-6 pb-5 sm:pb-6 space-y-3">
-
                             {/* ── Dual-mode selector (admins only) ── */}
                             <Show when={props.allowHardDelete}>
                                 <div class="space-y-2">
@@ -115,13 +141,13 @@ const DeleteDialog: Component<DeleteDialogProps> = (props) => {
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-2 text-sm font-medium text-text flex-wrap">
                                                 <EyeOffIcon class="size-4 text-muted shrink-0" />
-                                                {props.softDeleteTitle || 'Eliminar'}
+                                                {props.softDeleteTitle}
                                                 <span class="text-xs font-normal text-danger bg-danger/10 px-1.5 py-0.5 rounded-md">
                                                     recomendado
                                                 </span>
                                             </div>
                                             <p class="text-xs text-muted mt-1 leading-relaxed">
-                                                {props.softDeleteDesc || 'El registro quedará inactivo y podrá restaurarse en cualquier momento.'}
+                                                {props.softDeleteDesc}
                                             </p>
                                         </div>
                                     </button>
@@ -150,7 +176,7 @@ const DeleteDialog: Component<DeleteDialogProps> = (props) => {
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-2 text-sm font-medium text-text">
                                                 <TrashIcon class="size-4 text-destructive shrink-0" />
-                                                <span class="flex-1">{props.hardDeleteTitle || 'Destruir permanentemente'}</span>
+                                                <span class="flex-1">{props.hardDeleteTitle}</span>
 
                                                 <span class="relative size-5 shrink-0 flex items-center justify-center">
                                                     <span class={cn(
@@ -177,10 +203,10 @@ const DeleteDialog: Component<DeleteDialogProps> = (props) => {
                                                             <Popover.Content class="w-60 sm:w-72 p-3.5 space-y-2">
                                                                 <div class="flex items-center gap-2 text-warning text-xs font-semibold">
                                                                     <AlertTriangleIcon class="size-3.5 shrink-0" />
-                                                                    {props.preventHardDeleteText || 'No se puede destruir'}
+                                                                    {props.preventHardDeleteText}
                                                                 </div>
                                                                 <p class="text-xs text-muted">
-                                                                    {props.preventHardDeleteReason || 'Registros vinculados que lo impiden:'}
+                                                                    {props.preventHardDeleteReason}
                                                                 </p>
                                                                 <ul class="space-y-1">
                                                                     <For each={props.dependencyWarnings}>
@@ -204,7 +230,7 @@ const DeleteDialog: Component<DeleteDialogProps> = (props) => {
                                             </div>
 
                                             <p class="text-xs text-muted mt-1 leading-relaxed">
-                                                {props.hardDeleteDesc || 'Se eliminará de forma definitiva sin posibilidad de recuperación.'}
+                                                {props.hardDeleteDesc}
                                             </p>
                                         </div>
                                     </button>
@@ -214,12 +240,12 @@ const DeleteDialog: Component<DeleteDialogProps> = (props) => {
 
                             <Show when={!props.allowHardDelete}>
                                 <p class="text-sm text-muted leading-relaxed py-1">
-                                    {props.softDeleteDesc || 'El registro quedará inactivo y podrá restaurarse en cualquier momento.'}
+                                    {props.softDeleteDesc}
                                 </p>
                             </Show>
 
                             {/* ── Actions ─────────────────────────────── */}
-                            <div class="flex items-center justify-between gap-2 pt-2 ">
+                            <div class="flex items-center justify-between gap-2 pt-2">
                                 <Button
                                     variant="outline"
                                     onClick={props.onClose}
@@ -233,10 +259,10 @@ const DeleteDialog: Component<DeleteDialogProps> = (props) => {
                                     onClick={() => props.onConfirm(mode())}
                                     disabled={confirmDisabled()}
                                     loading={props.isLoading}
-                                    loadingText={mode() === 'hard' ? (props.hardLoadingText || 'Destruyendo...') : (props.softLoadingText || 'Eliminando...')}
+                                    loadingText={mode() === 'hard' ? props.hardLoadingText : props.softLoadingText}
                                     class="shrink-0"
                                 >
-                                    {mode() === 'hard' ? (props.hardDeleteTitle || 'Destruir') : (props.softDeleteTitle || 'Eliminar')}
+                                    {mode() === 'hard' ? props.hardDeleteTitle : props.softDeleteTitle}
                                 </Button>
                             </div>
 

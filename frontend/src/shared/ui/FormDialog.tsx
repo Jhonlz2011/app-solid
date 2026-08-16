@@ -1,9 +1,10 @@
-import { Component, JSX, Show, createUniqueId } from 'solid-js';
+import { Component, JSX, Show, createUniqueId, mergeProps } from 'solid-js';
 import { Dialog } from '@kobalte/core';
 import { CloseIcon } from './icons';
 import Button from './Button';
+import { cn } from '../lib/utils';
 
-interface FormDialogProps {
+export interface FormDialogProps {
     isOpen: boolean;
     onClose: () => void;
     title: string;
@@ -21,7 +22,7 @@ interface FormDialogProps {
     hideFooter?: boolean;
 }
 
-const maxWidthClasses = {
+const maxWidthClasses: Record<NonNullable<FormDialogProps['maxWidth']>, string> = {
     sm: 'max-w-sm',
     md: 'max-w-md',
     lg: 'max-w-lg',
@@ -35,32 +36,54 @@ const maxWidthClasses = {
  * Reusable form dialog wrapper with consistent styling.
  * Header + scrollable body + sticky footer.
  */
-export const FormDialog: Component<FormDialogProps> = (props) => {
-    const maxWidth = () => maxWidthClasses[props.maxWidth ?? 'md'];
+export const FormDialog: Component<FormDialogProps> = (rawProps) => {
+    const props = mergeProps(
+        {
+            maxWidth: 'md' as const,
+            submitLabel: 'Guardar',
+            cancelLabel: 'Cancelar',
+            isLoading: false,
+            hideFooter: false,
+        },
+        rawProps
+    );
+
     const formId = createUniqueId();
 
     return (
         <Dialog.Root open={props.isOpen} onOpenChange={(open) => !open && props.onClose()}>
             <Dialog.Portal>
-                <Dialog.Overlay class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
-                <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <Dialog.Overlay
+                    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:duration-150"
+                />
+                <div class="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
                     <Dialog.Content
-                        class={`bg-card border border-border shadow-card-soft rounded-2xl shadow-2xl w-full flex flex-col max-h-[85vh] ${maxWidth()}`}
+                        class={cn(
+                            'pointer-events-auto bg-card border border-border shadow-2xl rounded-2xl w-full flex flex-col max-h-[85vh] outline-none',
+                            'animate-in zoom-in-95 fade-in duration-150',
+                            'data-[closed]:animate-out data-[closed]:zoom-out-95 data-[closed]:fade-out-0 data-[closed]:duration-150',
+                            maxWidthClasses[props.maxWidth]
+                        )}
                     >
                         {/* ── Header (sticky) ── */}
                         <div class="flex items-center justify-between px-5 py-4 border-b border-surface shrink-0">
                             <div class="flex items-center gap-3 min-w-0">
                                 <div>
-                                    <Dialog.Title class="text-lg font-semibold">
+                                    <Dialog.Title class="text-lg font-semibold text-text">
                                         {props.title}
                                     </Dialog.Title>
-                                    <Show when={props.subtitle}>
-                                        <p class="text-xs text-muted mt-0.5">{props.subtitle}</p>
+                                    <Show
+                                        when={props.subtitle}
+                                        fallback={<Dialog.Description class="sr-only">{props.title}</Dialog.Description>}
+                                    >
+                                        <Dialog.Description class="text-xs text-muted mt-0.5">
+                                            {props.subtitle}
+                                        </Dialog.Description>
                                     </Show>
                                 </div>
                                 {props.titleExtra}
                             </div>
-                            <Dialog.CloseButton class="p-2 rounded-lg hover:bg-surface text-muted transition-colors cursor-pointer">
+                            <Dialog.CloseButton class="p-2 rounded-lg hover:bg-surface text-muted hover:text-text transition-colors cursor-pointer">
                                 <CloseIcon />
                             </Dialog.CloseButton>
                         </div>
@@ -80,8 +103,9 @@ export const FormDialog: Component<FormDialogProps> = (props) => {
                                 <Button
                                     variant="outline"
                                     onClick={props.onClose}
+                                    disabled={props.isLoading}
                                 >
-                                    {props.cancelLabel ?? 'Cancelar'}
+                                    {props.cancelLabel}
                                 </Button>
                                 <Button
                                     type="submit"
@@ -90,7 +114,7 @@ export const FormDialog: Component<FormDialogProps> = (props) => {
                                     loading={props.isLoading}
                                     loadingText="Guardando..."
                                 >
-                                    {props.submitLabel ?? 'Guardar'}
+                                    {props.submitLabel}
                                 </Button>
                             </div>
                         </Show>

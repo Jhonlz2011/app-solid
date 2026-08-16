@@ -4,9 +4,9 @@
  * Styled to match the design system.
  * Updated: Integrated with Ark UI Image Cropper for advanced cropping before uploading.
  */
-import { Component, For, Show, splitProps, JSX, createSignal, onCleanup, createUniqueId } from 'solid-js';
+import { Component, For, Show, splitProps, mergeProps, JSX, createSignal, onCleanup, createUniqueId } from 'solid-js';
 import { ImageCropper } from '@ark-ui/solid';
-import Modal from './Modal';
+import { Dialog } from '@kobalte/core';
 import { cn } from '../lib/utils';
 import type { CropCoordinates } from '@app/schema/dto';
 import { 
@@ -432,6 +432,7 @@ export const FileUploadDropzone: Component<FileUploadProps> = (rawProps) => {
 // ============================================================================
 interface ImageCropperDialogProps {
     src: string;
+    isOpen?: boolean;
     cropShape?: 'rectangle' | 'circle';
     cropAspectRatio?: number;
     lockAspectRatio?: boolean;
@@ -445,199 +446,232 @@ const ASPECTS = [
     { label: '9:16', value: '0.562', num: 9 / 16, icon: RectangleVerticalIcon },
 ];
 
-const ImageCropperDialog: Component<ImageCropperDialogProps> = (props) => {
+const ImageCropperDialog: Component<ImageCropperDialogProps> = (rawProps) => {
+    const props = mergeProps({ isOpen: true }, rawProps);
     const cropperId = createUniqueId();
     // Use SegmentedControl value as string
     const [aspectRatio, setAspectRatio] = createSignal(props.cropAspectRatio ? String(props.cropAspectRatio) : '1.777');
 
     return (
-        <Modal
-            isOpen={true}
-            onClose={props.onClose}
-            title="Ajustar Imagen"
-            description="Arrastra y ajusta el área de recorte"
-            size="md"
+        <Dialog.Root
+            open={props.isOpen}
+            onOpenChange={(open) => !open && props.onClose()}
         >
-            <div class="border-b border-border/50">
-                <Show when={props.cropShape !== 'circle' && !props.lockAspectRatio}>
-                    <div class="flex justify-center mb-6">
-                        <SegmentedControl
-                            value={aspectRatio()}
-                            onChange={setAspectRatio}
-                        >
-                            <SegmentedControlIndicator />
-                            <For each={ASPECTS}>
-                                {(aspect) => (
-                                    <SegmentedControlItem value={aspect.value}>
-                                        <SegmentedControlItemInput />
-                                        <SegmentedControlItemLabel>
-                                            <aspect.icon class="size-3.5" />
-                                            {aspect.label}
-                                        </SegmentedControlItemLabel>
-                                    </SegmentedControlItem>
-                                )}
-                            </For>
-                        </SegmentedControl>
-                    </div>
-                </Show>
+            <Dialog.Portal>
+                {/* Backdrop Overlay */}
+                <Dialog.Overlay
+                    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md transition-opacity duration-150 animate-in fade-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:duration-150"
+                />
 
-                {/* ━━━ Ark UI ImageCropper ━━━ */}
-                <ImageCropper.Root
-                    id={cropperId}
-                    aspectRatio={Number(aspectRatio())}
-                >
-                    <div class="flex justify-center w-full">
-                        <div class="w-full">
-                            {/* Viewport */}
-                            <ImageCropper.Viewport class="relative overflow-hidden w-full h-70 sm:h-85 bg-card-alt rounded-xl border border-border/80 touch-none shadow-sm flex items-center justify-center">
-                                    <ImageCropper.Image
-                                        src={props.src}
-                                        alt="Imagen a recortar"
-                                        // @ts-ignore
-                                        crossorigin={null}
-                                        class="absolute top-0 left-0 w-full h-full object-contain origin-center select-none pointer-events-none backface-hidden"
-                                    />
-                                    <ImageCropper.Selection
-                                        class={cn(
-                                            "box-content outline-none cursor-move backface-hidden",
-                                            "shadow-[0_0_0_9999px_rgba(0,0,0,0.65)]",
-                                            "border-[1.5px] border-white/50 focus-visible:border-primary",
-                                            "data-dragging:cursor-grabbing data-dragging:border-white/80",
-                                            props.cropShape === 'circle' && "rounded-full"
-                                        )}
-                                    >
-                                        {/* Handles */}
-                                        <For each={ImageCropper.handles}>
-                                            {(position) => (
-                                                <ImageCropper.Handle 
-                                                    position={position} 
+                {/* Dialog Content Container */}
+                <div class="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                    <Dialog.Content
+                        class={cn(
+                            "pointer-events-auto relative w-full max-w-2xl bg-card/95 backdrop-blur-xl border border-border/80 rounded-[1.25rem] shadow-card flex flex-col overflow-hidden outline-none",
+                            "animate-in zoom-in-95 fade-in duration-150",
+                            "data-[closed]:animate-out data-[closed]:zoom-out-95 data-[closed]:fade-out-0 data-[closed]:duration-150"
+                        )}
+                    >
+                        {/* Header */}
+                        <div class="flex items-center justify-between px-6 py-4 border-b border-border/60 bg-card-alt/50 shrink-0">
+                            <div>
+                                <Dialog.Title class="text-xl font-semibold text-text">
+                                    Ajustar Imagen
+                                </Dialog.Title>
+                                <Dialog.Description class="text-sm text-muted mt-1">
+                                    Arrastra y ajusta el área de recorte
+                                </Dialog.Description>
+                            </div>
+                            <Dialog.CloseButton
+                                class="text-muted hover:bg-card-alt hover:text-text transition-colors p-2 rounded-lg cursor-pointer shrink-0"
+                                aria-label="Cerrar"
+                            >
+                                <XIcon class="size-5" />
+                            </Dialog.CloseButton>
+                        </div>
+
+                        {/* Content Body */}
+                        <div class="px-6 py-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                            <div class="border-b border-border/50">
+                                <Show when={props.cropShape !== 'circle' && !props.lockAspectRatio}>
+                                    <div class="flex justify-center mb-6">
+                                        <SegmentedControl
+                                            value={aspectRatio()}
+                                            onChange={setAspectRatio}
+                                        >
+                                            <SegmentedControlIndicator />
+                                            <For each={ASPECTS}>
+                                                {(aspect) => (
+                                                    <SegmentedControlItem value={aspect.value}>
+                                                        <SegmentedControlItemInput />
+                                                        <SegmentedControlItemLabel>
+                                                            <aspect.icon class="size-3.5" />
+                                                            {aspect.label}
+                                                        </SegmentedControlItemLabel>
+                                                    </SegmentedControlItem>
+                                                )}
+                                            </For>
+                                        </SegmentedControl>
+                                    </div>
+                                </Show>
+
+                                {/* ━━━ Ark UI ImageCropper ━━━ */}
+                                <ImageCropper.Root
+                                    id={cropperId}
+                                    aspectRatio={Number(aspectRatio())}
+                                >
+                                    <div class="flex justify-center w-full">
+                                        <div class="w-full">
+                                            {/* Viewport */}
+                                            <ImageCropper.Viewport class="relative overflow-hidden w-full h-70 sm:h-85 bg-card-alt rounded-xl border border-border/80 touch-none shadow-sm flex items-center justify-center">
+                                                <ImageCropper.Image
+                                                    src={props.src}
+                                                    alt="Imagen a recortar"
+                                                    // @ts-ignore
+                                                    crossorigin={null}
+                                                    class="absolute top-0 left-0 w-full h-full object-contain origin-center select-none pointer-events-none backface-hidden"
+                                                />
+                                                <ImageCropper.Selection
                                                     class={cn(
-                                                        "group absolute flex items-center justify-center touch-none w-7 h-7 z-30",
-                                                        "data-disabled:hidden",
-                                                        "data-[position=top-left]:cursor-nwse-resize",
-                                                        "data-[position=top-right]:cursor-nesw-resize",
-                                                        "data-[position=bottom-right]:cursor-nwse-resize",
-                                                        "data-[position=bottom-left]:cursor-nesw-resize",
-                                                        "data-[position=top]:cursor-ns-resize",
-                                                        "data-[position=bottom]:cursor-ns-resize",
-                                                        "data-[position=left]:cursor-ew-resize",
-                                                        "data-[position=right]:cursor-ew-resize",
+                                                        "box-content outline-none cursor-move backface-hidden",
+                                                        "shadow-[0_0_0_9999px_rgba(0,0,0,0.65)]",
+                                                        "border-[1.5px] border-white/50 focus-visible:border-primary",
+                                                        "data-dragging:cursor-grabbing data-dragging:border-white/80",
+                                                        props.cropShape === 'circle' && "rounded-full"
                                                     )}
                                                 >
-                                                    <div class={cn(
-                                                        "size-3 rounded-full bg-white border-2 border-primary shadow-[0_2px_4px_rgba(0,0,0,0.22)] transition-all duration-150",
-                                                        "group-hover:scale-125 group-hover:border-primary-strong",
-                                                        "group-data-dragging:bg-primary group-data-dragging:scale-110",
-                                                    )} />
-                                                </ImageCropper.Handle>
-                                            )}
-                                        </For>
-                                        <ImageCropper.Grid axis="horizontal" class="absolute inset-y-[33.33%] inset-x-0 border-y border-white/40 pointer-events-none opacity-0 transition-opacity duration-200 data-dragging:opacity-100 data-panning:opacity-100" />
-                                        <ImageCropper.Grid axis="vertical" class="absolute inset-x-[33.33%] inset-y-0 border-x border-white/40 pointer-events-none opacity-0 transition-opacity duration-200 data-dragging:opacity-100 data-panning:opacity-100" />
-                                    </ImageCropper.Selection>
+                                                    {/* Handles */}
+                                                    <For each={ImageCropper.handles}>
+                                                        {(position) => (
+                                                            <ImageCropper.Handle 
+                                                                position={position} 
+                                                                class={cn(
+                                                                    "group absolute flex items-center justify-center touch-none w-7 h-7 z-30",
+                                                                    "data-disabled:hidden",
+                                                                    "data-[position=top-left]:cursor-nwse-resize",
+                                                                    "data-[position=top-right]:cursor-nesw-resize",
+                                                                    "data-[position=bottom-right]:cursor-nwse-resize",
+                                                                    "data-[position=bottom-left]:cursor-nesw-resize",
+                                                                    "data-[position=top]:cursor-ns-resize",
+                                                                    "data-[position=bottom]:cursor-ns-resize",
+                                                                    "data-[position=left]:cursor-ew-resize",
+                                                                    "data-[position=right]:cursor-ew-resize",
+                                                                )}
+                                                            >
+                                                                <div class={cn(
+                                                                    "size-3 rounded-full bg-white border-2 border-primary shadow-[0_2px_4px_rgba(0,0,0,0.22)] transition-all duration-150",
+                                                                    "group-hover:scale-125 group-hover:border-primary-strong",
+                                                                    "group-data-dragging:bg-primary group-data-dragging:scale-110",
+                                                                )} />
+                                                            </ImageCropper.Handle>
+                                                        )}
+                                                    </For>
+                                                    <ImageCropper.Grid axis="horizontal" class="absolute inset-y-[33.33%] inset-x-0 border-y border-white/40 pointer-events-none opacity-0 transition-opacity duration-200 data-dragging:opacity-100 data-panning:opacity-100" />
+                                                    <ImageCropper.Grid axis="vertical" class="absolute inset-x-[33.33%] inset-y-0 border-x border-white/40 pointer-events-none opacity-0 transition-opacity duration-200 data-dragging:opacity-100 data-panning:opacity-100" />
+                                                </ImageCropper.Selection>
 
-                                    {/* Floating Canvas Zoom Controls */}
+                                                {/* Floating Canvas Zoom Controls */}
+                                                <ImageCropper.Context>
+                                                    {(api) => (
+                                                        <div class="absolute bottom-3 right-3 flex items-center gap-1 bg-card/90 backdrop-blur-xs border border-border/80 rounded-xl p-1 shadow-sm z-20">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => api().setZoom(Math.max(1, api().zoom - 0.2))}
+                                                                class="p-1.5 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer flex items-center justify-center"
+                                                                title="Alejar (Zoom -)"
+                                                                aria-label="Alejar"
+                                                            >
+                                                                <ZoomOutIcon class="size-4" />
+                                                            </button>
+                                                            <span class="text-[10px] font-mono font-bold text-muted px-1.5 min-w-9 text-center select-none">
+                                                                {Math.round(api().zoom * 100)}%
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => api().setZoom(Math.min(5, api().zoom + 0.2))}
+                                                                class="p-1.5 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer flex items-center justify-center"
+                                                                title="Acercar (Zoom +)"
+                                                                aria-label="Acercar"
+                                                            >
+                                                                <ZoomInIcon class="size-4" />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </ImageCropper.Context>
+                                            </ImageCropper.Viewport>
+                                        </div>
+                                    </div>
+
+                                    {/* Footer actions (Sticky) */}
                                     <ImageCropper.Context>
                                         {(api) => (
-                                            <div class="absolute bottom-3 right-3 flex items-center gap-1 bg-card/90 backdrop-blur-xs border border-border/80 rounded-xl p-1 shadow-sm z-20">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => api().setZoom(Math.max(1, api().zoom - 0.2))}
-                                                    class="p-1.5 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer flex items-center justify-center"
-                                                    title="Alejar (Zoom -)"
-                                                >
-                                                    <ZoomOutIcon class="size-4" />
-                                                </button>
-                                                <span class="text-[10px] font-mono font-bold text-muted px-1.5 min-w-9 text-center select-none">
-                                                    {Math.round(api().zoom * 100)}%
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => api().setZoom(Math.min(5, api().zoom + 0.2))}
-                                                    class="p-1.5 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer flex items-center justify-center"
-                                                    title="Acercar (Zoom +)"
-                                                >
-                                                    <ZoomInIcon class="size-4" />
-                                                </button>
+                                            <div class="sticky -bottom-4 z-10 bg-card/95 backdrop-blur-md border-t border-border/60 px-6 py-4 -mx-6 -mb-4 flex items-center justify-between mt-6">
+                                                {/* Transform tools */}
+                                                <div class="flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => api().flipHorizontally()}
+                                                        class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer flex items-center justify-center"
+                                                        title="Reflejar horizontalmente"
+                                                        aria-label="Reflejar horizontalmente"
+                                                    >
+                                                        <FlipHorizontalIcon class="size-4.5" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => api().setRotation((api().rotation + 90) % 360)}
+                                                        class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer flex items-center justify-center"
+                                                        title="Girar 90°"
+                                                        aria-label="Girar 90 grados"
+                                                    >
+                                                        <RotateCwIcon class="size-4.5" />
+                                                    </button>
+                                                    <div class="w-px h-5 bg-border mx-1.5" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => api().reset()}
+                                                        class="text-[11px] font-bold text-muted hover:text-text px-2.5 py-1.5 rounded-lg hover:bg-card-alt transition-colors cursor-pointer uppercase tracking-wider"
+                                                    >
+                                                        Restaurar
+                                                    </button>
+                                                </div>
+
+                                                {/* Apply / Cancel */}
+                                                <div class="flex items-center gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={props.onClose}
+                                                        class="px-4 py-2 text-xs font-bold text-muted hover:text-text hover:bg-card-alt rounded-xl transition-all cursor-pointer"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const blob = await api().getCroppedImage({ type: 'image/webp' });
+                                                                const cropData = api().getCropData();
+                                                                props.onConfirm(blob ? new Blob([blob], { type: 'image/webp' }) : null, cropData);
+                                                            } catch (err) {
+                                                                console.error("Error cropping image:", err);
+                                                                props.onConfirm(null);
+                                                            }
+                                                        }}
+                                                        class="px-5 py-2 text-xs font-bold bg-primary text-white hover:bg-primary-strong rounded-xl shadow-md transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+                                                    >
+                                                        Aplicar Recorte
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
                                     </ImageCropper.Context>
-                            </ImageCropper.Viewport>
-                        </div>
-                    </div>
-
-                    {/* Footer actions (Sticky) */}
-                    <ImageCropper.Context>
-                        {(api) => (
-                            <div class="sticky -bottom-4 z-10 bg-card/95 backdrop-blur-md border-t border-border/60 px-6 py-4 -mx-6 -mb-4 flex items-center justify-between mt-6">
-                                {/* Transform tools */}
-                                <div class="flex items-center gap-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => api().flipHorizontally()}
-                                        class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer flex items-center justify-center"
-                                        title="Reflejar horizontalmente"
-                                    >
-                                        <FlipHorizontalIcon class="size-4.5" />
-                                    </button>
-                                    {/* <button
-                                        type="button"
-                                        onClick={() => api().flipVertically()}
-                                        class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer flex items-center justify-center"
-                                        title="Reflejar verticalmente"
-                                    >
-                                        <FlipVerticalIcon class="size-4.5" />
-                                    </button> */}
-                                    <button
-                                        type="button"
-                                        onClick={() => api().setRotation((api().rotation + 90) % 360)}
-                                        class="p-2 rounded-lg hover:bg-card-alt text-muted hover:text-text transition-colors cursor-pointer flex items-center justify-center"
-                                        title="Girar 90°"
-                                    >
-                                        <RotateCwIcon class="size-4.5" />
-                                    </button>
-                                    <div class="w-px h-5 bg-border mx-1.5" />
-                                    <button
-                                        type="button"
-                                        onClick={() => api().reset()}
-                                        class="text-[11px] font-bold text-muted hover:text-text px-2.5 py-1.5 rounded-lg hover:bg-card-alt transition-colors cursor-pointer uppercase tracking-wider"
-                                    >
-                                        Restaurar
-                                    </button>
-                                </div>
-
-                                {/* Apply / Cancel */}
-                                <div class="flex items-center gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={props.onClose}
-                                        class="px-4 py-2 text-xs font-bold text-muted hover:text-text hover:bg-card-alt rounded-xl transition-all cursor-pointer"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={async () => {
-                                            try {
-                                                const blob = await api().getCroppedImage({ type: 'image/webp' });
-                                                const cropData = api().getCropData();
-                                                props.onConfirm(blob ? new Blob([blob], { type: 'image/webp' }) : null, cropData);
-                                            } catch (err) {
-                                                console.error("Error cropping image:", err);
-                                                props.onConfirm(null);
-                                            }
-                                        }}
-                                        class="px-5 py-2 text-xs font-bold bg-primary text-white hover:bg-primary-strong rounded-xl shadow-md transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
-                                    >
-                                        Aplicar Recorte
-                                    </button>
-                                </div>
+                                </ImageCropper.Root>
                             </div>
-                        )}
-                    </ImageCropper.Context>
-                </ImageCropper.Root>
-            </div>
-        </Modal>
+                        </div>
+                    </Dialog.Content>
+                </div>
+            </Dialog.Portal>
+        </Dialog.Root>
     );
 };
 

@@ -1,24 +1,30 @@
 import { JSX, splitProps, mergeProps } from 'solid-js';
 import { 
+  buttonVariants,
   getButtonClasses, 
   ButtonContent,
   type ButtonVariant, 
   type ButtonSize, 
   type ButtonRadius, 
-  type SharedButtonProps 
+  type SharedButtonProps,
+  type ButtonVariantOptions
 } from './button-shared';
 
 // Re-export constants and types to prevent breaking existing imports in the codebase
 export { 
+  buttonVariants,
+  getButtonClasses,
   BUTTON_VARIANTS, 
   BUTTON_SIZES, 
   BUTTON_RADII,
   type ButtonVariant,
   type ButtonSize,
-  type ButtonRadius
+  type ButtonRadius,
+  type SharedButtonProps,
+  type ButtonVariantOptions
 } from './button-shared';
 
-export type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & SharedButtonProps;
+export interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement>, SharedButtonProps {}
 
 export default function Button(props: ButtonProps) {
   const merged = mergeProps({ 
@@ -41,14 +47,14 @@ export default function Button(props: ButtonProps) {
     'disabled'
   ]);
 
-  const buttonClasses = () => getButtonClasses({
+  const buttonClasses = () => buttonVariants({
     variant: local.variant,
     size: local.size,
     radius: local.radius,
     fullWidth: local.fullWidth,
     loading: local.loading,
-    loadingText: local.loadingText,
-    className: local.class
+    hasLoadingText: Boolean(local.loadingText),
+    class: local.class
   });
 
   return (
