@@ -19,7 +19,7 @@ export const createCategoriesRoutes = (layoutRoute: any) => {
         },
         loader: async () => {
             return await queryClient.prefetchQuery({
-                queryKey: categorieKeys.categoriesFlat(),
+                queryKey: categoryKeys.categoriesFlat(),
                 queryFn: () => categoriesApi.listCategories(true),
                 staleTime: 60 * 1000,
             });
