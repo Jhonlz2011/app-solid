@@ -26,11 +26,11 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
             return brandsService.list({
                 cursor: query.cursor,
                 direction: query.direction as any,
-                limit: query.limit,
+                limit: query.limit !== undefined ? Number(query.limit) : undefined,
                 search: query.search,
                 sortBy: query.sortBy,
                 sortOrder: query.sortOrder as 'asc' | 'desc' | undefined,
-                page: query.page,
+                page: query.page !== undefined ? Number(query.page) : undefined,
                 isActive: parseArray(query.isActive),
             }, currentCompanyId);
         },

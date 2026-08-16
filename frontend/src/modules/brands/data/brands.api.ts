@@ -6,17 +6,18 @@ import type {
     BrandUpdatePayload,
     BrandFilters,
     BrandReferences,
+    PaginatedResult,
 } from '@app/schema/dto';
 
 // Re-export shared contracts for local module consumers
-export type { BrandItem, BrandPayload, BrandUpdatePayload, BrandFilters, BrandReferences };
+export type { BrandItem, BrandPayload, BrandUpdatePayload, BrandFilters, BrandReferences, PaginatedResult };
 
 // =============================================================================
 // API Wrappers — Brands (/api/brands)
 // =============================================================================
 
 export const brandsApi = {
-    list: async (params: BrandFilters = {}) => {
+    list: async (params: BrandFilters = {}): Promise<PaginatedResult<BrandItem>> => {
         const { data, error } = await api.api.brands.get({
             query: {
                 cursor: params.cursor,
@@ -30,68 +31,68 @@ export const brandsApi = {
             },
         });
         if (error) throwApiError(error);
-        return data!;
+        return data as PaginatedResult<BrandItem>;
     },
 
     /** Get single brand by ID */
     get: async (id: number): Promise<BrandItem> => {
         const { data, error } = await api.api.brands({ id }).get();
         if (error) throwApiError(error);
-        return data as unknown as BrandItem;
+        return data as BrandItem;
     },
 
     /** Simple list for selectors (all active) */
     listAll: async (): Promise<BrandItem[]> => {
-        const { data, error } = await (api.api.brands as any).all.get();
+        const { data, error } = await api.api.brands.all.get();
         if (error) throwApiError(error);
-        return data as unknown as BrandItem[];
+        return (data as BrandItem[]) || [];
     },
 
     create: async (body: BrandPayload): Promise<BrandItem> => {
-        const { data, error } = await api.api.brands.post(body as any);
+        const { data, error } = await api.api.brands.post(body);
         if (error) throwApiError(error);
-        return data as unknown as BrandItem;
+        return data as BrandItem;
     },
 
     update: async (id: number, body: BrandUpdatePayload): Promise<BrandItem> => {
-        const { data, error } = await api.api.brands({ id }).put(body as any);
+        const { data, error } = await api.api.brands({ id }).put(body);
         if (error) throwApiError(error);
-        return data as unknown as BrandItem;
+        return data as BrandItem;
     },
 
     deactivate: async (id: number): Promise<BrandItem> => {
-        const { data, error } = await (api.api.brands as any)({ id }).deactivate.patch();
+        const { data, error } = await api.api.brands({ id }).deactivate.patch();
         if (error) throwApiError(error);
-        return data as unknown as BrandItem;
+        return data as BrandItem;
     },
 
     restore: async (id: number): Promise<BrandItem> => {
-        const { data, error } = await (api.api.brands as any)({ id }).restore.patch();
+        const { data, error } = await api.api.brands({ id }).restore.patch();
         if (error) throwApiError(error);
-        return data as unknown as BrandItem;
+        return data as BrandItem;
     },
 
     checkReferences: async (id: number): Promise<BrandReferences> => {
-        const { data, error } = await (api.api.brands as any)({ id }).references.get();
+        const { data, error } = await api.api.brands({ id }).references.get();
         if (error) throwApiError(error);
-        return data! as BrandReferences;
+        return data as BrandReferences;
     },
 
     hardDelete: async (id: number): Promise<{ success: boolean }> => {
-        const { data, error } = await (api.api.brands as any)({ id }).delete();
+        const { data, error } = await api.api.brands({ id }).delete();
         if (error) throwApiError(error);
-        return data as unknown as { success: boolean };
+        return data as { success: boolean };
     },
 
     bulkDeactivate: async (ids: number[]): Promise<{ success: boolean; count: number }> => {
         const { data, error } = await api.api.brands.bulk.delete({ ids });
         if (error) throwApiError(error);
-        return data as unknown as { success: boolean; count: number };
+        return data as { success: boolean; count: number };
     },
 
     bulkRestore: async (ids: number[]): Promise<{ success: boolean; count: number }> => {
-        const { data, error } = await (api.api.brands.bulk.restore as any).patch({ ids });
+        const { data, error } = await api.api.brands.bulk.restore.patch({ ids });
         if (error) throwApiError(error);
-        return data as unknown as { success: boolean; count: number };
+        return data as { success: boolean; count: number };
     },
 };

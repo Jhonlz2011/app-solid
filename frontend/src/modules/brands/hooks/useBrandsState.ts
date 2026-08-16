@@ -1,13 +1,14 @@
 /**
  * useBrandsState — Centralized state management for BrandsPage.
- * Follows the useSuppliersState pattern with server-side pagination and real-time SSE.
+ * Follows server-side pagination and real-time SSE room subscription.
  */
 import { createSignal, createMemo } from 'solid-js';
 import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { copyToClipboard } from '@shared/utils/clipboard';
 import { useDataTable } from '@shared/hooks/useDataTable';
-import { useRealtimeInvalidation } from '@shared/hooks/useDataTableSSE';
+import { useDataTableSSE } from '@shared/hooks/useDataTableSSE';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { useBrands } from '../data/brands.queries';
 import { useDeactivateBrand, useRestoreBrand, useBulkDeactivateBrand, useBulkRestoreBrand } from '../data/brands.mutations';
@@ -46,11 +47,14 @@ export function useBrandsState() {
 
     // Queries & mutations
     const brandsQuery = useBrands(filters);
-    getQueryData = () => (brandsQuery.data as any)?.data ?? [];
-    getQueryMeta = () => (brandsQuery.data as any)?.meta;
+    getQueryData = () => brandsQuery.data?.data ?? [];
+    getQueryMeta = () => brandsQuery.data?.meta;
 
-    // Realtime SSE: auto-invalidate on brand create/update/deactivate across tabs/users
-    useRealtimeInvalidation(brandKeys.all);
+    // Realtime SSE: subscribes to 'brands' room and invalidates on entity events
+    useDataTableSSE({
+        room: RealtimeEvents.ROOMS.BRANDS,
+        queryKey: brandKeys.all,
+    });
 
     const deactivateMut = useDeactivateBrand();
     const restoreMut = useRestoreBrand();
@@ -58,7 +62,7 @@ export function useBrandsState() {
     const bulkRestoreMut = useBulkRestoreBrand();
 
     // Derived
-    const brands = () => (brandsQuery.data as any)?.data ?? [];
+    const brands = () => brandsQuery.data?.data ?? [];
     const selectedActiveCount = () => tableState.selectedItems().filter((b: BrandItem) => b.is_active ?? true).length;
     const selectedInactiveCount = () => tableState.selectedItems().filter((b: BrandItem) => !(b.is_active ?? true)).length;
 
@@ -68,14 +72,14 @@ export function useBrandsState() {
     const handleDeactivate = (brand: BrandItem) => {
         deactivateMut.mutate(brand.id, {
             onSuccess: () => toast.success(`"${brand.name}" desactivada`),
-            onError: (err: any) => toast.error(err.message || 'Error'),
+            onError: (err: any) => toast.error(err.message || 'Error al desactivar'),
         });
     };
 
     const handleRestore = (brand: BrandItem) => {
         restoreMut.mutate(brand.id, {
             onSuccess: () => toast.success(`"${brand.name}" restaurada`),
-            onError: (err: any) => toast.error(err.message || 'Error'),
+            onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
 
@@ -85,8 +89,12 @@ export function useBrandsState() {
         const ids = tableState.selectedItems().filter((b: BrandItem) => b.is_active ?? true).map((b: BrandItem) => b.id);
         if (ids.length === 0) return;
         bulkDeleteMut.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} marcas desactivadas`); tableState.setRowSelection({}); setShowBulkDeleteConfirm(false); },
-            onError: (err: any) => toast.error(err.message || 'Error'),
+            onSuccess: () => {
+                toast.success(`${ids.length} marcas desactivadas`);
+                tableState.setRowSelection({});
+                setShowBulkDeleteConfirm(false);
+            },
+            onError: (err: any) => toast.error(err.message || 'Error al desactivar'),
         });
     };
 
@@ -94,8 +102,12 @@ export function useBrandsState() {
         const ids = tableState.selectedItems().filter((b: BrandItem) => !(b.is_active ?? true)).map((b: BrandItem) => b.id);
         if (ids.length === 0) return;
         bulkRestoreMut.mutate(ids, {
-            onSuccess: () => { toast.success(`${ids.length} marcas restauradas`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },
-            onError: (err: any) => toast.error(err.message || 'Error'),
+            onSuccess: () => {
+                toast.success(`${ids.length} marcas restauradas`);
+                tableState.setRowSelection({});
+                setShowBulkRestoreConfirm(false);
+            },
+            onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
 
@@ -122,14 +134,24 @@ export function useBrandsState() {
     return {
         ...tableState,
         auth,
-        brandsQuery, brands,
-        showBulkDeleteConfirm, setShowBulkDeleteConfirm,
-        showBulkRestoreConfirm, setShowBulkRestoreConfirm,
-        selectedActiveCount, selectedInactiveCount,
-        bulkDeleteMut, bulkRestoreMut,
-        handleEdit, handleDeactivate, handleRestore,
-        handleBulkDelete, confirmBulkDelete, confirmBulkRestore,
+        brandsQuery,
+        brands,
+        showBulkDeleteConfirm,
+        setShowBulkDeleteConfirm,
+        showBulkRestoreConfirm,
+        setShowBulkRestoreConfirm,
+        selectedActiveCount,
+        selectedInactiveCount,
+        bulkDeleteMut,
+        bulkRestoreMut,
+        handleEdit,
+        handleDeactivate,
+        handleRestore,
+        handleBulkDelete,
+        confirmBulkDelete,
+        confirmBulkRestore,
         handleCopySelection,
-        columns, filters,
+        columns,
+        filters,
     };
 }

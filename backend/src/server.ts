@@ -37,6 +37,9 @@ import { startAuditWorker } from './modules/audit';
 
 const allowedOrigins = new Set([
   env.FRONTEND_URL,
+  'https://zelys.app',
+  'https://dev.zelys.app',
+  'https://api.zelys.app',
   ...(env.NODE_ENV !== 'production' ? [
     'http://192.168.100.50:5173',
     'http://192.168.100.50:4173',

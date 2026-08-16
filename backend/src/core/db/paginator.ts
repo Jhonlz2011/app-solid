@@ -74,11 +74,11 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
         return cacheService.getOrSet(key, async () => {
             const conditions = this.config.buildConditions({ companyId, search, filters });
             const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-            const [{ count }] = await db
-                .select({ count: sql<number>`count(*)`.mapWith(Number) })
+            const [{ count } = { count: 0 }] = await db
+                .select({ count: sql<number>`count(*)`.mapWith((v) => (v === null || v === undefined ? 0 : Number(v))) })
                 .from(this.table)
                 .where(whereClause);
-            return count;
+            return Number(count) || 0;
         }, this.config.ttl ?? 120);
     }
 
@@ -90,12 +90,15 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
             const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
             const [result] = await db
                 .select({
-                    minId: sql<number>`min(${this.config.idColumn})`.mapWith(Number),
-                    maxId: sql<number>`max(${this.config.idColumn})`.mapWith(Number),
+                    minId: sql<number>`min(${this.config.idColumn})`.mapWith((v) => (v === null || v === undefined ? 0 : Number(v))),
+                    maxId: sql<number>`max(${this.config.idColumn})`.mapWith((v) => (v === null || v === undefined ? 0 : Number(v))),
                 })
                 .from(this.table)
                 .where(whereClause);
-            return result || { minId: 0, maxId: 0 };
+            return {
+                minId: result?.minId ? Number(result.minId) : 0,
+                maxId: result?.maxId ? Number(result.maxId) : 0,
+            };
         }, this.config.ttl ?? 120);
     }
 

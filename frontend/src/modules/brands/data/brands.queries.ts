@@ -20,19 +20,20 @@ export function useBrands(filters: () => BrandFilters) {
     createEffect(() => {
         const data = query.data;
         const currentFilters = filters();
-        if (!data) return;
+        if (!data || !('nextCursor' in data.meta)) return;
 
-        if (data.meta.nextCursor && data.meta.hasNextPage) {
+        const cursorMeta = data.meta;
+        if (cursorMeta.nextCursor && cursorMeta.hasNextPage) {
             queryClient.prefetchQuery({
-                queryKey: brandKeys.list({ ...currentFilters, cursor: data.meta.nextCursor, direction: 'next' }),
-                queryFn: () => brandsApi.list({ ...currentFilters, cursor: data.meta.nextCursor!, direction: 'next' }),
+                queryKey: brandKeys.list({ ...currentFilters, cursor: cursorMeta.nextCursor, direction: 'next' }),
+                queryFn: () => brandsApi.list({ ...currentFilters, cursor: cursorMeta.nextCursor!, direction: 'next' }),
                 staleTime: 1000 * 60 * 2,
             });
         }
-        if (data.meta.prevCursor && data.meta.hasPrevPage) {
+        if (cursorMeta.prevCursor && cursorMeta.hasPrevPage) {
             queryClient.prefetchQuery({
-                queryKey: brandKeys.list({ ...currentFilters, cursor: data.meta.prevCursor, direction: 'prev' }),
-                queryFn: () => brandsApi.list({ ...currentFilters, cursor: data.meta.prevCursor!, direction: 'prev' }),
+                queryKey: brandKeys.list({ ...currentFilters, cursor: cursorMeta.prevCursor, direction: 'prev' }),
+                queryFn: () => brandsApi.list({ ...currentFilters, cursor: cursorMeta.prevCursor!, direction: 'prev' }),
                 staleTime: 1000 * 60 * 2,
             });
         }

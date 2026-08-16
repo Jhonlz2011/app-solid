@@ -6,7 +6,7 @@ import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
-import { CursorPaginator } from '../../core/db/paginator';
+import { CursorPaginator, type PaginatedResult } from '../../core/db/paginator';
 
 // =============================================================================
 // Pagination Types
@@ -42,8 +42,8 @@ export const brandPaginator = new CursorPaginator<typeof brands, BrandColumnFilt
     buildConditions: ({ companyId, search, filters }) => {
         const conditions: SQL[] = [eq(brands.company_id, companyId)];
 
-        if (search) {
-            const pattern = `%${search}%`;
+        if (search && search.trim()) {
+            const pattern = `%${search.trim()}%`;
             conditions.push(
                 or(ilike(brands.name, pattern), ilike(brands.website, pattern))!
             );
@@ -68,10 +68,10 @@ export const brandPaginator = new CursorPaginator<typeof brands, BrandColumnFilt
 
 export const brandsService = {
     /** Paginated list with cursor or offset pagination */
-    async list(filters: BrandListFilters, companyId: number) {
+    async list(filters: BrandListFilters, companyId: number): Promise<PaginatedResult<BrandItem>> {
         return withTenantContext({ companyId }, async () => {
             const { cursor, direction, limit, search, sortBy, sortOrder, page, ...columnFilters } = filters;
-            return brandPaginator.paginate(
+            return brandPaginator.paginate<BrandItem>(
                 { cursor, direction, limit, search, sortBy, sortOrder, page, filters: columnFilters },
                 companyId
             );
