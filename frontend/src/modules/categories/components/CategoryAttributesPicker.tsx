@@ -25,6 +25,7 @@ import { AttributeSelect } from '@shared/ui/selectors/AttributeSelect';
 import Checkbox from '@shared/ui/Checkbox';
 import { Badge } from '@shared/ui/Badge';
 import { CloseIcon, GripVerticalIcon } from '@shared/ui/icons';
+import { useAttributeList } from '../data/attributes.queries';
 
 interface CategoryAttributesPickerProps {
     value: CategoryAttributeEntry[];

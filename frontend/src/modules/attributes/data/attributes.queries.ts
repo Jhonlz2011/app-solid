@@ -1,7 +1,7 @@
 import { createQuery } from '@tanstack/solid-query';
 import { attributesApi } from './attributes.api';
 import { attributeKeys } from './attributes.keys';
-import type { AttributeItem, AttributeDetail, AttributeReferences } from './attributes.api';
+import type { AttributeDetail } from './attributes.api';
 import type { Accessor } from 'solid-js';
 
 /**

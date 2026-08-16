@@ -47,8 +47,7 @@ import {
 } from '@shared/ui/table';
 import { Skeleton } from '@shared/ui/Skeleton';
 import { EmptyState } from '@shared/ui/EmptyState';
-import Button from '@shared/ui/Button';
-import { FolderIcon, GripVerticalIcon, Expand, Collapse, ArrowUpIcon } from '@shared/ui/icons';
+import { FolderIcon, GripVerticalIcon, TagIcon } from '@shared/ui/icons';
 import { cn } from '@shared/lib/utils';
 import { useTreeDnD, buildSubRows } from '@shared/hooks/useTreeDnD';
 import { getHeaderPinningStyles, getCellPinningStyles } from '@shared/utils/column-pinning';
@@ -364,7 +363,7 @@ const CategoryTable: Component<CategoryTableProps> = (props) => {
                                         <TableRow>
                                             <TableCell colSpan={table.getVisibleLeafColumns().length} class="h-48">
                                                 <EmptyState
-                                                    icon={<FolderIcon class="size-8" />}
+                                                    icon={<TagIcon class="size-8" />}
                                                     message="No hay categorías"
                                                     description="Crea una nueva categoría para comenzar"
                                                 />
