@@ -225,7 +225,7 @@ const UomForm: Component<UomFormProps> = (props) => {
                                                 };
 
                                                 return (
-                                                    <div class="flex-1 relative max-w-[60%] min-w-[4rem]">
+                                                    <div class="flex-1 relative max-w-[60%] min-w-16">
                                                         <TextField.Root 
                                                             value={displayValue()}
                                                             onChange={handleChange}
@@ -235,7 +235,7 @@ const UomForm: Component<UomFormProps> = (props) => {
                                                             <TextField.NumericInput 
                                                                 allowNegative={false}
                                                                 placeholder="1.0" 
-                                                                class="!rounded-md !px-2 text-xl font-bold text-center !min-w-0"
+                                                                class="rounded-md px-2 text-xl font-bold text-center min-w-0"
                                                             />
                                                         </TextField.Root>
                                                     </div>
@@ -243,7 +243,7 @@ const UomForm: Component<UomFormProps> = (props) => {
                                             }}
                                         </props.form.Field>
 
-                                        <div class="flex flex-col px-2 border-l border-border min-w-0 shrink max-w-[10rem]">
+                                        <div class="flex flex-col px-2 border-l border-border min-w-0 shrink max-w-40">
                                             <span class="text-sm font-semibold text-text truncate w-full block" title={invertMode() ? currentName() : baseName()}>
                                                 {invertMode() ? currentName() : baseName()}
                                             </span>

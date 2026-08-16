@@ -1,31 +1,10 @@
-// Client types - UI constants and type definitions
+/**
+ * client.types.ts — Client domain types and API response types
+ */
 import { clientsApi } from '../data/clients.api';
-import type { TaxIdType, PersonType, TaxRegimeType } from '@app/schema/frontend';
 
-// Centralized filter/reference types
-export type { EntityFilters as ClientFilters } from '@app/schema/dto';
-export type { EntityReferences as ClientReferences } from '@app/schema/dto';
+export type { EntityFilters as ClientFilters, EntityReferences as ClientReferences } from '@app/schema/dto';
+export { taxIdTypeLabels, personTypeLabels, taxRegimeTypeLabels } from '@modules/entities/models/entity.types';
 
-// Infer Client type from API response (single item with relations)
 export type Client = Awaited<ReturnType<typeof clientsApi.get>>;
-// List response type
 export type ClientsResponse = Awaited<ReturnType<typeof clientsApi.list>>;
-
-// UI Label mappings (We omit CONSUMIDOR_FINAL intentionally for the Form UI)
-export const taxIdTypeLabels: Partial<Record<TaxIdType, string>> = {
-    RUC: 'RUC',
-    CEDULA: 'Cédula',
-    PASAPORTE: 'Pasaporte',
-    EXTERIOR: 'Exterior',
-};
-
-export const personTypeLabels: Record<PersonType, string> = {
-    NATURAL: 'Persona Natural',
-    JURIDICA: 'Persona Jurídica',
-};
-
-export const taxRegimeTypeLabels: Record<TaxRegimeType, string> = {
-    RIMPE_NEGOCIO_POPULAR: 'RIMPE Popular',
-    RIMPE_EMPRENDEDOR: 'RIMPE Emprendedor',
-    GENERAL: 'Régimen General',
-};

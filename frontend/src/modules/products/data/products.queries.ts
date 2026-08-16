@@ -9,8 +9,8 @@ import { createEffect } from 'solid-js';
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
 import { productsApi, productKeys } from './products.api';
-import type { ProductFilters, FacetData, ProductReferences } from './products.api';
-
+import type { ProductFilters, ProductReferences } from './products.api';
+import type { FacetData } from '@app/schema/dto';
 // =============================================================================
 // List with Cursor Pagination + Auto-prefetch
 // =============================================================================

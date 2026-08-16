@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or, sql, inArray, type AnyColumn } from '@app/schema';
+import { and, desc, eq, ilike, or, sql, inArray, type AnyColumn, type SQL } from '@app/schema';
 import { db } from '../../core/db';
 import { products, productVariants, categories, brands, uom } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';

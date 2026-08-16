@@ -17,7 +17,7 @@ export const ProfileHeaderSkeleton: Component = () => (
             {/* User Info Skeleton */}
             <div class="flex-1 flex flex-col w-full items-center sm:items-start text-center sm:text-left space-y-2 overflow-hidden">
                 <Skeleton class="h-8 w-3/4 max-w-[16rem] rounded-lg" />
-                <Skeleton class="h-4 w-full max-w-[12rem] rounded" />
+                <Skeleton class="h-4 w-full max-w-48 rounded" />
 
                 {/* Badges Skeleton */}
                 <div class="flex flex-wrap justify-center sm:justify-start gap-2 mt-2">

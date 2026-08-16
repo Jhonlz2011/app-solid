@@ -66,7 +66,7 @@ const RoleCard: Component<RoleCardProps> = (props) => {
             onMouseEnter={props.onMouseEnter}
         >
             {/* Accent top bar — matches badge color */}
-            <div class={`h-1 w-full bg-gradient-to-r ${accentColor()} to-transparent`} />
+            <div class={`h-1 w-full bg-linear-to-r ${accentColor()} to-transparent`} />
 
             {/* Content */}
             <div class="px-5 pt-4 pb-3 flex flex-col gap-3">
@@ -91,7 +91,7 @@ const RoleCard: Component<RoleCardProps> = (props) => {
                             >
                                 <MoreVerticalIcon class="size-4" />
                             </DropdownMenu.Trigger>
-                            <DropdownMenu.Content class="min-w-[160px]">
+                            <DropdownMenu.Content class="min-w-40">
                                 <DropdownMenu.Item onSelect={props.onEdit}>
                                     <EditIcon class="size-4 mr-2" />
                                     Editar rol

@@ -37,7 +37,7 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
                                     <li role="none" class="relative">
                                         {/* Active indicator - glowing segment on the track */}
                                         <span
-                                            class="absolute left-[-8px] top-1/2 -translate-y-1/2 w-0.5 rounded-sm"
+                                            class="absolute -left-2 top-1/2 -translate-y-1/2 w-0.5 rounded-sm"
                                             classList={{
                                                 'h-9.5 bg-primary shadow-[0_0_8px_var(--color-primary)]': isChildActive() && !isDevelopment,
                                                 'h-0 bg-transparent': !isChildActive() || isDevelopment

@@ -52,7 +52,7 @@ export const SidebarSearch: Component = () => {
                 <Portal>
                     <div
                         ref={tooltip.setTooltipRef}
-                        class="fixed z-[9999] p-2.5 bg-surface backdrop-blur-lg border border-border/80 rounded-xl shadow-2xl
+                        class="fixed z-9999 p-2.5 bg-surface backdrop-blur-lg border border-border/80 rounded-xl shadow-2xl
                                animate-in fade-in slide-in-from-left-2 duration-150 flex items-center gap-3"
                         style={{ top: `${tooltip.tooltipRect()?.top}px`, left: `${tooltip.tooltipRect()?.left}px`, transform: 'translateY(-50%)' }}
                         onMouseEnter={tooltip.cancelHide}

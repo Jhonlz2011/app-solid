@@ -38,7 +38,7 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
 
     const resolvedType = (): EntityModuleType => {
         if (props.type) return props.type;
-        const pathname = location.pathname;
+        const pathname = location().pathname;
         if (pathname.includes('/suppliers')) return 'supplier';
         if (pathname.includes('/employees')) return 'employee';
         if (pathname.includes('/carriers')) return 'carrier';

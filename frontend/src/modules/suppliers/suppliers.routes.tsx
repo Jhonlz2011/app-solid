@@ -21,10 +21,7 @@ export const createSuppliersRoutes = (layoutRoute: any) => {
             }
         },
         loader: async () => {
-            // Parallel Fetching: Block route transition until data is pre-fetched
-            // const { suppliersApi, supplierKeys } = await import('./data/suppliers.api');
             const defaultFilters = { limit: 10, direction: 'first' as const };
-
             return await queryClient.prefetchQuery({
                 queryKey: supplierKeys.list(defaultFilters),
                 queryFn: () => suppliersApi.list(defaultFilters),
@@ -35,10 +32,8 @@ export const createSuppliersRoutes = (layoutRoute: any) => {
         component: SuppliersPage,
     });
 
-    suppliersRoute.addChildren([
+    return suppliersRoute.addChildren([
         ...createSupplierModals(suppliersRoute),
-        ...createUserModals(suppliersRoute, 'user')
+        ...createUserModals(suppliersRoute, 'user'),
     ]);
-
-    return suppliersRoute;
 };

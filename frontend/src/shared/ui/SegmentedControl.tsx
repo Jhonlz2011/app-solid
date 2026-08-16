@@ -37,7 +37,7 @@ export const SegmentedControlIndicator: Component<SegmentedControlIndicatorProps
         <KSegmentedControl.Indicator 
             {...others}
             class={cn(
-                "absolute z-0 bg-surface rounded-xl shadow-[0px_1px_3px_rgba(0,0,0,0.08),_0px_2px_8px_rgba(0,0,0,0.12)] ring-1 ring-inset ring-border-strong",
+                "absolute z-0 bg-surface rounded-xl shadow-[0px_1px_3px_rgba(0,0,0,0.08),0px_2px_8px_rgba(0,0,0,0.12)] ring-1 ring-inset ring-border-strong",
                 "transition-[box-shadow,width,height,transform,opacity] duration-200 ease-in-out opacity-100",
                 // Hide indicator if nothing is checked
                 "group-[&:not(:has(:checked))]:opacity-0",

@@ -1,21 +1,10 @@
-import type { EntityFilters } from '@app/schema/dto';
+/**
+ * employee.types.ts — Employee domain types and API response types
+ */
+import { employeesApi } from '../data/employees.api';
 
-export type EmployeeFilters = EntityFilters;
+export type { EntityFilters as EmployeeFilters, EntityReferences as EmployeeReferences } from '@app/schema/dto';
+export { taxIdTypeLabels, personTypeLabels, taxRegimeTypeLabels } from '@modules/entities/models/entity.types';
 
-export const taxIdTypeLabels = {
-    RUC: 'RUC',
-    CEDULA: 'Cédula',
-    PASAPORTE: 'Pasaporte',
-    IDENTIFICACION_EXTERIOR: 'Identificación del Exterior',
-};
-
-export const personTypeLabels = {
-    NATURAL: 'Natural',
-    JURIDICA: 'Jurídica',
-};
-
-export const taxRegimeTypeLabels = {
-    GENERAL: 'General',
-    RIMPE_EMPRENDEDOR: 'RIMPE Emprendedor',
-    RIMPE_NEGOCIO_POPULAR: 'RIMPE Negocio Popular',
-};
+export type Employee = Awaited<ReturnType<typeof employeesApi.get>>;
+export type EmployeesResponse = Awaited<ReturnType<typeof employeesApi.list>>;

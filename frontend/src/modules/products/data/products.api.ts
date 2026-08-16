@@ -8,7 +8,7 @@ import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
 import type { ProductFormData } from '@app/schema/frontend';
 import type { ProductType, ProductSubtype } from '@app/schema/frontend';
-import type { FacetData } from '@app/schema/dto';
+
 
 
 // =============================================================================

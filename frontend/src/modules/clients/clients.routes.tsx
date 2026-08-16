@@ -21,10 +21,7 @@ export const createClientsRoutes = (layoutRoute: any) => {
             }
         },
         loader: async () => {
-            // Parallel Fetching: Block route transition until data is pre-fetched
-            // const { clientsApi, clientKeys } = await import('./data/clients.api');
             const defaultFilters = { limit: 10, direction: 'first' as const };
-
             return await queryClient.prefetchQuery({
                 queryKey: clientKeys.list(defaultFilters),
                 queryFn: () => clientsApi.list(defaultFilters),
@@ -35,10 +32,8 @@ export const createClientsRoutes = (layoutRoute: any) => {
         component: ClientsPage,
     });
 
-    
-
     return clientsRoute.addChildren([
         ...createClientsModals(clientsRoute),
-        ...createUserModals(clientsRoute, 'user', '/clients')
+        ...createUserModals(clientsRoute, 'user'),
     ]);
 };

@@ -21,9 +21,7 @@ export const createEmployeesRoutes = (layoutRoute: any) => {
             }
         },
         loader: async () => {
-            // Parallel Fetching: Block route transition until data is pre-fetched
             const defaultFilters = { limit: 10, direction: 'first' as const };
-
             return await queryClient.prefetchQuery({
                 queryKey: employeeKeys.list(defaultFilters),
                 queryFn: () => employeesApi.list(defaultFilters),
@@ -34,10 +32,8 @@ export const createEmployeesRoutes = (layoutRoute: any) => {
         component: EmployeesPage,
     });
 
-    employeesRoute.addChildren([
+    return employeesRoute.addChildren([
         ...createEmployeeModals(employeesRoute),
-        ...createUserModals(employeesRoute, 'user', '/employees')
+        ...createUserModals(employeesRoute, 'user'),
     ]);
-
-    return employeesRoute;
 };

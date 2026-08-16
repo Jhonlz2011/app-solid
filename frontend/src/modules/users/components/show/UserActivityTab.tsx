@@ -114,7 +114,7 @@ const UserActivityTab: Component<{ userId: number }> = (props) => {
                 {/* Timeline */}
                 <div class="relative">
                     {/* Vertical line */}
-                    <div class="absolute left-[19px] top-2 bottom-2 w-px bg-border/40" />
+                    <div class="absolute left-4.75 top-2 bottom-2 w-px bg-border/40" />
 
                     <div class="space-y-1">
                         <For each={entries()}>
@@ -130,7 +130,7 @@ const UserActivityTab: Component<{ userId: number }> = (props) => {
                                 return (
                                     <div class="relative flex items-start gap-3 py-2.5 pl-1">
                                         {/* Dot */}
-                                        <div class="size-[10px] rounded-full bg-card border-2 border-border mt-1.5 shrink-0 z-10" />
+                                        <div class="size-2.5 rounded-full bg-card border-2 border-border mt-1.5 shrink-0 z-10" />
 
                                         {/* Content */}
                                         <div class="flex-1 min-w-0">

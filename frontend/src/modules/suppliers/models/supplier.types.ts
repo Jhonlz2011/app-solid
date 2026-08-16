@@ -1,24 +1,10 @@
-// Supplier types - UI constants and type definitions
-import type { TaxIdType, PersonType, TaxRegimeType } from '@app/schema/frontend';
+/**
+ * supplier.types.ts — Supplier domain types and API response types
+ */
+import { suppliersApi } from '../data/suppliers.api';
 
-// UI Label mappings (We omit CONSUMIDOR_FINAL intentionally for the Form UI)
-export const taxIdTypeLabels: Partial<Record<TaxIdType, string>> = {
-    RUC: 'RUC',
-    CEDULA: 'Cédula',
-    PASAPORTE: 'Pasaporte',
-    EXTERIOR: 'Exterior',
-};
+export type { EntityFilters as SupplierFilters, EntityReferences as SupplierReferences } from '@app/schema/dto';
+export { taxIdTypeLabels, personTypeLabels, taxRegimeTypeLabels } from '@modules/entities/models/entity.types';
 
-export const personTypeLabels: Record<PersonType, string> = {
-    NATURAL: 'Persona Natural',
-    JURIDICA: 'Persona Jurídica',
-};
-
-export const taxRegimeTypeLabels: Record<TaxRegimeType, string> = {
-    RIMPE_NEGOCIO_POPULAR: 'RIMPE Popular',
-    RIMPE_EMPRENDEDOR: 'RIMPE Emprendedor',
-    GENERAL: 'Régimen General',
-};
-
-// shared labels for backward compatibility
-export { isActiveLabels } from '@shared/constants/labels';
+export type Supplier = Awaited<ReturnType<typeof suppliersApi.get>>;
+export type SuppliersResponse = Awaited<ReturnType<typeof suppliersApi.list>>;

@@ -14,31 +14,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
 import { InfoRow } from '@shared/ui/InfoRow';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { formatCurrency, formatDate } from '@shared/utils/formatters';
-
 import { useClient } from '@modules/clients/data/clients.queries';
 import { useSupplier } from '@modules/suppliers/data/suppliers.queries';
 import { useEmployee } from '@modules/employees/data/employees.queries';
 import type { EntityModuleType } from './EntityNewSheet';
-
-const personTypeLabels: Record<string, string> = {
-    NATURAL: 'Persona Natural',
-    JURIDICA: 'Persona Jurídica',
-};
-
-const taxIdTypeLabels: Record<string, string> = {
-    RUC: 'RUC',
-    CEDULA: 'Cédula',
-    PASAPORTE: 'Pasaporte',
-    VENTA_A_CONSUMIDOR_FINAL: 'Consumidor Final',
-    IDENTIFICACION_DEL_EXTERIOR: 'Identificación Exterior',
-};
-
-const taxRegimeTypeLabels: Record<string, string> = {
-    GENERAL: 'Régimen General',
-    RIMPE_EMPRENDEDOR: 'RIMPE Emprendedor',
-    RIMPE_NEGOCIO_POPULAR: 'RIMPE Negocio Popular',
-    ESPECIAL: 'Contribuyente Especial',
-};
+import { getPersonTypeLabel, getTaxIdTypeLabel, getTaxRegimeTypeLabel } from '../models/entity.types';
 
 export interface EntityShowPanelProps {
     id?: number;
@@ -57,7 +37,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
 
     const resolvedType = (): EntityModuleType => {
         if (props.type) return props.type;
-        const pathname = location.pathname;
+        const pathname = location().pathname;
         if (pathname.includes('/suppliers')) return 'supplier';
         if (pathname.includes('/employees')) return 'employee';
         if (pathname.includes('/carriers')) return 'carrier';
@@ -188,17 +168,17 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                     <h3 class="font-bold text-text text-lg leading-tight">
                                                         {e().business_name}
                                                     </h3>
-                                                    <StatusBadge isActive={e().is_active} />
+                                                    <StatusBadge isActive={e().is_active ?? true} />
                                                 </div>
                                                 <Show when={e().trade_name}>
                                                     <p class="text-sm text-muted font-medium mt-0.5">{e().trade_name}</p>
                                                 </Show>
                                                 <div class="flex items-center gap-3 mt-2 text-xs text-muted flex-wrap">
                                                     <span class="font-mono bg-surface px-2 py-0.5 rounded-md border border-border">
-                                                        {taxIdTypeLabels[e().tax_id_type] || e().tax_id_type}: {e().tax_id}
+                                                        {getTaxIdTypeLabel(e().tax_id_type)}: {e().tax_id}
                                                     </span>
                                                     <span>•</span>
-                                                    <span>{personTypeLabels[e().person_type] || e().person_type}</span>
+                                                    <span>{getPersonTypeLabel(e().person_type)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -258,7 +238,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                 <h4 class="text-xs font-bold text-muted uppercase tracking-wider">
                                                     Datos Fiscales y Contables
                                                 </h4>
-                                                <InfoRow label="Régimen Tributario" value={taxRegimeTypeLabels[e().tax_regime_type || ''] || e().tax_regime_type || 'No especificado'} />
+                                                <InfoRow label="Régimen Tributario" value={getTaxRegimeTypeLabel(e().tax_regime_type)} />
                                                 <InfoRow label="Obligado a Contabilidad" value={e().obligado_contabilidad ? 'Sí' : 'No'} />
                                                 <InfoRow label="Agente de Retención" value={e().is_retention_agent ? 'Sí' : 'No'} />
                                                 <InfoRow label="Contribuyente Especial" value={e().is_special_contributor ? 'Sí' : 'No'} />
@@ -270,14 +250,17 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                 </h4>
                                                 <InfoRow label="Email de Facturación" value={e().email_billing || 'No registrado'} />
                                                 <InfoRow label="Teléfono" value={e().phone || 'No registrado'} />
-                                                <InfoRow label="Roles en el Sistema" value={
+                                                <InfoRow label="Roles en el Sistema">
                                                     <div class="flex gap-1.5 flex-wrap">
                                                         <Show when={e().is_client}><Badge variant="success">Cliente</Badge></Show>
                                                         <Show when={e().is_supplier}><Badge variant="warning">Proveedor</Badge></Show>
                                                         <Show when={e().is_employee}><Badge variant="info">Empleado</Badge></Show>
                                                         <Show when={e().is_carrier}><Badge variant="primary">Transportista</Badge></Show>
+                                                        <Show when={!e().is_client && !e().is_supplier && !e().is_employee && !e().is_carrier}>
+                                                            <span class="text-sm text-text font-medium">—</span>
+                                                        </Show>
                                                     </div>
-                                                } />
+                                                </InfoRow>
                                             </div>
                                         </div>
                                     </TabsContent>
