@@ -50,7 +50,22 @@ async function computePathAndDepth(parentId: number | null, name: string): Promi
 
 export async function listCategoriesEnhanced(companyId: number, flat = false): Promise<CategoryNode[]> {
     return cacheService.getOrSet(`categories:c${companyId}:enhanced:${flat}`, async () => {
-        const allCategories = await db.select().from(categories)
+        const allCategories = await db
+            .select({
+                id: categories.id,
+                company_id: categories.company_id,
+                name: categories.name,
+                parent_id: categories.parent_id,
+                description: categories.description,
+                icon: categories.icon,
+                name_template: categories.name_template,
+                path: categories.path,
+                depth: categories.depth,
+                sort_order: categories.sort_order,
+                requires_return: categories.requires_return,
+                is_active: categories.is_active,
+            })
+            .from(categories)
             .where(eq(categories.company_id, companyId))
             .orderBy(asc(categories.sort_order), asc(categories.name));
         const categoryIds = allCategories.map(c => c.id);
@@ -88,8 +103,6 @@ export async function listCategoriesEnhanced(companyId: number, flat = false): P
             path: cat.path,
             depth: cat.depth,
             attributeCount: attrCountMap.get(cat.id) ?? 0,
-            created_at: cat.created_at,
-            updated_at: cat.updated_at,
         }));
 
         if (flat) return enriched;

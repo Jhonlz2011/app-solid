@@ -96,11 +96,11 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
             }));
         },
 
-        useDetail: (id: () => number) => {
+        useDetail: (id: () => number, enabled?: () => boolean) => {
             return createQuery(() => ({
                 queryKey: keys.detail(id()),
                 queryFn: () => api.get(id()),
-                enabled: !!id(),
+                enabled: (enabled ? enabled() : true) && !!id() && id() > 0,
                 staleTime: 1000 * 60 * 5,
                 gcTime: 1000 * 60 * 30,
             }));

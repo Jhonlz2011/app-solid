@@ -124,8 +124,8 @@ export interface CategoryNode {
     attributeCount: number;
     children?: CategoryNode[];
     subRows?: CategoryNode[];
-    created_at: string | Date;
-    updated_at: string | Date;
+    created_at?: string | Date | null;
+    updated_at?: string | Date | null;
 }
 
 export interface CategoryAttributeDetail {

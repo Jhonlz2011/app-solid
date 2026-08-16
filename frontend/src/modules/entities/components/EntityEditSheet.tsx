@@ -54,14 +54,14 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
         return Number(p?.id ?? p?.clientId ?? p?.supplierId ?? p?.employeeId ?? 0);
     };
 
-    const clientQuery = useClient(entityId);
-    const supplierQuery = useSupplier(entityId);
-    const employeeQuery = useEmployee(entityId);
+    const clientQuery = useClient(entityId, () => resolvedType() === 'client');
+    const supplierQuery = useSupplier(entityId, () => resolvedType() === 'supplier');
+    const employeeQuery = useEmployee(entityId, () => resolvedType() === 'employee' || resolvedType() === 'carrier');
 
     const activeQuery = () => {
         const t = resolvedType();
         if (t === 'supplier') return supplierQuery;
-        if (t === 'employee') return employeeQuery;
+        if (t === 'employee' || t === 'carrier') return employeeQuery;
         return clientQuery;
     };
 
