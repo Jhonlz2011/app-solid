@@ -16,13 +16,6 @@ export type {
     EntityPayload,
 } from '@app/schema/dto';
 
-export {
-    roleLabels,
-    taxIdTypeOptions,
-    personTypeOptions,
-    taxRegimeTypeOptions,
-} from '@shared/forms/entity';
-
 export const taxIdTypeLabels: Record<string, string> = {
     ...baseTaxIdTypeLabels,
     IDENTIFICACION_DEL_EXTERIOR: 'Identificación Exterior',
