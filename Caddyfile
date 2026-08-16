@@ -47,6 +47,13 @@
             header_up Host {$BACKEND_HOST:api.zelys.app}
             header_up X-Original-Host {host}
             header_up X-Real-IP {remote_host}
+
+            # Si el backend responde con error 502/503/504, servir index.html local automáticamente
+            @backend_error status 502 503 504
+            handle_response @backend_error {
+                rewrite * /index.html
+                file_server
+            }
         }
     }
 

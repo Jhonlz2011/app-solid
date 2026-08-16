@@ -1,5 +1,5 @@
 import { createQuery } from '@tanstack/solid-query';
-import { categoriesApi, type CategoryNode, type CategoryDetail, type CategoryReferences } from './categories.api';
+import { categoriesApi, type CategoryNode, type CategoryDetail } from './categories.api';
 import { categorieKeys } from './categories.keys';
 import type { Accessor } from 'solid-js';
 
