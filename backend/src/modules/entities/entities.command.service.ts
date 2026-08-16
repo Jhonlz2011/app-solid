@@ -541,6 +541,7 @@ export async function bulkDeactivateEntities(
 
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
         await cacheService.invalidate(`entities:c${companyId}:*`);
+        await Promise.all(existingIds.map(id => cacheService.invalidate(`entity:c${companyId}:${id}`)));
 
         for (const entity of updatedEntities) {
             broadcast(RealtimeEvents.ENTITY.UPDATED, {
@@ -590,6 +591,7 @@ export async function bulkRestoreEntities(
 
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
         await cacheService.invalidate(`entities:c${companyId}:*`);
+        await Promise.all(existingIds.map(id => cacheService.invalidate(`entity:c${companyId}:${id}`)));
 
         for (const entity of updatedEntities) {
             broadcast(RealtimeEvents.ENTITY.UPDATED, {

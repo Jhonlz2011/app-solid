@@ -75,21 +75,18 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                     title: 'Detalles del Proveedor',
                     description: 'Información completa del proveedor',
                     permKey: 'suppliers',
-                    editPath: `/suppliers/${entityId()}/edit`,
                 };
             case 'employee':
                 return {
                     title: 'Detalles del Empleado',
                     description: 'Información completa del empleado',
                     permKey: 'employees',
-                    editPath: `/employees/${entityId()}/edit`,
                 };
             case 'carrier':
                 return {
                     title: 'Detalles del Transportista',
                     description: 'Información completa del transportista',
                     permKey: 'carriers',
-                    editPath: `/carriers/${entityId()}/edit`,
                 };
             case 'client':
             default:
@@ -97,7 +94,6 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                     title: 'Detalles del Cliente',
                     description: 'Información completa del cliente',
                     permKey: 'clients',
-                    editPath: `/clients/${entityId()}/edit`,
                 };
         }
     };
@@ -186,7 +182,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                         <Show when={canEdit()}>
                                             <div class="flex items-center gap-2 self-start sm:self-auto shrink-0">
                                                 <LinkButton
-                                                    to={typeConfig().editPath}
+                                                    to="./edit"
                                                     preload="intent"
                                                     variant="outline"
                                                     size="sm"
