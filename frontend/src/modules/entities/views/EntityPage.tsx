@@ -2,6 +2,7 @@
  * EntityPage.tsx — Generic Orchestrator Component for Entities
  */
 import { Component, Show, JSX } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import { Outlet } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
@@ -224,13 +225,12 @@ export const EntityPage: Component<EntityPageProps> = (props) => {
                     />
                 }
             >
-                {(Custom) => (
-                    <Custom()
-                        isOpen={state.showFilterSheet()}
-                        onClose={() => state.setShowFilterSheet(false)}
-                        filters={state.filterSheetConfig}
-                    />
-                )}
+                <Dynamic
+                    component={props.CustomFilterSheet}
+                    isOpen={state.showFilterSheet()}
+                    onClose={() => state.setShowFilterSheet(false)}
+                    filters={state.filterSheetConfig}
+                />
             </Show>
 
             {/* Dialogs */}
@@ -248,13 +248,14 @@ export const EntityPage: Component<EntityPageProps> = (props) => {
                     />
                 }
             >
-                {props.CustomDeleteDialog && <props.CustomDeleteDialog
+                <Dynamic
+                    component={props.CustomDeleteDialog}
                     entity={state.deleteTarget()}
                     client={state.deleteTarget()}
                     supplier={state.deleteTarget()}
                     employee={state.deleteTarget()}
                     onClose={() => state.setDeleteTarget(null)}
-                />}
+                />
             </Show>
             <ConfirmDialog
                 isOpen={state.showBulkDeleteConfirm()}
