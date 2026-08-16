@@ -1,4 +1,4 @@
-import { pipe, string, minLength, object, email, picklist, boolean, union, literal, array, number, optional, forward, check, type InferInput } from 'valibot';
+import { pipe, string, minLength, object, email, picklist, boolean, union, literal, array, number, optional, null_, forward, check, type InferInput } from 'valibot';
 import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES } from '../enums';
 import type { EntityPayload } from '../dto/entities.dto';
 
@@ -26,9 +26,19 @@ export const AddressFormSchema = object({
     isMain: boolean(),
 });
 
+export const DepartmentFormSchema = object({
+    name: pipe(string(), minLength(1, 'El nombre es requerido')),
+    code: optional(string()),
+});
+
+export const JobTitleFormSchema = object({
+    name: pipe(string(), minLength(1, 'El nombre es requerido')),
+    departmentId: optional(union([number(), null_()])),
+});
+
 export const EmployeeDetailsFormSchema = object({
-    department: string(),
-    jobTitle: string(),
+    departmentId: optional(union([number(), null_()])),
+    jobTitleId: optional(union([number(), null_()])),
     salaryBase: optional(number()),
     hireDate: string(),
     costPerHour: optional(number()),

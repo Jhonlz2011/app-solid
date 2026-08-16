@@ -455,7 +455,7 @@ data/
 | Catalogs | `catalogs.ts` | `brands`, `categories`, `attributeDefinitions`, `categoryAttributes` |
 | SRI Lookup | `sri.ts` | `sriProduccion` (Ecuador RUC search database) |
 | Auth | `auth.ts` | `authUsers`, `authRoles`, `authPermissions`, `authRolePermissions`, `authUserRoles`, `sessions`, `authMenuItems` |
-| Entities | `entities.ts` | `entities`, `entityContacts`, `entityAddresses`, `employeeDetails`, `carrierVehicles`, `carrierDrivers` |
+| Entities | `entities.ts` | `entities`, `entityContacts`, `entityAddresses`, `departments`, `jobTitles`, `employeeDetails`, `carrierVehicles`, `carrierDrivers` |
 | Products | `products.ts` | `products`, `productVariants`, `productComponents`, `productUomConversions`, `variantPriceHistory` |
 | Inventory | `inventory.ts`, `inventory_defaults.ts` | `warehouses`, `warehouseLocations`, `productVariantWarehouseLocations`, `inventoryStock` (with `quantity_reserved`), `inventoryDimensionalItems`, `inventoryMovements` |
 | Documents | `documents.ts` | `electronicDocuments`, `invoices`, `creditNotes`, `debitNotes`, `purchaseLiquidations`, `withholdingReceipts`, `withholdingReceiptDetails`, `remissionGuides`, `invoiceItems`, `invoicePayments`, `taxRetentions`, `documentSequences` |

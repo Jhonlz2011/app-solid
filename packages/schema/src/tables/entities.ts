@@ -60,10 +60,38 @@ export const entityContacts = pgTableV2("entity_contacts", {
     index("idx_entity_contacts_entity_id").on(t.entity_id),
 ]);
 
+// --- 2. DEPARTMENTS & JOB TITLES (CATALOGS) ---
+export const departments = pgTableV2("departments", {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
+    name: text("name").notNull(),
+    code: text("code"),
+    is_active: boolean("is_active").default(true).notNull(),
+    created_at: timestamp("created_at", TZ).defaultNow().notNull(),
+}, (t) => [
+    uniqueIndex("idx_departments_company_name").on(t.company_id, t.name),
+    index("idx_departments_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
+
+export const jobTitles = pgTableV2("job_titles", {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
+    department_id: integer("department_id").references(() => departments.id, { onDelete: 'set null' }),
+    name: text("name").notNull(),
+    is_active: boolean("is_active").default(true).notNull(),
+    created_at: timestamp("created_at", TZ).defaultNow().notNull(),
+}, (t) => [
+    uniqueIndex("idx_job_titles_company_name").on(t.company_id, t.name),
+    index("idx_job_titles_company").on(t.company_id),
+    index("idx_job_titles_department").on(t.department_id),
+    tenantPolicy(),
+]).enableRLS();
+
 export const employeeDetails = pgTableV2("employee_details", {
     entity_id: integer("entity_id").primaryKey().references(() => entities.id, { onDelete: 'cascade' }),
-    department: text("department"),
-    job_title: text("job_title"),
+    department_id: integer("department_id").references(() => departments.id, { onDelete: 'set null' }),
+    job_title_id: integer("job_title_id").references(() => jobTitles.id, { onDelete: 'set null' }),
     salary_base: numeric("salary_base", { precision: 10, scale: 2 }),
     hire_date: date("hire_date"),
     cost_per_hour: numeric("cost_per_hour", { precision: 10, scale: 2 }),

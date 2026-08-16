@@ -25,6 +25,32 @@ export interface EntityPickerItem {
     taxId: string;
 }
 
+// --- Department & Job Title Catalog DTOs ---
+
+export interface DepartmentItemDto {
+    id: number;
+    name: string;
+    code?: string | null;
+    is_active: boolean;
+}
+
+export interface JobTitleItemDto {
+    id: number;
+    name: string;
+    department_id?: number | null;
+    is_active: boolean;
+}
+
+export interface DepartmentPayload {
+    name: string;
+    code?: string;
+}
+
+export interface JobTitlePayload {
+    name: string;
+    departmentId?: number | null;
+}
+
 // --- E2E Entity Detail Contracts ---
 
 export interface EntityDetailContactDto {
@@ -47,8 +73,10 @@ export interface EntityDetailAddressDto {
 }
 
 export interface EntityDetailEmployeeDetailsDto {
-    department?: string | null;
-    job_title?: string | null;
+    department_id?: number | null;
+    department_name?: string | null;
+    job_title_id?: number | null;
+    job_title_name?: string | null;
     salary_base?: string | number | null;
     hire_date?: string | null;
     cost_per_hour?: string | number | null;
@@ -117,8 +145,8 @@ export interface EntityAddressPayload {
 }
 
 export interface EmployeeDetailsPayload {
-    department: string; // Empty string if omitted
-    jobTitle: string; // Empty string if omitted
+    departmentId?: number | null;
+    jobTitleId?: number | null;
     salaryBase?: number;
     hireDate: string; // Empty string if omitted
     costPerHour?: number;

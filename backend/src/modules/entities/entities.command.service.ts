@@ -1,12 +1,12 @@
 import { and, eq, count, inArray } from '@app/schema';
 import { db } from '../../core/db';
-import { entities, entityAddresses, employeeDetails, entityContacts, carrierVehicles, carrierDrivers, supplierProducts, workOrders, electronicDocuments } from '@app/schema/tables';
+import { entities, entityAddresses, employeeDetails, entityContacts, carrierVehicles, carrierDrivers, supplierProducts, workOrders, electronicDocuments, departments, jobTitles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
-import type { EntityPayload, EntityContactPayload, EntityAddressPayload, EntityReferences } from '@app/schema/dto';
+import type { EntityPayload, EntityContactPayload, EntityAddressPayload, EntityReferences, DepartmentPayload, JobTitlePayload } from '@app/schema/dto';
 import type { EntityType } from './entities.query.service';
 
 // Helper for numeric conversion
@@ -52,8 +52,8 @@ export async function createEntity(type: EntityType, payload: EntityPayload, aud
             if (payload.employeeDetails) {
                 await tx.insert(employeeDetails).values({
                     entity_id: created.id,
-                    department: payload.employeeDetails.department,
-                    job_title: payload.employeeDetails.jobTitle,
+                    department_id: payload.employeeDetails.departmentId ?? null,
+                    job_title_id: payload.employeeDetails.jobTitleId ?? null,
                     salary_base: toDecimal(payload.employeeDetails.salaryBase),
                     hire_date: payload.employeeDetails.hireDate,
                     cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
@@ -154,8 +154,8 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
             const result = await tx
                 .update(employeeDetails)
                 .set(stripUndefined({
-                    department: payload.employeeDetails.department,
-                    job_title: payload.employeeDetails.jobTitle,
+                    department_id: payload.employeeDetails.departmentId,
+                    job_title_id: payload.employeeDetails.jobTitleId,
                     salary_base: toDecimal(payload.employeeDetails.salaryBase),
                     hire_date: payload.employeeDetails.hireDate,
                     cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
@@ -166,8 +166,8 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
             if (result.length === 0) {
                 await tx.insert(employeeDetails).values({
                     entity_id: id,
-                    department: payload.employeeDetails.department,
-                    job_title: payload.employeeDetails.jobTitle,
+                    department_id: payload.employeeDetails.departmentId ?? null,
+                    job_title_id: payload.employeeDetails.jobTitleId ?? null,
                     salary_base: toDecimal(payload.employeeDetails.salaryBase),
                     hire_date: payload.employeeDetails.hireDate,
                     cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
@@ -603,4 +603,34 @@ export async function bulkRestoreEntities(
 
         return { success: true, count: existingIds.length, restoredIds: existingIds };
     });
+}
+
+// =============================================================================
+// Departments & Job Titles CRUD
+// =============================================================================
+
+export async function createDepartment(payload: DepartmentPayload, companyId: number) {
+    const [created] = await db
+        .insert(departments)
+        .values({
+            company_id: companyId,
+            name: payload.name.trim(),
+            code: payload.code?.trim() || null,
+            is_active: true,
+        })
+        .returning();
+    return created;
+}
+
+export async function createJobTitle(payload: JobTitlePayload, companyId: number) {
+    const [created] = await db
+        .insert(jobTitles)
+        .values({
+            company_id: companyId,
+            department_id: payload.departmentId ?? null,
+            name: payload.name.trim(),
+            is_active: true,
+        })
+        .returning();
+    return created;
 }

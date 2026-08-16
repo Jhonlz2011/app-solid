@@ -1,6 +1,6 @@
 import { Component, createSignal, Show, Index, batch, createMemo } from 'solid-js';
 import type { EntityFormData, TaxIdTypeForm, PersonType, TaxRegimeType } from '@app/schema/frontend';
-import { useQueryClient } from '@tanstack/solid-query';
+import { useQueryClient, createQuery, createMutation } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { api } from '@shared/lib/eden';
 import type { SriSupplierResponse } from '@modules/sri/sri.types';
@@ -20,7 +20,7 @@ import TextField, { FieldLabel } from '@shared/ui/TextField';
 import Checkbox from '@shared/ui/Checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import { SriBusinessNameSelect } from '@shared/ui/selectors';
-import { InfoIcon, SearchIcon, BriefcaseIcon } from '@shared/ui/icons';
+import { InfoIcon, SearchIcon, BriefcaseIcon, PlusIcon } from '@shared/ui/icons';
 import { useAuth } from '@modules/auth/store/auth.store';
 import Tooltip from '@shared/ui/Tooltip';
 import {
@@ -74,6 +74,72 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
             disabled: disabledKeys.includes(opt.value),
         }));
     });
+
+    // =========================================================================
+    // Departments & Job Titles (HR / Employees)
+    // =========================================================================
+    const departmentsQuery = createQuery(() => ({
+        queryKey: ['entities', 'departments'],
+        queryFn: async () => {
+            const { data, error } = await api.api.entities.departments.get();
+            if (error) throw error;
+            return (data || []) as Array<{ id: number; name: string; code?: string | null; is_active: boolean }>;
+        },
+        staleTime: 1000 * 60 * 5,
+        enabled: showEmployeeSection(),
+    }));
+
+    const jobTitlesQuery = createQuery(() => ({
+        queryKey: ['entities', 'job-titles'],
+        queryFn: async () => {
+            const { data, error } = await api.api.entities['job-titles'].get({ query: {} });
+            if (error) throw error;
+            return (data || []) as Array<{ id: number; name: string; department_id?: number | null; is_active: boolean }>;
+        },
+        staleTime: 1000 * 60 * 5,
+        enabled: showEmployeeSection(),
+    }));
+
+    const createDeptMutation = createMutation(() => ({
+        mutationFn: async (name: string) => {
+            const { data, error } = await api.api.entities.departments.post({ name });
+            if (error) throw error;
+            return data!;
+        },
+        onSuccess: (newDept) => {
+            queryClient.invalidateQueries({ queryKey: ['entities', 'departments'] });
+            props.form.setFieldValue('employeeDetails.departmentId', newDept.id);
+            toast.success(`Departamento "${newDept.name}" creado`);
+        },
+    }));
+
+    const createJobTitleMutation = createMutation(() => ({
+        mutationFn: async (name: string) => {
+            const deptId = props.form.getFieldValue('employeeDetails.departmentId');
+            const { data, error } = await api.api.entities['job-titles'].post({ name, departmentId: deptId ?? undefined });
+            if (error) throw error;
+            return data!;
+        },
+        onSuccess: (newJob) => {
+            queryClient.invalidateQueries({ queryKey: ['entities', 'job-titles'] });
+            props.form.setFieldValue('employeeDetails.jobTitleId', newJob.id);
+            toast.success(`Cargo "${newJob.name}" creado`);
+        },
+    }));
+
+    const handleCreateDepartment = () => {
+        const name = prompt('Nombre del nuevo departamento:');
+        if (name && name.trim()) {
+            createDeptMutation.mutate(name.trim());
+        }
+    };
+
+    const handleCreateJobTitle = () => {
+        const name = prompt('Nombre del nuevo cargo:');
+        if (name && name.trim()) {
+            createJobTitleMutation.mutate(name.trim());
+        }
+    };
 
     // =========================================================================
     // SRI Integration
@@ -491,22 +557,91 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                         </h3>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        <props.form.Field name="employeeDetails.department">
-                            {(field) => (
-                                <TextField.Root field={field()}>
-                                    <TextField.Label>Departamento</TextField.Label>
-                                    <TextField.Input type="text" placeholder="Ej: Producción" />
-                                </TextField.Root>
-                            )}
+                        <props.form.Field name="employeeDetails.departmentId">
+                            {(field) => {
+                                const opts = () => (departmentsQuery.data || []).map(d => ({ value: d.id, label: d.name }));
+                                return (
+                                    <div class="space-y-1.5">
+                                        <div class="flex items-center justify-between">
+                                            <FieldLabel>Departamento</FieldLabel>
+                                            <button
+                                                type="button"
+                                                onClick={handleCreateDepartment}
+                                                class="text-xs text-primary hover:underline flex items-center gap-0.5"
+                                            >
+                                                <PlusIcon class="size-3" /> Nuevo
+                                            </button>
+                                        </div>
+                                        <Select
+                                            value={opts().find(o => o.value === field().state.value)}
+                                            onChange={(opt) => field().handleChange(opt?.value ?? null)}
+                                            options={opts()}
+                                            optionValue="value"
+                                            optionTextValue="label"
+                                            placeholder="Seleccionar..."
+                                            itemComponent={(itemProps) => (
+                                                <SelectItem item={itemProps.item}>
+                                                    {itemProps.item.rawValue.label}
+                                                </SelectItem>
+                                            )}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue<{ value: number; label: string }>>
+                                                    {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
+                                                </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent />
+                                        </Select>
+                                    </div>
+                                );
+                            }}
                         </props.form.Field>
-                        <props.form.Field name="employeeDetails.jobTitle">
-                            {(field) => (
-                                <TextField.Root field={field()}>
-                                    <TextField.Label>Cargo</TextField.Label>
-                                    <TextField.Input type="text" placeholder="Ej: Operador CNC" />
-                                </TextField.Root>
-                            )}
+
+                        <props.form.Field name="employeeDetails.jobTitleId">
+                            {(field) => {
+                                const deptId = props.form.getFieldValue('employeeDetails.departmentId');
+                                const opts = () => {
+                                    const all = jobTitlesQuery.data || [];
+                                    const filtered = deptId ? all.filter(j => !j.department_id || j.department_id === deptId) : all;
+                                    return filtered.map(j => ({ value: j.id, label: j.name }));
+                                };
+                                return (
+                                    <div class="space-y-1.5">
+                                        <div class="flex items-center justify-between">
+                                            <FieldLabel>Cargo</FieldLabel>
+                                            <button
+                                                type="button"
+                                                onClick={handleCreateJobTitle}
+                                                class="text-xs text-primary hover:underline flex items-center gap-0.5"
+                                            >
+                                                <PlusIcon class="size-3" /> Nuevo
+                                            </button>
+                                        </div>
+                                        <Select
+                                            value={opts().find(o => o.value === field().state.value)}
+                                            onChange={(opt) => field().handleChange(opt?.value ?? null)}
+                                            options={opts()}
+                                            optionValue="value"
+                                            optionTextValue="label"
+                                            placeholder="Seleccionar..."
+                                            itemComponent={(itemProps) => (
+                                                <SelectItem item={itemProps.item}>
+                                                    {itemProps.item.rawValue.label}
+                                                </SelectItem>
+                                            )}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue<{ value: number; label: string }>>
+                                                    {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
+                                                </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent />
+                                        </Select>
+                                    </div>
+                                );
+                            }}
                         </props.form.Field>
+
                         <props.form.Field name="employeeDetails.hireDate">
                             {(field) => (
                                 <TextField.Root field={field()}>

@@ -66,8 +66,8 @@ export const taxRegimeTypeOptions: SelectOption<TaxRegimeType>[] = [
 // =============================================================================
 
 export const EMPTY_EMPLOYEE_DETAILS = {
-    department: '',
-    jobTitle: '',
+    departmentId: undefined as number | null | undefined,
+    jobTitleId: undefined as number | null | undefined,
     salaryBase: undefined as number | undefined,
     hireDate: '',
     costPerHour: undefined as number | undefined,

@@ -10,19 +10,23 @@ import {
     EntityListQuerySchema,
     EntityFacetsQuerySchema,
     EntityReferencesResponseSchema,
+    DepartmentPayloadSchema,
+    JobTitlePayloadSchema,
+    DepartmentResponseSchema,
+    JobTitleResponseSchema,
     BulkIdsBodySchema,
     IdParamSchema,
     SuccessResponseSchema,
 } from '@app/schema/backend';
-import type { EntityPayload, EntityAddressPayload, EntityContactPayload } from '@app/schema/dto';
+import type { EntityPayload, EntityAddressPayload, EntityContactPayload, DepartmentPayload, JobTitlePayload } from '@app/schema/dto';
 import { getIpAndUserAgent } from '../../plugins/ip';
 import { rbac } from '../../plugins/rbac';
 import { createEntityService } from './entities.service';
-import { addAddress, addContact, updateContact, deleteContact } from './entities.command.service';
-import { getAddresses, getContacts, type EntityType } from './entities.query.service';
+import { addAddress, addContact, updateContact, deleteContact, createDepartment, createJobTitle } from './entities.command.service';
+import { getAddresses, getContacts, listDepartments, listJobTitles, type EntityType } from './entities.query.service';
 
 /**
- * Entities routes — lightweight endpoints for entity picker/autocomplete.
+ * Entities routes — lightweight endpoints for entity picker/autocomplete, departments, job-titles.
  * Mounted at /api/entities via server.ts.
  */
 export const entityRoutes = new Elysia({ prefix: '/entities' })
@@ -39,7 +43,34 @@ export const entityRoutes = new Elysia({ prefix: '/entities' })
         {
             query: EntityPickerQuerySchema,
         }
-    );
+    )
+    .get('/departments', ({ currentCompanyId }) => {
+        return listDepartments(currentCompanyId);
+    }, {
+        response: t.Array(DepartmentResponseSchema),
+    })
+    .post('/departments', async ({ body, set, currentCompanyId }) => {
+        const dept = await createDepartment(body as DepartmentPayload, currentCompanyId);
+        set.status = 201;
+        return dept;
+    }, {
+        body: DepartmentPayloadSchema,
+        response: DepartmentResponseSchema,
+    })
+    .get('/job-titles', ({ query, currentCompanyId }) => {
+        return listJobTitles(currentCompanyId, query.departmentId ? Number(query.departmentId) : undefined);
+    }, {
+        query: t.Object({ departmentId: t.Optional(t.String()) }),
+        response: t.Array(JobTitleResponseSchema),
+    })
+    .post('/job-titles', async ({ body, set, currentCompanyId }) => {
+        const job = await createJobTitle(body as JobTitlePayload, currentCompanyId);
+        set.status = 201;
+        return job;
+    }, {
+        body: JobTitlePayloadSchema,
+        response: JobTitleResponseSchema,
+    });
 
 /** Parse comma-separated string into array (shared by list + facets) */
 const parseArray = (val?: string) => val?.split(',').filter(Boolean);

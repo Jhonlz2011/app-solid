@@ -50,8 +50,8 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                 isRetentionAgent: e.is_retention_agent ?? false,
                 isSpecialContributor: e.is_special_contributor ?? false,
                 employeeDetails: e.employeeDetails ? {
-                    department: e.employeeDetails.department ?? '',
-                    jobTitle: e.employeeDetails.job_title ?? '',
+                    departmentId: e.employeeDetails.department_id ?? undefined,
+                    jobTitleId: e.employeeDetails.job_title_id ?? undefined,
                     salaryBase: e.employeeDetails.salary_base ? Number(e.employeeDetails.salary_base) : undefined,
                     hireDate: e.employeeDetails.hire_date ?? '',
                     costPerHour: e.employeeDetails.cost_per_hour ? Number(e.employeeDetails.cost_per_hour) : undefined,

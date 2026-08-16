@@ -50,8 +50,10 @@ export function createEmployeeColumns(handlers: EmployeeColumnHandlers): ColumnD
                     <div class="font-medium text-text truncate group-hover/cell:text-primary transition-colors duration-150">
                         {info.getValue<string>()}
                     </div>
-                    <Show when={info.row.original.employeeDetails?.job_title}>
-                        <div class="text-xs text-muted truncate">{info.row.original.employeeDetails?.job_title}</div>
+                    <Show when={(info.row.original as any).employeeDetails?.job_title_name || (info.row.original as any).employeeDetails?.job_title}>
+                        <div class="text-xs text-muted truncate">
+                            {(info.row.original as any).employeeDetails?.job_title_name || (info.row.original as any).employeeDetails?.job_title}
+                        </div>
                     </Show>
                 </Link>
             ),
@@ -59,16 +61,19 @@ export function createEmployeeColumns(handlers: EmployeeColumnHandlers): ColumnD
         base.taxId,
         base.contactInfo,
         {
-            accessorKey: 'employeeDetails.department',
+            accessorKey: 'employeeDetails.department_name',
             id: 'department',
             header: ({ column }) => <DataTableColumnHeader column={column} title="Departamento" />,
             meta: { title: 'Departamento' },
             size: 160,
-            cell: (info) => (
-                <div class="min-w-0">
-                    <div class="text-sm truncate">{info.row.original.employeeDetails?.department || '-'}</div>
-                </div>
-            ),
+            cell: (info) => {
+                const dept = (info.row.original as any).employeeDetails?.department_name || (info.row.original as any).employeeDetails?.department || '-';
+                return (
+                    <div class="min-w-0">
+                        <div class="text-sm truncate">{dept}</div>
+                    </div>
+                );
+            },
         },
         base.isActive,
         base.actions,

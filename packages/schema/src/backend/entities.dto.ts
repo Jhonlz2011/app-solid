@@ -42,11 +42,36 @@ export const AddressPayloadSchema = Type.Object({
 });
 
 export const EmployeeDetailsPayloadSchema = Type.Object({
-    department: Type.String(),
-    jobTitle: Type.String(),
+    departmentId: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    jobTitleId: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     salaryBase: Type.Optional(Type.Number()),
     hireDate: Type.String(),
     costPerHour: Type.Optional(Type.Number()),
+});
+
+// Departments & Job Titles DTOs (TypeBox)
+export const DepartmentPayloadSchema = Type.Object({
+    name: Type.String({ minLength: 1 }),
+    code: Type.Optional(Type.String()),
+});
+
+export const JobTitlePayloadSchema = Type.Object({
+    name: Type.String({ minLength: 1 }),
+    departmentId: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+});
+
+export const DepartmentResponseSchema = Type.Object({
+    id: Type.Number(),
+    name: Type.String(),
+    code: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    is_active: Type.Boolean(),
+});
+
+export const JobTitleResponseSchema = Type.Object({
+    id: Type.Number(),
+    name: Type.String(),
+    department_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    is_active: Type.Boolean(),
 });
 
 export const CarrierVehiclePayloadSchema = Type.Object({
@@ -145,6 +170,10 @@ export type EntityListQueryType = Static<typeof EntityListQuerySchema>;
 export type EntityFacetsQueryType = Static<typeof EntityFacetsQuerySchema>;
 export type EntityPickerItemType = Static<typeof EntityPickerItemSchema>;
 export type EntityReferencesResponseType = Static<typeof EntityReferencesResponseSchema>;
+export type DepartmentPayloadType = Static<typeof DepartmentPayloadSchema>;
+export type JobTitlePayloadType = Static<typeof JobTitlePayloadSchema>;
+export type DepartmentResponseType = Static<typeof DepartmentResponseSchema>;
+export type JobTitleResponseType = Static<typeof JobTitleResponseSchema>;
 
 // Employee Schedules
 export const EmployeeScheduleReportQuerySchema = Type.Object({

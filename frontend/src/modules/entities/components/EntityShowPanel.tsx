@@ -332,8 +332,8 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                 <h4 class="text-xs font-bold text-muted uppercase tracking-wider">
                                                     Información Laboral
                                                 </h4>
-                                                <InfoRow label="Departamento" value={e().employeeDetails?.department || 'No especificado'} />
-                                                <InfoRow label="Cargo / Puesto" value={e().employeeDetails?.job_title || 'No especificado'} />
+                                                <InfoRow label="Departamento" value={e().employeeDetails?.department_name || 'No especificado'} />
+                                                <InfoRow label="Cargo / Puesto" value={e().employeeDetails?.job_title_name || 'No especificado'} />
                                                 <InfoRow label="Salario Base" value={e().employeeDetails?.salary_base ? formatCurrency(Number(e().employeeDetails?.salary_base)) : 'No registrado'} />
                                                 <InfoRow label="Fecha de Contratación" value={e().employeeDetails?.hire_date ? formatDate(e().employeeDetails?.hire_date) : 'No registrada'} />
                                                 <InfoRow label="Costo por Hora" value={e().employeeDetails?.cost_per_hour ? formatCurrency(Number(e().employeeDetails?.cost_per_hour)) : 'No registrado'} />

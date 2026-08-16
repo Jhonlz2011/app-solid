@@ -1,6 +1,6 @@
 import { and, eq, ilike, or, asc, inArray, type AnyColumn, type SQL } from '@app/schema';
 import { db } from '../../core/db';
-import { entities, entityAddresses, entityContacts, employeeDetails, carrierVehicles, carrierDrivers } from '@app/schema/tables';
+import { entities, entityAddresses, entityContacts, employeeDetails, carrierVehicles, carrierDrivers, departments, jobTitles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { CursorPaginator } from '../../core/db/paginator';
@@ -265,14 +265,58 @@ export async function getEntity(id: number, companyId: number) {
         let details = null;
         if (entity.is_employee) {
             const [empDetails] = await db
-                .select()
+                .select({
+                    entity_id: employeeDetails.entity_id,
+                    department_id: employeeDetails.department_id,
+                    department_name: departments.name,
+                    job_title_id: employeeDetails.job_title_id,
+                    job_title_name: jobTitles.name,
+                    salary_base: employeeDetails.salary_base,
+                    hire_date: employeeDetails.hire_date,
+                    cost_per_hour: employeeDetails.cost_per_hour,
+                })
                 .from(employeeDetails)
+                .leftJoin(departments, eq(employeeDetails.department_id, departments.id))
+                .leftJoin(jobTitles, eq(employeeDetails.job_title_id, jobTitles.id))
                 .where(eq(employeeDetails.entity_id, id));
             details = empDetails || null;
         }
 
         return { ...entity, addresses, contacts, employeeDetails: details, vehicles, drivers };
     }, 3600);
+}
+
+export async function listDepartments(companyId: number) {
+    return db
+        .select({
+            id: departments.id,
+            name: departments.name,
+            code: departments.code,
+            is_active: departments.is_active,
+        })
+        .from(departments)
+        .where(and(eq(departments.company_id, companyId), eq(departments.is_active, true)))
+        .orderBy(asc(departments.name));
+}
+
+export async function listJobTitles(companyId: number, departmentId?: number) {
+    const conditions = [
+        eq(jobTitles.company_id, companyId),
+        eq(jobTitles.is_active, true),
+    ];
+    if (departmentId) {
+        conditions.push(eq(jobTitles.department_id, departmentId));
+    }
+    return db
+        .select({
+            id: jobTitles.id,
+            name: jobTitles.name,
+            department_id: jobTitles.department_id,
+            is_active: jobTitles.is_active,
+        })
+        .from(jobTitles)
+        .where(and(...conditions))
+        .orderBy(asc(jobTitles.name));
 }
 
 export async function getContacts(entityId: number, companyId: number) {
