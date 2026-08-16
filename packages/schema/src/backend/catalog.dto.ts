@@ -19,10 +19,10 @@ export const BrandListQuerySchema = Type.Object({
     cursor: Type.Optional(Type.String()),
     direction: Type.Optional(Type.String()),
     search: Type.Optional(Type.String()),
-    limit: Type.Optional(Type.Numeric()),
+    limit: Type.Optional(Type.Number()),
     sortBy: Type.Optional(Type.String()),
     sortOrder: Type.Optional(Type.String()),
-    page: Type.Optional(Type.Numeric()),
+    page: Type.Optional(Type.Number()),
     isActive: Type.Optional(Type.String()),
 });
 

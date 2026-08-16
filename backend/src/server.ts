@@ -92,7 +92,7 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
       return false;
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'X-Requested-With', 'x-client-id'],
+    allowedHeaders: ['Content-Type', 'X-Requested-With', 'x-client-id', 'Authorization', 'Accept', 'Origin'],
     credentials: true,
     preflight: true,
     maxAge: 86400
