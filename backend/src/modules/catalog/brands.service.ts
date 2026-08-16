@@ -69,33 +69,27 @@ export const brandPaginator = new CursorPaginator<typeof brands, BrandColumnFilt
 export const brandsService = {
     /** Paginated list with cursor or offset pagination */
     async list(filters: BrandListFilters, companyId: number): Promise<PaginatedResult<BrandItem>> {
-        return withTenantContext({ companyId }, async () => {
-            const { cursor, direction, limit, search, sortBy, sortOrder, page, ...columnFilters } = filters;
-            return brandPaginator.paginate<BrandItem>(
-                { cursor, direction, limit, search, sortBy, sortOrder, page, filters: columnFilters },
-                companyId
-            );
-        });
+        const { cursor, direction, limit, search, sortBy, sortOrder, page, ...columnFilters } = filters;
+        return brandPaginator.paginate<BrandItem>(
+            { cursor, direction, limit, search, sortBy, sortOrder, page, filters: columnFilters },
+            companyId
+        );
     },
 
     /** Get single brand by ID (regardless of active status) */
     async getById(id: number, companyId: number): Promise<BrandItem> {
-        return withTenantContext({ companyId }, async () => {
-            const [brand] = await db.select().from(brands)
-                .where(and(eq(brands.id, id), eq(brands.company_id, companyId)));
-            if (!brand) throw new DomainError('Marca no encontrada', 404);
-            return brand;
-        });
+        const [brand] = await db.select().from(brands)
+            .where(and(eq(brands.id, id), eq(brands.company_id, companyId)));
+        if (!brand) throw new DomainError('Marca no encontrada', 404);
+        return brand;
     },
 
     /** Simple list (all active brands, for selectors/autocomplete) */
     async listAll(companyId: number): Promise<BrandItem[]> {
         return cacheService.getOrSet(`brands:c${companyId}:all`, async () => {
-            return withTenantContext({ companyId }, async () => {
-                return db.select().from(brands)
-                    .where(and(eq(brands.company_id, companyId), eq(brands.is_active, true)))
-                    .orderBy(asc(brands.name));
-            });
+            return db.select().from(brands)
+                .where(and(eq(brands.company_id, companyId), eq(brands.is_active, true)))
+                .orderBy(asc(brands.name));
         }, 3600);
     },
 
