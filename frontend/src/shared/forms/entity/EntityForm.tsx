@@ -148,6 +148,15 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
         }
     }, { defer: true }));
 
+    const taxRegimeType = form.useStore((s) => s.values.taxRegimeType);
+    createEffect(on(taxRegimeType, (regime) => {
+        if (regime === 'RIMPE_NEGOCIO_POPULAR') {
+            if (personType() !== 'NATURAL') form.setFieldValue('personType', 'NATURAL');
+            if (form.getFieldValue('obligadoContabilidad')) form.setFieldValue('obligadoContabilidad', false);
+            if (form.getFieldValue('isSpecialContributor')) form.setFieldValue('isSpecialContributor', false);
+        }
+    }, { defer: true }));
+
     const showContacts = () => isEmployeeVal() || isSupplierVal() || isClientVal() || isCarrierVal();
 
     return (

@@ -20,9 +20,8 @@ import TextField, { FieldLabel } from '@shared/ui/TextField';
 import Checkbox from '@shared/ui/Checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
 import { SriBusinessNameSelect } from '@shared/ui/selectors';
-import { InfoIcon, SearchIcon, BriefcaseIcon, PlusIcon } from '@shared/ui/icons';
+import { SearchIcon, BriefcaseIcon, PlusIcon } from '@shared/ui/icons';
 import { useAuth } from '@modules/auth/store/auth.store';
-import Tooltip from '@shared/ui/Tooltip';
 import {
     SegmentedControl,
     SegmentedControlIndicator,
@@ -56,15 +55,49 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
     // =========================================================================
     // Derived reactive states
     // =========================================================================
+    const isPureEmployee = createMemo(() => isEmployeeVal() && !isSupplierVal() && !isClientVal() && !isCarrierVal());
+
+    // SRI Section: hide if pure employee, or if CEDULA/PASAPORTE without being a supplier
     const showTaxSection = createMemo(() => {
+        if (isPureEmployee()) return false;
+        if ((taxIdType() === 'CEDULA' || taxIdType() === 'PASAPORTE') && !isSupplierVal()) return false;
         if (taxIdType() === 'RUC') return true;
-        if (isSupplierVal() || isClientVal() || isCarrierVal()) return true;
-        if (isEmployeeVal() && isSupplierVal()) return true;
-        if (isEmployeeVal() && !isSupplierVal() && !isClientVal() && !isCarrierVal()) return false;
+        if (isSupplierVal()) return true;
         return false;
     });
+
     const showEmployeeSection = createMemo(() => isEmployeeVal());
-    const personTypeLocked = createMemo(() => taxIdType() === 'CEDULA' || isEmployeeVal());
+
+    const showTradeName = createMemo(() => {
+        if (isPureEmployee()) return false;
+        if ((taxIdType() === 'CEDULA' || taxIdType() === 'PASAPORTE') && !isSupplierVal() && !isClientVal()) return false;
+        return true;
+    });
+
+    const businessNameLabel = createMemo(() => {
+        if (isPureEmployee() || (taxIdType() === 'CEDULA' && !isSupplierVal())) {
+            return 'Nombres y Apellidos';
+        }
+        return taxIdType() === 'RUC' ? 'Razón Social (Búsqueda SRI)' : 'Razón Social';
+    });
+
+    const businessNamePlaceholder = createMemo(() => {
+        if (isPureEmployee() || taxIdType() === 'CEDULA') {
+            return 'Ej: Juan Carlos Pérez González';
+        }
+        return 'Ej: Corporación Favorita C.A.';
+    });
+
+    const personTypeLocked = createMemo(() => taxIdType() === 'CEDULA' || taxIdType() === 'PASAPORTE' || isEmployeeVal());
+
+    const personTypeTooltip = createMemo(() => {
+        if (props.isEdit()) return undefined;
+        if (taxIdType() === 'CEDULA') return 'La Cédula de Identidad solo aplica a Persona Natural';
+        if (taxIdType() === 'PASAPORTE') return 'El Pasaporte solo aplica a Persona Natural';
+        if (isEmployeeVal()) return 'Un empleado debe registrarse obligatoriamente como Persona Natural';
+        return undefined;
+    });
+
     const taxIdConfig = createMemo(() => getTaxIdConfig(taxIdType()));
 
     const computedTaxIdTypeOptions = createMemo(() => {
@@ -246,6 +279,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                         <props.form.Field name={key}>
                             {(field) => {
                                 const isRoleDisabledByAuth = (roleKey: string) => {
+                                    if (roleKey === 'isEmployee' && personType() === 'JURIDICA') return true;
                                     if (auth?.isAdmin && auth.isAdmin()) return false;
                                     const canManage = (module: any) => {
                                         if (!auth) return false;
@@ -277,14 +311,16 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                 </div>
             </fieldset>
 
-            {/* --- Identification Section --- */}
+            {/* --- Unified Identification & Main Data Section --- */}
             <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
                 <div class="flex items-center gap-2 mb-2">
                     <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Identificación Principal</h3>
+                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">
+                        {isPureEmployee() ? 'Identificación y Datos Personales' : 'Identificación y Titular'}
+                    </h3>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <props.form.Field name="taxIdType">
                         {(field) => (
                             <div class="space-y-1.5">
@@ -329,7 +365,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                                         onInput={(e) => {
                                             let val = e.currentTarget.value;
                                             if (taxIdType() === 'CEDULA' || taxIdType() === 'RUC') {
-                                                const numeric = val.replace(/\\D/g, '');
+                                                const numeric = val.replace(/\D/g, '');
                                                 if (val !== numeric) {
                                                     val = numeric;
                                                     e.currentTarget.value = val;
@@ -339,12 +375,12 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                                         }}
                                         onKeyDown={(e) => {
                                             setSriError('');
-                                            if (e.key === 'Enter') {
+                                            if (e.key === 'Enter' && taxIdType() === 'RUC') {
                                                 e.preventDefault();
                                                 triggerRucSearch();
                                             }
                                         }}
-                                        class="pr-10"
+                                        class={taxIdType() === 'RUC' ? 'pr-10' : ''}
                                     />
                                     <Show when={!props.isEdit() && taxIdType() === 'RUC'}>
                                         <button
@@ -372,79 +408,78 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                     </props.form.Field>
                 </div>
 
-                <props.form.Field name="personType">
-                    {(field) => (
-                        <div class="space-y-1.5 w-full sm:w-1/2 pr-2.5">
-                            <div class="flex items-center gap-1.5 mb-1 ml-1">
-                                <FieldLabel>Tipo Persona</FieldLabel>
-                                <Show when={personTypeLocked() && !props.isEdit()}>
-                                    <Tooltip
-                                        content={
-                                            taxIdType() === 'CEDULA' || taxIdType() === 'PASAPORTE'
-                                                ? `${taxIdType() === 'CEDULA' ? 'Cédula' : 'Pasaporte'} solo aplica a Persona Natural`
-                                                : 'Un empleado debe registrarse obligatoriamente como Persona Natural'
-                                        }
-                                        placement="right"
-                                        delay={0}
-                                    >
-                                        <InfoIcon class="size-4 text-primary-strong hover:primary-strong/80 cursor-help transition-colors" />
-                                    </Tooltip>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <props.form.Field name="personType">
+                        {(field) => (
+                            <div class="space-y-1.5">
+                                <FieldLabel tooltip={personTypeTooltip()}>
+                                    Tipo Persona
+                                </FieldLabel>
+                                <SegmentedControl
+                                    value={field().state.value}
+                                    onChange={(val) => field().handleChange(val as PersonType)}
+                                    disabled={personTypeLocked() || props.isEdit()}
+                                >
+                                    <SegmentedControlIndicator />
+                                    <Index each={personTypeOptions}>
+                                        {(opt) => (
+                                            <SegmentedControlItem value={opt().value}>
+                                                <SegmentedControlItemInput />
+                                                <SegmentedControlItemLabel>{opt().label}</SegmentedControlItemLabel>
+                                            </SegmentedControlItem>
+                                        )}
+                                    </Index>
+                                </SegmentedControl>
+                                <Show when={hasFieldError(field())}>
+                                    <span class="text-xs font-medium text-danger mt-1 block">
+                                        {getFieldError(field()) || 'Error de validación'}
+                                    </span>
                                 </Show>
                             </div>
-                            <SegmentedControl
-                                value={field().state.value}
-                                onChange={(val) => field().handleChange(val as PersonType)}
-                                disabled={personTypeLocked() || props.isEdit()}
-                            >
-                                <SegmentedControlIndicator />
-                                <Index each={personTypeOptions}>
-                                    {(opt) => (
-                                        <SegmentedControlItem value={opt().value}>
-                                            <SegmentedControlItemInput />
-                                            <SegmentedControlItemLabel>{opt().label}</SegmentedControlItemLabel>
-                                        </SegmentedControlItem>
-                                    )}
-                                </Index>
-                            </SegmentedControl>
-                            <Show when={hasFieldError(field())}>
-                                <span class="text-xs font-medium text-danger mt-1 block">
-                                    {getFieldError(field()) || 'Error de validación'}
-                                </span>
-                            </Show>
-                        </div>
-                    )}
-                </props.form.Field>
-            </fieldset>
+                        )}
+                    </props.form.Field>
 
-            {/* --- Business Info Section --- */}
-            <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
-                <div class="flex items-center gap-2 mb-2">
-                    <div class="w-1.5 h-4 bg-success rounded-full"></div>
-                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Empresa / Titular</h3>
+                    <props.form.Field name="businessName">
+                        {(field) => (
+                            <Show
+                                when={taxIdType() === 'RUC' && !isPureEmployee()}
+                                fallback={
+                                    <TextField.Root field={field()}>
+                                        <TextField.Label>{businessNameLabel()}</TextField.Label>
+                                        <TextField.Input
+                                            type="text"
+                                            placeholder={businessNamePlaceholder()}
+                                            value={field().state.value}
+                                            onInput={(e) => field().handleChange(e.currentTarget.value)}
+                                        />
+                                        <TextField.ErrorMessage />
+                                    </TextField.Root>
+                                }
+                            >
+                                <SriBusinessNameSelect
+                                    value={field().state.value}
+                                    onInputChange={handleNameInput}
+                                    onSelect={handleSriSelect('NAME')}
+                                    field={field()}
+                                    label="Razón Social (Búsqueda SRI)"
+                                />
+                            </Show>
+                        )}
+                    </props.form.Field>
                 </div>
 
-                <props.form.Field name="businessName">
-                    {(field) => (
-                        <SriBusinessNameSelect
-                            value={field().state.value}
-                            onInputChange={handleNameInput}
-                            onSelect={handleSriSelect('NAME')}
-                            field={field()}
-                            label="Razón Social (Búsqueda SRI)"
-                        />
-                    )}
-                </props.form.Field>
-
-                <props.form.Field name="tradeName">
-                    {(field) => (
-                        <TextField.Root field={field()}>
-                            <TextField.Label>Nombre Comercial</TextField.Label>
-                            <TextField.Input type="text" placeholder="Marca (opcional)" />
-                            <TextField.ErrorMessage />
-                            <TextField.Description>Nombre con el que es conocida comúnmente en el mercado</TextField.Description>
-                        </TextField.Root>
-                    )}
-                </props.form.Field>
+                <Show when={showTradeName()}>
+                    <props.form.Field name="tradeName">
+                        {(field) => (
+                            <TextField.Root field={field()}>
+                                <TextField.Label>Nombre Comercial</TextField.Label>
+                                <TextField.Input type="text" placeholder="Marca (opcional)" />
+                                <TextField.ErrorMessage />
+                                <TextField.Description>Nombre con el que es conocida comúnmente en el mercado</TextField.Description>
+                            </TextField.Root>
+                        )}
+                    </props.form.Field>
+                </Show>
             </fieldset>
 
             {/* --- Contact Section (email, phone) --- */}
@@ -516,7 +551,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                                     <Checkbox
                                         field={field()}
                                         class="font-medium"
-                                        disabled={personType() === 'JURIDICA'}
+                                        disabled={personType() === 'JURIDICA' || props.form.getFieldValue('taxRegimeType') === 'RIMPE_NEGOCIO_POPULAR'}
                                     >
                                         Obligado a llevar contabilidad
                                     </Checkbox>
@@ -524,14 +559,22 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                             </props.form.Field>
                             <props.form.Field name="isRetentionAgent">
                                 {(field) => (
-                                    <Checkbox field={field()} class="font-medium">
+                                    <Checkbox
+                                        field={field()}
+                                        class="font-medium"
+                                        disabled={props.form.getFieldValue('taxRegimeType') === 'RIMPE_NEGOCIO_POPULAR'}
+                                    >
                                         Agente de Retención
                                     </Checkbox>
                                 )}
                             </props.form.Field>
                             <props.form.Field name="isSpecialContributor">
                                 {(field) => (
-                                    <Checkbox field={field()} class="font-medium text-danger">
+                                    <Checkbox
+                                        field={field()}
+                                        class="font-medium text-danger"
+                                        disabled={props.form.getFieldValue('taxRegimeType') === 'RIMPE_NEGOCIO_POPULAR'}
+                                    >
                                         Contribuyente Especial
                                     </Checkbox>
                                 )}

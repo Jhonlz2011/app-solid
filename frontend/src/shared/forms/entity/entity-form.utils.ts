@@ -117,15 +117,22 @@ export function createDefaultEntityFormValues(
 // Reactive Visibility Helpers (pure functions — called inside JSX or createMemo)
 // =============================================================================
 
-/** Tax section visible when: RUC, or any business role, or employee+supplier combo */
+/** Tax section visible when: entity is a business/taxpayer with RUC or supplier */
 export function shouldShowTaxSection(values: EntityFormData): boolean {
+    const isPureEmployee = values.isEmployee && !values.isSupplier && !values.isClient && !values.isCarrier;
+    if (isPureEmployee) return false;
+    if ((values.taxIdType === 'CEDULA' || values.taxIdType === 'PASAPORTE') && !values.isSupplier) return false;
     if (values.taxIdType === 'RUC') return true;
-    if (values.isSupplier || values.isClient || values.isCarrier) return true;
-    // Employee-only: hide tax section UNLESS also supplier (honorarios profesionales)
-    if (values.isEmployee && values.isSupplier) return true;
-    // Employee-only: no tax section
-    if (values.isEmployee && !values.isSupplier && !values.isClient && !values.isCarrier) return false;
+    if (values.isSupplier) return true;
     return false;
+}
+
+/** Trade name visible when not pure employee and not purely natural person without commercial activity */
+export function shouldShowTradeName(values: EntityFormData): boolean {
+    const isPureEmployee = values.isEmployee && !values.isSupplier && !values.isClient && !values.isCarrier;
+    if (isPureEmployee) return false;
+    if ((values.taxIdType === 'CEDULA' || values.taxIdType === 'PASAPORTE') && !values.isSupplier && !values.isClient) return false;
+    return true;
 }
 
 /** Employee details visible when is_employee is checked */

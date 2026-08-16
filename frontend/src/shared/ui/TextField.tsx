@@ -1,7 +1,8 @@
 import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect } from 'solid-js';
 import type { FieldLike } from './form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from './form/form.types';
-import { EyeIcon, EyeOffIcon } from './icons';
+import { EyeIcon, EyeOffIcon, InfoIcon } from './icons';
+import Tooltip from './Tooltip';
 
 // ============================================================================
 // TYPES
@@ -29,9 +30,18 @@ interface TextFieldRootProps {
     children: JSX.Element;
 }
 
-interface TextFieldLabelProps {
+export interface TextFieldLabelProps {
     class?: string;
     children: JSX.Element;
+    tooltip?: string | JSX.Element;
+    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
+}
+
+export interface FieldLabelProps {
+    class?: string;
+    children: JSX.Element;
+    tooltip?: string | JSX.Element;
+    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 interface TextFieldInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
@@ -190,29 +200,51 @@ const Root = (props: TextFieldRootProps) => {
 /** Label for the field */
 const Label = (props: TextFieldLabelProps) => {
     const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'children']);
+    const [local, others] = splitProps(props, ['class', 'children', 'tooltip', 'tooltipPlacement']);
 
     return (
-        <label
-            for={context.id}
-            class={`text-sm font-medium text-muted ml-1 w-fit ${local.class ?? ''}`}
-            {...others}
-        >
-            {local.children}
-        </label>
+        <div class="flex items-center gap-1.5 ml-1 mb-0.5 w-fit">
+            <label
+                for={context.id}
+                class={`text-sm font-medium text-muted block ${local.class ?? ''}`}
+                {...others}
+            >
+                {local.children}
+            </label>
+            <Show when={local.tooltip}>
+                <Tooltip
+                    content={local.tooltip!}
+                    placement={local.tooltipPlacement ?? 'right'}
+                    delay={0}
+                >
+                    <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
+                </Tooltip>
+            </Show>
+        </div>
     );
 };
 
 /** Standalone label for non-TextField contexts (Select, SegmentedControl, etc.) */
-export const FieldLabel = (props: { class?: string; children: JSX.Element }) => {
-    const [local, others] = splitProps(props, ['class', 'children']);
+export const FieldLabel = (props: FieldLabelProps) => {
+    const [local, others] = splitProps(props, ['class', 'children', 'tooltip', 'tooltipPlacement']);
     return (
-        <label
-            class={`text-sm font-medium text-muted ml-1 block ${local.class ?? ''}`}
-            {...others}
-        >
-            {local.children}
-        </label>
+        <div class="flex items-center gap-1.5 ml-1 mb-1 w-fit">
+            <label
+                class={`text-sm font-medium text-muted block ${local.class ?? ''}`}
+                {...others}
+            >
+                {local.children}
+            </label>
+            <Show when={local.tooltip}>
+                <Tooltip
+                    content={local.tooltip!}
+                    placement={local.tooltipPlacement ?? 'right'}
+                    delay={0}
+                >
+                    <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
+                </Tooltip>
+            </Show>
+        </div>
     );
 };
 
