@@ -2,6 +2,7 @@
  * EntityCardList.tsx — Generic Mobile Infinite-scroll list for entities.
  */
 import { Component, onMount, onCleanup, For, Show } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import type { RowSelectionState } from '@tanstack/solid-table';
 import { Skeleton } from '@shared/ui/Skeleton';
 import { EmptyState } from '@shared/ui/EmptyState';
@@ -99,20 +100,21 @@ export const EntityCardList: Component<EntityCardListProps> = (props) => {
                                     />
                                 }
                             >
-                                {(Card) => (
-                                    <Card()
-                                        entity={entity}
-                                        isSelected={!!props.rowSelection()[id]}
-                                        onSelect={(checked: boolean) => {
-                                            const next = { ...props.rowSelection() };
-                                            if (checked) next[id] = true;
-                                            else delete next[id];
-                                            props.onRowSelectionChange(next);
-                                        }}
-                                        onDelete={props.onDelete}
-                                        onRestore={props.onRestore}
-                                    />
-                                )}
+                                <Dynamic
+                                    component={props.CustomCard}
+                                    entity={entity}
+                                    isSelected={!!props.rowSelection()[id]}
+                                    onSelect={(checked: boolean) => {
+                                        const next = { ...props.rowSelection() };
+                                        if (checked) next[id] = true;
+                                        else delete next[id];
+                                        props.onRowSelectionChange(next);
+                                    }}
+                                    onDelete={props.onDelete}
+                                    onRestore={props.onRestore}
+                                    basePath={props.basePath}
+                                    permissionKey={props.permissionKey}
+                                />
                             </Show>
                         );
                     }}
