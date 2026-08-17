@@ -34,7 +34,17 @@ export const errorHandlerPlugin = new Elysia()
       };
     }
 
-    // 2. Route not found
+    // 2. Better-Auth APIError / HTTP status errors
+    const anyErr = error as any;
+    if (anyErr?.name === 'APIError' || (typeof anyErr?.status === 'number' && anyErr.status >= 400 && anyErr.status < 500)) {
+      set.status = anyErr.status;
+      return {
+        code: anyErr.code || anyErr.body?.code || 'AUTH_ERROR',
+        message: anyErr.body?.message || anyErr.message || 'Error de autenticación',
+      };
+    }
+
+    // 3. Route not found
     if (code === 'NOT_FOUND') {
       set.status = 404;
       return { code: 'NOT_FOUND', message: 'Ruta no encontrada' };

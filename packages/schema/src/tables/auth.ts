@@ -40,16 +40,7 @@ export const user = pgTableV2("user", {
     index("idx_user_email").on(t.email),
     index("idx_user_username").on(t.username),
     index("idx_user_company").on(t.company_id),
-    pgPolicy('tenant_isolation', {
-        as: 'permissive',
-        for: 'all',
-        to: 'public',
-        using: sql`company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer
-            OR username = current_setting('app.current_username', true)
-            OR email = current_setting('app.current_username', true)`,
-        withCheck: sql`company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer`,
-    }),
-]).enableRLS();
+]);
 
 export const session = pgTableV2("session", {
     id: text("id").primaryKey().default(sql`uuidv7()::text`),
@@ -67,16 +58,7 @@ export const session = pgTableV2("session", {
     index("idx_session_token").on(t.token),
     index("idx_session_expires").on(t.expiresAt),
     index("idx_session_company").on(t.company_id),
-    pgPolicy('tenant_isolation', {
-        as: 'permissive',
-        for: 'all',
-        to: 'public',
-        using: sql`company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer
-            OR token = current_setting('app.current_session_id', true)
-            OR id = current_setting('app.current_session_id', true)`,
-        withCheck: sql`company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer`,
-    }),
-]).enableRLS();
+]);
 
 export const account = pgTableV2("account", {
     id: uuid("id").primaryKey().default(sql`uuidv7()`),

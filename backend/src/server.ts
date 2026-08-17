@@ -139,9 +139,8 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
   // Domain Auth Routes (register, check-slug, tenant-info, manifest, me, profile, sessions)
   .use(authRoutes)
   // Better-Auth Core Handler (sign-in, sign-up, organization, sessions, passkeys, 2fa)
-  .all('/auth/*', async ({ request }) => {
-    return auth.handler(request);
-  })
+  .all('/auth', async ({ request }) => auth.handler(request))
+  .all('/auth/*', async ({ request }) => auth.handler(request))
   .use(webhooksRoutes) // Webhooks van ANTES de rbac (no requieren autenticación)
   .use(rbac)
   .use(ssePlugin)

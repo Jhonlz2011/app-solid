@@ -91,6 +91,9 @@ export async function register(
 
     const password_hash = await Bun.password.hash(data.password);
     
+    const rawUsername = data.email.split('@')[0];
+    const normalizedUsername = rawUsername.toLowerCase();
+
     // Inserción atómica con UUIDv7 nativo de PostgreSQL 18
     const [user] = await tx
       .insert(users)
@@ -98,8 +101,9 @@ export async function register(
         name: data.fullName,
         company_id: company.id,
         entity_id: ownerEntity.id,
-        email: data.email,
-        username: data.email.split('@')[0],
+        email: data.email.toLowerCase(),
+        username: normalizedUsername,
+        displayUsername: rawUsername,
         is_owner: true,
         is_active: true,
         emailVerified: false,

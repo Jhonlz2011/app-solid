@@ -28,11 +28,17 @@ export const auth = betterAuth({
         env.FRONTEND_URL,
         'https://*.zelys.app',
         'https://zelys.app',
+        'https://dev.zelys.app',
+        'https://api.zelys.app',
         'http://localhost:5173',
         'http://localhost:5174',
+        'http://localhost:4173',
         'http://127.0.0.1:5173',
         'http://127.0.0.1:5174',
-    ],
+        'http://127.0.0.1:4173',
+        'http://192.168.100.50:5173',
+        'http://192.168.100.50:4173',
+    ].filter(Boolean) as string[],
     password: {
         hash: async (password: string) => {
             return Bun.password.hash(password);
