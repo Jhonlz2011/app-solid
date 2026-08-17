@@ -2,7 +2,7 @@ import { db, adminDb } from '../../core/db';
 import { authUsers as users, companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import type { AuthUserEntityDto } from '@app/schema/dto';
-import { getUserRoles, getUserPermissions } from '../users';
+import { getUserRoles, getUserPermissions } from '../users/rbac.permission.service';
 import { broadcast } from '../../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { AuthError } from './session.service';

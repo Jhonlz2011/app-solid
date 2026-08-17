@@ -1,11 +1,7 @@
 import { Elysia, t } from 'elysia';
-import {
-  register,
-  getMe,
-  updateProfile,
-  getActiveSessions,
-  revokeSession,
-} from './index';
+import { register } from './auth.service';
+import { getMe, updateProfile } from './profile.service';
+import { getActiveSessions, revokeSession } from './session.service';
 import {
   AuthRegisterDto,
   AuthUpdateProfileDto,

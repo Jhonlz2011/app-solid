@@ -6,7 +6,7 @@ import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
 import { getIpAndUserAgent } from './ip';
-import { getUserRoles, getUserPermissions } from '../modules/users';
+import { getUserRoles, getUserPermissions } from '../modules/users/rbac.permission.service';
 
 export const authGuard = (app: Elysia) => app
   .derive(

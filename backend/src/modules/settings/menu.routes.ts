@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { authGuard } from '../../plugins/auth-guard';
 import { ForbiddenError } from '../../core/errors';
-import { getAllowedModules } from '../users';
+import { getAllowedModules } from '../users/rbac.permission.service';
 import { SYSTEM_ROLES } from '@app/schema/enums';
 import {
     getMenuForUser,

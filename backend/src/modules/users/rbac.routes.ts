@@ -28,8 +28,8 @@ import {
     getUserAuditLog,
     adminResetPassword,
     setUserEntity,
-} from './index';
-import { getActiveSessions, revokeSession } from '../auth';
+} from './rbac.service';
+import { getActiveSessions, revokeSession } from '../auth/session.service';
 import {
     RoleBodySchema,
     RolePermissionsUpdateSchema,
