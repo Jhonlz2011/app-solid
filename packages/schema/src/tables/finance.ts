@@ -1,4 +1,4 @@
-import { text, integer, boolean, timestamp, numeric, date, index, unique } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, numeric, date, index, unique, uuid } from 'drizzle-orm/pg-core';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { paymentStatusEnum, purchaseQuoteStatusEnum } from '../enums';
 import { companies } from './config';
@@ -84,7 +84,7 @@ export const fiscalPeriods = pgTableV2("fiscal_periods", {
     year: integer("year").notNull(),
     month: integer("month").notNull(),
     is_closed: boolean("is_closed").default(false).notNull(),
-    closed_by: integer("closed_by").references(() => authUsers.id),
+    closed_by: uuid("closed_by").references(() => authUsers.id),
     closed_at: timestamp("closed_at", TZ),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
 }, (t) => [
@@ -116,7 +116,7 @@ export const purchaseQuotes = pgTableV2("purchase_quotes", {
     converted_po_id: integer("converted_po_id").references(() => purchaseOrders.id),
 
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
-    created_by: integer("created_by").references(() => authUsers.id),
+    created_by: uuid("created_by").references(() => authUsers.id),
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
     index("idx_pq_company").on(t.company_id),

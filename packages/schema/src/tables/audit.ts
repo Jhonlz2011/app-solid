@@ -25,7 +25,7 @@ export const auditLogs = pgTable("audit_logs", {
     oldData: jsonb("old_data"),
     newData: jsonb("new_data"),
     // Foreign Key segura: Si borras un admin, el log se mantiene pero el user_id queda en NULL
-    userId: integer("user_id").references(() => authUsers.id, { onDelete: "set null" }), 
+    userId: uuid("user_id").references(() => authUsers.id, { onDelete: "set null" }), 
     
     ipAddress: inet("ip_address"),     
     
@@ -63,7 +63,7 @@ export const auditQueue = pgTable("_audit_queue", {
     action: text("action").notNull(),
     oldData: jsonb("old_data"),
     newData: jsonb("new_data"),
-    userId: text("user_id"),
+    userId: uuid("user_id"),
     ipAddress: text("ip_address"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });

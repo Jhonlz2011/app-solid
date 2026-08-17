@@ -2,7 +2,7 @@ import { Component, Show } from 'solid-js';
 import { useSidebar } from './SidebarContext';
 import { SidebarCollapseIcon } from '@icons/SidebarCollapseIcon';
 import { CloseIcon } from '@icons/CloseIcon';
-import { useBranding } from '@modules/auth/store/branding.store';
+import { CompanySwitcher } from '@shared/ui/CompanySwitcher';
 
 interface SidebarHeaderProps {
     toggleCollapse: () => void;
@@ -10,100 +10,41 @@ interface SidebarHeaderProps {
 
 export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
     const { collapsed, setIsMobileOpen } = useSidebar();
-    const branding = useBranding();
 
     return (
         <header
-            class="border-b border-border relative h-18 shrink-0"
+            class="border-b border-border relative h-18 shrink-0 flex items-center px-3 justify-between gap-1"
             data-collapsed={collapsed()}
         >
-            {/* Logo Layer - Always visible */}
-            <div class="absolute inset-0 flex items-center px-4 sm:pl-5 pointer-events-none">
-                <Show when={branding.tenant()?.logoUrl} fallback={
-                    <div class="size-10 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shrink-0">
-                        <span class="text-white font-bold text-lg">
-                            {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'A').substring(0, 1).toUpperCase()}
-                        </span>
-                    </div>
-                }>
-                    <img
-                        src={branding.tenant()?.logoUrl!}
-                        alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Empresa'}`}
-                        loading="eager"
-                        class="size-10 rounded-xl object-contain shrink-0"
-                    />
-                </Show>
+            <div class="flex-1 min-w-0 flex items-center">
+                <CompanySwitcher collapsed={collapsed()} />
             </div>
 
-            {/* Collapsed Content - Expand button on hover */}
-            <div
-                class="absolute inset-0 flex items-center px-4 sm:pl-5 transition-opacity duration-200"
-                classList={{
-                    'opacity-100': collapsed(),
-                    'opacity-0 pointer-events-none': !collapsed()
-                }}
-                inert={!collapsed()}
-            >
-                <div class="relative size-10 shrink-0">
+            {/* Right side buttons */}
+            <div class="flex items-center gap-1 shrink-0">
+                <Show when={!collapsed()}>
                     <button
                         onClick={props.toggleCollapse}
-                        class="peer absolute inset-0 size-10 hidden sm:flex items-center justify-center 
-                               opacity-0 hover:opacity-100 focus-visible:opacity-100 
-                               rounded-xl hover:bg-card-alt
-                               focus:outline-none focus-visible:bg-card-alt focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-transparent
-                               z-10 pointer-events-auto hover:scale-102 focus-visible:scale-102"
-                        title="Expandir sidebar"
-                        aria-label="Expandir sidebar"
+                        class="hidden sm:flex items-center justify-center text-muted hover:bg-card-alt hover:text-heading p-1.5 rounded-lg
+                               focus-visible:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 cursor-pointer transition-colors"
+                        title="Colapsar sidebar"
+                        aria-label="Colapsar sidebar"
                     >
-                        <SidebarCollapseIcon class="size-5" />
+                        <SidebarCollapseIcon class="size-4.5" />
                     </button>
-                </div>
-            </div>
+                </Show>
 
-            {/* Expanded Content - Text and buttons */}
-            <div
-                class="absolute inset-0 flex items-center justify-between px-4 sm:pl-5 sm:pr-4 transition-opacity duration-200"
-                classList={{
-                    'opacity-100': !collapsed(),
-                    'opacity-0 pointer-events-none': collapsed()
-                }}
-                inert={collapsed()}
-            >
-                {/* Logo + Text */}
-                <div class="flex items-center gap-3 min-w-0">
-                    <div class="size-10 shrink-0 opacity-0" /> {/* Spacer */}
-                    <div class="flex flex-col justify-center overflow-hidden">
-                        <h2 class="font-bold text-base whitespace-nowrap truncate max-w-30">
-                            {branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}
-                        </h2>
-                        <p class="text-muted text-[10px] whitespace-nowrap truncate max-w-30">
-                            {branding.tenant()?.tradeName ? branding.tenant()?.businessName : 'Dashboard'}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Right side buttons */}
-                <div class="flex items-center gap-2">
-                    <Show when={!collapsed()}>
-                        <button
-                            onClick={props.toggleCollapse}
-                            class="hidden sm:flex items-center justify-center text-muted hover:bg-card-alt hover:text-heading p-2 rounded-lg
-                                   focus-visible:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg cursor-pointer"
-                            title="Colapsar sidebar"
-                            aria-label="Colapsar sidebar">
-                            <SidebarCollapseIcon class="size-5" />
-                        </button>
-                    </Show>
-
-                    {/* Close button - Mobile only */}
-                    <button onClick={() => setIsMobileOpen(false)}
-                        class="sm:hidden text-muted hover:bg-card-alt hover:text-heading p-2 rounded-xl 
-                               focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
-                        aria-label="Cerrar menú">
-                        <CloseIcon class="size-6" />
-                    </button>
-                </div>
+                {/* Close button - Mobile only */}
+                <button
+                    onClick={() => setIsMobileOpen(false)}
+                    class="sm:hidden text-muted hover:bg-card-alt hover:text-heading p-1.5 rounded-xl 
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer transition-colors"
+                    aria-label="Cerrar menú"
+                >
+                    <CloseIcon class="size-5" />
+                </button>
             </div>
         </header>
     );
 };
+

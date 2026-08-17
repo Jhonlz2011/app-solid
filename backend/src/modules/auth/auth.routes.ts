@@ -1,32 +1,22 @@
 import { Elysia, t } from 'elysia';
 import {
   register,
-  login,
-  logout,
   getMe,
-  changePassword,
   updateProfile,
   getActiveSessions,
   revokeSession,
-  verifyEmail,
-  resendVerification,
 } from './index';
 import {
   AuthRegisterDto,
-  AuthLoginDto,
-  AuthChangePasswordDto,
   AuthUpdateProfileDto,
-  AuthResponseDto,
   AuthUserResponse,
   TenantBrandingResponseDto,
   UserSessionItemSchema,
 } from '@app/schema/backend';
 import { authGuard } from '../../plugins/auth-guard';
-import { loginRateLimit, resetLoginAttempts } from '../../plugins/login-rate-limit';
 import { registerRateLimit } from '../../plugins/register-rate-limit';
-import { COOKIE_OPTIONS } from '../../config/auth';
 import { ipPlugin, getIpAndUserAgent } from '../../plugins/ip';
-import { db, adminDb } from '../../core/db';
+import { db } from '../../core/db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
@@ -36,22 +26,25 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   .use(ipPlugin)
   .post(
     '/register',
-    async ({ body, cookie, request, set }) => {
+    async ({ body, request, set }) => {
       const { ipAddress, userAgent } = getIpAndUserAgent(request);
       const result = await register(body, userAgent, ipAddress);
 
-      // Auto-login: set session cookie
-      cookie.session.set({
-        value: result.sessionId,
-        ...COOKIE_OPTIONS,
-      });
-
       set.status = 201;
-      return { user: result.user, sessionId: result.sessionId };
+      return result;
     },
     {
       body: AuthRegisterDto,
-      response: { 201: AuthResponseDto },
+      response: {
+        201: t.Object({
+          company: t.Object({
+            id: t.Number(),
+            slug: t.String(),
+            businessName: t.String(),
+          }),
+          user: AuthUserResponse,
+        }),
+      },
       beforeHandle: registerRateLimit as any,
     }
   )
@@ -104,101 +97,6 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       domain: t.String(),
     }),
     beforeHandle: registerRateLimit as any,
-  })
-  // SEC-01: discover-tenants endpoint REMOVED — tenant selection now happens post-auth
-  .post(
-    '/login',
-    async ({ body, cookie, request }) => {
-      const { ipAddress, userAgent } = getIpAndUserAgent(request);
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('Login attempt:', { email: body.email, userAgent, ipAddress });
-      }
-
-      let companyId = body.companyId;
-      if (!companyId) {
-        const host = request.headers.get('host') || '';
-        let slug = resolveSlugFromHost(host);
-
-        // Fallback: Si el host no devolvió un slug de tenant (ej. es el endpoint api.zelys.app),
-        // resolvemos a partir de la URL de origen en el header Referer
-        if (!slug) {
-          const referer = request.headers.get('referer');
-          if (referer) {
-            try {
-              const refUrl = new URL(referer);
-              const querySlug = refUrl.searchParams.get('slug');
-              slug = resolveSlugFromHost(refUrl.host, querySlug);
-            } catch (e) {
-              // Ignorar URLs inválidas
-            }
-          }
-        }
-
-        if (slug) {
-          const [company] = await adminDb
-            .select({ id: companies.id })
-            .from(companies)
-            .where(eq(companies.slug, slug))
-            .limit(1);
-          if (company) {
-            companyId = company.id;
-          }
-        }
-      }
-
-          const loginResult = await login(body.email, body.password, userAgent, ipAddress, companyId, body.turnstileToken);
-
-      if ('requiresTenantSelection' in loginResult && loginResult.requiresTenantSelection) {
-        return loginResult;
-      }
-
-      // Reset rate limit on success
-      await resetLoginAttempts(request);
-
-      // Set session cookie (httpOnly — browser sends automatically)
-      cookie.session.set({
-        value: loginResult.sessionId,
-        ...COOKIE_OPTIONS,
-      });
-
-      // Notification is now handled internally by login() service
-      return loginResult;
-    },
-    {
-      body: AuthLoginDto,
-      response: {
-        200: AuthResponseDto,
-        429: t.Object({
-          error: t.String(),
-          retryAfter: t.Number(),
-        }),
-      },
-      beforeHandle: loginRateLimit as any,
-    }
-  )
-  .post('/logout', async ({ cookie }) => {
-    const sessionId = cookie.session?.value as string | undefined;
-    try {
-      if (sessionId) {
-        await logout(sessionId);
-      }
-    } catch (error) {
-      console.warn('Error al revocar sesión:', error);
-    } finally {
-      cookie.session.set({
-        ...COOKIE_OPTIONS,
-        value: '',
-        maxAge: 0,
-        expires: new Date(0),
-      });
-    }
-    return { success: true };
-  })
-  .post('/verify-email', async ({ body }) => {
-    return await verifyEmail(body.token);
-  }, {
-    body: t.Object({ token: t.String() }),
-    response: t.Object({ success: t.Boolean() }),
   })
   .get('/tenant-info', async ({ query, request, set }) => {
     const host = request.headers.get('host') || '';
@@ -288,27 +186,12 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   // Protected Routes Group
   .group('', (app) => app
     .use(authGuard)
-    .get('/me', async ({ currentUserId, currentSessionId }) => {
-      const user = await getMe(currentUserId);
+    .get('/me', async ({ currentUserId, currentCompanyId, currentSessionId }) => {
+      const user = await getMe(currentUserId, currentCompanyId);
       return { ...user, sessionId: currentSessionId };
     }, {
       response: t.Composite([AuthUserResponse, t.Object({ sessionId: t.String() })]),
     })
-    .post('/resend-verification', async ({ currentUserId, currentCompanyId }) => {
-      return await resendVerification(currentUserId, currentCompanyId);
-    }, {
-      response: t.Object({ success: t.Boolean(), retryAfter: t.Optional(t.Number()) }),
-    })
-    .post(
-      '/change-password',
-      async ({ body, currentUserId }) => {
-        return changePassword(currentUserId, body.currentPassword, body.newPassword);
-      },
-      {
-        body: AuthChangePasswordDto,
-        response: t.Object({ success: t.Literal(true) }),
-      }
-    )
     .put(
       '/profile',
       async ({ body, currentUserId }) => {
@@ -321,7 +204,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
           success: t.Literal(true),
           message: t.Optional(t.String()),
           user: t.Optional(t.Object({
-            id: t.Number(),
+            id: t.Union([t.Number(), t.String()]),
             email: t.String(),
             username: t.String(),
           })),

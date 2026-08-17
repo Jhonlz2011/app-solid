@@ -1,69 +1,179 @@
-import { customType, text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex, varchar, pgPolicy } from 'drizzle-orm/pg-core';
+import { customType, text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex, pgPolicy, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { entities } from './entities';
 import { companies } from './config';
 import { menuItemStatusEnum } from '../enums';
 
-
-// 2. Custom Type para INET: Validación nativa de IPs en Postgres
+// Custom Type para INET: Validación nativa de IPs en Postgres
 const inet = customType<{ data: string }>({
   dataType() { return 'inet'; },
 });
 
+// ============================================================================
+// 1. BETTER-AUTH CORE TABLES (PostgreSQL 18 Native UUIDv7)
+// ============================================================================
 
-
-// --- 8. AUTH ---
-export const authUsers = pgTableV2("auth_users", {
-    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    company_id: integer("company_id").references(() => companies.id).notNull(),
+export const user = pgTableV2("user", {
+    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    image: text("image"),
+    createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", TZ).defaultNow().notNull(),
+    
+    // Better-Auth username plugin
+    username: text("username").unique(),
+    displayUsername: text("display_username"),
+    
+    // Custom ERP domain fields
+    company_id: integer("company_id").references(() => companies.id),
     entity_id: integer("entity_id").references(() => entities.id),
-    username: text("username").notNull(),
-    email: text("email").notNull(),
-    password_hash: text("password_hash").notNull(),
     is_active: boolean("is_active").default(true),
-    is_owner: boolean("is_owner").default(false).notNull(),          // true = company creator
-    email_verified_at: timestamp("email_verified_at", TZ),          // null = not verified
+    is_owner: boolean("is_owner").default(false).notNull(),
     last_login: timestamp("last_login", TZ),
-    created_at: timestamp("created_at", TZ)
-        .defaultNow()
-        .notNull(),
 }, (t) => [
-    uniqueIndex("idx_auth_users_username").on(t.company_id, t.username),
-    uniqueIndex("idx_auth_users_email").on(t.company_id, t.email),
-    index("idx_auth_users_company").on(t.company_id),
+    index("idx_user_email").on(t.email),
+    index("idx_user_username").on(t.username),
+    index("idx_user_company").on(t.company_id),
     pgPolicy('tenant_isolation', {
         as: 'permissive',
         for: 'all',
         to: 'public',
-        using: sql`company_id = current_setting('app.current_company_id', true)::integer
+        using: sql`company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer
             OR username = current_setting('app.current_username', true)
             OR email = current_setting('app.current_username', true)`,
-        withCheck: sql`company_id = current_setting('app.current_company_id', true)::integer`,
+        withCheck: sql`company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer`,
     }),
 ]).enableRLS();
 
-export const sessions = pgTableV2("sessions", {
-    id: varchar("id", { length: 64 }).primaryKey(),               // Random 32-byte token (base64url)
-    user_id: integer("user_id").references(() => authUsers.id, { onDelete: 'cascade' }).notNull(),
-    company_id: integer("company_id").references(() => companies.id).notNull(),
-    user_agent: text("user_agent"),
-    ip_address: inet("ip_address"),
-    expires_at: timestamp("expires_at", TZ).notNull(),
-    created_at: timestamp("created_at", TZ).defaultNow().notNull(),
+export const session = pgTableV2("session", {
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at", TZ).notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", TZ).defaultNow().notNull(),
+    ipAddress: inet("ip_address"),
+    userAgent: text("user_agent"),
+    userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
+    activeOrganizationId: text("active_organization_id"),
+    company_id: integer("company_id").references(() => companies.id),
 }, (t) => [
-    index("idx_sessions_user").on(t.user_id),
-    index("idx_sessions_expires").on(t.expires_at),
-    index("idx_sessions_company").on(t.company_id),
+    index("idx_session_user").on(t.userId),
+    index("idx_session_token").on(t.token),
+    index("idx_session_expires").on(t.expiresAt),
+    index("idx_session_company").on(t.company_id),
     pgPolicy('tenant_isolation', {
         as: 'permissive',
         for: 'all',
         to: 'public',
-        using: sql`company_id = current_setting('app.current_company_id', true)::integer
+        using: sql`company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer
+            OR token = current_setting('app.current_session_id', true)
             OR id = current_setting('app.current_session_id', true)`,
-        withCheck: sql`company_id = current_setting('app.current_company_id', true)::integer`,
+        withCheck: sql`company_id IS NULL OR company_id = current_setting('app.current_company_id', true)::integer`,
     }),
 ]).enableRLS();
+
+export const account = pgTableV2("account", {
+    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", TZ),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", TZ),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", TZ).defaultNow().notNull(),
+}, (t) => [
+    index("idx_account_user").on(t.userId),
+    index("idx_account_provider").on(t.providerId, t.accountId),
+]);
+
+export const verification = pgTableV2("verification", {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", TZ).notNull(),
+    createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", TZ).defaultNow().notNull(),
+}, (t) => [
+    index("idx_verification_identifier").on(t.identifier),
+]);
+
+// Better-Auth Organization Plugin Tables
+export const organization = pgTableV2("organization", {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").unique(),
+    logo: text("logo"),
+    createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
+    metadata: text("metadata"),
+}, (t) => [
+    index("idx_org_slug").on(t.slug),
+]);
+
+export const member = pgTableV2("member", {
+    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    organizationId: text("organization_id").references(() => organization.id, { onDelete: 'cascade' }).notNull(),
+    userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
+    role: text("role").default("member").notNull(),
+    createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
+}, (t) => [
+    index("idx_member_org").on(t.organizationId),
+    index("idx_member_user").on(t.userId),
+]);
+
+export const invitation = pgTableV2("invitation", {
+    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    organizationId: text("organization_id").references(() => organization.id, { onDelete: 'cascade' }).notNull(),
+    email: text("email").notNull(),
+    role: text("role"),
+    status: text("status").notNull(),
+    expiresAt: timestamp("expires_at", TZ).notNull(),
+    inviterId: uuid("inviter_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
+}, (t) => [
+    index("idx_invitation_org").on(t.organizationId),
+    index("idx_invitation_email").on(t.email),
+]);
+
+// Better-Auth Two-Factor & Passkey Plugins
+export const twoFactor = pgTableV2("two_factor", {
+    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
+}, (t) => [
+    index("idx_two_factor_user").on(t.userId),
+]);
+
+export const passkey = pgTableV2("passkey", {
+    id: text("id").primaryKey(),
+    name: text("name"),
+    publicKey: text("public_key").notNull(),
+    userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
+    credentialID: text("credential_i_d").notNull(),
+    counter: integer("counter").notNull(),
+    deviceType: text("device_type").notNull(),
+    backedUp: boolean("backed_up").notNull(),
+    transports: text("transports"),
+    createdAt: timestamp("created_at", TZ),
+}, (t) => [
+    index("idx_passkey_user").on(t.userId),
+]);
+
+// Backward compatibility aliases
+export const authUsers = user;
+export const sessions = session;
+export const authVerificationTokens = verification;
+
+// ============================================================================
+// 2. RBAC & PERMISSIONS SYSTEM
+// ============================================================================
 
 export const authRoles = pgTableV2("auth_roles", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
@@ -72,7 +182,7 @@ export const authRoles = pgTableV2("auth_roles", {
     description: text("description"),
     is_system: boolean("is_system").default(false),     // superadmin, admin = non-deletable
     priority: smallint("priority").default(0),           // For conflict resolution in hierarchies
-    created_at: timestamp("created_at", TZ).defaultNow().notNull(),
+    createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
 }, (t) => [
     uniqueIndex("idx_auth_roles_name").on(t.company_id, t.name),
     index("idx_auth_roles_company").on(t.company_id),
@@ -102,7 +212,7 @@ export const authRolePermissions = pgTableV2("auth_role_permissions", {
 ]).enableRLS();
 
 export const authUserRoles = pgTableV2("auth_user_roles", {
-    user_id: integer("user_id").references(() => authUsers.id, { onDelete: 'cascade' }).notNull(),
+    user_id: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
     role_id: integer("role_id").references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
     company_id: integer("company_id").references(() => companies.id).notNull(),
 }, (t) => [
@@ -112,7 +222,10 @@ export const authUserRoles = pgTableV2("auth_user_roles", {
     tenantPolicy(),
 ]).enableRLS();
 
-// --- 9. MENU SYSTEM (Dynamic Menus) ---
+// ============================================================================
+// 3. MENU SYSTEM (Dynamic Menus)
+// ============================================================================
+
 export const authMenuItems = pgTableV2("auth_menu_items", {
     id: smallint("id").generatedAlwaysAsIdentity().primaryKey(),
     key: text("key").notNull().unique(),               // 'inventory', 'products'
@@ -129,20 +242,3 @@ export const authMenuItems = pgTableV2("auth_menu_items", {
     index("idx_menu_order").on(t.parent_id, t.sort_order),
     index("idx_menu_active").on(t.status),
 ]);
-
-/**
- * Verification tokens are intentionally NOT RLS-scoped.
- * verifyEmail() uses adminDb to look up tokens globally,
- * since the user might not have an active tenant context yet.
- */
-export const authVerificationTokens = pgTableV2("auth_verification_tokens", {
-    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    user_id: integer("user_id").references(() => authUsers.id, { onDelete: 'cascade' }).notNull(),
-    token_hash: text("token_hash").notNull(),
-    expires_at: timestamp("expires_at", TZ).notNull(),
-    created_at: timestamp("created_at", TZ).defaultNow().notNull(),
-}, (t) => [
-    index("idx_auth_verif_tokens_user").on(t.user_id),
-    index("idx_auth_verif_tokens_hash").on(t.token_hash),
-]);
-

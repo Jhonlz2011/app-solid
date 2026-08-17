@@ -26,12 +26,12 @@ export const CursorPaginationQuerySchema = Type.Composite([
 
 /** Common bulk action payload containing list of numeric IDs */
 export const BulkIdsBodySchema = Type.Object({
-    ids: Type.Array(Type.Number(), { minItems: 1 }),
+    ids: Type.Array(Type.Union([Type.Number(), Type.String()]), { minItems: 1 }),
 });
 
-/** Common numeric ID route parameter */
+/** Common numeric or string ID route parameter */
 export const IdParamSchema = Type.Object({
-    id: Type.Number(),
+    id: Type.Union([Type.Number(), Type.String()]),
 });
 
 /** Common generic success response envelope */

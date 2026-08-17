@@ -62,7 +62,7 @@ export const UserReferencesResponseSchema = Type.Object({
 });
 
 export const BatchResultItemSchema = Type.Object({
-    userId: Type.Number(),
+    userId: Type.Union([Type.Number(), Type.String()]),
     success: Type.Boolean(),
     error: Type.Optional(Type.String()),
 });
@@ -97,7 +97,7 @@ export const AuditLogEntrySchema = Type.Object({
     newData: Type.Any(),
     ipAddress: Type.Union([Type.String(), Type.Null()]),
     createdAt: Type.Date(),
-    userId: Type.Union([Type.Number(), Type.Null()]),
+    userId: Type.Union([Type.Number(), Type.String(), Type.Null()]),
     performedByUsername: Type.Union([Type.String(), Type.Null()]),
 });
 

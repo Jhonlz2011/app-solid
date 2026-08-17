@@ -30,7 +30,7 @@ interface DbMenuItem {
 /**
  * Get menu tree for a specific user, filtered by their permissions
  */
-export async function getMenuForUser(userId: number): Promise<ModuleConfig[]> {
+export async function getMenuForUser(userId: string | number): Promise<ModuleConfig[]> {
     // Parallel: Redis + DB at the same time — eliminates serial waterfall
     const [roles, permissions, allMenus] = await Promise.all([
         getUserRoles(userId),

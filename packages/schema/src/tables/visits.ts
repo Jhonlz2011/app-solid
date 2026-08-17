@@ -1,4 +1,4 @@
-import { text, integer, timestamp, numeric, date, index } from 'drizzle-orm/pg-core';
+import { text, integer, timestamp, numeric, date, index, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { technicalVisitStatusEnum, quotationStatusEnum } from '../enums';
@@ -39,7 +39,7 @@ export const quotations = pgTableV2("quotations", {
 
     notes: text("notes"),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
-    created_by: integer("created_by").references(() => authUsers.id),
+    created_by: uuid("created_by").references(() => authUsers.id),
 }, (t) => [
     index("idx_quotations_company").on(t.company_id),
     index("idx_quotations_client").on(t.client_id),

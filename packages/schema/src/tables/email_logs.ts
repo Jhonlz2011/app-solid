@@ -1,4 +1,4 @@
-import { pgTable, integer, varchar, timestamp, jsonb, index, unique } from 'drizzle-orm/pg-core';
+import { pgTable, integer, varchar, timestamp, jsonb, index, unique, uuid } from 'drizzle-orm/pg-core';
 import { authUsers } from './auth';
 
 /**
@@ -9,7 +9,7 @@ import { authUsers } from './auth';
  */
 export const emailLogs = pgTable('email_logs', {
   id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
-  userId: integer('user_id').references(() => authUsers.id, { onDelete: 'set null' }),
+  userId: uuid('user_id').references(() => authUsers.id, { onDelete: 'set null' }),
   toEmail: varchar('to_email', { length: 255 }).notNull(),
   subject: varchar('subject', { length: 255 }).notNull(),
   status: varchar('status', { length: 50 }).notNull(),

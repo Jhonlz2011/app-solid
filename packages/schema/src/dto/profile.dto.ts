@@ -13,7 +13,7 @@ export interface ProfileEntityDto {
 
 // --- Profile / Me (from getMe — auth.service.ts L272-303 + route L94) ---
 export interface ProfileDto {
-    id: number;
+    id: string | number;
     companyId: number;
     companySlug?: string;
     email: string;
@@ -33,7 +33,7 @@ export interface UpdateProfileResponseDto {
     success: true;
     message?: string;
     user?: {
-        id: number;
+        id: string | number;
         email: string;
         username: string;
     };

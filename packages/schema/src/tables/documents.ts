@@ -1,4 +1,4 @@
-import { text, integer, timestamp, numeric, date, index, unique, jsonb } from 'drizzle-orm/pg-core';
+import { text, integer, timestamp, numeric, date, index, unique, jsonb, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { documentTypeEnum, invoiceStatusEnum, paymentMethodSriEnum, retentionTypeEnum, paymentStatusEnum } from '../enums';
@@ -221,7 +221,7 @@ export const invoicePayments = pgTableV2("invoice_payments", {
     transaction_reference: text("transaction_reference"),
     notes: text("notes"),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
-    created_by: integer("created_by").references(() => authUsers.id),
+    created_by: uuid("created_by").references(() => authUsers.id),
 });
 
 export const taxRetentions = pgTableV2("tax_retentions", {

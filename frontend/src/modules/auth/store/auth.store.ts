@@ -1,7 +1,6 @@
-// src/modules/auth/auth.store.ts
 import { createStore } from "solid-js/store";
 import { batch } from "solid-js";
-import { authApi } from "../api/auth.api";
+import { authClient } from "@shared/lib/auth-client";
 import { profileApi } from "@modules/profile/data/profile.api";
 import type { ProfileDto } from '@app/schema/dto';
 import type { RbacModule, PermissionSlug } from '@app/schema/enums';
@@ -33,9 +32,6 @@ const [state, setState] = createStore<AuthState>({
     status: 'idle',
 });
 
-// P0-4: Auth cross-tab sync now uses centralized broadcast.store.ts (app_sync channel)
-// Removed: const authChannel = new BroadcastChannel('auth_sync') — was a separate channel that was never closed
-
 // --- HELPERS ---
 
 const setSessionFlag = (active: boolean) => {
@@ -46,42 +42,93 @@ const setSessionFlag = (active: boolean) => {
 // --- ACTIONS ---
 
 export const actions = {
-    login: async (credentials: { email: string; password: string; companyId?: number; turnstileToken?: string }) => {
+    login: async (credentials: { email: string; password: string }) => {
         setState('status', 'loading');
         try {
-            const data = await authApi.login(credentials);
-            
-            // Check if backend requires tenant selection
-            if ('requiresTenantSelection' in data && data.requiresTenantSelection) {
-                setState('status', 'unauthenticated');
-                return data;
+            const isEmail = credentials.email.includes('@');
+            let authRes;
+            if (isEmail) {
+                authRes = await authClient.signIn.email({
+                    email: credentials.email,
+                    password: credentials.password,
+                });
+            } else {
+                authRes = await authClient.signIn.username({
+                    username: credentials.email,
+                    password: credentials.password,
+                });
             }
 
-            // Normal login success path
-            const successData = data as { user: ProfileDto; sessionId: string };
-            currentSessionId = successData.sessionId ?? null;
-            const user: ProfileDto = { ...successData.user, sessionId: successData.sessionId };
+            if (authRes.error) {
+                throw new Error(authRes.error.message || 'Error al iniciar sesión');
+            }
+
+            // Fetch user's organizations via Better-Auth
+            const orgListRes = await authClient.organization.list();
+            const organizations = orgListRes?.data || [];
+
+            // Hydrate ERP profile with RBAC & Entity metadata
+            const profile = await profileApi.getMe();
+            currentSessionId = profile.sessionId ?? null;
+            const user: ProfileDto = profile;
+
             batch(() => {
                 setState('user', user);
                 setState('status', 'authenticated');
             });
             setSessionFlag(true);
 
-            // WebSocket
+            // WebSocket / SSE connection
             enableReconnect();
             connect(currentSessionId);
 
             // Notify other tabs via centralized broadcast
             broadcast.emit(BroadcastEvents.AUTH_LOGIN, { user: sanitizeUser(user), sessionId: currentSessionId });
 
-            // Sync branding if user has a companySlug (for domain-less login via zelys.app)
-            if ((successData.user as any).companySlug) {
-                brandingActions.loadBrandingForSlug((successData.user as any).companySlug);
+            // Sync branding if user has a companySlug
+            if (user.companySlug) {
+                brandingActions.loadBrandingForSlug(user.companySlug);
             }
 
-            return successData;
+            return { user, sessionId: currentSessionId, organizations };
         } catch (error) {
             setState('status', 'unauthenticated');
+            throw error;
+        }
+    },
+
+    /**
+     * Switch active organization (Company) in Better-Auth session & reload ERP context
+     */
+    switchOrganization: async (organizationId: string) => {
+        try {
+            const res = await authClient.organization.setActive({ organizationId });
+            if (res?.error) {
+                throw new Error(res.error.message || 'Error al cambiar de empresa');
+            }
+
+            // Refresh ERP profile with new company's RBAC and permissions
+            const profile = await profileApi.getMe();
+            currentSessionId = profile.sessionId ?? null;
+            const user: ProfileDto = profile;
+
+            batch(() => {
+                setState('user', user);
+                setState('status', 'authenticated');
+            });
+
+            // Sync branding
+            if (user.companySlug) {
+                brandingActions.loadBrandingForSlug(user.companySlug);
+            }
+
+            // Invalidate module caches for fresh menu tree
+            const { actions: moduleActions } = await import('@shared/store/modules.store');
+            moduleActions.clearModules();
+
+            return { success: true, user };
+        } catch (error) {
+            console.error('[Auth] Failed to switch organization:', error);
             throw error;
         }
     },
@@ -89,8 +136,7 @@ export const actions = {
     logout: async (notifyServer = true) => {
         currentSessionId = null;
         // Only change status — route guards read this, NOT the sidebar.
-        // SolidJS fine-grained reactivity: the sidebar reads state.user and modules(),
-        // NOT state.status, so it won't re-render here. Zero visual flash.
+        // SolidJS fine-grained reactivity: zero visual flash.
         setState('status', 'unauthenticated');
         setSessionFlag(false);
         disconnect();
@@ -98,9 +144,9 @@ export const actions = {
         // Notify other tabs via centralized broadcast
         broadcast.emit(BroadcastEvents.AUTH_LOGOUT);
 
-        // Notify server (only for voluntary logout)
+        // Notify server via Better-Auth client
         if (notifyServer) {
-            authApi.logout().catch(() => {});
+            authClient.signOut().catch(() => {});
         }
     },
 
@@ -122,23 +168,6 @@ export const actions = {
         if (shouldBroadcast) {
             broadcast.emit(BroadcastEvents.PROFILE_UPDATE, { user: updatedUser });
         }
-    },
-
-    // Direct session injection — used after register to avoid redundant GET /me
-    setSession: (userData: ProfileDto, sessionId: string) => {
-        currentSessionId = sessionId;
-        batch(() => {
-            setState('user', userData);
-            setState('status', 'authenticated');
-        });
-        setSessionFlag(true);
-
-        // WebSocket
-        enableReconnect();
-        connect(currentSessionId);
-
-        // Notify other tabs via centralized broadcast
-        broadcast.emit(BroadcastEvents.AUTH_LOGIN, { user: sanitizeUser(userData), sessionId });
     },
 
     // Session initialization — just call GET /me, cookie is sent automatically
@@ -213,7 +242,7 @@ export const actions = {
         // We filter by userId to only update our own user's data.
         window.addEventListener('user:profile_updated', (e: Event) => {
             const { userId, username, email } = (e as CustomEvent).detail ?? {};
-            if (!state.user || state.user.id !== userId) return;
+            if (!state.user || String(state.user.id) !== String(userId)) return;
             // Granular update — SolidJS only re-renders components that read these specific fields
             if (username !== undefined) setState('user', 'username', username);
             if (email !== undefined) setState('user', 'email', email);
@@ -222,7 +251,7 @@ export const actions = {
         // WS: real-time RBAC/permissions update from the server
         window.addEventListener('user:rbac_changed', (e: Event) => {
             const { userId } = (e as CustomEvent).detail ?? {};
-            if (!state.user || state.user.id !== userId) return;
+            if (!state.user || String(state.user.id) !== String(userId)) return;
             console.log('[Auth] RBAC permissions updated on server. Refreshing store in background...');
             actions.refreshSession();
         });
@@ -230,7 +259,7 @@ export const actions = {
         // WS: real-time email verification from another device
         window.addEventListener('user:email_verified', (e: Event) => {
             const { userId } = (e as CustomEvent).detail ?? {};
-            if (!state.user || state.user.id !== userId) return;
+            if (!state.user || String(state.user.id) !== String(userId)) return;
             console.log('[Auth] Email verified on another device. Refreshing store in background...');
             actions.refreshSession();
         });

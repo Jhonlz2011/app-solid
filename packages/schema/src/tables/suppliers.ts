@@ -1,4 +1,4 @@
-import { text, integer, boolean, numeric, date, timestamp, index, unique } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, numeric, date, timestamp, index, unique, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { purchaseOrderStatusEnum } from '../enums';
@@ -66,7 +66,7 @@ export const purchaseOrders = pgTableV2("purchase_orders", {
     notes: text("notes"),
 
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
-    created_by: integer("created_by").references(() => authUsers.id),
+    created_by: uuid("created_by").references(() => authUsers.id),
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
     index("idx_po_supplier").on(t.supplier_id),
@@ -108,7 +108,7 @@ export const goodsReceipts = pgTableV2("goods_receipts", {
     purchase_order_id: integer("purchase_order_id").references(() => purchaseOrders.id),
     warehouse_id: integer("warehouse_id").references(() => warehouses.id).notNull(),
 
-    received_by: integer("received_by").references(() => authUsers.id).notNull(),
+    received_by: uuid("received_by").references(() => authUsers.id).notNull(),
     received_at: timestamp("received_at", TZ).defaultNow().notNull(),
 
     // Referencia a factura del proveedor

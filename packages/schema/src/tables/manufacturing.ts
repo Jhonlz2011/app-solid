@@ -1,4 +1,4 @@
-import { text, integer, boolean, timestamp, numeric, date, index, unique, jsonb, bigint } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, numeric, date, index, unique, jsonb, bigint, uuid } from 'drizzle-orm/pg-core';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { workOrderStatusEnum, productionStatusEnum, justificationTypeEnum, bomCalculationTypeEnum } from '../enums';
 import { entities } from './entities';
@@ -95,7 +95,7 @@ export const manufacturingOrderInputs = pgTableV2("manufacturing_order_inputs", 
     planned_quantity: numeric("planned_quantity", { precision: 12, scale: 4 }).notNull(),
 
     is_additional: boolean("is_additional").default(false),
-    added_by: integer("added_by").references(() => authUsers.id),
+    added_by: uuid("added_by").references(() => authUsers.id),
     reason: text("reason"),
     notes: text("notes"),
 }, (t) => [
@@ -114,7 +114,7 @@ export const manufacturingLog = pgTableV2("manufacturing_log", {
     // Retazo generado (SET NULL si el retazo se consume después)
     scrap_item_id: integer("scrap_item_id").references(() => inventoryDimensionalItems.id, { onDelete: 'set null' }),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
-    created_by: integer("created_by").references(() => authUsers.id),
+    created_by: uuid("created_by").references(() => authUsers.id),
 }, (t) => [
     index("idx_mfg_log_order").on(t.manufacturing_order_id),
     index("idx_mfg_log_variant").on(t.variant_id),

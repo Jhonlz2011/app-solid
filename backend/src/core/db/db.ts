@@ -8,7 +8,7 @@ import { AsyncLocalStorage } from 'async_hooks';
 
 export interface TenantContext {
   companyId?: number;
-  userId?: number;
+  userId?: string | number;
   ipAddress?: string;
   tx?: any;
 }
@@ -137,7 +137,7 @@ export type Tx = Parameters<Parameters<typeof rawDb.transaction>[0]>[0];
  * runs the operation without opening a new transaction.
  */
 export async function withTenantContext<T>(
-  context: { companyId: number; userId?: number; ipAddress?: string },
+  context: { companyId: number; userId?: string | number; ipAddress?: string },
   operation: () => Promise<T>
 ): Promise<T> {
   const store = tenantStorage.getStore();

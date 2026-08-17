@@ -3,6 +3,7 @@ import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
 import { staticPlugin } from '@elysiajs/static';
 // Routes
+import { auth } from './config/better-auth';
 import { authRoutes } from './modules/auth';
 import { productRoutes } from './modules/products';
 import {
@@ -135,6 +136,10 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(errorHandlerPlugin)
   // Health check — público, antes de auth guard (usado por OfflineBanner PWA)
   .get('/health', () => ({ status: 'ok', ts: Date.now() }))
+  // Better-Auth Core Handler (sign-in, sign-up, organization, sessions, passkeys, 2fa)
+  .all('/auth/*', async ({ request }) => {
+    return auth.handler(request);
+  })
   .use(authRoutes)
   .use(webhooksRoutes) // Webhooks van ANTES de rbac (no requieren autenticación)
   .use(rbac)

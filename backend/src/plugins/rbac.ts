@@ -13,7 +13,7 @@ export const rbac = (app: Elysia) => app
     .macro(({ onBeforeHandle }) => ({
         permission(permission: PermissionSlug) {
             onBeforeHandle(async ({ currentUserId, currentRoles, currentPermissions }: {
-                currentUserId?: number;
+                currentUserId?: string | number;
                 currentRoles?: string[];
                 currentPermissions?: string[];
             }) => {

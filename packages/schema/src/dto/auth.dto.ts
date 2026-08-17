@@ -20,17 +20,6 @@ export interface AuthRegisterPayload {
     turnstileToken?: string;
 }
 
-export interface AuthLoginPayload {
-    email: string;
-    password: string;
-    companyId?: number;
-    turnstileToken?: string;
-}
-
-export interface AuthChangePasswordPayload {
-    currentPassword: string;
-    newPassword: string;
-}
 
 export interface AuthUpdateProfilePayload {
     username?: string;

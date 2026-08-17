@@ -1,17 +1,27 @@
 import { Elysia } from 'elysia';
-import { UnauthorizedError, ForbiddenError } from '../core/errors';
-import { validateSession } from '../modules/auth';
-import { COOKIE_OPTIONS } from '../config/auth';
-import { db, adminDb, tenantStorage } from '../core/db';
+import { UnauthorizedError } from '../core/errors';
+import { auth } from '../config/better-auth';
+import { adminDb, tenantStorage } from '../core/db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
 import { getIpAndUserAgent } from './ip';
+import { getUserRoles, getUserPermissions } from '../modules/users';
 
 export const authGuard = (app: Elysia) => app
   .derive(
-    async ({ cookie, set, request }) => {
-      // 1. Resolve host and check subdomain
+    async ({ set, request }) => {
+      // 1. Validate session with Better-Auth
+      const sessionData = await auth.api.getSession({
+        headers: request.headers,
+      });
+
+      if (!sessionData || !sessionData.user) {
+        set.status = 401;
+        throw new UnauthorizedError('Sesión requerida');
+      }
+
+      // 2. Resolve host and check subdomain
       const host = request.headers.get('host') || '';
       const slug = resolveSlugFromHost(host);
       let hostCompanyId: number | null = null;
@@ -27,71 +37,40 @@ export const authGuard = (app: Elysia) => app
         }
       }
 
-      const sessionId = cookie.session?.value as string | undefined;
+      const rawUser = sessionData.user as any;
+      const userCompanyId = rawUser.companyId || rawUser.company_id || (rawUser.activeOrganizationId ? Number(rawUser.activeOrganizationId) : null);
+      const activeOrgId = sessionData.session.activeOrganizationId ? Number(sessionData.session.activeOrganizationId) : null;
+      const resolvedCompanyId = hostCompanyId || activeOrgId || userCompanyId;
 
-      if (!sessionId) {
-        set.status = 401;
-        throw new UnauthorizedError('Sesión requerida');
-      }
-
-      const result = await validateSession(sessionId);
-      if (!result) {
-        // Clear invalid/expired cookie
-        cookie.session.set({
-          ...COOKIE_OPTIONS,
-          value: '',
-          maxAge: 0,
-          expires: new Date(0),
-        });
-        set.status = 401;
-        throw new UnauthorizedError('Sesión expirada o inválida');
-      }
-
-      const { session, roles, permissions, shouldRefreshCookie } = result;
-
-      // Strict validation: check that user session matches the requested subdomain
-      if (hostCompanyId && session.company_id !== hostCompanyId) {
+      // Strict validation: check that user session matches requested subdomain
+      if (hostCompanyId && userCompanyId && hostCompanyId !== userCompanyId && activeOrgId && activeOrgId !== hostCompanyId) {
         set.status = 403;
         throw new UnauthorizedError('Acceso denegado a este inquilino');
       }
 
-      // Rolling session: update cookie expiry if session was extended
-      if (shouldRefreshCookie) {
-        cookie.session.set({
-          value: sessionId,
-          ...COOKIE_OPTIONS,
-        });
-      }
-
-      const resolvedCompanyId = hostCompanyId || session.company_id;
       const { ipAddress } = getIpAndUserAgent(request);
-
-      // Seguridad Perimetral: Si el email no está verificado, bloquear acceso a recursos
-      // excepto las rutas básicas de auth y reenvío de correo
-      const isAuthUtility = request.url.includes('/api/auth/me') ||
-                            request.url.includes('/api/auth/logout') ||
-                            request.url.includes('/api/auth/resend-verification');
-                            
-      if (!result.emailVerified && !isAuthUtility) {
-        set.status = 403;
-        throw new ForbiddenError('Debes verificar tu correo electrónico para acceder a los servicios.');
-      }
 
       // Set tenant context in AsyncLocalStorage for the entire request lifecycle.
       // This enables auto-injection of set_config('app.current_company_id', ...)
       // inside every db.transaction() call, enforcing RLS policies automatically.
       tenantStorage.enterWith({
-        companyId: resolvedCompanyId,
-        userId: session.user_id,
+        companyId: resolvedCompanyId || undefined,
+        userId: sessionData.user.id as any,
         ipAddress: ipAddress || undefined,
       });
 
+      const [roles, permissions] = await Promise.all([
+        getUserRoles(sessionData.user.id as any),
+        getUserPermissions(sessionData.user.id as any),
+      ]);
+
       return {
-        currentUserId: session.user_id,
+        currentUserId: sessionData.user.id,
         currentCompanyId: resolvedCompanyId,
-        currentSessionId: sessionId,
+        currentSessionId: sessionData.session.id,
         currentRoles: roles,
         currentPermissions: permissions,
+        currentUser: sessionData.user,
       };
     }
   );

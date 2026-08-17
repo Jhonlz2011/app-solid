@@ -1,4 +1,4 @@
-import { text, integer, boolean, timestamp, numeric, index } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, numeric, index, uuid } from 'drizzle-orm/pg-core';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { posSessionStatusEnum, paymentMethodSriEnum } from '../enums';
 import { warehouses, warehouseLocations } from './inventory';
@@ -30,11 +30,11 @@ export const posSessions = pgTableV2("pos_sessions", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     cash_register_id: integer("cash_register_id").references(() => cashRegisters.id).notNull(),
 
-    opened_by: integer("opened_by").references(() => authUsers.id).notNull(),
+    opened_by: uuid("opened_by").references(() => authUsers.id).notNull(),
     opened_at: timestamp("opened_at", TZ).defaultNow().notNull(),
     opening_balance: numeric("opening_balance", { precision: 12, scale: 2 }).default('0').notNull(),
 
-    closed_by: integer("closed_by").references(() => authUsers.id),
+    closed_by: uuid("closed_by").references(() => authUsers.id),
     closed_at: timestamp("closed_at", TZ),
     closing_balance: numeric("closing_balance", { precision: 12, scale: 2 }),
 
@@ -71,7 +71,7 @@ export const posSales = pgTableV2("pos_sales", {
     change_given: numeric("change_given", { precision: 12, scale: 2 }),
 
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
-    created_by: integer("created_by").references(() => authUsers.id).notNull(),
+    created_by: uuid("created_by").references(() => authUsers.id).notNull(),
 }, (t) => [
     index("idx_pos_sales_session").on(t.session_id),
     index("idx_pos_sales_date").on(t.created_at),

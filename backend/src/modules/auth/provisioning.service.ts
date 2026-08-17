@@ -19,7 +19,8 @@ import { PERMISSIONS, ROLES, ROLE_PERMISSIONS, MENU_ITEMS, DERIVED_UOM_DATA } fr
 /**
  * Seeds all RBAC roles + permissions for a company, then assigns the owner to superadmin.
  */
-export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: number) {
+export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: string | number) {
+    const ownerUserIdStr = String(ownerUserId);
     // 1. Insert permissions (global)
     await tx
         .insert(authPermissions)
@@ -64,7 +65,7 @@ export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: nu
     if (superadminRoleId) {
         await tx
             .insert(authUserRoles)
-            .values({ user_id: ownerUserId, role_id: superadminRoleId, company_id: companyId })
+            .values({ user_id: ownerUserIdStr, role_id: superadminRoleId, company_id: companyId })
             .onConflictDoNothing();
     }
 

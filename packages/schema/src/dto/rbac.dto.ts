@@ -6,7 +6,7 @@ import type { PaginationMeta, BaseFilters } from './common.dto';
 
 // Includes JOINed entity fields via LEFT JOIN on entities table
 export interface UserListItemDto {
-    id: number;
+    id: string | number;
     username: string;
     email: string;
     isActive: boolean | null;
@@ -23,7 +23,7 @@ export interface UserListItemDto {
 }
 
 export interface UserDetailDto {
-    id: number;
+    id: string | number;
     username: string;
     email: string;
     isActive: boolean | null;

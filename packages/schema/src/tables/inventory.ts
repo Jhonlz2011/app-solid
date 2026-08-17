@@ -1,4 +1,4 @@
-import { text, integer, boolean, numeric, timestamp, bigint, index, primaryKey, unique, foreignKey } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, numeric, timestamp, bigint, index, primaryKey, unique, foreignKey, uuid } from 'drizzle-orm/pg-core';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { movementTypeEnum, movementReferenceTypeEnum, locationTypeEnum } from '../enums';
 import { entities } from './entities';
@@ -135,7 +135,7 @@ export const inventoryMovements = pgTableV2("inventory_movements", {
     reference_id: integer("reference_id"),
     reference_type: movementReferenceTypeEnum("reference_type"),
 
-    created_by: integer("created_by").references(() => authUsers.id),
+    created_by: uuid("created_by").references(() => authUsers.id),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
 }, (t) => [
     index("idx_movements_src_loc").on(t.source_location_id, t.variant_id, t.created_at),

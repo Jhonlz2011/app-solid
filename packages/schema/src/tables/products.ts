@@ -1,4 +1,4 @@
-import { text, integer, boolean, timestamp, numeric, jsonb, index, unique, check, foreignKey } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, numeric, jsonb, index, unique, check, foreignKey, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { productTypeEnum, productSubtypeEnum, priceChangeTypeEnum, priceChangeSourceEnum } from '../enums';
@@ -56,9 +56,9 @@ export const products = pgTableV2("products", {
     default_base_price: numeric("default_base_price", { precision: 12, scale: 4 }).default('0'),
     iva_rate_code: integer("iva_rate_code").default(4).notNull(), // Código SRI (0, 2, 3, 4, 6, 7)
     is_active: boolean("is_active").default(true),
-    created_by: integer("created_by").references(() => authUsers.id),
+    created_by: uuid("created_by").references(() => authUsers.id),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
-    updated_by: integer("updated_by").references(() => authUsers.id),
+    updated_by: uuid("updated_by").references(() => authUsers.id),
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
     unique("unq_product_slug_company").on(t.company_id, t.slug),
@@ -255,7 +255,7 @@ export const variantPriceHistory = pgTableV2("variant_price_history", {
     // Optional: what triggered this change
     reference_type: priceChangeSourceEnum("reference_type"),   // PURCHASE_ORDER, GOODS_RECEIPT, MANUAL
     reference_id: integer("reference_id"),
-    changed_by: integer("changed_by").references(() => authUsers.id),
+    changed_by: uuid("changed_by").references(() => authUsers.id),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
 }, (t) => [
     index("idx_vph_variant").on(t.variant_id),

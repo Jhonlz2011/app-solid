@@ -6,6 +6,7 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { RegisterStep1Schema, RegisterStep2Schema, type RegisterStep1Data } from '@app/schema/frontend';
 import { BUSINESS_TYPES, TAX_REGIME_TYPES } from '@app/schema/enums';
 import { authApi } from '@modules/auth/api/auth.api';
+import { authClient } from '@shared/lib/auth-client';
 import { actions } from '@modules/auth/store/auth.store';
 import TextField from '@form/TextField';
 import { FieldLabel } from '@form/TextField';
@@ -175,7 +176,7 @@ const Register: Component = () => {
         const s2 = step2Form.state.values;
         setSubmitting(true);
         try {
-            const result = await authApi.register({
+            await authApi.register({
                 fullName: s1.fullName, email: s1.email, password: s1.password,
                 phone: s1.phone || undefined, cedula: s1.cedula || undefined,
                 slug: s2.slug, ruc: s2.ruc, businessName: s2.businessName,
@@ -186,12 +187,20 @@ const Register: Component = () => {
                 taxRegime: s2.taxRegime || undefined,
                 turnstileToken: turnstileToken() ?? undefined,
             });
-            // Direct session injection — no redundant GET /me
-            const registerSuccess = result as { user: any; sessionId: string };
-            actions.setSession(
-                { ...registerSuccess.user, sessionId: registerSuccess.sessionId },
-                registerSuccess.sessionId,
-            );
+
+            // Automatic sign-in via Better-Auth
+            const signInRes = await authClient.signIn.email({
+                email: s1.email,
+                password: s1.password,
+            });
+
+            if (signInRes.error) {
+                toast.success('¡Empresa creada exitosamente! Por favor inicia sesión.');
+                navigate({ to: '/login', search: { redirect: undefined }, replace: true });
+                return;
+            }
+
+            await actions.initSession();
             toast.success('¡Cuenta creada exitosamente!');
             navigate({ to: '/dashboard', replace: true });
         } catch (err: any) {

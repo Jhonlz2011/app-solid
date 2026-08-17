@@ -10,7 +10,7 @@ import { invalidateUserRbacCache } from './rbac.permission.service';
  * Log an audit entry — fire-and-forget
  */
 export function logAudit(
-    userId: number,
+    userId: string | number,
     action: 'INSERT' | 'UPDATE' | 'DELETE',
     tableName: string,
     recordId: string | number,
@@ -21,7 +21,7 @@ export function logAudit(
         tableName,
         recordId: String(recordId),
         action,
-        userId,
+        userId: String(userId),
         oldData: oldData ?? null,
         newData: newData ?? null,
     }).catch(error => console.error('Audit log error:', error));
@@ -81,7 +81,7 @@ export async function getRoleById(roleId: number, companyId?: number) {
 /**
  * Create a new role
  */
-export async function createRole(name: string, description?: string, currentUserId?: number, companyId?: number) {
+export async function createRole(name: string, description?: string, currentUserId?: string | number, companyId?: number) {
     const existing = await db.query.authRoles.findFirst({
         where: and(eq(authRoles.company_id, companyId!), eq(authRoles.name, name)),
     });
@@ -103,7 +103,7 @@ export async function createRole(name: string, description?: string, currentUser
 /**
  * Update a role
  */
-export async function updateRole(id: number, name: string, description?: string, currentUserId?: number) {
+export async function updateRole(id: number, name: string, description?: string, currentUserId?: string | number) {
     const oldRole = await db.query.authRoles.findFirst({ where: eq(authRoles.id, id) });
 
     const [updated] = await db
@@ -124,7 +124,7 @@ export async function updateRole(id: number, name: string, description?: string,
 /**
  * Delete a role (with protection for system roles)
  */
-export async function deleteRole(id: number, currentUserId?: number) {
+export async function deleteRole(id: number, currentUserId?: string | number) {
     const role = await db.query.authRoles.findFirst({
         where: eq(authRoles.id, id),
     });
@@ -188,7 +188,7 @@ export async function getRolePermissions(roleId: number) {
 /**
  * Update permissions for a role
  */
-export async function updateRolePermissions(roleId: number, permissionIds: number[], currentUserId?: number) {
+export async function updateRolePermissions(roleId: number, permissionIds: number[], currentUserId?: string | number) {
     const role = await db.query.authRoles.findFirst({
         where: eq(authRoles.id, roleId),
     });

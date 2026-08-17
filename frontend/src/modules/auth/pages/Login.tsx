@@ -72,50 +72,36 @@ const Login: Component = () => {
   const handleSelectTenant = async (tenant: DiscoverTenantItemDto) => {
     setLoadingTenants(true);
     try {
-      const tenantInfo = await authApi.getTenantInfo(tenant.slug);
-      applyBranding(tenantInfo);
-    } catch {
-      // Non-critical: branding fallback is fine
+      await actions.switchOrganization(String(tenant.id));
+      const searchParams = typeof search === 'function' ? search() : search;
+      const redirectTo = (searchParams as any)?.redirect
+        ?? new URLSearchParams(window.location.search).get('redirect');
+      const safePath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
+        ? new URL(redirectTo, window.location.origin).pathname
+        : '/dashboard';
+      handleRedirect(tenant.slug, safePath);
+    } catch (err: any) {
+      toast.error(err?.message || 'Error al seleccionar empresa');
     } finally {
       setLoadingTenants(false);
     }
-    form.setFieldValue('companyId', tenant.id);
-    form.handleSubmit();
   };
 
   const form = createForm(() => ({
     defaultValues: {
       email: '',
       password: '',
-      companyId: undefined,
     } as AuthLoginFormData,
     validatorAdapter: valibotValidator(),
     validators: { onSubmit: AuthLoginSchema },
     onSubmit: async ({ value }) => {
       try {
-        const payload: { email: string; password: string; companyId?: number; turnstileToken?: string } = {
+        const res = await actions.login({
           email: value.email,
           password: value.password,
-          turnstileToken: turnstileToken() ?? undefined,
-        };
+        });
 
-        if (value.companyId) {
-          payload.companyId = value.companyId;
-        } else if (!isGlobalLogin && branding.tenant()) {
-          payload.companyId = branding.tenant()!.id;
-        }
-
-        const res = await actions.login(payload);
-
-        if (res && 'requiresTenantSelection' in res && res.requiresTenantSelection) {
-          setDiscoveredTenants(res.tenants);
-          setShowTenants(true);
-          return;
-        }
-
-        const successRes = res as { user: AuthUserResponseDto & { companySlug?: string }; sessionId: string };
-        const companySlug = successRes?.user?.companySlug;
-
+        const { user, organizations } = res;
         const searchParams = typeof search === 'function' ? search() : search;
         const redirectTo = (searchParams as any)?.redirect
           ?? new URLSearchParams(window.location.search).get('redirect');
@@ -123,16 +109,61 @@ const Login: Component = () => {
           ? new URL(redirectTo, window.location.origin).pathname
           : '/dashboard';
 
-        if (companySlug) {
-          handleRedirect(companySlug, safePath);
+        // Case A: Logging in from a specific tenant subdomain (e.g. acme.zelys.app)
+        if (!isGlobalLogin && subdomain) {
+          const matchingOrg = organizations.find((o: any) => o.slug === subdomain);
+          if (matchingOrg) {
+            await actions.switchOrganization(matchingOrg.id);
+            navigate({ to: safePath, replace: true });
+            return;
+          } else if (organizations.length > 0) {
+            // User belongs to other companies but not this subdomain
+            toast.error(`No tienes acceso a ${subdomain}. Selecciona una de tus empresas:`);
+            setDiscoveredTenants(organizations.map((o: any) => ({
+              id: Number(o.id) || 0,
+              slug: o.slug,
+              businessName: o.name,
+              tradeName: o.name,
+              logoUrl: o.logo || null,
+            })));
+            setShowTenants(true);
+            return;
+          }
+        }
+
+        // Case B: Global portal login (e.g. in.zelys.app or dev localhost)
+        if (organizations.length > 1) {
+          setDiscoveredTenants(organizations.map((o: any) => ({
+            id: Number(o.id) || 0,
+            slug: o.slug,
+            businessName: o.name,
+            tradeName: o.name,
+            logoUrl: o.logo || null,
+          })));
+          setShowTenants(true);
+          return;
+        }
+
+        if (organizations.length === 1) {
+          const singleOrg = organizations[0];
+          await actions.switchOrganization(singleOrg.id);
+          if (singleOrg.slug && singleOrg.slug !== subdomain) {
+            handleRedirect(singleOrg.slug, safePath);
+          } else {
+            navigate({ to: safePath, replace: true });
+          }
+          return;
+        }
+
+        // Fallback: direct redirect using user profile companySlug
+        if (user?.companySlug) {
+          handleRedirect(user.companySlug, safePath);
         } else {
           navigate({ to: safePath, replace: true });
         }
       } catch (err) {
         setShowTenants(false);
         setDiscoveredTenants([]);
-        form.setFieldValue('companyId', undefined);
-        // Turnstile token stays valid for retries — only Turnstile itself invalidates it via expired-callback
         let msg = 'Error al iniciar sesión';
         if (err instanceof ApiError || err instanceof Error) msg = err.message;
         toast.error(msg);
@@ -370,7 +401,6 @@ const Login: Component = () => {
             onClick={() => {
               setShowTenants(false);
               setDiscoveredTenants([]);
-              form.setFieldValue('companyId', undefined);
             }}
           >
             Regresar

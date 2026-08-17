@@ -167,5 +167,85 @@ export const emailService = {
       'Verificación de correo electrónico - Zelys ERP',
       htmlContent
     );
+  },
+
+  /**
+   * Envía la plantilla de restablecimiento de contraseña.
+   */
+  sendPasswordResetEmail: async (toEmail: string, resetLink: string, userName: string) => {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Restablece tu contraseña - Zelys ERP</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7fb;
+            color: #1e293b;
+            margin: 0;
+            padding: 40px 10px;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 16px;
+            padding: 40px 30px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+          }
+          .logo-wrapper { text-align: center; margin-bottom: 24px; }
+          .logo { font-size: 24px; font-weight: 800; color: #2563eb; letter-spacing: -0.5px; }
+          h1 { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 16px; text-align: center; }
+          p { font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0; }
+          .btn-container { text-align: center; margin: 30px 0; }
+          .btn {
+            background-color: #2563eb;
+            color: #ffffff !important;
+            padding: 12px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            display: inline-block;
+          }
+          .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 12px;
+            color: #94a3b8;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="logo-wrapper">
+            <span class="logo">Zelys<span style="color: #64748b;">ERP</span></span>
+          </div>
+          <h1>Restablecimiento de contraseña</h1>
+          <p>Hola <strong>${userName}</strong>,</p>
+          <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en Zelys ERP. Puedes crear una nueva contraseña haciendo clic en el siguiente botón:</p>
+          <div class="btn-container">
+            <a href="${resetLink}" class="btn">Restablecer Contraseña</a>
+          </div>
+          <p>Si no solicitaste este cambio, puedes ignorar este correo de forma segura.</p>
+          <div class="footer">
+            © 2026 Zelys. Todos los derechos reservados.
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return emailService.sendEmail(
+      toEmail,
+      'Restablece tu contraseña - Zelys ERP',
+      htmlContent
+    );
   }
 };

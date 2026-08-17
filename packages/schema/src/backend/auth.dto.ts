@@ -22,43 +22,29 @@ export const AuthRegisterDto = Type.Object({
     turnstileToken: Type.Optional(Type.String()),
 });
 
-export const AuthLoginDto = Type.Object({
-    email: Type.String({ minLength: 1, maxLength: 255 }),
-    password: Type.String(),
-    companyId: Type.Optional(Type.Number()),
-    turnstileToken: Type.Optional(Type.String()),
-});
-
-export const AuthChangePasswordDto = Type.Object({
-    currentPassword: Type.String(),
-    newPassword: Type.String({ minLength: 8 }),
-});
-
 export const AuthUpdateProfileDto = Type.Object({
     username: Type.Optional(Type.String({ minLength: 3 })),
     email: Type.Optional(Type.String({ format: 'email' })),
 });
 
 export type AuthRegisterDtoType = Static<typeof AuthRegisterDto>;
-export type AuthLoginDtoType = Static<typeof AuthLoginDto>;
-export type AuthChangePasswordDtoType = Static<typeof AuthChangePasswordDto>;
 export type AuthUpdateProfileDtoType = Static<typeof AuthUpdateProfileDto>;
 
 export const PublicUser = Type.Object({
-    id: Type.Number(),
-    companyId: Type.Number(),
-    username: Type.String(),
+    id: Type.Union([Type.String(), Type.Number()]),
+    companyId: Type.Optional(Type.Number()),
+    username: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     email: Type.String(),
-    isActive: Type.Union([Type.Boolean(), Type.Null()]),
-    lastLogin: Type.Union([Type.Date(), Type.Null()]),
-    entityId: Type.Union([Type.Number(), Type.Null()]),
-    emailVerifiedAt: Type.Union([Type.Date(), Type.Null(), Type.String()]),
+    isActive: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    lastLogin: Type.Optional(Type.Union([Type.Date(), Type.Null()])),
+    entityId: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    emailVerifiedAt: Type.Optional(Type.Union([Type.Date(), Type.Null(), Type.String(), Type.Boolean()])),
 });
 
 export const AuthUserResponse = Type.Composite([
     PublicUser,
     Type.Object({
-        companySlug: Type.String(),
+        companySlug: Type.Union([Type.String(), Type.Null()]),
         roles: Type.Array(Type.String()),
         permissions: Type.Array(Type.String()),
         entity: Type.Optional(Type.Object({
@@ -81,17 +67,5 @@ export const DiscoverTenantItem = Type.Object({
 
 export type DiscoverTenantItemType = Static<typeof DiscoverTenantItem>;
 
-export const AuthResponseDto = Type.Union([
-    Type.Object({
-        user: AuthUserResponse,
-        sessionId: Type.String(),
-    }),
-    Type.Object({
-        requiresTenantSelection: Type.Literal(true),
-        tenants: Type.Array(DiscoverTenantItem),
-    })
-]);
-
 export type PublicUserType = Static<typeof PublicUser>;
 export type AuthUserResponseType = Static<typeof AuthUserResponse>;
-export type AuthResponseDtoType = Static<typeof AuthResponseDto>;

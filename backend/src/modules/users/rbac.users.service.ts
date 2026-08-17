@@ -1,5 +1,5 @@
 import { db } from '../../core/db';
-import { authUsers, authUserRoles, authRoles, entities, auditLogs, sessions } from '@app/schema/tables';
+import { authUsers, authUserRoles, authRoles, entities, auditLogs, sessions, account } from '@app/schema/tables';
 import { eq, sql, count, and, inArray, ilike, or, asc, desc, type SQL } from '@app/schema';
 import { cacheService } from '../../core/cache';
 import { DomainError } from '../../core/errors';
@@ -23,7 +23,7 @@ export interface UsersListFilters {
 export const USERS_SORT_WHITELIST: Record<string, typeof authUsers.username> = {
     username: authUsers.username,
     email: authUsers.email,
-    created_at: authUsers.created_at,
+    created_at: authUsers.createdAt,
     is_active: authUsers.is_active,
 };
 
@@ -39,7 +39,7 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
     if (companyId) conditions.push(eq(authUsers.company_id, companyId));
     if (filters.search) {
         const term = `%${filters.search}%`;
-        const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term));
+        const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term));
         if (searchCond) conditions.push(searchCond);
     }
     if (filters.isActive && filters.isActive.length > 0) {
@@ -70,6 +70,7 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
         db.select({
             id: authUsers.id,
             username: authUsers.username,
+            name: authUsers.name,
             email: authUsers.email,
             isActive: authUsers.is_active,
             lastLogin: authUsers.last_login,
@@ -92,7 +93,7 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
     const pageCount = Math.ceil(total / limit);
 
     const userIds = users.map(u => u.id);
-    let roleMap = new Map<number, { id: number; name: string }[]>();
+    let roleMap = new Map<string, { id: number; name: string }[]>();
 
     if (userIds.length > 0) {
         const userRoles = await db
@@ -114,6 +115,7 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
     return {
         data: users.map(user => ({
             ...user,
+            username: user.username || user.name,
             roles: roleMap.get(user.id) ?? [],
         })),
         meta: {
@@ -139,7 +141,7 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
         if (companyId) activeConditions.push(eq(authUsers.company_id, companyId));
         if (filters.search) {
             const term = `%${filters.search}%`;
-            activeConditions.push(or(ilike(authUsers.username, term), ilike(authUsers.email, term)));
+            activeConditions.push(or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term)));
         }
         if (filters.roles && filters.roles.length > 0) {
             const rolesSubquery = db
@@ -167,7 +169,7 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
         if (companyId) rolesConditions.push(eq(authUsers.company_id, companyId));
         if (filters.search) {
             const term = `%${filters.search}%`;
-            rolesConditions.push(or(ilike(authUsers.username, term), ilike(authUsers.email, term)));
+            rolesConditions.push(or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term)));
         }
         if (filters.isActive && filters.isActive.length > 0) {
             const boolValues = filters.isActive.map(v => v === 'true');
@@ -198,14 +200,16 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
 /**
  * Get a single user by ID with their roles
  */
-export async function getUserById(id: number, companyId?: number) {
-    const conditions = [eq(authUsers.id, id)];
+export async function getUserById(id: string | number, companyId?: number) {
+    const idStr = String(id);
+    const conditions = [eq(authUsers.id, idStr)];
     if (companyId) conditions.push(eq(authUsers.company_id, companyId));
     const user = await db.query.authUsers.findFirst({
         where: and(...conditions),
         columns: {
             id: true,
             username: true,
+            name: true,
             email: true,
             is_active: true,
             last_login: true,
@@ -220,11 +224,11 @@ export async function getUserById(id: number, companyId?: number) {
         .select({ id: authRoles.id, name: authRoles.name, description: authRoles.description })
         .from(authUserRoles)
         .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-        .where(eq(authUserRoles.user_id, id));
+        .where(eq(authUserRoles.user_id, idStr));
 
     return {
         id: user.id,
-        username: user.username,
+        username: user.username || user.name,
         email: user.email,
         isActive: user.is_active,
         lastLogin: user.last_login,
@@ -244,7 +248,8 @@ export async function getUserById(id: number, companyId?: number) {
 /**
  * Get roles for a specific user
  */
-export async function getUserRolesById(userId: number) {
+export async function getUserRolesById(userId: string | number) {
+    const userIdStr = String(userId);
     const roles = await db
         .select({
             id: authRoles.id,
@@ -253,7 +258,7 @@ export async function getUserRolesById(userId: number) {
         })
         .from(authUserRoles)
         .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-        .where(eq(authUserRoles.user_id, userId));
+        .where(eq(authUserRoles.user_id, userIdStr));
 
     return roles;
 }
@@ -261,16 +266,17 @@ export async function getUserRolesById(userId: number) {
 /**
  * Assign roles to a user
  */
-export async function assignUserRoles(userId: number, roleIds: number[], currentUserId: number) {
+export async function assignUserRoles(userId: string | number, roleIds: number[], currentUserId: string | number) {
+    const userIdStr = String(userId);
     const user = await db.query.authUsers.findFirst({
-        where: eq(authUsers.id, userId),
+        where: eq(authUsers.id, userIdStr),
     });
 
     if (!user) {
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    const oldRoles = await db.select({ id: authUserRoles.role_id }).from(authUserRoles).where(eq(authUserRoles.user_id, userId));
+    const oldRoles = await db.select({ id: authUserRoles.role_id }).from(authUserRoles).where(eq(authUserRoles.user_id, userIdStr));
     const oldRoleIds = oldRoles.map(r => r.id);
 
     if (roleIds.length > 0) {
@@ -289,32 +295,32 @@ export async function assignUserRoles(userId: number, roleIds: number[], current
     }
 
     await db.transaction(async (tx) => {
-        await tx.delete(authUserRoles).where(eq(authUserRoles.user_id, userId));
+        await tx.delete(authUserRoles).where(eq(authUserRoles.user_id, userIdStr));
 
         if (roleIds.length > 0) {
             await tx.insert(authUserRoles).values(
                 roleIds.map(roleId => ({
-                    user_id: userId,
+                    user_id: userIdStr,
                     role_id: roleId,
-                    company_id: user.company_id,
+                    company_id: user.company_id!,
                 }))
             );
         }
     });
 
-    await invalidateUserRbacCache(userId);
-    broadcast(RealtimeEvents.USER.RBAC_CHANGED, { userId }, `user:${userId}`);
-    broadcast(RealtimeEvents.USER.UPDATED, { id: userId }, RealtimeEvents.ROOMS.USERS);
+    await invalidateUserRbacCache(userIdStr);
+    broadcast(RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr }, `user:${userIdStr}`);
+    broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserId, 'UPDATE', 'auth_user_roles', userId, { roleIds }, { roleIds: oldRoleIds });
+    logAudit(currentUserId, 'UPDATE', 'auth_user_roles', userIdStr, { roleIds }, { roleIds: oldRoleIds });
 
     return { success: true };
 }
 
 /**
- * Create a new user (admin function)
+ * Create a new user (admin function with Better-Auth credential account creation)
  */
-export async function createUser(data: { username: string; email: string; password: string; roleIds?: number[] }, currentUserId?: number, companyId?: number) {
+export async function createUser(data: { username: string; email: string; password: string; roleIds?: number[] }, currentUserId?: string | number, companyId?: number) {
     const existing = await db.query.authUsers.findFirst({
         where: and(eq(authUsers.company_id, companyId!), eq(authUsers.email, data.email)),
     });
@@ -333,33 +339,40 @@ export async function createUser(data: { username: string; email: string; passwo
 
     const password_hash = await Bun.password.hash(data.password);
 
-    const [user] = await db
+    const [newUser] = await db
         .insert(authUsers)
         .values({
-            company_id: companyId!,
+            name: data.username,
             username: data.username,
             email: data.email,
-            password_hash,
+            company_id: companyId!,
             is_active: true,
-            email_verified_at: null,
+            emailVerified: false,
         })
         .returning({ id: authUsers.id, username: authUsers.username, email: authUsers.email });
+
+    await db.insert(account).values({
+        accountId: newUser.id,
+        providerId: 'credential',
+        userId: newUser.id,
+        password: password_hash,
+    });
 
     if (data.roleIds && data.roleIds.length > 0) {
         await db.insert(authUserRoles).values(
             data.roleIds.map(roleId => ({
-                user_id: user.id,
+                user_id: newUser.id,
                 role_id: roleId,
                 company_id: companyId!,
             }))
         );
     }
 
-    broadcast(RealtimeEvents.USER.CREATED, { id: user.id }, RealtimeEvents.ROOMS.USERS);
+    broadcast(RealtimeEvents.USER.CREATED, { id: newUser.id }, RealtimeEvents.ROOMS.USERS);
 
-    if (currentUserId) logAudit(currentUserId, 'INSERT', 'auth_users', user.id, { username: data.username, email: data.email, roleIds: data.roleIds });
+    if (currentUserId) logAudit(currentUserId, 'INSERT', 'auth_users', newUser.id, { username: data.username, email: data.email, roleIds: data.roleIds });
 
-    return user;
+    return newUser;
 }
 
 /**
@@ -370,6 +383,7 @@ export async function getUsersByRole(roleId: number) {
         .select({
             id: authUsers.id,
             username: authUsers.username,
+            name: authUsers.name,
             email: authUsers.email,
             isActive: authUsers.is_active,
         })
@@ -377,17 +391,18 @@ export async function getUsersByRole(roleId: number) {
         .innerJoin(authUsers, eq(authUserRoles.user_id, authUsers.id))
         .where(eq(authUserRoles.role_id, roleId));
 
-    return usersInRole;
+    return usersInRole.map(u => ({ ...u, username: u.username || u.name }));
 }
 
 /**
  * Remove a user from a specific role
  */
-export async function removeUserFromRole(userId: number, roleId: number) {
+export async function removeUserFromRole(userId: string | number, roleId: number) {
+    const userIdStr = String(userId);
     const deleted = await db
         .delete(authUserRoles)
         .where(and(
-            eq(authUserRoles.user_id, userId),
+            eq(authUserRoles.user_id, userIdStr),
             eq(authUserRoles.role_id, roleId)
         ))
         .returning();
@@ -396,8 +411,8 @@ export async function removeUserFromRole(userId: number, roleId: number) {
         throw new DomainError('El usuario no tiene este rol', 404);
     }
 
-    await invalidateUserRbacCache(userId);
-    broadcast(RealtimeEvents.USER.UPDATED, { id: userId }, RealtimeEvents.ROOMS.USERS);
+    await invalidateUserRbacCache(userIdStr);
+    broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
     return { success: true };
 }
@@ -405,10 +420,13 @@ export async function removeUserFromRole(userId: number, roleId: number) {
 /**
  * Update user details
  */
-export async function updateUser(userId: number, data: { username?: string; email?: string; isActive?: boolean }, currentUserId?: number) {
+export async function updateUser(userId: string | number, data: { username?: string; email?: string; isActive?: boolean }, currentUserId?: string | number, companyId?: number) {
+    const userIdStr = String(userId);
     if (data.email) {
+        const emailConds = [eq(authUsers.email, data.email), sql`${authUsers.id} != ${userIdStr}`];
+        if (companyId) emailConds.push(eq(authUsers.company_id, companyId));
         const existing = await db.query.authUsers.findFirst({
-            where: sql`${authUsers.email} = ${data.email} AND ${authUsers.id} != ${userId}`,
+            where: and(...emailConds),
         });
 
         if (existing) {
@@ -417,8 +435,10 @@ export async function updateUser(userId: number, data: { username?: string; emai
     }
 
     if (data.username) {
+        const usernameConds = [eq(authUsers.username, data.username), sql`${authUsers.id} != ${userIdStr}`];
+        if (companyId) usernameConds.push(eq(authUsers.company_id, companyId));
         const existing = await db.query.authUsers.findFirst({
-            where: sql`${authUsers.username} = ${data.username} AND ${authUsers.id} != ${userId}`,
+            where: and(...usernameConds),
         });
 
         if (existing) {
@@ -427,28 +447,31 @@ export async function updateUser(userId: number, data: { username?: string; emai
     }
 
     const oldUser = currentUserId ? await db.query.authUsers.findFirst({
-        where: eq(authUsers.id, userId),
+        where: eq(authUsers.id, userIdStr),
         columns: { username: true, email: true, is_active: true },
     }) : undefined;
 
-    const updateData: Partial<{ username: string; email: string; is_active: boolean }> = {};
-    if (data.username !== undefined) updateData.username = data.username;
+    const updateData: Partial<{ username: string; name: string; email: string; is_active: boolean }> = {};
+    if (data.username !== undefined) {
+        updateData.username = data.username;
+        updateData.name = data.username;
+    }
     if (data.email !== undefined) updateData.email = data.email;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
     const [updated] = await db
         .update(authUsers)
         .set(updateData)
-        .where(eq(authUsers.id, userId))
+        .where(eq(authUsers.id, userIdStr))
         .returning({ id: authUsers.id, username: authUsers.username, email: authUsers.email, isActive: authUsers.is_active });
 
     if (!updated) {
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    broadcast(RealtimeEvents.USER.UPDATED, { userId }, RealtimeEvents.ROOMS.USERS);
+    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_users', userId, updateData, oldUser ? { username: oldUser.username, email: oldUser.email, is_active: oldUser.is_active } : undefined);
+    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_users', userIdStr, updateData, oldUser ? { username: oldUser.username, email: oldUser.email, is_active: oldUser.is_active } : undefined);
 
     return updated;
 }
@@ -456,28 +479,30 @@ export async function updateUser(userId: number, data: { username?: string; emai
 /**
  * Deactivate a user (soft-delete)
  */
-export async function deactivateUser(userId: number, currentUserId: number) {
-    if (userId === currentUserId) {
+export async function deactivateUser(userId: string | number, currentUserId: string | number) {
+    const userIdStr = String(userId);
+    const currentUserIdStr = String(currentUserId);
+    if (userIdStr === currentUserIdStr) {
         throw new DomainError('No puedes desactivar tu propia cuenta', 403);
     }
 
-    await ensureNotLastSuperadmin(userId);
+    await ensureNotLastSuperadmin(userIdStr);
 
     const [updated] = await db
         .update(authUsers)
         .set({ is_active: false })
-        .where(eq(authUsers.id, userId))
+        .where(eq(authUsers.id, userIdStr))
         .returning();
 
     if (!updated) {
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    await invalidateUserRbacCache(userId);
-    broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId }, `user:${userId}`);
-    broadcast(RealtimeEvents.USER.UPDATED, { userId }, RealtimeEvents.ROOMS.USERS);
+    await invalidateUserRbacCache(userIdStr);
+    broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId: userIdStr }, `user:${userIdStr}`);
+    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserId, 'UPDATE', 'auth_users', userId, { is_active: false }, { is_active: true });
+    logAudit(currentUserId, 'UPDATE', 'auth_users', userIdStr, { is_active: false }, { is_active: true });
 
     return { success: true };
 }
@@ -485,25 +510,27 @@ export async function deactivateUser(userId: number, currentUserId: number) {
 /**
  * Restore a deactivated user
  */
-export async function restoreUser(userId: number, currentUserId: number) {
-    if (userId === currentUserId) {
+export async function restoreUser(userId: string | number, currentUserId: string | number) {
+    const userIdStr = String(userId);
+    const currentUserIdStr = String(currentUserId);
+    if (userIdStr === currentUserIdStr) {
         throw new DomainError('No puedes restaurar tu propia cuenta', 403);
     }
 
     const [updated] = await db
         .update(authUsers)
         .set({ is_active: true })
-        .where(eq(authUsers.id, userId))
+        .where(eq(authUsers.id, userIdStr))
         .returning();
 
     if (!updated) {
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    await invalidateUserRbacCache(userId);
-    broadcast(RealtimeEvents.USER.UPDATED, { userId }, RealtimeEvents.ROOMS.USERS);
+    await invalidateUserRbacCache(userIdStr);
+    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserId, 'UPDATE', 'auth_users', userId, { is_active: true }, { is_active: false });
+    logAudit(currentUserId, 'UPDATE', 'auth_users', userIdStr, { is_active: true }, { is_active: false });
 
     return { success: true };
 }
@@ -511,27 +538,29 @@ export async function restoreUser(userId: number, currentUserId: number) {
 /**
  * Hard delete a user permanently
  */
-export async function hardDeleteUser(userId: number, currentUserId: number) {
-    if (userId === currentUserId) {
+export async function hardDeleteUser(userId: string | number, currentUserId: string | number) {
+    const userIdStr = String(userId);
+    const currentUserIdStr = String(currentUserId);
+    if (userIdStr === currentUserIdStr) {
         throw new DomainError('No puedes destruir tu propia cuenta', 403);
     }
 
-    await ensureNotLastSuperadmin(userId);
+    await ensureNotLastSuperadmin(userIdStr);
 
-    await db.delete(authUserRoles).where(eq(authUserRoles.user_id, userId));
-    await revokeAllUserSessions(userId);
+    await db.delete(authUserRoles).where(eq(authUserRoles.user_id, userIdStr));
+    await revokeAllUserSessions(userIdStr);
 
-    const deleted = await db.delete(authUsers).where(eq(authUsers.id, userId)).returning({
+    const deleted = await db.delete(authUsers).where(eq(authUsers.id, userIdStr)).returning({
         id: authUsers.id, username: authUsers.username, email: authUsers.email,
     });
     if (deleted.length === 0) {
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    await invalidateUserRbacCache(userId);
-    broadcast(RealtimeEvents.USER.DELETED, { userId }, RealtimeEvents.ROOMS.USERS);
+    await invalidateUserRbacCache(userIdStr);
+    broadcast(RealtimeEvents.USER.DELETED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserId, 'DELETE', 'auth_users', userId, undefined, { username: deleted[0].username, email: deleted[0].email });
+    logAudit(currentUserId, 'DELETE', 'auth_users', userIdStr, undefined, { username: deleted[0].username, email: deleted[0].email });
 
     return { success: true };
 }
@@ -539,13 +568,14 @@ export async function hardDeleteUser(userId: number, currentUserId: number) {
 /**
  * Pre-flight check for hard delete
  */
-export async function checkUserReferences(userId: number) {
-    const user = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userId) });
+export async function checkUserReferences(userId: string | number) {
+    const userIdStr = String(userId);
+    const user = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
     if (!user) throw new DomainError('Usuario no encontrado', 404);
 
     const [rolesResult, sessionsResult] = await Promise.all([
-        db.select({ count: count() }).from(authUserRoles).where(eq(authUserRoles.user_id, userId)),
-        db.select({ count: count() }).from(sessions).where(eq(sessions.user_id, userId)),
+        db.select({ count: count() }).from(authUserRoles).where(eq(authUserRoles.user_id, userIdStr)),
+        db.select({ count: count() }).from(sessions).where(eq(sessions.userId, userIdStr)),
     ]);
 
     const rolesCount = Number(rolesResult[0]?.count ?? 0);
@@ -558,9 +588,10 @@ export async function checkUserReferences(userId: number) {
 /**
  * Get paginated audit log for a specific user
  */
-export async function getUserAuditLog(userId: number, page: number = 1, limit: number = 20) {
+export async function getUserAuditLog(userId: string | number, page: number = 1, limit: number = 20) {
+    const userIdStr = String(userId);
     const offset = (page - 1) * limit;
-    const condition = eq(auditLogs.userId, userId);
+    const condition = eq(auditLogs.userId, userIdStr);
 
     const [totalResult, entries] = await Promise.all([
         db.select({ count: sql<number>`count(*)`.mapWith(Number) })
@@ -600,30 +631,34 @@ export async function getUserAuditLog(userId: number, page: number = 1, limit: n
 }
 
 /**
- * Admin password reset
+ * Admin password reset with Better-Auth credentials update
  */
 export async function adminResetPassword(
-    adminUserId: number,
-    targetUserId: number,
+    adminUserId: string | number,
+    targetUserId: string | number,
     newPassword: string,
 ) {
-    if (adminUserId === targetUserId) {
+    const adminUserIdStr = String(adminUserId);
+    const targetUserIdStr = String(targetUserId);
+    if (adminUserIdStr === targetUserIdStr) {
         throw new DomainError('Usa el cambio de contraseña personal para tu propia cuenta', 400);
     }
 
     const user = await db.query.authUsers.findFirst({
-        where: eq(authUsers.id, targetUserId),
+        where: eq(authUsers.id, targetUserIdStr),
     });
     if (!user) throw new DomainError('Usuario no encontrado', 404);
 
     const newHash = await Bun.password.hash(newPassword);
-    await db.update(authUsers)
-        .set({ password_hash: newHash })
-        .where(eq(authUsers.id, targetUserId));
+    
+    // Update Better-Auth account table
+    await db.update(account)
+        .set({ password: newHash })
+        .where(and(eq(account.userId, targetUserIdStr), eq(account.providerId, 'credential')));
 
-    await revokeAllUserSessions(targetUserId);
+    await revokeAllUserSessions(targetUserIdStr);
 
-    logAudit(adminUserId, 'UPDATE', 'auth_users', targetUserId, { field: 'password', action: 'admin_reset' });
+    logAudit(adminUserId, 'UPDATE', 'auth_users', targetUserIdStr, { field: 'password', action: 'admin_reset' });
 
     return { success: true };
 }
@@ -632,10 +667,11 @@ export async function adminResetPassword(
  * Assign or unassign an entity to a user
  */
 export async function setUserEntity(
-    userId: number,
+    userId: string | number,
     entityId: number | null,
-    currentUserId?: number,
+    currentUserId?: string | number,
 ) {
+    const userIdStr = String(userId);
     if (entityId !== null) {
         const entity = await db.query.entities.findFirst({
             where: eq(entities.id, entityId),
@@ -644,20 +680,20 @@ export async function setUserEntity(
     }
 
     const oldUser = await db.query.authUsers.findFirst({
-        where: eq(authUsers.id, userId),
+        where: eq(authUsers.id, userIdStr),
         columns: { entity_id: true },
     });
 
     const [updated] = await db
         .update(authUsers)
         .set({ entity_id: entityId })
-        .where(eq(authUsers.id, userId))
+        .where(eq(authUsers.id, userIdStr))
         .returning({ id: authUsers.id, entityId: authUsers.entity_id });
 
     if (!updated) throw new DomainError('Usuario no encontrado', 404);
 
-    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_users', userId, { entity_id: entityId }, { entity_id: oldUser?.entity_id ?? null });
-    broadcast(RealtimeEvents.USER.UPDATED, { userId }, RealtimeEvents.ROOMS.USERS);
+    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_users', userIdStr, { entity_id: entityId }, { entity_id: oldUser?.entity_id ?? null });
+    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
     return updated;
 }
@@ -665,18 +701,20 @@ export async function setUserEntity(
 /**
  * Batch deactivate multiple users
  */
-export async function batchDeleteUsers(userIds: number[], currentUserId: number) {
-    if (userIds.includes(currentUserId)) {
+export async function batchDeleteUsers(userIds: (string | number)[], currentUserId: string | number) {
+    const currentUserIdStr = String(currentUserId);
+    const idsStr = userIds.map(id => String(id));
+    if (idsStr.includes(currentUserIdStr)) {
         throw new DomainError('No puedes desactivar tu propia cuenta', 403);
     }
 
-    const safeIds = [];
-    const errors: { userId: number; success: false; error: string }[] = [];
+    const safeIds: string[] = [];
+    const errors: { userId: string | number; success: false; error: string }[] = [];
 
     for (const userId of userIds) {
         try {
             await ensureNotLastSuperadmin(userId);
-            safeIds.push(userId);
+            safeIds.push(String(userId));
         } catch (error: any) {
             errors.push({ userId, success: false, error: error.message });
         }
@@ -702,11 +740,13 @@ export async function batchDeleteUsers(userIds: number[], currentUserId: number)
 /**
  * Batch restore multiple users
  */
-export async function batchRestoreUsers(userIds: number[], currentUserId: number) {
-    const safeIds = userIds.filter(id => id !== currentUserId);
-    const errors: { userId: number; success: false; error: string }[] = [];
+export async function batchRestoreUsers(userIds: (string | number)[], currentUserId: string | number) {
+    const currentUserIdStr = String(currentUserId);
+    const idsStr = userIds.map(id => String(id));
+    const safeIds = idsStr.filter(id => id !== currentUserIdStr);
+    const errors: { userId: string | number; success: false; error: string }[] = [];
 
-    if (userIds.includes(currentUserId)) {
+    if (idsStr.includes(currentUserIdStr)) {
         errors.push({ userId: currentUserId, success: false, error: 'No puedes restaurar tu propia cuenta' });
     }
 

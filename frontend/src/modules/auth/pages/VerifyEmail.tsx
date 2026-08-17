@@ -1,7 +1,7 @@
 import { type Component, createSignal, onMount, onCleanup, createEffect, Switch, Match } from 'solid-js';
 import { useSearch, useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
-import { api } from '@shared/lib/eden';
+import { authClient } from '@shared/lib/auth-client';
 import { actions, useAuth } from '../store/auth.store';
 import Button from '@form/Button';
 import { MailIcon } from '@icons/MailIcon';
@@ -95,8 +95,8 @@ const VerifyEmail: Component = () => {
 
     setStatus('verifying');
     try {
-      const { error } = await api.api.auth['verify-email'].post({ token: currentToken });
-      if (error) throw new Error(error.value?.message || 'Error verificando el correo');
+      const res = await authClient.verifyEmail({ query: { token: currentToken } });
+      if (res.error) throw new Error(res.error.message || 'Error verificando el correo');
 
       setStatus('verified');
       toast.success('¡Correo electrónico verificado con éxito!');
@@ -122,19 +122,13 @@ const VerifyEmail: Component = () => {
   const handleResend = async () => {
     setResending(true);
     try {
-      const { data, error } = await api.api.auth['resend-verification'].post({});
-      if (error) throw new Error(error.value?.message || 'Error al reenviar');
+      const user = auth.user();
+      if (!user?.email) throw new Error('No hay correo registrado');
+      const res = await authClient.sendVerificationEmail({ email: user.email });
+      if (res.error) throw new Error(res.error.message || 'Error al reenviar');
 
-      if (data?.success) {
-        toast.success('Se ha enviado un nuevo enlace de verificación a tu correo.');
-      } else {
-        toast.info('Debes esperar antes de solicitar otro correo.');
-      }
-
-      // Start countdown from backend retryAfter (both success and cooldown cases)
-      if (data?.retryAfter) {
-        startCountdown(data.retryAfter);
-      }
+      toast.success('Se ha enviado un nuevo enlace de verificación a tu correo.');
+      startCountdown(60);
     } catch (err: any) {
       toast.error(err.message || 'Error reenviando correo');
     } finally {

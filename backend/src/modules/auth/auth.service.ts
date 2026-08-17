@@ -1,12 +1,7 @@
-import { db, adminDb, withTenantContext } from '../../core/db';
-import { authUsers as users, sessions, companies, sriEstablishments, entities, authUserRoles, authRoles, authVerificationTokens } from '@app/schema/tables';
-import { eq, and, inArray, or, sql } from '@app/schema';
+import { db, adminDb } from '../../core/db';
+import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, account, organization, member } from '@app/schema/tables';
+import { eq, sql } from '@app/schema';
 import type { TaxRegimeType } from '@app/schema/enums';
-import { getUserRoles, getUserPermissions } from '../users';
-import { broadcast } from '../../core/sse';
-import { SESSION_EXPIRE_DAYS, getVerificationLink } from '../../config/auth';
-import { cacheService } from '../../core/cache';
-import { RealtimeEvents } from '@app/schema/realtime-events';
 import { DomainError } from '../../core/errors';
 import {
   seedCompanyRBAC,
@@ -15,19 +10,15 @@ import {
   seedCompanyVirtualLocations,
   seedCompanyWarehouse,
 } from './provisioning.service';
-import { emailService } from '../../core/email';
 import { verifyTurnstileToken } from '../../core/security';
-import { AuthError, generateSessionToken, hashToken } from './session.service';
 import { mapEntity } from './profile.service';
 
-const MAX_SESSIONS = 5;
-
 // ============================================================================
-// CORE AUTHENTICATION & PROVISIONING
+// CORE SAAS TENANT PROVISIONING (ONBOARDING)
 // ============================================================================
 
 /**
- * Register new tenant, owner entity, user, verification tokens, and seed initial system data
+ * Register new tenant, owner entity, user, credential account, organization, and seed initial system data
  */
 export async function register(
   data: {
@@ -38,7 +29,7 @@ export async function register(
     obligadoContabilidad?: boolean; contribuyenteEspecial?: string; taxRegime?: string;
     turnstileToken?: string;
   },
-  userAgent?: string,
+  _userAgent?: string,
   ipAddress?: string
 ) {
   await verifyTurnstileToken(data.turnstileToken, ipAddress);
@@ -83,6 +74,7 @@ export async function register(
       business_name: 'CONSUMIDOR FINAL',
       is_client: true,
       is_system: true,
+      price_list_id: 1,
     });
 
     const [ownerEntity] = await tx.insert(entities).values({
@@ -98,15 +90,19 @@ export async function register(
     }).returning();
 
     const password_hash = await Bun.password.hash(data.password);
+    
+    // Inserción atómica con UUIDv7 nativo de PostgreSQL 18
     const [user] = await tx
       .insert(users)
       .values({
+        name: data.fullName,
         company_id: company.id,
         entity_id: ownerEntity.id,
         email: data.email,
         username: data.email.split('@')[0],
-        password_hash,
         is_owner: true,
+        is_active: true,
+        emailVerified: false,
       })
       .returning({
         id: users.id,
@@ -115,8 +111,29 @@ export async function register(
         email: users.email,
         is_active: users.is_active,
         last_login: users.last_login,
-        email_verified_at: users.email_verified_at,
+        emailVerified: users.emailVerified,
       });
+
+    // Create Better-Auth credential account
+    await tx.insert(account).values({
+      accountId: user.id,
+      providerId: 'credential',
+      userId: user.id,
+      password: password_hash,
+    });
+
+    // Create Better-Auth organization & member
+    await tx.insert(organization).values({
+      id: String(company.id),
+      name: company.business_name,
+      slug: company.slug,
+    });
+
+    await tx.insert(member).values({
+      organizationId: String(company.id),
+      userId: user.id,
+      role: 'owner',
+    });
 
     await seedCompanyRBAC(tx, company.id, user.id);
     await seedCompanyMenus(tx);
@@ -124,32 +141,7 @@ export async function register(
     await seedCompanyVirtualLocations(tx, company.id);
     await seedCompanyWarehouse(tx, company.id, company.main_address, ownerEntity.id);
 
-    const rawToken = generateSessionToken();
-    const tokenHash = hashToken(rawToken);
-    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    
-    await tx.insert(authVerificationTokens).values({
-      user_id: user.id,
-      token_hash: tokenHash,
-      expires_at: tokenExpiry,
-    });
-
-    const verificationLink = getVerificationLink(company.slug, rawToken);
-    emailService.sendVerificationEmail(user.email, verificationLink, data.fullName).catch(err => {
-      console.error('Failed to send verification email during registration:', err);
-    });
-
-    const sessionId = generateSessionToken();
-    const expiresAt = new Date(Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
-    await tx.insert(sessions).values({
-      id: sessionId,
-      user_id: user.id,
-      company_id: company.id,
-      expires_at: expiresAt,
-      user_agent: userAgent,
-      ip_address: ipAddress,
-    });
-
+    // Roles and permissions for initial response
     const txRoles = await tx
       .select({ roleName: authRoles.name })
       .from(authUserRoles)
@@ -168,160 +160,24 @@ export async function register(
     const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
 
     return {
-      sessionId,
+      company: {
+        id: company.id,
+        slug: company.slug,
+        businessName: company.business_name,
+      },
       user: {
         id: user.id,
         companyId: company.id,
-        username: user.username,
+        username: user.username || data.fullName,
         email: user.email,
         isActive: user.is_active,
         lastLogin: user.last_login,
         entityId: user.entity_id,
-        emailVerifiedAt: user.email_verified_at,
+        emailVerifiedAt: user.emailVerified ? new Date() : null,
         roles,
         permissions,
         entity: mapEntity(ownerEntity),
       },
     };
   });
-}
-
-/**
- * Login with email/username, timing attack protection, and multi-tenant discovery
- */
-export async function login(email: string, password: string, userAgent?: string, ipAddress?: string, companyId?: number, turnstileToken?: string) {
-  await verifyTurnstileToken(turnstileToken, ipAddress);
-
-  const matchedUsers = await db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT set_config('app.current_username', ${email}, true)`);
-    const conditions = [or(eq(users.email, email), eq(users.username, email))];
-    if (companyId !== undefined) {
-      conditions.push(eq(users.company_id, companyId));
-    }
-    return await tx.query.authUsers.findMany({
-      where: and(...conditions),
-      with: { entity: true },
-      limit: 5,
-    });
-  });
-
-  if (matchedUsers.length === 0) {
-    const DUMMY_HASH = '$argon2id$v=19$m=65536,t=2,p=1$njOSfwJnFaGrpYbhNmtmmyTeQ3Zr/vK+n+vYhtMpGxw$xEeAHQScZ8hNn2xngO0I8o0jgQX7wfinz+WEIsxiuoE';
-    await Bun.password.verify(password, DUMMY_HASH);
-    throw new AuthError('Credenciales inválidas');
-  }
-
-  const verificationPromises = matchedUsers.map(async (u) => {
-    const valid = await Bun.password.verify(password, u.password_hash);
-    return { user: u, valid };
-  });
-
-  const results = await Promise.all(verificationPromises);
-  const verifiedUsers = results.filter(r => r.valid).map(r => r.user);
-
-  if (verifiedUsers.length === 0) {
-    throw new AuthError('Credenciales inválidas');
-  }
-
-  const activeVerifiedUsers = verifiedUsers.filter(u => u.is_active);
-  if (activeVerifiedUsers.length === 0) {
-    throw new AuthError('Usuario desactivado', 403);
-  }
-
-  if (activeVerifiedUsers.length > 1 && companyId === undefined) {
-    const companyIds = activeVerifiedUsers.map(u => u.company_id);
-    const verifiedCompanies = await adminDb
-      .select({
-        id: companies.id,
-        slug: companies.slug,
-        businessName: companies.business_name,
-        tradeName: companies.trade_name,
-        logoUrl: companies.logo_url,
-      })
-      .from(companies)
-      .where(inArray(companies.id, companyIds));
-
-    return {
-      requiresTenantSelection: true as const,
-      tenants: verifiedCompanies,
-    };
-  }
-
-  const user = activeVerifiedUsers[0];
-
-  const [roles, permissions, [company]] = await Promise.all([
-    getUserRoles(user.id),
-    getUserPermissions(user.id),
-    adminDb
-      .select({ slug: companies.slug })
-      .from(companies)
-      .where(eq(companies.id, user.company_id))
-      .limit(1),
-  ]);
-
-  const companySlug = company?.slug;
-  const sessionId = generateSessionToken();
-  const expiresAt = new Date(Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000);
-
-  await withTenantContext({ companyId: user.company_id }, async () => {
-    const activeSessions = await db
-      .select({ id: sessions.id })
-      .from(sessions)
-      .where(eq(sessions.user_id, user.id))
-      .orderBy(sessions.created_at);
-
-    const MAX = MAX_SESSIONS;
-    if (activeSessions.length >= MAX) {
-      const toDelete = activeSessions.slice(0, activeSessions.length - MAX + 1);
-      await db.delete(sessions).where(inArray(sessions.id, toDelete.map(s => s.id)));
-    }
-
-    await Promise.all([
-      db.insert(sessions).values({
-        id: sessionId,
-        user_id: user.id,
-        company_id: user.company_id,
-        expires_at: expiresAt,
-        user_agent: userAgent,
-        ip_address: ipAddress,
-      }),
-      db.update(users).set({ last_login: new Date() }).where(eq(users.id, user.id)),
-    ]);
-  });
-
-  broadcast(RealtimeEvents.USER.SESSION_CREATED, { id: user.id, sessionId }, `user:${user.id}`);
-
-  return {
-    sessionId,
-    user: {
-      id: user.id,
-      companyId: user.company_id,
-      companySlug,
-      email: user.email,
-      username: user.username,
-      isActive: user.is_active,
-      lastLogin: user.last_login,
-      entityId: user.entity_id,
-      emailVerifiedAt: user.email_verified_at,
-      roles,
-      permissions,
-      entity: mapEntity(user.entity),
-    },
-  };
-}
-
-/**
- * Logout and revoke session
- */
-export async function logout(sessionId: string) {
-  const deleted = await adminDb
-    .delete(sessions)
-    .where(eq(sessions.id, sessionId))
-    .returning({ user_id: sessions.user_id });
-
-  if (deleted.length > 0) {
-    const userId = deleted[0].user_id;
-    broadcast(RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId }, `user:${userId}`);
-    cacheService.invalidate(`session:${sessionId}`);
-  }
 }
