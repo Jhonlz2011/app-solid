@@ -11,7 +11,7 @@ export interface UserListItemDto {
     email: string;
     isActive: boolean | null;
     lastLogin: Date | null;
-    // LEFT JOIN entities ON auth_users.entity_id = entities.id
+    // LEFT JOIN entities ON user.entity_id = entities.id
     entityId: number | null;
     entityName: string | null;
     entityTaxId: string | null;
@@ -57,7 +57,7 @@ export interface UserReferencesDto {
     canDelete: boolean;
 }
 
-// Real fields from audit_logs table + LEFT JOIN auth_users
+// Real fields from audit_logs table + LEFT JOIN user
 export interface AuditLogEntryDto {
     id: string;                          // uuid v7
     tableName: string;

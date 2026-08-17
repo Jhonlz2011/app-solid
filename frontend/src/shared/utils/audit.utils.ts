@@ -12,7 +12,7 @@ export const AUDIT_ACTION_LABELS: Record<string, { label: string; color: string 
 
 export const TABLE_NAME_LABELS: Record<string, string> = {
     entities: 'Entidad',
-    auth_users: 'Usuario',
+    user: 'Usuario',
     auth_roles: 'Rol',
     auth_user_roles: 'Roles de usuario',
     auth_role_permissions: 'Permisos de rol',

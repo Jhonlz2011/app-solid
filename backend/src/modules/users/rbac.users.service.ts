@@ -370,7 +370,7 @@ export async function createUser(data: { username: string; email: string; passwo
 
     broadcast(RealtimeEvents.USER.CREATED, { id: newUser.id }, RealtimeEvents.ROOMS.USERS);
 
-    if (currentUserId) logAudit(currentUserId, 'INSERT', 'auth_users', newUser.id, { username: data.username, email: data.email, roleIds: data.roleIds });
+    if (currentUserId) logAudit(currentUserId, 'INSERT', 'user', newUser.id, { username: data.username, email: data.email, roleIds: data.roleIds });
 
     return newUser;
 }
@@ -471,7 +471,7 @@ export async function updateUser(userId: string | number, data: { username?: str
 
     broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_users', userIdStr, updateData, oldUser ? { username: oldUser.username, email: oldUser.email, is_active: oldUser.is_active } : undefined);
+    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'user', userIdStr, updateData, oldUser ? { username: oldUser.username, email: oldUser.email, is_active: oldUser.is_active } : undefined);
 
     return updated;
 }
@@ -502,7 +502,7 @@ export async function deactivateUser(userId: string | number, currentUserId: str
     broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId: userIdStr }, `user:${userIdStr}`);
     broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserId, 'UPDATE', 'auth_users', userIdStr, { is_active: false }, { is_active: true });
+    logAudit(currentUserId, 'UPDATE', 'user', userIdStr, { is_active: false }, { is_active: true });
 
     return { success: true };
 }
@@ -530,7 +530,7 @@ export async function restoreUser(userId: string | number, currentUserId: string
     await invalidateUserRbacCache(userIdStr);
     broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserId, 'UPDATE', 'auth_users', userIdStr, { is_active: true }, { is_active: false });
+    logAudit(currentUserId, 'UPDATE', 'user', userIdStr, { is_active: true }, { is_active: false });
 
     return { success: true };
 }
@@ -560,7 +560,7 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
     await invalidateUserRbacCache(userIdStr);
     broadcast(RealtimeEvents.USER.DELETED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserId, 'DELETE', 'auth_users', userIdStr, undefined, { username: deleted[0].username, email: deleted[0].email });
+    logAudit(currentUserId, 'DELETE', 'user', userIdStr, undefined, { username: deleted[0].username, email: deleted[0].email });
 
     return { success: true };
 }
@@ -658,7 +658,7 @@ export async function adminResetPassword(
 
     await revokeAllUserSessions(targetUserIdStr);
 
-    logAudit(adminUserId, 'UPDATE', 'auth_users', targetUserIdStr, { field: 'password', action: 'admin_reset' });
+    logAudit(adminUserId, 'UPDATE', 'user', targetUserIdStr, { field: 'password', action: 'admin_reset' });
 
     return { success: true };
 }
@@ -692,7 +692,7 @@ export async function setUserEntity(
 
     if (!updated) throw new DomainError('Usuario no encontrado', 404);
 
-    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_users', userIdStr, { entity_id: entityId }, { entity_id: oldUser?.entity_id ?? null });
+    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'user', userIdStr, { entity_id: entityId }, { entity_id: oldUser?.entity_id ?? null });
     broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
     return updated;
@@ -728,7 +728,7 @@ export async function batchDeleteUsers(userIds: (string | number)[], currentUser
         await Promise.all(safeIds.map(id => invalidateUserRbacCache(id)));
         broadcast(RealtimeEvents.USER.UPDATED, { userIds: safeIds }, RealtimeEvents.ROOMS.USERS);
 
-        for (const id of safeIds) logAudit(currentUserId, 'UPDATE', 'auth_users', id, { is_active: false }, { is_active: true });
+        for (const id of safeIds) logAudit(currentUserId, 'UPDATE', 'user', id, { is_active: false }, { is_active: true });
     }
 
     return [
@@ -758,7 +758,7 @@ export async function batchRestoreUsers(userIds: (string | number)[], currentUse
         await Promise.all(safeIds.map(id => invalidateUserRbacCache(id)));
         broadcast(RealtimeEvents.USER.UPDATED, { userIds: safeIds }, RealtimeEvents.ROOMS.USERS);
 
-        for (const id of safeIds) logAudit(currentUserId, 'UPDATE', 'auth_users', id, { is_active: true }, { is_active: false });
+        for (const id of safeIds) logAudit(currentUserId, 'UPDATE', 'user', id, { is_active: true }, { is_active: false });
     }
 
     return [
