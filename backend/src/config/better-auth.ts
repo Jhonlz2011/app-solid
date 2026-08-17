@@ -22,7 +22,17 @@ export const auth = betterAuth({
         },
     }),
     secret: process.env.BETTER_AUTH_SECRET || 'zelys-erp-better-auth-secret-key-development-mode-2026',
-    baseURL: env.FRONTEND_URL,
+    baseURL: process.env.BETTER_AUTH_URL || (env.NODE_ENV === 'production' ? 'https://api.zelys.app' : `http://localhost:${env.PORT}`),
+    basePath: '/api/auth',
+    trustedOrigins: [
+        env.FRONTEND_URL,
+        'https://*.zelys.app',
+        'https://zelys.app',
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:5174',
+    ],
     emailAndPassword: {
         enabled: true,
         autoSignIn: true,

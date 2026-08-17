@@ -1,12 +1,12 @@
 import { Elysia, t } from 'elysia';
-import { validateSession } from '../../modules/auth';
+import { auth } from '../../config/better-auth';
 import { publishToChannel, subscribeToChannel } from '../cache/redis';
 
 // --- TYPES ---
 interface SseClient {
     controller: ReadableStreamDefaultController<string>;
     rooms: Set<string>;
-    userId: number | null;
+    userId: string | null;
     pingInterval: ReturnType<typeof setInterval>;
 }
 
@@ -43,25 +43,22 @@ function removeClientFromAllRooms(clientId: string, rooms: Set<string>): void {
 // --- SSE PLUGIN ---
 export const ssePlugin = (app: Elysia) =>
     app.group('/sse', (group) => group
-        .get('/', async ({ request, query, set, cookie }) => {
-            let sessionToken: string | null = (cookie?.session?.value as string) || null;
-
-            if (!sessionToken && query.token) {
-                sessionToken = query.token;
+        .get('/', async ({ request, query, set }) => {
+            const headers = new Headers(request.headers);
+            if (query.token && !headers.get('cookie')?.includes('better-auth.session_token')) {
+                headers.set('authorization', `Bearer ${query.token}`);
             }
 
-            if (!sessionToken) {
+            const sessionData = await auth.api.getSession({
+                headers,
+            });
+
+            if (!sessionData || !sessionData.user) {
                 set.status = 401;
-                return 'Session requerida';
+                return 'Sesión requerida';
             }
 
-            const result = await validateSession(sessionToken);
-            if (!result) {
-                set.status = 401;
-                return 'Sesión inválida o expirada';
-            }
-
-            const userId = result.session.user_id;
+            const userId = sessionData.user.id;
             const clientId = query.clientId || `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
             const stream = new ReadableStream({

@@ -200,6 +200,15 @@ const Register: Component = () => {
                 return;
             }
 
+            // Set active organization in Better-Auth session
+            const orgList = await authClient.organization.list();
+            if (orgList?.data && orgList.data.length > 0) {
+                const matchingOrg = orgList.data.find((o: any) => o.slug === s2.slug) || orgList.data[0];
+                if (matchingOrg) {
+                    await authClient.organization.setActive({ organizationId: matchingOrg.id });
+                }
+            }
+
             await actions.initSession();
             toast.success('¡Cuenta creada exitosamente!');
             navigate({ to: '/dashboard', replace: true });

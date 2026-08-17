@@ -24,14 +24,14 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
      * Get allowed modules for current user
      * Returns array of module keys the user can access
      */
-    .get('/', async ({ currentUserId }) => {
-        return getAllowedModules(currentUserId);
+    .get('/', async ({ currentUserId, currentCompanyId }) => {
+        return getAllowedModules(currentUserId, currentCompanyId);
     })
     /**
      * Get full menu tree for current user (filtered by permissions)
      */
-    .get('/tree', async ({ currentUserId }) => {
-        return getMenuForUser(currentUserId);
+    .get('/tree', async ({ currentUserId, currentCompanyId }) => {
+        return getMenuForUser(currentUserId, currentCompanyId);
     })
     /**
      * Get current user's permissions

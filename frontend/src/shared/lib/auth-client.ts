@@ -4,7 +4,7 @@ import { organizationClient, usernameClient, twoFactorClient, passkeyClient } fr
 const baseURL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:3000` : 'http://localhost:3000');
 
 export const authClient = createAuthClient({
-    baseURL: `${baseURL}/api/auth`,
+    baseURL: baseURL,
     plugins: [
         usernameClient(),
         organizationClient(),
