@@ -1,5 +1,4 @@
 import { Elysia, t } from 'elysia';
-import { auth } from '../../config/better-auth';
 import { publishToChannel, subscribeToChannel } from '../cache/redis';
 
 // --- TYPES ---
@@ -49,6 +48,7 @@ export const ssePlugin = (app: Elysia) =>
                 headers.set('authorization', `Bearer ${query.token}`);
             }
 
+            const { auth } = await import('../../config/better-auth');
             const sessionData = await auth.api.getSession({
                 headers,
             });

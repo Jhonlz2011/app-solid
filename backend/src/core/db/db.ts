@@ -2,7 +2,6 @@ import { drizzlePostgres as drizzle, sql } from '@app/schema';
 import postgres from 'postgres';
 import { env } from '../../config/env';
 import { cacheService } from '../cache/cache.service';
-import { broadcast } from '../sse';
 import * as schema from '@app/schema';
 import { AsyncLocalStorage } from 'async_hooks';
 
@@ -37,7 +36,7 @@ export const listener = postgres(env.DATABASE_URL, {
   ssl: false,
 });
 
-listener.listen('db_change', (payload: string) => {
+listener.listen('db_change', async (payload: string) => {
   try {
     const data = JSON.parse(payload);
     const { table, action, id } = data;
@@ -49,6 +48,7 @@ listener.listen('db_change', (payload: string) => {
     cacheService.invalidate(`${table}:*`);
 
     // 2. Broadcast via WebSocket
+    const { broadcast } = await import('../sse');
     broadcast('db_change', data);
 
   } catch (error) {
