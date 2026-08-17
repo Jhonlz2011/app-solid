@@ -1,6 +1,6 @@
 import { Component, Show, JSX } from 'solid-js';
 import { WarningIcon } from '../icons';
-import Button from './Button';
+import Button from '@form/Button';
 import { cn } from '../../lib/utils';
 
 export interface ErrorStateProps {

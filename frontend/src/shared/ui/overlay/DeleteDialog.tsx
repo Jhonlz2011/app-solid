@@ -1,6 +1,6 @@
 import { Component, Show, For, createSignal, JSX, createEffect, mergeProps } from 'solid-js';
 import { Dialog } from '@kobalte/core';
-import Button from './Button';
+import Button from '@form/Button';
 import Popover from './Popover';
 import { CloseIcon, AlertTriangleIcon, TrashIcon, EyeOffIcon } from './icons';
 import { cn } from '../lib/utils';

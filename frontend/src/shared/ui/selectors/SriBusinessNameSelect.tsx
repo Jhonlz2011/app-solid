@@ -64,7 +64,7 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
         }
     };
 
-    const handleSelect = (result: SriSupplierResponse | null) => {
+    const handleSelect = (result: SriSearchResult | null) => {
         clearTimeout(debounceTimer);
         if (result) {
             setSelectedName(result.razonSocial);
@@ -83,7 +83,7 @@ export const SriBusinessNameSelect: Component<SriBusinessNameSelectProps> = (pro
             <Show when={props.label !== undefined}>
                 <Autocomplete.Label>{props.label ?? 'Razón Social (Búsqueda SRI)'}</Autocomplete.Label>
             </Show>
-            <Autocomplete.Input<SriSupplierResponse>
+            <Autocomplete.Input<SriSearchResult>
                 inputId={props.inputId ?? 'businessName-input'}
                 value={localQuery()}
                 onInputChange={handleInputChange}

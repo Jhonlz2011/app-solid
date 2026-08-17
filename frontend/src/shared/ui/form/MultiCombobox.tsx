@@ -32,7 +32,7 @@ import { Combobox as KCombobox } from '@kobalte/core/combobox';
 import { SearchIcon, CloseIcon, PlusIcon, CheckIcon } from '../icons';
 import type { FieldLike } from './form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from './form.types';
-import Button from './Button';
+import Button from '@form/Button';
 
 // ============================================================================
 // CONTEXT
