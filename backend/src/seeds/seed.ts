@@ -171,8 +171,9 @@ async function seed() {
                     .insert(authUsers)
                     .values({
                         name: userData.name,
-                        email: userData.email,
-                        username: userData.username,
+                        email: userData.email.toLowerCase(),
+                        username: userData.username.toLowerCase(),
+                        displayUsername: userData.username,
                         company_id: devCompany.id,
                         is_active: true,
                         is_owner: userData.is_owner,
@@ -182,7 +183,8 @@ async function seed() {
                         target: authUsers.email,
                         set: {
                             name: userData.name,
-                            username: userData.username,
+                            username: userData.username.toLowerCase(),
+                            displayUsername: userData.username,
                             company_id: devCompany.id,
                             is_active: true,
                             is_owner: userData.is_owner,

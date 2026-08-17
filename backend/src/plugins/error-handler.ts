@@ -108,7 +108,12 @@ export const errorHandlerPlugin = new Elysia()
       };
     }
 
-    console.error('Unhandled error:', error);
+    console.error('[ErrorHandler] Unhandled error:', error);
     set.status = 500;
-    return { code: 'INTERNAL_ERROR', message: 'Error interno del servidor' };
+    const errorMessage = error instanceof Error ? error.message : 'Error interno del servidor';
+    return {
+      code: 'INTERNAL_ERROR',
+      message: errorMessage,
+      ...(anyErr?.stack ? { stack: anyErr.stack } : {}),
+    };
   });
