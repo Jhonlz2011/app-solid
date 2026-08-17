@@ -90,7 +90,7 @@ export const authUsersRelations = relations(tables.authUsers, ({ one, many }) =>
 }));
 
 export const sessionsRelations = relations(tables.sessions, ({ one }) => ({
-    user: one(tables.authUsers, { fields: [tables.sessions.user_id], references: [tables.authUsers.id] }),
+    user: one(tables.authUsers, { fields: [tables.sessions.userId], references: [tables.authUsers.id] }),
     company: one(tables.companies, { fields: [tables.sessions.company_id], references: [tables.companies.id] }),
 }));
 
