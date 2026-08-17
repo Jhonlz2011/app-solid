@@ -1,6 +1,7 @@
 import { Component, splitProps } from "solid-js";
 import { Select as KSelect } from "@kobalte/core/select";
-import { CheckIcon, ChevronsUpDownIcon } from "./icons";
+import { CheckIcon } from "@icons/CheckIcon";
+import { ChevronsUpDownIcon } from "@icons/ChevronsUpDownIcon";
 
 /**
  * Enhanced Select component with optional TanStack Form field integration.

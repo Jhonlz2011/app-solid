@@ -1,5 +1,5 @@
 import { Component, Show, JSX } from 'solid-js';
-import { WarningIcon } from '../icons';
+import { WarningIcon } from '@icons/WarningIcon';
 import Button from '@form/Button';
 import { cn } from '../../lib/utils';
 

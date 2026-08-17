@@ -1,5 +1,6 @@
 import { JSX, Show, createSignal, splitProps } from 'solid-js';
-import { EyeIcon, EyeOffIcon } from '../icons';
+import { EyeIcon } from '@icons/EyeIcon';
+import { EyeOffIcon } from '@icons/EyeOffIcon';
 
 interface InputProps extends JSX.InputHTMLAttributes<HTMLInputElement> {
   label?: string;

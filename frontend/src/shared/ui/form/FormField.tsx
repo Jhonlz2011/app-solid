@@ -4,8 +4,8 @@
 // ============================================================================
 
 import { Show, JSX, splitProps, useContext } from 'solid-js';
-import type { FieldLike } from './form.types';
-import { hasFieldError, getFieldError, FormSubmissionContext } from './form.types';
+import type { FieldLike } from '@form/form.types';
+import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
 
 export interface FormFieldProps<TValue = string> {
     /** TanStack Form field object */

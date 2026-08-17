@@ -2,7 +2,12 @@ import { Show, JSX } from 'solid-js';
 import type { Column } from '@tanstack/solid-table';
 import { DropdownMenu } from '../display/DropdownMenu';
 import { DataTableColumnFilter, type FilterOption } from './DataTableColumnFilter';
-import { ArrowUpIcon, ArrowDownIcon, EyeOffIcon, PinIcon,   PinOffIcon, ChevronsUpDownIcon } from '../icons';
+import { ArrowUpIcon } from '@icons/ArrowUpIcon';
+import { ArrowDownIcon } from '@icons/ArrowDownIcon';
+import { EyeOffIcon } from '@icons/EyeOffIcon';
+import { PinIcon } from '@icons/PinIcon';
+import { PinOffIcon } from '@icons/PinOffIcon';
+import { ChevronsUpDownIcon } from '@icons/ChevronsUpDownIcon';
 import { cn } from '@shared/lib/utils';
 
 // ============================================================================

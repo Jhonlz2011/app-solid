@@ -1,8 +1,11 @@
 import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect } from 'solid-js';
-import type { FieldLike } from './form/form.types';
-import { hasFieldError, getFieldError, FormSubmissionContext } from './form/form.types';
-import { EyeIcon, EyeOffIcon, InfoIcon } from './icons';
-import Tooltip from './Tooltip';
+import type { FieldLike } from '@form/form.types';
+import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
+import { EyeIcon } from '@icons/EyeIcon';
+import { EyeOffIcon } from '@icons/EyeOffIcon';
+import { InfoIcon } from '@icons/InfoIcon';
+
+import Tooltip from '@overlay/Tooltip';
 
 // ============================================================================
 // TYPES

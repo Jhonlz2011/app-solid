@@ -27,17 +27,15 @@ import {
 } from '@tanstack/solid-table';
 import { createVirtualizer } from '@tanstack/solid-virtual';
 import { Table as TableRoot, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table';
-import { Skeleton } from '../Skeleton';
-import { EmptyState } from '../form/EmptyState';
-import Button from '../Button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../Select';
+import { Skeleton } from '@display/Skeleton';
+import { EmptyState } from '@display/EmptyState';
+import Button from '@form/Button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@form/Select';
 import { cn } from '@shared/lib/utils';
-import {
-    ChevronLeftIcon,
-    ChevronRightIcon,
-    ChevronsLeftIcon,
-    ChevronsRightIcon,
-} from '../icons';
+import { ChevronRightIcon } from '@icons/ChevronRightIcon';
+import { ChevronLeftIcon } from '@icons/ChevronLeftIcon';
+import { ChevronsLeftIcon } from '@icons/ChevronsLeftIcon';
+import { ChevronsRightIcon } from '@icons/ChevronsRightIcon';
 
 // =============================================================================
 // Column Pinning Helper

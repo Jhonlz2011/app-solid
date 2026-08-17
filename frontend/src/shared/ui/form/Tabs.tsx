@@ -1,7 +1,7 @@
 import { Component, splitProps, Show } from 'solid-js';
 import { Tabs as KTabs } from "@kobalte/core/tabs";
 import { cn } from '../../lib/utils';
-import { CounterBadge, type CounterVariant } from './Badge';
+import { CounterBadge, type CounterVariant } from '@display/Badge';
 
 export type TabsVariant = 'default' | 'pills';
 

@@ -10,7 +10,7 @@
  * - Glassmorphism styling matching the app design system
  */
 import { Component, Show, JSX, createSignal, createEffect, on } from 'solid-js';
-import { CloseIcon } from '../icons';
+import { CloseIcon } from '@icons/CloseIcon';
 import { cn } from '@shared/lib/utils';
 
 // =============================================================================

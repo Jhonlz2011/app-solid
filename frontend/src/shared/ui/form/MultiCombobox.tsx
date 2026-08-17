@@ -29,9 +29,13 @@
  */
 import { Show, For, createMemo, createContext, useContext, createUniqueId, JSX, createSignal, createEffect, onCleanup } from 'solid-js';
 import { Combobox as KCombobox } from '@kobalte/core/combobox';
-import { SearchIcon, CloseIcon, PlusIcon, CheckIcon } from '../icons';
-import type { FieldLike } from './form.types';
-import { hasFieldError, getFieldError, FormSubmissionContext } from './form.types';
+import { SearchIcon } from '@icons/SearchIcon';
+import { CloseIcon } from '@icons/CloseIcon';
+import { PlusIcon } from '@icons/PlusIcon';
+import { CheckIcon } from '@icons/CheckIcon';
+
+import type { FieldLike } from '@form/form.types';
+import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
 import Button from '@form/Button';
 
 // ============================================================================

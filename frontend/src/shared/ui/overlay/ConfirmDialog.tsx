@@ -1,6 +1,6 @@
 import { Component, Show, JSX, mergeProps } from 'solid-js';
 import { Dialog } from '@kobalte/core';
-import { CloseIcon } from '../icons';
+import { CloseIcon } from '@icons/CloseIcon';
 import Button from '@form/Button';
 import { cn } from '../../lib/utils';
 

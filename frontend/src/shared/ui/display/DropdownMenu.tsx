@@ -2,7 +2,7 @@ import { Component, JSX, splitProps } from 'solid-js';
 import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
 import { Link, type LinkProps } from '@tanstack/solid-router';
 import { cn } from '../../lib/utils';
-import { buttonVariants, type ButtonVariant, type ButtonSize } from './button-shared';
+import { buttonVariants, type ButtonVariant, type ButtonSize } from '@form/button-shared';
 
 // ============================================================================
 // DropdownMenu - Styled wrapper around Kobalte's DropdownMenu

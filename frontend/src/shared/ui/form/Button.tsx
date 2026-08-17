@@ -8,7 +8,7 @@ import {
   type ButtonRadius, 
   type SharedButtonProps,
   type ButtonVariantOptions
-} from './button-shared';
+} from '@form/button-shared';
 
 // Re-export constants and types to prevent breaking existing imports in the codebase
 export { 
@@ -22,7 +22,7 @@ export {
   type ButtonRadius,
   type SharedButtonProps,
   type ButtonVariantOptions
-} from './button-shared';
+} from '@form/button-shared';
 
 export interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement>, SharedButtonProps {}
 

@@ -1,6 +1,6 @@
 import { Component, JSX, Show } from 'solid-js';
-import { Tooltip } from './Tooltip';
-import { InfoIcon } from './icons';
+import { Tooltip } from '@overlay/Tooltip';
+import { InfoIcon } from '@icons/InfoIcon';
 
 interface PageHeaderProps {
     icon: JSX.Element;

@@ -12,9 +12,11 @@
  */
 import { Component, For, Show, JSX, createSignal, createMemo, createEffect } from 'solid-js';
 import { createVirtualizer } from '@tanstack/solid-virtual';
-import { Popover } from '../Popover';
-import Checkbox from '../Checkbox';
-import { FilterIcon, SearchIcon } from '../icons';
+import { Popover } from '@display/Popover';
+import Checkbox from '@form/Checkbox';
+import { FilterIcon } from '@icons/FilterIcon';
+import { SearchIcon } from '@icons/SearchIcon';
+
 import { cn } from '@shared/lib/utils';
 
 // =============================================================================

@@ -9,16 +9,15 @@ import { ImageCropper } from '@ark-ui/solid';
 import { Dialog } from '@kobalte/core';
 import { cn } from '../../lib/utils';
 import type { CropCoordinates } from '@app/schema/dto';
-import { 
-    CloseIcon, 
-    RectangleHorizontalIcon, 
-    SquareIcon, 
-    RectangleVerticalIcon,
-    ZoomInIcon,
-    ZoomOutIcon,
-    FlipHorizontalIcon,
-    RotateCwIcon,
-} from '../icons';
+import { CloseIcon } from '@icons/CloseIcon';
+import { RectangleHorizontalIcon } from '@icons/RectangleHorizontalIcon';
+import { SquareIcon } from '@icons/SquareIcon';
+import { RectangleVerticalIcon } from '@icons/RectangleVerticalIcon';
+import { ZoomInIcon } from '@icons/ZoomInIcon';
+import { ZoomOutIcon } from '@icons/ZoomOutIcon';
+import { FlipHorizontalIcon } from '@icons/FlipHorizontalIcon';
+import { RotateCwIcon } from '@icons/RotateCwIcon';
+
 import { SegmentedControl, SegmentedControlItem, SegmentedControlItemLabel, SegmentedControlIndicator, SegmentedControlItemInput } from '@form/SegmentedControl';
 
 // ============================================================================

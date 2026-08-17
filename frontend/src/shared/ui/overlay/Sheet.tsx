@@ -4,7 +4,7 @@ import { CloseIcon } from '@icons/CloseIcon';
 import { InfoIcon } from '@icons/InfoIcon';
 import { ScrollArea } from '@/layout/components/ScrollArea';
 import { cn } from '../../lib/utils';
-import { Tooltip } from './Tooltip';
+import { Tooltip } from '@overlay/Tooltip';
 
 export interface SheetProps {
     isOpen: boolean;

@@ -1,8 +1,11 @@
 import { Show, createMemo, createContext, useContext, createUniqueId, JSX, createEffect, on } from 'solid-js';
 import { Combobox as KCombobox } from '@kobalte/core/combobox';
-import { ChevronsUpDownIcon, CloseIcon, PlusIcon } from './icons';
-import type { FieldLike } from './form/form.types';
-import { hasFieldError, getFieldError, FormSubmissionContext } from './form/form.types';
+import { ChevronsUpDownIcon } from '@icons/ChevronsUpDownIcon';
+import { CloseIcon } from '@icons/CloseIcon';
+import { PlusIcon } from '@icons/PlusIcon';
+
+import type { FieldLike } from '@form/form.types';
+import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
 import { cn } from '@shared/lib/utils';
 
 // ─────────────────────────────────────────────────────────────────────────────

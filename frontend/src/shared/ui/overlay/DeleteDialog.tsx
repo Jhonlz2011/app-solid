@@ -1,8 +1,12 @@
 import { Component, Show, For, createSignal, JSX, createEffect, mergeProps } from 'solid-js';
 import { Dialog } from '@kobalte/core';
 import Button from '@form/Button';
-import Popover from './Popover';
-import { CloseIcon, AlertTriangleIcon, TrashIcon, EyeOffIcon } from './icons';
+import Popover from '@display/Popover';
+import { CloseIcon } from '@icons/CloseIcon';
+import { AlertTriangleIcon } from '@icons/AlertTriangleIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { EyeOffIcon } from '@icons/EyeOffIcon';
+
 import { cn } from '../../lib/utils';
 
 export interface DeleteDialogProps {

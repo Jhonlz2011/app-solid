@@ -1,6 +1,6 @@
 import { Component, splitProps, Show, createMemo } from 'solid-js';
 import { Checkbox as KCheckbox } from "@kobalte/core/checkbox";
-import type { FieldLike } from './form/form.types';
+import type { FieldLike } from '@form/form.types';
 
 type CheckboxProps = Omit<Parameters<typeof KCheckbox>[0], 'checked' | 'onChange'> & {
     class?: string;

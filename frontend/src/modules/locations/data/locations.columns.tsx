@@ -15,18 +15,14 @@ import Checkbox from "@form/Checkbox";
 import ActionMenu from "@/shared/ui/overlay/ActionMenu";
 import DropdownMenu from "@display/DropdownMenu";
 import { useAuth } from "@modules/auth/store/auth.store";
-import {
-  ChevronRightIcon,
-  ChevronDownIcon,
-  PlusIcon,
-  WarehouseIcon,
-  InboxIcon,
-  EyeIcon,
-} from "@icons/";
+import { ChevronRightIcon } from '@icons/ChevronRightIcon';
+import { ChevronDownIcon } from '@icons/ChevronDownIcon';
+import { PlusIcon } from '@icons/PlusIcon';
+import { WarehouseIcon } from '@icons/WarehouseIcon';
+import { InboxIcon } from '@icons/InboxIcon';
+import { EyeIcon } from '@icons/EyeIcon';
 import { cn } from "@shared/lib/utils";
 import type { LocationNode } from "./locations.api";
-import { LOCATION_TYPE_META } from "./locations.constants";
-import type { LocationType } from "@app/schema/enums";
 
 export interface ColumnFilterConfig {
   options: () => FilterOption[];

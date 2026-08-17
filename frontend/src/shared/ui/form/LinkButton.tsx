@@ -7,7 +7,7 @@ import {
   type ButtonSize,
   type ButtonRadius,
   type SharedButtonProps 
-} from './button-shared';
+} from '@form/button-shared';
 
 export interface LinkButtonProps extends LinkProps, SharedButtonProps, JSX.AnchorHTMLAttributes<HTMLAnchorElement> {}
 

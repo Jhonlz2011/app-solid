@@ -1,6 +1,6 @@
 import { JSX, Show } from 'solid-js';
 import { cn } from '../../lib/utils';
-import { SpinnerIcon } from './icons';
+import { SpinnerIcon } from '@icons/SpinnerIcon';
 
 export const BUTTON_VARIANTS = {
   primary: "bg-primary text-on-primary hover:bg-primary/90 active:scale-[0.97] transition-all duration-200 border border-transparent shadow-lg shadow-primary/20",

@@ -1,6 +1,6 @@
 import { Component, splitProps, Show, createMemo } from 'solid-js';
 import { Switch as KSwitch } from "@kobalte/core/switch";
-import type { FieldLike } from './form.types';
+import type { FieldLike } from '@form/form.types';
 
 type SwitchProps = Omit<Parameters<typeof KSwitch>[0], 'checked' | 'onChange'> & {
     class?: string;

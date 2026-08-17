@@ -7,5 +7,3 @@ export const ChevronsUpDownIcon: Component<IconProps> = (props) => (
         <path d="m7 9 5-5 5 5" />
     </BaseIcon>
 );
-
-export default ChevronsUpDownIcon;

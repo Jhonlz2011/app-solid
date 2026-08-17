@@ -12,13 +12,14 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { createVirtualizer } from "@tanstack/solid-virtual";
-import { CloseIcon, ChevronRightIcon } from "../icons";
+import { CloseIcon } from '@icons/CloseIcon'
+import { ChevronRightIcon } from '@icons/ChevronRightIcon'
 import type { FieldLike } from "./form.types";
 import {
   hasFieldError,
   getFieldError,
   FormSubmissionContext,
-} from "./form.types";
+} from "@form/form.types";
 import { cn } from "@shared/lib/utils";
 
 export interface TreeSelectProps<T> {
