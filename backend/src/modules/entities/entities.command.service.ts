@@ -3,7 +3,7 @@ import { db } from '../../core/db';
 import { entities, entityAddresses, employeeDetails, entityContacts, carrierVehicles, carrierDrivers, supplierProducts, workOrders, electronicDocuments, departments, jobTitles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse/sse';
+import { broadcast } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
 import type { EntityPayload, EntityContactPayload, EntityAddressPayload, EntityReferences, DepartmentPayload, JobTitlePayload } from '@app/schema/dto';

@@ -4,7 +4,7 @@ import { brands, products } from '@app/schema/tables';
 import type { BrandPayload, BrandUpdatePayload, BrandItem, BrandFilters, BrandReferences } from '@app/schema/dto';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse/sse';
+import { broadcast } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { CursorPaginator, type PaginatedResult } from '../../core/db/paginator';
 

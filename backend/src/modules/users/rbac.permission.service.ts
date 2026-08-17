@@ -4,7 +4,7 @@ import { eq, sql, count, and } from '@app/schema';
 import { redis } from '../../core/cache/redis';
 import { cacheService } from '../../core/cache';
 import { DomainError } from '../../core/errors';
-import { broadcast } from '../../core/sse/sse';
+import { broadcast } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { SYSTEM_ROLES } from '@app/schema/enums';
 

@@ -3,7 +3,7 @@ import { db, type Tx } from '../../core/db';
 import { products, productVariants, productComponents } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse/sse';
+import { broadcast } from '../../core/sse/events';
 import type { ProductPayload } from '@app/schema/backend';
 import { publicStorageService } from '../../core/storage';
 import { checkProductReferences } from './products.query.service';

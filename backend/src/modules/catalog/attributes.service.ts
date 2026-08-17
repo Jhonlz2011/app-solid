@@ -4,7 +4,7 @@ import { attributeDefinitions, categoryAttributes, categories } from '@app/schem
 import type { AttributeDefPayload, AttributeItem, AttributeDetail, AttributeReferences } from '@app/schema/dto';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse/sse';
+import { broadcast } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 
 // =============================================================================

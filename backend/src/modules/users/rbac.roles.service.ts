@@ -2,7 +2,7 @@ import { db } from '../../core/db';
 import { authRoles, authRolePermissions, authPermissions, authUserRoles, auditLogs } from '@app/schema/tables';
 import { eq, count, and } from '@app/schema';
 import { DomainError } from '../../core/errors';
-import { broadcast } from '../../core/sse/sse';
+import { broadcast } from '../../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { invalidateUserRbacCache } from './rbac.permission.service';
 

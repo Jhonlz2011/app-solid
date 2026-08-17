@@ -3,7 +3,7 @@ import { db } from '../../core/db';
 import { uom } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse/sse';
+import { broadcast } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import type { UomItem, UomPayload, UomUpdatePayload, UomReferences } from '@app/schema/dto';
 

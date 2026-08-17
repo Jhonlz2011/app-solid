@@ -3,7 +3,7 @@ import { authUsers, authUserRoles, authRoles, entities, auditLogs, sessions, acc
 import { eq, sql, count, and, inArray, ilike, or, asc, desc, type SQL } from '@app/schema';
 import { cacheService } from '../../core/cache';
 import { DomainError } from '../../core/errors';
-import { broadcast } from '../../core/sse/sse';
+import { broadcast } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { SYSTEM_ROLES } from '@app/schema/enums';
 import { invalidateUserRbacCache, revokeAllUserSessions, ensureNotLastSuperadmin, getUserRoles } from './rbac.permission.service';
