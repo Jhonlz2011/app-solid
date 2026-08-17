@@ -6,7 +6,7 @@ import type {
     SegmentedControlItemProps, 
     SegmentedControlItemInputProps
 } from "@kobalte/core/segmented-control";
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 // Kobalte has a package export bug where SegmentedControlItemLabelProps is not exported directly.
 // We extract it elegantly using SolidJS ComponentProps to preserve 100% strict type safety.

@@ -1,5 +1,5 @@
 import { JSX, Show } from 'solid-js';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import { SpinnerIcon } from './icons';
 
 export const BUTTON_VARIANTS = {

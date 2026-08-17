@@ -1,6 +1,6 @@
 import { Component, JSX, splitProps } from 'solid-js';
 import { Popover as KobaltePopover } from '@kobalte/core/popover';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 // ============================================================================
 // Popover - Styled wrapper around Kobalte's Popover

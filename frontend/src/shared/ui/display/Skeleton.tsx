@@ -1,5 +1,5 @@
 import { Component, splitProps, JSX } from 'solid-js';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 export interface SkeletonProps extends JSX.HTMLAttributes<HTMLDivElement> {
     /**

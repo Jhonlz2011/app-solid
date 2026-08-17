@@ -3,7 +3,7 @@ import { Dialog } from '@kobalte/core';
 import Button from '@form/Button';
 import Popover from './Popover';
 import { CloseIcon, AlertTriangleIcon, TrashIcon, EyeOffIcon } from './icons';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 export interface DeleteDialogProps {
     isOpen: boolean;
