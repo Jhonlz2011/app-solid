@@ -3,7 +3,7 @@ import { batch } from "solid-js";
 import { authClient } from "@shared/lib/auth-client";
 import { profileApi } from "@modules/profile/data/profile.api";
 import type { ProfileDto } from '@app/schema/dto';
-import type { RbacModule, PermissionSlug } from '@app/schema/enums';
+import { type RbacModule, type PermissionSlug, SYSTEM_ROLES } from '@app/schema/enums';
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
 import { brandingActions } from "./branding.store";
@@ -341,33 +341,33 @@ export const useAuth = () => {
         hasPermission: (perm: PermissionSlug) => {
             const u = state.user;
             if (!u?.permissions) return false;
-            if (u.roles?.includes('superadmin')) return true;
+            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions.includes(perm);
         },
-        isAdmin: () => state.user?.roles?.includes('superadmin') || false,
+        isAdmin: () => state.user?.roles?.includes(SYSTEM_ROLES.SUPERADMIN) || false,
         hasRole: (role: string) => state.user?.roles?.includes(role) || false,
         canRead: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
-            if (u.roles?.includes('superadmin')) return true;
+            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.read`) || false;
         },
         canAdd: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
-            if (u.roles?.includes('superadmin')) return true;
+            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.create`) || false;
         },
         canEdit: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
-            if (u.roles?.includes('superadmin')) return true;
+            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.update`) || false;
         },
         canDelete: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
-            if (u.roles?.includes('superadmin')) return true;
+            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.delete`) || false;
         },
     };

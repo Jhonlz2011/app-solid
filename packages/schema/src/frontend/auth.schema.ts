@@ -1,11 +1,10 @@
-import { pipe, string, minLength, maxLength, trim, object, email, picklist, boolean, optional, regex, type InferInput, number } from 'valibot';
+import { pipe, string, minLength, maxLength, trim, object, email, picklist, boolean, optional, regex, type InferInput } from 'valibot';
 import { TAX_REGIME_TYPES } from '../enums';
 
 // --- AUTH LOGIN ---
 export const AuthLoginSchema = object({
     email: pipe(string(), minLength(1, 'Usuario o correo es requerido')),
     password: pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres')),
-    companyId: optional(number()),
 });
 
 // --- REGISTRATION STEP SCHEMAS ---

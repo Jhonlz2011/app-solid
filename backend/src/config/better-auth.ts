@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { organization, username, twoFactor, passkey } from 'better-auth/plugins';
+import { organization, username, twoFactor } from 'better-auth/plugins';
 import { adminDb } from '../core/db';
 import * as schema from '@app/schema/tables';
 import { emailService } from '../core/email';
@@ -18,7 +18,6 @@ export const auth = betterAuth({
             member: schema.member,
             invitation: schema.invitation,
             twoFactor: schema.twoFactor,
-            passkey: schema.passkey,
         },
     }),
     secret: process.env.BETTER_AUTH_SECRET || 'zelys-erp-better-auth-secret-key-development-mode-2026',
@@ -96,7 +95,6 @@ export const auth = betterAuth({
             allowUserToCreateOrganization: true,
         }),
         twoFactor(),
-        passkey(),
     ],
 });
 

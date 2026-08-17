@@ -55,13 +55,13 @@ export const authGuard = (app: Elysia) => app
       // inside every db.transaction() call, enforcing RLS policies automatically.
       tenantStorage.enterWith({
         companyId: resolvedCompanyId || undefined,
-        userId: sessionData.user.id as any,
+        userId: sessionData.user.id,
         ipAddress: ipAddress || undefined,
       });
 
       const [roles, permissions] = await Promise.all([
-        getUserRoles(sessionData.user.id as any),
-        getUserPermissions(sessionData.user.id as any),
+        getUserRoles(sessionData.user.id, resolvedCompanyId),
+        getUserPermissions(sessionData.user.id, resolvedCompanyId),
       ]);
 
       return {

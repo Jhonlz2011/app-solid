@@ -4,7 +4,6 @@ import { DropdownMenu } from '@display/DropdownMenu';
 import { authClient } from '@shared/lib/auth-client';
 import { actions, useAuth } from '@modules/auth/store/auth.store';
 import { useBranding } from '@modules/auth/store/branding.store';
-import { BuildingIcon } from '@icons/BuildingIcon';
 import { CheckIcon } from '@icons/CheckIcon';
 import { PlusIcon } from '@icons/PlusIcon';
 
