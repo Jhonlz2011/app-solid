@@ -89,7 +89,8 @@ export async function processAuditQueue() {
                     action: actionString as any, // Cast exactly to 'INSERT' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'EXPORT'
                     oldData: scrubData(log.oldData),
                     newData: scrubData(log.newData),
-                    userId: log.userId ? parseInt(log.userId, 10) : null,
+                    userId: log.userId || null,
+                    company_id: log.company_id || null,
                     ipAddress: log.ipAddress || null,
                     createdAt: log.createdAt,
                 };

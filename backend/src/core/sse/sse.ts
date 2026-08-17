@@ -1,45 +1,14 @@
 import { Elysia, t } from 'elysia';
-import { publishToChannel, subscribeToChannel } from '../cache/redis';
+import { auth } from '../../config/better-auth';
+import {
+    clients,
+    addToRoomIndex,
+    removeFromRoomIndex,
+    removeClientFromAllRooms,
+    type SseClient,
+} from './events';
 
-// --- TYPES ---
-interface SseClient {
-    controller: ReadableStreamDefaultController<string>;
-    rooms: Set<string>;
-    userId: string | null;
-    pingInterval: ReturnType<typeof setInterval>;
-}
-
-// --- STATE ---
-const clients = new Map<string, SseClient>();
-const roomIndex = new Map<string, Set<string>>();
-
-// --- HELPERS ---
-function addToRoomIndex(clientId: string, room: string): void {
-    let roomClients = roomIndex.get(room);
-    if (!roomClients) {
-        roomClients = new Set();
-        roomIndex.set(room, roomClients);
-    }
-    roomClients.add(clientId);
-}
-
-function removeFromRoomIndex(clientId: string, room: string): void {
-    const roomClients = roomIndex.get(room);
-    if (roomClients) {
-        roomClients.delete(clientId);
-        if (roomClients.size === 0) {
-            roomIndex.delete(room);
-        }
-    }
-}
-
-function removeClientFromAllRooms(clientId: string, rooms: Set<string>): void {
-    for (const room of rooms) {
-        removeFromRoomIndex(clientId, room);
-    }
-}
-
-// --- SSE PLUGIN ---
+// --- SSE ROUTE PLUGIN ---
 export const ssePlugin = (app: Elysia) =>
     app.group('/sse', (group) => group
         .get('/', async ({ request, query, set }) => {
@@ -48,7 +17,6 @@ export const ssePlugin = (app: Elysia) =>
                 headers.set('authorization', `Bearer ${query.token}`);
             }
 
-            const { auth } = await import('../../config/better-auth');
             const sessionData = await auth.api.getSession({
                 headers,
             });
@@ -81,9 +49,9 @@ export const ssePlugin = (app: Elysia) =>
                     // Close existing if reconnecting with same ID
                     const existingClient = clients.get(clientId);
                     if (existingClient) {
-                        clearInterval(existingClient.pingInterval); // Matamos el intervalo viejo
+                        clearInterval(existingClient.pingInterval);
                         try {
-                            existingClient.controller.close(); // Cerramos el stream viejo
+                            existingClient.controller.close();
                         } catch (e) { }
                     }
 
@@ -101,7 +69,7 @@ export const ssePlugin = (app: Elysia) =>
                 cancel() {
                     const client = clients.get(clientId);
                     if (client) {
-                        clearInterval(client.pingInterval); // Matamos el intervalo
+                        clearInterval(client.pingInterval);
                         removeClientFromAllRooms(clientId, client.rooms);
                     }
                     clients.delete(clientId);
@@ -157,75 +125,3 @@ export const ssePlugin = (app: Elysia) =>
             })
         })
     );
-
-// --- REDIS ADAPTER ---
-
-export async function initSSERedisAdapter() {
-    await subscribeToChannel('sse:events', (message) => {
-        try {
-            const parsed = JSON.parse(message);
-            const { event, data, room } = parsed;
-            broadcastLocal(event, data, room);
-        } catch (e) {
-            console.error('Redis SSE message parse error:', e);
-        }
-    });
-    console.log('✅ Redis SSE Adapter Initialized');
-}
-
-// --- BROADCAST ---
-
-export async function broadcast(event: string, data: unknown, room: string = '*'): Promise<void> {
-    try {
-        const payload = JSON.stringify({ event, data, room });
-        await publishToChannel('sse:events', payload);
-    } catch (e) {
-        console.error('❌ SSE broadcast failed:', e);
-    }
-}
-
-function getTargetClientIds(room: string): string[] {
-    const targets = new Set<string>();
-    if (room === '*') {
-        for (const id of clients.keys()) targets.add(id);
-    } else {
-        roomIndex.get(room)?.forEach(id => targets.add(id));
-        roomIndex.get('*')?.forEach(id => targets.add(id));
-    }
-    return Array.from(targets);
-}
-
-function broadcastLocal(event: string, data: unknown, room: string = '*'): void {
-    const payloadString = typeof data === 'string' ? data : JSON.stringify(data);
-    const sseMessage = `event: ${event}\ndata: ${payloadString}\n\n`;
-
-    const targetIds = getTargetClientIds(room);
-
-    for (const clientId of targetIds) {
-        const client = clients.get(clientId);
-        if (!client) continue;
-        try {
-            client.controller.enqueue(sseMessage);
-        } catch (e) {
-            clearInterval(client.pingInterval);
-            removeClientFromAllRooms(clientId, client.rooms);
-            clients.delete(clientId);
-        }
-    }
-}
-
-export function getConnectedCount(): number {
-    return clients.size;
-}
-
-export function getRoomClients(room: string): number {
-    return roomIndex.get(room)?.size || 0;
-}
-
-export function getRoomStats(): Record<string, number> {
-    const stats: Record<string, number> = {};
-    for (const [room, clientSet] of roomIndex) {
-        stats[room] = clientSet.size;
-    }
-    return stats;
-}

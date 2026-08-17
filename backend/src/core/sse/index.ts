@@ -1,1 +1,2 @@
-export * from './sse'
+export * from './events';
+export * from './sse';
