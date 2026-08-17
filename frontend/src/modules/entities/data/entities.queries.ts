@@ -6,16 +6,20 @@ import { createEffect } from 'solid-js';
 import type { EntityApi } from './entities.api';
 import type { EntityKeys } from './entities.keys';
 import type { EntityFilters, FacetData, EntityReferences } from '@app/schema/dto';
+import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
+import type { api } from '@shared/lib/eden';
 
-export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndpoint: any) {
+export type AnyFacetsEndpoint = typeof api.api.suppliers.facets;
+
+export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndpoint: AnyFacetsEndpoint) {
     return {
         useList: (filters: () => EntityFilters) => {
             const queryClient = useQueryClient();
             const query = createQuery(() => ({
                 queryKey: keys.list(filters()),
                 queryFn: () => api.list(filters()),
-                staleTime: 1000 * 60 * 2,
-                gcTime: 1000 * 60 * 30,
+                staleTime: STALE_TIME.SHORT,
+                gcTime: GC_TIME.DEFAULT,
                 placeholderData: keepPreviousData,
             }));
 
@@ -29,7 +33,7 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
                     queryClient.prefetchQuery({
                         queryKey: keys.list({ ...currentFilters, cursor: data.meta.nextCursor, direction: 'next' }),
                         queryFn: () => api.list({ ...currentFilters, cursor: data.meta.nextCursor!, direction: 'next' }),
-                        staleTime: 1000 * 60 * 2,
+                        staleTime: STALE_TIME.SHORT,
                     });
                 }
 
@@ -37,7 +41,7 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
                     queryClient.prefetchQuery({
                         queryKey: keys.list({ ...currentFilters, cursor: data.meta.prevCursor, direction: 'prev' }),
                         queryFn: () => api.list({ ...currentFilters, cursor: data.meta.prevCursor!, direction: 'prev' }),
-                        staleTime: 1000 * 60 * 2,
+                        staleTime: STALE_TIME.SHORT,
                     });
                 }
             });
@@ -59,8 +63,8 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
                 getNextPageParam: (lastPage) =>
                     lastPage.meta.hasNextPage ? lastPage.meta.nextCursor ?? undefined : undefined,
                 initialPageParam: undefined as string | undefined,
-                staleTime: 1000 * 60 * 2,
-                gcTime: 1000 * 60 * 30,
+                staleTime: STALE_TIME.SHORT,
+                gcTime: GC_TIME.DEFAULT,
             }));
         },
 
@@ -89,8 +93,8 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
                     if (error) throw error; // Will be handled by Error Boundary or similar
                     return data as unknown as FacetData;
                 },
-                staleTime: 1000 * 60 * 5,
-                gcTime: 1000 * 60 * 30,
+                staleTime: STALE_TIME.MEDIUM,
+                gcTime: GC_TIME.DEFAULT,
                 retry: 2,
                 placeholderData: keepPreviousData,
             }));
@@ -101,8 +105,8 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
                 queryKey: keys.detail(id()),
                 queryFn: () => api.get(id()),
                 enabled: (enabled ? enabled() : true) && !!id() && id() > 0,
-                staleTime: 1000 * 60 * 5,
-                gcTime: 1000 * 60 * 30,
+                staleTime: STALE_TIME.MEDIUM,
+                gcTime: GC_TIME.DEFAULT,
             }));
         },
 
@@ -114,7 +118,7 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
                 },
                 enabled: enabled() && id() !== null,
                 staleTime: 10_000,
-                gcTime: 30_000,
+                gcTime: GC_TIME.PREFLIGHT,
                 retry: false,
             }));
         },

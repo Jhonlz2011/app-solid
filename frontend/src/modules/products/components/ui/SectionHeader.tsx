@@ -3,7 +3,7 @@
  * Eliminates ~5 lines of duplication per section.
  */
 import { Component, Show, JSX } from 'solid-js';
-import { Badge } from '@shared/ui/Badge';
+import { Badge } from '@display/Badge';
 
 interface SectionHeaderProps {
     color: 'primary' | 'success' | 'warning' | 'info' | 'danger' | 'accent';

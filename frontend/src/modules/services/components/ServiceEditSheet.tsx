@@ -12,10 +12,10 @@ import { CatalogForm, CATALOG_MODES } from '@shared/forms/catalog';
 import type { ProductFormData } from '@app/schema/frontend';
 import { ApiError, isNetworkError } from '@shared/utils/api-errors';
 import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
-import { FloppyDiskIcon } from '@shared/ui/icons';
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 
 interface ServiceEditSheetProps {
     serviceId?: number;

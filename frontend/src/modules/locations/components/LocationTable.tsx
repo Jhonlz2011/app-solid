@@ -45,11 +45,14 @@ import {
     TableHeader,
     TableRow,
 } from '@shared/ui/table';
-import { Skeleton } from '@shared/ui/Skeleton';
-import { EmptyState } from '@shared/ui/EmptyState';
-import { MapPinIcon, GripVerticalIcon, InboxIcon, EyeIcon } from '@shared/ui/icons';
+import { Skeleton } from '@display/Skeleton';
+import { EmptyState } from '@display/EmptyState';
+import { MapPinIcon } from '@icons/MapPinIcon';
+import { GripVerticalIcon } from '@icons/GripVerticalIcon';
+import { InboxIcon } from '@icons/InboxIcon';
+import { EyeIcon } from '@icons/EyeIcon';
 import { cn } from '@shared/lib/utils';
-import { useTreeDnD, buildSubRows, isDescendantOf } from '@shared/hooks/useTreeDnD';
+import { useTreeDnD, buildSubRows } from '@shared/hooks/useTreeDnD';
 import { getHeaderPinningStyles, getCellPinningStyles } from '@shared/utils/column-pinning';
 import type { LocationItem, LocationNode } from '../data/locations.api';
 import { LOCATION_TYPE_META } from '../data/locations.constants';

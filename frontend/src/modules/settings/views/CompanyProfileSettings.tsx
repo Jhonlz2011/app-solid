@@ -1,11 +1,11 @@
 import { Component, Show } from 'solid-js';
 import { cn } from '@shared/lib/utils';
 import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
-import { FileUploadDropzone } from '@shared/ui/FileUpload';
-import TextField from '@shared/ui/TextField';
-import Button from '@shared/ui/Button';
-import { FloppyDiskIcon } from '@shared/ui/icons';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import { FileUploadDropzone } from '@/shared/ui/overlay/FileUpload';
+import TextField from '@form/TextField';
+import Button from '@form/Button';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { SkeletonLoader } from '@display/SkeletonLoader';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 
 const CompanyProfileSettings: Component = () => {

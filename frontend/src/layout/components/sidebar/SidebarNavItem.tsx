@@ -5,7 +5,8 @@ import type { MenuItem } from './types';
 import { SidebarSubmenu } from './SidebarSubmenu';
 import { useSidebar } from './SidebarContext';
 import { useSidebarTooltip } from './useSidebarTooltip';
-import { ChevronDownIcon, LockIcon } from '@shared/ui/icons';
+import { ChevronDownIcon } from '@icons/ChevronDownIcon';
+import { LockIcon } from '@icons/LockIcon';
 
 interface SidebarNavItemProps {
     item: MenuItem;

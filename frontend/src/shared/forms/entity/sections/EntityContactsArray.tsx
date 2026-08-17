@@ -1,7 +1,8 @@
 import { Component, Index, Show } from 'solid-js';
-import TextField from '@shared/ui/TextField';
-import { TrashIcon, PlusIcon } from '@shared/ui/icons';
-import Button from '@shared/ui/Button';
+import TextField from '@form/TextField';
+import { TrashIcon } from '@icons/TrashIcon';
+import { PlusIcon } from '@icons/PlusIcon';
+import Button from '@form/Button';
 import type { EntityFormApi } from '../entity-form.types';
 
 export interface EntityContactsArrayProps {

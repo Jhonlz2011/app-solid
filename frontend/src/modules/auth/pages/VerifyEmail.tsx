@@ -3,8 +3,10 @@ import { useSearch, useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { api } from '@shared/lib/eden';
 import { actions, useAuth } from '../store/auth.store';
-import Button from '@shared/ui/Button';
-import { MailIcon, CheckIcon, LogoutIcon } from '@shared/ui/icons';
+import Button from '@form/Button';
+import { MailIcon } from '@icons/MailIcon';
+import { CheckIcon } from '@icons/CheckIcon';
+import { LogoutIcon } from '@icons/LogoutIcon';
 
 /**
  * VerifyEmail — 4-state component using a finite state machine pattern.

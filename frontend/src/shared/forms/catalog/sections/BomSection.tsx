@@ -6,11 +6,13 @@ import { Component, For, Show, createSignal, createMemo } from 'solid-js';
 import type { ProductComponentFormData } from '@app/schema/frontend';
 import type { CatalogFormApi } from '../catalog-form.types';
 import type { Product } from '@/modules/products/data/products.api';
-import TextField from '@shared/ui/TextField';
-import Button from '@shared/ui/Button';
-import Switch from '@shared/ui/Switch';
+import TextField from '@form/TextField';
+import Button from '@form/Button';
+import Switch from '@/shared/ui/form/Switch';
 import { ProductSelect } from '@shared/ui/selectors';
-import { PlusIcon, TrashIcon, BeakerIcon } from '@shared/ui/icons';
+import { PlusIcon } from '@icons/PlusIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { BeakerIcon } from '@icons/BeakerIcon';
 import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
 
 interface BomSectionProps {

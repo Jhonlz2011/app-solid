@@ -1,27 +1,19 @@
-/**
- * SettingsTable<T> — Generic table for Settings module lists (v2).
- *
- * Features:
- *  - Inline client-side search (debounced)
- *  - Active/Inactive/All filter via SegmentedControl
- *  - Item counter pill in header
- *  - Improved empty state with SVG icon + CTA slot
- *  - Optional groupBy support for grouped display (e.g., UOM groups)
- *  - Outlet for deep-linked sheets
- */
 import { Component, For, Show, JSX, createSignal, createMemo } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import { StatusBadge } from '@shared/ui/Badge';
-import { EditIcon, SearchIcon, BoxIcon } from '@shared/ui/icons';
-import type { IconProps } from '@shared/ui/icons';
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import { StatusBadge } from '@display/Badge';
+import { EditIcon } from '@icons/EditIcon';
+import { SearchIcon } from '@icons/SearchIcon';
+import { BoxIcon } from '@icons/BoxIcon';
+
+import type { IconProps } from '@icons/BaseIcon';
 import {
     SegmentedControl,
     SegmentedControlIndicator,
     SegmentedControlItem,
     SegmentedControlItemInput,
     SegmentedControlItemLabel,
-} from '@shared/ui/SegmentedControl';
+} from '@form/SegmentedControl';
 
 // ── Types ──
 

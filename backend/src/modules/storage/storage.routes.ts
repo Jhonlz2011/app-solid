@@ -68,5 +68,3 @@ export const uploadsRoutes = new Elysia({ prefix: '/uploads' })
     }, {
         params: t.Object({ filename: t.String() }),
     });
-
-export const storageRoutes = uploadsRoutes;

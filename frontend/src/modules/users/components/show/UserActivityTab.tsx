@@ -1,11 +1,11 @@
 import { Component, For, Show, createSignal } from 'solid-js';
-export type { AuditLogEntryDto } from '@app/schema/rbac-dto';
+export type { AuditLogEntryDto } from '@app/schema/dto';
 import { formatSessionDate } from '@shared/utils/session.utils';
 import { AUDIT_ACTION_LABELS, TABLE_NAME_LABELS, computeDiff } from '@shared/utils/audit.utils';
-import Button from '@shared/ui/Button';
-import { ListItemSkeleton } from '@shared/ui/SkeletonLoader';
-import ErrorState from '@shared/ui/ErrorState';
-import { UserHistoryIcon } from '@shared/ui/icons';
+import Button from '@form/Button';
+import { ListItemSkeleton } from '@display/SkeletonLoader';
+import ErrorState from '@/shared/ui/display/ErrorState';
+import { UserHistoryIcon } from '@icons/UserHistoryIcon';
 import { useUserAuditLog } from '../../data/users.queries';
 
 // ─── Inline Diff Table ───────────────────────────────────────────────────────

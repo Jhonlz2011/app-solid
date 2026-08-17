@@ -1,6 +1,6 @@
 import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
-import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
+import GlobalPageLoader from '@/shared/ui/display/GlobalPageLoader';
 import { createEmployeeModals } from '@shared/routes/employees.factory';
 import { createUserModals } from '@shared/routes/users.factory';
 import { employeesApi } from './data/employees.api';

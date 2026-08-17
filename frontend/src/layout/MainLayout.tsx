@@ -1,10 +1,10 @@
 import { Component, For, Show, createEffect, onMount, onCleanup } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
-import { Sidebar } from './components/sidebar';
+import { Sidebar } from '@layout/components/sidebar/Sidebar';
 import MobileHeader from './components/MobileHeader';
-import { Skeleton } from '@shared/ui/Skeleton';
+import { Skeleton } from '@display/Skeleton';
 import { useOnlineStatus } from '@shared/hooks/useOnlineStatus';
-import { OfflineBanner } from '@shared/ui/OfflineBanner';
+import { OfflineBanner } from '@/shared/ui/display/OfflineBanner';
 import { toast } from 'solid-sonner';
 import { useQueryClient } from '@tanstack/solid-query';
 import { connect as connectSSE, disconnect as disconnectSSE } from '@shared/store/sse.store';

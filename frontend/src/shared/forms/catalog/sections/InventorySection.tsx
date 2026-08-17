@@ -5,10 +5,10 @@
  */
 import { Component, Show } from 'solid-js';
 import type { CatalogFormApi } from '../catalog-form.types';
-import TextField from '@shared/ui/TextField';
-import Switch from '@shared/ui/Switch';
+import TextField from '@form/TextField';
+import Switch from '@/shared/ui/form/Switch';
 import { UomSelect } from '@shared/ui/selectors';
-import { RulerIcon } from '@shared/ui/icons';
+import { RulerIcon } from '@icons/RulerIcon';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
 

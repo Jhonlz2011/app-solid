@@ -1,8 +1,7 @@
 import { Component } from 'solid-js';
 import { useEntityState } from '@modules/entities/hooks/useEntityState';
 import { EntityPage } from '@modules/entities/views/EntityPage';
-import { BriefcaseIcon } from '@shared/ui/icons';
-
+import { BriefcaseIcon } from '@icons/BriefcaseIcon';
 import { employeesApi } from '../data/employees.api';
 import { employeeKeys } from '../data/employees.keys';
 import { employeeQueries } from '../data/employees.queries';

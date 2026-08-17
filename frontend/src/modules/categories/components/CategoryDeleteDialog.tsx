@@ -3,7 +3,7 @@ import { useAuth } from '@modules/auth/store/auth.store';
 import { useCheckCategoryReferences } from '../data/categories.queries';
 import { useDeactivateCategory, useHardDeleteCategory } from '../data/categories.mutations';
 import { CategoryNode } from '../data/categories.api';
-import DeleteDialog from '@shared/ui/DeleteDialog';
+import DeleteDialog from '@overlay/DeleteDialog';
 import { toast } from 'solid-sonner';
 
 export interface CategoryDeleteDialogProps {
@@ -15,9 +15,7 @@ export interface CategoryDeleteDialogProps {
 const CategoryDeleteDialog: Component<CategoryDeleteDialogProps> = (props) => {
     const auth = useAuth();
     const canDestroy = () => auth.hasPermission('categories.destroy');
-
     const [mode, setMode] = createSignal<'soft' | 'hard'>('soft');
-
     const checkEnabled = () => canDestroy() && mode() === 'hard' && props.category !== null;
 
     const refsQuery = useCheckCategoryReferences(

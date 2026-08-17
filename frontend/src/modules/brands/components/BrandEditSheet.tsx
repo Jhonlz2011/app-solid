@@ -9,12 +9,12 @@ import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import { useBrand } from '../data/brands.queries';
 import { useUpdateBrand, useDeactivateBrand, useRestoreBrand } from '../data/brands.mutations';
-import { FloppyDiskIcon } from '@shared/ui/icons';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import TextField from '@shared/ui/TextField';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import TextField from '@form/TextField';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
 
 interface BrandEditSheetProps { onClose?: () => void; }
 

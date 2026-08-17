@@ -1,12 +1,3 @@
-/**
- * CategoryAttributesPicker — Multi-select + DnD list for category attributes.
- *
- * Two-part UI:
- * 1. AttributeSelect (Kobalte multi-select combobox) — for adding/removing attributes
- * 2. Sortable DnD list — for reordering and toggling "required"
- *
- * Both parts share the same reactive source: the `value` prop (CategoryAttributeEntry[]).
- */
 import { Component, For, Show, createMemo } from 'solid-js';
 import {
     DragDropProvider,
@@ -22,9 +13,10 @@ import { type AttributeItem } from '@modules/attributes/data/attributes.api';
 import { ATTRIBUTE_TYPE_LABELS, ATTRIBUTE_TYPE_COLORS } from '@modules/attributes/data/attributes.constants';
 import type { CategoryAttributeEntry } from '@app/schema/frontend';
 import { AttributeSelect } from '@shared/ui/selectors/AttributeSelect';
-import Checkbox from '@shared/ui/Checkbox';
-import { Badge } from '@shared/ui/Badge';
-import { CloseIcon, GripVerticalIcon } from '@shared/ui/icons';
+import Checkbox from '@form/Checkbox';
+import { Badge } from '@display/Badge';
+import { CloseIcon } from '@icons/CloseIcon';
+import { GripVerticalIcon } from '@icons/GripVerticalIcon';
 import { useAttributeList } from '@modules/attributes/data/attributes.queries';
 
 interface CategoryAttributesPickerProps {

@@ -23,9 +23,12 @@ import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { AttributeFormSchema } from '@app/schema/frontend';
 import type { AttributeFormData, AttributeDataType } from '@app/schema/frontend';
-import TextField from '@shared/ui/TextField';
-import Button from '@shared/ui/Button';
-import { PlusIcon, CloseIcon, KeyIcon, GripVerticalIcon, TrashIcon } from '@shared/ui/icons';
+import TextField from '@form/TextField';
+import Button from '@form/Button';
+import { PlusIcon } from '@icons/PlusIcon';
+import { KeyIcon } from '@icons/KeyIcon';
+import { GripVerticalIcon } from '@icons/GripVerticalIcon';
+import { TrashIcon } from '@icons/TrashIcon';
 import {
     DragDropProvider,
     DragDropSensors,
@@ -36,7 +39,7 @@ import {
     DragOverlay,
     type DragEvent,
 } from '@thisbeyond/solid-dnd';
-import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
+import { FormSubmissionContext, hasFieldError, getFieldError } from '@form/form.types';
 import { type AttributeDetail } from '../data/attributes.api';
 import { ATTRIBUTE_TYPE_OPTIONS, type AttributeTypeOption } from '../data/attributes.constants';
 

@@ -2,14 +2,17 @@ import { Component, Show, For, createMemo } from 'solid-js';
 import { useParams, Outlet, Link } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useCategoryDetail, useCategoriesFlat } from '../data/categories.queries';
-import { EditIcon, InfoIcon, TagIcon, ChevronRightIcon } from '@shared/ui/icons';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
-import Sheet from '@shared/ui/Sheet';
-import { StatusBadge, Badge } from '@shared/ui/Badge';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
-import { InfoRow } from '@shared/ui/InfoRow';
+import { EditIcon } from '@icons/EditIcon';
+import { InfoIcon } from '@icons/InfoIcon';
+import { TagIcon } from '@icons/TagIcon';
+import { ChevronRightIcon } from '@icons/ChevronRightIcon';
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
+import Sheet from '@overlay/Sheet';
+import { StatusBadge, Badge } from '@display/Badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/form/Tabs';
+import { InfoRow } from '@/shared/ui/display/InfoRow';
 import { useAuth } from '@modules/auth/store/auth.store';
 
 interface CategoryShowPanelProps {

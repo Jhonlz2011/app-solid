@@ -10,12 +10,13 @@
  * Extracted from SupplierFilterSheet — 100% module-agnostic.
  */
 import { Component, createSignal, For, Show } from 'solid-js';
-import Sheet from '@shared/ui/Sheet';
-import Checkbox from '@shared/ui/Checkbox';
-import { SearchIcon, FilterIcon } from '@shared/ui/icons';
+import Sheet from '@overlay/Sheet';
+import Checkbox from '@form/Checkbox';
+import { SearchIcon } from '@icons/SearchIcon';
+import { FilterIcon } from '@icons/FilterIcon';
 import { cn } from '@shared/lib/utils';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
-import Button from '@shared/ui/Button';
+import Button from '@form/Button';
 
 // ============================================================================
 // FilterGroup — Single section inside the sheet

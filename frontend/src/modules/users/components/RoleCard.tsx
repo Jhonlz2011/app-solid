@@ -1,10 +1,16 @@
 import { Component, JSX, Show } from 'solid-js';
-import type { RoleDto } from '@app/schema/rbac-dto';
-import { RoleBadge } from '@shared/ui/Badge';
-import { EditIcon, TrashIcon, KeyIcon, UsersIcon, MoreVerticalIcon, ShieldIcon, EyeIcon } from '@shared/ui/icons';
-import Button from '@shared/ui/Button';
-import { Tooltip } from '@shared/ui/Tooltip';
-import { DropdownMenu } from '@shared/ui/DropdownMenu';
+import type { RoleDto } from '@app/schema/dto';
+import { RoleBadge } from '@display/Badge';
+import { EditIcon } from '@icons/EditIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { KeyIcon } from '@icons/KeyIcon';
+import { UsersIcon } from '@icons/UsersIcon';
+import { MoreVerticalIcon } from '@icons/MoreVerticalIcon';
+import { ShieldIcon } from '@icons/ShieldIcon';
+import { EyeIcon } from '@icons/EyeIcon';
+import Button from '@form/Button';
+import { Tooltip } from '@/shared/ui/overlay/Tooltip';
+import { DropdownMenu } from '@display/DropdownMenu';
 
 // ── Reusable stat display (interactive or static) ──
 const StatButton = (p: { icon: JSX.Element; count: number; label: string; onClick?: () => void; tooltip?: string }) => {

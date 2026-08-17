@@ -2,9 +2,9 @@
 import { Component, For, createMemo, Show } from 'solid-js';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
 import type { ProfileDto } from '@app/schema/dto';
-import { Badge, RoleBadge } from '@shared/ui/Badge';
+import { Badge, RoleBadge } from '@display/Badge';
 import { useAuth } from '@modules/auth/store/auth.store';
-import { Skeleton } from '@shared/ui/Skeleton';
+import { Skeleton } from '@display/Skeleton';
 
 import { formatSessionDate } from '@shared/utils/session.utils';
 

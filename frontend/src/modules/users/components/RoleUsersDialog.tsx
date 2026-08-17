@@ -1,13 +1,16 @@
 import { Component, For, Show, createSignal, createMemo, createEffect, on, onCleanup } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useQueryClient } from '@tanstack/solid-query';
-import { FormDialog } from '@shared/ui/FormDialog';
-import { Avatar } from '@shared/ui/Avatar';
-import { RoleBadge } from '@shared/ui/Badge';
-import { SearchInput } from '@shared/ui/SearchInput';
-import Button from '@shared/ui/Button';
-import ConfirmDialog from '@shared/ui/ConfirmDialog';
-import { UserMinusIcon, PlusIcon, UsersIcon } from '@shared/ui/icons';
+import { FormDialog } from '@/shared/ui/overlay/FormDialog';
+import { Avatar } from '@/shared/ui/display/Avatar';
+import { RoleBadge } from '@display/Badge';
+import { SearchInput } from '@form/SearchInput';
+import Button from '@form/Button';
+import ConfirmDialog from '@overlay/ConfirmDialog';
+import { UserMinusIcon } from '@icons/UserMinusIcon';
+import { PlusIcon } from '@icons/PlusIcon';
+import { UsersIcon } from '@icons/UsersIcon';
+
 import { rbacKeys } from '../data/users.keys';
 import {
     useRoleUsers,

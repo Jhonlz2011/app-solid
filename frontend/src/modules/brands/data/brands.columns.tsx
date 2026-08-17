@@ -7,12 +7,14 @@
 import { Show } from 'solid-js';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { BrandItem } from './brands.api';
-import Checkbox from '@shared/ui/Checkbox';
-import { StatusBadge } from '@shared/ui/Badge';
+import Checkbox from '@form/Checkbox';
+import { StatusBadge } from '@display/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
-import { EditIcon, TrashIcon, RotateCcwIcon } from '@shared/ui/icons';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
+import { EditIcon } from '@icons/EditIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { RotateCcwIcon } from '@icons/RotateCcwIcon';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
 
 export interface BrandColumnHandlers {
     onDelete: (brand: BrandItem) => void;

@@ -1,22 +1,14 @@
-/**
- * DynamicAttributeFields — Renders category attribute inputs dynamically
- * based on the selected category's attribute schema.
- *
- * Contract: works with Record<string, unknown> directly (the JSONB shape
- * stored in products.shared_attributes). Each key is the attribute_definition.key,
- * each value is the user-entered value.
- *
- * Uses shared UI components (TextField, Autocomplete, Checkbox) for consistent design.
- */
 import { Component, For, Show, createEffect, createMemo, createSignal } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
-import { Badge } from '@shared/ui/Badge';
-import TextField, { FieldLabel } from '@shared/ui/TextField';
-import Checkbox from '@shared/ui/Checkbox';
-import { Autocomplete } from '@shared/ui/Autocomplete';
+import { Badge } from '@display/Badge';
+import TextField, { FieldLabel } from '@form/TextField';
+import Checkbox from '@form/Checkbox';
+import { Autocomplete } from '@form/Autocomplete';
 import { useResolvedSelectorPath } from '@shared/ui/selectors';
 import SectionHeader from './ui/SectionHeader';
-import { PlusIcon, EditIcon } from '@shared/ui/icons';
+import { PlusIcon } from '@icons/PlusIcon';
+import { EditIcon } from '@icons/EditIcon';
+
 
 interface DynamicAttributeFieldsProps {
     /** Category attributes from parent query */

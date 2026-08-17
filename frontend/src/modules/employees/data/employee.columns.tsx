@@ -3,18 +3,20 @@ import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { EmployeeListItem } from '../data/employees.api';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
-import type { ColumnFilterConfig } from '@modules/entities/data/createEntityColumns';
-import { createBaseEntityColumns } from '@modules/entities/data/createEntityColumns';
+import { createBaseEntityColumns, type BaseEntityHandlers } from '@modules/entities/data/createEntityColumns';
 
-export interface EmployeeColumnHandlers {
-    onDelete: (employee: EmployeeListItem) => void;
-    onRestore: (employee: EmployeeListItem) => void;
-    filters?: {
-        businessName?: ColumnFilterConfig;
-        taxIdType?: ColumnFilterConfig;
-        personType?: ColumnFilterConfig;
-        isActive?: ColumnFilterConfig;
-    };
+export type EmployeeColumnHandlers = BaseEntityHandlers<EmployeeListItem>;
+
+export interface EmployeeListItemWithDetails extends EmployeeListItem {
+    employeeDetails?: {
+        department_name?: string | null;
+        department_id?: number | null;
+        job_title_name?: string | null;
+        job_title_id?: number | null;
+        salary_base?: string | number | null;
+        hire_date?: string | null;
+        cost_per_hour?: string | number | null;
+    } | null;
 }
 
 export function createEmployeeColumns(handlers: EmployeeColumnHandlers): ColumnDef<EmployeeListItem>[] {
@@ -34,40 +36,44 @@ export function createEmployeeColumns(handlers: EmployeeColumnHandlers): ColumnD
                     filterOptions={handlers.filters?.businessName?.options()}
                     selectedFilters={handlers.filters?.businessName?.selected()}
                     onFilterChange={handlers.filters?.businessName?.onChange}
-                    isFilterLoading={handlers.filters?.businessName?.isLoading()}
+                    isFilterLoading={handlers.filters?.businessName?.isLoading?.()}
                 />
             ),
             meta: { title: 'Empleado' },
             size: 210,
-            cell: (info) => (
-                <Link
-                    to={`/employees/${info.row.original.id}/show`}
-                    preload="intent"
-                    class="min-w-0 block cursor-pointer group/cell"
-                    title={info.getValue<string>()}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div class="font-medium text-text truncate group-hover/cell:text-primary transition-colors duration-150">
-                        {info.getValue<string>()}
-                    </div>
-                    <Show when={(info.row.original as any).employeeDetails?.job_title_name || (info.row.original as any).employeeDetails?.job_title}>
-                        <div class="text-xs text-muted truncate">
-                            {(info.row.original as any).employeeDetails?.job_title_name || (info.row.original as any).employeeDetails?.job_title}
+            cell: (info) => {
+                const item = info.row.original as EmployeeListItemWithDetails;
+                const jobTitle = item.employeeDetails?.job_title_name;
+                return (
+                    <Link
+                        to={`/employees/${item.id}/show`}
+                        preload="intent"
+                        class="min-w-0 block cursor-pointer group/cell"
+                        title={info.getValue<string>()}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div class="font-medium text-text truncate group-hover/cell:text-primary transition-colors duration-150">
+                            {info.getValue<string>()}
                         </div>
-                    </Show>
-                </Link>
-            ),
+                        <Show when={jobTitle}>
+                            <div class="text-xs text-muted truncate">
+                                {jobTitle}
+                            </div>
+                        </Show>
+                    </Link>
+                );
+            },
         },
         base.taxId,
         base.contactInfo,
         {
-            accessorKey: 'employeeDetails.department_name',
             id: 'department',
             header: ({ column }) => <DataTableColumnHeader column={column} title="Departamento" />,
             meta: { title: 'Departamento' },
             size: 160,
             cell: (info) => {
-                const dept = (info.row.original as any).employeeDetails?.department_name || (info.row.original as any).employeeDetails?.department || '-';
+                const item = info.row.original as EmployeeListItemWithDetails;
+                const dept = item.employeeDetails?.department_name || '-';
                 return (
                     <div class="min-w-0">
                         <div class="text-sm truncate">{dept}</div>

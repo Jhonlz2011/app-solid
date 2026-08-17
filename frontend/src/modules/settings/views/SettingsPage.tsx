@@ -1,32 +1,21 @@
-/**
- * SettingsPage — Configuración General with URL-driven sidebar navigation.
- * Each section is a TanStack Router child route rendered via <Outlet />.
- *
- * Redesign v2:
- *  - Grouped sidebar with collapsible section groups
- *  - SVG icons (no emojis) — inherits currentColor, scales properly
- *  - Mobile: horizontal scrollable tabs at the top
- *  - Desktop: vertical grouped sidebar
- */
-import { Component, For, Show, createSignal, JSX } from 'solid-js';
+import { Component, For, Show, createSignal } from 'solid-js';
 import { Outlet, Link, useMatches } from '@tanstack/solid-router';
-import { PageHeader } from '@shared/ui/PageHeader';
-import LinkButton from '@shared/ui/LinkButton';
-import Button from '@shared/ui/Button';
+import { PageHeader } from '@overlay/PageHeader';
+import LinkButton from '@form/LinkButton';
+import Button from '@form/Button';
 import { cn } from '@shared/lib/utils';
-import type { IconProps } from '@shared/ui/icons';
-import {
-    PlusIcon,
-    WarehouseIcon,
-    PercentIcon,
-    HashIcon,
-    LockIcon,
-    ChevronDownIcon,
-    PaintBrushIcon,
-    BriefcaseIcon,
-    ShieldIcon,
-    TruckIcon,
-} from '@shared/ui/icons';
+import type { IconProps } from '@icons/BaseIcon';
+import { PlusIcon } from '@icons/PlusIcon';
+import { WarehouseIcon } from '@icons/WarehouseIcon';
+import { PercentIcon } from '@icons/PercentIcon';
+import { HashIcon } from '@icons/HashIcon';
+import { LockIcon } from '@icons/LockIcon';
+import { ChevronDownIcon } from '@icons/ChevronDownIcon';
+import { PaintBrushIcon } from '@icons/PaintBrushIcon';
+import { BriefcaseIcon } from '@icons/BriefcaseIcon';
+import { ShieldIcon } from '@icons/ShieldIcon';
+import { TruckIcon } from '@icons/TruckIcon';
+
 
 // ── Page header icon ──
 const GearIcon = () => (

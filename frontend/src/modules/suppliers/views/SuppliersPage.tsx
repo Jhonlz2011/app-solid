@@ -1,7 +1,7 @@
 import { Component } from 'solid-js';
 import { useEntityState } from '@modules/entities/hooks/useEntityState';
 import { EntityPage } from '@modules/entities/views/EntityPage';
-import { UsersIcon } from '@shared/ui/icons';
+import { UsersIcon } from '@icons/UsersIcon';
 import { suppliersApi } from '../data/suppliers.api';
 import { supplierKeys } from '../data/suppliers.keys';
 import { supplierQueries } from '../data/suppliers.queries';

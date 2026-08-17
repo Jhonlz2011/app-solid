@@ -10,25 +10,27 @@ import type { EntityState } from '../hooks/useEntityState';
 
 // UI Components
 import { DataTable } from '@shared/ui/DataTable';
-import { PageHeader } from '@shared/ui/PageHeader';
-import { SearchInput } from '@shared/ui/SearchInput';
-import { DropdownMenu } from '@shared/ui/DropdownMenu';
+import { PageHeader } from '@overlay/PageHeader';
+import { SearchInput } from '@form/SearchInput';
+import { DropdownMenu } from '@display/DropdownMenu';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
-import ConfirmDialog from '@shared/ui/ConfirmDialog';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
+import ConfirmDialog from '@overlay/ConfirmDialog';
 import { EntityCardList } from '../components/EntityCardList';
 import EntityDeleteDialog from '../components/EntityDeleteDialog';
 
 // Icons
-import {
-    PlusIcon, TrashIcon, DownloadIcon, UploadIcon,
-    FilterIcon, CopyIcon, RotateCcwIcon, ChevronsUpDownIcon,
-} from '@shared/ui/icons';
-
+import { PlusIcon } from '@icons/PlusIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { DownloadIcon } from '@icons/DownloadIcon';
+import { UploadIcon } from '@icons/UploadIcon';
+import { FilterIcon } from '@icons/FilterIcon';
+import { CopyIcon } from '@icons/CopyIcon';
+import { RotateCcwIcon } from '@icons/RotateCcwIcon';
+import { ChevronsUpDownIcon } from '@icons/ChevronsUpDownIcon';
 import type { RbacModule } from '@app/schema/enums';
-
 import { EntityFilterSheet } from '../components/EntityFilterSheet';
 
 interface EntityPageProps {

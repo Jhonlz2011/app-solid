@@ -12,15 +12,15 @@ import { useUsersState } from '../hooks/useUsersState';
 
 // Shared UI
 import { DataTable } from '@shared/ui/DataTable';
-import { PageHeader } from '@shared/ui/PageHeader';
-import { SearchInput } from '@shared/ui/SearchInput';
-import { Tabs, TabsList, TabsTrigger } from '@shared/ui/Tabs';
-import { DropdownMenu } from '@shared/ui/DropdownMenu';
+import { PageHeader } from '@overlay/PageHeader';
+import { SearchInput } from '@form/SearchInput';
+import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/form/Tabs';
+import { DropdownMenu } from '@display/DropdownMenu';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
-import ConfirmDialog from '@shared/ui/ConfirmDialog';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
+import ConfirmDialog from '@overlay/ConfirmDialog';
 import UserDeleteDialog from '../components/UserDeleteDialog';
 
 // Feature components
@@ -29,10 +29,15 @@ import RoleFormDialog from '../components/RoleFormDialog';
 import RoleUsersDialog from '../components/RoleUsersDialog';
 
 // Icons
-import {
-    PlusIcon, TrashIcon, UsersIcon, IdCardIcon, UserKeyIcon,
-    RotateCcwIcon, ChevronsUpDownIcon, CopyIcon,
-} from '@shared/ui/icons';
+import { UsersIcon } from '@icons/UsersIcon';
+import { IdCardIcon } from '@icons/IdCardIcon';
+import { UserKeyIcon } from '@icons/UserKeyIcon';
+import { PlusIcon } from '@icons/PlusIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { CopyIcon } from '@icons/CopyIcon';
+import { RotateCcwIcon } from '@icons/RotateCcwIcon';
+import { ChevronsUpDownIcon } from '@icons/ChevronsUpDownIcon';
+
 
 const UsersRolesPage: Component = () => {
     // const isMobile = useIsMobile();

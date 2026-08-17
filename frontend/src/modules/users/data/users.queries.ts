@@ -12,7 +12,7 @@ import { usersApi } from './users.api';
 import type {
     UsersFilters,
     UserReferencesDto,
-} from '@app/schema/rbac-dto';
+} from '@app/schema/dto';
 import type { FacetData } from '@app/schema/dto';
 
 

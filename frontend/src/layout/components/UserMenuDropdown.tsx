@@ -1,6 +1,7 @@
 import { Component, Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
-import { UserIcon, LogoutIcon } from '@shared/ui/icons';
+import { UserIcon } from '@icons/UserIcon';
+import { LogoutIcon } from '@icons/LogoutIcon';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface UserMenuDropdownProps {

@@ -3,10 +3,10 @@ import { useParams } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import type { UserFormData } from '@app/schema/frontend';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
-import { FloppyDiskIcon } from '@shared/ui/icons';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { SkeletonLoader } from '@display/SkeletonLoader';
 import { useUser, useRoles, useEntitiesList } from '../data/users.queries';
 import {
     useUpdateUser, useAssignUserRoles,

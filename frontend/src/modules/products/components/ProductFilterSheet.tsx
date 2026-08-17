@@ -1,5 +1,5 @@
 import { Component } from 'solid-js';
-import Sheet from '@shared/ui/Sheet';
+import Sheet from '@overlay/Sheet';
 
 interface ProductFilterSheetProps {
     isOpen: boolean;

@@ -4,12 +4,13 @@ import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CategoryFormSchema } from '@app/schema/frontend';
 import type { CategoryFormData } from '@app/schema/frontend';
-import TextField, { FieldLabel } from '@shared/ui/TextField';
+import TextField, { FieldLabel } from '@form/TextField';
 import { CategorySelect, SelectorBreadcrumbs, buildBreadcrumbs, useResolvedSelectorPath } from '@shared/ui/selectors';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import { SkeletonLoader } from '@display/SkeletonLoader';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import { TagIcon, CloseIcon } from '@shared/ui/icons';
-import Button from '@shared/ui/Button';
+import { TagIcon } from '@icons/TagIcon';
+import { CloseIcon } from '@icons/CloseIcon';
+import Button from '@form/Button';
 import CategoryAttributesPicker from './CategoryAttributesPicker';
 import NameTemplateEditor from './NameTemplateEditor';
 import {

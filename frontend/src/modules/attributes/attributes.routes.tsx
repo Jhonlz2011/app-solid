@@ -1,6 +1,6 @@
 import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
-import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
+import GlobalPageLoader from '@/shared/ui/display/GlobalPageLoader';
 import { createAttributeModals } from '@shared/routes/attributes.factory';
 import { attributesApi } from './data/attributes.api';
 import { attributeKeys } from './data/attributes.keys';

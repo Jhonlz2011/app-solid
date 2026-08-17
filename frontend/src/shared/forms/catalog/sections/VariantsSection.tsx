@@ -19,12 +19,15 @@ import {
 } from '@thisbeyond/solid-dnd';
 import type { ProductVariantFormData } from '@app/schema/frontend';
 import type { CatalogFormApi } from '../catalog-form.types';
-import Button from '@shared/ui/Button';
-import TextField from '@shared/ui/TextField';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
-import { Autocomplete } from '@shared/ui/Autocomplete';
-import Checkbox from '@shared/ui/Checkbox';
-import { PlusIcon, TrashIcon, GripVerticalIcon, CopyIcon } from '@shared/ui/icons';
+import Button from '@form/Button';
+import TextField from '@form/TextField';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
+import { Autocomplete } from '@form/Autocomplete';
+import Checkbox from '@form/Checkbox';
+import { PlusIcon } from '@icons/PlusIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { GripVerticalIcon } from '@icons/GripVerticalIcon';
+import { CopyIcon } from '@icons/CopyIcon';
 
 interface VariantsSectionProps {
     form: CatalogFormApi;

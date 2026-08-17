@@ -3,7 +3,7 @@ import { useAuth } from '@modules/auth/store/auth.store';
 import { useCheckUomReferences } from '../data/uom.queries';
 import { useDeactivateUom, useHardDeleteUom } from '../data/uom.mutations';
 import type { UomItem } from '../data/uom.api';
-import DeleteDialog from '@shared/ui/DeleteDialog';
+import DeleteDialog from '@overlay/DeleteDialog';
 
 export interface UomDeleteDialogProps {
     uom: UomItem | null;

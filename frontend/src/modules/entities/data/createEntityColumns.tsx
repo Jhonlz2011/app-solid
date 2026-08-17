@@ -1,9 +1,9 @@
 import { Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
-import Checkbox from '@shared/ui/Checkbox';
-import { StatusBadge, Badge } from '@shared/ui/Badge';
-import ActionMenu from '@shared/ui/ActionMenu';
+import Checkbox from '@form/Checkbox';
+import { StatusBadge, Badge } from '@display/Badge';
+import ActionMenu from '@/shared/ui/overlay/ActionMenu';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 
@@ -22,6 +22,7 @@ export interface BaseEntityHandlers<T> {
         isActive?: ColumnFilterConfig;
         businessName?: ColumnFilterConfig;
         taxIdType?: ColumnFilterConfig;
+        personType?: ColumnFilterConfig;
         [key: string]: ColumnFilterConfig | undefined;
     };
 }
@@ -32,6 +33,7 @@ export interface BaseEntityListItem {
     business_name: string;
     tax_id: string;
     tax_id_type?: string;
+    person_type?: string;
     email_billing?: string | null;
     phone?: string | null;
     trade_name?: string | null;
@@ -47,6 +49,7 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
     select: ColumnDef<T>;
     businessName: ColumnDef<T>;
     taxId: ColumnDef<T>;
+    personType: ColumnDef<T>;
     contactInfo: ColumnDef<T>;
     fiscal: ColumnDef<T>;
     isActive: ColumnDef<T>;
@@ -74,6 +77,33 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
             enableSorting: false,
             enableHiding: false,
         },
+        personType: {
+            accessorKey: 'person_type',
+            header: ({ column }) => (
+                <DataTableColumnHeader
+                    column={column}
+                    title="Tipo"
+                    filterOptions={handlers.filters?.personType?.options()}
+                    selectedFilters={handlers.filters?.personType?.selected()}
+                    onFilterChange={handlers.filters?.personType?.onChange}
+                    isFilterLoading={handlers.filters?.personType?.isLoading?.()}
+                />
+            ),
+            meta: { title: 'Tipo de Persona' },
+            size: 120,
+            cell: (info) => {
+                const type = info.getValue<string>();
+                const isJuridica = type === 'JURIDICA';
+                return (
+                    <Badge
+                        variant={isJuridica ? 'primary' : 'info'}
+                        class="text-[11px] uppercase tracking-wider border-primary/20"
+                    >
+                        {isJuridica ? 'Jurídica' : 'Natural'}
+                    </Badge>
+                );
+            },
+        } as ColumnDef<T>,
         isActive: {
             accessorKey: 'is_active',
             header: ({ column }) => (

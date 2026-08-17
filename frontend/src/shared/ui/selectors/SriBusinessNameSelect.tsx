@@ -5,14 +5,14 @@
  */
 import { Component, Show, createSignal, createEffect, onCleanup, on } from 'solid-js';
 import { useSriSearchByName } from '@modules/sri/sri.queries';
-import type { SriSupplierResponse } from '@modules/sri/sri.types';
-import { Autocomplete } from '@shared/ui/Autocomplete';
+import type { SriSearchResult } from '@modules/sri/sri.types';
+import { Autocomplete } from '@form/Autocomplete';
 import type { FieldLike } from '@shared/ui/form/form.types';
 
 export interface SriBusinessNameSelectProps {
     value: string;
     onInputChange: (value: string) => void;
-    onSelect: (result: SriSupplierResponse | null) => void;
+    onSelect: (result: SriSearchResult | null) => void;
     field?: FieldLike<any>;
     placeholder?: string;
     label?: string;

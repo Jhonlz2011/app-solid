@@ -10,10 +10,12 @@ import { toast } from 'solid-sonner';
 import { useUom } from '../data/uom.queries';
 import { useUpdateUom } from '../data/uom.mutations';
 import { useAuth } from '@modules/auth/store/auth.store';
-import { FloppyDiskIcon, LockIcon } from '@shared/ui/icons';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { LockIcon } from '@icons/LockIcon';
+
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
 import UomForm from './UomForm';
 
 interface UomEditSheetProps { onClose?: () => void; }

@@ -2,11 +2,6 @@
 // PROFILE Response DTOs — Single source of truth for Profile/Auth API
 // Derived from auth.service.ts actual return shapes
 // ============================================================================
-
-// Re-export session type from RBAC (same shape for profile and admin)
-export type { UserSessionDto } from '../rbac.dto';
-export type { SuccessDto } from '../rbac.dto';
-
 // --- Profile Entity (from mapEntity — auth.service.ts L19-27) ---
 export interface ProfileEntityDto {
     id: number;

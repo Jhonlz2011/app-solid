@@ -3,7 +3,7 @@ import { useAuth } from '@modules/auth/store/auth.store';
 import { useCheckAttributeReferences } from '../data/attributes.queries';
 import { useDeactivateAttribute, useHardDeleteAttribute } from '../data/attributes.mutations';
 import type { AttributeItem } from '../data/attributes.api';
-import DeleteDialog from '@shared/ui/DeleteDialog';
+import DeleteDialog from '@overlay/DeleteDialog';
 
 export interface AttributeDeleteDialogProps {
     attribute: AttributeItem | null;

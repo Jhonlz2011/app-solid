@@ -5,9 +5,9 @@ import { toast } from 'solid-sonner';
 import { isNetworkError } from '@shared/utils/api-errors';
 import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { useCreateLocation } from '../data/locations.mutations';
-import { FloppyDiskIcon } from '@shared/ui/icons';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
 import LocationForm from './LocationForm';
 import type { LocationFormData } from '@app/schema/frontend';
 

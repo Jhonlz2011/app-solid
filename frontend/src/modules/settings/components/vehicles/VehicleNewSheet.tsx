@@ -4,12 +4,14 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CarrierVehicleFormSchema, type CarrierVehicleFormData } from '@app/schema/frontend';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useCreateVehicle } from '../../data/vehicles.mutations';
-import { FloppyDiskIcon, TruckIcon } from '@shared/ui/icons';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { TruckIcon } from '@icons/TruckIcon';
+
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import TextField from '@shared/ui/TextField';
-import Checkbox from '@shared/ui/Checkbox';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
+import TextField from '@form/TextField';
+import Checkbox from '@form/Checkbox';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
 
 interface VehicleNewSheetProps {
     onClose?: () => void;

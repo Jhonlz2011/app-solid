@@ -4,7 +4,9 @@ import { useWarehousesList } from '../../data/warehouses.queries';
 import { useDeactivateWarehouse, useRestoreWarehouse } from '../../data/warehouses.mutations';
 import type { WarehouseItem } from '../../data/warehouses.api';
 import { useToggleActive } from '@shared/hooks/useToggleActive';
-import { MapPinIcon, WarehouseIcon } from '@shared/ui/icons';
+import { MapPinIcon } from '@icons/MapPinIcon';
+import { WarehouseIcon } from '@icons/WarehouseIcon';
+
 import SettingsTable, { type SettingsColumn } from '../shared/SettingsTable';
 
 const columns: SettingsColumn<WarehouseItem>[] = [

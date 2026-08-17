@@ -6,8 +6,11 @@
  */
 import { throwApiError } from '@shared/utils/api-errors';
 import type { EntityFilters, EntityReferences } from '@app/schema/dto';
+import type { api } from '@shared/lib/eden';
 
-export function createEntityApi(endpoint: any) {
+export type AnyEntityEndpoint = typeof api.api.suppliers;
+
+export function createEntityApi(endpoint: AnyEntityEndpoint) {
     return {
         list: async (params: EntityFilters) => {
             const { data, error } = await endpoint.get({

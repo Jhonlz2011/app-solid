@@ -1,6 +1,7 @@
 import { Component, Show } from 'solid-js';
 import { useSidebar } from './SidebarContext';
-import { SidebarCollapseIcon, CloseIcon } from '@shared/ui/icons';
+import { SidebarCollapseIcon } from '@icons/SidebarCollapseIcon';
+import { CloseIcon } from '@icons/CloseIcon';
 import { useBranding } from '@modules/auth/store/branding.store';
 
 interface SidebarHeaderProps {

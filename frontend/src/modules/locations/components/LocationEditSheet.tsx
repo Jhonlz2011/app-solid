@@ -7,10 +7,10 @@ import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { useLocation } from '../data/locations.queries';
 import { useUpdateLocation } from '../data/locations.mutations';
 import { useAuth } from '@modules/auth/store/auth.store';
-import { FloppyDiskIcon } from '@shared/ui/icons';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
 import LocationForm from './LocationForm';
 import type { LocationFormData } from '@app/schema/frontend';
 

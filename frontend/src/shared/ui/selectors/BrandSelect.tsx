@@ -4,7 +4,7 @@
  */
 import { Component, Show, createMemo, createSignal, createEffect } from 'solid-js';
 import { useBrandsList } from '@modules/brands/data/brands.queries';
-import { Autocomplete } from '@shared/ui/Autocomplete';
+import { Autocomplete } from '@form/Autocomplete';
 import type { BrandItem } from '@app/schema/dto';
 
 

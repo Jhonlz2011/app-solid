@@ -1,23 +1,12 @@
-/**
- * LocationForm — Shared form for Location create/edit.
- *
- * Features:
- * - Warehouse selector with clear support and smart inheritance
- * - Visual indicators for warehouse parent inheritance with overriding support
- * - No restrictions on warehouse for virtual (VIEW) locations
- * - Parent selector using premium LocationSelect (INTERNAL only)
- * - Type selector with premium horizontal SegmentedControl component
- * - Strict 100% type-safety without generic 'any' escapes
- */
 import { Component, Show, For, createMemo, createEffect, createSignal } from 'solid-js';
 import type { LocationType } from '@app/schema/enums';
 import { locationTypeOptions, LOCATION_TYPE_META } from '../data/locations.constants';
 import { useLocationList } from '../data/locations.queries';
 import type { LocationItem } from '../data/locations.api';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import { FieldLabel } from '@shared/ui/TextField';
-import TextField from '@shared/ui/TextField';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import { FieldLabel } from '@form/TextField';
+import TextField from '@form/TextField';
+import { SkeletonLoader } from '@display/SkeletonLoader';
 import { WarehouseSelect, LocationSelect } from '@shared/ui/selectors';
 import {
     SegmentedControl,
@@ -25,7 +14,7 @@ import {
     SegmentedControlItem,
     SegmentedControlItemInput,
     SegmentedControlItemLabel,
-} from '@shared/ui/SegmentedControl';
+} from '@form/SegmentedControl';
 import { cn } from '@shared/lib/utils';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';

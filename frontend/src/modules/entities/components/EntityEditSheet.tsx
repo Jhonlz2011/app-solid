@@ -9,11 +9,10 @@ import { EntityForm } from '@shared/forms/entity';
 import type { EntityFormData } from '@app/schema/frontend';
 import { ApiError, isNetworkError } from '@shared/utils/api-errors';
 import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
-import { FloppyDiskIcon } from '@shared/ui/icons';
-
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { useClient } from '@modules/clients/data/clients.queries';
 import { useSupplier } from '@modules/suppliers/data/suppliers.queries';
 import { useEmployee } from '@modules/employees/data/employees.queries';

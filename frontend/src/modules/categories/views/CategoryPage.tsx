@@ -6,17 +6,24 @@
  */
 import { Component, Show } from 'solid-js';
 import { Outlet, useNavigate } from '@tanstack/solid-router';
-import { PageHeader } from '@shared/ui/PageHeader';
-import { SearchInput } from '@shared/ui/SearchInput';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
-import { PlusIcon, TagIcon, CopyIcon, TrashIcon, RotateCcwIcon, ChevronsUpDownIcon, Expand, Collapse } from '@shared/ui/icons';
+import { PageHeader } from '@overlay/PageHeader';
+import { SearchInput } from '@form/SearchInput';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
+import { PlusIcon } from '@icons/PlusIcon';
+import { TagIcon } from '@icons/TagIcon';
+import { CopyIcon } from '@icons/CopyIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { RotateCcwIcon } from '@icons/RotateCcwIcon';
+import { ChevronsUpDownIcon } from '@icons/ChevronsUpDownIcon';
+import { ExpandIcon } from '@icons/ExpandIcon';
+import { CollapseIcon } from '@icons/CollapseIcon';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
-import { DropdownMenu } from '@shared/ui/DropdownMenu';
+import { DropdownMenu } from '@display/DropdownMenu';
 import CategoryTable from '../components/CategoryTable';
 import CategoryDeleteDialog from '../components/CategoryDeleteDialog';
-import ConfirmDialog from '@shared/ui/ConfirmDialog';
+import ConfirmDialog from '@overlay/ConfirmDialog';
 import { useCategoryState } from '../hooks/useCategoryState';
 import { toast } from 'solid-sonner';
 
@@ -83,7 +90,7 @@ const CategoryPage: Component = () => {
                                     onClick={() => state.tableInstance().toggleAllRowsExpanded(true)}
                                     title="Expandir todas"
                                     class="text-muted hover:text-text focus-within:text-text"
-                                    icon={<Expand />}
+                                    icon={<ExpandIcon />}
                                 >
                                     <span class="hidden @2xl:inline">Expandir</span>
                                 </Button>
@@ -94,7 +101,7 @@ const CategoryPage: Component = () => {
                                     onClick={() => state.tableInstance().toggleAllRowsExpanded(false)}
                                     title="Colapsar todas"
                                     class="text-muted hover:text-text focus-within:text-text"
-                                    icon={<Collapse />}
+                                    icon={<CollapseIcon />}
                                 >
                                     <span class="hidden @2xl:inline">Colapsar</span>
                                 </Button>

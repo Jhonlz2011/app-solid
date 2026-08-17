@@ -1,12 +1,3 @@
-/**
- * Attribute Column Definitions — DataTable columns for the Attributes module.
- *
- * - Label cell uses Link with preload="intent" for 0ms show panel opening
- * - Inline action buttons (edit, deactivate, restore)
- * - Type badge with per-type colors
- * - Options inline preview (max 4 badges)
- * - RBAC-aware action visibility
- */
 import { Show, For } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
@@ -14,12 +5,14 @@ import type { AttributeItem } from './attributes.api';
 import type { AttributeDataType } from '@app/schema/frontend';
 import { ATTRIBUTE_TYPE_LABELS, ATTRIBUTE_TYPE_COLORS } from './attributes.constants';
 import type { ColumnFilterConfig } from '@shared/ui/DataTable';
-import Checkbox from '@shared/ui/Checkbox';
-import { StatusBadge, Badge } from '@shared/ui/Badge';
+import Checkbox from '@form/Checkbox';
+import { StatusBadge, Badge } from '@display/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
-import { EditIcon, TrashIcon, RotateCcwIcon } from '@shared/ui/icons';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
+import { EditIcon } from '@icons/EditIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { RotateCcwIcon } from '@icons/RotateCcwIcon';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
 
 
 export interface AttributeColumnHandlers {

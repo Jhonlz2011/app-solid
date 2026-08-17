@@ -1,6 +1,6 @@
 import { Component, Show, For } from 'solid-js';
-import TextField, { FieldLabel } from '@shared/ui/TextField';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
+import TextField, { FieldLabel } from '@form/TextField';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
 import { UomSelect } from '@shared/ui/selectors';
 import type { ProductVariantFormData } from '@app/schema/frontend';
 import type { CatalogFormApi } from '../catalog-form.types';

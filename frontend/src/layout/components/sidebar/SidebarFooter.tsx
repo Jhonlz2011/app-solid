@@ -3,11 +3,11 @@ import { Link } from '@tanstack/solid-router';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
 import ThemeToggle from '../ThemeToggle';
 import { useSidebar } from './SidebarContext';
-import { LogoutIcon } from '@shared/ui/icons';
+import { LogoutIcon } from '@icons/LogoutIcon';
 import { useLogout } from '@modules/auth/hooks/useLogout';
 import { UserMenuDropdown } from '../UserMenuDropdown';
-import { DropdownMenu } from '@shared/ui/DropdownMenu';
-import Button from '@shared/ui/Button';
+import { DropdownMenu } from '@display/DropdownMenu';
+import Button from '@form/Button';
 
 interface SidebarFooterProps {
     userName: string;

@@ -26,7 +26,7 @@ import {
 } from '../data/users.mutations';
 import { rbacKeys } from '../data/users.keys';
 import { usersApi } from '../data/users.api';
-import type { RoleDto, UserListItemDto, UsersFilters } from '@app/schema/rbac-dto'
+import type { RoleDto, UserListItemDto, UsersFilters } from '@app/schema/dto'
 import { createUserColumns } from '../data/user.columns';
 
 // ─── Types ──────────────────────────────────────────────────────

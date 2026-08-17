@@ -1,7 +1,7 @@
 import { Component, Show } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { useSearchPalette } from '@shared/store/layout.store';
-import { SearchIcon } from '@shared/ui/icons';
+import { SearchIcon } from '@icons/SearchIcon';
 import { useSidebarTooltip } from './useSidebarTooltip';
 import { useSidebar } from './SidebarContext';
 

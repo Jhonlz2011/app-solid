@@ -8,5 +8,6 @@ export * from './products.dto';
 export * from './catalog.dto';
 export * from './inventory.dto';
 export * from './auth.dto';
+export * from './rbac.dto';
 export * from './profile.dto';
 export * from './settings.dto';

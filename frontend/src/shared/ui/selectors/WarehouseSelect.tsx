@@ -4,8 +4,8 @@
  */
 import { Component, Show, createMemo, createSignal, createEffect } from 'solid-js';
 import { useWarehousesList } from '@modules/settings/data/warehouses.queries';
-import { Autocomplete } from '@shared/ui/Autocomplete';
-import { WarehouseIcon } from '@shared/ui/icons';
+import { Autocomplete } from '@form/Autocomplete';
+import { WarehouseIcon } from '@icons/WarehouseIcon';
 import type { WarehouseItem } from '@modules/settings/data/warehouses.api';
 
 export interface WarehouseSelectProps {

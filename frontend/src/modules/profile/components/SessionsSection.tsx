@@ -9,16 +9,16 @@ import { useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { useSSE } from '@shared/store/sse.store';
 import { useAuth } from '@modules/auth/store/auth.store';
-import { SessionItem } from '@shared/ui/SessionItem';
-import { DeviceIcon } from '@shared/ui/icons';
+import { SessionItem } from '@/shared/ui/overlay/SessionItem';
+import { DeviceIcon } from '@icons/DeviceIcon';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 import { RealtimeEvents } from '@app/schema/realtime-events';
-import { ListItemSkeleton } from '@shared/ui/SkeletonLoader';
-import ErrorState from '@shared/ui/ErrorState';
+import { ListItemSkeleton } from '@display/SkeletonLoader';
+import ErrorState from '@/shared/ui/display/ErrorState';
 import { profileKeys } from '../data/profile.keys';
 import { useMySessions } from '../data/profile.queries';
 import { useRevokeMySession } from '../data/profile.mutations';
-import ConfirmDialog from '@shared/ui/ConfirmDialog';
+import ConfirmDialog from '@overlay/ConfirmDialog';
 
 export const SessionsSection: Component = () => {
     const queryClient = useQueryClient();

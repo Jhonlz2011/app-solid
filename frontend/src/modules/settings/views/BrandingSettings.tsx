@@ -1,11 +1,11 @@
 import { Component, For, Show, createMemo } from 'solid-js';
 import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
-import { FileUploadDropzone } from '@shared/ui/FileUpload';
-import TextField from '@shared/ui/TextField';
-import Button from '@shared/ui/Button';
+import { FileUploadDropzone } from '@/shared/ui/overlay/FileUpload';
+import TextField from '@form/TextField';
+import Button from '@form/Button';
 import { cn } from '@shared/lib/utils';
-import { FloppyDiskIcon } from '@shared/ui/icons';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { SkeletonLoader } from '@display/SkeletonLoader';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { THEME_PRESETS } from '@app/schema/utils/theme-presets';
 import { getContrastColor } from '@app/schema/utils/color';

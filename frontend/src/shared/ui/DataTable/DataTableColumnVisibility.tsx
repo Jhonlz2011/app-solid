@@ -11,10 +11,14 @@
  */
 import { Component, For, Show } from 'solid-js';
 import type { Table } from '@tanstack/solid-table';
-import { DropdownMenu } from '@shared/ui/DropdownMenu';
-import Switch from '@shared/ui/Switch';
-import Button from '@shared/ui/Button';
-import { ColumnsIcon, EyeIcon, EyeOffIcon, PinIcon, PinOffIcon } from '@shared/ui/icons';
+import { DropdownMenu } from '@display/DropdownMenu';
+import Switch from '@/shared/ui/form/Switch';
+import Button from '@form/Button';
+import { ColumnsIcon } from '@icons/ColumnsIcon';
+import { EyeIcon } from '@icons/EyeIcon';
+import { EyeOffIcon } from '@icons/EyeOffIcon';
+import { PinIcon } from '@icons/PinIcon';
+import { PinOffIcon } from '@icons/PinOffIcon';
 
 interface DataTableColumnVisibilityProps {
     /** The TanStack Table instance */

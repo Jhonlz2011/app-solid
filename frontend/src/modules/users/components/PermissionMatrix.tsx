@@ -1,9 +1,9 @@
 import { Component, For, Show, createSignal, createMemo, createEffect } from 'solid-js';
-import { ActionBadge } from '@shared/ui/Badge';
-import Checkbox from '@shared/ui/Checkbox';
-import { SearchInput } from '@shared/ui/SearchInput';
-import Button from '@shared/ui/Button';
-import { ChevronRightIcon } from '@shared/ui/icons';
+import { ActionBadge } from '@display/Badge';
+import Checkbox from '@form/Checkbox';
+import { SearchInput } from '@form/SearchInput';
+import Button from '@form/Button';
+import { ChevronRightIcon } from '@icons/ChevronRightIcon';
 
 // ============================================
 // ACTION CATALOG — localized labels for permission actions

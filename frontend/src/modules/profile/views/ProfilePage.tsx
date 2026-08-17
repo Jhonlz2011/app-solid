@@ -10,12 +10,16 @@ import { ProfileHeader, ProfileHeaderSkeleton } from '../components/ProfileHeade
 import { AccountSection } from '../components/AccountSection';
 import { SecuritySection } from '../components/SecuritySection';
 import { SessionsSection } from '../components/SessionsSection';
-import { ShieldIcon, UserIcon, DeviceIcon, WarningIcon } from '@shared/ui/icons';
+import { ShieldIcon } from '@icons/ShieldIcon';
+import { UserIcon } from '@icons/UserIcon';
+import { DeviceIcon } from '@icons/DeviceIcon';
+import { WarningIcon } from '@icons/WarningIcon';
+
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
-import { Skeleton } from '@shared/ui/Skeleton';
-import ErrorState from '@shared/ui/ErrorState';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/form/Tabs';
+import { Skeleton } from '@display/Skeleton';
+import ErrorState from '@/shared/ui/display/ErrorState';
 
 export const ProfilePendingComponent: Component = () => (
     <div class="w-full p-4 sm:p-6 max-w-3xl mx-auto">

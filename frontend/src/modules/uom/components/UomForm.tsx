@@ -11,11 +11,11 @@ import { Dynamic } from 'solid-js/web';
 import type { UomGroup } from '@app/schema/enums';
 import { groupOptions, UOM_GROUP_META } from '../data/uom.constants';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
-import { FieldLabel } from '@shared/ui/TextField';
-import TextField from '@shared/ui/TextField';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
+import { FieldLabel } from '@form/TextField';
+import TextField from '@form/TextField';
 import { useUomList } from '../data/uom.queries';
-import { AlertTriangleIcon, CheckIcon, InfoIcon } from '@shared/ui/icons';
+import { AlertTriangleIcon } from '@icons/AlertTriangleIcon';
 
 type GroupOption = { value: string; label: string; icon: Component<any> };
 

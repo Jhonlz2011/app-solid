@@ -1,5 +1,5 @@
 import { Component, For, createMemo, Show } from 'solid-js';
-import { LockIcon } from '@shared/ui/icons';
+import { LockIcon } from '@icons/LockIcon';
 import { Link } from '@tanstack/solid-router';
 import type { MenuItem } from './types';
 import { useSidebar } from './SidebarContext';

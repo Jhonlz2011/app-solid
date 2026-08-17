@@ -6,35 +6,19 @@
  */
 import type { TaxIdTypeForm, PersonType, TaxRegimeType, EntityFormData } from '@app/schema/frontend';
 import { TAX_ID_TYPES_FORM } from '@app/schema/frontend';
+import {
+    taxIdTypeFormLabels,
+    personTypeLabels,
+    taxRegimeTypeLabels,
+    roleLabels,
+} from '@shared/constants/entity-labels';
 
 // =============================================================================
-// Label Maps
+// Re-export Centralized Labels & Maps
 // =============================================================================
 
-export const taxIdTypeLabels: Record<TaxIdTypeForm, string> = {
-    RUC: 'RUC',
-    CEDULA: 'Cédula',
-    PASAPORTE: 'Pasaporte',
-    EXTERIOR: 'Exterior',
-};
-
-export const personTypeLabels: Record<PersonType, string> = {
-    NATURAL: 'Persona Natural',
-    JURIDICA: 'Persona Jurídica',
-};
-
-export const taxRegimeTypeLabels: Record<TaxRegimeType, string> = {
-    RIMPE_NEGOCIO_POPULAR: 'RIMPE Popular',
-    RIMPE_EMPRENDEDOR: 'RIMPE Emprendedor',
-    GENERAL: 'Régimen General',
-};
-
-export const roleLabels = {
-    isClient: 'Cliente',
-    isSupplier: 'Proveedor',
-    isEmployee: 'Empleado',
-    isCarrier: 'Transportista',
-} as const;
+export { personTypeLabels, taxRegimeTypeLabels, roleLabels };
+export const taxIdTypeLabels = taxIdTypeFormLabels;
 
 // =============================================================================
 // Select Option Types
@@ -114,41 +98,8 @@ export function createDefaultEntityFormValues(
 }
 
 // =============================================================================
-// Reactive Visibility Helpers (pure functions — called inside JSX or createMemo)
+// Form Config & Rule Helpers
 // =============================================================================
-
-/** Tax section visible when: entity is a business/taxpayer with RUC or supplier */
-export function shouldShowTaxSection(values: EntityFormData): boolean {
-    const isPureEmployee = values.isEmployee && !values.isSupplier && !values.isClient && !values.isCarrier;
-    if (isPureEmployee) return false;
-    if ((values.taxIdType === 'CEDULA' || values.taxIdType === 'PASAPORTE') && !values.isSupplier) return false;
-    if (values.taxIdType === 'RUC') return true;
-    if (values.isSupplier) return true;
-    return false;
-}
-
-/** Trade name visible when not pure employee and not purely natural person without commercial activity */
-export function shouldShowTradeName(values: EntityFormData): boolean {
-    const isPureEmployee = values.isEmployee && !values.isSupplier && !values.isClient && !values.isCarrier;
-    if (isPureEmployee) return false;
-    if ((values.taxIdType === 'CEDULA' || values.taxIdType === 'PASAPORTE') && !values.isSupplier && !values.isClient) return false;
-    return true;
-}
-
-/** Employee details visible when is_employee is checked */
-export function shouldShowEmployeeDetails(values: EntityFormData): boolean {
-    return values.isEmployee;
-}
-
-/** Contact sections visible when entity has any active role */
-export function shouldShowContacts(values: EntityFormData): boolean {
-    return values.isEmployee || values.isSupplier || values.isClient;
-}
-
-/** PersonType is locked (forced to NATURAL) when: CEDULA, PASAPORTE or isEmployee */
-export function isPersonTypeLocked(values: EntityFormData): boolean {
-    return values.taxIdType === 'CEDULA' || values.taxIdType === 'PASAPORTE' || values.isEmployee;
-}
 
 /** TaxIdType disabled keys for JURIDICA — CEDULA and PASAPORTE are invalid */
 export function getTaxIdTypeDisabledKeys(personType: PersonType): TaxIdTypeForm[] {
@@ -169,3 +120,4 @@ export function getTaxIdConfig(taxIdType: TaxIdTypeForm): { maxLength: number | 
             return { maxLength: undefined, placeholder: 'Número de identificación' };
     }
 }
+

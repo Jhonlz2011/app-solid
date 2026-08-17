@@ -1,6 +1,6 @@
 import { Component, For, Show, createMemo } from 'solid-js';
 import { Link, useLocation } from '@tanstack/solid-router';
-import { ChevronRightIcon } from '@shared/ui/icons';
+import { ChevronRightIcon } from '@icons/ChevronRightIcon';
 
 export interface BreadcrumbItem {
     id: number;

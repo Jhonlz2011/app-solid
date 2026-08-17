@@ -1,6 +1,6 @@
 import { Component } from 'solid-js';
 import { useNavigate } from '@tanstack/solid-router';
-import Button from '@shared/ui/Button';
+import Button from '@form/Button';
 
 const NotFound: Component = () => {
     const navigate = useNavigate();

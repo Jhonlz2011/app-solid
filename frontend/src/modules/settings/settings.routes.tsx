@@ -1,6 +1,6 @@
 import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
-import GlobalPageLoader from '@shared/ui/GlobalPageLoader';
+import GlobalPageLoader from '@/shared/ui/display/GlobalPageLoader';
 
 // Data layer imports
 import { warehousesApi } from './data/warehouses.api';

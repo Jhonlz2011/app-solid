@@ -10,17 +10,17 @@ import AttributeDeleteDialog from '../components/AttributeDeleteDialog';
 
 // UI Components
 import { DataTable } from '@shared/ui/DataTable';
-import { PageHeader } from '@shared/ui/PageHeader';
-import { SearchInput } from '@shared/ui/SearchInput';
+import { PageHeader } from '@overlay/PageHeader';
+import { SearchInput } from '@form/SearchInput';
 import { DataTableSelectionBar, SelectionBarAction } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
 
-// Icons
-import {
-    PlusIcon, DownloadIcon, CopyIcon, LayoutIcon,
-} from '@shared/ui/icons';
+import { PlusIcon } from '@icons/PlusIcon';
+import { DownloadIcon } from '@icons/DownloadIcon';
+import { CopyIcon } from '@icons/CopyIcon';
+import { LayoutIcon } from '@icons/LayoutIcon';
 
 const AttributesPage: Component = () => {
     const state = useAttributeState();

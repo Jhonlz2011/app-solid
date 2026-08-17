@@ -3,7 +3,9 @@ import type { EntityFormData, TaxIdTypeForm, PersonType, TaxRegimeType } from '@
 import { useQueryClient, createQuery, createMutation } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { api } from '@shared/lib/eden';
-import type { SriSupplierResponse } from '@modules/sri/sri.types';
+import type { SriSearchResult } from '@modules/sri/sri.types';
+import { fetchSriByRuc, sriKeys } from '@modules/sri/sri.queries';
+import { STALE_TIME } from '@shared/constants/cache.constants';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 
 import {
@@ -16,11 +18,13 @@ import {
     type SelectOption,
 } from '../entity-form.utils';
 
-import TextField, { FieldLabel } from '@shared/ui/TextField';
-import Checkbox from '@shared/ui/Checkbox';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
+import TextField, { FieldLabel } from '@form/TextField';
+import Checkbox from '@form/Checkbox';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
 import { SriBusinessNameSelect } from '@shared/ui/selectors';
-import { SearchIcon, BriefcaseIcon, PlusIcon } from '@shared/ui/icons';
+import { SearchIcon } from '@icons/SearchIcon';
+import { BriefcaseIcon } from '@icons/BriefcaseIcon';
+import { PlusIcon } from '@icons/PlusIcon';
 import { useAuth } from '@modules/auth/store/auth.store';
 import {
     SegmentedControl,
@@ -28,7 +32,7 @@ import {
     SegmentedControlItem,
     SegmentedControlItemInput,
     SegmentedControlItemLabel
-} from '@shared/ui/SegmentedControl';
+} from '@form/SegmentedControl';
 
 import type { EntityFormApi } from '../entity-form.types';
 
@@ -41,6 +45,7 @@ export interface EntityGeneralTabProps {
 export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
     const auth = useAuth();
     const queryClient = useQueryClient();
+    let businessNameInputRef: HTMLInputElement | undefined;
 
     // =========================================================================
     // REACTIVE SELECTORS
@@ -118,7 +123,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
             if (error) throw error;
             return (data || []) as Array<{ id: number; name: string; code?: string | null; is_active: boolean }>;
         },
-        staleTime: 1000 * 60 * 5,
+        staleTime: STALE_TIME.MEDIUM,
         enabled: showEmployeeSection(),
     }));
 
@@ -129,7 +134,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
             if (error) throw error;
             return (data || []) as Array<{ id: number; name: string; department_id?: number | null; is_active: boolean }>;
         },
-        staleTime: 1000 * 60 * 5,
+        staleTime: STALE_TIME.MEDIUM,
         enabled: showEmployeeSection(),
     }));
 
@@ -187,13 +192,9 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                 setSriError('');
                 setIsSearchingRuc(true);
                 const data = await queryClient.fetchQuery({
-                    queryKey: ['sri', 'by-ruc', val],
-                    queryFn: async () => {
-                        const { data: resData, error } = await api.api.sri['by-ruc'].get({ query: { q: val } });
-                        if (error) throw new Error(String(error.value));
-                        return resData as SriSupplierResponse[];
-                    },
-                    staleTime: 1000 * 60 * 60 * 24,
+                    queryKey: sriKeys.byRuc(val),
+                    queryFn: () => fetchSriByRuc(val),
+                    staleTime: STALE_TIME.DAY,
                 });
                 if (data && data.length > 0) {
                     handleSriSelect('RUC')(data[0]);
@@ -209,13 +210,10 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                         props.form.setFieldValue('isSpecialContributor', false);
                         props.form.setFieldValue('isRetentionAgent', false);
                     });
-                    setTimeout(() => {
-                        const input = document.getElementById('businessName-input') as HTMLInputElement | null;
-                        if (input) {
-                            input.focus();
-                            input.select();
-                        }
-                    }, 50);
+                    queueMicrotask(() => {
+                        businessNameInputRef?.focus();
+                        businessNameInputRef?.select();
+                    });
                 }
             } catch {
                 toast.error('Error de conexión con el SRI.');
@@ -233,7 +231,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
         props.form.setFieldValue('businessName', value);
     };
 
-    const handleSriSelect = (source: 'RUC' | 'NAME') => (supplierResult: SriSupplierResponse | null) => {
+    const handleSriSelect = (source: 'RUC' | 'NAME') => (supplierResult: SriSearchResult | null) => {
         if (!supplierResult) return;
 
         props.form.setFieldValue('taxId', supplierResult.ruc);
@@ -247,7 +245,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
         props.form.setFieldValue('taxRegimeType', supplierResult.isRimpe ? 'RIMPE_EMPRENDEDOR' : 'GENERAL');
 
         if (source === 'NAME') {
-            queryClient.setQueryData(['sri', 'by-name', supplierResult.razonSocial], [supplierResult]);
+            queryClient.setQueryData(sriKeys.byName(supplierResult.razonSocial), [supplierResult]);
         }
 
         if (supplierResult.city) {
@@ -447,6 +445,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                                     <TextField.Root field={field()}>
                                         <TextField.Label>{businessNameLabel()}</TextField.Label>
                                         <TextField.Input
+                                            ref={businessNameInputRef}
                                             type="text"
                                             placeholder={businessNamePlaceholder()}
                                             value={field().state.value}

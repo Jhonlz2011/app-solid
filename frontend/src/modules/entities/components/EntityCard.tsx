@@ -5,12 +5,14 @@ import { Component, Show } from 'solid-js';
 import { useNavigate } from '@tanstack/solid-router';
 import type { EntityListItem } from '../data/entities.api';
 import { useAuth } from '@/modules/auth/store/auth.store';
-import { StatusBadge, Badge } from '@shared/ui/Badge';
-import { EditIcon, TrashIcon, RotateCcwIcon } from '@shared/ui/icons';
-import Checkbox from '@shared/ui/Checkbox';
+import { StatusBadge, Badge } from '@display/Badge';
+import { EditIcon } from '@icons/EditIcon';
+import { RotateCcwIcon } from '@icons/RotateCcwIcon';
+import { TrashIcon } from '@icons/TrashIcon'
+import Checkbox from '@form/Checkbox';
 import { cn } from '@shared/lib/utils';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
 import type { RbacModule } from '@app/schema/enums';
 
 export interface EntityCardProps {

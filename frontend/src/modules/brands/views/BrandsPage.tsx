@@ -9,20 +9,23 @@ import { useBrandsState } from '../hooks/useBrandsState';
 
 // UI Components
 import { DataTable } from '@shared/ui/DataTable';
-import { PageHeader } from '@shared/ui/PageHeader';
-import { SearchInput } from '@shared/ui/SearchInput';
+import { PageHeader } from '@overlay/PageHeader';
+import { SearchInput } from '@form/SearchInput';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
-import ConfirmDialog from '@shared/ui/ConfirmDialog';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
+import ConfirmDialog from '@overlay/ConfirmDialog';
 
-// Icons
-import {
-    PlusIcon, TrashIcon, BookmarkIcon, DownloadIcon, UploadIcon,
-    CopyIcon, RotateCcwIcon, ChevronsUpDownIcon,
-} from '@shared/ui/icons';
-import { DropdownMenu } from '@shared/ui/DropdownMenu';
+import { PlusIcon } from '@icons/PlusIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { BookmarkIcon } from '@icons/BookmarkIcon';
+import { DownloadIcon } from '@icons/DownloadIcon';
+import { UploadIcon } from '@icons/UploadIcon';
+import { CopyIcon } from '@icons/CopyIcon';
+import { RotateCcwIcon } from '@icons/RotateCcwIcon';
+import { ChevronsUpDownIcon } from '@icons/ChevronsUpDownIcon';
+import { DropdownMenu } from '@display/DropdownMenu';
 
 const BrandsPage: Component = () => {
     const state = useBrandsState();

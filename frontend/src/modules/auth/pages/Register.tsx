@@ -7,11 +7,11 @@ import { RegisterStep1Schema, RegisterStep2Schema, type RegisterStep1Data } from
 import { BUSINESS_TYPES, TAX_REGIME_TYPES } from '@app/schema/enums';
 import { authApi } from '@modules/auth/api/auth.api';
 import { actions } from '@modules/auth/store/auth.store';
-import TextField from '@shared/ui/TextField';
-import { FieldLabel } from '@shared/ui/TextField';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
-import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem, SegmentedControlItemInput, SegmentedControlItemLabel } from '@shared/ui/SegmentedControl';
-import Button from '@shared/ui/Button';
+import TextField from '@form/TextField';
+import { FieldLabel } from '@form/TextField';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
+import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem, SegmentedControlItemInput, SegmentedControlItemLabel } from '@form/SegmentedControl';
+import Button from '@form/Button';
 import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import Turnstile from '@shared/ui/Turnstile';
 

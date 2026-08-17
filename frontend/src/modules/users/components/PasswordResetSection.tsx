@@ -2,10 +2,10 @@ import { Component, Show, createSignal } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { copyToClipboard } from '@shared/utils/clipboard';
 import { generatePassword } from '@shared/utils/password.utils';
-import { TextField } from '@shared/ui/TextField';
-import Button from '@shared/ui/Button';
-import ConfirmDialog from '@shared/ui/ConfirmDialog';
-import { CopyIcon } from '@shared/ui/icons';
+import { TextField } from '@form/TextField';
+import Button from '@form/Button';
+import ConfirmDialog from '@overlay/ConfirmDialog';
+import { CopyIcon } from '@icons/CopyIcon';
 import { useAdminResetPassword } from '../data/users.mutations';
 
 interface PasswordResetSectionProps {

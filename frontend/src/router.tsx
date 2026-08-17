@@ -18,7 +18,7 @@ import { createLocationRoutes } from './modules/locations/locations.routes';
 
 // P1-5: Removed connectSSE import — SSE connection is managed solely by MainLayout.createEffect(isOnline())
 import { queryClient } from './shared/lib/queryClient';
-import ErrorState from './shared/ui/ErrorState';
+import ErrorState from './shared/ui/display/ErrorState';
 
 import { LayoutSkeleton } from './layout/MainLayout';
 import { ProfilePendingComponent } from './modules/profile/views/ProfilePage';

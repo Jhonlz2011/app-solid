@@ -9,10 +9,12 @@ import { actions } from '@modules/auth/store/auth.store';
 import { authApi } from '../api/auth.api';
 import { useBranding, getSubdomain, applyBranding } from '../store/branding.store';
 import { ApiError } from '@shared/utils/api-errors';
-import Input from '@shared/ui/Input';
-import Button from '@shared/ui/Button';
+import Input from '@/shared/ui/form/Input';
+import Button from '@form/Button';
 import Turnstile from '@shared/ui/Turnstile';
-import { MailIcon, LockIcon, BuildingIcon } from '@shared/ui/icons';
+import { MailIcon } from '@icons/MailIcon';
+import { LockIcon } from '@icons/LockIcon';
+import { BuildingIcon } from '@icons/BuildingIcon';
 
 const BASE_DOMAIN = import.meta.env.VITE_BASE_DOMAIN || 'zelys.app';
 

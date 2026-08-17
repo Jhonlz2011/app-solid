@@ -5,9 +5,10 @@
  */
 import { Component, Show } from 'solid-js';
 import type { CatalogFormApi } from '../catalog-form.types';
-import TextField from '@shared/ui/TextField';
-import { Badge } from '@shared/ui/Badge';
-import { EditIcon, RotateCcwIcon } from '@shared/ui/icons';
+import TextField from '@form/TextField';
+import { Badge } from '@display/Badge';
+import { EditIcon } from '@icons/EditIcon';
+import { RotateCcwIcon } from '@icons/RotateCcwIcon';
 import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
 
 interface IdentificationSectionProps {

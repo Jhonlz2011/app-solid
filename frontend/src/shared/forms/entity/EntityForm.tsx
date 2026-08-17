@@ -8,8 +8,11 @@ import { createTabErrorSelector, resolveTabFlags } from '@shared/forms/useTabErr
 
 import { createDefaultEntityFormValues, EMPTY_EMPLOYEE_DETAILS } from './entity-form.utils';
 
-import { InfoIcon, MapPinIcon, UsersIcon, TruckIcon } from '@shared/ui/icons';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
+import { InfoIcon } from '@icons/InfoIcon';
+import { MapPinIcon } from '@icons/MapPinIcon';
+import { UsersIcon } from '@icons/UsersIcon';
+import { TruckIcon } from '@icons/TruckIcon';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/form/Tabs';
 
 // Subcomponents
 import { EntityGeneralTab } from './sections/EntityGeneralTab';
@@ -34,21 +37,21 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
         if (props.entity) {
             const e = props.entity;
             return {
-                taxId: e.tax_id ?? '',
-                taxIdType: (e.tax_id_type ?? 'RUC') as TaxIdTypeForm,
-                personType: (e.person_type ?? 'NATURAL') as PersonType,
-                businessName: e.business_name ?? '',
+                taxId: e.tax_id,
+                taxIdType: e.tax_id_type as TaxIdTypeForm,
+                personType: e.person_type as PersonType,
+                businessName: e.business_name,
                 tradeName: e.trade_name ?? '',
                 emailBilling: e.email_billing ?? '',
                 phone: e.phone ?? '',
-                isClient: e.is_client ?? false,
-                isSupplier: e.is_supplier ?? false,
-                isEmployee: e.is_employee ?? false,
-                isCarrier: e.is_carrier ?? false,
+                isClient: e.is_client,
+                isSupplier: e.is_supplier,
+                isEmployee: e.is_employee,
+                isCarrier: e.is_carrier,
                 taxRegimeType: (e.tax_regime_type ?? undefined) as TaxRegimeType | undefined,
-                obligadoContabilidad: e.obligado_contabilidad ?? false,
-                isRetentionAgent: e.is_retention_agent ?? false,
-                isSpecialContributor: e.is_special_contributor ?? false,
+                obligadoContabilidad: e.obligado_contabilidad,
+                isRetentionAgent: e.is_retention_agent,
+                isSpecialContributor: e.is_special_contributor,
                 employeeDetails: e.employeeDetails ? {
                     departmentId: e.employeeDetails.department_id ?? undefined,
                     jobTitleId: e.employeeDetails.job_title_id ?? undefined,

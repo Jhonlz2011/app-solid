@@ -1,0 +1,52 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/**/*.ts"]
+    },
+    "packages/schema": {
+      "entry": [
+        "src/index.ts",
+        "src/frontend/index.ts",
+        "src/backend/index.ts",
+        "src/dto/*.ts",
+        "src/tables/index.ts",
+        "src/tables/*.ts",
+        "src/enums.ts",
+        "src/errors.ts",
+        "src/utils/*.ts"
+      ],
+      "project": ["src/**/*.ts"]
+    },
+    "backend": {
+      "entry": [
+        "src/server.ts",
+        "src/migrate.ts",
+        "src/seeds/seed.ts",
+        "src/scripts/**/*.ts",
+        "drizzle.config.ts"
+      ],
+      "project": ["src/**/*.ts"]
+    },
+    "frontend": {
+      "entry": [
+        "src/index.tsx",
+        "src/routes/**/*.{ts,tsx}",
+        "vite.config.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "web": {
+      "entry": [
+        "src/index.tsx",
+        "src/routes/**/*.{ts,tsx}",
+        "vite.config.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  },
+  "ignoreDependencies": [
+    "tailwindcss-animate",
+    "@types/*"
+  ]
+}

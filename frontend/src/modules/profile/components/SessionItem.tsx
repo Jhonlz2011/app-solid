@@ -1,7 +1,7 @@
 import { Component, Show } from 'solid-js';
 import { parseUserAgent, formatSessionDate } from '@shared/utils/session.utils';
-import Button from '@shared/ui/Button';
-import { LogoutIcon } from '@shared/ui/icons';
+import Button from '@form/Button';
+import { LogoutIcon } from '@icons/LogoutIcon';
 
 
 export interface Session {

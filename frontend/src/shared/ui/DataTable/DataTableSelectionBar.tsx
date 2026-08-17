@@ -10,7 +10,7 @@
  * - Glassmorphism styling matching the app design system
  */
 import { Component, Show, JSX, createSignal, createEffect, on } from 'solid-js';
-import { XIcon } from '../icons';
+import { CloseIcon } from '../icons';
 import { cn } from '@shared/lib/utils';
 
 // =============================================================================
@@ -161,7 +161,7 @@ export const DataTableSelectionBar: Component<DataTableSelectionBarProps> = (pro
                         class="p-1.5 rounded-lg text-muted hover:text-text hover:bg-card-alt transition-colors duration-150 cursor-pointer"
                         title="Deseleccionar todo"
                     >
-                        <XIcon class="size-4" />
+                        <CloseIcon class="size-4" />
                     </button>
                 </div>
             </div>

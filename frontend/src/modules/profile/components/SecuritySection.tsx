@@ -3,9 +3,11 @@ import { Component, Show } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { ChangePasswordSchema } from '@app/schema/frontend';
-import { TextField } from '@shared/ui/TextField';
-import Button from '@shared/ui/Button';
-import { AlertCircleIcon, WarningIcon, KeyIcon } from '@shared/ui/icons';
+import { TextField } from '@form/TextField';
+import Button from '@form/Button';
+import { KeyIcon } from '@icons/KeyIcon';
+import { WarningIcon } from '@icons/WarningIcon';
+
 
 interface SecuritySectionProps {
     onChangePassword: (data: { currentPassword: string; newPassword: string }) => Promise<void>;

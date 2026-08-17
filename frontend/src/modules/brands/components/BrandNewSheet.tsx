@@ -7,11 +7,11 @@ import { toast } from 'solid-sonner';
 import { isNetworkError } from '@shared/utils/api-errors';
 import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { useCreateBrand } from '../data/brands.mutations';
-import { FloppyDiskIcon } from '@shared/ui/icons';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import TextField from '@shared/ui/TextField';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
+import TextField from '@form/TextField';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
 
 interface BrandNewSheetProps { onClose?: () => void; }
 

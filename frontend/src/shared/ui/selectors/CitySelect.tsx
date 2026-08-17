@@ -1,5 +1,5 @@
 import { Component, Show, createSignal, createEffect, onCleanup, on } from 'solid-js';
-import { Autocomplete } from '@shared/ui/Autocomplete';
+import { Autocomplete } from '@form/Autocomplete';
 import { useGeoNamesCities, type GeoNameCity } from '@shared/hooks/useGeoNamesCities';
 import type { FieldLike } from '@shared/ui/form/form.types';
 

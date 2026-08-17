@@ -6,9 +6,9 @@ import AttributeForm from './AttributeForm';
 import type { AttributeFormData } from '@app/schema/frontend';
 import { ApiError, isNetworkError } from '@shared/utils/api-errors';
 import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
-import { FloppyDiskIcon } from '@shared/ui/icons';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
 
 interface AttributeNewSheetProps {
     onClose?: () => void;

@@ -3,13 +3,13 @@ import { useParams, useNavigate } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useProduct } from '@/modules/products/data/products.queries';
 import { productTypeLabels, productSubtypeLabels } from '@/modules/products/data/products.api';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
-import { Badge, StatusBadge } from '@shared/ui/Badge';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
-import { InfoRow } from '@shared/ui/InfoRow';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
+import { Badge, StatusBadge } from '@display/Badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/form/Tabs';
+import { InfoRow } from '@/shared/ui/display/InfoRow';
+import { SkeletonLoader } from '@display/SkeletonLoader';
 import { useAuth } from '@modules/auth/store/auth.store';
 
 interface ServiceShowPanelProps {

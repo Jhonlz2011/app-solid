@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/solid-router';
 import { useVehiclesList } from '../data/vehicles.queries';
 import { useUpdateVehicle, useDeleteVehicle } from '../data/vehicles.mutations';
 import type { CompanyVehicleItem } from '@app/schema/dto';
-import { TruckIcon } from '@shared/ui/icons';
+import { TruckIcon } from '@icons/TruckIcon';
 import SettingsTable, { type SettingsColumn } from '../components/shared/SettingsTable';
 
 const columns: SettingsColumn<CompanyVehicleItem>[] = [

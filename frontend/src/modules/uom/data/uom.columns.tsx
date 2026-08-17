@@ -14,15 +14,16 @@ import type { UomItem } from './uom.api';
 import { UOM_GROUP_META, formatBaseFactor } from './uom.constants';
 import type { UomGroup } from '@app/schema/enums';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
-import Checkbox from '@shared/ui/Checkbox';
-import { StatusBadge } from '@shared/ui/Badge';
+import Checkbox from '@form/Checkbox';
+import { StatusBadge } from '@display/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
-import { Tooltip } from '@shared/ui/Tooltip';
-import LinkButton from '@shared/ui/LinkButton';
-import Button from '@shared/ui/Button';
-import {
-    LockIcon, EditIcon, TrashIcon, RotateCcwIcon,
-} from '@shared/ui/icons';
+import { Tooltip } from '@/shared/ui/overlay/Tooltip';
+import LinkButton from '@form/LinkButton';
+import Button from '@form/Button';
+import { LockIcon } from '@icons/LockIcon';
+import { EditIcon } from '@icons/EditIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { RotateCcwIcon } from '@icons/RotateCcwIcon';
 
 /** Filter configuration for a column — uses accessors for SolidJS reactivity */
 export interface ColumnFilterConfig {

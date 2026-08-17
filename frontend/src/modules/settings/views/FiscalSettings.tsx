@@ -1,12 +1,12 @@
 import { Component, Show } from 'solid-js';
 import { cn } from '@shared/lib/utils';
 import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
-import TextField from '@shared/ui/TextField';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
-import Switch from '@shared/ui/Switch';
-import Button from '@shared/ui/Button';
-import { FloppyDiskIcon } from '@shared/ui/icons';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
+import TextField from '@form/TextField';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
+import Switch from '@/shared/ui/form/Switch';
+import Button from '@form/Button';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { SkeletonLoader } from '@display/SkeletonLoader';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 
 const RIMPE_OPTIONS = [

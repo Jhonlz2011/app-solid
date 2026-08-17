@@ -7,12 +7,12 @@ import { WarehouseFormSchema, type WarehouseFormData } from '@app/schema/fronten
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import { useCreateWarehouse } from '../../data/warehouses.mutations';
-import { FloppyDiskIcon } from '@shared/ui/icons';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import TextField from '@shared/ui/TextField';
-import Checkbox from '@shared/ui/Checkbox';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
+import TextField from '@form/TextField';
+import Checkbox from '@form/Checkbox';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
 
 interface WarehouseNewSheetProps { onClose?: () => void; }
 

@@ -1,15 +1,20 @@
 import { Component, For, Show } from 'solid-js';
 import { useParams, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import { Avatar } from '@shared/ui/Avatar';
-import { StatusBadge, RoleBadge, EntityTypeBadge } from '@shared/ui/Badge';
-import { EditIcon, KeyIcon, InfoIcon, DeviceIcon, UserHistoryIcon } from '@shared/ui/icons';
-import { InfoRow } from '@shared/ui/InfoRow';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/form/Tabs';
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import { Avatar } from '@/shared/ui/display/Avatar';
+import { StatusBadge, RoleBadge, EntityTypeBadge } from '@display/Badge';
+import { EditIcon } from '@icons/EditIcon';
+import { KeyIcon } from '@icons/KeyIcon';
+import { InfoIcon } from '@icons/InfoIcon';
+import { DeviceIcon } from '@icons/DeviceIcon';
+import { UserHistoryIcon } from '@icons/UserHistoryIcon';
+
+import { InfoRow } from '@/shared/ui/display/InfoRow';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { useUser } from '../data/users.queries';
 

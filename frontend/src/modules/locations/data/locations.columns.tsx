@@ -10,10 +10,10 @@ import { Show } from "solid-js";
 import type { ColumnDef } from "@tanstack/solid-table";
 import { DataTableColumnHeader } from "@shared/ui/DataTable/DataTableColumnHeader";
 import type { FilterOption } from "@shared/ui/DataTable/DataTableColumnFilter";
-import { Badge, CounterBadge, StatusBadge } from "@shared/ui/Badge";
-import Checkbox from "@shared/ui/Checkbox";
-import ActionMenu from "@shared/ui/ActionMenu";
-import DropdownMenu from "@shared/ui/DropdownMenu";
+import { Badge, CounterBadge, StatusBadge } from "@display/Badge";
+import Checkbox from "@form/Checkbox";
+import ActionMenu from "@/shared/ui/overlay/ActionMenu";
+import DropdownMenu from "@display/DropdownMenu";
 import { useAuth } from "@modules/auth/store/auth.store";
 import {
   ChevronRightIcon,
@@ -22,7 +22,7 @@ import {
   WarehouseIcon,
   InboxIcon,
   EyeIcon,
-} from "@shared/ui/icons";
+} from "@icons/";
 import { cn } from "@shared/lib/utils";
 import type { LocationNode } from "./locations.api";
 import { LOCATION_TYPE_META } from "./locations.constants";

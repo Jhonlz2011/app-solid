@@ -10,23 +10,27 @@ import { useProductsState } from '../hooks/useProductsState';
 
 // UI Components
 import { DataTable } from '@shared/ui/DataTable';
-import { PageHeader } from '@shared/ui/PageHeader';
-import { SearchInput } from '@shared/ui/SearchInput';
-import { DropdownMenu } from '@shared/ui/DropdownMenu';
+import { PageHeader } from '@overlay/PageHeader';
+import { SearchInput } from '@form/SearchInput';
+import { DropdownMenu } from '@display/DropdownMenu';
 import { DataTableSelectionBar, SelectionBarAction, SelectionBarSeparator } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
-import LinkButton from '@shared/ui/LinkButton';
-import Button from '@shared/ui/Button';
-import ConfirmDialog from '@shared/ui/ConfirmDialog';
+import LinkButton from '@form/LinkButton';
+import Button from '@form/Button';
+import ConfirmDialog from '@overlay/ConfirmDialog';
 import ProductDeleteDialog from '../components/ProductDeleteDialog';
 import { ProductFilterSheet } from '../components/ProductFilterSheet';
-import ImageLightboxModal from '@shared/ui/ImageLightboxModal';
+import ImageLightboxModal from '@/shared/ui/display/ImageLightboxModal';
 
 // Icons
-import {
-    PlusIcon, TrashIcon, DownloadIcon, UploadIcon,
-    FilterIcon, CopyIcon, RotateCcwIcon, ChevronsUpDownIcon,
-} from '@shared/ui/icons';
+import { PlusIcon } from '@icons/PlusIcon';
+import { TrashIcon } from '@icons/TrashIcon';
+import { DownloadIcon } from '@icons/DownloadIcon';
+import { UploadIcon } from '@icons/UploadIcon';
+import { FilterIcon } from '@icons/FilterIcon';
+import { CopyIcon } from '@icons/CopyIcon';
+import { RotateCcwIcon } from '@icons/RotateCcwIcon';
+import { ChevronsUpDownIcon } from '@icons/ChevronsUpDownIcon';
 
 // Product icon
 const PackageIcon = () => (

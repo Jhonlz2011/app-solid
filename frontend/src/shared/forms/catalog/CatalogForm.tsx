@@ -12,10 +12,11 @@ import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import type { ProductComponentFormData } from '@app/schema/frontend';
 
 // Shared UI
-import Switch from '@shared/ui/Switch';
-import { FileUploadDropzone } from '@shared/ui/FileUpload';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
-import { UploadIcon, InfoIcon } from '@shared/ui/icons';
+import Switch from '@/shared/ui/form/Switch';
+import { FileUploadDropzone } from '@/shared/ui/overlay/FileUpload';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/form/Tabs';
+import { UploadIcon } from '@icons/UploadIcon';
+import { InfoIcon } from '@icons/InfoIcon';
 
 // Data
 import { useCategoryFormSchema } from '@/modules/categories/data/categories.queries';

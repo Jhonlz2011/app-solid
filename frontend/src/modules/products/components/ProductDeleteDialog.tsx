@@ -3,7 +3,7 @@ import { useAuth } from '@/modules/auth/store/auth.store';
 import { useCheckProductReferences } from '../data/products.queries';
 import { useDeleteProduct, useHardDeleteProduct } from '../data/products.mutations';
 import type { ProductListItem } from '../data/products.api';
-import DeleteDialog from '@shared/ui/DeleteDialog';
+import DeleteDialog from '@overlay/DeleteDialog';
 
 export interface ProductDeleteDialogProps {
     product: ProductListItem | null;

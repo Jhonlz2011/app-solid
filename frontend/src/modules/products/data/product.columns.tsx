@@ -6,13 +6,15 @@ import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { ProductListItem } from '../data/products.api';
 import { useAuth } from '@/modules/auth/store/auth.store';
-import Checkbox from '@shared/ui/Checkbox';
-import { Badge, StatusBadge } from '@shared/ui/Badge';
+import Checkbox from '@form/Checkbox';
+import { Badge, StatusBadge } from '@display/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
-import ActionMenu from '@shared/ui/ActionMenu';
+import ActionMenu from '@/shared/ui/overlay/ActionMenu';
 import { productTypeLabels, productSubtypeLabels } from './products.api';
-import { ProductIcon, WrenchIcon, Maximize2Icon } from '@shared/ui/icons';
+import { ProductIcon } from '@icons/ProductIcon';
+import { WrenchIcon } from '@icons/WrenchIcon';
+import { Maximize2Icon } from '@icons/Maximize2Icon';
 
 export interface ColumnFilterConfig {
     options: () => FilterOption[];

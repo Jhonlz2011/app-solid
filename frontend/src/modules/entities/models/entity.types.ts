@@ -3,10 +3,11 @@
  * across all entity modules (Clients, Suppliers, Employees, Carriers).
  */
 import {
-    taxIdTypeLabels as baseTaxIdTypeLabels,
-    personTypeLabels as basePersonTypeLabels,
-    taxRegimeTypeLabels as baseTaxRegimeTypeLabels,
-} from '@shared/forms/entity';
+    taxIdTypeDisplayLabels,
+    personTypeLabels,
+    taxRegimeTypeDisplayLabels,
+    getLabelOrFallback,
+} from '@shared/constants/entity-labels';
 
 export type {
     EntityFilters,
@@ -16,32 +17,19 @@ export type {
     EntityPayload,
 } from '@app/schema/dto';
 
-export const taxIdTypeLabels: Record<string, string> = {
-    ...baseTaxIdTypeLabels,
-    IDENTIFICACION_DEL_EXTERIOR: 'Identificación Exterior',
-    VENTA_A_CONSUMIDOR_FINAL: 'Consumidor Final',
-};
-
-export const personTypeLabels: Record<string, string> = {
-    ...basePersonTypeLabels,
-};
-
-export const taxRegimeTypeLabels: Record<string, string> = {
-    ...baseTaxRegimeTypeLabels,
-    ESPECIAL: 'Contribuyente Especial',
-};
+export const taxIdTypeLabels = taxIdTypeDisplayLabels;
+export { personTypeLabels };
+export const taxRegimeTypeLabels = taxRegimeTypeDisplayLabels;
 
 export const getTaxIdTypeLabel = (type: string | null | undefined): string => {
-    if (!type) return 'RUC';
-    return taxIdTypeLabels[type] || type;
+    return getLabelOrFallback(taxIdTypeLabels, type, 'RUC');
 };
 
 export const getPersonTypeLabel = (type: string | null | undefined): string => {
-    if (!type) return 'Persona Natural';
-    return personTypeLabels[type] || type;
+    return getLabelOrFallback(personTypeLabels, type, 'Persona Natural');
 };
 
 export const getTaxRegimeTypeLabel = (type: string | null | undefined): string => {
-    if (!type) return 'No especificado';
-    return taxRegimeTypeLabels[type] || type;
+    return getLabelOrFallback(taxRegimeTypeLabels, type, 'No especificado');
 };
+

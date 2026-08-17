@@ -5,13 +5,15 @@ import { useLocation } from '../data/locations.queries';
 import { LOCATION_TYPE_META } from '../data/locations.constants';
 import type { LocationType } from '@app/schema/enums';
 import type { LocationItem } from '../data/locations.api';
-import { EditIcon, MapPinIcon } from '@shared/ui/icons';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
-import Sheet from '@shared/ui/Sheet';
-import { StatusBadge } from '@shared/ui/Badge';
-import { InfoRow } from '@shared/ui/InfoRow';
+import { EditIcon } from '@icons/EditIcon';
+import { MapPinIcon } from '@icons/MapPinIcon';
+
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
+import Sheet from '@overlay/Sheet';
+import { StatusBadge } from '@display/Badge';
+import { InfoRow } from '@/shared/ui/display/InfoRow';
 import { useAuth } from '@modules/auth/store/auth.store';
 
 

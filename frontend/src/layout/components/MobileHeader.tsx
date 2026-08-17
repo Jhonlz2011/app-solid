@@ -7,7 +7,7 @@ import { clickOutside } from '@shared/directives/clickOutside';
 import { useLogout } from '@modules/auth/hooks/useLogout';
 import { UserMenuDropdown } from './UserMenuDropdown';
 import { useSearchPalette } from '@shared/store/layout.store';
-import { SearchIcon } from '@shared/ui/icons';
+import { SearchIcon } from '@icons/SearchIcon';
 
 // Register directive
 false && clickOutside;

@@ -7,9 +7,9 @@ import { UomFormSchema, type UomFormData } from '@app/schema/frontend';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
 import { useCreateUom } from '../data/uom.mutations';
-import { FloppyDiskIcon } from '@shared/ui/icons';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
 import UomForm from './UomForm';
 
 interface UomNewSheetProps { onClose?: () => void; }

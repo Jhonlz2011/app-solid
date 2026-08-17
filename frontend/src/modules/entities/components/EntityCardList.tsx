@@ -4,9 +4,9 @@
 import { Component, onMount, onCleanup, For, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import type { RowSelectionState } from '@tanstack/solid-table';
-import { Skeleton } from '@shared/ui/Skeleton';
-import { EmptyState } from '@shared/ui/EmptyState';
-import { UsersIcon } from '@shared/ui/icons';
+import { Skeleton } from '@display/Skeleton';
+import { EmptyState } from '@display/EmptyState';
+import { UsersIcon } from '@icons/UsersIcon';
 import { EntityCard } from './EntityCard';
 import type { EntityListItem } from '../data/entities.api';
 import type { RbacModule } from '@app/schema/enums';

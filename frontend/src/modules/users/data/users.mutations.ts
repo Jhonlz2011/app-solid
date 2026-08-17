@@ -12,7 +12,7 @@ import type {
     UserListItemDto,
     RoleDto,
     RoleUsersDto,
-} from '@app/schema/rbac-dto';
+} from '@app/schema/dto';
 
 // =============================================================================
 // Shared Mutation Helpers

@@ -4,9 +4,10 @@ import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import type { ProfileDto } from '@app/schema/dto';
 import { UpdateProfileSchema } from '@app/schema/frontend';
-import { TextField } from '@shared/ui/TextField';
-import Button from '@shared/ui/Button';
-import { AlertCircleIcon, FloppyDiskIcon } from '@shared/ui/icons';
+import { TextField } from '@form/TextField';
+import Button from '@form/Button';
+import { AlertCircleIcon } from '@icons/AlertCircleIcon';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 
 interface AccountSectionProps {
     profile: ProfileDto;

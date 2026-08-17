@@ -98,24 +98,24 @@ export interface EntityDetailDriverDto {
 }
 
 export interface EntityDetailDto {
-    id?: number;
-    company_id?: number;
-    tax_id?: string;
-    tax_id_type?: string;
-    person_type?: string;
-    business_name?: string;
+    id: number;
+    company_id: number;
+    tax_id: string;
+    tax_id_type: string;
+    person_type: string;
+    business_name: string;
     trade_name?: string | null;
     email_billing?: string | null;
     phone?: string | null;
-    is_client?: boolean | null;
-    is_supplier?: boolean | null;
-    is_employee?: boolean | null;
-    is_carrier?: boolean | null;
-    is_active?: boolean | null;
+    is_client: boolean;
+    is_supplier: boolean;
+    is_employee: boolean;
+    is_carrier: boolean;
+    is_active: boolean;
     tax_regime_type?: string | null;
-    obligado_contabilidad?: boolean | null;
-    is_retention_agent?: boolean | null;
-    is_special_contributor?: boolean | null;
+    obligado_contabilidad: boolean;
+    is_retention_agent: boolean;
+    is_special_contributor: boolean;
     employeeDetails?: EntityDetailEmployeeDetailsDto | null;
     contacts?: EntityDetailContactDto[] | null;
     addresses?: EntityDetailAddressDto[] | null;

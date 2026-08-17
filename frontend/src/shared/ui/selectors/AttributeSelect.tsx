@@ -8,10 +8,11 @@ import { Component, createMemo, createSignal, Show } from 'solid-js';
 import { useAttributeList } from '@modules/attributes/data/attributes.queries';
 import { ATTRIBUTE_TYPE_LABELS } from '@modules/attributes/data/attributes.constants';
 import type { AttributeItem } from '@modules/attributes/data/attributes.api';
-import { MultiCombobox } from '@shared/ui/MultiCombobox';
-import { Badge } from '@shared/ui/Badge';
-import { PlusIcon, CheckIcon } from '@shared/ui/icons';
-import LinkButton from '@shared/ui/LinkButton';
+import { MultiCombobox } from '@/shared/ui/form/MultiCombobox';
+import { Badge } from '@display/Badge';
+import { CheckIcon } from '@icons/CheckIcon';
+import { PlusIcon } from '@icons/PlusIcon';
+import LinkButton from '@form/LinkButton';
 import { useResolvedSelectorPath } from './SelectorBreadcrumbs';
 
 export interface AttributeSelectProps {

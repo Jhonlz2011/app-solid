@@ -1,8 +1,10 @@
 import { Component, Show, createMemo } from 'solid-js';
 import { useLocationList } from '@modules/locations/data/locations.queries';
-import { TreeSelect } from '@shared/ui/TreeSelect';
-import { WarehouseIcon, MapPinIcon, CloseIcon } from '@shared/ui/icons';
-import Button from '@shared/ui/Button';
+import { TreeSelect } from '@/shared/ui/form/TreeSelect';
+import { WarehouseIcon } from '@icons/WarehouseIcon';
+import { MapPinIcon } from '@icons/MapPinIcon';
+import { CloseIcon } from '@icons/CloseIcon';
+import Button from '@form/Button';
 import type { LocationItem } from '@modules/locations/data/locations.api';
 import type { FieldLike } from '@shared/ui/form/form.types';
 import { SelectorBreadcrumbs, buildBreadcrumbs } from './SelectorBreadcrumbs';

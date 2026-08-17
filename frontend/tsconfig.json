@@ -28,15 +28,17 @@
       "@shared/*": [
         "./src/shared/*"
       ], // Acceso directo a hooks/ui compartidos
-      "@config/*": [
-        "./src/config/*"
-      ], // Acceso a env/
       "@layout/*": [
         "./src/layout/*"
       ], // Acceso a layouts
       "@backend/*": [
         "../backend/src/*"
-      ]
+      ],
+      "@icons/*": ["./src/shared/ui/icons/*"],
+      "@overlay/*": ["./src/shared/ui/overlay/*"],
+      "@form/*": ["./src/shared/ui/form/*"],
+      "@display/*": ["./src/shared/ui/display/*"],
+      "@feedback/*": ["./src/shared/ui/feedback/*"],
     }
   }
 }

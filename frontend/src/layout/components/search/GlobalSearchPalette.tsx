@@ -3,7 +3,9 @@ import { Portal } from 'solid-js/web';
 import { useNavigate } from '@tanstack/solid-router';
 import { useModules, ModuleConfig } from '@shared/store/modules.store';
 import { useSearchPalette, useMobileSidebar } from '@shared/store/layout.store';
-import { SearchIcon, SearchXIcon, LockIcon } from '@shared/ui/icons';
+import { SearchIcon } from '@icons/SearchIcon';
+import { SearchXIcon } from '@icons/SearchXIcon';
+import { LockIcon } from '@icons/LockIcon';
 
 interface SearchableItem {
     id: string;

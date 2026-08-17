@@ -316,7 +316,7 @@ import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { BrandFormSchema, type BrandFormData } from '@app/schema/frontend';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import TextField from '@shared/ui/TextField';
+import TextField from '@form/TextField';
 
 const form = createForm(() => ({
     defaultValues: { name: '', website: '' } as BrandFormData,
@@ -616,7 +616,7 @@ Static marketing site at `web/` built with Astro 6.x and pure CSS (no Tailwind).
 | Pitfall | Solution |
 |---------|----------|
 | Eden types collapse to `never` | Use `Type.Literal()` for enums in TypeBox, not generic helpers |
-| `<select>` native HTML | Always use `Select` from `@shared/ui/Select` (Kobalte) |
+| `<select>` native HTML | Always use `Select` from `@form/Select` (Kobalte) |
 | Manual `createSignal` for form state | Use `createForm()` + `valibotValidator()` + schema from `frontend.ts` |
 | Inline Sheet in list component | Use route-based Sheet with `<Outlet />` pattern |
 | Hardcoded labels in SettingsPage | Add `newLabel` to `SECTIONS[]` array — auto-derived |

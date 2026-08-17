@@ -6,11 +6,15 @@
  */
 import type { Component } from 'solid-js';
 import type { UomGroup } from '@app/schema/enums';
-import type { IconProps } from '@shared/ui/icons';
-import {
-    WeightIcon, RulerIcon, BeakerIcon, GridIcon,
-    BoxIcon, ClockIcon, DatabaseIcon,
-} from '@shared/ui/icons';
+import type { IconProps } from '@icons/BaseIcon';
+import { WeightIcon } from '@icons/WeightIcon';
+import { RulerIcon } from '@icons/RulerIcon';
+import { BeakerIcon } from '@icons/BeakerIcon';
+import { GridIcon } from '@icons/GridIcon';
+import { BoxIcon } from '@icons/BoxIcon';
+import { ClockIcon } from '@icons/ClockIcon';
+import { DatabaseIcon } from '@icons/DatabaseIcon';
+
 import { UOM_GROUPS } from '@app/schema/enums';
 
 export interface UomGroupMeta {

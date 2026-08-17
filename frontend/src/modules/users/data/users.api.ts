@@ -7,7 +7,7 @@
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
 import type { RoleBody } from '../models/users.types';
-export type { UsersFilters } from '@app/schema/rbac-dto';
+export type { UsersFilters } from '@app/schema/dto';
 
 
 export const usersApi = {

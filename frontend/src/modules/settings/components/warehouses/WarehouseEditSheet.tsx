@@ -10,13 +10,13 @@ import { toast } from 'solid-sonner';
 import { useWarehousesList } from '../../data/warehouses.queries';
 import { useUpdateWarehouse, useDeactivateWarehouse, useRestoreWarehouse } from '../../data/warehouses.mutations';
 import type { WarehouseItem } from '../../data/warehouses.api';
-import { FloppyDiskIcon } from '@shared/ui/icons';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import TextField from '@shared/ui/TextField';
-import Checkbox from '@shared/ui/Checkbox';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import TextField from '@form/TextField';
+import Checkbox from '@form/Checkbox';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
 
 interface WarehouseEditSheetProps { onClose?: () => void; }
 

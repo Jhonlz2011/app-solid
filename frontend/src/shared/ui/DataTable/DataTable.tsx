@@ -28,7 +28,7 @@ import {
 import { createVirtualizer } from '@tanstack/solid-virtual';
 import { Table as TableRoot, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table';
 import { Skeleton } from '../Skeleton';
-import { EmptyState } from '../EmptyState';
+import { EmptyState } from '../form/EmptyState';
 import Button from '../Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../Select';
 import { cn } from '@shared/lib/utils';

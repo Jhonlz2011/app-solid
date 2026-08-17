@@ -5,8 +5,13 @@
  */
 import type { Component } from 'solid-js';
 import type { LocationType } from '@app/schema/enums';
-import type { IconProps } from '@shared/ui/icons';
-import { InboxIcon, EyeIcon, UserIcon, UsersIcon, SlidersIcon, BeakerIcon } from '@shared/ui/icons';
+import type { IconProps } from '@icons/BaseIcon';
+import { InboxIcon } from '@icons/InboxIcon';
+import { EyeIcon } from '@icons/EyeIcon';
+import { UserIcon } from '@icons/UserIcon';
+import { UsersIcon } from '@icons/UsersIcon';
+import { SlidersIcon } from '@icons/SlidersIcon';
+import { BeakerIcon } from '@icons/BeakerIcon';
 import { LOCATION_TYPES } from '@app/schema/enums';
 
 export interface LocationTypeMeta {

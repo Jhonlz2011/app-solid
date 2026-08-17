@@ -4,15 +4,16 @@ import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useAttributeDetail } from '../data/attributes.queries';
 import { ATTRIBUTE_TYPE_LABELS, ATTRIBUTE_TYPE_BADGE_CLASSES } from '../data/attributes.constants';
 import type { AttributeDataType } from '@app/schema/frontend';
-import { EditIcon, InfoIcon } from '@shared/ui/icons';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import Button from '@shared/ui/Button';
-import Sheet from '@shared/ui/Sheet';
-import { StatusBadge } from '@shared/ui/Badge';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/Tabs';
-import { InfoRow } from '@shared/ui/InfoRow';
+import { EditIcon } from '@icons/EditIcon';
+import { InfoIcon } from '@icons/InfoIcon';
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import Button from '@form/Button';
+import Sheet from '@overlay/Sheet';
+import { StatusBadge } from '@display/Badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@form/Tabs';
+import { InfoRow } from '@display/InfoRow';
 import { useAuth } from '@modules/auth/store/auth.store';
-import LinkButton from '@shared/ui/LinkButton';
+import LinkButton from '@form/LinkButton';
 
 interface AttributeShowPanelProps {
     attributeId?: number;

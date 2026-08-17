@@ -9,12 +9,18 @@
         "build:backend": "bun --filter backend build",
         "build:frontend": "bun --filter frontend build",
         "lint": "biome check .",
-        "format": "biome check --write ."
+        "format": "biome check --write .",
+        "deadcode": "knip",
+        "deadcode:exports": "knip --include exports,types",
+        "deadcode:fix": "knip --fix"
     },
     "workspaces": [
         "packages/*",
         "backend",
         "frontend",
         "web"
-    ]
+    ],
+    "devDependencies": {
+        "knip": "^6.32.2"
+    }
 }

@@ -11,6 +11,7 @@ import { toast } from 'solid-sonner';
 import { copyToClipboard } from '@shared/utils/clipboard';
 import { buildFilterOptions } from '@shared/utils/facets.utils';
 import { isActiveLabels } from '@shared/constants/labels';
+import { STALE_TIME } from '@shared/constants/cache.constants';
 import { useDataTable } from '@shared/hooks/useDataTable';
 import { useDataTableSSE, useRealtimeInvalidation } from '@shared/hooks/useDataTableSSE';
 import { useAuth } from '@/modules/auth/store/auth.store';
@@ -115,7 +116,7 @@ export function useEntityState(config: UseEntityStateConfig) {
         queryClient.prefetchQuery({
             queryKey: config.keys.detail(s.id),
             queryFn: () => config.api.get(s.id),
-            staleTime: 1000 * 60 * 5,
+            staleTime: STALE_TIME.MEDIUM,
         });
     };
 
@@ -176,17 +177,19 @@ export function useEntityState(config: UseEntityStateConfig) {
     const personTypeFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'person_type', config.personTypeLabels));
     const isActiveFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'is_active', isActiveLabels));
 
+    const filterConfigs = {
+        businessName: { options: businessNameFilterOptions, selected: businessNameFilter, onChange: handleFilterChange(setBusinessNameFilter), isLoading: () => facetsQuery.isPending },
+        taxIdType: { options: taxIdTypeFilterOptions, selected: taxIdTypeFilter, onChange: handleFilterChange(setTaxIdTypeFilter), isLoading: () => facetsQuery.isPending },
+        personType: { options: personTypeFilterOptions, selected: personTypeFilter, onChange: handleFilterChange(setPersonTypeFilter), isLoading: () => facetsQuery.isPending },
+        isActive: { options: isActiveFilterOptions, selected: isActiveFilter, onChange: handleFilterChange(setIsActiveFilter), isLoading: () => facetsQuery.isPending },
+    };
+
     // ─── Column Definitions ──────────────────────────────────────
     const columns = createMemo(() =>
         config.createColumns({
             onDelete: handleDelete,
             onRestore: handleRestore,
-            filters: {
-                businessName: { options: businessNameFilterOptions, selected: businessNameFilter, onChange: handleFilterChange(setBusinessNameFilter), isLoading: () => facetsQuery.isPending },
-                taxIdType: { options: taxIdTypeFilterOptions, selected: taxIdTypeFilter, onChange: handleFilterChange(setTaxIdTypeFilter), isLoading: () => facetsQuery.isPending },
-                personType: { options: personTypeFilterOptions, selected: personTypeFilter, onChange: handleFilterChange(setPersonTypeFilter), isLoading: () => facetsQuery.isPending },
-                isActive: { options: isActiveFilterOptions, selected: isActiveFilter, onChange: handleFilterChange(setIsActiveFilter), isLoading: () => facetsQuery.isPending },
-            },
+            filters: filterConfigs,
         })
     );
 
@@ -219,12 +222,7 @@ export function useEntityState(config: UseEntityStateConfig) {
         columns,
 
         // Filter configs (for FilterSheet)
-        filterSheetConfig: {
-            personType: { options: personTypeFilterOptions, selected: personTypeFilter, onChange: handleFilterChange(setPersonTypeFilter), isLoading: () => facetsQuery.isPending },
-            taxIdType: { options: taxIdTypeFilterOptions, selected: taxIdTypeFilter, onChange: handleFilterChange(setTaxIdTypeFilter), isLoading: () => facetsQuery.isPending },
-            isActive: { options: isActiveFilterOptions, selected: isActiveFilter, onChange: handleFilterChange(setIsActiveFilter), isLoading: () => facetsQuery.isPending },
-            businessName: { options: businessNameFilterOptions, selected: businessNameFilter, onChange: handleFilterChange(setBusinessNameFilter), isLoading: () => facetsQuery.isPending },
-        },
+        filterSheetConfig: filterConfigs,
 
         // Filter active indicator
         hasActiveFilters: () => personTypeFilter().length > 0 || taxIdTypeFilter().length > 0 || isActiveFilter().length > 0 || businessNameFilter().length > 0,
@@ -232,3 +230,4 @@ export function useEntityState(config: UseEntityStateConfig) {
 }
 
 export type EntityState = ReturnType<typeof useEntityState>;
+

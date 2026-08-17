@@ -5,7 +5,7 @@
 import { Component, Show, createMemo, createSignal, createEffect, onCleanup } from 'solid-js';
 import { useProducts } from '@/modules/products/data/products.queries';
 import type { Product } from '@/modules/products/data/products.api';
-import { Autocomplete } from '@shared/ui/Autocomplete';
+import { Autocomplete } from '@form/Autocomplete';
 
 export interface ProductSelectProps {
     value: number | null | undefined;

@@ -1,16 +1,16 @@
 import { Component, Show, createSignal, createEffect, createMemo, on } from 'solid-js';
 import { toast } from 'solid-sonner';
-import { FormDialog } from '@shared/ui/FormDialog';
-import { TextField } from '@shared/ui/TextField';
+import { FormDialog } from '@/shared/ui/overlay/FormDialog';
+import { TextField } from '@form/TextField';
 import { PermissionMatrix } from './PermissionMatrix';
-import { RoleBadge } from '@shared/ui/Badge';
+import { RoleBadge } from '@display/Badge';
 import {
     useRole, useRolePermissions, usePermissions,
 } from '../data/users.queries';
 import {
     useCreateRole, useUpdateRole, useUpdateRolePermissions,
 } from '../data/users.mutations';
-import type { RoleDto } from '@app/schema/rbac-dto';
+import type { RoleDto } from '@app/schema/dto';
 import { ShieldIcon } from '@/shared/ui/icons';
 
 // =============================================================================

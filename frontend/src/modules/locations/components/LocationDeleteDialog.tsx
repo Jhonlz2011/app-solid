@@ -3,7 +3,7 @@ import { useAuth } from '@modules/auth/store/auth.store';
 import { useCheckLocationReferences } from '../data/locations.queries';
 import { useDeactivateLocation, useHardDeleteLocation } from '../data/locations.mutations';
 import type { LocationItem } from '../data/locations.api';
-import DeleteDialog from '@shared/ui/DeleteDialog';
+import DeleteDialog from '@overlay/DeleteDialog';
 import { toast } from 'solid-sonner';
 
 export interface LocationDeleteDialogProps {

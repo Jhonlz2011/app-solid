@@ -7,12 +7,12 @@ import { Component, Show, createMemo, For } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { useUomList } from '@modules/uom/data/uom.queries';
 import type { UomItem } from '@modules/uom/data/uom.api';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@shared/ui/Select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
 import { Select as KSelect } from '@kobalte/core/select';
-import { FieldLabel } from '@shared/ui/TextField';
+import { FieldLabel } from '@form/TextField';
 import { UOM_GROUPS, type UomGroup } from '@app/schema/frontend';
 import { UOM_GROUP_META } from '@modules/uom/data/uom.constants';
-import { BoxIcon } from '@shared/ui/icons';
+import { BoxIcon } from '@icons/BoxIcon';
 
 export interface UomSelectProps {
     /** Integer UOM id (the new PK) */

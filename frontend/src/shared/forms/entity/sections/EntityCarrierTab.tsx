@@ -1,8 +1,11 @@
 import { Component, Index, Show } from 'solid-js';
-import TextField from '@shared/ui/TextField';
-import Checkbox from '@shared/ui/Checkbox';
-import { TrashIcon, PlusIcon, UserIcon, TruckIcon } from '@shared/ui/icons';
-import Button from '@shared/ui/Button';
+import TextField from '@form/TextField';
+import Checkbox from '@form/Checkbox';
+import { TrashIcon } from '@icons/TrashIcon';
+import { PlusIcon } from '@icons/PlusIcon';
+import { UserIcon } from '@icons/UserIcon';
+import { TruckIcon } from '@icons/TruckIcon';
+import Button from '@form/Button';
 import type { EntityFormApi } from '../entity-form.types';
 
 export interface EntityCarrierTabProps {

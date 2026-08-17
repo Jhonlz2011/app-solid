@@ -6,9 +6,9 @@ import {
     useHardDeleteUser,
 } from '../data/users.mutations';
 
-import type { UserListItemDto, UserReferencesDto } from '@app/schema/rbac-dto';
+import type { UserListItemDto, UserReferencesDto } from '@app/schema/dto';
 
-import DeleteDialog from '@shared/ui/DeleteDialog';
+import DeleteDialog from '@overlay/DeleteDialog';
 
 export interface UserDeleteDialogProps {
     user: UserListItemDto | null;

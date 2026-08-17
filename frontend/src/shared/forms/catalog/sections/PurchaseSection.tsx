@@ -1,5 +1,5 @@
 import { Component, Show, For, createMemo } from 'solid-js';
-import TextField from '@shared/ui/TextField';
+import TextField from '@form/TextField';
 import type { ProductVariantFormData } from '@app/schema/frontend';
 import type { CatalogFormApi } from '../catalog-form.types';
 import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';

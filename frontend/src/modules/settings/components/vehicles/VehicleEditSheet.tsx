@@ -6,13 +6,15 @@ import { CarrierVehicleFormSchema, type CarrierVehicleFormData } from '@app/sche
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useVehicle } from '../../data/vehicles.queries';
 import { useUpdateVehicle } from '../../data/vehicles.mutations';
-import { FloppyDiskIcon, TruckIcon } from '@shared/ui/icons';
+import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { TruckIcon } from '@icons/TruckIcon';
+
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import { SkeletonLoader } from '@shared/ui/SkeletonLoader';
-import TextField from '@shared/ui/TextField';
-import Checkbox from '@shared/ui/Checkbox';
-import Sheet from '@shared/ui/Sheet';
-import Button from '@shared/ui/Button';
+import { SkeletonLoader } from '@display/SkeletonLoader';
+import TextField from '@form/TextField';
+import Checkbox from '@form/Checkbox';
+import Sheet from '@overlay/Sheet';
+import Button from '@form/Button';
 
 interface VehicleEditSheetProps {
     vehicleId?: number;

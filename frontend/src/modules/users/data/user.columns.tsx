@@ -7,15 +7,15 @@
 import { Show, For } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
-export type { UserListItemDto } from '@app/schema/rbac-dto';
+export type { UserListItemDto } from '@app/schema/dto';
 import { useAuth } from '@modules/auth/store/auth.store';
-import { Avatar } from '@shared/ui/Avatar';
-import { RoleBadge, StatusBadge, EntityTypeBadge } from '@shared/ui/Badge';
+import { Avatar } from '@/shared/ui/display/Avatar';
+import { RoleBadge, StatusBadge, EntityTypeBadge } from '@display/Badge';
 import { formatSessionDate } from '@shared/utils/session.utils';
-import Checkbox from '@shared/ui/Checkbox';
+import Checkbox from '@form/Checkbox';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
-import ActionMenu from '@shared/ui/ActionMenu';
+import ActionMenu from '@/shared/ui/overlay/ActionMenu';
 
 /** Filter configuration for a single column - uses accessors for SolidJS reactivity */
 export interface ColumnFilterConfig {

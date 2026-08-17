@@ -4,8 +4,11 @@
  */
 import type { Component } from 'solid-js';
 import type { AttributeDataType } from '@app/schema/frontend';
-import type { IconProps } from '@shared/ui/icons';
-import { FileTextIcon, HashIcon, SlidersIcon, CheckIcon } from '@shared/ui/icons';
+import type { IconProps } from '@icons/BaseIcon';
+import { FileTextIcon } from '@icons/FileTextIcon';
+import { HashIcon } from '@icons/HashIcon';
+import { SlidersIcon } from '@icons/SlidersIcon';
+import { CheckIcon } from '@icons/CheckIcon';
 
 export type AttributeSemanticColor = 'primary' | 'info' | 'warning' | 'success';
 

@@ -45,9 +45,11 @@ import {
     TableHeader,
     TableRow,
 } from '@shared/ui/table';
-import { Skeleton } from '@shared/ui/Skeleton';
-import { EmptyState } from '@shared/ui/EmptyState';
-import { FolderIcon, GripVerticalIcon, TagIcon } from '@shared/ui/icons';
+import { Skeleton } from '@display/Skeleton';
+import { EmptyState } from '@display/EmptyState';
+import { FolderIcon } from '@icons/FolderIcon';
+import { GripVerticalIcon } from '@icons/GripVerticalIcon';
+import { TagIcon } from '@icons/TagIcon';
 import { cn } from '@shared/lib/utils';
 import { useTreeDnD, buildSubRows } from '@shared/hooks/useTreeDnD';
 import { getHeaderPinningStyles, getCellPinningStyles } from '@shared/utils/column-pinning';

@@ -10,17 +10,19 @@ import UomDeleteDialog from '../components/UomDeleteDialog';
 
 // UI Components
 import { DataTable } from '@shared/ui/DataTable';
-import { PageHeader } from '@shared/ui/PageHeader';
-import { SearchInput } from '@shared/ui/SearchInput';
+import { PageHeader } from '@overlay/PageHeader';
+import { SearchInput } from '@form/SearchInput';
 import { DataTableSelectionBar, SelectionBarAction } from '@shared/ui/DataTable/DataTableSelectionBar';
 import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnVisibility';
-import Button from '@shared/ui/Button';
-import LinkButton from '@shared/ui/LinkButton';
+import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
 
 // Icons
-import {
-    PlusIcon, RulerIcon, DownloadIcon, UploadIcon, CopyIcon,
-} from '@shared/ui/icons';
+import { PlusIcon } from '@icons/PlusIcon';
+import { RulerIcon } from '@icons/RulerIcon';
+import { DownloadIcon } from '@icons/DownloadIcon';
+import { UploadIcon, CopyIcon } from '@icons/UploadIcon';
+import { CopyIcon } from '@icons/CopyIcon';
 
 const UomPage: Component = () => {
     const state = useUomState();

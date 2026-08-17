@@ -5,10 +5,10 @@ import { createMutation, useQueryClient } from '@tanstack/solid-query';
 import { throwApiError } from '@shared/utils/api-errors';
 import type { EntityFormData } from '@app/schema/frontend';
 import { addOptimisticItem, removeCacheItems, updateCacheItem, type CacheShape } from '@shared/utils/query.utils';
-import type { EntityApi, EntityListItem } from './entities.api';
+import type { AnyEntityEndpoint, EntityApi, EntityListItem } from './entities.api';
 import type { EntityKeys } from './entities.keys';
 
-export function createEntityMutations(api: EntityApi, keys: EntityKeys, endpoint: any) {
+export function createEntityMutations(api: EntityApi, keys: EntityKeys, endpoint: AnyEntityEndpoint) {
     function onSettled(queryClient: ReturnType<typeof useQueryClient>) {
         return () => {
             queryClient.invalidateQueries({ queryKey: keys.lists() });
