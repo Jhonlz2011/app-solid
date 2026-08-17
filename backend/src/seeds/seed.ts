@@ -17,8 +17,6 @@ import {
 } from '@app/schema/tables';
 import { sql, eq, and } from '@app/schema';
 import { UOM_DATA } from './seed-data';
-import fs from 'fs';
-import path from 'path';
 import {
     seedCompanyRBAC,
     seedCompanyMenus,
@@ -31,16 +29,6 @@ async function seed() {
     console.log('🌱 Starting Complete System & Better-Auth Seed...\n');
 
     try {
-        // =========================================================================
-        // -1. ENSURE DATABASE TRIGGERS & FUNCTIONS ARE IN SYNC
-        // =========================================================================
-        const triggersPath = path.join(process.cwd(), 'src', 'migrations', 'triggers.sql');
-        if (fs.existsSync(triggersPath)) {
-            const triggersSql = fs.readFileSync(triggersPath, 'utf8');
-            await db.execute(sql.raw(triggersSql));
-            console.log('⚡ Database triggers & functions verified and in sync.\n');
-        }
-
         // =========================================================================
         // 0. CREATE / VERIFY DEFAULT DEV COMPANY & BETTER-AUTH ORGANIZATION
         // =========================================================================

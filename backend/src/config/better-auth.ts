@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, username, twoFactor } from 'better-auth/plugins';
+import { v7 as uuidv7 } from 'uuid';
 import { adminDb } from '../core/db';
 import * as schema from '@app/schema/tables';
 import { emailService } from '../core/email';
@@ -32,6 +33,14 @@ export const auth = betterAuth({
         'http://127.0.0.1:5173',
         'http://127.0.0.1:5174',
     ],
+    password: {
+        hash: async (password: string) => {
+            return Bun.password.hash(password);
+        },
+        verify: async ({ password, hash }: { password: string; hash: string }) => {
+            return Bun.password.verify(password, hash);
+        },
+    },
     emailAndPassword: {
         enabled: true,
         autoSignIn: true,
@@ -75,7 +84,7 @@ export const auth = betterAuth({
         },
     },
     advanced: {
-        generateId: false,
+        generateId: () => uuidv7(),
         crossSubDomainCookies: {
             enabled: true,
             domain: env.NODE_ENV === 'production' ? (env.COOKIE_DOMAIN || '.zelys.app') : undefined,

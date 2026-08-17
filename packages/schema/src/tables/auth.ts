@@ -27,6 +27,9 @@ export const user = pgTableV2("user", {
     username: text("username").unique(),
     displayUsername: text("display_username"),
     
+    // Better-Auth twoFactor plugin
+    twoFactorEnabled: boolean("two_factor_enabled").default(false),
+    
     // Custom ERP domain fields
     company_id: integer("company_id").references(() => companies.id),
     entity_id: integer("entity_id").references(() => entities.id),
@@ -49,12 +52,12 @@ export const user = pgTableV2("user", {
 ]).enableRLS();
 
 export const session = pgTableV2("session", {
-    id: text("id").primaryKey(),
+    id: text("id").primaryKey().default(sql`uuidv7()::text`),
     expiresAt: timestamp("expires_at", TZ).notNull(),
     token: text("token").notNull().unique(),
     createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", TZ).defaultNow().notNull(),
-    ipAddress: inet("ip_address"),
+    ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
     userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
     activeOrganizationId: text("active_organization_id"),
@@ -91,11 +94,11 @@ export const account = pgTableV2("account", {
     updatedAt: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
     index("idx_account_user").on(t.userId),
-    index("idx_account_provider").on(t.providerId, t.accountId),
+    uniqueIndex("idx_account_provider_unique").on(t.providerId, t.accountId),
 ]);
 
 export const verification = pgTableV2("verification", {
-    id: text("id").primaryKey(),
+    id: text("id").primaryKey().default(sql`uuidv7()::text`),
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
     expiresAt: timestamp("expires_at", TZ).notNull(),
@@ -107,7 +110,7 @@ export const verification = pgTableV2("verification", {
 
 // Better-Auth Organization Plugin Tables
 export const organization = pgTableV2("organization", {
-    id: text("id").primaryKey(),
+    id: text("id").primaryKey().default(sql`uuidv7()::text`),
     name: text("name").notNull(),
     slug: text("slug").unique(),
     logo: text("logo"),
