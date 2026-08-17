@@ -1,90 +1,38 @@
 // src/seeds/seed.ts
 // Run with: bun run db:seed
 import { db, withTenantContext } from '../core/db';
-import { authPermissions, authRoles, authRolePermissions, authUserRoles, authUsers, uom, entities, companies, sriEstablishments, authMenuItems, warehouses, warehouseLocations } from '@app/schema/tables';
-import { sql } from '@app/schema';
-import { PERMISSIONS, ROLES, ROLE_PERMISSIONS, UOM_DATA, DERIVED_UOM_DATA, MENU_ITEMS } from './seed-data';
-
-async function seedMenuItems() {
-    console.log('\n🌱 Starting Menu Items seed...');
-    console.log('📂 Inserting parent menu items...');
-    const parentMap = new Map<string, number>();
-
-    for (const item of MENU_ITEMS) {
-        const [result] = await db
-            .insert(authMenuItems)
-            .values({
-                key: item.key,
-                label: item.label,
-                icon: item.icon,
-                path: item.path || null,
-                parent_id: null,
-                sort_order: item.sort_order,
-                permission_prefix: item.permission_prefix || null,
-                status: item.status || 'active',
-            })
-            .onConflictDoUpdate({
-                target: authMenuItems.key,
-                set: {
-                    label: item.label,
-                    icon: item.icon,
-                    path: item.path || null,
-                    sort_order: item.sort_order,
-                    permission_prefix: item.permission_prefix || null,
-                    status: item.status || 'active',
-                }
-            })
-            .returning({ id: authMenuItems.id });
-
-        parentMap.set(item.key, result.id);
-        console.log(`   ✅ ${item.label} (id: ${result.id})`);
-    }
-
-    console.log('\n📁 Inserting child menu items...');
-    for (const parent of MENU_ITEMS) {
-        if (!parent.children) continue;
-
-        const parentId = parentMap.get(parent.key);
-        if (!parentId) continue;
-
-        for (const child of parent.children) {
-            const [result] = await db
-                .insert(authMenuItems)
-                .values({
-                    key: child.key,
-                    label: child.label,
-                    icon: child.icon,
-                    path: child.path || null,
-                    parent_id: parentId,
-                    sort_order: child.sort_order,
-                    permission_prefix: child.permission_prefix || null,
-                    status: child.status || 'active',
-                })
-                .onConflictDoUpdate({
-                    target: authMenuItems.key,
-                    set: {
-                        label: child.label,
-                        icon: child.icon,
-                        path: child.path || null,
-                        parent_id: parentId,
-                        sort_order: child.sort_order,
-                        permission_prefix: child.permission_prefix || null,
-                        status: child.status || 'active',
-                    }
-                })
-                .returning({ id: authMenuItems.id });
-
-            console.log(`   └─ ${child.label} (id: ${result.id})`);
-        }
-    }
-}
+import {
+    authPermissions,
+    authRoles,
+    authUserRoles,
+    authUsers,
+    account,
+    organization,
+    member,
+    uom,
+    entities,
+    companies,
+    sriEstablishments,
+    authMenuItems,
+} from '@app/schema/tables';
+import { sql, eq, and } from '@app/schema';
+import { UOM_DATA } from './seed-data';
+import {
+    seedCompanyRBAC,
+    seedCompanyMenus,
+    seedCompanyUOMs,
+    seedCompanyVirtualLocations,
+    seedCompanyWarehouse,
+} from '../modules/auth/provisioning.service';
 
 async function seed() {
-    console.log('🌱 Starting RBAC seed...');
+    console.log('🌱 Starting Complete System & Better-Auth Seed...\n');
 
     try {
-        // 0. Create default dev company
-        console.log('🏢 Creating default dev company...');
+        // =========================================================================
+        // 0. CREATE / VERIFY DEFAULT DEV COMPANY & BETTER-AUTH ORGANIZATION
+        // =========================================================================
+        console.log('🏢 Creating / verifying default dev company...');
         const [devCompany] = await db
             .insert(companies)
             .values({
@@ -100,78 +48,53 @@ async function seed() {
                 set: { business_name: 'Empresa de Desarrollo', slug: 'dev' },
             })
             .returning();
-        console.log(`   ✅ Company created/verified: ${devCompany.business_name} (id: ${devCompany.id})`);
+        console.log(`   ✅ Company verified: ${devCompany.business_name} (id: ${devCompany.id}, slug: ${devCompany.slug})`);
 
-        // 1. Insert UOMs (global system UOMs, company_id = null)
-        console.log('📏 Inserting system UOMs...');
+        // Register organization in Better-Auth for multi-tenancy & company switching
+        console.log('🏢 Creating / verifying Better-Auth organization...');
+        await db
+            .insert(organization)
+            .values({
+                id: String(devCompany.id),
+                name: devCompany.business_name,
+                slug: devCompany.slug,
+            })
+            .onConflictDoUpdate({
+                target: organization.slug,
+                set: { name: devCompany.business_name },
+            });
+        console.log(`   ✅ Better-Auth Organization verified: ${devCompany.slug}`);
+
+        // =========================================================================
+        // 1. SYSTEM GLOBAL UOMs (company_id = null)
+        // =========================================================================
+        console.log('\n📏 Inserting global system UOMs...');
         for (const unit of UOM_DATA) {
             await db
                 .insert(uom)
                 .values({ ...unit, company_id: null, is_system: true })
                 .onConflictDoNothing();
         }
-        console.log(`   ✅ ${UOM_DATA.length} system UOMs processed`);
+        console.log(`   ✅ ${UOM_DATA.length} global system UOMs processed`);
 
+        // =========================================================================
+        // 2. SYSTEM GLOBAL MENUS (Parent & Children dynamic navigation tree)
+        // =========================================================================
+        console.log('\n📂 Seeding global system menu items...');
+        await seedCompanyMenus(db as any);
+        console.log('   ✅ Global system menus seeded/updated');
+
+        // =========================================================================
+        // 3. TENANT-SCOPED INITIALIZATION (DEV COMPANY)
+        // =========================================================================
         await withTenantContext({ companyId: devCompany.id }, async () => {
-            console.log('📏 Inserting derived UOMs for dev company...');
-            for (const unit of DERIVED_UOM_DATA) {
-                await db
-                    .insert(uom)
-                    .values({ ...unit, company_id: devCompany.id, is_system: false })
-                    .onConflictDoNothing();
-            }
-            console.log(`   ✅ ${DERIVED_UOM_DATA.length} derived UOMs processed`);
+            // 3.1 Derived UOMs
+            console.log('\n📏 Seeding derived UOMs for dev company...');
+            await seedCompanyUOMs(db as any, devCompany.id);
+            console.log('   ✅ Derived UOMs processed');
 
-            // 2. Insert permissions (global, not company-scoped)
-            console.log('📝 Inserting permissions...');
-            for (const perm of PERMISSIONS) {
-                await db
-                    .insert(authPermissions)
-                    .values(perm)
-                    .onConflictDoNothing({ target: authPermissions.slug });
-            }
-            console.log(`   ✅ ${PERMISSIONS.length} permissions processed`);
-
-            // 3. Insert roles (upsert)
-            console.log('👥 Inserting roles...');
-            for (const role of ROLES) {
-                await db
-                    .insert(authRoles)
-                    .values({ ...role, company_id: devCompany.id })
-                    .onConflictDoNothing({ target: [authRoles.company_id, authRoles.name] });
-            }
-            console.log(`   ✅ ${ROLES.length} roles processed`);
-
-            // 4. Get all permissions and roles from DB
-            const allPermissions = await db.select().from(authPermissions);
-            const allRoles = await db.select().from(authRoles);
-
-            const permMap = new Map(allPermissions.map(p => [p.slug, p.id]));
-            const roleMap = new Map(allRoles.map(r => [r.name, r.id]));
-
-            // 5. Assign permissions to roles
-            console.log('🔗 Assigning permissions to roles...');
-            for (const [roleName, checkFn] of Object.entries(ROLE_PERMISSIONS)) {
-                const roleId = roleMap.get(roleName);
-                if (!roleId) continue;
-
-                const permissionsForRole = PERMISSIONS
-                    .filter(p => checkFn(p.slug))
-                    .map(p => permMap.get(p.slug))
-                    .filter((id): id is number => id !== undefined);
-
-                for (const permissionId of permissionsForRole) {
-                    await db
-                        .insert(authRolePermissions)
-                        .values({ role_id: roleId, permission_id: permissionId, company_id: devCompany.id })
-                        .onConflictDoNothing();
-                }
-
-                console.log(`   ✅ ${roleName}: ${permissionsForRole.length} permissions`);
-            }
-
-            // 6. Create default SRI establishment
-            console.log('🏗️ Creating default SRI establishment...');
+            // 3.2 SRI Establishment
+            console.log('\n🏗️ Creating default SRI establishment (Matriz 001)...');
             await db
                 .insert(sriEstablishments)
                 .values({
@@ -182,10 +105,10 @@ async function seed() {
                     emission_points: ['001'],
                 })
                 .onConflictDoNothing();
-            console.log('   ✅ SRI establishment created/verified');
+            console.log('   ✅ SRI establishment verified');
 
-            // 7. Create Consumidor Final Client
-            console.log('🏢 Creating default CONSUMIDOR FINAL client...');
+            // 3.3 Consumidor Final Client Entity
+            console.log('\n👤 Creating default CONSUMIDOR FINAL client...');
             const [consumidorFinal] = await db
                 .insert(entities)
                 .values({
@@ -203,66 +126,22 @@ async function seed() {
                     set: { business_name: 'CONSUMIDOR FINAL' }
                 })
                 .returning();
-            console.log(`   ✅ Entity created/verified: ${consumidorFinal.business_name}`);
+            console.log(`   ✅ Entity verified: ${consumidorFinal.business_name}`);
 
-            // 7.5 Create dev company virtual locations
-            console.log('🏢 Seeding virtual locations for dev company...');
-            const devVirtuals = [
-                { name: 'Virtual: Proveedores', type: 'SUPPLIER' as const },
-                { name: 'Virtual: Clientes', type: 'CUSTOMER' as const },
-                { name: 'Virtual: Ajustes y Mermas', type: 'ADJUSTMENT' as const },
-                { name: 'Virtual: Consumo Producción', type: 'PRODUCTION' as const },
-            ];
-            for (const v of devVirtuals) {
-                await db.insert(warehouseLocations).values({
-                    company_id: devCompany.id,
-                    warehouse_id: null,
-                    parent_id: null,
-                    name: v.name,
-                    path: '', // Trigger BEFORE INSERT recalculates and overrides this
-                    type: v.type,
-                    depth: 0,
-                    is_active: true,
-                }).onConflictDoNothing();
-            }
-            console.log('   ✅ Virtual locations seeded/verified');
+            // 3.4 Virtual Locations (SUPPLIER, CUSTOMER, ADJUSTMENT, PRODUCTION)
+            console.log('\n📍 Seeding virtual warehouse locations...');
+            await seedCompanyVirtualLocations(db as any, devCompany.id);
+            console.log('   ✅ Virtual locations verified');
 
-            // 7.6 Create default physical warehouse and root location
-            console.log('🏢 Seeding default physical warehouse and location...');
-            let [mainWh] = await db
-                .select({ id: warehouses.id })
-                .from(warehouses)
-                .where(sql`${warehouses.company_id} = ${devCompany.id} AND ${warehouses.code} = 'BOD-001'`)
-                .limit(1);
+            // 3.5 Physical Warehouse (BOD-001) & Default Location (General)
+            console.log('\n📦 Seeding default physical warehouse & location...');
+            await seedCompanyWarehouse(db as any, devCompany.id, devCompany.main_address);
+            console.log('   ✅ Default warehouse & location verified');
 
-            if (!mainWh) {
-                const [insertedWh] = await db.insert(warehouses).values({
-                    company_id: devCompany.id,
-                    code: 'BOD-001',
-                    name: 'Bodega Principal',
-                    address: devCompany.main_address || 'Matriz',
-                    is_active: true,
-                    is_mobile: false,
-                }).returning({ id: warehouses.id });
-                mainWh = insertedWh;
-            }
-
-            if (mainWh) {
-                await db.insert(warehouseLocations).values({
-                    company_id: devCompany.id,
-                    warehouse_id: mainWh.id,
-                    parent_id: null,
-                    name: 'General',
-                    path: 'general',
-                    type: 'INTERNAL',
-                    depth: 0,
-                    is_active: true,
-                }).onConflictDoNothing();
-            }
-            console.log('   ✅ Default warehouse (BOD-001) & location seeded/verified');
-
-            // 8. Create Default Users
-            console.log('👤 Creating default users...');
+            // =====================================================================
+            // 4. SEED USERS & BETTER-AUTH CREDENTIALS (user, account, member)
+            // =====================================================================
+            console.log('\n👥 Seeding Better-Auth users & credentials...');
 
             const defaultPassword = 'password123';
             const hashedPassword = await Bun.password.hash(defaultPassword);
@@ -270,82 +149,133 @@ async function seed() {
             const usersToCreate = [
                 {
                     username: 'superadmin',
+                    name: 'Super Administrador',
                     email: 'superadmin@zelys.app',
                     role: 'superadmin',
                     is_owner: true,
-                    is_verified: true,
-                    entity_id: null
                 },
                 {
                     username: 'admin',
+                    name: 'Administrador',
                     email: 'admin@zelys.app',
                     role: 'admin',
-                    entity_id: null
+                    is_owner: false,
                 }
             ];
 
+            const userIds = new Map<string, string>();
+
             for (const userData of usersToCreate) {
-                // Check if user exists
-                const existingUser = await db.select().from(authUsers).where(sql`${authUsers.email} = ${userData.email}`).limit(1);
-
-                let userId;
-
-                if (existingUser.length === 0) {
-                    const [newUser] = await db.insert(authUsers).values({
-                        company_id: devCompany.id,
-                        username: userData.username,
+                // 1. Insert / Upsert into Better-Auth 'user' table
+                const [userRecord] = await db
+                    .insert(authUsers)
+                    .values({
+                        name: userData.name,
                         email: userData.email,
-                        password_hash: hashedPassword,
+                        username: userData.username,
+                        company_id: devCompany.id,
                         is_active: true,
-                        is_owner: userData.is_owner ?? false,
-                        email_verified_at: new Date(), // pre-verify seed user
-                        entity_id: userData.entity_id
-                    }).returning();
-                    userId = newUser.id;
-                    console.log(`  ✅ Created user: ${userData.username}`);
+                        is_owner: userData.is_owner,
+                        emailVerified: true,
+                    })
+                    .onConflictDoUpdate({
+                        target: authUsers.email,
+                        set: {
+                            name: userData.name,
+                            username: userData.username,
+                            company_id: devCompany.id,
+                            is_active: true,
+                            is_owner: userData.is_owner,
+                            emailVerified: true,
+                        }
+                    })
+                    .returning({ id: authUsers.id, email: authUsers.email, username: authUsers.username });
+
+                const userId = userRecord.id;
+                userIds.set(userData.username, userId);
+                console.log(`   ✅ User verified: ${userData.username} (${userData.email}) [id: ${userId}]`);
+
+                // 2. Insert / Update Better-Auth 'account' (Password Credential)
+                const existingAccount = await db
+                    .select({ id: account.id })
+                    .from(account)
+                    .where(and(eq(account.userId, userId), eq(account.providerId, 'credential')))
+                    .limit(1);
+
+                if (existingAccount.length === 0) {
+                    await db.insert(account).values({
+                        accountId: userId,
+                        providerId: 'credential',
+                        userId: userId,
+                        password: hashedPassword,
+                    });
+                    console.log(`      🔑 Created Better-Auth credential account for ${userData.username}`);
                 } else {
-                    userId = existingUser[0].id;
-                    console.log(`  ℹ️ User already exists: ${userData.username}`);
-                    // Ensure the existing user is verified and updated
-                    await db.update(authUsers).set({
-                        is_owner: userData.is_owner ?? false,
-                        email_verified_at: existingUser[0].email_verified_at || new Date()
-                    }).where(sql`${authUsers.id} = ${userId}`);
+                    await db
+                        .update(account)
+                        .set({ password: hashedPassword })
+                        .where(eq(account.id, existingAccount[0].id));
+                    console.log(`      🔑 Updated Better-Auth credential password for ${userData.username}`);
                 }
 
-                // Assign Role
-                const roleId = roleMap.get(userData.role);
-                if (roleId) {
-                    await db
-                        .insert(authUserRoles)
-                        .values({ user_id: userId, role_id: roleId, company_id: devCompany.id })
-                        .onConflictDoNothing();
-                    console.log(`   🔗 Assigned role ${userData.role} to ${userData.username}`);
-                } else {
-                    console.warn(`   ⚠️ Role ${userData.role} not found for user ${userData.username}`);
-                }
+                // 3. Insert Better-Auth 'member' (Organization Membership)
+                await db
+                    .insert(member)
+                    .values({
+                        organizationId: String(devCompany.id),
+                        userId: userId,
+                        role: userData.role === 'superadmin' ? 'owner' : 'admin',
+                    })
+                    .onConflictDoNothing();
+                console.log(`      🏢 Added to Better-Auth organization membership: role ${userData.role}`);
             }
 
-            // 9. Seed Menu Items
-            await seedMenuItems();
+            // =====================================================================
+            // 5. SEED RBAC ROLES & PERMISSIONS FOR DEV COMPANY
+            // =====================================================================
+            console.log('\n🛡️ Seeding company RBAC roles & permissions...');
+            const superadminId = userIds.get('superadmin') || '';
+            const roleMap = await seedCompanyRBAC(db as any, devCompany.id, superadminId);
+            console.log(`   ✅ Roles & permissions linked (owner assigned to superadmin)`);
 
-            console.log('\n✅ Seed completed successfully!');
+            // Assign admin role to admin user
+            const adminId = userIds.get('admin');
+            const adminRoleId = roleMap.get('admin');
+            if (adminId && adminRoleId) {
+                await db
+                    .insert(authUserRoles)
+                    .values({ user_id: adminId, role_id: adminRoleId, company_id: devCompany.id })
+                    .onConflictDoNothing();
+                console.log(`   🔗 Assigned admin role to admin user`);
+            }
 
-            // Verification
+            // =====================================================================
+            // 6. SUMMARY & VERIFICATION
+            // =====================================================================
             const permCount = await db.select({ count: sql<number>`count(*)` }).from(authPermissions);
             const roleCount = await db.select({ count: sql<number>`count(*)` }).from(authRoles);
             const userCount = await db.select({ count: sql<number>`count(*)` }).from(authUsers);
             const companyCount = await db.select({ count: sql<number>`count(*)` }).from(companies);
             const menuCount = await db.select({ count: sql<number>`count(*)` }).from(authMenuItems);
+            const memberCount = await db.select({ count: sql<number>`count(*)` }).from(member);
+            const accountCount = await db.select({ count: sql<number>`count(*)` }).from(account);
 
-            console.log(`\n📊 Summary:`);
-            console.log(`   - Total companies: ${companyCount[0].count}`);
-            console.log(`   - Total permissions: ${permCount[0].count}`);
-            console.log(`   - Total roles: ${roleCount[0].count}`);
-            console.log(`   - Total users: ${userCount[0].count}`);
-            console.log(`   - Total menu items: ${menuCount[0].count}`);
+            console.log('\n=============================================================');
+            console.log('🎉 SEED COMPLETED SUCCESSFULLY!');
+            console.log('=============================================================');
+            console.log(`📊 Statistics:`);
+            console.log(`   - Companies:                ${companyCount[0].count}`);
+            console.log(`   - Total Users:              ${userCount[0].count}`);
+            console.log(`   - Better-Auth Accounts:     ${accountCount[0].count}`);
+            console.log(`   - Organization Members:     ${memberCount[0].count}`);
+            console.log(`   - RBAC Roles:               ${roleCount[0].count}`);
+            console.log(`   - Permissions:              ${permCount[0].count}`);
+            console.log(`   - Dynamic Menu Items:       ${menuCount[0].count}`);
+            console.log('\n🔑 Default Credentials:');
+            console.log('   - Superadmin: superadmin@zelys.app / password123');
+            console.log('   - Admin:      admin@zelys.app      / password123');
+            console.log('=============================================================\n');
         });
-
 
     } catch (error) {
         console.error('❌ Seed failed:', error);
