@@ -21,7 +21,7 @@ import LinkButton from '@form/LinkButton';
 import { PlusIcon } from '@icons/PlusIcon';
 import { RulerIcon } from '@icons/RulerIcon';
 import { DownloadIcon } from '@icons/DownloadIcon';
-import { UploadIcon, CopyIcon } from '@icons/UploadIcon';
+import { UploadIcon } from '@icons/UploadIcon';
 import { CopyIcon } from '@icons/CopyIcon';
 
 const UomPage: Component = () => {
@@ -31,7 +31,7 @@ const UomPage: Component = () => {
             <Outlet />
 
             {/* Header */}
-            <div class="flex-shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
+            <div class="shrink-0 p-3 sm:p-4 space-y-4 sm:space-y-5">
                 <PageHeader
                     icon={<RulerIcon />}
                     iconBg="linear-gradient(135deg, #0ea5e9, #0284c7)"
@@ -55,7 +55,7 @@ const UomPage: Component = () => {
                         value={state.search()}
                         onSearch={state.handleSearchInput}
                         placeholder="Buscar unidad..."
-                        class="flex-1 w-full min-w-[150px] max-w-md"
+                        class="flex-1 w-full min-w-37.5 max-w-md"
                     />
                     <div class="flex items-center gap-2">
                         <Button variant="ghost" icon={<DownloadIcon />} onClick={() => toast.info('Exportación próximamente')}>
