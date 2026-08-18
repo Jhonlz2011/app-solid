@@ -23,6 +23,7 @@ import {
     seedCompanyVirtualLocations,
     seedCompanyWarehouse,
 } from '../modules/auth/provisioning.service';
+import { UOM_DATA } from './seed-data';
 
 async function seed() {
     console.log('🌱 Starting Complete System & Better-Auth Seed...\n');
