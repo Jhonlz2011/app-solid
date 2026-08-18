@@ -176,6 +176,7 @@ export async function register(
       user: {
         id: user.id,
         companyId: company.id,
+        companySlug: company.slug,
         username: user.username || data.fullName,
         email: user.email,
         isActive: user.is_active,
