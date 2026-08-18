@@ -7,6 +7,36 @@ import * as schema from '@app/schema/tables';
 import { emailService } from '../core/email';
 import { env } from './env';
 
+const argon2PasswordConfig = {
+    hash: async (password: string) => {
+        return Bun.password.hash(password, {
+            algorithm: 'argon2id',
+            memoryCost: 65536,
+            timeCost: 2,
+        });
+    },
+    verify: async ({ password, hash }: { password: string; hash: string }) => {
+        if (!hash || !password) return false;
+        try {
+            // Bun native Argon2 / Bcrypt verification (starts with $)
+            if (hash.startsWith('$')) {
+                return await Bun.password.verify(password, hash);
+            }
+            // Safe fallback for legacy Better-Auth scrypt format (salt:key)
+            if (hash.includes(':')) {
+                const { verifyPassword } = await import('better-auth/crypto').catch(() => ({ verifyPassword: null }));
+                if (verifyPassword) {
+                    return await verifyPassword({ hash, password });
+                }
+            }
+            return await Bun.password.verify(password, hash);
+        } catch (err) {
+            console.error('[BetterAuth Password Verifier] Error verifying password:', err);
+            return false;
+        }
+    },
+};
+
 export const auth = betterAuth({
     database: drizzleAdapter(adminDb, {
         provider: 'pg',
@@ -33,18 +63,11 @@ export const auth = betterAuth({
         'http://192.168.100.50:5173',
         'http://192.168.100.50:4173',
     ].filter(Boolean) as string[],
-    password: {
-        hash: async (password: string) => {
-            return Bun.password.hash(password);
-        },
-        verify: async ({ password, hash }: { password: string; hash: string }) => {
-            return Bun.password.verify(password, hash);
-        },
-    },
     emailAndPassword: {
         enabled: true,
         autoSignIn: true,
         requireEmailVerification: false,
+        password: argon2PasswordConfig,
         sendVerificationEmail: async ({ user, url }) => {
             await emailService.sendVerificationEmail(user.email, url, user.name);
         },
@@ -83,6 +106,7 @@ export const auth = betterAuth({
         },
     },
     advanced: {
+        password: argon2PasswordConfig,
         generateId: () => uuidv7(),
         crossSubDomainCookies: {
             enabled: Boolean(env.COOKIE_DOMAIN),

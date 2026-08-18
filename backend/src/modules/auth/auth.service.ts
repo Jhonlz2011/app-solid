@@ -89,7 +89,11 @@ export async function register(
       tax_regime_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
     }).returning();
 
-    const password_hash = await Bun.password.hash(data.password);
+    const password_hash = await Bun.password.hash(data.password, {
+      algorithm: 'argon2id',
+      memoryCost: 65536,
+      timeCost: 2,
+    });
     
     const rawUsername = data.email.split('@')[0];
     const normalizedUsername = rawUsername.toLowerCase();

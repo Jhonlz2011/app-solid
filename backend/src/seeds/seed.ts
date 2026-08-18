@@ -16,7 +16,6 @@ import {
     authMenuItems,
 } from '@app/schema/tables';
 import { sql, eq, and } from '@app/schema';
-import { UOM_DATA } from './seed-data';
 import {
     seedCompanyRBAC,
     seedCompanyMenus,
@@ -144,7 +143,11 @@ async function seed() {
             console.log('\n👥 Seeding Better-Auth users & credentials...');
 
             const defaultPassword = 'password123';
-            const hashedPassword = await Bun.password.hash(defaultPassword);
+            const hashedPassword = await Bun.password.hash(defaultPassword, {
+                algorithm: 'argon2id',
+                memoryCost: 65536,
+                timeCost: 2,
+            });
 
             const usersToCreate = [
                 {
