@@ -97,7 +97,7 @@ export const applyBranding = (tenant: TenantBrandingDto | null) => {
             }
             link.setAttribute('crossorigin', 'use-credentials');
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-            link.href = `${apiUrl}/api/auth/tenant-manifest?slug=${tenant.slug}`;
+            link.href = `${apiUrl}/api/tenants/tenant-manifest?slug=${tenant.slug}`;
             
         } else {
             root.style.removeProperty('--primary');

@@ -1,5 +1,5 @@
 /**
- * auth.api.ts — Eden API fetchers for Auth module (ERP Tenant Provisioning & Domain Services)
+ * auth.api.ts — Eden API fetchers for ERP Tenant Provisioning & Domain Services
  *
  * Session login & logout are handled natively by authClient (Better-Auth).
  */
@@ -9,25 +9,25 @@ import type { AuthRegisterPayload } from '@app/schema/dto';
 
 export const authApi = {
     register: async (payload: AuthRegisterPayload, signal?: AbortSignal) => {
-        const { data, error } = await api.api.auth.register.post(payload, { fetch: { signal } });
+        const { data, error } = await api.api.tenants.register.post(payload, { fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },
 
     checkSlug: async (slug: string) => {
-        const { data, error } = await api.api.auth['check-slug']({ slug }).get();
+        const { data, error } = await api.api.tenants['check-slug']({ slug }).get();
         if (error) throwApiError(error);
         return data!;
     },
 
     checkRuc: async (ruc: string) => {
-        const { data, error } = await api.api.auth['check-ruc']({ ruc }).get();
+        const { data, error } = await api.api.tenants['check-ruc']({ ruc }).get();
         if (error) throwApiError(error);
         return data!;
     },
 
     getTenantInfo: async (slug?: string) => {
-        const { data, error } = await api.api.auth['tenant-info'].get({ query: { slug } });
+        const { data, error } = await api.api.tenants['tenant-info'].get({ query: { slug } });
         if (error) throwApiError(error);
         return data!;
     },

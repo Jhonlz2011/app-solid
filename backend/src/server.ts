@@ -4,7 +4,8 @@ import { swagger } from '@elysiajs/swagger';
 import { staticPlugin } from '@elysiajs/static';
 // Routes
 import { auth } from './config/better-auth';
-import { authRoutes } from './modules/auth';
+import { tenantRoutes } from './modules/tenants';
+import { profileRoutes } from './modules/profile';
 import { productRoutes } from './modules/products';
 import {
   clientRoutes,
@@ -136,11 +137,12 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(errorHandlerPlugin)
   // Health check — público, antes de auth guard (usado por OfflineBanner PWA)
   .get('/health', () => ({ status: 'ok', ts: Date.now() }))
-  // Domain Auth Routes (register, check-slug, tenant-info, manifest, me, profile, sessions)
-  .use(authRoutes)
-  // Better-Auth Core Handler (sign-in, sign-up, organization, sessions, passkeys, 2fa)
+  // Better-Auth Core Handler (sign-in, sign-up, organization, sessions, passkeys, 2fa, verify-email)
   .all('/auth', async ({ request }) => auth.handler(request))
   .all('/auth/*', async ({ request }) => auth.handler(request))
+  // Domain routes
+  .use(tenantRoutes)
+  .use(profileRoutes)
   .use(webhooksRoutes) // Webhooks van ANTES de rbac (no requieren autenticación)
   .use(rbac)
   .use(ssePlugin)

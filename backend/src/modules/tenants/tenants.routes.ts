@@ -1,16 +1,10 @@
 import { Elysia, t } from 'elysia';
-import { auth } from '../../config/better-auth';
-import { register } from './auth.service';
-import { getMe, updateProfile } from './profile.service';
-import { getActiveSessions, revokeSession } from './session.service';
+import { register } from '../auth/auth.service';
 import {
   AuthRegisterDto,
-  AuthUpdateProfileDto,
   AuthUserResponse,
   TenantBrandingResponseDto,
-  UserSessionItemSchema,
 } from '@app/schema/backend';
-import { authGuard } from '../../plugins/auth-guard';
 import { registerRateLimit } from '../../plugins/register-rate-limit';
 import { ipPlugin, getIpAndUserAgent } from '../../plugins/ip';
 import { db } from '../../core/db';
@@ -19,7 +13,7 @@ import { eq } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
 import { getTenantBySlug } from '../../core/spa';
 
-export const authRoutes = new Elysia({ prefix: '/auth' })
+export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   .use(ipPlugin)
   .post(
     '/register',
@@ -179,47 +173,4 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     query: t.Object({
       slug: t.Optional(t.String()),
     }),
-  })
-  // Protected Routes Group
-  .group('', (app) => app
-    .use(authGuard)
-    .get('/me', async ({ currentUserId, currentCompanyId, currentSessionId }) => {
-      const user = await getMe(currentUserId, currentCompanyId);
-      return { ...user, sessionId: currentSessionId };
-    }, {
-      response: t.Composite([AuthUserResponse, t.Object({ sessionId: t.String() })]),
-    })
-    .put(
-      '/profile',
-      async ({ body, currentUserId }) => {
-        const result = await updateProfile(currentUserId, body);
-        return result;
-      },
-      {
-        body: AuthUpdateProfileDto,
-        response: t.Object({
-          success: t.Literal(true),
-          message: t.Optional(t.String()),
-          user: t.Optional(t.Object({
-            id: t.Union([t.Number(), t.String()]),
-            email: t.String(),
-            username: t.String(),
-          })),
-        }),
-      }
-    )
-    .get('/sessions', async ({ currentUserId, currentSessionId }) => {
-      return getActiveSessions(currentUserId, currentSessionId);
-    }, {
-      response: t.Array(UserSessionItemSchema),
-    })
-    .delete('/sessions/:id', async ({ currentUserId, params }) => {
-      const result = await revokeSession(params.id, currentUserId);
-      return result;
-    }, {
-      response: t.Object({ success: t.Literal(true) }),
-    })
-  )
-  // Better-Auth Core Handler Fallthrough (verify-email, send-verification-email, sign-in, organization, etc.)
-  .all('/*', async ({ request }) => auth.handler(request))
-  .all('', async ({ request }) => auth.handler(request));
+  });

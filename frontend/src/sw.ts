@@ -31,7 +31,7 @@ registerRoute(
 
 // Cachear manifiesto dinámico por tenant
 registerRoute(
-  ({ url }) => url.pathname.includes('/auth/tenant-manifest'),
+  ({ url }) => url.pathname.includes('/tenant-manifest'),
   new NetworkFirst({
     cacheName: 'tenant-manifest-cache',
     networkTimeoutSeconds: 5,
