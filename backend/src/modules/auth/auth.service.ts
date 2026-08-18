@@ -1,4 +1,3 @@
-import { signJWT } from 'better-auth/crypto';
 import { db, adminDb } from '../../core/db';
 import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, account, organization, member, verification } from '@app/schema/tables';
 import { eq, sql } from '@app/schema';
@@ -15,6 +14,7 @@ import { verifyTurnstileToken } from '../../core/security';
 import { mapEntity } from './profile.service';
 import { emailService } from '../../core/email';
 import { env } from '../../config/env';
+import { resolveTenantUrl } from '../../config/better-auth';
 
 // ============================================================================
 // CORE SAAS TENANT PROVISIONING (ONBOARDING)
@@ -170,17 +170,18 @@ export async function register(
     const roles = txRoles.map(r => r.roleName);
     const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
 
-    // Generate Better-Auth compliant JWT verification token
-    const verificationToken = await signJWT(
-      { email: user.email.toLowerCase() },
-      env.BETTER_AUTH_SECRET,
-      24 * 60 * 60 // 24 hours
-    );
+    // 1. Generar e insertar Token de Verificación nativo en la tabla verification de Better-Auth
+    const verificationToken = crypto.randomUUID().replace(/-/g, '');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    const tenantBaseUrl = env.NODE_ENV === 'production'
-      ? `https://${company.slug}.zelys.app`
-      : env.FRONTEND_URL;
+    await tx.insert(verification).values({
+      id: sql`uuidv7()::text`,
+      identifier: user.email.toLowerCase(),
+      value: verificationToken,
+      expiresAt: expiresAt,
+    });
 
+    const tenantBaseUrl = resolveTenantUrl(company.slug);
     const verificationUrl = `${tenantBaseUrl}/verify-email?token=${verificationToken}`;
 
     // Disparar envío asíncrono con nombre formateado

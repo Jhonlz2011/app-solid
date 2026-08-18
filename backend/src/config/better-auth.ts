@@ -3,10 +3,42 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, username, twoFactor } from 'better-auth/plugins';
 import { v7 as uuidv7 } from 'uuid';
 import { adminDb } from '../core/db';
+import { redis } from '../core/cache/redis';
+import { broadcast } from '../core/sse';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 import { eq } from '@app/schema';
 import * as schema from '@app/schema/tables';
 import { emailService } from '../core/email';
 import { env } from './env';
+
+export function resolveTenantUrl(slug?: string | null): string {
+    if (env.NODE_ENV === 'production' && slug) {
+        return `https://${slug}.zelys.app`;
+    }
+    return env.FRONTEND_URL;
+}
+
+export async function getTenantInfoForEmail(email: string) {
+    try {
+        const [userWithCompany] = await adminDb
+            .select({
+                name: schema.user.name,
+                companySlug: schema.companies.slug,
+            })
+            .from(schema.user)
+            .leftJoin(schema.companies, eq(schema.user.company_id, schema.companies.id))
+            .where(eq(schema.user.email, email.toLowerCase()))
+            .limit(1);
+
+        return {
+            tenantSlug: userWithCompany?.companySlug || null,
+            recipientName: userWithCompany?.name || email.split('@')[0],
+        };
+    } catch (err) {
+        console.error('[BetterAuth] Error resolving tenant info for email:', err);
+        return { tenantSlug: null, recipientName: email.split('@')[0] };
+    }
+}
 
 const argon2PasswordConfig = {
     hash: async (password: string) => {
@@ -64,73 +96,55 @@ export const auth = betterAuth({
         'http://192.168.100.50:5173',
         'http://192.168.100.50:4173',
     ].filter(Boolean) as string[],
+    databaseHooks: {
+        user: {
+            update: {
+                after: async (user) => {
+                    // Si el correo pasa a verificado, notificar en tiempo real vía SSE a todas las sesiones del usuario
+                    if (user.emailVerified) {
+                        broadcast(
+                            RealtimeEvents.USER.EMAIL_VERIFIED,
+                            { userId: user.id },
+                            `user:${user.id}`
+                        );
+                    }
+                },
+            },
+        },
+    },
     emailAndPassword: {
         enabled: true,
         autoSignIn: true,
         requireEmailVerification: false,
         password: argon2PasswordConfig,
         sendResetPassword: async ({ user, url }) => {
-            let tenantSlug: string | null = null;
-            let recipientName = user.name;
-
-            try {
-                const [userWithCompany] = await adminDb
-                    .select({
-                        name: schema.user.name,
-                        companySlug: schema.companies.slug,
-                    })
-                    .from(schema.user)
-                    .leftJoin(schema.companies, eq(schema.user.company_id, schema.companies.id))
-                    .where(eq(schema.user.email, user.email.toLowerCase()))
-                    .limit(1);
-
-                if (userWithCompany) {
-                    tenantSlug = userWithCompany.companySlug;
-                    recipientName = userWithCompany.name || recipientName;
-                }
-            } catch (err) {
-                console.error('[BetterAuth ResetPassword] Error resolving tenant slug:', err);
-            }
-
-            const baseUrl = (env.NODE_ENV === 'production' && tenantSlug)
-                ? `https://${tenantSlug}.zelys.app`
-                : env.FRONTEND_URL;
-
-            await emailService.sendPasswordResetEmail(user.email, url, recipientName || user.email.split('@')[0]);
+            const { tenantSlug, recipientName } = await getTenantInfoForEmail(user.email);
+            const baseUrl = resolveTenantUrl(tenantSlug);
+            const resetUrl = `${baseUrl}/reset-password?url=${encodeURIComponent(url)}`;
+            await emailService.sendPasswordResetEmail(user.email, resetUrl, recipientName);
         },
     },
     emailVerification: {
         sendOnSignUp: false,
         autoSignInAfterVerification: true,
-        sendVerificationEmail: async ({ user, url, token }) => {
-            let tenantSlug: string | null = null;
-            let recipientName = user.name;
-
+        sendVerificationEmail: async ({ user, token }) => {
+            // Protección contra abuso de reenvíos: Redis TTL 60s
+            const cooldownKey = `email_cooldown:${user.email.toLowerCase()}`;
             try {
-                const [userWithCompany] = await adminDb
-                    .select({
-                        name: schema.user.name,
-                        companySlug: schema.companies.slug,
-                    })
-                    .from(schema.user)
-                    .leftJoin(schema.companies, eq(schema.user.company_id, schema.companies.id))
-                    .where(eq(schema.user.email, user.email.toLowerCase()))
-                    .limit(1);
-
-                if (userWithCompany) {
-                    tenantSlug = userWithCompany.companySlug;
-                    recipientName = userWithCompany.name || recipientName;
+                const isThrottled = await redis.get(cooldownKey);
+                if (isThrottled) {
+                    console.warn(`[BetterAuth] Verification email throttled for ${user.email}`);
+                    return;
                 }
+                await redis.set(cooldownKey, '1', 'EX', 60);
             } catch (err) {
-                console.error('[BetterAuth VerificationEmail] Error resolving tenant slug:', err);
+                console.warn('[BetterAuth] Redis cooldown check error, proceeding:', err);
             }
 
-            const baseUrl = (env.NODE_ENV === 'production' && tenantSlug)
-                ? `https://${tenantSlug}.zelys.app`
-                : env.FRONTEND_URL;
-
+            const { tenantSlug, recipientName } = await getTenantInfoForEmail(user.email);
+            const baseUrl = resolveTenantUrl(tenantSlug);
             const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
-            await emailService.sendVerificationEmail(user.email, verificationUrl, recipientName || user.email.split('@')[0]);
+            await emailService.sendVerificationEmail(user.email, verificationUrl, recipientName);
         },
     },
     user: {
