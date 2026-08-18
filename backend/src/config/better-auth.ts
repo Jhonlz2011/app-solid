@@ -12,10 +12,24 @@ import { emailService } from '../core/email';
 import { env } from './env';
 
 export function resolveTenantUrl(slug?: string | null): string {
-    if (env.NODE_ENV === 'production' && slug) {
+    if (!slug) return env.FRONTEND_URL;
+
+    try {
+        const url = new URL(env.FRONTEND_URL);
+        const host = url.hostname;
+
+        // If localhost or local LAN IP address
+        if (host === 'localhost' || host === '127.0.0.1' || /^[0-9.]+$/.test(host)) {
+            return `${url.protocol}//${slug}.${host}${url.port ? `:${url.port}` : ''}`;
+        }
+
+        // If domain is or ends with zelys.app (production, staging)
+        const domainParts = host.split('.');
+        const baseDomain = host.includes('zelys.app') ? 'zelys.app' : domainParts.slice(-2).join('.');
+        return `${url.protocol}//${slug}.${baseDomain}${url.port ? `:${url.port}` : ''}`;
+    } catch {
         return `https://${slug}.zelys.app`;
     }
-    return env.FRONTEND_URL;
 }
 
 export async function getTenantInfoForEmail(email: string) {

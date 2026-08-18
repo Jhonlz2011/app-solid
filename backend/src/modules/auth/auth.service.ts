@@ -1,5 +1,6 @@
+import { signJWT } from 'better-auth/crypto';
 import { db, adminDb } from '../../core/db';
-import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, account, organization, member, verification } from '@app/schema/tables';
+import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, account, organization, member } from '@app/schema/tables';
 import { eq, sql } from '@app/schema';
 import type { TaxRegimeType } from '@app/schema/enums';
 import { DomainError } from '../../core/errors';
@@ -170,16 +171,12 @@ export async function register(
     const roles = txRoles.map(r => r.roleName);
     const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
 
-    // 1. Generar e insertar Token de Verificación nativo en la tabla verification de Better-Auth
-    const verificationToken = crypto.randomUUID().replace(/-/g, '');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-    await tx.insert(verification).values({
-      id: sql`uuidv7()::text`,
-      identifier: user.email.toLowerCase(),
-      value: verificationToken,
-      expiresAt: expiresAt,
-    });
+    // 1. Generar Token JWT firmado compatible 100% con Better-Auth email-verification
+    const verificationToken = await signJWT(
+      { email: user.email.toLowerCase() },
+      env.BETTER_AUTH_SECRET,
+      24 * 60 * 60 // 24 horas
+    );
 
     const tenantBaseUrl = resolveTenantUrl(company.slug);
     const verificationUrl = `${tenantBaseUrl}/verify-email?token=${verificationToken}`;
