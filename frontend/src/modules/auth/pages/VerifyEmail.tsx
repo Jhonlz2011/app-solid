@@ -64,7 +64,7 @@ const VerifyEmail: Component = () => {
     }, 1000);
   };
 
-  // Restore countdown from sessionStorage on mount (survives page refresh)
+  // Restore countdown from sessionStorage on mount (survives page refresh) or start initial 60s cooldown
   onMount(() => {
     const until = sessionStorage.getItem(COOLDOWN_STORAGE_KEY);
     if (until) {
@@ -74,6 +74,8 @@ const VerifyEmail: Component = () => {
       } else {
         sessionStorage.removeItem(COOLDOWN_STORAGE_KEY);
       }
+    } else if (!token()) {
+      startCountdown(60);
     }
   });
 
@@ -120,6 +122,7 @@ const VerifyEmail: Component = () => {
 
   // ── Handlers ───────────────────────────────────────────────────────────
   const handleResend = async () => {
+    if (resending() || countdown() > 0) return;
     setResending(true);
     try {
       const user = auth.user();
@@ -143,9 +146,6 @@ const VerifyEmail: Component = () => {
     sessionStorage.removeItem(COOLDOWN_STORAGE_KEY);
     actions.logout(true).then(() => navigate({ to: '/login', search: { redirect: undefined },  replace: true }));
   };
-
-  // ── Derived: resend button disabled state ──────────────────────────────
-  const isResendDisabled = () => resending() || countdown() > 0;
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -193,7 +193,7 @@ const VerifyEmail: Component = () => {
                   onClick={handleResend}
                   loading={resending()}
                   loadingText="Reenviando..."
-                  disabled={isResendDisabled()}
+                  disabled={resending() || countdown() > 0}
                   icon={<MailIcon class="size-4" />}
                 >
                   {countdown() > 0

@@ -1,5 +1,5 @@
 import { db, adminDb } from '../../core/db';
-import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, account, organization, member } from '@app/schema/tables';
+import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, account, organization, member, verification } from '@app/schema/tables';
 import { eq, sql } from '@app/schema';
 import type { TaxRegimeType } from '@app/schema/enums';
 import { DomainError } from '../../core/errors';
@@ -12,6 +12,8 @@ import {
 } from './provisioning.service';
 import { verifyTurnstileToken } from '../../core/security';
 import { mapEntity } from './profile.service';
+import { emailService } from '../../core/email';
+import { env } from '../../config/env';
 
 // ============================================================================
 // CORE SAAS TENANT PROVISIONING (ONBOARDING)
@@ -166,6 +168,25 @@ export async function register(
 
     const roles = txRoles.map(r => r.roleName);
     const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
+
+    // Generate verification token and send email with tenant subdomain
+    const verificationToken = crypto.randomUUID();
+    await tx.insert(verification).values({
+      id: crypto.randomUUID(),
+      identifier: user.email,
+      value: verificationToken,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    });
+
+    const tenantBaseUrl = env.NODE_ENV === 'production'
+      ? `https://${company.slug}.zelys.app`
+      : env.FRONTEND_URL;
+
+    const verificationUrl = `${tenantBaseUrl}/verify-email?token=${verificationToken}`;
+
+    // Disparar envío asíncrono sin bloquear la respuesta
+    emailService.sendVerificationEmail(user.email, verificationUrl, user.name)
+      .catch((err) => console.error('[AuthService] Error sending initial verification email:', err));
 
     return {
       company: {

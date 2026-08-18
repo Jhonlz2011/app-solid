@@ -3,6 +3,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, username, twoFactor } from 'better-auth/plugins';
 import { v7 as uuidv7 } from 'uuid';
 import { adminDb } from '../core/db';
+import { eq } from '@app/schema';
 import * as schema from '@app/schema/tables';
 import { emailService } from '../core/email';
 import { env } from './env';
@@ -69,6 +70,21 @@ export const auth = betterAuth({
         requireEmailVerification: false,
         password: argon2PasswordConfig,
         sendResetPassword: async ({ user, url }) => {
+            let tenantSlug: string | null = null;
+            if (env.NODE_ENV === 'production') {
+                const [membership] = await adminDb
+                    .select({ slug: schema.organization.slug })
+                    .from(schema.member)
+                    .innerJoin(schema.organization, eq(schema.member.organizationId, schema.organization.id))
+                    .where(eq(schema.member.userId, user.id))
+                    .limit(1);
+                if (membership?.slug) {
+                    tenantSlug = membership.slug;
+                }
+            }
+            const baseUrl = (env.NODE_ENV === 'production' && tenantSlug)
+                ? `https://${tenantSlug}.zelys.app`
+                : env.FRONTEND_URL;
             await emailService.sendPasswordResetEmail(user.email, url, user.name);
         },
     },
@@ -76,7 +92,22 @@ export const auth = betterAuth({
         sendOnSignUp: false,
         autoSignInAfterVerification: true,
         sendVerificationEmail: async ({ user, url, token }) => {
-            const verificationUrl = `${env.FRONTEND_URL}/verify-email?token=${token}`;
+            let tenantSlug: string | null = null;
+            if (env.NODE_ENV === 'production') {
+                const [membership] = await adminDb
+                    .select({ slug: schema.organization.slug })
+                    .from(schema.member)
+                    .innerJoin(schema.organization, eq(schema.member.organizationId, schema.organization.id))
+                    .where(eq(schema.member.userId, user.id))
+                    .limit(1);
+                if (membership?.slug) {
+                    tenantSlug = membership.slug;
+                }
+            }
+            const baseUrl = (env.NODE_ENV === 'production' && tenantSlug)
+                ? `https://${tenantSlug}.zelys.app`
+                : env.FRONTEND_URL;
+            const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
             await emailService.sendVerificationEmail(user.email, verificationUrl, user.name);
         },
     },
