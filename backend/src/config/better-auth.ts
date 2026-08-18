@@ -68,11 +68,16 @@ export const auth = betterAuth({
         autoSignIn: true,
         requireEmailVerification: false,
         password: argon2PasswordConfig,
-        sendVerificationEmail: async ({ user, url }) => {
-            await emailService.sendVerificationEmail(user.email, url, user.name);
-        },
         sendResetPassword: async ({ user, url }) => {
             await emailService.sendPasswordResetEmail(user.email, url, user.name);
+        },
+    },
+    emailVerification: {
+        sendOnSignUp: false,
+        autoSignInAfterVerification: true,
+        sendVerificationEmail: async ({ user, url, token }) => {
+            const verificationUrl = `${env.FRONTEND_URL}/verify-email?token=${token}`;
+            await emailService.sendVerificationEmail(user.email, verificationUrl, user.name);
         },
     },
     user: {

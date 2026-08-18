@@ -124,7 +124,10 @@ const VerifyEmail: Component = () => {
     try {
       const user = auth.user();
       if (!user?.email) throw new Error('No hay correo registrado');
-      const res = await authClient.sendVerificationEmail({ email: user.email });
+      const res = await authClient.sendVerificationEmail({
+        email: user.email,
+        callbackURL: '/verify-email',
+      });
       if (res.error) throw new Error(res.error.message || 'Error al reenviar');
 
       toast.success('Se ha enviado un nuevo enlace de verificación a tu correo.');

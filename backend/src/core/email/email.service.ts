@@ -1,5 +1,7 @@
 import { Resend } from 'resend';
 import { env } from '../../config/env';
+import { adminDb } from '../db';
+import { emailLogs } from '@app/schema/tables';
 
 // Solo instanciamos si tenemos la API key, en desarrollo podríamos no tenerla configurada
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
@@ -7,7 +9,7 @@ const SENDER_EMAIL = 'Zelys <no-reply@zelys.app>';
 
 export const emailService = {
   /**
-   * Envía un correo electrónico genérico a través de Resend.
+   * Envía un correo electrónico genérico a través de Resend y registra en email_logs.
    */
   sendEmail: async (to: string, subject: string, htmlContent: string) => {
     if (!resend) {
@@ -26,6 +28,16 @@ export const emailService = {
       if (error) {
         console.error('❌ Error desde la API de Resend:', error);
         throw error;
+      }
+
+      if (data?.id) {
+        await adminDb.insert(emailLogs).values({
+          toEmail: to,
+          subject: subject,
+          status: 'sent',
+          eventType: 'email.sent',
+          resendId: data.id,
+        }).catch((err) => console.warn('[EmailService] Failed to insert initial email log:', err));
       }
 
       if (env.NODE_ENV !== 'production') {
