@@ -1,3 +1,4 @@
+import { signJWT } from 'better-auth/crypto';
 import { db, adminDb } from '../../core/db';
 import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, account, organization, member, verification } from '@app/schema/tables';
 import { eq, sql } from '@app/schema';
@@ -169,14 +170,12 @@ export async function register(
     const roles = txRoles.map(r => r.roleName);
     const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
 
-    // Generate verification token and send email with tenant subdomain
-    const verificationToken = crypto.randomUUID();
-    await tx.insert(verification).values({
-      id: crypto.randomUUID(),
-      identifier: user.email,
-      value: verificationToken,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-    });
+    // Generate Better-Auth compliant JWT verification token
+    const verificationToken = await signJWT(
+      { email: user.email.toLowerCase() },
+      env.BETTER_AUTH_SECRET,
+      24 * 60 * 60 // 24 hours
+    );
 
     const tenantBaseUrl = env.NODE_ENV === 'production'
       ? `https://${company.slug}.zelys.app`
@@ -184,8 +183,8 @@ export async function register(
 
     const verificationUrl = `${tenantBaseUrl}/verify-email?token=${verificationToken}`;
 
-    // Disparar envío asíncrono sin bloquear la respuesta
-    emailService.sendVerificationEmail(user.email, verificationUrl, user.name)
+    // Disparar envío asíncrono con nombre formateado
+    emailService.sendVerificationEmail(user.email, verificationUrl, user.name || data.fullName)
       .catch((err) => console.error('[AuthService] Error sending initial verification email:', err));
 
     return {
