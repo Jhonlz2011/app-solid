@@ -18,9 +18,14 @@ export function resolveTenantUrl(slug?: string | null): string {
         const url = new URL(env.FRONTEND_URL);
         const host = url.hostname;
 
-        // If localhost or local LAN IP address
-        if (host === 'localhost' || host === '127.0.0.1' || /^[0-9.]+$/.test(host)) {
-            return `${url.protocol}//${slug}.${host}${url.port ? `:${url.port}` : ''}`;
+        // If localhost or 127.0.0.1
+        if (host === 'localhost' || host === '127.0.0.1') {
+            return `${url.protocol}//${slug}.localhost${url.port ? `:${url.port}` : ''}`;
+        }
+
+        // If local naked LAN IP address (e.g. 192.168.100.50), keep the IP without subdomains
+        if (/^[0-9.]+$/.test(host)) {
+            return `${url.protocol}//${host}${url.port ? `:${url.port}` : ''}`;
         }
 
         // If domain is or ends with zelys.app (production, staging)
@@ -107,6 +112,10 @@ export const auth = betterAuth({
         'https://zelys.app',
         'https://dev.zelys.app',
         'https://api.zelys.app',
+        'http://*.localhost:5173',
+        'http://*.localhost:4173',
+        'http://localhost:5173',
+        'http://localhost:4173',
         'http://192.168.100.50:5173',
         'http://192.168.100.50:4173',
     ].filter(Boolean) as string[],
@@ -131,10 +140,10 @@ export const auth = betterAuth({
         autoSignIn: true,
         requireEmailVerification: false,
         password: argon2PasswordConfig,
-        sendResetPassword: async ({ user, url }) => {
+        sendResetPassword: async ({ user, url, token }) => {
             const { tenantSlug, recipientName } = await getTenantInfoForEmail(user.email);
             const baseUrl = resolveTenantUrl(tenantSlug);
-            const resetUrl = `${baseUrl}/reset-password?url=${encodeURIComponent(url)}`;
+            const resetUrl = `${baseUrl}/reset-password?token=${token}&url=${encodeURIComponent(url)}`;
             await emailService.sendPasswordResetEmail(user.email, resetUrl, recipientName);
         },
     },

@@ -80,14 +80,20 @@ const VerifyEmail: Component = () => {
   });
 
   // ── Redirect helper ────────────────────────────────────────────────────
-  const redirectAfterSuccess = () => {
+  const redirectAfterSuccess = async () => {
+    // Better-Auth autoSignInAfterVerification sets the session cookie.
+    // If not authenticated in-memory, hydrate session from the active cookie.
+    if (!auth.isAuthenticated()) {
+      await actions.initSession().catch(() => {});
+    }
+
     redirectTimer = setTimeout(() => {
       if (auth.isAuthenticated()) {
-        actions.refreshSession().then(() => navigate({ to: '/dashboard', replace: true }));
+        navigate({ to: '/dashboard', replace: true });
       } else {
-        navigate({ to: '/login',  search: { redirect: undefined },  replace: true });
+        navigate({ to: '/login', search: { redirect: undefined }, replace: true });
       }
-    }, 2500);
+    }, 2000);
   };
 
   // ── Token verification (direct link click) ─────────────────────────────

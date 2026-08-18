@@ -1,4 +1,3 @@
-import { signJWT } from 'better-auth/crypto';
 import { db, adminDb } from '../../core/db';
 import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, account, organization, member } from '@app/schema/tables';
 import { eq, sql } from '@app/schema';
@@ -13,9 +12,7 @@ import {
 } from './provisioning.service';
 import { verifyTurnstileToken } from '../../core/security';
 import { mapEntity } from './profile.service';
-import { emailService } from '../../core/email';
-import { env } from '../../config/env';
-import { resolveTenantUrl } from '../../config/better-auth';
+import { auth } from '../../config/better-auth';
 
 // ============================================================================
 // CORE SAAS TENANT PROVISIONING (ONBOARDING)
@@ -171,19 +168,14 @@ export async function register(
     const roles = txRoles.map(r => r.roleName);
     const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
 
-    // 1. Generar Token JWT firmado compatible 100% con Better-Auth email-verification
-    const verificationToken = await signJWT(
-      { email: user.email.toLowerCase() },
-      env.BETTER_AUTH_SECRET,
-      24 * 60 * 60 // 24 horas
-    );
-
-    const tenantBaseUrl = resolveTenantUrl(company.slug);
-    const verificationUrl = `${tenantBaseUrl}/verify-email?token=${verificationToken}`;
-
-    // Disparar envío asíncrono con nombre formateado
-    emailService.sendVerificationEmail(user.email, verificationUrl, user.name || data.fullName)
-      .catch((err) => console.error('[AuthService] Error sending initial verification email:', err));
+    // Disparar envío canónico de verificación de correo mediante Better-Auth
+    // Esto crea de forma atómica el token en la tabla `verification` y ejecuta el hook sendVerificationEmail
+    auth.api.sendVerificationEmail({
+      body: {
+        email: user.email.toLowerCase(),
+        callbackURL: '/verify-email',
+      },
+    }).catch((err) => console.error('[AuthService] Error sending initial verification email via Better-Auth:', err));
 
     return {
       company: {
