@@ -25,6 +25,11 @@ if (typeof window !== 'undefined') {
         const cleanUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
         window.history.replaceState({}, '', cleanUrl);
     }
+
+    // Auto-recover from stale dynamic chunk hashes after new deployments / builds
+    window.addEventListener('vite:preloadError', () => {
+        window.location.reload();
+    });
 }
 
 const root = document.getElementById('root');

@@ -240,7 +240,7 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                 // 5. Replace manifest link (NOT append) to avoid duplicate <link rel="manifest"> — PWA-01
                 html = html.replace(
                     /<link rel="manifest"[^>]*>/,
-                    `<link rel="manifest" crossorigin="use-credentials" href="${apiUrl}/api/auth/tenant-manifest?slug=${company.slug}" />`
+                    `<link rel="manifest" crossorigin="use-credentials" href="${apiUrl}/api/tenants/tenant-manifest?slug=${company.slug}" />`
                 );
 
                 // 6. Title tag dynamic replacement (escaped to prevent injection)
