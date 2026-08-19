@@ -11,39 +11,56 @@ import * as schema from '@app/schema/tables';
 import { emailService } from '../core/email';
 import { env } from './env';
 
+// ============================================================================
+// 1. TENANT URL RESOLVER
+// ============================================================================
+
+/**
+ * Builds the canonical tenant URL for user-facing emails and redirects.
+ * - Production: https://{slug}.zelys.app or https://zelys.app
+ * - Local dev:   http://{slug}.localhost:5173 or http://localhost:5173
+ * - LAN dev:     http://192.168.x.x:5173
+ */
 export function resolveTenantUrl(slug?: string | null): string {
-    if (!slug) return env.FRONTEND_URL;
+    const frontendUrl = env.FRONTEND_URL.replace(/\/$/, '');
 
     try {
-        const url = new URL(env.FRONTEND_URL);
+        const url = new URL(frontendUrl);
         const host = url.hostname;
 
-        // If localhost or 127.0.0.1
-        if (host === 'localhost' || host === '127.0.0.1') {
-            return `${url.protocol}//${slug}.localhost${url.port ? `:${url.port}` : ''}`;
+        // Strip 'api.' prefix if FRONTEND_URL in backend env points to the API subdomain
+        const cleanHost = host.startsWith('api.') ? host.replace(/^api\./, '') : host;
+        const port = url.port ? `:${url.port}` : '';
+
+        if (!slug) {
+            return `${url.protocol}//${cleanHost}${port}`;
         }
 
-        // If local naked LAN IP address (e.g. 192.168.100.50), keep the IP without subdomains
-        if (/^[0-9.]+$/.test(host)) {
-            return `${url.protocol}//${host}${url.port ? `:${url.port}` : ''}`;
+        // Localhost / 127.0.0.1
+        if (cleanHost === 'localhost' || cleanHost === '127.0.0.1') {
+            return `${url.protocol}//${slug}.localhost${port}`;
         }
 
-        // If domain is or ends with zelys.app (production, staging)
-        const domainParts = host.split('.');
-        const baseDomain = host.includes('zelys.app') ? 'zelys.app' : domainParts.slice(-2).join('.');
-        return `${url.protocol}//${slug}.${baseDomain}${url.port ? `:${url.port}` : ''}`;
+        // LAN IP (e.g. 192.168.100.50) — keep naked IP
+        if (/^[0-9.]+$/.test(cleanHost)) {
+            return `${url.protocol}//${cleanHost}${port}`;
+        }
+
+        // Production / Staging domain (zelys.app)
+        const parts = cleanHost.split('.');
+        const rootDomain = parts.slice(-2).join('.');
+        return `${url.protocol}//${slug}.${rootDomain}${port}`;
     } catch {
-        return `https://${slug}.zelys.app`;
+        return slug ? `https://${slug}.zelys.app` : 'https://zelys.app';
     }
 }
 
 /**
- * Resolve tenant slug and user name from email for email templates.
- * Uses member → organization → companies to find the tenant slug.
+ * Resolves the tenant slug and recipient display name for email notifications.
  */
 export async function getTenantInfoForEmail(email: string) {
     try {
-        const result = await adminDb
+        const [row] = await adminDb
             .select({
                 name: schema.user.name,
                 companySlug: schema.companies.slug,
@@ -55,7 +72,6 @@ export async function getTenantInfoForEmail(email: string) {
             .where(eq(schema.user.email, email.toLowerCase()))
             .limit(1);
 
-        const row = result[0];
         return {
             tenantSlug: row?.companySlug || null,
             recipientName: row?.name || email.split('@')[0],
@@ -67,15 +83,15 @@ export async function getTenantInfoForEmail(email: string) {
 }
 
 /**
- * Resolve companies.id from an organization ID.
- * Cached in Redis for 5 minutes to avoid per-request DB queries.
+ * Resolves companies.id from an active organization ID.
+ * Cached in Redis (5min TTL) to avoid repeated queries in authGuard.
  */
 export async function resolveCompanyIdFromOrg(organizationId: string): Promise<number | null> {
     const cacheKey = `org_to_company:${organizationId}`;
     try {
         const cached = await redis.get(cacheKey);
         if (cached) return Number(cached);
-    } catch { /* redis miss, continue to DB */ }
+    } catch { /* Cache miss */ }
 
     const [company] = await adminDb
         .select({ id: schema.companies.id })
@@ -90,6 +106,10 @@ export async function resolveCompanyIdFromOrg(organizationId: string): Promise<n
     return null;
 }
 
+// ============================================================================
+// 2. PASSWORD VERIFIER & TRUSTED ORIGINS
+// ============================================================================
+
 const argon2PasswordConfig = {
     hash: async (password: string) => {
         return Bun.password.hash(password, {
@@ -101,24 +121,37 @@ const argon2PasswordConfig = {
     verify: async ({ password, hash }: { password: string; hash: string }) => {
         if (!hash || !password) return false;
         try {
-            // Bun native Argon2 / Bcrypt verification (starts with $)
             if (hash.startsWith('$')) {
                 return await Bun.password.verify(password, hash);
             }
-            // Safe fallback for legacy Better-Auth scrypt format (salt:key)
             if (hash.includes(':')) {
                 const { verifyPassword } = await import('better-auth/crypto').catch(() => ({ verifyPassword: null }));
-                if (verifyPassword) {
-                    return await verifyPassword({ hash, password });
-                }
+                if (verifyPassword) return await verifyPassword({ hash, password });
             }
             return await Bun.password.verify(password, hash);
-        } catch (err) {
-            console.error('[BetterAuth Password Verifier] Error verifying password:', err);
+        } catch {
             return false;
         }
     },
 };
+
+// Dynamic trusted origins — clean 2-line production definition with wildcard support
+const trustedOrigins: string[] = env.NODE_ENV === 'production'
+    ? [
+        'https://*.zelys.app',
+        'https://zelys.app',
+    ]
+    : [
+        env.FRONTEND_URL,
+        'http://localhost:*',
+        'http://*.localhost:*',
+        'http://127.0.0.1:*',
+        'http://192.168.*.*:*',
+    ];
+
+// ============================================================================
+// 3. BETTER AUTH INSTANCE
+// ============================================================================
 
 export const auth = betterAuth({
     database: drizzleAdapter(adminDb, {
@@ -136,24 +169,12 @@ export const auth = betterAuth({
     }),
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
-    trustedOrigins: [
-        env.FRONTEND_URL,
-        'https://*.zelys.app',
-        'https://zelys.app',
-        'https://dev.zelys.app',
-        'https://api.zelys.app',
-        'http://*.localhost:5173',
-        'http://*.localhost:4173',
-        'http://localhost:5173',
-        'http://localhost:4173',
-        'http://192.168.100.50:5173',
-        'http://192.168.100.50:4173',
-    ].filter(Boolean) as string[],
+    basePath: '/api/auth',
+    trustedOrigins,
     databaseHooks: {
         user: {
             update: {
                 after: async (user) => {
-                    // Si el correo pasa a verificado, notificar en tiempo real vía SSE a todas las sesiones del usuario
                     if (user.emailVerified) {
                         broadcast(
                             RealtimeEvents.USER.EMAIL_VERIFIED,
@@ -181,18 +202,12 @@ export const auth = betterAuth({
         sendOnSignUp: false,
         autoSignInAfterVerification: true,
         sendVerificationEmail: async ({ user, token }) => {
-            // Protección contra abuso de reenvíos: Redis TTL 60s
             const cooldownKey = `email_cooldown:${user.email.toLowerCase()}`;
             try {
                 const isThrottled = await redis.get(cooldownKey);
-                if (isThrottled) {
-                    console.warn(`[BetterAuth] Verification email throttled for ${user.email}`);
-                    return;
-                }
+                if (isThrottled) return;
                 await redis.set(cooldownKey, '1', 'EX', 60);
-            } catch (err) {
-                console.warn('[BetterAuth] Redis cooldown check error, proceeding:', err);
-            }
+            } catch { /* Redis cooldown pass-through */ }
 
             const { tenantSlug, recipientName } = await getTenantInfoForEmail(user.email);
             const baseUrl = resolveTenantUrl(tenantSlug);

@@ -2,8 +2,9 @@ import { Elysia, t } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
 import { staticPlugin } from '@elysiajs/static';
+
 // Routes
-import { auth } from './config/better-auth';
+import { auth, resolveTenantUrl, getTenantInfoForEmail } from './config/better-auth';
 import { tenantRoutes } from './modules/tenants';
 import { profileRoutes } from './modules/profile';
 import { productRoutes } from './modules/products';
@@ -30,89 +31,113 @@ import { rbac } from './plugins/rbac';
 import { errorHandlerPlugin } from './plugins/error-handler';
 
 // Services & Config
-
 import { env } from './config/env';
 import { initSSERedisAdapter } from './core/sse';
 import { serveSpa } from './core/spa';
-
 import { startAuditWorker } from './modules/audit';
 
-const allowedOrigins = new Set([
-  env.FRONTEND_URL,
-  'https://zelys.app',
-  'https://dev.zelys.app',
-  'https://api.zelys.app',
-  ...(env.NODE_ENV !== 'production' ? [
-    'http://192.168.100.50:5173',
-    'http://192.168.100.50:4173',
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:4173',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:5174',
-    'http://127.0.0.1:4173',
-  ] : []),
-].filter(Boolean) as string[]);
+// ============================================================================
+// 1. CORS CONFIGURATION (Dynamic Regex for *.zelys.app & Localhost)
+// ============================================================================
 
-const baseDomain = (() => {
-  if (env.COOKIE_DOMAIN) {
-    return env.COOKIE_DOMAIN.replace(/^\./, '');
+const corsOriginValidator = (request: Request): boolean => {
+  const origin = request.headers.get('origin');
+  if (!origin) return false;
+
+  // Development: allow localhost, 127.0.0.1 and LAN IPs
+  if (env.NODE_ENV !== 'production') {
+    if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+      return true;
+    }
   }
+
+  // Production / Staging: allow zelys.app and all *.zelys.app subdomains
+  if (/^https:\/\/([a-z0-9-]+\.)*zelys\.app(:\d+)?$/i.test(origin)) {
+    return true;
+  }
+
+  return origin === env.FRONTEND_URL;
+};
+
+// ============================================================================
+// 2. LEGACY JWT VERIFICATION FALLBACK
+// ============================================================================
+
+async function handleLegacyJwtVerification(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token');
+
+  // Only intercept legacy JWT tokens starting with standard base64 'eyJ'
+  if (!token || !token.startsWith('eyJ')) {
+    return null;
+  }
+
   try {
-    const hostname = new URL(env.FRONTEND_URL).hostname;
-    if (hostname === 'localhost' || /^[0-9.]+$/.test(hostname)) {
-      return null;
-    }
-    const parts = hostname.split('.');
-    if (parts.length >= 2) {
-      return parts.slice(-2).join('.');
-    }
-    return null;
-  } catch {
-    return null;
-  }
-})();
+    const { decodeJwt } = await import('jose');
+    const payload = decodeJwt(token);
+    const email = payload.email as string | undefined;
 
-// Strictly match https://[optional subdomains].baseDomain (e.g. *.zelys.app or zelys.app)
-const corsRegex = baseDomain
-  ? new RegExp(`^https?:\\/\\/([a-z0-9-]+\\.)*${baseDomain.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}(:\\d+)?$`, 'i')
-  : null;
+    if (email) {
+      const { adminDb } = await import('./core/db');
+      const { authUsers: users } = await import('@app/schema/tables');
+      const { eq } = await import('@app/schema');
+      const { broadcast } = await import('./core/sse');
+      const { RealtimeEvents } = await import('@app/schema/realtime-events');
+
+      const [updatedUser] = await adminDb
+        .update(users)
+        .set({ emailVerified: true, updatedAt: new Date() })
+        .where(eq(users.email, email.toLowerCase()))
+        .returning({ id: users.id, email: users.email });
+
+      if (updatedUser) {
+        broadcast(RealtimeEvents.USER.EMAIL_VERIFIED, { userId: updatedUser.id }, `user:${updatedUser.id}`);
+
+        const acceptHeader = request.headers.get('accept') || '';
+        if (acceptHeader.includes('text/html')) {
+          const { tenantSlug } = await getTenantInfoForEmail(updatedUser.email);
+          const baseUrl = resolveTenantUrl(tenantSlug);
+          return Response.redirect(`${baseUrl}/verify-email?verified=true`, 302);
+        }
+
+        return new Response(JSON.stringify({ status: true, user: { id: updatedUser.id, email: updatedUser.email } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[BetterAuth Fallback] Invalid legacy JWT token:', err);
+  }
+
+  return null;
+}
+
+// ============================================================================
+// 3. API ROUTER (/api)
+// ============================================================================
 
 const apiApp = new Elysia({ prefix: '/api', aot: false })
-  // CORS Configuration - dynamic origin validation
   .use(cors({
-    origin: (request) => {
-      const origin = request.headers.get('origin');
-      if (!origin) return false;
-      if (allowedOrigins.has(origin)) return true;
-
-      // Securely validate origin with regex pattern
-      if (corsRegex && corsRegex.test(origin)) {
-        return true;
-      }
-
-      return false;
-    },
+    origin: corsOriginValidator,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'X-Requested-With', 'x-client-id', 'Authorization', 'Accept', 'Origin'],
     credentials: true,
     preflight: true,
-    maxAge: 86400
+    maxAge: 86400,
   }))
-  // Error model for Swagger
   .model({
     error: t.Object({
       message: t.String(),
-      details: t.Optional(t.String())
-    })
+      details: t.Optional(t.String()),
+    }),
   })
-  // Swagger Documentation
   .use(swagger({
     documentation: {
       info: {
         title: 'ERP Services API',
         version: '2.0.0',
-        description: 'API for service-oriented ERP with real-time updates'
+        description: 'API for service-oriented ERP with real-time updates',
       },
       tags: [
         { name: 'Auth', description: 'Authentication & Authorization' },
@@ -131,68 +156,32 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
         { name: 'Materials', description: 'Material requests' },
         { name: 'BOM', description: 'Bill of Materials' },
       ],
-    }
+    },
   }))
-  // Global error handler — mounted BEFORE all routes to guarantee interception
   .use(errorHandlerPlugin)
-  // Health check — público, antes de auth guard (usado por OfflineBanner PWA)
   .get('/health', () => ({ status: 'ok', ts: Date.now() }))
-  // Better-Auth Core Handler (sign-in, sign-up, organization, sessions, passkeys, 2fa, verify-email)
+
+  // Better-Auth Core Handler (mounted at /api/auth/*)
   .all('/auth/verify-email', async ({ request }) => {
-    const url = new URL(request.url);
-    const token = url.searchParams.get('token');
-
-    // Graceful backward-compatibility fallback for legacy JWT tokens (issued before migration)
-    if (token && token.startsWith('eyJ')) {
-      try {
-        const { jwtVerify } = await import('jose');
-        const secret = new TextEncoder().encode(env.BETTER_AUTH_SECRET);
-        const { payload } = await jwtVerify(token, secret);
-        const email = payload.email as string | undefined;
-        if (email) {
-          const { adminDb } = await import('./core/db');
-          const { authUsers: users } = await import('@app/schema/tables');
-          const { eq } = await import('@app/schema');
-          const { broadcast } = await import('./core/sse');
-          const { RealtimeEvents } = await import('@app/schema/realtime-events');
-
-          const [updatedUser] = await adminDb
-            .update(users)
-            .set({ emailVerified: true, updatedAt: new Date() })
-            .where(eq(users.email, email.toLowerCase()))
-            .returning({ id: users.id });
-
-          if (updatedUser) {
-            broadcast(RealtimeEvents.USER.EMAIL_VERIFIED, { userId: updatedUser.id }, `user:${updatedUser.id}`);
-            return new Response(JSON.stringify({ status: true, user: { id: updatedUser.id, email } }), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' },
-            });
-          }
-        }
-      } catch (err) {
-        console.warn('[BetterAuth Fallback] Invalid legacy JWT verification attempt:', err);
-      }
-    }
-
+    const legacyResponse = await handleLegacyJwtVerification(request);
+    if (legacyResponse) return legacyResponse;
     return auth.handler(request);
   })
-  .all('/auth', async ({ request }) => auth.handler(request))
-  .all('/auth/*', async ({ request }) => auth.handler(request))
+  .all('/auth/*', ({ request }) => auth.handler(request))
+  .all('/auth', ({ request }) => auth.handler(request))
+
   // Domain routes
   .use(tenantRoutes)
   .use(profileRoutes)
-  .use(webhooksRoutes) // Webhooks van ANTES de rbac (no requieren autenticación)
+  .use(webhooksRoutes)
   .use(rbac)
   .use(ssePlugin)
-  // Rate limiting
   .use(rateLimit({
     max: env.NODE_ENV === 'production' ? 100 : 1000,
     windowMs: 60 * 1000,
     message: 'Demasiadas peticiones, intenta más tarde',
-    skipIf: (request: Request) => request.url.includes('/swagger')
+    skipIf: (request: Request) => request.url.includes('/swagger'),
   }))
-  // Domain routes
   .use(clientRoutes)
   .use(supplierRoutes)
   .use(employeeRoutes)
@@ -212,10 +201,13 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(vehiclesRoutes)
   .use(staticPlugin({ assets: 'public', prefix: '/' }));
 
-// Server configuration with optional Unix Socket support
+// ============================================================================
+// 4. ROOT SERVER (SPA + API)
+// ============================================================================
+
 const serverConfig = {
   port: env.PORT,
-  hostname: '0.0.0.0'
+  hostname: '0.0.0.0',
 };
 
 const app = new Elysia()
@@ -224,20 +216,18 @@ const app = new Elysia()
 
 app.listen(serverConfig);
 
-// Start Audit Worker in the background
+// Background workers
 startAuditWorker();
 
-// Redis Pub/Sub — WebSocket adapter for real-time events
 (async () => {
   try {
     await initSSERedisAdapter();
     console.log('✅ Redis Pub/Sub initialized');
-  } catch (error) {
+  } catch {
     console.warn('⚠️ Redis Pub/Sub unavailable. Real-time updates may be limited.');
   }
 })();
 
-// Startup message
 const serverAddress = `http://${app.server?.hostname}:${app.server?.port}`;
 
 console.log(`
