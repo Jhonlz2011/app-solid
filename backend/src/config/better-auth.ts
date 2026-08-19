@@ -107,7 +107,7 @@ export async function resolveCompanyIdFromOrg(organizationId: string): Promise<n
 }
 
 // ============================================================================
-// 2. PASSWORD VERIFIER & TRUSTED ORIGINS
+// 2. PASSWORD VERIFIER
 // ============================================================================
 
 const argon2PasswordConfig = {
@@ -135,22 +135,67 @@ const argon2PasswordConfig = {
     },
 };
 
-// Dynamic trusted origins — clean 2-line production definition with wildcard support
-const trustedOrigins: string[] = env.NODE_ENV === 'production'
-    ? [
-        'https://*.zelys.app',
-        'https://zelys.app',
-    ]
-    : [
-        env.FRONTEND_URL,
-        'http://localhost:*',
-        'http://*.localhost:*',
-        'http://127.0.0.1:*',
-        'http://192.168.*.*:*',
-    ];
+// ============================================================================
+// 3. DYNAMIC TRUSTED ORIGINS VALIDATOR
+// ============================================================================
+
+/**
+ * Dynamically validates incoming requests against allowed origins.
+ * - In Production: allows zelys.app and all *.zelys.app subdomains.
+ * - In Development: allows any localhost, 127.0.0.1, or local LAN IP (192.168.x.x, 10.x.x.x, 172.x.x.x).
+ */
+async function dynamicTrustedOrigins(request?: Request): Promise<string[]> {
+    const defaults = ['https://zelys.app', 'https://api.zelys.app', env.FRONTEND_URL].filter(Boolean);
+
+    if (!request) {
+        return defaults;
+    }
+
+    const rawOrigin = request.headers.get('origin') || request.headers.get('referer');
+    if (!rawOrigin) {
+        return defaults;
+    }
+
+    try {
+        const originUrl = new URL(rawOrigin);
+        const host = originUrl.hostname;
+        const normalizedOrigin = originUrl.origin;
+
+        // 1. Production / Staging: exact match on zelys.app or *.zelys.app
+        if (host === 'zelys.app' || host.endsWith('.zelys.app')) {
+            return [normalizedOrigin];
+        }
+
+        // 2. Development: allow localhost, .localhost, 127.0.0.1, and private LAN subnets
+        if (env.NODE_ENV !== 'production') {
+            if (
+                host === 'localhost' ||
+                host.endsWith('.localhost') ||
+                host === '127.0.0.1' ||
+                /^192\.168\.\d+\.\d+$/.test(host) ||
+                /^10\.\d+\.\d+\.\d+$/.test(host) ||
+                /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)
+            ) {
+                return [normalizedOrigin];
+            }
+        }
+
+        // 3. Explicit configured FRONTEND_URL match
+        if (env.FRONTEND_URL) {
+            const configuredOrigin = new URL(env.FRONTEND_URL).origin;
+            if (normalizedOrigin === configuredOrigin) {
+                return [normalizedOrigin];
+            }
+        }
+    } catch {
+        // Invalid origin format
+    }
+
+    return defaults;
+}
 
 // ============================================================================
-// 3. BETTER AUTH INSTANCE
+// 4. BETTER AUTH INSTANCE
 // ============================================================================
 
 export const auth = betterAuth({
@@ -170,7 +215,7 @@ export const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     basePath: '/api/auth',
-    trustedOrigins,
+    trustedOrigins: dynamicTrustedOrigins,
     databaseHooks: {
         user: {
             update: {
