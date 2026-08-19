@@ -73,8 +73,9 @@ async function handleLegacyJwtVerification(request: Request): Promise<Response |
   }
 
   try {
-    const { decodeJwt } = await import('jose');
-    const payload = decodeJwt(token);
+    const { jwtVerify } = await import('jose');
+    const secret = new TextEncoder().encode(env.BETTER_AUTH_SECRET);
+    const { payload } = await jwtVerify(token, secret);
     const email = payload.email as string | undefined;
 
     if (email) {

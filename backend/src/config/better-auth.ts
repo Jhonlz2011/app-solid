@@ -66,6 +66,23 @@ export async function getTenantInfoForEmail(email: string) {
                 companySlug: schema.companies.slug,
             })
             .from(schema.user)
+            .leftJoin(schema.companies, eq(schema.user.company_id, schema.companies.id))
+            .where(eq(schema.user.email, email.toLowerCase()))
+            .limit(1);
+
+        if (row?.companySlug) {
+            return {
+                tenantSlug: row.companySlug,
+                recipientName: row.name || email.split('@')[0],
+            };
+        }
+
+        const [orgRow] = await adminDb
+            .select({
+                name: schema.user.name,
+                companySlug: schema.companies.slug,
+            })
+            .from(schema.user)
             .innerJoin(schema.member, eq(schema.member.userId, schema.user.id))
             .innerJoin(schema.organization, eq(schema.organization.id, schema.member.organizationId))
             .innerJoin(schema.companies, eq(schema.companies.organization_id, schema.organization.id))
@@ -73,8 +90,8 @@ export async function getTenantInfoForEmail(email: string) {
             .limit(1);
 
         return {
-            tenantSlug: row?.companySlug || null,
-            recipientName: row?.name || email.split('@')[0],
+            tenantSlug: orgRow?.companySlug || null,
+            recipientName: orgRow?.name || row?.name || email.split('@')[0],
         };
     } catch (err) {
         console.error('[BetterAuth] Error resolving tenant info for email:', err);
