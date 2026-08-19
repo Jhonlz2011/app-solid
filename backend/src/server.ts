@@ -78,7 +78,7 @@ const corsRegex = baseDomain
   ? new RegExp(`^https?:\\/\\/([a-z0-9-]+\\.)*${baseDomain.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}(:\\d+)?$`, 'i')
   : null;
 
-const apiApp = new Elysia({ aot: false })
+const apiApp = new Elysia({ prefix: '/api', aot: false })
   // CORS Configuration - dynamic origin validation
   .use(cors({
     origin: (request) => {
