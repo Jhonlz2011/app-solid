@@ -21,6 +21,7 @@ export interface ProfileDto {
     entityId?: number | null;
     isActive?: boolean | null;
     lastLogin?: Date | null;
+    emailVerified?: boolean;
     emailVerifiedAt?: string | Date | null;
     roles: string[];
     permissions: string[];

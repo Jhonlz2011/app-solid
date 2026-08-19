@@ -3,7 +3,6 @@ import { getMe, updateProfile } from '../auth/profile.service';
 import { getActiveSessions, revokeSession } from '../auth/session.service';
 import {
   AuthUpdateProfileDto,
-  AuthUserResponse,
   UserSessionItemSchema,
 } from '@app/schema/backend';
 import { authGuard } from '../../plugins/auth-guard';
@@ -14,7 +13,29 @@ export const profileRoutes = new Elysia({ prefix: '/profile' })
     const user = await getMe(currentUserId, currentCompanyId);
     return { ...user, sessionId: currentSessionId };
   }, {
-    response: t.Composite([AuthUserResponse, t.Object({ sessionId: t.String() })]),
+    // Flat schema — avoids nested Type.Composite + Type.Date() serialization issues in Elysia
+    response: t.Object({
+      id: t.Union([t.String(), t.Number()]),
+      companyId: t.Number(),
+      companySlug: t.Union([t.String(), t.Null()]),
+      email: t.String(),
+      username: t.Optional(t.Union([t.String(), t.Null()])),
+      entityId: t.Optional(t.Union([t.Number(), t.Null()])),
+      isActive: t.Optional(t.Union([t.Boolean(), t.Null()])),
+      lastLogin: t.Optional(t.Union([t.String(), t.Null()])),
+      emailVerified: t.Optional(t.Boolean()),
+      emailVerifiedAt: t.Optional(t.Union([t.String(), t.Null()])),
+      roles: t.Array(t.String()),
+      permissions: t.Array(t.String()),
+      entity: t.Optional(t.Object({
+        id: t.Number(),
+        businessName: t.String(),
+        isClient: t.Boolean(),
+        isSupplier: t.Boolean(),
+        isEmployee: t.Boolean(),
+      })),
+      sessionId: t.String(),
+    }),
   })
   .put(
     '/',

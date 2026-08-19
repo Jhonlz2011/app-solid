@@ -45,16 +45,17 @@ export const actions = {
     login: async (credentials: { email: string; password: string }) => {
         setState('status', 'loading');
         try {
-            const isEmail = credentials.email.includes('@');
+            const emailOrUsername = credentials.email.trim();
+            const isEmail = emailOrUsername.includes('@');
             let authRes;
             if (isEmail) {
                 authRes = await authClient.signIn.email({
-                    email: credentials.email,
+                    email: emailOrUsername,
                     password: credentials.password,
                 });
             } else {
                 authRes = await authClient.signIn.username({
-                    username: credentials.email,
+                    username: emailOrUsername,
                     password: credentials.password,
                 });
             }
@@ -69,6 +70,7 @@ export const actions = {
 
             // Hydrate ERP profile with RBAC & Entity metadata
             const profile = await profileApi.getMe();
+            console.log('[login] Raw profile data:', { emailVerified: (profile as any).emailVerified, emailVerifiedAt: (profile as any).emailVerifiedAt });
             currentSessionId = profile.sessionId ?? null;
             const user = profile as ProfileDto;
 
@@ -179,6 +181,7 @@ export const actions = {
         try {
             // Cookie goes automatically via credentials: 'include'
             const userData = await profileApi.getMe();
+            console.log('[initSession] Raw server data:', { emailVerified: (userData as any).emailVerified, emailVerifiedAt: (userData as any).emailVerifiedAt, keys: Object.keys(userData) });
             currentSessionId = userData.sessionId ?? null;
             batch(() => {
                 setState('user', userData as ProfileDto);

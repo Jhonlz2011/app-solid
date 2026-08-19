@@ -88,7 +88,7 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     isActive: user.is_active,
     lastLogin: user.last_login,
     emailVerified: Boolean(user.emailVerified),
-    emailVerifiedAt: user.emailVerified ? new Date() : null,
+    emailVerifiedAt: user.emailVerified ? new Date().toISOString() : null,
     roles,
     permissions,
     entity: mapEntity(user.entity),
