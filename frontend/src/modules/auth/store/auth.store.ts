@@ -70,7 +70,7 @@ export const actions = {
             // Hydrate ERP profile with RBAC & Entity metadata
             const profile = await profileApi.getMe();
             currentSessionId = profile.sessionId ?? null;
-            const user: ProfileDto = profile;
+            const user = profile as ProfileDto;
 
             batch(() => {
                 setState('user', user);
@@ -110,7 +110,7 @@ export const actions = {
             // Refresh ERP profile with new company's RBAC and permissions
             const profile = await profileApi.getMe();
             currentSessionId = profile.sessionId ?? null;
-            const user: ProfileDto = profile;
+            const user = profile as ProfileDto;
 
             batch(() => {
                 setState('user', user);
@@ -181,7 +181,7 @@ export const actions = {
             const userData = await profileApi.getMe();
             currentSessionId = userData.sessionId ?? null;
             batch(() => {
-                setState('user', userData);
+                setState('user', userData as ProfileDto);
                 setState('status', 'authenticated');
             });
             setSessionFlag(true);
@@ -209,7 +209,7 @@ export const actions = {
         try {
             const userData = await profileApi.getMe();
             // Store is reactively updated, keeping the currentSessionId and authenticated status intact
-            setState('user', userData);
+            setState('user', userData as ProfileDto);
             return true;
         } catch (error) {
             console.error('[Auth] Failed to refresh session:', error);
