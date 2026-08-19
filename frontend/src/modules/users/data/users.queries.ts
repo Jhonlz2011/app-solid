@@ -44,7 +44,7 @@ export function useUserFacets(
         queryKey: rbacKeys.facets(search(), columnFilters?.()),
         queryFn: async (): Promise<FacetData> => {
             const cf = columnFilters?.();
-            const { data, error } = await api.api.rbac.users.facets.get({
+            const { data, error } = await api.rbac.users.facets.get({
                 query: {
                     search: search(),
                     isActive: cf?.isActive?.length ? cf.isActive.join(',') : undefined,

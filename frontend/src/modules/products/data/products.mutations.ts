@@ -46,7 +46,7 @@ export function useCreateProduct() {
     return createMutation(() => ({
         mutationKey: ['products', 'create'],
         mutationFn: async (body: ProductFormData) => {
-            const { data, error } = await api.api.products.post(body as any);
+            const { data, error } = await api.products.post(body as any);
             if (error) throwApiError(error);
             return data!;
         },
@@ -88,7 +88,7 @@ export function useUpdateProduct() {
     return createMutation(() => ({
         mutationKey: ['products', 'update'],
         mutationFn: async ({ id, data: body }: { id: number; data: Partial<ProductFormData> }) => {
-            const { data, error } = await api.api.products({ id }).put(body as any);
+            const { data, error } = await api.products({ id }).put(body as any);
             if (error) throwApiError(error);
             return data!;
         },

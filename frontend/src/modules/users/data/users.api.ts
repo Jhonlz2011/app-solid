@@ -13,57 +13,57 @@ export type { UsersFilters } from '@app/schema/dto';
 export const usersApi = {
     // ─── Roles ───────────────────────────────────────────────────
     listRoles: async () => {
-        const { data, error } = await api.api.rbac.roles.get();
+        const { data, error } = await api.rbac.roles.get();
         if (error) throwApiError(error);
         return data!;
     },
 
     getRole: async (id: number) => {
-        const { data, error } = await api.api.rbac.roles({ id }).get();
+        const { data, error } = await api.rbac.roles({ id }).get();
         if (error) throwApiError(error);
         return data!;
     },
 
     createRole: async (body: RoleBody) => {
-        const { data, error } = await api.api.rbac.roles.post(body);
+        const { data, error } = await api.rbac.roles.post(body);
         if (error) throwApiError(error);
         return data!;
     },
 
     updateRole: async (id: number, body: RoleBody) => {
-        const { data, error } = await api.api.rbac.roles({ id }).put(body);
+        const { data, error } = await api.rbac.roles({ id }).put(body);
         if (error) throwApiError(error);
         return data!;
     },
 
     deleteRole: async (id: number) => {
-        const { data, error } = await api.api.rbac.roles({ id }).delete();
+        const { data, error } = await api.rbac.roles({ id }).delete();
         if (error) throwApiError(error);
         return data!;
     },
 
     // ─── Permissions ─────────────────────────────────────────────
     listPermissions: async () => {
-        const { data, error } = await api.api.rbac.permissions.get();
+        const { data, error } = await api.rbac.permissions.get();
         if (error) throwApiError(error);
         return data!;
     },
 
     getRolePermissions: async (roleId: number) => {
-        const { data, error } = await api.api.rbac.roles({ id: roleId }).permissions.get();
+        const { data, error } = await api.rbac.roles({ id: roleId }).permissions.get();
         if (error) throwApiError(error);
         return data!;
     },
 
     updateRolePermissions: async (roleId: number, permissionIds: number[]) => {
-        const { data, error } = await api.api.rbac.roles({ id: roleId }).permissions.put({ permissionIds });
+        const { data, error } = await api.rbac.roles({ id: roleId }).permissions.put({ permissionIds });
         if (error) throwApiError(error);
         return data!;
     },
 
     // ─── Users (paginated) ───────────────────────────────────────
     listUsersWithRoles: async (filters: UsersFilters = {}) => {
-        const { data, error } = await api.api.rbac.users.get({
+        const { data, error } = await api.rbac.users.get({
             query: {
                 search: filters.search,
                 page: filters.page,
@@ -79,49 +79,49 @@ export const usersApi = {
     },
 
     getUser: async (id: number) => {
-        const { data, error } = await api.api.rbac.users({ id }).get();
+        const { data, error } = await api.rbac.users({ id }).get();
         if (error) throwApiError(error);
         return data!;
     },
 
-    createUser: async (body: Parameters<typeof api.api.rbac.users.post>[0]) => {
-        const { data, error } = await api.api.rbac.users.post(body);
+    createUser: async (body: Parameters<typeof api.rbac.users.post>[0]) => {
+        const { data, error } = await api.rbac.users.post(body);
         if (error) throwApiError(error);
         return data!;
     },
 
     updateUser: async (id: number, body: { username?: string; email?: string; isActive?: boolean }) => {
-        const { data, error } = await api.api.rbac.users({ id }).put(body);
+        const { data, error } = await api.rbac.users({ id }).put(body);
         if (error) throwApiError(error);
         return data!;
     },
 
     deleteUser: async (id: number) => {
-        const { data, error } = await api.api.rbac.users({ id }).delete();
+        const { data, error } = await api.rbac.users({ id }).delete();
         if (error) throwApiError(error);
         return data!;
     },
 
     deactivateUser: async (id: number) => {
-        const userPath = api.api.rbac.users({ id });
+        const userPath = api.rbac.users({ id });
         const { error } = await userPath.deactivate.patch();
         if (error) throwApiError(error);
     },
 
     restoreUser: async (id: number) => {
-        const userPath = api.api.rbac.users({ id });
+        const userPath = api.rbac.users({ id });
         const { error } = await userPath.restore.patch();
         if (error) throwApiError(error);
     },
 
     hardDeleteUser: async (id: number) => {
-        const userPath = api.api.rbac.users({ id });
+        const userPath = api.rbac.users({ id });
         const { error } = await userPath.delete();
         if (error) throwApiError(error);
     },
 
     canDeleteUser: async (id: number) => {
-        const userPath = api.api.rbac.users({ id });
+        const userPath = api.rbac.users({ id });
         const { data, error } = await userPath['can-delete'].get();
         if (error) throwApiError(error);
         return data!;
@@ -129,46 +129,46 @@ export const usersApi = {
 
     // ─── User Roles ──────────────────────────────────────────────
     assignUserRoles: async (userId: number, roleIds: number[]) => {
-        const { data, error } = await api.api.rbac.users({ id: userId }).roles.put({ roleIds });
+        const { data, error } = await api.rbac.users({ id: userId }).roles.put({ roleIds });
         if (error) throwApiError(error);
         return data!;
     },
 
     // ─── Role Users ──────────────────────────────────────────────
     getRoleUsers: async (roleId: number) => {
-        const { data, error } = await api.api.rbac.roles({ id: roleId }).users.get();
+        const { data, error } = await api.rbac.roles({ id: roleId }).users.get();
         if (error) throwApiError(error);
         return data!;
     },
 
     removeUserFromRole: async (roleId: number, userId: number) => {
-        const { data, error } = await api.api.rbac.roles({ id: roleId }).users({ userId }).delete();
+        const { data, error } = await api.rbac.roles({ id: roleId }).users({ userId }).delete();
         if (error) throwApiError(error);
         return data!;
     },
 
     bulkDeactivateUsers: async (ids: number[]) => {
-        const { data, error } = await api.api.rbac.users.bulk.delete.post({ ids });
+        const { data, error } = await api.rbac.users.bulk.delete.post({ ids });
         if (error) throwApiError(error);
         return data!;
     },
 
     bulkRestoreUsers: async (ids: number[]) => {
-        const { data, error } = await api.api.rbac.users.bulk.restore.patch({ ids });
+        const { data, error } = await api.rbac.users.bulk.restore.patch({ ids });
         if (error) throwApiError(error);
         return data!;
     },
 
     // ─── User Sessions (Admin) ───────────────────────────────────
     getUserSessions: async (userId: number) => {
-        const userPath = api.api.rbac.users({ id: userId });
+        const userPath = api.rbac.users({ id: userId });
         const { data, error } = await userPath.sessions.get();
         if (error) throwApiError(error);
         return data!;
     },
 
     revokeUserSession: async (userId: number, sessionId: string) => {
-        const userPath = api.api.rbac.users({ id: userId });
+        const userPath = api.rbac.users({ id: userId });
         const { data, error } = await userPath.sessions({ sessionId }).delete();
         if (error) throwApiError(error);
         return data!;
@@ -176,7 +176,7 @@ export const usersApi = {
 
     // ─── Admin Password Reset ────────────────────────────────────
     adminResetPassword: async (userId: number, newPassword: string) => {
-        const userPath = api.api.rbac.users({ id: userId });
+        const userPath = api.rbac.users({ id: userId });
         const { data, error } = await userPath['reset-password'].post({ newPassword });
         if (error) throwApiError(error);
         return data!;
@@ -184,7 +184,7 @@ export const usersApi = {
 
     // ─── User Entity Assignment ──────────────────────────────────
     setUserEntity: async (userId: number, entityId: number | null) => {
-        const userPath = api.api.rbac.users({ id: userId });
+        const userPath = api.rbac.users({ id: userId });
         const { data, error } = await userPath.entity.patch({ entityId });
         if (error) throwApiError(error);
         return data!;
@@ -192,7 +192,7 @@ export const usersApi = {
 
     // ─── Entities (for picker) ───────────────────────────────────
     listEntities: async (search?: string) => {
-        const { data, error } = await api.api.entities.get({
+        const { data, error } = await api.entities.get({
             query: { limit: 10, search },
         });
         if (error) throwApiError(error);
@@ -201,7 +201,7 @@ export const usersApi = {
 
     // ─── User Audit Log ──────────────────────────────────────────
     getUserAuditLog: async (userId: number, page = 1, limit = 20) => {
-        const userPath = api.api.rbac.users({ id: userId });
+        const userPath = api.rbac.users({ id: userId });
         const { data, error } = await userPath['audit-log'].get({ query: { page, limit } });
         if (error) throwApiError(error);
         return data!;

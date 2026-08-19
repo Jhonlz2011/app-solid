@@ -10,13 +10,13 @@ import { throwApiError } from '@shared/utils/api-errors';
 
 export const profileApi = {
     getMe: async () => {
-        const { data, error } = await api.api.profile.me.get();
+        const { data, error } = await api.profile.me.get();
         if (error) throwApiError(error);
         return data!;
     },
 
     updateProfile: async (body: { username?: string; email?: string }) => {
-        const { data, error } = await api.api.profile.index.put(body);
+        const { data, error } = await api.profile.index.put(body);
         if (error) throwApiError(error);
         return data!;
     },
@@ -34,13 +34,13 @@ export const profileApi = {
     },
 
     getMySessions: async () => {
-        const { data, error } = await api.api.profile.sessions.get();
+        const { data, error } = await api.profile.sessions.get();
         if (error) throwApiError(error);
         return data!;
     },
 
     revokeMySession: async (sessionId: string) => {
-        const { data, error } = await api.api.profile.sessions({ id: sessionId }).delete();
+        const { data, error } = await api.profile.sessions({ id: sessionId }).delete();
         if (error) throwApiError(error);
         return data!;
     },

@@ -22,10 +22,10 @@ const activeSubscriptions = new Set<string>();
 const handleRoomSubscription = async (room: string, action: 'subscribe' | 'unsubscribe') => {
     try {
         if (action === 'subscribe') {
-            await api.api.sse.join.post({ clientId, room });
+            await api.sse.join.post({ clientId, room });
             activeSubscriptions.add(room);
         } else {
-            await api.api.sse.leave.post({ clientId, room });
+            await api.sse.leave.post({ clientId, room });
             activeSubscriptions.delete(room);
         }
     } catch (e) {

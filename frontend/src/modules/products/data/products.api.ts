@@ -17,7 +17,7 @@ import type { ProductType, ProductSubtype } from '@app/schema/frontend';
 
 export const productsApi = {
     list: async (params: ProductFilters) => {
-        const { data, error } = await api.api.products.get({
+        const { data, error } = await api.products.get({
             query: {
                 cursor: params.cursor,
                 direction: params.direction,
@@ -37,46 +37,46 @@ export const productsApi = {
     },
 
     get: async (id: number) => {
-        const { data, error } = await api.api.products({ id }).get();
+        const { data, error } = await api.products({ id }).get();
         if (error) throwApiError(error);
         return data!;
     },
 
     deactivate: async (id: number) => {
-        const { error } = await (api.api.products as any)({ id }).deactivate.patch();
+        const { error } = await (api.products as any)({ id }).deactivate.patch();
         if (error) throwApiError(error);
     },
 
     restore: async (id: number) => {
-        const { error } = await (api.api.products as any)({ id }).restore.patch();
+        const { error } = await (api.products as any)({ id }).restore.patch();
         if (error) throwApiError(error);
     },
 
     hardDelete: async (id: number) => {
-        const { error } = await (api.api.products as any)({ id }).delete();
+        const { error } = await (api.products as any)({ id }).delete();
         if (error) throwApiError(error);
     },
 
     bulkDelete: async (ids: number[]) => {
-        const { data, error } = await (api.api.products.bulk as any).delete({ ids });
+        const { data, error } = await (api.products.bulk as any).delete({ ids });
         if (error) throwApiError(error);
         return data!;
     },
 
     bulkRestore: async (ids: number[]) => {
-        const { data, error } = await (api.api.products.bulk.restore as any).patch({ ids });
+        const { data, error } = await (api.products.bulk.restore as any).patch({ ids });
         if (error) throwApiError(error);
         return data!;
     },
 
     canDelete: async (id: number): Promise<ProductReferences> => {
-        const { data, error } = await (api.api.products as any)({ id })['can-delete'].get();
+        const { data, error } = await (api.products as any)({ id })['can-delete'].get();
         if (error) throwApiError(error);
         return data as ProductReferences;
     },
 
     generateSku: async (categoryId?: number, brandId?: number): Promise<string> => {
-        const { data, error } = await (api.api.products as any)['generate-sku'].get({
+        const { data, error } = await (api.products as any)['generate-sku'].get({
             query: { categoryId, brandId },
         });
         if (error) throwApiError(error);
@@ -85,7 +85,7 @@ export const productsApi = {
 
     /** Obtiene una URL firmada (Presigned URL) de Cloudflare R2 para subir un archivo directamente. */
     getPresignedUploadUrl: async (fileName: string, contentType: string): Promise<{ uploadUrl: string; fileKey: string; publicUrl: string }> => {
-        const { data, error } = await (api.api.products as any)['upload-url'].post({
+        const { data, error } = await (api.products as any)['upload-url'].post({
             fileName,
             contentType,
         });
@@ -125,7 +125,7 @@ export const productsApi = {
     /** Delete a product image from R2 public bucket */
     deleteImage: async (url: string) => {
         try {
-            const { error } = await (api.api.products as any)['delete-image'].post({ url });
+            const { error } = await (api.products as any)['delete-image'].post({ url });
             if (error) console.warn('[R2] Failed to delete orphaned image:', error);
         } catch (err) {
             console.warn('[R2] deleteImage request failed:', err);
@@ -137,7 +137,7 @@ export const productsApi = {
 // Eden-inferred Types (zero manual interfaces)
 // =============================================================================
 
-type ProductsListResponse = Awaited<ReturnType<typeof api.api.products.get>>['data'];
+type ProductsListResponse = Awaited<ReturnType<typeof api.products.get>>['data'];
 export type ProductListItem = NonNullable<ProductsListResponse>['data'][number];
 export type Product = Awaited<ReturnType<typeof productsApi.get>>;
 export type ProductBody = ProductFormData;

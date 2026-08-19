@@ -3,7 +3,7 @@ import { createEntityQueries } from '@modules/entities/data/entities.queries';
 import { clientsApi } from './clients.api';
 import { clientKeys } from './clients.keys';
 
-export const clientQueries = createEntityQueries(clientsApi, clientKeys, api.api.clients.facets);
+export const clientQueries = createEntityQueries(clientsApi, clientKeys, api.clients.facets);
 
 export const useClients = clientQueries.useList;
 export const useInfiniteClients = clientQueries.useInfinite;

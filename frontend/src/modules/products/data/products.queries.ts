@@ -68,7 +68,7 @@ export function useProductFacets(
         queryKey: productKeys.facets(search(), columnFilters?.()),
         queryFn: async (): Promise<FacetData> => {
             const cf = columnFilters?.();
-            const { data, error } = await api.api.products.facets.get({
+            const { data, error } = await api.products.facets.get({
                 query: {
                     search: search(),
                     categoryId: cf?.categoryId?.length ? cf.categoryId.join(',') : undefined,

@@ -255,7 +255,7 @@ export function useCreateBrand() {
 ```ts
 export const brandsApi = {
     list: async (): Promise<BrandItem[]> => {
-        const { data, error } = await api.api.catalogs.brands.get();
+        const { data, error } = await api.catalogs.brands.get();
         if (error) throw new Error(String(error.value));
         return data as BrandItem[];
     },

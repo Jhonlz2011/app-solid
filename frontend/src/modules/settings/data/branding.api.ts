@@ -13,14 +13,14 @@ import type { CropCoordinates } from '@app/schema/dto';
  */
 export const brandingApi = {
     get: async (): Promise<CompanySettingsFormData> => {
-        const { data, error } = await api.api.settings.company.get();
+        const { data, error } = await api.settings.company.get();
         if (error) throwApiError(error);
         return data as CompanySettingsFormData;
     },
 
     uploadLogo: async (file: File): Promise<string> => {
         // Eden can't resolve 'upload-logo' (hyphenated segment)
-        const { data, error } = await (api.api.settings.company as any)['upload-logo'].post({
+        const { data, error } = await (api.settings.company as any)['upload-logo'].post({
             file,
         });
         if (error) throwApiError(error);
@@ -39,7 +39,7 @@ export const brandingApi = {
             if (cropData.flipX) body.cropFlipX = cropData.flipX;
             if (cropData.flipY) body.cropFlipY = cropData.flipY;
         }
-        const { data, error } = await (api.api.settings.company as any)['upload-bg'].post(body);
+        const { data, error } = await (api.settings.company as any)['upload-bg'].post(body);
         if (error) throwApiError(error);
         return (data as { url: string }).url;
     },
@@ -63,7 +63,7 @@ export const brandingApi = {
         };
 
         // Eden can't infer PATCH method on nested routes
-        const { data, error } = await (api.api.settings.company as any).patch(finalBody);
+        const { data, error } = await (api.settings.company as any).patch(finalBody);
         if (error) throwApiError(error);
         return data as CompanySettingsFormData;
     }

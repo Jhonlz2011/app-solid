@@ -37,7 +37,7 @@ export function useGeoNamesCities(querySignal: () => string) {
             const q = querySignal();
             if (q.length < 2) return [];
             
-            const { data, error } = await (api.api.geonames.cities as any).get({ query: { q } });
+            const { data, error } = await (api.geonames.cities as any).get({ query: { q } });
             if (error) throw new Error(String(error.value));
             return (data ?? []) as GeoNameCity[];
         },

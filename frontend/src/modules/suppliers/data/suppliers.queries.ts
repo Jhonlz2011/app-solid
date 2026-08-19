@@ -3,7 +3,7 @@ import { createEntityQueries } from '@modules/entities/data/entities.queries';
 import { suppliersApi } from './suppliers.api';
 import { supplierKeys } from './suppliers.keys';
 
-export const supplierQueries = createEntityQueries(suppliersApi, supplierKeys, api.api.suppliers.facets);
+export const supplierQueries = createEntityQueries(suppliersApi, supplierKeys, api.suppliers.facets);
 
 export const useSuppliers = supplierQueries.useList;
 export const useInfiniteSuppliers = supplierQueries.useInfinite;

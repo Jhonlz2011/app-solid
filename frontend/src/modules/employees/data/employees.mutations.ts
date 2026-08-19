@@ -3,7 +3,7 @@ import { createEntityMutations } from '@modules/entities/data/entities.mutations
 import { employeesApi } from './employees.api';
 import { employeeKeys } from './employees.keys';
 
-export const employeeMutations = createEntityMutations(employeesApi, employeeKeys, api.api.employees);
+export const employeeMutations = createEntityMutations(employeesApi, employeeKeys, api.employees);
 
 export const useCreateEmployee = employeeMutations.useCreate;
 export const useUpdateEmployee = employeeMutations.useUpdate;

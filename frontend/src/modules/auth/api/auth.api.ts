@@ -9,25 +9,25 @@ import type { AuthRegisterPayload } from '@app/schema/dto';
 
 export const authApi = {
     register: async (payload: AuthRegisterPayload, signal?: AbortSignal) => {
-        const { data, error } = await api.api.tenants.register.post(payload, { fetch: { signal } });
+        const { data, error } = await api.tenants.register.post(payload, { fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },
 
     checkSlug: async (slug: string) => {
-        const { data, error } = await api.api.tenants['check-slug']({ slug }).get();
+        const { data, error } = await api.tenants['check-slug']({ slug }).get();
         if (error) throwApiError(error);
         return data!;
     },
 
     checkRuc: async (ruc: string) => {
-        const { data, error } = await api.api.tenants['check-ruc']({ ruc }).get();
+        const { data, error } = await api.tenants['check-ruc']({ ruc }).get();
         if (error) throwApiError(error);
         return data!;
     },
 
     getTenantInfo: async (slug?: string) => {
-        const { data, error } = await api.api.tenants['tenant-info'].get({ query: { slug } });
+        const { data, error } = await api.tenants['tenant-info'].get({ query: { slug } });
         if (error) throwApiError(error);
         return data!;
     },

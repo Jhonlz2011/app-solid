@@ -3,7 +3,7 @@ import { createEntityMutations } from '@modules/entities/data/entities.mutations
 import { clientsApi } from './clients.api';
 import { clientKeys } from './clients.keys';
 
-export const clientMutations = createEntityMutations(clientsApi, clientKeys, api.api.clients);
+export const clientMutations = createEntityMutations(clientsApi, clientKeys, api.clients);
 
 export const useCreateClient = clientMutations.useCreate;
 export const useUpdateClient = clientMutations.useUpdate;

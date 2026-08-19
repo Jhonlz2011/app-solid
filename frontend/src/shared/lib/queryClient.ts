@@ -85,7 +85,7 @@ queryClient.setMutationDefaults(['brands', 'update'], {
 queryClient.setMutationDefaults(['clients', 'create'], {
   mutationFn: async (vars: any) => {
     const { api } = await import('@shared/lib/eden');
-    const { data, error } = await api.api.clients.post(vars);
+    const { data, error } = await api.clients.post(vars);
     if (error) throw error;
     return data!;
   },
@@ -93,7 +93,7 @@ queryClient.setMutationDefaults(['clients', 'create'], {
 queryClient.setMutationDefaults(['clients', 'update'], {
   mutationFn: async (vars: any) => {
     const { api } = await import('@shared/lib/eden');
-    const { data, error } = await api.api.clients({ id: vars.id }).put(vars.data);
+    const { data, error } = await api.clients({ id: vars.id }).put(vars.data);
     if (error) throw error;
     return data!;
   },
@@ -103,7 +103,7 @@ queryClient.setMutationDefaults(['clients', 'update'], {
 queryClient.setMutationDefaults(['suppliers', 'create'], {
   mutationFn: async (vars: any) => {
     const { api } = await import('@shared/lib/eden');
-    const { data, error } = await api.api.suppliers.post(vars);
+    const { data, error } = await api.suppliers.post(vars);
     if (error) throw error;
     return data!;
   },
@@ -111,7 +111,7 @@ queryClient.setMutationDefaults(['suppliers', 'create'], {
 queryClient.setMutationDefaults(['suppliers', 'update'], {
   mutationFn: async (vars: any) => {
     const { api } = await import('@shared/lib/eden');
-    const { data, error } = await api.api.suppliers({ id: vars.id }).put(vars.data);
+    const { data, error } = await api.suppliers({ id: vars.id }).put(vars.data);
     if (error) throw error;
     return data!;
   },
@@ -121,7 +121,7 @@ queryClient.setMutationDefaults(['suppliers', 'update'], {
 queryClient.setMutationDefaults(['products', 'create'], {
   mutationFn: async (vars: any) => {
     const { api } = await import('@shared/lib/eden');
-    const { data, error } = await api.api.products.post(vars);
+    const { data, error } = await api.products.post(vars);
     if (error) throw error;
     return data!;
   },
@@ -129,7 +129,7 @@ queryClient.setMutationDefaults(['products', 'create'], {
 queryClient.setMutationDefaults(['products', 'update'], {
   mutationFn: async (vars: any) => {
     const { api } = await import('@shared/lib/eden');
-    const { data, error } = await api.api.products({ id: vars.id }).put(vars.data);
+    const { data, error } = await api.products({ id: vars.id }).put(vars.data);
     if (error) throw error;
     return data!;
   },

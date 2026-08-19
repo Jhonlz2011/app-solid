@@ -17,7 +17,7 @@ export const sriKeys = {
  */
 export async function fetchSriByRuc(ruc: string): Promise<SriSearchResult[]> {
     if (ruc.length !== 13) return [];
-    const { data, error } = await api.api.sri['by-ruc'].get({
+    const { data, error } = await api.sri['by-ruc'].get({
         query: { q: ruc },
     });
     if (error) throw new Error(String(error.value));
@@ -29,7 +29,7 @@ export async function fetchSriByRuc(ruc: string): Promise<SriSearchResult[]> {
  */
 export async function fetchSriByName(name: string): Promise<SriSearchResult[]> {
     if (name.length < 3) return [];
-    const { data, error } = await api.api.sri['by-name'].get({
+    const { data, error } = await api.sri['by-name'].get({
         query: { q: name },
     });
     if (error) throw new Error(String(error.value));

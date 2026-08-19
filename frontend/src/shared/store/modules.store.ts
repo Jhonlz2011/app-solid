@@ -56,7 +56,7 @@ export const actions = {
         setState("isLoading", true);
         fetchPromise = (async () => {
             try {
-                const { data, error } = await api.api.modules.tree.get();
+                const { data, error } = await api.modules.tree.get();
                 if (error) throw new Error(String(error.value));
                 setState({
                     modules: data as ModuleConfig[],

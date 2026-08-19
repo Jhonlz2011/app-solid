@@ -8,7 +8,7 @@ import { throwApiError } from '@shared/utils/api-errors';
 import type { EntityFilters, EntityReferences } from '@app/schema/dto';
 import type { api } from '@shared/lib/eden';
 
-export type AnyEntityEndpoint = typeof api.api.suppliers;
+export type AnyEntityEndpoint = typeof api.suppliers;
 
 export function createEntityApi(endpoint: AnyEntityEndpoint) {
     return {

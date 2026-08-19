@@ -9,7 +9,7 @@ import type { EntityFilters, FacetData, EntityReferences } from '@app/schema/dto
 import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
 import type { api } from '@shared/lib/eden';
 
-export type AnyFacetsEndpoint = typeof api.api.suppliers.facets;
+export type AnyFacetsEndpoint = typeof api.suppliers.facets;
 
 export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndpoint: AnyFacetsEndpoint) {
     return {
