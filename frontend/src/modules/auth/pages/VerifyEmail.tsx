@@ -119,7 +119,7 @@ const VerifyEmail: Component = () => {
   createEffect(() => {
     const user = auth.user();
     const s = status();
-    if ((s === 'waiting' || s === 'error') && user?.emailVerifiedAt) {
+    if ((s === 'waiting' || s === 'error') && (user?.emailVerifiedAt || (user as any)?.emailVerified)) {
       setStatus('verified');
       toast.success('¡Cuenta verificada exitosamente!');
       redirectAfterSuccess();

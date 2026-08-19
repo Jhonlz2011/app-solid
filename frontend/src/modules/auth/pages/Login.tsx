@@ -76,9 +76,12 @@ const Login: Component = () => {
       const searchParams = typeof search === 'function' ? search() : search;
       const redirectTo = (searchParams as any)?.redirect
         ?? new URLSearchParams(window.location.search).get('redirect');
-      const safePath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
+      const rawPath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
         ? new URL(redirectTo, window.location.origin).pathname
         : '/dashboard';
+      const safePath = (!rawPath || rawPath === '/verify-email' || rawPath.startsWith('/login') || rawPath.startsWith('/register') || rawPath.startsWith('/verify-email'))
+        ? '/dashboard'
+        : rawPath;
       handleRedirect(tenant.slug, safePath);
     } catch (err: any) {
       toast.error(err?.message || 'Error al seleccionar empresa');
@@ -105,9 +108,12 @@ const Login: Component = () => {
         const searchParams = typeof search === 'function' ? search() : search;
         const redirectTo = (searchParams as any)?.redirect
           ?? new URLSearchParams(window.location.search).get('redirect');
-        const safePath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
+        const rawPath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
           ? new URL(redirectTo, window.location.origin).pathname
           : '/dashboard';
+        const safePath = (!rawPath || rawPath === '/verify-email' || rawPath.startsWith('/login') || rawPath.startsWith('/register') || rawPath.startsWith('/verify-email'))
+          ? '/dashboard'
+          : rawPath;
 
         // Case A: Logging in from a specific tenant subdomain (e.g. acme.zelys.app)
         if (!isGlobalLogin && subdomain) {

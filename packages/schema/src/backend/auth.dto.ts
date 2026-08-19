@@ -39,6 +39,7 @@ export const PublicUser = Type.Object({
     isActive: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
     lastLogin: Type.Optional(Type.Union([Type.Date(), Type.Null()])),
     entityId: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    emailVerified: Type.Optional(Type.Boolean()),
     emailVerifiedAt: Type.Optional(Type.Union([Type.Date(), Type.Null(), Type.String(), Type.Boolean()])),
 });
 

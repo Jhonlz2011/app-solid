@@ -87,6 +87,7 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     entityId: resolvedEntityId,
     isActive: user.is_active,
     lastLogin: user.last_login,
+    emailVerified: Boolean(user.emailVerified),
     emailVerifiedAt: user.emailVerified ? new Date() : null,
     roles,
     permissions,

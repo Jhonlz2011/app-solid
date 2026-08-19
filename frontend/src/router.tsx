@@ -38,6 +38,11 @@ const rootRoute = createRootRoute({
 // --- AUTH ROUTES (login) ---
 const authRoute = createAuthRoutes(rootRoute);
 
+const isEmailVerified = (user: any): boolean => {
+  if (!user) return false;
+  return Boolean(user.emailVerifiedAt || user.emailVerified);
+};
+
 const verifyEmailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'verify-email',
@@ -47,7 +52,7 @@ const verifyEmailRoute = createRoute({
   beforeLoad: async () => {
     const { useAuth } = await import('./modules/auth/store/auth.store');
     const auth = useAuth();
-    if (auth.isAuthenticated() && auth.user()?.emailVerifiedAt) {
+    if (auth.isAuthenticated() && isEmailVerified(auth.user())) {
       throw redirect({ to: '/dashboard' });
     }
   },
@@ -70,27 +75,35 @@ const layoutRoute = createRoute({
 
     // Fast path: already authenticated in memory
     if (auth.isAuthenticated()) {
-      if (auth.user() && !auth.user()?.emailVerifiedAt) {
+      if (auth.user() && !isEmailVerified(auth.user())) {
         throw redirect({ to: '/verify-email', search: {} });
       }
       return;
     }
 
+    const getSafeRedirect = () => {
+      const p = location.pathname;
+      if (!p || p.startsWith('/login') || p.startsWith('/register') || p === '/verify-email') {
+        return undefined;
+      }
+      return p;
+    };
+
     // Fast path: no session flag → redirect to login instantly (zero API calls)
     if (!localStorage.getItem('hasSession')) {
-      throw redirect({ to: '/login', search: { redirect: location.href } });
+      throw redirect({ to: '/login', search: { redirect: getSafeRedirect() } });
     }
 
     // Session flag exists but state not initialized → validate with server
     const restored = await actions.initSession();
     if (restored) {
-      if (auth.user() && !auth.user()?.emailVerifiedAt) {
+      if (auth.user() && !isEmailVerified(auth.user())) {
         throw redirect({ to: '/verify-email', search: {} });
       }
       return;
     }
 
-    throw redirect({ to: '/login', search: { redirect: location.href } });
+    throw redirect({ to: '/login', search: { redirect: getSafeRedirect() } });
   },
   loader: async () => {
     // Parallel Fetching: the Sidebar items will be downloaded IN PARALLEL 
