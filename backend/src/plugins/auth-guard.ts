@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia';
 import { UnauthorizedError } from '../core/errors';
-import { auth } from '../config/better-auth';
+import { auth, resolveCompanyIdFromOrg } from '../config/better-auth';
 import { adminDb, tenantStorage } from '../core/db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
@@ -21,31 +21,42 @@ export const authGuard = (app: Elysia) => app
         throw new UnauthorizedError('Sesión requerida');
       }
 
-      // 2. Resolve host and check subdomain
+      // 2. Resolve company from Better Auth Organization (single source of truth)
+      const activeOrgId = sessionData.session.activeOrganizationId;
+      let resolvedCompanyId: number | null = null;
+
+      if (activeOrgId) {
+        resolvedCompanyId = await resolveCompanyIdFromOrg(activeOrgId);
+      }
+
+      // 3. Validate subdomain matches active organization
       const host = request.headers.get('host') || '';
       const slug = resolveSlugFromHost(host);
-      let hostCompanyId: number | null = null;
 
       if (slug) {
-        const [comp] = await adminDb
+        const [hostCompany] = await adminDb
           .select({ id: companies.id })
           .from(companies)
           .where(eq(companies.slug, slug))
           .limit(1);
-        if (comp) {
-          hostCompanyId = comp.id;
+
+        if (hostCompany) {
+          // If user's active org doesn't match the subdomain, deny access
+          if (resolvedCompanyId && hostCompany.id !== resolvedCompanyId) {
+            set.status = 403;
+            throw new UnauthorizedError('Acceso denegado a este inquilino');
+          }
+          // If no active org set, use the host company
+          if (!resolvedCompanyId) {
+            resolvedCompanyId = hostCompany.id;
+          }
         }
       }
 
-      const rawUser = sessionData.user as any;
-      const userCompanyId = rawUser.companyId || rawUser.company_id || (rawUser.activeOrganizationId ? Number(rawUser.activeOrganizationId) : null);
-      const activeOrgId = sessionData.session.activeOrganizationId ? Number(sessionData.session.activeOrganizationId) : null;
-      const resolvedCompanyId = hostCompanyId || activeOrgId || userCompanyId;
-
-      // Strict validation: check that user session matches requested subdomain
-      if (hostCompanyId && userCompanyId && hostCompanyId !== userCompanyId && activeOrgId && activeOrgId !== hostCompanyId) {
-        set.status = 403;
-        throw new UnauthorizedError('Acceso denegado a este inquilino');
+      // Fallback: resolve from user.company_id denormalized cache
+      if (!resolvedCompanyId) {
+        const rawUser = sessionData.user as any;
+        resolvedCompanyId = rawUser.companyId || rawUser.company_id || null;
       }
 
       const { ipAddress } = getIpAndUserAgent(request);

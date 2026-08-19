@@ -1,6 +1,6 @@
 import { db, adminDb } from '../../core/db';
-import { authUsers as users, companies } from '@app/schema/tables';
-import { eq } from '@app/schema';
+import { authUsers as users, companies, member } from '@app/schema/tables';
+import { eq, and } from '@app/schema';
 import type { AuthUserEntityDto } from '@app/schema/dto';
 import { getUserRoles, getUserPermissions } from '../users/rbac.permission.service';
 import { broadcast } from '../../core/sse';
@@ -19,7 +19,10 @@ export function mapEntity(entity: { id: number; business_name: string; is_client
 }
 
 /**
- * Get current user profile with roles, permissions, and tenant metadata
+ * Get current user profile with roles, permissions, and tenant metadata.
+ * 
+ * Company resolution: activeCompanyId (from auth-guard via activeOrganizationId) is the source of truth.
+ * Falls back to user.company_id denormalized cache only if no active org is set.
  */
 export async function getMe(userId: string | number, activeCompanyId?: number | null) {
   const userIdStr = String(userId);
@@ -43,6 +46,26 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
 
   const resolvedCompanyId = activeCompanyId || user.company_id;
 
+  // Resolve entity from member table (per-org entity mapping) if we have a company
+  let resolvedEntityId = user.entity_id;
+  if (resolvedCompanyId) {
+    const [memberRow] = await adminDb
+      .select({ entityId: member.entityId })
+      .from(member)
+      .innerJoin(companies, eq(companies.organization_id, member.organizationId))
+      .where(
+        and(
+          eq(member.userId, userIdStr),
+          eq(companies.id, resolvedCompanyId),
+        )
+      )
+      .limit(1);
+
+    if (memberRow?.entityId) {
+      resolvedEntityId = memberRow.entityId;
+    }
+  }
+
   const [roles, permissions, [company]] = await Promise.all([
     getUserRoles(user.id, resolvedCompanyId),
     getUserPermissions(user.id, resolvedCompanyId),
@@ -61,7 +84,7 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     companySlug: company?.slug ?? null,
     email: user.email,
     username: user.username || user.name,
-    entityId: user.entity_id,
+    entityId: resolvedEntityId,
     isActive: user.is_active,
     lastLogin: user.last_login,
     emailVerifiedAt: user.emailVerified ? new Date() : null,

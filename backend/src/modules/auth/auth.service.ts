@@ -12,18 +12,25 @@ import {
 } from './provisioning.service';
 import { verifyTurnstileToken } from '../../core/security';
 import { mapEntity } from './profile.service';
-import { auth } from '../../config/better-auth';
 
 // ============================================================================
 // CORE SAAS TENANT PROVISIONING (ONBOARDING)
 // ============================================================================
 
 /**
- * Register new tenant, owner entity, user, credential account, organization, and seed initial system data
+ * Register new tenant, owner entity, user, credential account, organization, and seed initial system data.
+ * 
+ * Flow:
+ * 1. Create company (ERP domain)
+ * 2. Create organization (Better Auth) & link via companies.organization_id
+ * 3. Create user with username/displayUsername
+ * 4. Create credential account
+ * 5. Create member with role 'owner' + entity_id
+ * 6. Seed RBAC, menus, UOMs, locations, warehouse
  */
 export async function register(
   data: {
-    fullName: string; email: string; password: string;
+    fullName: string; username: string; email: string; password: string;
     phone?: string; cedula?: string;
     slug: string; ruc: string; businessName: string; tradeName?: string;
     businessType?: string; mainAddress?: string;
@@ -42,9 +49,19 @@ export async function register(
     const [existingRuc] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.ruc, data.ruc)).limit(1);
     if (existingRuc) throw new DomainError('Este RUC ya está registrado', 409);
 
+    // 1. Create Better Auth Organization first (to get its ID)
+    const orgId = crypto.randomUUID();
+    await tx.insert(organization).values({
+      id: orgId,
+      name: data.businessName,
+      slug: data.slug,
+    });
+
+    // 2. Create company with organization_id link
     const [company] = await tx
       .insert(companies)
       .values({
+        organization_id: orgId,
         slug: data.slug,
         ruc: data.ruc,
         business_name: data.businessName,
@@ -75,7 +92,7 @@ export async function register(
       business_name: 'CONSUMIDOR FINAL',
       is_client: true,
       is_system: true,
-      price_list_id: 1,
+      default_price_list_id: 1,
     });
 
     const [ownerEntity] = await tx.insert(entities).values({
@@ -95,21 +112,17 @@ export async function register(
       memoryCost: 65536,
       timeCost: 2,
     });
-    
-    const rawUsername = data.email.split('@')[0];
-    const normalizedUsername = rawUsername.toLowerCase();
 
-    // Inserción atómica con UUIDv7 nativo de PostgreSQL 18
+    // 3. Create user with explicit username and displayUsername
     const [user] = await tx
       .insert(users)
       .values({
         name: data.fullName,
-        company_id: company.id,
-        entity_id: ownerEntity.id,
+        company_id: company.id,          // Denormalized cache
+        entity_id: ownerEntity.id,       // Denormalized cache
         email: data.email.toLowerCase(),
-        username: normalizedUsername,
-        displayUsername: rawUsername,
-        is_owner: true,
+        username: data.username.toLowerCase(),
+        displayUsername: data.username,
         is_active: true,
         emailVerified: false,
       })
@@ -123,7 +136,7 @@ export async function register(
         emailVerified: users.emailVerified,
       });
 
-    // Create Better-Auth credential account
+    // 4. Create Better-Auth credential account
     await tx.insert(account).values({
       accountId: user.id,
       providerId: 'credential',
@@ -131,19 +144,15 @@ export async function register(
       password: password_hash,
     });
 
-    // Create Better-Auth organization & member
-    await tx.insert(organization).values({
-      id: String(company.id),
-      name: company.business_name,
-      slug: company.slug,
-    });
-
+    // 5. Create Better-Auth member (owner role) with entity_id link
     await tx.insert(member).values({
-      organizationId: String(company.id),
+      organizationId: orgId,
       userId: user.id,
       role: 'owner',
+      entityId: ownerEntity.id,
     });
 
+    // 6. Seed initial system data
     await seedCompanyRBAC(tx, company.id, user.id);
     await seedCompanyMenus(tx);
     await seedCompanyUOMs(tx, company.id);
@@ -168,26 +177,18 @@ export async function register(
     const roles = txRoles.map(r => r.roleName);
     const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
 
-    // Disparar envío canónico de verificación de correo mediante Better-Auth
-    // Esto crea de forma atómica el token en la tabla `verification` y ejecuta el hook sendVerificationEmail
-    auth.api.sendVerificationEmail({
-      body: {
-        email: user.email.toLowerCase(),
-        callbackURL: '/verify-email',
-      },
-    }).catch((err) => console.error('[AuthService] Error sending initial verification email via Better-Auth:', err));
-
     return {
       company: {
         id: company.id,
         slug: company.slug,
         businessName: company.business_name,
+        organizationId: orgId,
       },
       user: {
         id: user.id,
         companyId: company.id,
         companySlug: company.slug,
-        username: user.username || data.fullName,
+        username: user.username || data.username,
         email: user.email,
         isActive: user.is_active,
         lastLogin: user.last_login,

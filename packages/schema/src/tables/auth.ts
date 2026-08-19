@@ -30,11 +30,11 @@ export const user = pgTableV2("user", {
     // Better-Auth twoFactor plugin
     twoFactorEnabled: boolean("two_factor_enabled").default(false),
     
-    // Custom ERP domain fields
+    // Denormalized cache — updated by org switch hook. NOT the source of truth.
+    // Source of truth: member.organizationId → organization → companies.organization_id
     company_id: integer("company_id").references(() => companies.id),
     entity_id: integer("entity_id").references(() => entities.id),
     is_active: boolean("is_active").default(true),
-    is_owner: boolean("is_owner").default(false).notNull(),
     last_login: timestamp("last_login", TZ),
 }, (t) => [
     index("idx_user_email").on(t.email),
@@ -51,13 +51,12 @@ export const session = pgTableV2("session", {
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
     userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
+    // Better-Auth Organization plugin: active org context for this session
     activeOrganizationId: text("active_organization_id"),
-    company_id: integer("company_id").references(() => companies.id),
 }, (t) => [
     index("idx_session_user").on(t.userId),
     index("idx_session_token").on(t.token),
     index("idx_session_expires").on(t.expiresAt),
-    index("idx_session_company").on(t.company_id),
 ]);
 
 export const account = pgTableV2("account", {
@@ -90,7 +89,10 @@ export const verification = pgTableV2("verification", {
     index("idx_verification_identifier").on(t.identifier),
 ]);
 
-// Better-Auth Organization Plugin Tables
+// ============================================================================
+// BETTER-AUTH ORGANIZATION PLUGIN TABLES
+// ============================================================================
+
 export const organization = pgTableV2("organization", {
     id: text("id").primaryKey().default(sql`uuidv7()::text`),
     name: text("name").notNull(),
@@ -102,12 +104,19 @@ export const organization = pgTableV2("organization", {
     index("idx_org_slug").on(t.slug),
 ]);
 
+/**
+ * Organization member — links user to organization with a role.
+ * Also stores per-org entity_id to resolve the user's ERP entity
+ * (client/supplier/employee) within each company context.
+ */
 export const member = pgTableV2("member", {
     id: uuid("id").primaryKey().default(sql`uuidv7()`),
     organizationId: text("organization_id").references(() => organization.id, { onDelete: 'cascade' }).notNull(),
     userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
     role: text("role").default("member").notNull(),
     createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
+    // Per-org entity mapping: resolves user → entity (client/supplier/employee) per company
+    entityId: integer("entity_id").references(() => entities.id),
 }, (t) => [
     index("idx_member_org").on(t.organizationId),
     index("idx_member_user").on(t.userId),

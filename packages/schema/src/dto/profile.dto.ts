@@ -15,13 +15,13 @@ export interface ProfileEntityDto {
 export interface ProfileDto {
     id: string | number;
     companyId: number;
-    companySlug?: string;
+    companySlug?: string | null;
     email: string;
-    username: string;
-    entityId: number | null;
-    isActive: boolean | null;
-    lastLogin: Date | null;
-    emailVerifiedAt: string | Date | null;
+    username?: string | null;
+    entityId?: number | null;
+    isActive?: boolean | null;
+    lastLogin?: Date | null;
+    emailVerifiedAt?: string | Date | null;
     roles: string[];
     permissions: string[];
     entity?: ProfileEntityDto;

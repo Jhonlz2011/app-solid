@@ -52,10 +52,11 @@ async function seed() {
 
         // Register organization in Better-Auth for multi-tenancy & company switching
         console.log('🏢 Creating / verifying Better-Auth organization...');
+        const orgId = crypto.randomUUID();
         await db
             .insert(organization)
             .values({
-                id: String(devCompany.id),
+                id: orgId,
                 name: devCompany.business_name,
                 slug: devCompany.slug,
             })
@@ -63,7 +64,13 @@ async function seed() {
                 target: organization.slug,
                 set: { name: devCompany.business_name },
             });
-        console.log(`   ✅ Better-Auth Organization verified: ${devCompany.slug}`);
+        
+        // Link company to organization
+        await db
+            .update(companies)
+            .set({ organization_id: orgId })
+            .where(eq(companies.id, devCompany.id));
+        console.log(`   ✅ Better-Auth Organization verified: ${devCompany.slug} (org: ${orgId})`);
 
         // =========================================================================
         // 1. SYSTEM GLOBAL UOMs (company_id = null)
@@ -156,14 +163,12 @@ async function seed() {
                     name: 'Super Administrador',
                     email: 'superadmin@zelys.app',
                     role: 'superadmin',
-                    is_owner: true,
                 },
                 {
                     username: 'admin',
                     name: 'Administrador',
                     email: 'admin@zelys.app',
                     role: 'admin',
-                    is_owner: false,
                 }
             ];
 
@@ -180,7 +185,6 @@ async function seed() {
                         displayUsername: userData.username,
                         company_id: devCompany.id,
                         is_active: true,
-                        is_owner: userData.is_owner,
                         emailVerified: true,
                     })
                     .onConflictDoUpdate({
@@ -191,7 +195,6 @@ async function seed() {
                             displayUsername: userData.username,
                             company_id: devCompany.id,
                             is_active: true,
-                            is_owner: userData.is_owner,
                             emailVerified: true,
                         }
                     })
@@ -228,7 +231,7 @@ async function seed() {
                 await db
                     .insert(member)
                     .values({
-                        organizationId: String(devCompany.id),
+                        organizationId: orgId,
                         userId: userId,
                         role: userData.role === 'superadmin' ? 'owner' : 'admin',
                     })

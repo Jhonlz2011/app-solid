@@ -20,7 +20,7 @@ export interface UsersListFilters {
 }
 
 // Allowed columns for sorting (whitelist prevents SQL injection)
-export const USERS_SORT_WHITELIST: Record<string, typeof authUsers.username> = {
+export const USERS_SORT_WHITELIST: Record<string, any> = {
     username: authUsers.username,
     email: authUsers.email,
     created_at: authUsers.createdAt,

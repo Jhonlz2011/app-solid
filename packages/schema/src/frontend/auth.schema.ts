@@ -10,6 +10,8 @@ export const AuthLoginSchema = object({
 // --- REGISTRATION STEP SCHEMAS ---
 export const RegisterStep1Schema = object({
     fullName: pipe(string(), trim(), minLength(3, 'Mínimo 3 caracteres')),
+    username: pipe(string(), trim(), minLength(3, 'Mínimo 3 caracteres'), maxLength(30, 'Máximo 30 caracteres'),
+        regex(/^[a-z0-9._-]+$/, 'Solo minúsculas, números, puntos, guiones')),
     email: pipe(string(), trim(), email('Email inválido')),
     password: pipe(string(), minLength(8, 'Mínimo 8 caracteres')),
     phone: optional(pipe(string(), regex(/^09\d{8}$/, 'Celular inválido (09XXXXXXXX)'))),

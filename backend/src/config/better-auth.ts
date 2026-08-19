@@ -37,26 +37,57 @@ export function resolveTenantUrl(slug?: string | null): string {
     }
 }
 
+/**
+ * Resolve tenant slug and user name from email for email templates.
+ * Uses member → organization → companies to find the tenant slug.
+ */
 export async function getTenantInfoForEmail(email: string) {
     try {
-        const [userWithCompany] = await adminDb
+        const result = await adminDb
             .select({
                 name: schema.user.name,
                 companySlug: schema.companies.slug,
             })
             .from(schema.user)
-            .leftJoin(schema.companies, eq(schema.user.company_id, schema.companies.id))
+            .innerJoin(schema.member, eq(schema.member.userId, schema.user.id))
+            .innerJoin(schema.organization, eq(schema.organization.id, schema.member.organizationId))
+            .innerJoin(schema.companies, eq(schema.companies.organization_id, schema.organization.id))
             .where(eq(schema.user.email, email.toLowerCase()))
             .limit(1);
 
+        const row = result[0];
         return {
-            tenantSlug: userWithCompany?.companySlug || null,
-            recipientName: userWithCompany?.name || email.split('@')[0],
+            tenantSlug: row?.companySlug || null,
+            recipientName: row?.name || email.split('@')[0],
         };
     } catch (err) {
         console.error('[BetterAuth] Error resolving tenant info for email:', err);
         return { tenantSlug: null, recipientName: email.split('@')[0] };
     }
+}
+
+/**
+ * Resolve companies.id from an organization ID.
+ * Cached in Redis for 5 minutes to avoid per-request DB queries.
+ */
+export async function resolveCompanyIdFromOrg(organizationId: string): Promise<number | null> {
+    const cacheKey = `org_to_company:${organizationId}`;
+    try {
+        const cached = await redis.get(cacheKey);
+        if (cached) return Number(cached);
+    } catch { /* redis miss, continue to DB */ }
+
+    const [company] = await adminDb
+        .select({ id: schema.companies.id })
+        .from(schema.companies)
+        .where(eq(schema.companies.organization_id, organizationId))
+        .limit(1);
+
+    if (company) {
+        redis.set(cacheKey, String(company.id), 'EX', 300).catch(() => {});
+        return company.id;
+    }
+    return null;
 }
 
 const argon2PasswordConfig = {
@@ -189,13 +220,6 @@ export const auth = betterAuth({
                 required: false,
                 defaultValue: true,
                 fieldName: 'is_active',
-                input: false,
-            },
-            isOwner: {
-                type: 'boolean',
-                required: false,
-                defaultValue: false,
-                fieldName: 'is_owner',
                 input: false,
             },
         },

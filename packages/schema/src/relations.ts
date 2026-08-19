@@ -91,7 +91,6 @@ export const authUsersRelations = relations(tables.authUsers, ({ one, many }) =>
 
 export const sessionsRelations = relations(tables.sessions, ({ one }) => ({
     user: one(tables.authUsers, { fields: [tables.sessions.userId], references: [tables.authUsers.id] }),
-    company: one(tables.companies, { fields: [tables.sessions.company_id], references: [tables.companies.id] }),
 }));
 
 export const auditLogsRelations = relations(tables.auditLogs, ({ one }) => ({
@@ -617,7 +616,8 @@ export const goodsReceiptItemsRelations = relations(tables.goodsReceiptItems, ({
 // 13. Companies (Multi-tenant root)
 // =============================================================================
 
-export const companiesRelations = relations(tables.companies, ({ many }) => ({
+export const companiesRelations = relations(tables.companies, ({ one, many }) => ({
+    organization: one(tables.organization, { fields: [tables.companies.organization_id], references: [tables.organization.id] }),
     establishments: many(tables.sriEstablishments),
     certificates: many(tables.sriCertificates),
     entities: many(tables.entities),

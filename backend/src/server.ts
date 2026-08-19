@@ -138,6 +138,45 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
   // Health check — público, antes de auth guard (usado por OfflineBanner PWA)
   .get('/health', () => ({ status: 'ok', ts: Date.now() }))
   // Better-Auth Core Handler (sign-in, sign-up, organization, sessions, passkeys, 2fa, verify-email)
+  .all('/auth/verify-email', async ({ request }) => {
+    const url = new URL(request.url);
+    const token = url.searchParams.get('token');
+
+    // Graceful backward-compatibility fallback for legacy JWT tokens (issued before migration)
+    if (token && token.startsWith('eyJ')) {
+      try {
+        const { jwtVerify } = await import('jose');
+        const secret = new TextEncoder().encode(env.BETTER_AUTH_SECRET);
+        const { payload } = await jwtVerify(token, secret);
+        const email = payload.email as string | undefined;
+        if (email) {
+          const { adminDb } = await import('./core/db');
+          const { authUsers: users } = await import('@app/schema/tables');
+          const { eq } = await import('@app/schema');
+          const { broadcast } = await import('./core/sse');
+          const { RealtimeEvents } = await import('@app/schema/realtime-events');
+
+          const [updatedUser] = await adminDb
+            .update(users)
+            .set({ emailVerified: true, updatedAt: new Date() })
+            .where(eq(users.email, email.toLowerCase()))
+            .returning({ id: users.id });
+
+          if (updatedUser) {
+            broadcast(RealtimeEvents.USER.EMAIL_VERIFIED, { userId: updatedUser.id }, `user:${updatedUser.id}`);
+            return new Response(JSON.stringify({ status: true, user: { id: updatedUser.id, email } }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[BetterAuth Fallback] Invalid legacy JWT verification attempt:', err);
+      }
+    }
+
+    return auth.handler(request);
+  })
   .all('/auth', async ({ request }) => auth.handler(request))
   .all('/auth/*', async ({ request }) => auth.handler(request))
   // Domain routes

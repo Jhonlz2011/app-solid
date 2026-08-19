@@ -29,7 +29,10 @@ export const ltree = customType<{ data: string }>({
  */
 export const companies = pgTableV2("companies", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    slug: text("slug").notNull().unique(),                    // URL identifier: operaapp.com/{slug}
+    // 1:1 link to Better Auth Organization. FK constraint enforced at DB level.
+    // Text matches organization.id type (UUIDv7 stored as text by Better Auth).
+    organization_id: text("organization_id").unique(),
+    slug: text("slug").notNull().unique(),                    // URL identifier: zelys.app/{slug}
     ruc: text("ruc").notNull().unique(),
     business_name: text("business_name").notNull(),        // Razón social
     trade_name: text("trade_name"),                        // Nombre comercial
@@ -57,6 +60,7 @@ export const companies = pgTableV2("companies", {
 }, (t) => [
     index("idx_companies_slug").on(t.slug),
     index("idx_companies_plan").on(t.plan),
+    index("idx_companies_org_id").on(t.organization_id),
 ]);
 
 // =============================================================================

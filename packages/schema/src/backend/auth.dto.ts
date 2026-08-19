@@ -6,6 +6,7 @@ import { Type, type Static } from '@sinclair/typebox';
 
 export const AuthRegisterDto = Type.Object({
     fullName: Type.String({ minLength: 3 }),
+    username: Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9._-]+$' }),
     email: Type.String({ format: 'email' }),
     password: Type.String({ minLength: 8 }),
     phone: Type.Optional(Type.String()),

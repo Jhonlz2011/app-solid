@@ -105,7 +105,7 @@ const Register: Component = () => {
     // ─── STEP 1 FORM ───
     const step1Form = createForm(() => ({
         defaultValues: {
-            fullName: '', email: '', password: '',
+            fullName: '', username: '', email: '', password: '',
             phone: undefined as string | undefined,
             cedula: undefined as string | undefined,
         },
@@ -177,7 +177,7 @@ const Register: Component = () => {
         setSubmitting(true);
         try {
             await authApi.register({
-                fullName: s1.fullName, email: s1.email, password: s1.password,
+                fullName: s1.fullName, username: s1.username, email: s1.email, password: s1.password,
                 phone: s1.phone || undefined, cedula: s1.cedula || undefined,
                 slug: s2.slug, ruc: s2.ruc, businessName: s2.businessName,
                 tradeName: s2.tradeName || undefined, businessType: s2.businessType || undefined,
@@ -233,6 +233,18 @@ const Register: Component = () => {
                         <TextField.Root field={f()}>
                             <TextField.Label>Nombre completo</TextField.Label>
                             <TextField.Input type="text" placeholder="Ej: Juan Pérez" autocomplete="name" />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
+                    )} />
+                    <step1Form.Field name="username" children={(f) => (
+                        <TextField.Root field={f()}>
+                            <TextField.Label>Nombre de usuario</TextField.Label>
+                            <TextField.Input type="text" placeholder="ej: juan.perez" autocomplete="username"
+                                onInput={(e) => {
+                                    const v = e.currentTarget.value.toLowerCase().replace(/[^a-z0-9._-]/g, '');
+                                    e.currentTarget.value = v;
+                                    f().handleChange(v);
+                                }} />
                             <TextField.ErrorMessage />
                         </TextField.Root>
                     )} />
@@ -509,6 +521,7 @@ const Register: Component = () => {
                         </h3>
                         <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                             <span class="text-muted">Nombre:</span><span class="text-text font-medium">{step1Form.state.values.fullName}</span>
+                            <span class="text-muted">Usuario:</span><span class="text-text font-medium">{step1Form.state.values.username}</span>
                             <span class="text-muted">Email:</span><span class="text-text font-medium">{step1Form.state.values.email}</span>
                             <Show when={step1Form.state.values.phone}><span class="text-muted">Teléfono:</span><span class="text-text">{step1Form.state.values.phone}</span></Show>
                             <Show when={step1Form.state.values.cedula}><span class="text-muted">Cédula:</span><span class="text-text">{step1Form.state.values.cedula}</span></Show>
