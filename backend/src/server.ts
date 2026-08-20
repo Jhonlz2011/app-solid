@@ -112,7 +112,7 @@ async function handleLegacyJwtVerification(request: Request): Promise<Response |
 // 3. API APP (Sub-aplicación con todas las rutas del dominio)
 // ============================================================================
 
-export const apiApp = new Elysia({ aot: false })
+export const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(cors({
     origin: corsOriginValidator,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -202,11 +202,7 @@ export const apiApp = new Elysia({ aot: false })
 // ============================================================================
 
 const app = new Elysia()
-  .use(cors({
-    origin: corsOriginValidator,
-    credentials: true,
-  }))
-  .group('/api', (app) => app.use(apiApp))
+  .use(apiApp)
   .get('*', serveSpa);
 
 app.listen({ port: env.PORT, hostname: '0.0.0.0' });
