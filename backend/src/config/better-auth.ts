@@ -15,48 +15,42 @@ import { env } from './env';
 // 1. TENANT URL RESOLVER
 // ============================================================================
 
+const BASE_DOMAIN = 'zelys.app';
+
 /**
- * Builds the canonical tenant URL for user-facing emails and redirects.
- * - Production: https://{slug}.zelys.app or https://zelys.app
- * - Local dev:   http://{slug}.localhost:5173 or http://localhost:5173
- * - LAN dev:     http://192.168.x.x:5173
+ * Construye la URL canónica del tenant para emails y redirecciones.
+ * - Producción:  https://{slug}.zelys.app  |  https://zelys.app
+ * - Dev local:   http://{slug}.localhost:5173  |  http://localhost:5173
+ * - LAN dev:     http://{ip}:5173 (sin subdominio)
  */
 export function resolveTenantUrl(slug?: string | null): string {
-    const frontendUrl = env.FRONTEND_URL.replace(/\/$/, '');
+    if (env.NODE_ENV === 'production') {
+        return slug ? `https://${slug}.${BASE_DOMAIN}` : `https://${BASE_DOMAIN}`;
+    }
 
+    // Desarrollo: usa FRONTEND_URL como base
+    const frontendUrl = env.FRONTEND_URL.replace(/\/$/, '');
     try {
         const url = new URL(frontendUrl);
         const host = url.hostname;
-
-        // Strip 'api.' prefix if FRONTEND_URL in backend env points to the API subdomain
-        const cleanHost = host.startsWith('api.') ? host.replace(/^api\./, '') : host;
         const port = url.port ? `:${url.port}` : '';
 
-        if (!slug) {
-            return `${url.protocol}//${cleanHost}${port}`;
+        // LAN IP — sin subdominio
+        if (/^[0-9.]+$/.test(host)) {
+            return `${url.protocol}//${host}${port}`;
         }
 
-        // Localhost / 127.0.0.1
-        if (cleanHost === 'localhost' || cleanHost === '127.0.0.1') {
-            return `${url.protocol}//${slug}.localhost${port}`;
-        }
-
-        // LAN IP (e.g. 192.168.100.50) — keep naked IP
-        if (/^[0-9.]+$/.test(cleanHost)) {
-            return `${url.protocol}//${cleanHost}${port}`;
-        }
-
-        // Production / Staging domain (zelys.app)
-        const parts = cleanHost.split('.');
-        const rootDomain = parts.slice(-2).join('.');
-        return `${url.protocol}//${slug}.${rootDomain}${port}`;
+        // localhost o .localhost
+        if (!slug) return `${url.protocol}//${host}${port}`;
+        return `${url.protocol}//${slug}.localhost${port}`;
     } catch {
-        return slug ? `https://${slug}.zelys.app` : 'https://zelys.app';
+        return slug ? `https://${slug}.${BASE_DOMAIN}` : `https://${BASE_DOMAIN}`;
     }
 }
 
 /**
- * Resolves the tenant slug and recipient display name for email notifications.
+ * Resuelve el slug del tenant y nombre del destinatario para emails.
+ * Intenta primero con user.company_id (cache desnormalizado) y hace fallback a member → org → company.
  */
 export async function getTenantInfoForEmail(email: string) {
     try {
@@ -77,6 +71,7 @@ export async function getTenantInfoForEmail(email: string) {
             };
         }
 
+        // Fallback: buscar vía member → organization → company
         const [orgRow] = await adminDb
             .select({
                 name: schema.user.name,
@@ -100,15 +95,15 @@ export async function getTenantInfoForEmail(email: string) {
 }
 
 /**
- * Resolves companies.id from an active organization ID.
- * Cached in Redis (5min TTL) to avoid repeated queries in authGuard.
+ * Resuelve companies.id desde un active organization ID.
+ * Cache Redis 5 min para evitar queries repetidas en authGuard.
  */
 export async function resolveCompanyIdFromOrg(organizationId: string): Promise<number | null> {
     const cacheKey = `org_to_company:${organizationId}`;
     try {
         const cached = await redis.get(cacheKey);
         if (cached) return Number(cached);
-    } catch { /* Cache miss */ }
+    } catch { /* Cache miss — continuar */ }
 
     const [company] = await adminDb
         .select({ id: schema.companies.id })
@@ -124,20 +119,20 @@ export async function resolveCompanyIdFromOrg(organizationId: string): Promise<n
 }
 
 // ============================================================================
-// 2. PASSWORD VERIFIER
+// 2. PASSWORD — Argon2id via Bun.password (nativo, sin dependencias extra)
 // ============================================================================
 
 const argon2PasswordConfig = {
-    hash: async (password: string) => {
-        return Bun.password.hash(password, {
+    hash: async (password: string) =>
+        Bun.password.hash(password, {
             algorithm: 'argon2id',
             memoryCost: 65536,
             timeCost: 2,
-        });
-    },
+        }),
     verify: async ({ password, hash }: { password: string; hash: string }) => {
         if (!hash || !password) return false;
         try {
+            // Argon2 nativo ($argon2...) o formato legacy Better-Auth (hash:salt)
             if (hash.startsWith('$')) {
                 return await Bun.password.verify(password, hash);
             }
@@ -153,62 +148,41 @@ const argon2PasswordConfig = {
 };
 
 // ============================================================================
-// 3. DYNAMIC TRUSTED ORIGINS VALIDATOR
+// 3. TRUSTED ORIGINS — zelys.app + *.zelys.app en prod; localhost en dev
 // ============================================================================
 
-/**
- * Dynamically validates incoming requests against allowed origins.
- * - In Production: allows zelys.app and all *.zelys.app subdomains.
- * - In Development: allows any localhost, 127.0.0.1, or local LAN IP (192.168.x.x, 10.x.x.x, 172.x.x.x).
- */
-async function dynamicTrustedOrigins(request?: Request): Promise<string[]> {
-    const defaults = ['https://zelys.app', 'https://api.zelys.app', env.FRONTEND_URL].filter(Boolean);
+const PRODUCTION_ORIGINS = ['https://zelys.app', 'https://api.zelys.app'];
 
-    if (!request) {
-        return defaults;
-    }
+async function dynamicTrustedOrigins(request?: Request): Promise<string[]> {
+    if (!request) return PRODUCTION_ORIGINS;
 
     const rawOrigin = request.headers.get('origin') || request.headers.get('referer');
-    if (!rawOrigin) {
-        return defaults;
-    }
+    if (!rawOrigin) return PRODUCTION_ORIGINS;
 
     try {
-        const originUrl = new URL(rawOrigin);
-        const host = originUrl.hostname;
-        const normalizedOrigin = originUrl.origin;
+        const { hostname, origin } = new URL(rawOrigin);
 
-        // 1. Production / Staging: exact match on zelys.app or *.zelys.app
-        if (host === 'zelys.app' || host.endsWith('.zelys.app')) {
-            return [normalizedOrigin];
+        // Producción: zelys.app y cualquier *.zelys.app
+        if (hostname === BASE_DOMAIN || hostname.endsWith(`.${BASE_DOMAIN}`)) {
+            return [origin];
         }
 
-        // 2. Development: allow localhost, .localhost, 127.0.0.1, and private LAN subnets
+        // Desarrollo: localhost, *.localhost, 127.0.0.1 y subredes privadas
         if (env.NODE_ENV !== 'production') {
             if (
-                host === 'localhost' ||
-                host.endsWith('.localhost') ||
-                host === '127.0.0.1' ||
-                /^192\.168\.\d+\.\d+$/.test(host) ||
-                /^10\.\d+\.\d+\.\d+$/.test(host) ||
-                /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)
+                hostname === 'localhost' ||
+                hostname.endsWith('.localhost') ||
+                hostname === '127.0.0.1' ||
+                /^192\.168\.\d+\.\d+$/.test(hostname) ||
+                /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
+                /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(hostname)
             ) {
-                return [normalizedOrigin];
+                return [origin];
             }
         }
+    } catch { /* origen inválido */ }
 
-        // 3. Explicit configured FRONTEND_URL match
-        if (env.FRONTEND_URL) {
-            const configuredOrigin = new URL(env.FRONTEND_URL).origin;
-            if (normalizedOrigin === configuredOrigin) {
-                return [normalizedOrigin];
-            }
-        }
-    } catch {
-        // Invalid origin format
-    }
-
-    return defaults;
+    return PRODUCTION_ORIGINS;
 }
 
 // ============================================================================
@@ -230,7 +204,7 @@ export const auth = betterAuth({
         },
     }),
     secret: env.BETTER_AUTH_SECRET,
-    baseURL: env.BETTER_AUTH_URL,
+    baseURL: env.BETTER_AUTH_URL,        // https://api.zelys.app
     basePath: '/api/auth',
     trustedOrigins: dynamicTrustedOrigins,
     databaseHooks: {
@@ -264,12 +238,12 @@ export const auth = betterAuth({
         sendOnSignUp: false,
         autoSignInAfterVerification: true,
         sendVerificationEmail: async ({ user, token }) => {
+            // Throttle: máximo 1 email por minuto por dirección
             const cooldownKey = `email_cooldown:${user.email.toLowerCase()}`;
             try {
-                const isThrottled = await redis.get(cooldownKey);
-                if (isThrottled) return;
+                if (await redis.get(cooldownKey)) return;
                 await redis.set(cooldownKey, '1', 'EX', 60);
-            } catch { /* Redis cooldown pass-through */ }
+            } catch { /* Redis no disponible — dejar pasar */ }
 
             const { tenantSlug, recipientName } = await getTenantInfoForEmail(user.email);
             const baseUrl = resolveTenantUrl(tenantSlug);
@@ -301,10 +275,11 @@ export const auth = betterAuth({
         },
     },
     advanced: {
-        password: argon2PasswordConfig,
+        // argon2PasswordConfig va SOLO en emailAndPassword.password
         generateId: () => uuidv7(),
         crossSubDomainCookies: {
             enabled: Boolean(env.COOKIE_DOMAIN),
+            // Better-Auth espera el dominio sin punto inicial
             domain: env.COOKIE_DOMAIN ? env.COOKIE_DOMAIN.replace(/^\./, '') : undefined,
         },
         defaultCookieAttributes: {

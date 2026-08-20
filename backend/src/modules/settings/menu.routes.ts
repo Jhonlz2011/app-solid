@@ -109,4 +109,14 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
         {
             body: MenuItemReorderSchema,
         }
-    );
+    )
+    /**
+     * Invalidate menu cache (admin only) — fuerza recarga desde DB en el próximo request
+     */
+    .post('/refresh-cache', async ({ currentRoles }) => {
+        assertAdmin(currentRoles);
+        const { cacheService } = await import('../../core/cache');
+        await cacheService.invalidate('menus:*');
+        return { success: true, message: 'Caché de menús invalidado. Se recargará en el próximo request.' };
+    });
+

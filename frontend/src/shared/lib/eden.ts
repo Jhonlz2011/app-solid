@@ -2,10 +2,6 @@ import { treaty } from '@elysiajs/eden';
 import type { App } from '@backend/server';
 
 // Generates a unique ID for this tab instance.
-// Falls back to timestamp+random when crypto.randomUUID() is unavailable
-// (e.g. non-secure HTTP contexts like LAN IP access during development).
-
-// export const clientId = crypto.randomUUID();
 export const clientId = (() => {
     try {
         return crypto.randomUUID();
@@ -16,7 +12,10 @@ export const clientId = (() => {
 
 import { setOnlineStatus } from '@shared/hooks/useOnlineStatus';
 
-export const api = treaty<App>(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
+const rawBase = import.meta.env.VITE_API_URL || 'https://api.zelys.app';
+const apiBase = rawBase.endsWith('/api') ? rawBase : `${rawBase.replace(/\/$/, '')}/api`;
+
+export const api = treaty<App>(apiBase, {
     fetcher: async (url, options) => {
         // Automatically inject client ID to all requests
         const headers = new Headers(options?.headers);

@@ -45,8 +45,12 @@ export const CompanySwitcher: Component<CompanySwitcherProps> = (props) => {
         loadOrganizations();
     });
 
-    const currentSlug = () => branding.tenant()?.slug || auth.user()?.companySlug;
-    const currentName = () => branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Mi Empresa';
+    const currentSlug = () => branding.tenant()?.slug || auth.user()?.companySlug || null;
+    const currentName = () =>
+        branding.tenant()?.tradeName ||
+        branding.tenant()?.businessName ||
+        auth.user()?.companySlug?.toUpperCase() ||
+        'Mi Empresa';
     const currentLogo = () => branding.tenant()?.logoUrl;
 
     const handleSwitch = async (org: OrganizationItem) => {

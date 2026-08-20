@@ -40,13 +40,12 @@ const authRoute = createAuthRoutes(rootRoute);
 
 const isEmailVerified = (user: any): boolean => {
   if (!user) return false;
-  // emailVerified (boolean) is the source of truth from the backend.
-  // Only block if it's EXPLICITLY false. If undefined (field stripped by serialization), assume verified.
+  // emailVerified (boolean) es la fuente de verdad del backend.
+  // Solo bloqueamos si es EXPLÍCITAMENTE false.
+  // Si es undefined (campo no presente), asumimos verificado para no bloquear usuarios legítimos.
   if (user.emailVerified === false) return false;
   if (user.emailVerified === true) return true;
-  // Fallback: check emailVerifiedAt (truthy = verified)
-  if (user.emailVerifiedAt) return true;
-  // If neither field exists, assume verified (defensive: don't block legitimate users)
+  // Si el campo no existe, asumir verificado (defensivo)
   return true;
 };
 
@@ -83,7 +82,6 @@ const layoutRoute = createRoute({
     // Fast path: already authenticated in memory
     if (auth.isAuthenticated()) {
       const u = auth.user();
-      console.log('[Router Guard] Fast path - user:', { emailVerified: u?.emailVerified, emailVerifiedAt: u?.emailVerifiedAt, isVerified: isEmailVerified(u) });
       if (u && !isEmailVerified(u)) {
         throw redirect({ to: '/verify-email', search: {} });
       }
@@ -107,7 +105,6 @@ const layoutRoute = createRoute({
     const restored = await actions.initSession();
     if (restored) {
       const u = auth.user();
-      console.log('[Router Guard] After initSession - user:', { emailVerified: u?.emailVerified, emailVerifiedAt: u?.emailVerifiedAt, isVerified: isEmailVerified(u) });
       if (u && !isEmailVerified(u)) {
         throw redirect({ to: '/verify-email', search: {} });
       }

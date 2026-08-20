@@ -1,4 +1,4 @@
-import { Component, Show } from 'solid-js';
+import { Component, Show, createMemo } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
 import ThemeToggle from '../ThemeToggle';
@@ -18,6 +18,11 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
     const { collapsed, isMobileViewport, setIsMobileOpen } = useSidebar();
     const { handleLogout, isLoggingOut } = useLogout();
 
+    const name = () => props.userName || 'Usuario';
+    const role = () => props.userRole || 'Usuario';
+    const avatarStyle = createMemo(() => getAvatarGradientStyle(name()));
+    const initials = createMemo(() => getInitials(name()));
+
     const handleNavClick = () => {
         if (isMobileViewport()) setIsMobileOpen(false);
     };
@@ -31,9 +36,9 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
             <div class="absolute inset-0 flex items-center px-4 sm:pl-5 pointer-events-none z-10">
                 <div
                     class="size-10 rounded-xl flex items-center justify-center text-white font-semibold text-sm shadow-sm shrink-0"
-                    style={getAvatarGradientStyle(props.userName)}
+                    style={avatarStyle()}
                 >
-                    {getInitials(props.userName)}
+                    {initials()}
                 </div>
             </div>
 
@@ -50,8 +55,8 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                         </DropdownMenu.Trigger>
                         <DropdownMenu.Content class="w-56 mb-2 p-0">
                             <UserMenuDropdown
-                                userName={props.userName}
-                                userRole={props.userRole}
+                                userName={name()}
+                                userRole={role()}
                                 onNavClick={handleNavClick}
                                 onLogout={handleLogout}
                                 isLoggingOut={isLoggingOut}
@@ -76,9 +81,9 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                         <div class="size-10 shrink-0 opacity-0" />
                         <div class="flex-1 min-w-0">
                             <p class="font-semibold text-sm truncate text-heading group-hover:text-primary">
-                                {props.userName}
+                                {name()}
                             </p>
-                            <p class="text-muted text-xs truncate">{props.userRole}</p>
+                            <p class="text-muted text-xs truncate">{role()}</p>
                         </div>
                     </Link>
 

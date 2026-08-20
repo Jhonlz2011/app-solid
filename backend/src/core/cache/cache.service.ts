@@ -20,7 +20,10 @@ export const cacheService = {
         const data = await fetcher();
 
         try {
-            if (data) {
+            // No cachear arrays vacíos ni valores null/undefined
+            // Un array vacío [] es truthy pero indica tabla vacía — no cachear para forzar retry
+            const shouldCache = Array.isArray(data) ? (data as any[]).length > 0 : data != null;
+            if (shouldCache) {
                 await redis.set(key, JSON.stringify(data), 'EX', ttl);
             }
         } catch (error) {

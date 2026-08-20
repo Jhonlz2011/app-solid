@@ -152,7 +152,7 @@ export const Sidebar: Component = () => {
                 <SidebarNav items={menuItems()} />
 
                 <SidebarFooter
-                    userName={auth.user()?.username || 'Usuario'}
+                    userName={auth.user()?.username || auth.user()?.email?.split('@')[0] || 'Usuario'}
                     userRole={auth.user()?.roles?.[0] || 'Usuario'}
                 />
             </aside>

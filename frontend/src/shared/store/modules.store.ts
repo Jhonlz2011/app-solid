@@ -16,7 +16,7 @@ interface ModulesState {
     modules: ModuleConfig[];
     isLoading: boolean;
     error: string | null;
-    cachedForUserId: number | null;  // Track which user's menu is cached
+    cachedForUserId: string | null;  // string: user.id es UUIDv7, no number
 }
 
 const [state, setState] = createStore<ModulesState>({
@@ -32,7 +32,8 @@ let fetchPromise: Promise<void> | null = null;
 export const actions = {
     fetchModules: async () => {
         const auth = useAuth();
-        const currentUserId = auth.user()?.id ?? null;
+        // user.id es string (UUIDv7) — comparar como string
+        const currentUserId = auth.user()?.id ? String(auth.user()!.id) : null;
 
         // Reuse existing request if in progress
         if (fetchPromise) {
@@ -43,15 +44,16 @@ export const actions = {
         if (
             state.modules.length > 0 &&
             !state.error &&
+            currentUserId !== null &&
             state.cachedForUserId === currentUserId
         ) {
             return;
         }
 
-        if (!auth.isAuthenticated()) {
-            setState({ modules: [], isLoading: false, cachedForUserId: null });
-            return;
-        }
+        // NOTA: No verificamos auth.isAuthenticated() aquí porque este método se llama
+        // desde el router loader que ya garantiza que beforeLoad pasó exitosamente.
+        // Verificar isAuthenticated() en el loader puede dar false si se corre en paralelo.
+        // Si no hay userId disponible aún, igual procedemos (el API retornará 401 si no hay sesión).
 
         setState("isLoading", true);
         fetchPromise = (async () => {

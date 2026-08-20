@@ -37,40 +37,35 @@ import { serveSpa } from './core/spa';
 import { startAuditWorker } from './modules/audit';
 
 // ============================================================================
-// 1. CORS CONFIGURATION (Dynamic Regex for *.zelys.app & Localhost)
+// 1. CORS — zelys.app + *.zelys.app en producción, localhost en desarrollo
 // ============================================================================
 
 const corsOriginValidator = (request: Request): boolean => {
   const origin = request.headers.get('origin');
   if (!origin) return false;
 
-  // Development: allow localhost, 127.0.0.1 and LAN IPs
+  // Producción: zelys.app y cualquier subdominio *.zelys.app
+  if (/^https:\/\/([a-z0-9-]+\.)*zelys\.app$/i.test(origin)) return true;
+
+  // Desarrollo: localhost, 127.0.0.1 y LAN
   if (env.NODE_ENV !== 'production') {
     if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin)) {
       return true;
     }
   }
 
-  // Production / Staging: allow zelys.app and all *.zelys.app subdomains
-  if (/^https:\/\/([a-z0-9-]+\.)*zelys\.app(:\d+)?$/i.test(origin)) {
-    return true;
-  }
-
-  return origin === env.FRONTEND_URL;
+  return false;
 };
 
 // ============================================================================
-// 2. LEGACY JWT VERIFICATION FALLBACK
+// 2. LEGACY JWT EMAIL VERIFICATION — compatibilidad con enlaces previos
 // ============================================================================
 
 async function handleLegacyJwtVerification(request: Request): Promise<Response | null> {
   const url = new URL(request.url);
   const token = url.searchParams.get('token');
 
-  // Only intercept legacy JWT tokens starting with standard base64 'eyJ'
-  if (!token || !token.startsWith('eyJ')) {
-    return null;
-  }
+  if (!token || !token.startsWith('eyJ')) return null;
 
   try {
     const { jwtVerify } = await import('jose');
@@ -94,17 +89,16 @@ async function handleLegacyJwtVerification(request: Request): Promise<Response |
       if (updatedUser) {
         broadcast(RealtimeEvents.USER.EMAIL_VERIFIED, { userId: updatedUser.id }, `user:${updatedUser.id}`);
 
-        const acceptHeader = request.headers.get('accept') || '';
-        if (acceptHeader.includes('text/html')) {
+        if (request.headers.get('accept')?.includes('text/html')) {
           const { tenantSlug } = await getTenantInfoForEmail(updatedUser.email);
           const baseUrl = resolveTenantUrl(tenantSlug);
           return Response.redirect(`${baseUrl}/verify-email?verified=true`, 302);
         }
 
-        return new Response(JSON.stringify({ status: true, user: { id: updatedUser.id, email: updatedUser.email } }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ status: true, user: { id: updatedUser.id, email: updatedUser.email } }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
       }
     }
   } catch (err) {
@@ -115,10 +109,10 @@ async function handleLegacyJwtVerification(request: Request): Promise<Response |
 }
 
 // ============================================================================
-// 3. API ROUTER (/api)
+// 3. API APP (Sub-aplicación con todas las rutas del dominio)
 // ============================================================================
 
-const apiApp = new Elysia({ prefix: '/api', aot: false })
+export const apiApp = new Elysia({ aot: false })
   .use(cors({
     origin: corsOriginValidator,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -136,33 +130,31 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(swagger({
     documentation: {
       info: {
-        title: 'ERP Services API',
+        title: 'Zelys ERP API',
         version: '2.0.0',
-        description: 'API for service-oriented ERP with real-time updates',
+        description: 'API empresarial con autenticación multi-tenant y RBAC',
       },
       tags: [
-        { name: 'Auth', description: 'Authentication & Authorization' },
-        { name: 'Clients', description: 'Client management' },
-        { name: 'Suppliers', description: 'Supplier management' },
-        { name: 'Employees', description: 'Employee & Carrier management' },
-        { name: 'Products', description: 'Product catalog' },
-        { name: 'Categories', description: 'Product categories' },
-        { name: 'Catalogs', description: 'System catalogs (UOM, Brands, Attributes)' },
-        { name: 'Inventory', description: 'Stock & Movements' },
-        { name: 'Tools', description: 'Tool management & Loans' },
-        { name: 'Work Orders', description: 'Manufacturing orders' },
-        { name: 'Invoices', description: 'Billing & Payments' },
-        { name: 'Documents', description: 'Electronic Documents (SRI)' },
-        { name: 'RemissionGuides', description: 'Remission/Shipping Guides' },
-        { name: 'Materials', description: 'Material requests' },
-        { name: 'BOM', description: 'Bill of Materials' },
+        { name: 'Auth', description: 'Autenticación y autorización' },
+        { name: 'Clients', description: 'Clientes' },
+        { name: 'Suppliers', description: 'Proveedores' },
+        { name: 'Employees', description: 'Empleados y transportistas' },
+        { name: 'Products', description: 'Catálogo de productos' },
+        { name: 'Categories', description: 'Categorías de productos' },
+        { name: 'Catalogs', description: 'Catálogos del sistema (UOM, Marcas, Atributos)' },
+        { name: 'Inventory', description: 'Stock y movimientos' },
+        { name: 'Work Orders', description: 'Órdenes de fabricación' },
+        { name: 'Invoices', description: 'Facturación y pagos' },
+        { name: 'Documents', description: 'Documentos electrónicos (SRI)' },
+        { name: 'Materials', description: 'Solicitudes de materiales' },
+        { name: 'BOM', description: 'Lista de materiales' },
       ],
     },
   }))
   .use(errorHandlerPlugin)
   .get('/health', () => ({ status: 'ok', ts: Date.now() }))
 
-  // Better-Auth Core Handler (mounted at /api/auth/*)
+  // Better-Auth handler montado en /auth (cuando se monta bajo /api queda como /api/auth)
   .all('/auth/verify-email', async ({ request }) => {
     const legacyResponse = await handleLegacyJwtVerification(request);
     if (legacyResponse) return legacyResponse;
@@ -206,19 +198,18 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(staticPlugin({ assets: 'public', prefix: '/' }));
 
 // ============================================================================
-// 4. ROOT SERVER (SPA + API)
+// 4. ROOT SERVER (Monta /api y sirve la SPA)
 // ============================================================================
 
-const serverConfig = {
-  port: env.PORT,
-  hostname: '0.0.0.0',
-};
-
 const app = new Elysia()
-  .use(apiApp)
+  .use(cors({
+    origin: corsOriginValidator,
+    credentials: true,
+  }))
+  .group('/api', (app) => app.use(apiApp))
   .get('*', serveSpa);
 
-app.listen(serverConfig);
+app.listen({ port: env.PORT, hostname: '0.0.0.0' });
 
 // Background workers
 startAuditWorker();
@@ -228,19 +219,19 @@ startAuditWorker();
     await initSSERedisAdapter();
     console.log('✅ Redis Pub/Sub initialized');
   } catch {
-    console.warn('⚠️ Redis Pub/Sub unavailable. Real-time updates may be limited.');
+    console.warn('⚠️ Redis Pub/Sub unavailable. SSE broadcasting limited to this node.');
   }
 })();
 
 const serverAddress = `http://${app.server?.hostname}:${app.server?.port}`;
-
 console.log(`
-🚀 ERP Backend Server Started
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 Address: ${serverAddress}
-📚 Swagger: ${serverAddress}/api/swagger
+🚀 Zelys ERP Backend
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 API: ${serverAddress}/api
+📚 Docs: ${serverAddress}/api/swagger
 🔌 SSE: ${serverAddress}/api/sse
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
 
-export type App = typeof app;
+export type ApiApp = typeof apiApp;
+export type App = typeof apiApp;
