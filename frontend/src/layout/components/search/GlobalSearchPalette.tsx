@@ -31,6 +31,7 @@ export const GlobalSearchPalette: Component = () => {
     // 1. APLANAR ÁRBOL DE NAVEGACIÓN PARA BÚSQUEDA FUZZY/TEXTUAL
     const searchableItems = createMemo<SearchableItem[]>(() => {
         const flatten = (items: ModuleConfig[], parentBreadcrumbs: string[] = []): SearchableItem[] => {
+            if (!Array.isArray(items)) return [];
             let flat: SearchableItem[] = [];
             for (const item of items) {
                 const breadcrumbs = [...parentBreadcrumbs, item.label];
@@ -50,7 +51,8 @@ export const GlobalSearchPalette: Component = () => {
             }
             return flat;
         };
-        return flatten(modules());
+        const raw = modules();
+        return Array.isArray(raw) ? flatten(raw) : [];
     });
 
     // 2. FILTRAR RESULTADOS

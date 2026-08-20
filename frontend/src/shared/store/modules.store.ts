@@ -59,7 +59,7 @@ export const actions = {
                 const { data, error } = await api.modules.tree.get();
                 if (error) throw new Error(String(error.value));
                 setState({
-                    modules: data as ModuleConfig[],
+                    modules: Array.isArray(data) ? data as ModuleConfig[] : [],
                     error: null,
                     cachedForUserId: currentUserId,
                 });

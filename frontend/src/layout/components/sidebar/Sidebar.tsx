@@ -58,7 +58,8 @@ export const Sidebar: Component = () => {
             status: m.status,
             children: m.children?.map(mapItem)
         });
-        return modules().map(mapItem);
+        const raw = modules();
+        return Array.isArray(raw) ? raw.map(mapItem) : [];
     });
 
     const isActive = (path?: string) => {
