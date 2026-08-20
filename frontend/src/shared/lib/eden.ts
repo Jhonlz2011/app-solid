@@ -13,9 +13,8 @@ export const clientId = (() => {
 import { setOnlineStatus } from '@shared/hooks/useOnlineStatus';
 
 const rawBase = import.meta.env.VITE_API_URL || 'https://api.zelys.app';
-const apiBase = rawBase.endsWith('/api') ? rawBase : `${rawBase.replace(/\/$/, '')}/api`;
 
-export const api = treaty<App>(apiBase, {
+const client = treaty<App>(rawBase, {
     fetcher: async (url, options) => {
         // Automatically inject client ID to all requests
         const headers = new Headers(options?.headers);
@@ -46,3 +45,5 @@ export const api = treaty<App>(apiBase, {
         }
     }
 });
+
+export const api = client.api;

@@ -22,7 +22,7 @@ export const profileRoutes = new Elysia({ prefix: '/profile' })
       username: t.Optional(t.Union([t.String(), t.Null()])),
       entityId: t.Optional(t.Union([t.Number(), t.Null()])),
       isActive: t.Optional(t.Union([t.Boolean(), t.Null()])),
-      lastLogin: t.Optional(t.Union([t.String(), t.Null()])),
+      lastLogin: t.Optional(t.Union([t.Date(), t.String(), t.Null()])),
       emailVerified: t.Optional(t.Boolean()),
       roles: t.Array(t.String()),
       permissions: t.Array(t.String()),
@@ -50,7 +50,7 @@ export const profileRoutes = new Elysia({ prefix: '/profile' })
         user: t.Optional(t.Object({
           id: t.Union([t.Number(), t.String()]),
           email: t.String(),
-          username: t.String(),
+          username: t.Union([t.String(), t.Null()]),
         })),
       }),
     }
