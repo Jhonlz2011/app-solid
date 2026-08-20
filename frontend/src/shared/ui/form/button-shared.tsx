@@ -3,6 +3,7 @@ import { cn } from '../../lib/utils';
 import { SpinnerIcon } from '@icons/SpinnerIcon';
 
 export const BUTTON_VARIANTS = {
+  none: "",
   primary: "bg-primary text-on-primary hover:bg-primary/90 active:scale-[0.97] transition-all duration-200 border border-transparent shadow-lg shadow-primary/20",
   secondary: "bg-secondary text-on-secondary hover:bg-secondary active:scale-[0.97] transition-all duration-200 border border-transparent shadow-lg shadow-secondary/20",
   outline: "bg-transparent border border-border text-text hover:bg-surface hover:border-border-strong active:bg-surface-3 active:scale-[0.97] transition-scale duration-200",

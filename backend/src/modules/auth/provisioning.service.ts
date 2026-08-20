@@ -12,6 +12,7 @@ import {
     authRoles, authPermissions, authRolePermissions, authUserRoles,
     authMenuItems, warehouses, warehouseLocations, uom,
 } from '@app/schema/tables';
+import type { MenuItemStatus } from '@app/schema/enums';
 
 // @ts-ignore — relative path to seeds is valid at runtime
 import { PERMISSIONS, ROLES, ROLE_PERMISSIONS, MENU_ITEMS, DERIVED_UOM_DATA } from '../../seeds/seed-data';
@@ -80,6 +81,7 @@ export async function seedCompanyMenus(tx: Tx) {
 
     // Insert parent items
     for (const item of MENU_ITEMS) {
+        const itemStatus: MenuItemStatus = item.status ?? 'active';
         const [result] = await tx
             .insert(authMenuItems)
             .values({
@@ -90,6 +92,7 @@ export async function seedCompanyMenus(tx: Tx) {
                 parent_id: null,
                 sort_order: item.sort_order,
                 permission_prefix: item.permission_prefix || null,
+                status: itemStatus,
             })
             .onConflictDoUpdate({
                 target: authMenuItems.key,
@@ -99,6 +102,7 @@ export async function seedCompanyMenus(tx: Tx) {
                     path: item.path || null,
                     sort_order: item.sort_order,
                     permission_prefix: item.permission_prefix || null,
+                    status: itemStatus,
                 }
             })
             .returning({ id: authMenuItems.id });
@@ -113,6 +117,7 @@ export async function seedCompanyMenus(tx: Tx) {
         if (!parentId) continue;
 
         for (const child of parent.children) {
+            const childStatus: MenuItemStatus = child.status ?? 'active';
             await tx
                 .insert(authMenuItems)
                 .values({
@@ -123,6 +128,7 @@ export async function seedCompanyMenus(tx: Tx) {
                     parent_id: parentId,
                     sort_order: child.sort_order,
                     permission_prefix: child.permission_prefix || null,
+                    status: childStatus,
                 })
                 .onConflictDoUpdate({
                     target: authMenuItems.key,
@@ -133,6 +139,7 @@ export async function seedCompanyMenus(tx: Tx) {
                         parent_id: parentId,
                         sort_order: child.sort_order,
                         permission_prefix: child.permission_prefix || null,
+                        status: childStatus,
                     }
                 });
         }

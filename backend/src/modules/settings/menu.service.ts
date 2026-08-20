@@ -1,6 +1,7 @@
 import { db, adminDb } from '../../core/db';
 import { authMenuItems } from '@app/schema/tables';
 import { eq, asc, sql } from '@app/schema';
+import type { MenuItemStatus } from '@app/schema/enums';
 import { getUserPermissions, getUserRoles } from '../users/rbac.permission.service';
 import { cacheService } from '../../core/cache';
 
@@ -11,7 +12,7 @@ export interface ModuleConfig {
     icon?: string;
     path?: string;
     permission?: string;
-    status?: string;
+    status?: MenuItemStatus;
     children?: ModuleConfig[];
 }
 
@@ -24,7 +25,7 @@ interface DbMenuItem {
     parent_id: number | null;
     sort_order: number | null;
     permission_prefix: string | null;
-    status: string | null;
+    status: MenuItemStatus | null;
 }
 
 /**
@@ -73,19 +74,19 @@ export async function getAllMenuItems() {
 }
 
 /**
- * Update a menu item (label, icon, sort_order)
+ * Update a menu item (label, icon, sort_order, status)
  */
 export async function updateMenuItem(
     id: number,
-    data: { label?: string; icon?: string; sort_order?: number }
+    data: { label?: string; icon?: string; sort_order?: number; status?: MenuItemStatus }
 ) {
     const result = await db
         .update(authMenuItems)
-        .set({ ...data})
+        .set({ ...data })
         .where(eq(authMenuItems.id, id))
         .returning();
         
-    cacheService.invalidate('menus:all');
+    cacheService.invalidate('menus:*');
     return result;
 }
 
@@ -107,7 +108,7 @@ export async function reorderMenuItems(items: { id: number; sort_order: number }
         WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
     `);
 
-    cacheService.invalidate('menus:all');
+    cacheService.invalidate('menus:*');
     return items;
 }
 
@@ -119,6 +120,7 @@ export async function reorderMenuItems(items: { id: number; sort_order: number }
  * Filter menus based on user permissions using permission_prefix.
  * User must explicitly have the specific {prefix}.read permission to see a leaf menu,
  * and we must include all parent menus of accessible children to preserve the tree structure.
+ * Items with status === 'development' are preserved so all users see locked features.
  */
 function filterByPermissions(menus: DbMenuItem[], permissions: string[]): DbMenuItem[] {
     const permissionSet = new Set(permissions);
@@ -126,7 +128,10 @@ function filterByPermissions(menus: DbMenuItem[], permissions: string[]): DbMenu
 
     // Step 1: Identify explicitly accessible menus
     for (const menu of menus) {
-        if (!menu.permission_prefix) {
+        // Items in development are visible in the UI with a lock icon for all authenticated users
+        if (menu.status === 'development') {
+            accessibleMenuIds.add(menu.id);
+        } else if (!menu.permission_prefix) {
             // Leaf menus without permission prefixes are accessible if they have a path
             if (menu.path) {
                 accessibleMenuIds.add(menu.id);
@@ -200,7 +205,7 @@ function buildMenuTree(menus: DbMenuItem[]): ModuleConfig[] {
     }
 
     // Clean up: remove _id and empty children arrays
-    const cleanNode = (node: any): ModuleConfig => {
+    const cleanNode = (node: ModuleConfig & { _id?: number }): ModuleConfig => {
         const { _id, ...rest } = node;
         if (rest.children && rest.children.length === 0) {
             delete rest.children;

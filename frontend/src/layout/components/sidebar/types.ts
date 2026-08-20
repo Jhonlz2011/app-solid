@@ -1,10 +1,12 @@
+import type { MenuItemStatus } from '@app/schema/enums';
+
 // Sidebar Types
 export interface MenuItem {
     id: string;
     label: string;
     icon: string;
     path?: string;
-    status?: string;
+    status?: MenuItemStatus;
     children?: MenuItem[];
 }
 

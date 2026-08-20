@@ -3,6 +3,8 @@
  * Used by both seed.ts (dev setup) and tenant-provisioning.service.ts (runtime registration)
  */
 
+import type { MenuItemStatus } from '@app/schema/enums';
+
 interface MenuSeedItem {
     key: string;
     label: string;
@@ -10,7 +12,7 @@ interface MenuSeedItem {
     path?: string;
     permission_prefix?: string;
     sort_order: number;
-    status?: 'active' | 'development' | 'deprecated';
+    status?: MenuItemStatus;
     children?: MenuSeedItem[];
 }
 

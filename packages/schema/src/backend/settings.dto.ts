@@ -1,14 +1,20 @@
 import { Type, type Static } from './typebox';
 import { TaxRegimeTypeSchema } from './entities.dto';
+import { MENU_ITEM_STATUSES } from '../enums';
 
 // ============================================================================
 // MODULES & NAVIGATION
 // ============================================================================
 
+export const MenuItemStatusSchema = Type.Union(
+    MENU_ITEM_STATUSES.map(s => Type.Literal(s))
+);
+
 export const MenuItemUpdateSchema = Type.Object({
     label: Type.Optional(Type.String()),
     icon: Type.Optional(Type.String()),
     sort_order: Type.Optional(Type.Number()),
+    status: Type.Optional(MenuItemStatusSchema),
 });
 
 export const MenuItemReorderItemSchema = Type.Object({

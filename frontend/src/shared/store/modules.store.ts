@@ -1,6 +1,7 @@
 import { createStore } from "solid-js/store";
 import { api } from "../lib/eden";
 import { useAuth } from "@modules/auth/store/auth.store";
+import type { MenuItemStatus } from "@app/schema/enums";
 
 export interface ModuleConfig {
     key: string;
@@ -8,7 +9,7 @@ export interface ModuleConfig {
     icon?: string;
     path?: string;
     permission?: string;
-    status?: string;
+    status?: MenuItemStatus;
     children?: ModuleConfig[];
 }
 
