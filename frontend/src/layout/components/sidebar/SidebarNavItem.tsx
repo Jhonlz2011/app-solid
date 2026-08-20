@@ -103,19 +103,19 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
         }
     };
 
-    const isDevelopment = props.item.status === 'development';
+    const isDevelopment = createMemo(() => props.item.status === 'development');
 
     // Base classes for the interactive element
-    const baseClasses = `group w-full flex items-center gap-3 h-11 px-4 rounded-xl relative
+    const baseClasses = createMemo(() => `group w-full flex items-center gap-3 h-11 px-4 rounded-xl relative
         text-muted transition-colors duration-200
-        ${isDevelopment 
+        ${isDevelopment() 
             ? 'opacity-60 cursor-not-allowed grayscale' 
             : 'hover:bg-primary/8 hover:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg focus-visible:text-text'
-        }`;
+        }`);
 
-    const activeClasses = isDevelopment ? '' : `data-[state=active]:bg-primary/12 data-[state=active]:text-primary-strong data-[state=active]:font-semibold
+    const activeClasses = createMemo(() => isDevelopment() ? '' : `data-[state=active]:bg-primary/12 data-[state=active]:text-primary-strong data-[state=active]:font-semibold
         data-[state=active]:shadow-[inset_3px_0_0_var(--color-primary-strong)]
-        data-[state=parent-active]:text-primary-strong`;
+        data-[state=parent-active]:text-primary-strong`);
 
     return (
         <li class="relative">
@@ -132,7 +132,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                         onKeyDown={handleKeyDown}
                         onMouseEnter={tooltip.handleMouseEnter}
                         onMouseLeave={tooltip.handleMouseLeave}
-                        class={`${baseClasses} ${activeClasses} cursor-pointer`}
+                        class={`${baseClasses()} ${activeClasses()} cursor-pointer`}
                     >
                         {/* Icon Container */}
                         <div class="flex items-center justify-center size-5 shrink-0">
@@ -150,7 +150,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                         >
                             <span class="whitespace-nowrap">{props.item.label}</span>
                             <div class="flex items-center gap-2">
-                                <Show when={isDevelopment}>
+                                <Show when={isDevelopment()}>
                                     <div class="flex items-center justify-center size-5 bg-card/50 rounded border border-border/50 shrink-0 shadow-xs">
                                         <LockIcon class="size-3 text-muted/60" />
                                     </div>
@@ -174,7 +174,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                     onKeyDown={handleKeyDown}
                     onMouseEnter={tooltip.handleMouseEnter}
                     onMouseLeave={tooltip.handleMouseLeave}
-                    class={`${baseClasses} ${activeClasses}`}
+                    class={`${baseClasses()} ${activeClasses()}`}
                 >
                     {/* Icon Container */}
                     <div class="flex items-center justify-center size-5 shrink-0">
@@ -192,7 +192,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                         }}
                     >
                         <span class="whitespace-nowrap">{props.item.label}</span>
-                        <Show when={isDevelopment}>
+                        <Show when={isDevelopment()}>
                             <div class="flex items-center justify-center size-5 bg-card/50 rounded border border-border/50 shrink-0 shadow-xs">
                                 <LockIcon class="size-3 text-muted/60" />
                             </div>

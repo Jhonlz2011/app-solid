@@ -6,10 +6,11 @@ import { RotateCcwIcon } from '@icons/RotateCcwIcon';
 import { MoreVerticalIcon } from '@icons/MoreVerticalIcon';
 import { EyeIcon } from '@icons/EyeIcon';
 import { useAuth } from '@/modules/auth/store/auth.store';
+import type { RbacModule } from '@app/schema/enums';
 
 export interface ActionMenuProps {
     /** The permission module name (e.g. 'users', 'suppliers') to check capabilities against useAuth() */
-    module: string;
+    module: RbacModule;
     
     /** Whether the row item is currently active. If false, shows Restore instead of Delete */
     isActive: boolean;
@@ -33,10 +34,10 @@ export interface ActionMenuProps {
 const ActionMenu: Component<ActionMenuProps> = (props) => {
     const auth = useAuth();
     // Internal permission validators based on the provided module string
-    const canEdit = () => auth.canEdit(props.module as any);
-    const canDelete = () => auth.canDelete(props.module as any) && props.isActive;
-    const canDestroy = () => auth.hasPermission(`${props.module}.destroy` as any);
-    const canRestore = () => auth.hasPermission(`${props.module}.restore` as any) && !props.isActive;
+    const canEdit = () => auth.canEdit(props.module);
+    const canDelete = () => auth.canDelete(props.module) && props.isActive;
+    const canDestroy = () => auth.hasPermission(`${props.module}.destroy`);
+    const canRestore = () => auth.hasPermission(`${props.module}.restore`) && !props.isActive;
     
     return (
         <div class="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">

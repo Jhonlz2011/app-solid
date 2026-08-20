@@ -90,8 +90,9 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                 const portStr = port ? `:${port}` : '';
                 window.location.href = `${protocol}//${org.slug}.${baseDomain}${portStr}/dashboard`;
             }
-        } catch (err: any) {
-            toast.error(err?.message || 'Error al cambiar de empresa');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : typeof err === 'object' && err !== null && 'message' in err ? String((err as { message: unknown }).message) : 'Error al cambiar de empresa';
+            toast.error(message);
             setSwitchingId(null);
         }
     };

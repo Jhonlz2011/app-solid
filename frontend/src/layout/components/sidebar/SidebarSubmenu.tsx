@@ -31,7 +31,7 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
                         <For each={props.items}>
                             {(child) => {
                                 const isChildActive = createMemo(() => isActive(child.path));
-                                const isDevelopment = child.status === 'development';
+                                const isDevelopment = createMemo(() => child.status === 'development');
 
                                 return (
                                     <li role="none" class="relative">
@@ -39,26 +39,26 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
                                         <span
                                             class="absolute -left-2 top-1/2 -translate-y-1/2 w-0.5 rounded-sm"
                                             classList={{
-                                                'h-9.5 bg-primary shadow-[0_0_8px_var(--color-primary)]': isChildActive() && !isDevelopment,
-                                                'h-0 bg-transparent': !isChildActive() || isDevelopment
+                                                'h-9.5 bg-primary shadow-[0_0_8px_var(--color-primary)]': isChildActive() && !isDevelopment(),
+                                                'h-0 bg-transparent': !isChildActive() || isDevelopment()
                                             }}
                                         />
 
                                         <Link
                                             to={child.path || '#'}
                                             role="menuitem"
-                                            tabIndex={props.expanded && !isDevelopment ? 0 : -1}
-                                            data-active={(isChildActive() && !isDevelopment) ? 'true' : undefined}
-                                            disabled={isDevelopment}
+                                            tabIndex={props.expanded && !isDevelopment() ? 0 : -1}
+                                            data-active={(isChildActive() && !isDevelopment()) ? 'true' : undefined}
+                                            disabled={isDevelopment()}
                                             onClick={(e) => {
-                                                if (isDevelopment) {
+                                                if (isDevelopment()) {
                                                     e.preventDefault();
                                                     return;
                                                 }
                                                 if (isMobileOpen()) setIsMobileOpen(false);
                                             }}
                                             class={`group flex items-center justify-between gap-2 py-2.5 px-3 rounded-xl text-sm transition-all duration-200 ${
-                                                isDevelopment 
+                                                isDevelopment() 
                                                     ? 'text-muted/50 cursor-not-allowed bg-transparent' 
                                                     : 'text-muted hover:text-heading hover:bg-primary/8 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset data-[active=true]:text-primary-strong data-[active=true]:font-medium data-[active=true]:bg-primary/10 focus-visible:text-heading'
                                             }`}
@@ -79,7 +79,7 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
                                                 <span class="truncate">{child.label}</span>
                                             </div>
                                             {/* Lock Icon for development items */}
-                                            <Show when={isDevelopment}>
+                                            <Show when={isDevelopment()}>
                                                 <div class="flex items-center justify-center size-5 bg-card/50 rounded border border-border/50 shrink-0 shadow-xs group-hover:bg-card group-hover:border-border/80 transition-colors">
                                                     <LockIcon class="size-3 text-muted/60" />
                                                 </div>

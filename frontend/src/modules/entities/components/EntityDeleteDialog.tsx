@@ -8,7 +8,7 @@ import DeleteDialog from '@overlay/DeleteDialog';
 
 export interface EntityDeleteDialogProps {
     entity: EntityListItem | null;
-    permissionKey: RbacModule | string;
+    permissionKey: RbacModule;
     entityNameSingular?: string;
     useCheckReferences: (id: () => number | null, enabled: () => boolean) => any;
     deleteMutation: {
@@ -25,7 +25,7 @@ export interface EntityDeleteDialogProps {
 
 export const EntityDeleteDialog: Component<EntityDeleteDialogProps> = (props) => {
     const auth = useAuth();
-    const canDestroy = () => auth.hasPermission(`${props.permissionKey}.destroy` as any);
+    const canDestroy = () => auth.hasPermission(`${props.permissionKey}.destroy`);
 
     const [mode, setMode] = createSignal<'soft' | 'hard'>('soft');
 

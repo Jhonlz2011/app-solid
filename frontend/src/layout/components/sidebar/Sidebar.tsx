@@ -1,7 +1,7 @@
 import { Component, createSignal, Show, createEffect, createMemo, untrack } from 'solid-js';
 import { useNavigate, useLocation } from '@tanstack/solid-router';
 import { useAuth } from '@modules/auth/store/auth.store';
-import { useModules } from '@shared/store/modules.store';
+import { useModules, type ModuleConfig } from '@shared/store/modules.store';
 import { SidebarHeader } from './SidebarHeader';
 import { SidebarSearch } from './SidebarSearch';
 import { SidebarNav } from './SidebarNav';
@@ -50,7 +50,7 @@ export const Sidebar: Component = () => {
 
     // --- NAVIGATION LOGIC ---
     const menuItems = createMemo(() => {
-        const mapItem = (m: any): MenuItem => ({
+        const mapItem = (m: ModuleConfig): MenuItem => ({
             id: m.key,
             label: m.label,
             icon: m.icon || '',

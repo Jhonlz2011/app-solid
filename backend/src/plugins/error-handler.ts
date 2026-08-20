@@ -22,6 +22,20 @@ function extractConstraintField(detail?: string): string | null {
   return PG_COLUMN_TO_FIELD[match[1]] || match[1];
 }
 
+interface AuthApiError {
+  name?: string;
+  status?: number;
+  code?: string;
+  body?: { code?: string; message?: string };
+  message?: string;
+}
+
+interface PostgresDatabaseError {
+  code?: string;
+  detail?: string;
+  constraint?: string;
+}
+
 export const errorHandlerPlugin = new Elysia()
   .onError(({ code, error, set }) => {
     // 1. Domain errors (DomainError & AuthError if it extends DomainError)
@@ -35,7 +49,7 @@ export const errorHandlerPlugin = new Elysia()
     }
 
     // 2. Better-Auth APIError / HTTP status errors
-    const anyErr = error as any;
+    const anyErr = error as unknown as AuthApiError;
     if (anyErr?.name === 'APIError' || (typeof anyErr?.status === 'number' && anyErr.status >= 400 && anyErr.status < 500)) {
       set.status = anyErr.status;
       return {
@@ -78,7 +92,7 @@ export const errorHandlerPlugin = new Elysia()
     }
 
     // 4. PostgreSQL / Drizzle DB errors (Bubble up)
-    const pgError = error as any;
+    const pgError = error as unknown as PostgresDatabaseError;
     if (pgError?.code === '23505') {
       // Unique constraint violation
       set.status = 409;

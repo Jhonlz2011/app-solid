@@ -13,6 +13,7 @@ import {
     authMenuItems, warehouses, warehouseLocations, uom,
 } from '@app/schema/tables';
 import type { MenuItemStatus } from '@app/schema/enums';
+import { cacheService } from '../../core/cache';
 
 // @ts-ignore — relative path to seeds is valid at runtime
 import { PERMISSIONS, ROLES, ROLE_PERMISSIONS, MENU_ITEMS, DERIVED_UOM_DATA } from '../../seeds/seed-data';
@@ -144,6 +145,8 @@ export async function seedCompanyMenus(tx: Tx) {
                 });
         }
     }
+
+    cacheService.invalidate('menus:*');
 }
 
 /**

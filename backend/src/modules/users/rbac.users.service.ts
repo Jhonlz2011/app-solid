@@ -137,11 +137,12 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
     return cacheService.getOrSet(cacheKey, async () => {
         const results: Record<string, { value: string; count: number }[]> = {};
 
-        let activeConditions: any[] = [];
+        const activeConditions: SQL[] = [];
         if (companyId) activeConditions.push(eq(authUsers.company_id, companyId));
         if (filters.search) {
             const term = `%${filters.search}%`;
-            activeConditions.push(or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term)));
+            const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term));
+            if (searchCond) activeConditions.push(searchCond);
         }
         if (filters.roles && filters.roles.length > 0) {
             const rolesSubquery = db
@@ -165,11 +166,12 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
             
         results['isActive'] = activeRows.filter(r => r.value !== null).map(r => ({ value: r.value, count: Number(r.count) }));
 
-        let rolesConditions: any[] = [];
+        const rolesConditions: SQL[] = [];
         if (companyId) rolesConditions.push(eq(authUsers.company_id, companyId));
         if (filters.search) {
             const term = `%${filters.search}%`;
-            rolesConditions.push(or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term)));
+            const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term));
+            if (searchCond) rolesConditions.push(searchCond);
         }
         if (filters.isActive && filters.isActive.length > 0) {
             const boolValues = filters.isActive.map(v => v === 'true');

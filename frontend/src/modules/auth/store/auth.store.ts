@@ -91,6 +91,10 @@ export const actions = {
                 brandingActions.loadBrandingForSlug(user.companySlug);
             }
 
+            // Invalidate module caches for fresh menu tree on login
+            const { actions: moduleActions } = await import('@shared/store/modules.store');
+            moduleActions.clearModules();
+
             return { user, sessionId: currentSessionId, organizations };
         } catch (error) {
             setState('status', 'unauthenticated');

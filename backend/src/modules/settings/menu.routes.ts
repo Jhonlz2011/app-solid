@@ -1,7 +1,6 @@
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import { authGuard } from '../../plugins/auth-guard';
 import { ForbiddenError } from '../../core/errors';
-import { getAllowedModules } from '../users/rbac.permission.service';
 import { SYSTEM_ROLES } from '@app/schema/enums';
 import {
     getMenuForUser,
@@ -21,49 +20,11 @@ function assertAdmin(roles?: string[]) {
 export const modulesRoutes = new Elysia({ prefix: '/modules' })
     .use(authGuard)
     /**
-     * Get allowed modules for current user
-     * Returns array of module keys the user can access
-     */
-    .get('/', async ({ currentUserId, currentCompanyId }) => {
-        return getAllowedModules(currentUserId, currentCompanyId);
-    })
-    /**
      * Get full menu tree for current user (filtered by permissions)
      */
     .get('/tree', async ({ currentUserId, currentCompanyId }) => {
         return getMenuForUser(currentUserId, currentCompanyId);
     })
-    /**
-     * Get current user's permissions
-     */
-    .get('/permissions', ({ currentRoles, currentPermissions }) => {
-        if (currentRoles?.includes(SYSTEM_ROLES.SUPERADMIN)) {
-            return ['*'];
-        }
-        return currentPermissions || [];
-    })
-    /**
-     * Get current user's roles
-     */
-    .get('/roles', ({ currentRoles }) => {
-        return { roles: currentRoles || [] };
-    })
-    /**
-     * Check if user has specific permission
-     */
-    .get(
-        '/check/:permission',
-        ({ currentRoles, currentPermissions, params }) => {
-            if (currentRoles?.includes(SYSTEM_ROLES.SUPERADMIN)) {
-                return { hasPermission: true, permission: params.permission };
-            }
-            const hasPermission = (currentPermissions || []).includes(params.permission);
-            return { hasPermission, permission: params.permission };
-        },
-        {
-            params: t.Object({ permission: t.String() }),
-        }
-    )
     // ============================================
     // MENU MANAGEMENT ENDPOINTS (Admin only)
     // ============================================

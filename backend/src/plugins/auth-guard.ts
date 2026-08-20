@@ -55,7 +55,7 @@ export const authGuard = (app: Elysia) => app
 
       // Fallback: resolve from user.company_id denormalized cache
       if (!resolvedCompanyId) {
-        const rawUser = sessionData.user as any;
+        const rawUser = sessionData.user as typeof sessionData.user & { companyId?: number; company_id?: number };
         resolvedCompanyId = rawUser.companyId || rawUser.company_id || null;
       }
 

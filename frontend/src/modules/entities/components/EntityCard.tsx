@@ -29,8 +29,8 @@ export const EntityCard: Component<EntityCardProps> = (props) => {
     const auth = useAuth();
     const navigate = useNavigate();
     const basePath = () => props.basePath || (props.entity.is_client ? '/clients' : props.entity.is_supplier ? '/suppliers' : props.entity.is_employee ? '/employees' : '/clients');
-    const permKey = () => props.permissionKey || (props.entity.is_client ? 'clients' : props.entity.is_supplier ? 'suppliers' : props.entity.is_employee ? 'employees' : 'clients');
-    const canDestroy = () => auth.hasPermission(`${permKey()}.destroy` as any);
+    const permKey = (): RbacModule => props.permissionKey || (props.entity.is_client ? 'clients' : props.entity.is_supplier ? 'suppliers' : props.entity.is_employee ? 'employees' : 'clients');
+    const canDestroy = () => auth.hasPermission(`${permKey()}.destroy`);
 
     return (
         <div

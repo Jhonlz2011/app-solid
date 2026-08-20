@@ -83,50 +83,6 @@ export async function getUserPermissions(userId: string | number, companyId?: nu
 }
 
 /**
- * Check if user has a specific permission
- */
-export async function hasPermission(userId: string | number, requiredPermission: string, companyId?: number | null): Promise<boolean> {
-    const roles = await getUserRoles(userId, companyId);
-    if (roles.includes(SYSTEM_ROLES.SUPERADMIN)) {
-        return true;
-    }
-    const perms = await getUserPermissions(userId, companyId);
-    return perms.includes(requiredPermission);
-}
-
-/**
- * Check if user has a specific role
- */
-export async function hasRole(userId: string | number, requiredRole: string, companyId?: number | null): Promise<boolean> {
-    const roles = await getUserRoles(userId, companyId);
-    return roles.includes(requiredRole);
-}
-
-/**
- * Get allowed module keys for a user based on permissions
- */
-export async function getAllowedModules(userId: string | number, companyId?: number | null): Promise<string[]> {
-    const permissions = await getUserPermissions(userId, companyId);
-    const roles = await getUserRoles(userId, companyId);
-
-    if (roles.includes(SYSTEM_ROLES.SUPERADMIN)) {
-        return ['*'];
-    }
-
-    const moduleKeys = new Set<string>();
-    moduleKeys.add('dashboard');
-
-    for (const perm of permissions) {
-        const [module] = perm.split('.');
-        if (module) {
-            moduleKeys.add(module);
-        }
-    }
-
-    return Array.from(moduleKeys);
-}
-
-/**
  * Invalidate RBAC cache for a user — direct DEL (O(1) vs SCAN O(N))
  */
 export async function invalidateUserRbacCache(userId: string | number, companyId?: number | null): Promise<void> {
