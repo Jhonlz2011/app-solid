@@ -1,7 +1,7 @@
 import { Component, JSX, splitProps } from 'solid-js';
 import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
 import { Link, type LinkProps } from '@tanstack/solid-router';
-import { cn } from '../../lib/utils';
+import { cn } from '@shared/lib/utils';
 import { buttonVariants, type ButtonVariant, type ButtonSize } from '@form/button-shared';
 
 // ============================================================================
@@ -80,12 +80,14 @@ const Trigger: Component<DropdownMenuTriggerProps> = (props) => {
     const [local, others] = splitProps(props, ['children', 'class', 'asChild', 'variant', 'size']);
     return (
         <KobalteDropdownMenu.Trigger
-            class={buttonVariants({
-                variant: local.variant ?? 'ghost',
-                size: local.size ?? 'none',
-                radius: 'xl',
-                class: local.class
-            })}
+            class={cn(
+                local.variant !== 'none' && buttonVariants({
+                    variant: local.variant ?? 'ghost',
+                    size: local.size ?? 'none',
+                    radius: 'xl',
+                }),
+                local.class
+            )}
             {...others}
         >
             {local.children}
@@ -153,7 +155,7 @@ const Item: Component<DropdownMenuItemProps> = (props) => {
 const Separator: Component<DropdownMenuSeparatorProps> = (props) => {
     return (
         <KobalteDropdownMenu.Separator
-            class={cn('-mx-1 my-1 h-px text-border', props.class)}
+            class={cn('-mx-1 my-1 h-px bg-border', props.class)}
         />
     );
 };
@@ -162,7 +164,7 @@ const Separator: Component<DropdownMenuSeparatorProps> = (props) => {
 const Group: Component<DropdownMenuGroupProps> = (props) => {
     const [local, others] = splitProps(props, ['children', 'class']);
     return (
-        <KobalteDropdownMenu.Group class={local.class} {...others}>
+        <KobalteDropdownMenu.Group class={cn(local.class)} {...others}>
             {local.children}
         </KobalteDropdownMenu.Group>
     );

@@ -3,7 +3,7 @@ import { toast } from 'solid-sonner';
 import { useSidebar } from './SidebarContext';
 import { SidebarCollapseIcon } from '@icons/SidebarCollapseIcon';
 import { CloseIcon } from '@icons/CloseIcon';
-import { ChevronDownIcon } from '@icons/ChevronDownIcon';
+import { ChevronsUpDownIcon } from '@icons/ChevronsUpDownIcon';
 import { CheckIcon } from '@icons/CheckIcon';
 import { PlusIcon } from '@icons/PlusIcon';
 import { DropdownMenu } from '@display/DropdownMenu';
@@ -160,7 +160,8 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                 <div class="flex-1 min-w-0 pr-2">
                     <DropdownMenu placement="bottom-start" gutter={8}>
                         <DropdownMenu.Trigger
-                            class="flex items-center gap-3 w-full text-left rounded-xl p-1 -ml-1 hover:bg-card-alt/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer group"
+                            variant="none"
+                            class="flex items-center gap-3 w-full text-left rounded-xl p-1 -ml-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer group"
                             aria-label="Cambiar de empresa"
                             onClick={() => loadOrganizations()}
                         >
@@ -169,7 +170,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
 
                             {/* Company Name & Subtitle */}
                             <div class="flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
-                                <h2 class="font-bold text-sm text-heading whitespace-nowrap truncate group-hover:text-primary transition-colors leading-tight">
+                                <h2 class="font-bold text-sm text-heading whitespace-nowrap truncate group-hover:text-primary leading-tight">
                                     {currentTradeName()}
                                 </h2>
                                 <p class="text-muted text-[10px] whitespace-nowrap truncate leading-tight mt-0.5">
@@ -177,7 +178,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                                 </p>
                             </div>
 
-                            <ChevronDownIcon class="size-4 text-muted shrink-0 group-hover:text-heading transition-colors" />
+                            <ChevronsUpDownIcon class="size-4 text-muted shrink-0 group-hover:text-heading transition-colors" />
                         </DropdownMenu.Trigger>
 
                         <DropdownMenu.Content class="w-64 p-1.5 shadow-xl border border-border bg-card rounded-2xl">
