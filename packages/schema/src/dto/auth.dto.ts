@@ -36,14 +36,14 @@ export interface AuthUserEntityDto {
 }
 
 export interface AuthUserResponseDto {
-    id: number;
+    id: string | number;
     companyId: number;
     username: string;
     email: string;
     isActive: boolean | null;
     lastLogin: Date | null;
     entityId: number | null;
-    emailVerifiedAt: Date | string | null;
+    emailVerified?: boolean;
     companySlug: string;
     roles: string[];
     permissions: string[];
@@ -52,6 +52,7 @@ export interface AuthUserResponseDto {
 
 export interface DiscoverTenantItemDto {
     id: number;
+    organizationId: string;  // Better-Auth organization.id (UUIDv7) — requerido para setActive
     slug: string;
     businessName: string;
     tradeName: string | null;

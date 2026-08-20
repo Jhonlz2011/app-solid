@@ -168,8 +168,11 @@ const apiApp = new Elysia({ prefix: '/api', aot: false })
     if (legacyResponse) return legacyResponse;
     return auth.handler(request);
   })
-  .all('/auth/*', ({ request }) => auth.handler(request))
   .all('/auth', ({ request }) => auth.handler(request))
+  .all('/auth/*', ({ request }) => auth.handler(request))
+  .all('/auth/*/*', ({ request }) => auth.handler(request))
+  .all('/auth/*/*/*', ({ request }) => auth.handler(request))
+  .mount('/auth', auth.handler)
 
   // Domain routes
   .use(tenantRoutes)

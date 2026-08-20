@@ -1,4 +1,4 @@
-import { db } from '../../core/db';
+import { db, adminDb } from '../../core/db';
 import { authMenuItems } from '@app/schema/tables';
 import { eq, asc, sql } from '@app/schema';
 import { getUserPermissions, getUserRoles } from '../users/rbac.permission.service';
@@ -36,7 +36,7 @@ export async function getMenuForUser(userId: string | number, companyId?: number
         getUserRoles(userId, companyId),
         getUserPermissions(userId, companyId),
         cacheService.getOrSet('menus:all', async () => {
-            return db.select()
+            return adminDb.select()
                 .from(authMenuItems)
                 // We fetch all items, including 'development', to show them locked in the UI
                 .orderBy(asc(authMenuItems.sort_order));
@@ -54,7 +54,7 @@ export async function getMenuForUser(userId: string | number, companyId?: number
  */
 export async function getFullMenuTree(): Promise<ModuleConfig[]> {
     const allMenus = await cacheService.getOrSet('menus:all', async () => {
-        return db.select()
+        return adminDb.select()
             .from(authMenuItems)
             .orderBy(asc(authMenuItems.sort_order));
     }, 86400);

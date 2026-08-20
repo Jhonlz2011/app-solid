@@ -24,7 +24,6 @@ export const profileRoutes = new Elysia({ prefix: '/profile' })
       isActive: t.Optional(t.Union([t.Boolean(), t.Null()])),
       lastLogin: t.Optional(t.Union([t.String(), t.Null()])),
       emailVerified: t.Optional(t.Boolean()),
-      emailVerifiedAt: t.Optional(t.Union([t.String(), t.Null()])),
       roles: t.Array(t.String()),
       permissions: t.Array(t.String()),
       entity: t.Optional(t.Object({

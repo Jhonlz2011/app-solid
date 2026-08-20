@@ -1,5 +1,5 @@
-import { db } from '../../core/db';
-import { authUserRoles, authRoles, authUsers, sessions } from '@app/schema/tables';
+import { db, adminDb } from '../../core/db';
+import { authUserRoles, authRoles, authUsers, sessions, member } from '@app/schema/tables';
 import { eq, sql, count, and } from '@app/schema';
 import { redis } from '../../core/cache/redis';
 import { cacheService } from '../../core/cache';
@@ -25,13 +25,28 @@ export async function getUserRoles(userId: string | number, companyId?: number |
             conditions.push(eq(authUserRoles.company_id, companyId));
         }
 
-        const userRoles = await db
+        const userRoles = await adminDb
             .select({ roleName: authRoles.name })
             .from(authUserRoles)
             .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
             .where(and(...conditions));
 
-        return userRoles.map(r => r.roleName);
+        if (userRoles.length > 0) {
+            return userRoles.map(r => r.roleName);
+        }
+
+        // Fallback: check Better-Auth member table for owner role
+        const [memberRow] = await adminDb
+            .select({ role: member.role })
+            .from(member)
+            .where(eq(member.userId, userIdStr))
+            .limit(1);
+
+        if (memberRow?.role === 'owner') {
+            return ['superadmin'];
+        }
+
+        return [];
     }, 300);
 }
 
@@ -45,7 +60,7 @@ export async function getUserPermissions(userId: string | number, companyId?: nu
 
     return cacheService.getOrSet(cacheKey, async () => {
         const companyFilter = companyId ? sql`AND ur.company_id = ${companyId}` : sql``;
-        const result = await db.execute(sql`
+        const result = await adminDb.execute(sql`
             SELECT DISTINCT ap.slug
             FROM auth_user_roles ur
             JOIN auth_role_permissions rp ON ur.role_id = rp.role_id
@@ -54,7 +69,16 @@ export async function getUserPermissions(userId: string | number, companyId?: nu
             ${companyFilter}
         `);
 
-        return (result as unknown as { slug: string }[]).map(r => r.slug);
+        const perms = (result as unknown as { slug: string }[]).map(r => r.slug);
+        if (perms.length > 0) return perms;
+
+        // Fallback: if user is superadmin / owner, give full wildcard access
+        const roles = await getUserRoles(userId, companyId);
+        if (roles.includes(SYSTEM_ROLES.SUPERADMIN)) {
+            return ['*'];
+        }
+
+        return [];
     }, 300);
 }
 
@@ -117,7 +141,9 @@ export async function invalidateUserRbacCache(userId: string | number, companyId
         }
         await redis.del(...keysToDelete);
 
-        const activeSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.userId, userIdStr));
+        // Usar adminDb — sessions de Better-Auth no tienen RLS, pero esta es una operación
+        // administrativa que debe funcionar independientemente del contexto de tenant activo
+        const activeSessions = await adminDb.select({ id: sessions.id }).from(sessions).where(eq(sessions.userId, userIdStr));
         if (activeSessions.length > 0) {
             const sessionKeys = activeSessions.map(s => `session:${s.id}`);
             await redis.del(...sessionKeys);
@@ -132,10 +158,11 @@ export async function invalidateUserRbacCache(userId: string | number, companyId
  */
 export async function revokeAllUserSessions(userId: string | number): Promise<void> {
     const userIdStr = String(userId);
-    const activeSessions = await db.select({ id: sessions.id })
+    // Usar adminDb — operación administrativa, independiente del contexto de tenant
+    const activeSessions = await adminDb.select({ id: sessions.id })
         .from(sessions).where(eq(sessions.userId, userIdStr));
     if (!activeSessions.length) return;
-    await db.delete(sessions).where(eq(sessions.userId, userIdStr));
+    await adminDb.delete(sessions).where(eq(sessions.userId, userIdStr));
     await redis.del(...activeSessions.map(s => `session:${s.id}`));
     for (const s of activeSessions) {
         broadcast(RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId: s.id }, `user:${userIdStr}`);
@@ -149,7 +176,9 @@ export async function ensureNotLastSuperadmin(userId: string | number): Promise<
     const userIdStr = String(userId);
     const roles = await getUserRoles(userId);
     if (!roles.includes(SYSTEM_ROLES.SUPERADMIN)) return;
-    const [result] = await db.select({ count: count() })
+    // CRÍTICO: usar adminDb para evitar que RLS bloquee la query cuando no hay companyId en tenantStorage
+    // Si db retorna count=0 por RLS → dejaría eliminar al último superadmin
+    const [result] = await adminDb.select({ count: count() })
         .from(authUserRoles)
         .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
         .innerJoin(authUsers, eq(authUserRoles.user_id, authUsers.id))

@@ -70,7 +70,6 @@ export const actions = {
 
             // Hydrate ERP profile with RBAC & Entity metadata
             const profile = await profileApi.getMe();
-            console.log('[login] Raw profile data:', { emailVerified: (profile as any).emailVerified, emailVerifiedAt: (profile as any).emailVerifiedAt });
             currentSessionId = profile.sessionId ?? null;
             const user = profile as ProfileDto;
 
@@ -181,7 +180,6 @@ export const actions = {
         try {
             // Cookie goes automatically via credentials: 'include'
             const userData = await profileApi.getMe();
-            console.log('[initSession] Raw server data:', { emailVerified: (userData as any).emailVerified, emailVerifiedAt: (userData as any).emailVerifiedAt, keys: Object.keys(userData) });
             currentSessionId = userData.sessionId ?? null;
             batch(() => {
                 setState('user', userData as ProfileDto);
@@ -255,7 +253,7 @@ export const actions = {
         window.addEventListener('user:rbac_changed', (e: Event) => {
             const { userId } = (e as CustomEvent).detail ?? {};
             if (!state.user || String(state.user.id) !== String(userId)) return;
-            console.log('[Auth] RBAC permissions updated on server. Refreshing store in background...');
+            if (import.meta.env.DEV) console.log('[Auth] RBAC permissions updated. Refreshing store...');
             actions.refreshSession();
         });
 
@@ -263,7 +261,7 @@ export const actions = {
         window.addEventListener('user:email_verified', (e: Event) => {
             const { userId } = (e as CustomEvent).detail ?? {};
             if (!state.user || String(state.user.id) !== String(userId)) return;
-            console.log('[Auth] Email verified on another device. Refreshing store in background...');
+            if (import.meta.env.DEV) console.log('[Auth] Email verified on another device. Refreshing store...');
             actions.refreshSession();
         });
 

@@ -26,7 +26,9 @@ export function mapEntity(entity: { id: number; business_name: string; is_client
  */
 export async function getMe(userId: string | number, activeCompanyId?: number | null) {
   const userIdStr = String(userId);
-  const user = await db.query.authUsers.findFirst({
+  // adminDb: tabla user no tiene RLS, pero adminDb es correcto para queries de infraestructura
+  // que no deben depender del contexto tenantStorage activo
+  const user = await adminDb.query.authUsers.findFirst({
     where: eq(users.id, userIdStr),
     columns: {
       id: true,
@@ -88,7 +90,6 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     isActive: user.is_active,
     lastLogin: user.last_login,
     emailVerified: Boolean(user.emailVerified),
-    emailVerifiedAt: user.emailVerified ? new Date().toISOString() : null,
     roles,
     permissions,
     entity: mapEntity(user.entity),

@@ -42,10 +42,11 @@ listener.listen('db_change', (payload: string) => {
     const data = JSON.parse(payload);
     const { table, action, id } = data;
 
-    console.log(`🔔 DB Change Notification: ${table} ${action} ID:${id}`);
+    if (env.NODE_ENV === 'development') {
+      console.log(`🔔 DB Change Notification: ${table} ${action} ID:${id}`);
+    }
 
     // 1. Invalidate Redis Cache
-    // Invalidar caché relacionado con la tabla
     cacheService.invalidate(`${table}:*`);
 
     // 2. Broadcast via WebSocket

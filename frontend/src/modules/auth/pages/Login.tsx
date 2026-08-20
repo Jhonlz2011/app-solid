@@ -72,7 +72,8 @@ const Login: Component = () => {
   const handleSelectTenant = async (tenant: DiscoverTenantItemDto) => {
     setLoadingTenants(true);
     try {
-      await actions.switchOrganization(String(tenant.id));
+      // organizationId es el UUIDv7 de Better-Auth organization.id, requerido para setActive
+      await actions.switchOrganization(tenant.organizationId);
       const searchParams = typeof search === 'function' ? search() : search;
       const redirectTo = (searchParams as any)?.redirect
         ?? new URLSearchParams(window.location.search).get('redirect');
@@ -126,7 +127,8 @@ const Login: Component = () => {
             // User belongs to other companies but not this subdomain
             toast.error(`No tienes acceso a ${subdomain}. Selecciona una de tus empresas:`);
             setDiscoveredTenants(organizations.map((o: any) => ({
-              id: Number(o.id) || 0,
+              id: 0, // ERP company.id no disponible desde organization.list() — solo para display
+              organizationId: o.id,  // UUIDv7 de Better-Auth — requerido para setActive
               slug: o.slug,
               businessName: o.name,
               tradeName: o.name,
@@ -140,7 +142,8 @@ const Login: Component = () => {
         // Case B: Global portal login (e.g. in.zelys.app or dev localhost)
         if (organizations.length > 1) {
           setDiscoveredTenants(organizations.map((o: any) => ({
-            id: Number(o.id) || 0,
+            id: 0, // ERP company.id no disponible desde organization.list() — solo para display
+            organizationId: o.id,  // UUIDv7 de Better-Auth — requerido para setActive
             slug: o.slug,
             businessName: o.name,
             tradeName: o.name,
