@@ -17,6 +17,9 @@ interface DropdownMenuProps {
     onOpenChange?: (open: boolean) => void;
     placement?: 'top' | 'bottom' | 'left' | 'right' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end';
     gutter?: number;
+    modal?: boolean;
+    preventScroll?: boolean;
+    forceMount?: boolean;
 }
 
 interface DropdownMenuTriggerProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -58,9 +61,11 @@ interface DropdownMenuGroupProps {
 
 // Root component - wraps Kobalte's DropdownMenu
 const Root: Component<DropdownMenuProps> = (props) => {
-    const [local, others] = splitProps(props, ['children', 'placement', 'gutter']);
+    const [local, others] = splitProps(props, ['children', 'placement', 'gutter', 'modal', 'preventScroll']);
     return (
         <KobalteDropdownMenu
+            modal={local.modal ?? false}
+            preventScroll={local.preventScroll ?? false}
             placement={local.placement ?? 'bottom-start'}
             gutter={local.gutter ?? 4}
             {...others}
