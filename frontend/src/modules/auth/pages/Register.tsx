@@ -528,7 +528,7 @@ const Register: Component = () => {
                         </div>
                     </div>
                     {/* Company Summary */}
-                    <div class="bg-card-alt border border-border rounded-xl p-4 space-y-2">
+                    <div class="bg-card-alt border border-border rounded-xl p-4 space-y-2 mb-3">
                         <h3 class="text-sm font-semibold text-primary flex items-center gap-2">
                             <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd" /></svg>
                             Datos de la Empresa
@@ -553,7 +553,7 @@ const Register: Component = () => {
                     onExpire={() => setTurnstileToken(null)}
                     onError={() => setTurnstileToken(null)}
                 />
-                <div class="flex gap-3 mt-3">
+                <div class="flex gap-3">
                     <Button variant="outline" type="button" onClick={() => setStep(1)}>Atrás</Button>
                     <Button fullWidth loading={submitting()} loadingText="Creando cuenta…"
                         onClick={handleFinalSubmit} disabled={submitting()}>

@@ -155,7 +155,7 @@ const Item: Component<DropdownMenuItemProps> = (props) => {
 const Separator: Component<DropdownMenuSeparatorProps> = (props) => {
     return (
         <KobalteDropdownMenu.Separator
-            class={cn('-mx-1 my-1 h-px bg-border', props.class)}
+            class={cn('-mx-1 my-1 h-px border-border', props.class)}
         />
     );
 };

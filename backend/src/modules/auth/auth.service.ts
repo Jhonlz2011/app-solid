@@ -92,7 +92,6 @@ export async function register(
       business_name: 'CONSUMIDOR FINAL',
       is_client: true,
       is_system: true,
-      default_price_list_id: 1,
     });
 
     const [ownerEntity] = await tx.insert(entities).values({
