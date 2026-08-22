@@ -160,7 +160,8 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
 
     for (const item of list) {
       const pid = props.optionParentId(item);
-      const hasParentInFiltered = pid !== null && filteredMap.has(pid);
+      const hasParentInFiltered =
+        pid !== null && pid !== undefined && pid > 0 && filteredMap.has(pid);
       if (!hasParentInFiltered) {
         roots.push(item);
       } else {
@@ -246,7 +247,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
         const item = optionsMap().get(nodeId);
         if (item) {
           const pid = props.optionParentId(item);
-          if (pid !== null && pid !== undefined) {
+          if (pid !== null && pid !== undefined && pid > 0) {
             parentIds.add(pid);
             makeAncestorsVisible(pid);
           }
@@ -265,7 +266,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     let current = optionsMap().get(nodeId);
     if (current) {
       const pid = props.optionParentId(current);
-      if (pid) {
+      if (pid && pid > 0) {
         current = optionsMap().get(pid);
       } else {
         return "";
@@ -276,7 +277,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     while (current) {
       parts.unshift(props.optionLabel(current));
       const pid = props.optionParentId(current);
-      current = pid ? optionsMap().get(pid) : undefined;
+      current = pid && pid > 0 ? optionsMap().get(pid) : undefined;
     }
     return parts.join(" › ");
   };
@@ -346,7 +347,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       const item = optionsMap().get(nodeId);
       if (item) {
         const pid = props.optionParentId(item);
-        if (pid !== null && pid !== undefined) {
+        if (pid !== null && pid !== undefined && pid > 0) {
           collectAncestors(pid);
         }
       }
@@ -356,7 +357,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       const item = optionsMap().get(matchId);
       if (item) {
         const pid = props.optionParentId(item);
-        if (pid !== null && pid !== undefined) {
+        if (pid !== null && pid !== undefined && pid > 0) {
           collectAncestors(pid);
         }
       }
@@ -713,7 +714,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
             toggleExpand(optId);
           } else {
             const pid = props.optionParentId(opt);
-            if (pid !== null && pid !== undefined) {
+            if (pid !== null && pid !== undefined && pid > 0) {
               const parentIdx = list.findIndex(
                 (item) => props.optionValue(item) === pid,
               );
@@ -900,11 +901,8 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
           <div
             ref={dropdownRef}
             onMouseDown={(e) => {
-              const target = e.target as HTMLElement;
-              // Prevent input blur when clicking empty background areas or scroll container
-              if (target === dropdownRef || target === scrollContainer()) {
-                e.preventDefault();
-              }
+              // Crucial: prevent input blur on any click within the dropdown so clicks are never cancelled
+              e.preventDefault();
             }}
             class="absolute z-100 min-w-32 overflow-hidden bg-card/95 backdrop-blur-md border border-border shadow-card rounded-xl p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
             style={{
