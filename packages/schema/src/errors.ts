@@ -21,13 +21,24 @@ export type ApiErrorCode = (typeof API_ERROR_CODES)[keyof typeof API_ERROR_CODES
 // ============================================================================
 
 export const ERROR_MESSAGES_ES: Record<string, string> = {
-    // Better Auth & Authentication
+    // Better Auth & Authentication (Email, Username, Password)
+    INVALID_USERNAME_OR_PASSWORD: 'Usuario o contraseña incorrectos',
     INVALID_EMAIL_OR_PASSWORD: 'Correo electrónico o contraseña incorrectos',
+    INVALID_CREDENTIALS: 'Credenciales incorrectas',
+    INVALID_IDENTIFIER_OR_PASSWORD: 'Credenciales incorrectas',
     USER_NOT_FOUND: 'No se encontró ninguna cuenta con estos datos',
+    USERNAME_NOT_FOUND: 'No se encontró ningún usuario con este nombre',
+    EMAIL_NOT_FOUND: 'No se encontró ninguna cuenta con este correo',
     EMAIL_ALREADY_EXISTS: 'Este correo electrónico ya está registrado',
     USER_ALREADY_EXISTS: 'Este correo electrónico ya está registrado',
     USERNAME_IS_ALREADY_TAKEN: 'Este nombre de usuario ya está en uso',
     USERNAME_ALREADY_EXISTS: 'Este nombre de usuario ya está en uso',
+    USERNAME_TAKEN: 'Este nombre de usuario ya está en uso',
+    INVALID_USERNAME: 'Nombre de usuario inválido',
+    INVALID_EMAIL: 'Correo electrónico inválido',
+    USERNAME_TOO_SHORT: 'El nombre de usuario debe tener al menos 3 caracteres',
+    USERNAME_TOO_LONG: 'El nombre de usuario es demasiado largo',
+    INVALID_USERNAME_CHARACTERS: 'El nombre de usuario contiene caracteres no permitidos',
     INVALID_PASSWORD: 'La contraseña ingresada es incorrecta',
     PASSWORD_TOO_SHORT: 'La contraseña debe tener al menos 8 caracteres',
     PASSWORD_TOO_LONG: 'La contraseña excede la longitud máxima permitida',
@@ -36,8 +47,12 @@ export const ERROR_MESSAGES_ES: Record<string, string> = {
     FAILED_TO_CREATE_USER: 'No se pudo crear la cuenta de usuario',
     FAILED_TO_CREATE_SESSION: 'No se pudo iniciar la sesión',
     ORGANIZATION_NOT_FOUND: 'La empresa solicitada no existe o no tienes acceso',
+    ORGANIZATION_ALREADY_EXISTS: 'Ya existe una empresa registrada con estos datos',
     USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION: 'No perteneces a la empresa seleccionada',
+    USER_ALREADY_MEMBER: 'El usuario ya es miembro de esta empresa',
     YOU_ARE_NOT_ALLOWED_TO_INVITE_USER: 'No tienes permisos para invitar a otros usuarios',
+    INVITATION_EXPIRED: 'La invitación ha expirado',
+    INVALID_INVITATION: 'La invitación es inválida',
     TWO_FACTOR_REQUIRED: 'Se requiere código de autenticación de dos factores',
     INVALID_TWO_FACTOR_CODE: 'El código de autenticación es incorrecto',
     INVALID_OTP: 'El código de verificación es incorrecto',
@@ -69,17 +84,29 @@ export function translateError(code?: string | null, rawMessage?: string | null)
     const lower = msg.toLowerCase();
 
     // 2. Coincidencias comunes de Better Auth y servicios
-    if (lower.includes('invalid email or password') || lower.includes('invalid credentials')) {
+    if (lower.includes('invalid username or password')) {
+        return ERROR_MESSAGES_ES.INVALID_USERNAME_OR_PASSWORD;
+    }
+    if (lower.includes('invalid email or password') || lower.includes('invalid credentials') || lower.includes('invalid identifier or password')) {
         return ERROR_MESSAGES_ES.INVALID_EMAIL_OR_PASSWORD;
+    }
+    if (lower.includes('username is already taken') || lower.includes('username already exists') || lower.includes('username taken')) {
+        return ERROR_MESSAGES_ES.USERNAME_IS_ALREADY_TAKEN;
+    }
+    if (lower.includes('username not found')) {
+        return ERROR_MESSAGES_ES.USERNAME_NOT_FOUND;
+    }
+    if (lower.includes('username is too short') || lower.includes('username too short')) {
+        return ERROR_MESSAGES_ES.USERNAME_TOO_SHORT;
+    }
+    if (lower.includes('invalid username characters') || lower.includes('invalid username')) {
+        return ERROR_MESSAGES_ES.INVALID_USERNAME;
     }
     if (lower.includes('user not found')) {
         return ERROR_MESSAGES_ES.USER_NOT_FOUND;
     }
     if (lower.includes('email already exists') || lower.includes('user already exists')) {
         return ERROR_MESSAGES_ES.EMAIL_ALREADY_EXISTS;
-    }
-    if (lower.includes('username is already taken') || lower.includes('username already exists')) {
-        return ERROR_MESSAGES_ES.USERNAME_IS_ALREADY_TAKEN;
     }
     if (lower.includes('invalid password')) {
         return ERROR_MESSAGES_ES.INVALID_PASSWORD;
@@ -123,6 +150,7 @@ export function translateError(code?: string | null, rawMessage?: string | null)
     // Si ya es un mensaje en español o no coincide con patrones en inglés, conservarlo
     return msg;
 }
+
 
 // ============================================================================
 // TypeBox schemas (for Elysia response validation)
