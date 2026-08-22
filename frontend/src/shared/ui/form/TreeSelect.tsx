@@ -10,7 +10,6 @@ import {
   onCleanup,
   untrack,
 } from "solid-js";
-import { Portal } from "solid-js/web";
 import { CloseIcon } from "@icons/CloseIcon";
 import { ChevronRightIcon } from "@icons/ChevronRightIcon";
 import type { FieldLike } from "./form.types";
@@ -64,52 +63,19 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   const [isFocused, setIsFocused] = createSignal(false);
   const [isOpen, setIsOpen] = createSignal(false);
   const [highlightedIndex, setHighlightedIndex] = createSignal(0);
-  const [coords, setCoords] = createSignal({ top: 0, left: 0, width: 0 });
   const [lastKeyboardNavTime, setLastKeyboardNavTime] = createSignal(0);
 
-  let triggerRef: HTMLDivElement | undefined;
+  let containerRef: HTMLDivElement | undefined;
   let inputRef: HTMLInputElement | undefined;
   let dropdownRef: HTMLDivElement | undefined;
   let lastSelectionTime = 0;
 
-  // Monitor input resizing for the dropdown portal width & positioning coordinates
-  const updateCoords = () => {
-    if (triggerRef) {
-      const rect = triggerRef.getBoundingClientRect();
-      setCoords({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
-        width: rect.width,
-      });
-    }
-  };
-
-  createEffect(() => {
-    if (isOpen()) {
-      updateCoords();
-
-      if (triggerRef) {
-        const resizeObserver = new ResizeObserver(updateCoords);
-        resizeObserver.observe(triggerRef);
-        onCleanup(() => resizeObserver.disconnect());
-      }
-
-      window.addEventListener("resize", updateCoords);
-      window.addEventListener("scroll", updateCoords, true);
-      onCleanup(() => {
-        window.removeEventListener("resize", updateCoords);
-        window.removeEventListener("scroll", updateCoords, true);
-      });
-    }
-  });
-
-  // Handle click outside to close dropdown
+  // Handle click outside to close dropdown cleanly
   createEffect(() => {
     if (isOpen()) {
       const handleDocMouseDown = (e: MouseEvent) => {
         const target = e.target as Node;
-        if (triggerRef && triggerRef.contains(target)) return;
-        if (dropdownRef && dropdownRef.contains(target)) return;
+        if (containerRef && containerRef.contains(target)) return;
         setIsOpen(false);
       };
       document.addEventListener("mousedown", handleDocMouseDown);
@@ -131,7 +97,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     return "";
   });
 
-  // Map list of options for lookup
+  // Map list of options for fast lookup
   const optionsMap = createMemo(() => {
     const map = new Map<number, T>();
     for (const item of props.options || []) {
@@ -141,14 +107,39 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     return map;
   });
 
-  // Build the hierarchical tree structure exclusively for active options
+  // Build the hierarchical tree structure exclusively for active options and excluding self/descendants
   const treeStructure = createMemo(() => {
-    const list = (props.options || []).filter((item) => {
+    const rawList = props.options || [];
+
+    // If editingId is provided, exclude it AND all its recursive descendants
+    const excludedIds = new Set<number>();
+    if (props.editingId !== undefined && props.editingId !== null && Number(props.editingId) > 0) {
+      const editId = Number(props.editingId);
+      excludedIds.add(editId);
+
+      let added = true;
+      while (added) {
+        added = false;
+        for (const item of rawList) {
+          const itemId = Number(props.optionValue(item));
+          const rawPid = props.optionParentId(item);
+          const pid =
+            rawPid !== null && rawPid !== undefined && Number(rawPid) > 0
+              ? Number(rawPid)
+              : null;
+          if (pid !== null && excludedIds.has(pid) && !excludedIds.has(itemId)) {
+            excludedIds.add(itemId);
+            added = true;
+          }
+        }
+      }
+    }
+
+    const list = rawList.filter((item) => {
+      const itemId = Number(props.optionValue(item));
       const isActive = props.optionIsActive ? props.optionIsActive(item) : true;
-      const isNotSelf =
-        !props.editingId ||
-        Number(props.optionValue(item)) !== Number(props.editingId);
-      return isActive && isNotSelf;
+      const isNotExcluded = !excludedIds.has(itemId);
+      return isActive && isNotExcluded;
     });
 
     const filteredMap = new Map<number, T>();
@@ -234,13 +225,15 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
 
   const toggleExpand = (nodeId: number) => {
     const id = Number(nodeId);
-    const next = new Set(expandedIds());
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-    setExpandedIds(next);
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   // Auto-expand parents of the selected node on load, keeping everything else collapsed
@@ -303,14 +296,14 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     return breadcrumb ? `${label} (${breadcrumb})` : label;
   };
 
-  // Identify nodes that directly match the query (including custom fields)
+  // Identify nodes that directly match the query
   const matchingNodeIds = createMemo(() => {
     const s = inputValue().toLowerCase().trim();
     if (!s || !isSearching()) return new Set<number>();
 
     const set = new Set<number>();
     for (const item of props.options || []) {
-      const id = Number(props.optionValue(item));
+      const optId = Number(props.optionValue(item));
       const label = props.optionLabel(item).toLowerCase();
 
       let matchesCustom = label.includes(s);
@@ -340,7 +333,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       }
 
       if (matchesCustom) {
-        set.add(id);
+        set.add(optId);
       }
     }
     return set;
@@ -549,7 +542,6 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     setInputValue(getDisplayText(selectedId));
     setIsSearching(false);
     setIsOpen(false);
-    inputRef?.focus();
   };
 
   const handleItemClick = (opt: T) => {
@@ -585,7 +577,6 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     if (isOpen()) {
       setIsOpen(false);
     } else {
-      updateCoords();
       inputRef?.focus();
       setIsOpen(true);
     }
@@ -596,7 +587,6 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     const target = e.target as HTMLElement;
     if (target.closest(".clear-btn") || target.closest(".trigger-btn")) return;
 
-    updateCoords();
     inputRef?.focus();
     setIsOpen(true);
   };
@@ -611,14 +601,12 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     setLastKeyboardNavTime(Date.now());
     setInputValue(inputVal);
     setIsSearching(true);
-    updateCoords();
     setIsOpen(true);
   };
 
   const handleInputFocus = (e: FocusEvent) => {
     setIsFocused(true);
     if (Date.now() - lastSelectionTime > 200) {
-      updateCoords();
       setIsOpen(true);
       (e.currentTarget as HTMLInputElement).select();
       setIsSelectedState(false);
@@ -643,7 +631,6 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     if (!isOpen()) {
       if (e.key === "ArrowDown" || e.key === "Enter") {
         e.preventDefault();
-        updateCoords();
         setIsOpen(true);
         setHighlightedIndex(0);
       }
@@ -819,6 +806,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
 
   return (
     <div
+      ref={containerRef}
       class="relative flex flex-col gap-1 w-full"
       data-valid={validationState() !== "invalid"}
       data-invalid={validationState() === "invalid"}
@@ -904,201 +892,193 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
         </div>
       </div>
 
-      {/* Portalized dropdown window */}
+      {/* In-place absolute dropdown window (prevents Sheet/Dialog focus trap and click outside conflicts) */}
       <Show when={isOpen() && (props.options || []).length > 0}>
-        <Portal>
+        <div
+          ref={dropdownRef}
+          onMouseDown={(e) => {
+            // Prevent input blur on any click within the dropdown so clicks are never cancelled
+            e.preventDefault();
+          }}
+          class="absolute top-full left-0 w-full mt-1.5 z-50 overflow-hidden bg-card/95 backdrop-blur-md border border-border shadow-card rounded-xl p-1 animate-in fade-in-0 zoom-in-95 duration-150"
+        >
+          {/* Scroll viewport */}
           <div
-            ref={dropdownRef}
-            onMouseDown={(e) => {
-              // Crucial: prevent input blur on any click within the dropdown so clicks are never cancelled
-              e.preventDefault();
-            }}
-            class="absolute z-100 min-w-32 overflow-hidden bg-card/95 backdrop-blur-md border border-border shadow-card rounded-xl p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
-            style={{
-              top: `${coords().top}px`,
-              left: `${coords().left}px`,
-              width: `${coords().width}px`,
-              "max-width": `${coords().width}px`,
-            }}
+            ref={setScrollContainer}
+            class="max-h-64 overflow-y-auto outline-none p-1 bg-card text-text custom-scrollbar space-y-0.5"
           >
-            {/* Scroll viewport */}
-            <div
-              ref={setScrollContainer}
-              class="max-h-64 overflow-y-auto outline-none p-1 bg-card text-text custom-scrollbar space-y-0.5"
+            <Show
+              when={filteredOptions().length > 0}
+              fallback={
+                <div class="py-6 px-4 text-center text-sm text-muted">
+                  No se encontraron resultados
+                </div>
+              }
             >
-              <Show
-                when={filteredOptions().length > 0}
-                fallback={
-                  <div class="py-6 px-4 text-center text-sm text-muted">
-                    No se encontraron resultados
-                  </div>
-                }
-              >
-                <For each={filteredOptions()}>
-                  {(opt, index) => {
-                    const optId = () => Number(props.optionValue(opt));
-                    const nodeMeta = () => nodeMetaMap().get(optId());
-                    const depth = () => nodeMeta()?.depth ?? 0;
-                    const hasKids = () => hasChildren(optId());
-                    const expanded = () => {
-                      const id = optId();
-                      const searchVisible = visibleNodeIdsInSearch();
-                      if (
-                        searchVisible &&
-                        ancestorsOfMatches().has(id) &&
-                        hasKids()
-                      ) {
-                        return true;
-                      }
-                      return isExpanded(id);
-                    };
-                    const isHighlighted = () =>
-                      highlightedIndex() === index();
-                    const isSelected = () => {
-                      const v = props.value;
-                      return (
-                        v !== null &&
-                        v !== undefined &&
-                        Number(v) === optId()
-                      );
-                    };
-                    const label = () => props.optionLabel(opt);
-                    const allowParentSelection = () =>
-                      props.parentSelectable ?? true;
-                    const isNonSelectableParent = () =>
-                      !allowParentSelection() && hasKids();
-
+              <For each={filteredOptions()}>
+                {(opt, index) => {
+                  const optId = () => Number(props.optionValue(opt));
+                  const nodeMeta = () => nodeMetaMap().get(optId());
+                  const depth = () => nodeMeta()?.depth ?? 0;
+                  const hasKids = () => hasChildren(optId());
+                  const expanded = () => {
+                    const id = optId();
+                    const searchVisible = visibleNodeIdsInSearch();
+                    if (
+                      searchVisible &&
+                      ancestorsOfMatches().has(id) &&
+                      hasKids()
+                    ) {
+                      return true;
+                    }
+                    return isExpanded(id);
+                  };
+                  const isHighlighted = () =>
+                    highlightedIndex() === index();
+                  const isSelected = () => {
+                    const v = props.value;
                     return (
-                      <div
-                        id={`tree-opt-${optId()}`}
-                        data-index={index()}
-                        onClick={() => handleItemClick(opt)}
-                        onMouseEnter={() => {
-                          if (Date.now() - lastKeyboardNavTime() < 150)
-                            return;
-                          if (highlightedIndex() !== index()) {
-                            setHighlightedIndex(index());
-                          }
-                        }}
-                        class={cn(
-                          "group/row relative flex w-full min-w-0 overflow-hidden cursor-pointer select-none items-center justify-between rounded-lg px-1.5 py-1 text-sm outline-none transition-colors duration-150",
-                          isSelected()
-                            ? isHighlighted()
-                              ? "bg-primary/20 text-primary font-semibold shadow-xs"
-                              : "bg-primary-soft text-primary font-semibold"
-                            : isHighlighted()
-                              ? "bg-primary/10 text-primary font-semibold"
-                              : "text-text hover:bg-card-alt",
-                          isNonSelectableParent() &&
-                            "hover:bg-primary/5 text-heading font-medium",
-                        )}
-                      >
-                        <div class="flex items-center w-full min-w-0 pr-1 select-none relative self-stretch">
-                          {/* Main Content Row indented dynamically */}
-                          <div
-                            class="flex items-center w-full min-w-0 flex-1 z-10"
-                            style={{ "padding-left": `${depth() * 16}px` }}
-                          >
-                            {/* Expand / Collapse Spacer / Chevron */}
-                            <div class="size-6 shrink-0 flex items-center justify-center">
-                              <Show when={hasKids()}>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const id = optId();
-                                    if (id > 0) toggleExpand(id);
-                                  }}
-                                  class="size-5 shrink-0 flex items-center justify-center rounded-md hover:bg-primary/20 text-muted hover:text-primary transition-all duration-150 cursor-pointer z-20"
-                                  title={
-                                    expanded() ? "Colapsar" : "Desplegar"
-                                  }
-                                >
-                                  <ChevronRightIcon
-                                    stroke-width={2.5}
-                                    class={cn(
-                                      "size-3.5 transition-transform duration-200",
-                                      expanded()
-                                        ? "rotate-90 text-primary"
-                                        : isHighlighted() || isSelected()
-                                          ? "text-primary/70"
-                                          : "text-muted",
-                                    )}
-                                  />
-                                </button>
-                              </Show>
-                            </div>
+                      v !== null &&
+                      v !== undefined &&
+                      Number(v) === optId()
+                    );
+                  };
+                  const label = () => props.optionLabel(opt);
+                  const allowParentSelection = () =>
+                    props.parentSelectable ?? true;
+                  const isNonSelectableParent = () =>
+                    !allowParentSelection() && hasKids();
 
-                            {/* Custom or standard item rendering */}
-                            <Show
-                              when={props.itemRenderer}
-                              fallback={
-                                <div class="flex flex-col min-w-0 flex-1 ml-0.5">
-                                  <div class="flex items-center gap-1.5 min-w-0">
-                                    {renderOptionLabel(
-                                      label(),
-                                      isHighlighted(),
-                                      isSelected(),
-                                    )}
-                                    <Show when={isNonSelectableParent()}>
-                                      <span class="text-[10px] text-muted font-normal px-1.5 py-0.5 rounded-md bg-surface/70 border border-border/50 shrink-0">
-                                        Grupo
-                                      </span>
-                                    </Show>
-                                  </div>
-                                  <Show when={getBreadcrumb(optId())}>
-                                    <span
-                                      class={cn(
-                                        "text-[11px] truncate mt-0.5 transition-colors duration-150",
-                                        isHighlighted() || isSelected()
-                                          ? "text-primary/70"
-                                          : "text-muted/70",
-                                      )}
-                                    >
-                                      {getBreadcrumb(optId())}
+                  return (
+                    <div
+                      id={`tree-opt-${optId()}`}
+                      data-index={index()}
+                      onClick={() => handleItemClick(opt)}
+                      onMouseEnter={() => {
+                        if (Date.now() - lastKeyboardNavTime() < 150)
+                          return;
+                        if (highlightedIndex() !== index()) {
+                          setHighlightedIndex(index());
+                        }
+                      }}
+                      class={cn(
+                        "group/row relative flex w-full min-w-0 overflow-hidden cursor-pointer select-none items-center justify-between rounded-lg px-1.5 py-1 text-sm outline-none transition-colors duration-150",
+                        isSelected()
+                          ? isHighlighted()
+                            ? "bg-primary/20 text-primary font-semibold shadow-xs"
+                            : "bg-primary-soft text-primary font-semibold"
+                          : isHighlighted()
+                            ? "bg-primary/10 text-primary font-semibold"
+                            : "text-text hover:bg-card-alt",
+                        isNonSelectableParent() &&
+                          "hover:bg-primary/5 text-heading font-medium",
+                      )}
+                    >
+                      <div class="flex items-center w-full min-w-0 pr-1 select-none relative self-stretch">
+                        {/* Main Content Row indented dynamically */}
+                        <div
+                          class="flex items-center w-full min-w-0 flex-1 z-10"
+                          style={{ "padding-left": `${depth() * 16}px` }}
+                        >
+                          {/* Expand / Collapse Spacer / Chevron */}
+                          <div class="size-6 shrink-0 flex items-center justify-center">
+                            <Show when={hasKids()}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const id = optId();
+                                  if (id > 0) toggleExpand(id);
+                                }}
+                                class="size-5 shrink-0 flex items-center justify-center rounded-md hover:bg-primary/20 text-muted hover:text-primary transition-all duration-150 cursor-pointer z-20"
+                                title={
+                                  expanded() ? "Colapsar" : "Desplegar"
+                                }
+                              >
+                                <ChevronRightIcon
+                                  stroke-width={2.5}
+                                  class={cn(
+                                    "size-3.5 transition-transform duration-200",
+                                    expanded()
+                                      ? "rotate-90 text-primary"
+                                      : isHighlighted() || isSelected()
+                                        ? "text-primary/70"
+                                        : "text-muted",
+                                  )}
+                                />
+                              </button>
+                            </Show>
+                          </div>
+
+                          {/* Custom or standard item rendering */}
+                          <Show
+                            when={props.itemRenderer}
+                            fallback={
+                              <div class="flex flex-col min-w-0 flex-1 ml-0.5">
+                                <div class="flex items-center gap-1.5 min-w-0">
+                                  {renderOptionLabel(
+                                    label(),
+                                    isHighlighted(),
+                                    isSelected(),
+                                  )}
+                                  <Show when={isNonSelectableParent()}>
+                                    <span class="text-[10px] text-muted font-normal px-1.5 py-0.5 rounded-md bg-surface/70 border border-border/50 shrink-0">
+                                      Grupo
                                     </span>
                                   </Show>
                                 </div>
-                              }
-                            >
-                              {props.itemRenderer!(opt, {
-                                depth: depth(),
-                                hasChildren: hasKids(),
-                                expanded: expanded(),
-                                query: isSearching() ? inputValue() : "",
-                                highlighted: isHighlighted(),
-                                selected: isSelected(),
-                              })}
-                            </Show>
+                                <Show when={getBreadcrumb(optId())}>
+                                  <span
+                                    class={cn(
+                                      "text-[11px] truncate mt-0.5 transition-colors duration-150",
+                                      isHighlighted() || isSelected()
+                                        ? "text-primary/70"
+                                        : "text-muted/70",
+                                    )}
+                                  >
+                                    {getBreadcrumb(optId())}
+                                  </span>
+                                </Show>
+                              </div>
+                            }
+                          >
+                            {props.itemRenderer!(opt, {
+                              depth: depth(),
+                              hasChildren: hasKids(),
+                              expanded: expanded(),
+                              query: isSearching() ? inputValue() : "",
+                              highlighted: isHighlighted(),
+                              selected: isSelected(),
+                            })}
+                          </Show>
 
-                            {/* Checkmark Indicator on the right for selected item */}
-                            <Show when={isSelected()}>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                class="size-4 text-primary shrink-0 ml-2 animate-in zoom-in-50 duration-200"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                stroke-width="3"
-                              >
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                            </Show>
-                          </div>
+                          {/* Checkmark Indicator on the right for selected item */}
+                          <Show when={isSelected()}>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="size-4 text-primary shrink-0 ml-2 animate-in zoom-in-50 duration-200"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              stroke-width="3"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </Show>
                         </div>
                       </div>
-                    );
-                  }}
-                </For>
-              </Show>
-            </div>
+                    </div>
+                  );
+                }}
+              </For>
+            </Show>
           </div>
-        </Portal>
+        </div>
       </Show>
 
       {/* Error validation block */}

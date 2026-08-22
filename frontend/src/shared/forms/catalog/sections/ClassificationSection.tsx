@@ -82,8 +82,8 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
 
     const selectedCategory = createMemo(() => {
         const id = categoryIdValue();
-        if (!id || id <= 0) return null;
-        return flatCategories().find(c => c.id === id) ?? null;
+        if (!id || Number(id) <= 0) return null;
+        return flatCategories().find(c => Number(c.id) === Number(id)) ?? null;
     });
 
     const selectedBrand = createMemo(() => {

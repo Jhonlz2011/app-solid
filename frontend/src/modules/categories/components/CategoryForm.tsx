@@ -74,9 +74,10 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
     const flatList = createMemo(() => (categoriesFlat.data ?? []) as CategoryNode[]);
     const selectedCategory = createMemo(() => {
         const val = parentIdValue();
-        if (!val) return null;
-        return flatList().find(c => c.id === val) ?? null;
+        if (!val || Number(val) <= 0) return null;
+        return flatList().find(c => Number(c.id) === Number(val)) ?? null;
     });
+
 
     const breadcrumbs = createMemo(() => {
         const cat = selectedCategory();
