@@ -8,7 +8,7 @@ import type { DiscoverTenantItemDto, AuthUserResponseDto } from '@app/schema/dto
 import { actions } from '@modules/auth/store/auth.store';
 import { authApi } from '../api/auth.api';
 import { useBranding, getSubdomain, applyBranding } from '../store/branding.store';
-import { ApiError } from '@shared/utils/api-errors';
+import { ApiError, getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import Input from '@/shared/ui/form/Input';
 import Button from '@form/Button';
 import Turnstile from '@shared/ui/Turnstile';
@@ -173,9 +173,7 @@ const Login: Component = () => {
       } catch (err) {
         setShowTenants(false);
         setDiscoveredTenants([]);
-        let msg = 'Error al iniciar sesión';
-        if (err instanceof ApiError || err instanceof Error) msg = err.message;
-        toast.error(msg);
+        toast.error(getFriendlyErrorMessage(err, 'Error al iniciar sesión'));
       }
     },
   }));

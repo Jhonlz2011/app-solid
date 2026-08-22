@@ -7,6 +7,7 @@ import { type RbacModule, type PermissionSlug, SYSTEM_ROLES } from '@app/schema/
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
 import { brandingActions } from "./branding.store";
+import { getFriendlyErrorMessage } from "@shared/utils/api-errors";
 
 // Prevent multiple initStore() calls
 let storeInitialized = false;
@@ -61,7 +62,7 @@ export const actions = {
             }
 
             if (authRes.error) {
-                throw new Error(authRes.error.message || 'Error al iniciar sesión');
+                throw new Error(getFriendlyErrorMessage(authRes.error, 'Error al iniciar sesión'));
             }
 
             // Fetch user's organizations via Better-Auth

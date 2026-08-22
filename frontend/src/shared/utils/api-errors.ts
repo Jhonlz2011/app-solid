@@ -1,16 +1,8 @@
-import { isApiError, type ApiErrorResponse } from '@app/schema/errors';
+import { isApiError, translateError, type ApiErrorResponse } from '@app/schema/errors';
 
 /**
- * Parse an Eden error response into a typed ApiErrorResponse.
- *
- * Eden's `error.value` can be:
- * - An object (already our ApiErrorResponse shape from the backend)
- * - An object with { message / summary / error } fields
- * - A string (JSON-encoded or plain text)
- * - null/undefined
- *
- * This utility normalises all cases into a single ApiErrorResponse shape
- * that can be consumed by TanStack Form's setFieldMeta and UI toasts.
+ * Parse an Eden or generic error response into a typed ApiErrorResponse
+ * with Spanish normalized messages.
  */
 export function parseApiError(edenError: unknown): ApiErrorResponse {
     // 1. Direct ApiErrorResponse object (most common path from Eden)
@@ -18,18 +10,24 @@ export function parseApiError(edenError: unknown): ApiErrorResponse {
         const val = (edenError as any).value;
 
         // value is already an ApiErrorResponse object
-        if (isApiError(val)) return val;
+        if (isApiError(val)) {
+            return {
+                ...val,
+                message: translateError(val.code, val.message),
+            };
+        }
 
         // value is an object with message / summary / error properties
         if (val && typeof val === 'object') {
-            const msg = typeof val.message === 'string' ? val.message
+            const code = typeof val.code === 'string' ? val.code : 'INTERNAL_ERROR';
+            const rawMsg = typeof val.message === 'string' ? val.message
                 : typeof val.summary === 'string' ? val.summary
                 : typeof val.error === 'string' ? val.error
                 : null;
-            if (msg) {
+            if (rawMsg) {
                 return {
-                    code: typeof val.code === 'string' ? val.code : 'INTERNAL_ERROR',
-                    message: msg,
+                    code,
+                    message: translateError(code, rawMsg),
                     errors: Array.isArray(val.errors) ? val.errors : undefined,
                 };
             }
@@ -39,51 +37,88 @@ export function parseApiError(edenError: unknown): ApiErrorResponse {
         if (typeof val === 'string') {
             try {
                 const parsed = JSON.parse(val);
-                if (isApiError(parsed)) return parsed;
+                if (isApiError(parsed)) {
+                    return {
+                        ...parsed,
+                        message: translateError(parsed.code, parsed.message),
+                    };
+                }
                 if (parsed && typeof parsed === 'object') {
-                    const msg = parsed.message || parsed.summary || parsed.error;
-                    if (typeof msg === 'string') {
-                        return { code: parsed.code || 'INTERNAL_ERROR', message: msg, errors: parsed.errors };
+                    const code = parsed.code || 'INTERNAL_ERROR';
+                    const rawMsg = parsed.message || parsed.summary || parsed.error;
+                    if (typeof rawMsg === 'string') {
+                        return { code, message: translateError(code, rawMsg), errors: parsed.errors };
                     }
                 }
             } catch {
                 // Not JSON — use as plain message
-                return { code: 'INTERNAL_ERROR', message: val };
+                return { code: 'INTERNAL_ERROR', message: translateError(undefined, val) };
             }
         }
     }
 
     // 2. Plain Error object
     if (edenError instanceof Error) {
-        return { code: 'INTERNAL_ERROR', message: edenError.message };
+        return { code: 'INTERNAL_ERROR', message: translateError(undefined, edenError.message) };
     }
 
     // 3. ApiErrorResponse thrown directly
-    if (isApiError(edenError)) return edenError;
+    if (isApiError(edenError)) {
+        return {
+            ...edenError,
+            message: translateError(edenError.code, edenError.message),
+        };
+    }
 
-    // 4. Loose object with message / error
+    // 4. Better-Auth client error structure: { error: { message, code } }
+    if (edenError && typeof edenError === 'object' && 'error' in edenError && (edenError as any).error) {
+        const inner = (edenError as any).error;
+        const code = typeof inner.code === 'string' ? inner.code : undefined;
+        const rawMsg = typeof inner.message === 'string' ? inner.message : undefined;
+        return {
+            code: code || 'AUTH_ERROR',
+            message: translateError(code, rawMsg),
+        };
+    }
+
+    // 5. Loose object with message / error / summary
     if (edenError && typeof edenError === 'object') {
         const obj = edenError as any;
-        const msg = typeof obj.message === 'string' ? obj.message
+        const code = typeof obj.code === 'string' ? obj.code : 'INTERNAL_ERROR';
+        const rawMsg = typeof obj.message === 'string' ? obj.message
             : typeof obj.summary === 'string' ? obj.summary
             : typeof obj.error === 'string' ? obj.error
             : null;
-        if (msg) {
+        if (rawMsg) {
             return {
-                code: typeof obj.code === 'string' ? obj.code : 'INTERNAL_ERROR',
-                message: msg,
+                code,
+                message: translateError(code, rawMsg),
                 errors: Array.isArray(obj.errors) ? obj.errors : undefined,
             };
         }
     }
 
-    // 5. String
+    // 6. String
     if (typeof edenError === 'string') {
-        return { code: 'INTERNAL_ERROR', message: edenError };
+        return { code: 'INTERNAL_ERROR', message: translateError(undefined, edenError) };
     }
 
-    // 6. Fallback
-    return { code: 'INTERNAL_ERROR', message: 'Error desconocido del servidor' };
+    // 7. Fallback
+    return { code: 'INTERNAL_ERROR', message: 'Ocurrió un error inesperado en el servidor' };
+}
+
+/**
+ * Extrae y traduce cualquier tipo de error (Better Auth, Eden, Fetch, Error) a un mensaje amigable en español.
+ */
+export function getFriendlyErrorMessage(error: unknown, fallback = 'Ocurrió un error inesperado'): string {
+    if (!error) return fallback;
+
+    if (error instanceof ApiError) {
+        return error.message;
+    }
+
+    const parsed = parseApiError(error);
+    return parsed.message || fallback;
 }
 
 /**
@@ -125,3 +160,4 @@ export function isNetworkError(error: unknown): boolean {
   }
   return false;
 }
+

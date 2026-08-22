@@ -55,7 +55,10 @@ const verifyEmailRoute = createRoute({
   validateSearch: (search: Record<string, unknown>) => ({
     token: (search.token as string) || undefined,
   }),
-  beforeLoad: async () => {
+  beforeLoad: async ({ search }) => {
+    // Si viene un token en los parámetros de búsqueda, permitir cargar para verificarlo
+    if (search?.token) return;
+
     const { useAuth } = await import('./modules/auth/store/auth.store');
     const auth = useAuth();
     if (auth.isAuthenticated() && isEmailVerified(auth.user())) {

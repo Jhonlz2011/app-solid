@@ -3,6 +3,7 @@ import { useSearch, useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { authClient } from '@shared/lib/auth-client';
 import { actions, useAuth } from '../store/auth.store';
+import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import Button from '@form/Button';
 import { MailIcon } from '@icons/MailIcon';
 import { CheckIcon } from '@icons/CheckIcon';
@@ -66,19 +67,28 @@ const VerifyEmail: Component = () => {
 
   // ── Redirect helper ────────────────────────────────────────────────────
   const redirectAfterSuccess = async () => {
-    // Better-Auth autoSignInAfterVerification sets the session cookie.
-    // If not authenticated in-memory, hydrate session from the active cookie.
-    if (!auth.isAuthenticated()) {
-      await actions.initSession().catch(() => {});
-    }
+    // 1. Better-Auth autoSignInAfterVerification sets the session cookie.
+    // Ensure active organization is set so RLS and tenant routes function properly
+    try {
+      const orgList = await authClient.organization.list();
+      if (orgList?.data && orgList.data.length > 0) {
+        await authClient.organization.setActive({ organizationId: orgList.data[0].id });
+      }
+    } catch { /* Org already active or unavailable */ }
+
+    // 2. Hydrate session in auth store
+    const sessionRestored = await actions.initSession().catch(() => false);
+
+    // 3. Clear verification cooldown
+    sessionStorage.removeItem(COOLDOWN_STORAGE_KEY);
 
     redirectTimer = setTimeout(() => {
-      if (auth.isAuthenticated()) {
+      if (sessionRestored || auth.isAuthenticated()) {
         navigate({ to: '/dashboard', replace: true });
       } else {
         navigate({ to: '/login', search: { redirect: undefined }, replace: true });
       }
-    }, 2000);
+    }, 1200);
   };
 
   // ── Token verification or auto-send on mount ───────────────────────────
@@ -92,9 +102,9 @@ const VerifyEmail: Component = () => {
 
         setStatus('verified');
         toast.success('¡Correo electrónico verificado con éxito!');
-        redirectAfterSuccess();
+        await redirectAfterSuccess();
       } catch (err: any) {
-        toast.error(err.message || 'Error en la verificación');
+        toast.error(getFriendlyErrorMessage(err, 'Error en la verificación del correo'));
         setStatus('error');
       }
       return;
@@ -156,7 +166,7 @@ const VerifyEmail: Component = () => {
       toast.success('Se ha enviado un nuevo enlace de verificación a tu correo.');
       startCountdown(60);
     } catch (err: any) {
-      toast.error(err.message || 'Error reenviando correo');
+      toast.error(getFriendlyErrorMessage(err, 'Error al reenviar el correo'));
     } finally {
       setResending(false);
     }

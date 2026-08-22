@@ -15,6 +15,7 @@ import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem, Segm
 import Button from '@form/Button';
 import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import Turnstile from '@shared/ui/Turnstile';
+import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 
 // ─── Option types for Select ───
 interface SelectOption { value: string; label: string }
@@ -227,7 +228,7 @@ const Register: Component = () => {
             // Reset token on failure — widget will auto-refresh
             setTurnstileToken(null);
             turnstileActions?.reset();
-            toast.error(err?.message || 'Error al registrar');
+            toast.error(getFriendlyErrorMessage(err, 'Error al registrar la empresa'));
         } finally { setSubmitting(false); }
     };
 

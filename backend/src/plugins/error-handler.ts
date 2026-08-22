@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
 import { DomainError } from '../core/errors';
+import { translateError } from '@app/schema/errors';
 
 // PG column name -> camelCase form field mapping
 const PG_COLUMN_TO_FIELD: Record<string, string> = {
@@ -34,6 +35,7 @@ interface PostgresDatabaseError {
   code?: string;
   detail?: string;
   constraint?: string;
+  column?: string;
 }
 
 export const errorHandlerPlugin = new Elysia()
@@ -43,7 +45,7 @@ export const errorHandlerPlugin = new Elysia()
       set.status = error.status;
       return {
         code: error.code,
-        message: error.message,
+        message: translateError(error.code, error.message),
         ...(error.fieldErrors.length > 0 ? { errors: error.fieldErrors } : {}),
       };
     }
@@ -52,9 +54,11 @@ export const errorHandlerPlugin = new Elysia()
     const anyErr = error as unknown as AuthApiError;
     if (anyErr?.name === 'APIError' || (typeof anyErr?.status === 'number' && anyErr.status >= 400 && anyErr.status < 500)) {
       set.status = anyErr.status;
+      const errCode = anyErr.code || anyErr.body?.code || 'AUTH_ERROR';
+      const rawMsg = anyErr.body?.message || anyErr.message || 'Error de autenticación';
       return {
-        code: anyErr.code || anyErr.body?.code || 'AUTH_ERROR',
-        message: anyErr.body?.message || anyErr.message || 'Error de autenticación',
+        code: errCode,
+        message: translateError(errCode, rawMsg),
       };
     }
 
@@ -64,7 +68,7 @@ export const errorHandlerPlugin = new Elysia()
       return { code: 'NOT_FOUND', message: 'Ruta no encontrada' };
     }
 
-    // 3. Elysia TypeBox validation errors
+    // 4. Elysia TypeBox validation errors
     if (code === 'VALIDATION') {
       set.status = 400;
       const fieldErrors: { field: string; message: string }[] = [];
@@ -75,23 +79,24 @@ export const errorHandlerPlugin = new Elysia()
           const details = Array.isArray(parsed.errors) ? parsed.errors : [parsed];
           for (const detail of details) {
             const path = detail.path?.replace(/^\//, '').replace(/\//g, '.') || 'unknown';
-            const msg = detail.message || detail.summary || 'Valor inválido';
+            const rawMsg = detail.message || detail.summary || 'Valor inválido';
+            const msg = translateError(undefined, rawMsg);
             fieldErrors.push({ field: path, message: msg });
           }
         }
       } catch {
         const rawMsg = error.message || 'Datos inválidos';
-        fieldErrors.push({ field: 'form', message: rawMsg });
+        fieldErrors.push({ field: 'form', message: translateError(undefined, rawMsg) });
       }
 
       return {
         code: 'VALIDATION_ERROR',
-        message: 'Datos inválidos',
+        message: 'Los datos enviados no son válidos',
         ...(fieldErrors.length > 0 ? { errors: fieldErrors } : {}),
       };
     }
 
-    // 4. PostgreSQL / Drizzle DB errors (Bubble up)
+    // 5. PostgreSQL / Drizzle DB errors (Bubble up)
     const pgError = error as unknown as PostgresDatabaseError;
     if (pgError?.code === '23505') {
       // Unique constraint violation
@@ -124,10 +129,9 @@ export const errorHandlerPlugin = new Elysia()
 
     console.error('[ErrorHandler] Unhandled error:', error);
     set.status = 500;
-    const errorMessage = error instanceof Error ? error.message : 'Error interno del servidor';
     return {
       code: 'INTERNAL_ERROR',
-      message: errorMessage,
-      ...(anyErr?.stack ? { stack: anyErr.stack } : {}),
+      message: 'Ocurrió un error inesperado en el servidor. Por favor, intenta de nuevo.',
     };
   });
+
