@@ -92,6 +92,7 @@ const Register: Component = () => {
 
     // Turnstile token — captured in step 3 (confirmation)
     const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
+    let turnstileActions: { reset: () => void } | undefined;
 
     // Slug availability
     const [slugAvailable, setSlugAvailable] = createSignal<boolean | null>(null);
@@ -216,6 +217,7 @@ const Register: Component = () => {
         } catch (err: any) {
             // Reset token on failure — widget will auto-refresh
             setTurnstileToken(null);
+            turnstileActions?.reset();
             toast.error(err?.message || 'Error al registrar');
         } finally { setSubmitting(false); }
     };
@@ -550,14 +552,16 @@ const Register: Component = () => {
                 </div>
                 {/* Cloudflare Turnstile — rendered just before final submit */}
                 <Turnstile
+                    action="register"
+                    ref={(act) => { turnstileActions = act; }}
                     onToken={(token) => setTurnstileToken(token)}
                     onExpire={() => setTurnstileToken(null)}
                     onError={() => setTurnstileToken(null)}
                 />
                 <div class="flex gap-3">
-                    <Button variant="outline" type="button" onClick={() => setStep(1)}>Atrás</Button>
+                    <Button variant="outline" type="button" onClick={() => setStep(1)} disabled={submitting()}>Atrás</Button>
                     <Button fullWidth loading={submitting()} loadingText="Creando cuenta…"
-                        onClick={handleFinalSubmit} disabled={submitting()}>
+                        onClick={handleFinalSubmit} disabled={submitting() || !turnstileToken()}>
                         Crear cuenta
                     </Button>
                 </div>

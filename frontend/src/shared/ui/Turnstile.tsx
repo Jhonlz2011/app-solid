@@ -1,7 +1,7 @@
 /**
  * Turnstile.tsx — Cloudflare Turnstile widget for SolidJS (Invisible Mode)
  */
-import { Component, onMount, onCleanup, createSignal } from 'solid-js';
+import { Component, onMount, onCleanup } from 'solid-js';
 
 // Extend Window with Turnstile API
 declare global {
@@ -36,6 +36,7 @@ export interface TurnstileProps {
   onToken: (token: string) => void;
   onExpire?: () => void;
   onError?: () => void;
+  ref?: (actions: { reset: () => void }) => void;
   class?: string;
 }
 
@@ -99,6 +100,10 @@ const Turnstile: Component<TurnstileProps> = (props) => {
   };
 
   onMount(() => {
+    if (props.ref) {
+      props.ref({ reset: resetWidget });
+    }
+
     if (!siteKey()) {
       console.warn('[Turnstile] No siteKey provided. Bypassing Turnstile for development.');
       props.onToken('dev_bypass_token');

@@ -13,6 +13,8 @@ import {
 import { verifyTurnstileToken } from '../../core/security';
 import { mapEntity } from './profile.service';
 import { auth } from '../../config/better-auth';
+import { env } from '../../config/env';
+import { redis } from '../../core/cache/redis';
 
 // ============================================================================
 // CORE SAAS TENANT PROVISIONING (ONBOARDING)
@@ -201,15 +203,23 @@ export async function register(
     };
   });
 
-  // Disparar envío automático de email de verificación vía Better Auth en background
-  auth.api.sendVerificationEmail({
-    body: {
-      email: result.user.email,
-      callbackURL: '/verify-email',
-    },
-  }).catch((err) => {
+  // 1. Limpiar cualquier cooldown previo en Redis para asegurar el envío en un nuevo registro
+  await redis.del(`email_cooldown:${result.user.email.toLowerCase()}`).catch(() => {});
+
+  // 2. Disparar envío automático de email de verificación vía Better Auth
+  try {
+    await auth.api.sendVerificationEmail({
+      body: {
+        email: result.user.email,
+        callbackURL: '/verify-email',
+      },
+      headers: new Headers({
+        origin: env.BETTER_AUTH_URL,
+      }),
+    });
+  } catch (err) {
     console.error('[Register] Error sending verification email:', err);
-  });
+  }
 
   return result;
 }
