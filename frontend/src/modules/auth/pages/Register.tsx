@@ -211,6 +211,15 @@ const Register: Component = () => {
             }
 
             await actions.initSession();
+
+            // Automatic verification email dispatch via Better Auth client
+            await authClient.sendVerificationEmail({
+                email: s1.email,
+                callbackURL: '/verify-email',
+            }).catch((err) => {
+                console.warn('[Register] Error enviando email de verificación:', err);
+            });
+
             sessionStorage.setItem('resend_cooldown_until', String(Date.now() + 60000));
             toast.success('¡Cuenta creada exitosamente!');
             navigate({ to: '/dashboard', replace: true });
@@ -560,8 +569,13 @@ const Register: Component = () => {
                 />
                 <div class="flex gap-3">
                     <Button variant="outline" type="button" onClick={() => setStep(1)} disabled={submitting()}>Atrás</Button>
-                    <Button fullWidth loading={submitting()} loadingText="Creando cuenta…"
-                        onClick={handleFinalSubmit} disabled={submitting() || !turnstileToken()}>
+                    <Button
+                        fullWidth
+                        disabled={submitting() || !turnstileToken()}
+                        loading={submitting() || !turnstileToken()}
+                        loadingText={!turnstileToken() ? "Verificando seguridad…" : "Creando cuenta…"}
+                        onClick={handleFinalSubmit}
+                    >
                         Crear cuenta
                     </Button>
                 </div>
