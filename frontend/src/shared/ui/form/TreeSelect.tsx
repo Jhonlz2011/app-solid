@@ -1151,3 +1151,5 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     </div>
   );
 }
+
+export default TreeSelect;
