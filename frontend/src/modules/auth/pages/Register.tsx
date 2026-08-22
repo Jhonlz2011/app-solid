@@ -210,6 +210,7 @@ const Register: Component = () => {
             }
 
             await actions.initSession();
+            sessionStorage.setItem('resend_cooldown_until', String(Date.now() + 60000));
             toast.success('¡Cuenta creada exitosamente!');
             navigate({ to: '/dashboard', replace: true });
         } catch (err: any) {

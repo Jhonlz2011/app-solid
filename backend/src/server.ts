@@ -4,7 +4,7 @@ import { swagger } from '@elysiajs/swagger';
 import { staticPlugin } from '@elysiajs/static';
 
 // Routes
-import { auth, resolveTenantUrl, getTenantInfoForEmail } from './config/better-auth';
+import { auth } from './config/better-auth';
 import { tenantRoutes } from './modules/tenants';
 import { profileRoutes } from './modules/profile';
 import { productRoutes } from './modules/products';
@@ -58,58 +58,7 @@ const corsOriginValidator = (request: Request): boolean => {
 };
 
 // ============================================================================
-// 2. LEGACY JWT EMAIL VERIFICATION — compatibilidad con enlaces previos
-// ============================================================================
-
-async function handleLegacyJwtVerification(request: Request): Promise<Response | null> {
-  const url = new URL(request.url);
-  const token = url.searchParams.get('token');
-
-  if (!token || !token.startsWith('eyJ')) return null;
-
-  try {
-    const { jwtVerify } = await import('jose');
-    const secret = new TextEncoder().encode(env.BETTER_AUTH_SECRET);
-    const { payload } = await jwtVerify(token, secret);
-    const email = payload.email as string | undefined;
-
-    if (email) {
-      const { adminDb } = await import('./core/db');
-      const { authUsers: users } = await import('@app/schema/tables');
-      const { eq } = await import('@app/schema');
-      const { broadcast } = await import('./core/sse');
-      const { RealtimeEvents } = await import('@app/schema/realtime-events');
-
-      const [updatedUser] = await adminDb
-        .update(users)
-        .set({ emailVerified: true, updatedAt: new Date() })
-        .where(eq(users.email, email.toLowerCase()))
-        .returning({ id: users.id, email: users.email });
-
-      if (updatedUser) {
-        broadcast(RealtimeEvents.USER.EMAIL_VERIFIED, { userId: updatedUser.id }, `user:${updatedUser.id}`);
-
-        if (request.headers.get('accept')?.includes('text/html')) {
-          const { tenantSlug } = await getTenantInfoForEmail(updatedUser.email);
-          const baseUrl = resolveTenantUrl(tenantSlug);
-          return Response.redirect(`${baseUrl}/verify-email?verified=true`, 302);
-        }
-
-        return new Response(
-          JSON.stringify({ status: true, user: { id: updatedUser.id, email: updatedUser.email } }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-  } catch (err) {
-    console.warn('[BetterAuth Fallback] Invalid legacy JWT token:', err);
-  }
-
-  return null;
-}
-
-// ============================================================================
-// 3. API APP (Sub-aplicación con todas las rutas del dominio)
+// 2. API APP (Sub-aplicación con todas las rutas del dominio)
 // ============================================================================
 
 export const apiApp = new Elysia({ prefix: '/api', aot: false })
@@ -154,19 +103,9 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(errorHandlerPlugin)
   .get('/health', () => ({ status: 'ok', ts: Date.now() }))
 
-  // Better-Auth handler (Mapeo explícito de métodos HTTP para precedencia sobre app.get('*'))
-  .all('/auth/verify-email', async ({ request }) => {
-    const legacyResponse = await handleLegacyJwtVerification(request);
-    if (legacyResponse) return legacyResponse;
-    return auth.handler(request);
-  })
-  .get('/auth/*', ({ request }) => auth.handler(request))
-  .post('/auth/*', ({ request }) => auth.handler(request))
-  .put('/auth/*', ({ request }) => auth.handler(request))
-  .patch('/auth/*', ({ request }) => auth.handler(request))
-  .delete('/auth/*', ({ request }) => auth.handler(request))
-  .get('/auth', ({ request }) => auth.handler(request))
-  .post('/auth', ({ request }) => auth.handler(request))
+  // Better-Auth handler (Mapeo de endpoints de autenticación /api/auth)
+  .all('/auth/*', ({ request }) => auth.handler(request))
+  .all('/auth', ({ request }) => auth.handler(request))
 
   // Domain routes
   .use(tenantRoutes)

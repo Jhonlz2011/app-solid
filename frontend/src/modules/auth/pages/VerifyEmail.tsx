@@ -64,21 +64,6 @@ const VerifyEmail: Component = () => {
     }, 1000);
   };
 
-  // Restore countdown from sessionStorage on mount (survives page refresh) or start initial 60s cooldown
-  onMount(() => {
-    const until = sessionStorage.getItem(COOLDOWN_STORAGE_KEY);
-    if (until) {
-      const remaining = Math.ceil((parseInt(until) - Date.now()) / 1000);
-      if (remaining > 0) {
-        startCountdown(remaining);
-      } else {
-        sessionStorage.removeItem(COOLDOWN_STORAGE_KEY);
-      }
-    } else if (!token()) {
-      startCountdown(60);
-    }
-  });
-
   // ── Redirect helper ────────────────────────────────────────────────────
   const redirectAfterSuccess = async () => {
     // Better-Auth autoSignInAfterVerification sets the session cookie.
@@ -96,22 +81,51 @@ const VerifyEmail: Component = () => {
     }, 2000);
   };
 
-  // ── Token verification (direct link click) ─────────────────────────────
+  // ── Token verification or auto-send on mount ───────────────────────────
   onMount(async () => {
     const currentToken = token();
-    if (!currentToken) return;
+    if (currentToken) {
+      setStatus('verifying');
+      try {
+        const res = await authClient.verifyEmail({ query: { token: currentToken } });
+        if (res.error) throw new Error(res.error.message || 'Error verificando el correo');
 
-    setStatus('verifying');
-    try {
-      const res = await authClient.verifyEmail({ query: { token: currentToken } });
-      if (res.error) throw new Error(res.error.message || 'Error verificando el correo');
+        setStatus('verified');
+        toast.success('¡Correo electrónico verificado con éxito!');
+        redirectAfterSuccess();
+      } catch (err: any) {
+        toast.error(err.message || 'Error en la verificación');
+        setStatus('error');
+      }
+      return;
+    }
 
-      setStatus('verified');
-      toast.success('¡Correo electrónico verificado con éxito!');
-      redirectAfterSuccess();
-    } catch (err: any) {
-      toast.error(err.message || 'Error en la verificación');
-      setStatus('error');
+    // Sin token: revisar cooldown existente en sessionStorage
+    const until = sessionStorage.getItem(COOLDOWN_STORAGE_KEY);
+    if (until) {
+      const remaining = Math.ceil((parseInt(until, 10) - Date.now()) / 1000);
+      if (remaining > 0) {
+        startCountdown(remaining);
+        return;
+      }
+      sessionStorage.removeItem(COOLDOWN_STORAGE_KEY);
+    }
+
+    // Si no hay cooldown activo, auto-enviar correo de verificación si el usuario no está verificado
+    const user = auth.user();
+    if (user?.email && !user.emailVerified) {
+      try {
+        await authClient.sendVerificationEmail({
+          email: user.email,
+          callbackURL: '/verify-email',
+        });
+        toast.info(`Hemos enviado un enlace de verificación a ${user.email}`);
+      } catch (err) {
+        console.warn('[VerifyEmail] Error al auto-enviar verificación:', err);
+      }
+      startCountdown(60);
+    } else {
+      startCountdown(60);
     }
   });
 

@@ -12,6 +12,7 @@ import {
 } from './provisioning.service';
 import { verifyTurnstileToken } from '../../core/security';
 import { mapEntity } from './profile.service';
+import { auth } from '../../config/better-auth';
 
 // ============================================================================
 // CORE SAAS TENANT PROVISIONING (ONBOARDING)
@@ -199,4 +200,16 @@ export async function register(
       },
     };
   });
+
+  // Disparar envío automático de email de verificación vía Better Auth en background
+  auth.api.sendVerificationEmail({
+    body: {
+      email: result.user.email,
+      callbackURL: '/verify-email',
+    },
+  }).catch((err) => {
+    console.error('[Register] Error sending verification email:', err);
+  });
+
+  return result;
 }
