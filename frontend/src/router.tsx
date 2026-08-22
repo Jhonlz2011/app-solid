@@ -80,7 +80,18 @@ const layoutRoute = createRoute({
   id: 'layout',
   beforeLoad: async ({ location }) => {
     const { actions, useAuth } = await import('./modules/auth/store/auth.store');
+    const { isGlobalPortalHost, buildTenantUrl } = await import('@app/schema/utils');
     const auth = useAuth();
+
+    const enforceTenantHost = (user: any): boolean => {
+      if (typeof window === 'undefined') return false;
+      const isGlobal = isGlobalPortalHost(window.location.hostname);
+      if (isGlobal && user?.companySlug) {
+        window.location.href = buildTenantUrl(user.companySlug, location.pathname, { queryParams: { session: 'true' } });
+        return true;
+      }
+      return false;
+    };
 
     // Fast path: already authenticated in memory
     if (auth.isAuthenticated()) {
@@ -88,6 +99,7 @@ const layoutRoute = createRoute({
       if (u && !isEmailVerified(u)) {
         throw redirect({ to: '/verify-email', search: {} });
       }
+      if (enforceTenantHost(u)) return;
       return;
     }
 
@@ -111,6 +123,7 @@ const layoutRoute = createRoute({
       if (u && !isEmailVerified(u)) {
         throw redirect({ to: '/verify-email', search: {} });
       }
+      if (enforceTenantHost(u)) return;
       return;
     }
 

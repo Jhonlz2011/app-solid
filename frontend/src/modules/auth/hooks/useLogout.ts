@@ -10,13 +10,12 @@ export function useLogout() {
     const handleLogout = async () => {
         setIsLoggingOut(true);
         try {
-            // Navigate FIRST to unmount the sidebar/layout before clearing reactive state.
-            // This prevents the visual flash where module names and username disappear
-            // for a few milliseconds due to SolidJS granular reactivity.
-            navigate({ to: '/login', search: { redirect: undefined } });
-            // Clear all cached API responses securely to prevent data leaks between sessions.
+            // 1. Clear cached query data securely
             queryClient.clear();
+            // 2. Clear local auth state and notify server
             await authActions.logout();
+            // 3. Perform fluid client-side SPA navigation to login
+            navigate({ to: '/login', search: { redirect: undefined }, replace: true });
         } finally {
             setIsLoggingOut(false);
         }

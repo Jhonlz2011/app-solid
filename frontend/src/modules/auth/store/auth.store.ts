@@ -147,8 +147,8 @@ export const actions = {
         setSessionFlag(false);
         disconnect();
 
-        // Notify other tabs via centralized broadcast
-        broadcast.emit(BroadcastEvents.AUTH_LOGOUT);
+        // Notify other tabs via centralized broadcast (remote only, avoiding same-tab reload)
+        broadcast.emit(BroadcastEvents.AUTH_LOGOUT, undefined, { remoteOnly: true });
 
         // Notify server via Better-Auth client
         if (notifyServer) {

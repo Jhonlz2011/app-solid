@@ -37,10 +37,10 @@ export const initBroadcast = () => {
 };
 
 /**
- * Emit an event to other tabs (and locally)
+ * Emit an event to other tabs (and optionally locally)
  * Data is auto-sanitized via JSON serialization
  */
-export const emit = (type: string, data?: any) => {
+export const emit = (type: string, data?: any, options?: { remoteOnly?: boolean }) => {
     // Sanitize data by converting to plain JSON (removes non-serializable properties)
     const safeData = data !== undefined ? JSON.parse(JSON.stringify(data)) : undefined;
     const message = { type, data: safeData };
@@ -50,13 +50,15 @@ export const emit = (type: string, data?: any) => {
         channel.postMessage(message);
     }
 
-    // Also emit locally for same-tab reactivity
-    const handlers = listeners.get(type);
-    if (handlers) {
-        handlers.forEach(handler => handler(safeData));
+    // Also emit locally for same-tab reactivity unless remoteOnly is requested
+    if (!options?.remoteOnly) {
+        const handlers = listeners.get(type);
+        if (handlers) {
+            handlers.forEach(handler => handler(safeData));
+        }
     }
-
 };
+
 
 /**
  * Subscribe to an event type

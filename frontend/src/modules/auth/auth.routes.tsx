@@ -8,10 +8,21 @@ export const createAuthRoutes = (rootRoute: any) => {
         id: 'auth-layout',
         beforeLoad: async () => {
             const { actions, useAuth } = await import('./store/auth.store');
+            const { isGlobalPortalHost, buildTenantUrl } = await import('@app/schema/utils');
             const auth = useAuth();
+
+            const handleAuthenticatedRedirect = (user: any) => {
+                const isGlobal = isGlobalPortalHost(window.location.hostname);
+                if (isGlobal && user?.companySlug) {
+                    window.location.href = buildTenantUrl(user.companySlug, '/dashboard', { queryParams: { session: 'true' } });
+                    return;
+                }
+                throw redirect({ to: '/dashboard' });
+            };
+
             // Fast path: already authenticated in memory → redirect immediately
             if (auth.isAuthenticated()) {
-                throw redirect({ to: '/dashboard' });
+                handleAuthenticatedRedirect(auth.user());
             }
             // Fast path: no session flag → show login instantly (zero API calls)
             if (!localStorage.getItem('hasSession')) {
@@ -21,7 +32,7 @@ export const createAuthRoutes = (rootRoute: any) => {
             // Session flag exists but state not initialized (page refresh) → validate with server
             const restored = await actions.initSession();
             if (restored) {
-                throw redirect({ to: '/dashboard' });
+                handleAuthenticatedRedirect(auth.user());
             }
         },
         component: AuthLayout,

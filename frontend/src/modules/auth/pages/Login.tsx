@@ -9,14 +9,13 @@ import { actions } from '@modules/auth/store/auth.store';
 import { authApi } from '../api/auth.api';
 import { useBranding, getSubdomain, applyBranding } from '../store/branding.store';
 import { ApiError, getFriendlyErrorMessage } from '@shared/utils/api-errors';
+import { buildTenantUrl } from '@app/schema/utils';
 import Input from '@/shared/ui/form/Input';
 import Button from '@form/Button';
 import Turnstile from '@shared/ui/Turnstile';
 import { MailIcon } from '@icons/MailIcon';
 import { LockIcon } from '@icons/LockIcon';
 import { BuildingIcon } from '@icons/BuildingIcon';
-
-const BASE_DOMAIN = import.meta.env.VITE_BASE_DOMAIN || 'zelys.app';
 
 const getFieldError = (errors: unknown[]): string | undefined => {
   if (!errors.length) return undefined;
@@ -37,7 +36,7 @@ const Login: Component = () => {
   const branding = useBranding();
 
   const subdomain = getSubdomain();
-  const isGlobalLogin = !subdomain;
+  const isGlobalLogin = !subdomain || subdomain === 'in';
 
   // UI state
   const [showTenants, setShowTenants] = createSignal(false);
@@ -50,23 +49,7 @@ const Login: Component = () => {
   onMount(() => actions.cleanupStaleSession());
 
   const handleRedirect = (slug: string, path: string) => {
-    const host = window.location.hostname;
-    const port = window.location.port;
-    const protocol = window.location.protocol;
-
-    const ipRegex = /^[0-9.]+$/;
-    if (host === 'localhost' || ipRegex.test(host)) {
-      const url = new URL(window.location.origin + path);
-      url.searchParams.set('slug', slug);
-      url.searchParams.set('session', 'true');
-      window.location.href = url.toString();
-    } else {
-      const domainParts = host.split('.');
-      const baseDomain = host.includes(BASE_DOMAIN) ? BASE_DOMAIN : domainParts.slice(-2).join('.');
-      const portStr = port ? `:${port}` : '';
-      const separator = path.includes('?') ? '&' : '?';
-      window.location.href = `${protocol}//${slug}.${baseDomain}${portStr}${path}${separator}session=true`;
-    }
+    window.location.href = buildTenantUrl(slug, path, { queryParams: { session: 'true' } });
   };
 
   const handleSelectTenant = async (tenant: DiscoverTenantItemDto) => {
