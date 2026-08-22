@@ -11,7 +11,6 @@ import {
   untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { createVirtualizer } from "@tanstack/solid-virtual";
 import { CloseIcon } from "@icons/CloseIcon";
 import { ChevronRightIcon } from "@icons/ChevronRightIcon";
 import type { FieldLike } from "./form.types";
@@ -136,7 +135,8 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   const optionsMap = createMemo(() => {
     const map = new Map<number, T>();
     for (const item of props.options || []) {
-      map.set(props.optionValue(item), item);
+      const optId = Number(props.optionValue(item));
+      map.set(optId, item);
     }
     return map;
   });
@@ -146,22 +146,26 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     const list = (props.options || []).filter((item) => {
       const isActive = props.optionIsActive ? props.optionIsActive(item) : true;
       const isNotSelf =
-        !props.editingId || props.optionValue(item) !== props.editingId;
+        !props.editingId ||
+        Number(props.optionValue(item)) !== Number(props.editingId);
       return isActive && isNotSelf;
     });
 
     const filteredMap = new Map<number, T>();
     for (const item of list) {
-      filteredMap.set(props.optionValue(item), item);
+      filteredMap.set(Number(props.optionValue(item)), item);
     }
 
     const childrenMap = new Map<number | null, T[]>();
     const roots: T[] = [];
 
     for (const item of list) {
-      const pid = props.optionParentId(item);
-      const hasParentInFiltered =
-        pid !== null && pid !== undefined && pid > 0 && filteredMap.has(pid);
+      const rawPid = props.optionParentId(item);
+      const pid =
+        rawPid !== null && rawPid !== undefined && Number(rawPid) > 0
+          ? Number(rawPid)
+          : null;
+      const hasParentInFiltered = pid !== null && filteredMap.has(pid);
       if (!hasParentInFiltered) {
         roots.push(item);
       } else {
@@ -205,7 +209,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
         parentId === null ? roots : (childrenMap.get(parentId) ?? []);
       for (let idx = 0; idx < children.length; idx++) {
         const child = children[idx];
-        const childId = props.optionValue(child);
+        const childId = Number(props.optionValue(child));
         const isLast = idx === children.length - 1;
         const fullChain = [...parentChain, isLast];
         map.set(childId, { depth, ancestorIsLast: fullChain.slice(1) });
@@ -219,20 +223,22 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
 
   // Helpers to check tree nodes status
   const hasChildren = (nodeId: number) => {
-    const kids = treeStructure().childrenMap.get(nodeId);
+    const id = Number(nodeId);
+    const kids = treeStructure().childrenMap.get(id);
     return kids !== undefined && kids.length > 0;
   };
 
   const isExpanded = (nodeId: number) => {
-    return expandedIds().has(nodeId);
+    return expandedIds().has(Number(nodeId));
   };
 
   const toggleExpand = (nodeId: number) => {
+    const id = Number(nodeId);
     const next = new Set(expandedIds());
-    if (next.has(nodeId)) {
-      next.delete(nodeId);
+    if (next.has(id)) {
+      next.delete(id);
     } else {
-      next.add(nodeId);
+      next.add(id);
     }
     setExpandedIds(next);
   };
@@ -241,19 +247,20 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   createEffect(() => {
     const list = props.options || [];
     const v = props.value;
-    if (list.length > 0 && v && untrack(expandedIds).size === 0) {
+    if (list.length > 0 && v !== null && v !== undefined && Number(v) > 0 && untrack(expandedIds).size === 0) {
       const parentIds = new Set<number>();
       const makeAncestorsVisible = (nodeId: number) => {
-        const item = optionsMap().get(nodeId);
+        const item = optionsMap().get(Number(nodeId));
         if (item) {
-          const pid = props.optionParentId(item);
-          if (pid !== null && pid !== undefined && pid > 0) {
+          const rawPid = props.optionParentId(item);
+          if (rawPid !== null && rawPid !== undefined && Number(rawPid) > 0) {
+            const pid = Number(rawPid);
             parentIds.add(pid);
             makeAncestorsVisible(pid);
           }
         }
       };
-      makeAncestorsVisible(v);
+      makeAncestorsVisible(Number(v));
       if (parentIds.size > 0) {
         setExpandedIds(parentIds);
       }
@@ -263,11 +270,11 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   // Build breadcrumb path for display
   const getBreadcrumb = (nodeId: number): string => {
     const parts: string[] = [];
-    let current = optionsMap().get(nodeId);
+    let current = optionsMap().get(Number(nodeId));
     if (current) {
-      const pid = props.optionParentId(current);
-      if (pid && pid > 0) {
-        current = optionsMap().get(pid);
+      const rawPid = props.optionParentId(current);
+      if (rawPid !== null && rawPid !== undefined && Number(rawPid) > 0) {
+        current = optionsMap().get(Number(rawPid));
       } else {
         return "";
       }
@@ -276,18 +283,22 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     }
     while (current) {
       parts.unshift(props.optionLabel(current));
-      const pid = props.optionParentId(current);
-      current = pid && pid > 0 ? optionsMap().get(pid) : undefined;
+      const rawPid = props.optionParentId(current);
+      current =
+        rawPid !== null && rawPid !== undefined && Number(rawPid) > 0
+          ? optionsMap().get(Number(rawPid))
+          : undefined;
     }
     return parts.join(" › ");
   };
 
   // Construct text representation of selection
   const getDisplayText = (nodeId: number | undefined | null): string => {
-    if (!nodeId) return "";
-    const item = optionsMap().get(nodeId);
+    if (nodeId === null || nodeId === undefined || Number(nodeId) <= 0)
+      return "";
+    const item = optionsMap().get(Number(nodeId));
     if (!item) return "";
-    const breadcrumb = getBreadcrumb(nodeId);
+    const breadcrumb = getBreadcrumb(Number(nodeId));
     const label = props.optionLabel(item);
     return breadcrumb ? `${label} (${breadcrumb})` : label;
   };
@@ -299,7 +310,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
 
     const set = new Set<number>();
     for (const item of props.options || []) {
-      const id = props.optionValue(item);
+      const id = Number(props.optionValue(item));
       const label = props.optionLabel(item).toLowerCase();
 
       let matchesCustom = label.includes(s);
@@ -346,9 +357,9 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       ancestors.add(nodeId);
       const item = optionsMap().get(nodeId);
       if (item) {
-        const pid = props.optionParentId(item);
-        if (pid !== null && pid !== undefined && pid > 0) {
-          collectAncestors(pid);
+        const rawPid = props.optionParentId(item);
+        if (rawPid !== null && rawPid !== undefined && Number(rawPid) > 0) {
+          collectAncestors(Number(rawPid));
         }
       }
     };
@@ -356,9 +367,9 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     for (const matchId of Array.from(matches)) {
       const item = optionsMap().get(matchId);
       if (item) {
-        const pid = props.optionParentId(item);
-        if (pid !== null && pid !== undefined && pid > 0) {
-          collectAncestors(pid);
+        const rawPid = props.optionParentId(item);
+        if (rawPid !== null && rawPid !== undefined && Number(rawPid) > 0) {
+          collectAncestors(Number(rawPid));
         }
       }
     }
@@ -375,7 +386,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     const collectDescendants = (nodeId: number) => {
       const kids = treeStructure().childrenMap.get(nodeId) || [];
       for (const kid of kids) {
-        const kidId = props.optionValue(kid);
+        const kidId = Number(props.optionValue(kid));
         if (!descendants.has(kidId)) {
           descendants.add(kidId);
           collectDescendants(kidId);
@@ -425,7 +436,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       const children =
         parentId === null ? roots : (childrenMap.get(parentId) ?? []);
       for (const child of children) {
-        const childId = props.optionValue(child);
+        const childId = Number(props.optionValue(child));
 
         const isNodeVisible = !isSearchActive || searchVisible.has(childId);
 
@@ -454,13 +465,13 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   // Synchronize local input state with current external props.value
   createEffect(() => {
     const v = props.value;
-    if (v && (props.options || []).length > 0) {
-      const text = getDisplayText(v);
+    if (v !== null && v !== undefined && Number(v) > 0 && (props.options || []).length > 0) {
+      const text = getDisplayText(Number(v));
       if (text) {
         setInputValue(text);
         setIsSearching(false);
       }
-    } else if (!v) {
+    } else if (!v || Number(v) <= 0) {
       setInputValue("");
       setIsSearching(false);
     }
@@ -468,31 +479,8 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
 
   createEffect(() => {
     if (!isFocused()) {
-      setIsSelectedState(!!props.value);
+      setIsSelectedState(!!props.value && Number(props.value) > 0);
     }
-  });
-
-  // -------------------------------------------------------------
-  // Virtualization setup with stable item keys
-  // -------------------------------------------------------------
-  const rowVirtualizer = createVirtualizer({
-    get count() {
-      return (filteredOptions() || []).length;
-    },
-    getScrollElement: () => scrollContainer(),
-    estimateSize: (index) => {
-      const opt = filteredOptions()[index];
-      if (!opt) return 38;
-      const optId = props.optionValue(opt);
-      const hasBreadcrumb = getBreadcrumb(optId) !== "";
-      const hasWarehouse = (opt as any).warehouse_name !== undefined;
-      return hasBreadcrumb || hasWarehouse ? 48 : 38;
-    },
-    getItemKey: (index) => {
-      const opt = filteredOptions()[index];
-      return opt ? props.optionValue(opt) : index;
-    },
-    overscan: 8,
   });
 
   // Auto-highlight active option or top option upon opening dropdown
@@ -501,13 +489,19 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       untrack(() => {
         const v = props.value;
         const list = filteredOptions();
-        if (v && list.length > 0) {
-          const idx = list.findIndex((opt) => props.optionValue(opt) === v);
+        if (v !== null && v !== undefined && Number(v) > 0 && list.length > 0) {
+          const idx = list.findIndex(
+            (opt) => Number(props.optionValue(opt)) === Number(v),
+          );
           if (idx !== -1) {
             setHighlightedIndex(idx);
             setLastKeyboardNavTime(Date.now());
             setTimeout(() => {
-              rowVirtualizer.scrollToIndex(idx, { align: "center" });
+              const container = scrollContainer();
+              const el = container?.querySelector(
+                `[data-index="${idx}"]`,
+              ) as HTMLElement | null;
+              el?.scrollIntoView({ block: "center" });
             }, 30);
             return;
           }
@@ -525,14 +519,16 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
         const list = filteredOptions();
         const matches = matchingNodeIds();
         const idx = list.findIndex((opt) =>
-          matches.has(props.optionValue(opt)),
+          matches.has(Number(props.optionValue(opt))),
         );
         if (idx !== -1) {
           setHighlightedIndex(idx);
           setLastKeyboardNavTime(Date.now());
-          untrack(() => {
-            rowVirtualizer.scrollToIndex(idx, { align: "auto" });
-          });
+          const container = scrollContainer();
+          const el = container?.querySelector(
+            `[data-index="${idx}"]`,
+          ) as HTMLElement | null;
+          el?.scrollIntoView({ block: "nearest" });
         } else {
           setHighlightedIndex(0);
         }
@@ -548,7 +544,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   const handleSelect = (opt: T) => {
     lastSelectionTime = Date.now();
     setIsSelectedState(true);
-    const selectedId = props.optionValue(opt);
+    const selectedId = Number(props.optionValue(opt));
     props.onChange(selectedId, opt);
     setInputValue(getDisplayText(selectedId));
     setIsSearching(false);
@@ -557,7 +553,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   };
 
   const handleItemClick = (opt: T) => {
-    const optId = props.optionValue(opt);
+    const optId = Number(props.optionValue(opt));
     const hasKids = hasChildren(optId);
     const allowParentSelection = props.parentSelectable ?? true;
 
@@ -632,7 +628,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   const handleInputBlur = () => {
     setTimeout(() => {
       setIsFocused(false);
-      setIsSelectedState(!!props.value);
+      setIsSelectedState(!!props.value && Number(props.value) > 0);
       if (!isSelectedState()) {
         setInputValue(props.value ? getDisplayText(props.value) : "");
         setIsSearching(false);
@@ -668,35 +664,49 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       return;
     }
 
+    const scrollToHighlight = (idx: number) => {
+      const container = scrollContainer();
+      if (!container) return;
+      const el = container.querySelector(
+        `[data-index="${idx}"]`,
+      ) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ block: "nearest" });
+      }
+    };
+
     switch (e.key) {
-      case "ArrowDown":
+      case "ArrowDown": {
         e.preventDefault();
         setLastKeyboardNavTime(Date.now());
-        setHighlightedIndex((prev) => (prev + 1) % count);
-        rowVirtualizer.scrollToIndex(highlightedIndex(), { align: "auto" });
+        const nextIdx = (highlightedIndex() + 1) % count;
+        setHighlightedIndex(nextIdx);
+        scrollToHighlight(nextIdx);
         break;
-      case "ArrowUp":
+      }
+      case "ArrowUp": {
         e.preventDefault();
         setLastKeyboardNavTime(Date.now());
-        setHighlightedIndex((prev) => (prev - 1 + count) % count);
-        rowVirtualizer.scrollToIndex(highlightedIndex(), { align: "auto" });
+        const nextIdx = (highlightedIndex() - 1 + count) % count;
+        setHighlightedIndex(nextIdx);
+        scrollToHighlight(nextIdx);
         break;
+      }
       case "ArrowRight": {
         e.preventDefault();
         setLastKeyboardNavTime(Date.now());
         const opt = list[highlightedIndex()];
         if (opt) {
-          const optId = props.optionValue(opt);
+          const optId = Number(props.optionValue(opt));
           const hasKids = hasChildren(optId);
           const expanded = isExpanded(optId);
           if (hasKids) {
             if (!expanded) {
               toggleExpand(optId);
             } else if (highlightedIndex() + 1 < count) {
-              setHighlightedIndex(highlightedIndex() + 1);
-              rowVirtualizer.scrollToIndex(highlightedIndex(), {
-                align: "auto",
-              });
+              const nextIdx = highlightedIndex() + 1;
+              setHighlightedIndex(nextIdx);
+              scrollToHighlight(nextIdx);
             }
           }
         }
@@ -707,22 +717,21 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
         setLastKeyboardNavTime(Date.now());
         const opt = list[highlightedIndex()];
         if (opt) {
-          const optId = props.optionValue(opt);
+          const optId = Number(props.optionValue(opt));
           const hasKids = hasChildren(optId);
           const expanded = isExpanded(optId);
           if (hasKids && expanded) {
             toggleExpand(optId);
           } else {
-            const pid = props.optionParentId(opt);
-            if (pid !== null && pid !== undefined && pid > 0) {
+            const rawPid = props.optionParentId(opt);
+            if (rawPid !== null && rawPid !== undefined && Number(rawPid) > 0) {
               const parentIdx = list.findIndex(
-                (item) => props.optionValue(item) === pid,
+                (item) =>
+                  Number(props.optionValue(item)) === Number(rawPid),
               );
               if (parentIdx !== -1) {
                 setHighlightedIndex(parentIdx);
-                rowVirtualizer.scrollToIndex(highlightedIndex(), {
-                  align: "auto",
-                });
+                scrollToHighlight(parentIdx);
               }
             }
           }
@@ -856,7 +865,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
 
         <div class="ml-2 flex shrink-0 items-center justify-center gap-1.5 text-muted group-hover:text-text transition-colors h-full">
           {/* Clear selection action */}
-          <Show when={props.value}>
+          <Show when={props.value && Number(props.value) > 0}>
             <button
               type="button"
               onClick={handleClear}
@@ -912,11 +921,10 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
               "max-width": `${coords().width}px`,
             }}
           >
-            {/* Virtual scroll viewport */}
+            {/* Scroll viewport */}
             <div
               ref={setScrollContainer}
-              class="max-h-64 overflow-y-auto outline-none p-1 bg-card text-text custom-scrollbar"
-              style={{ position: "relative" }}
+              class="max-h-64 overflow-y-auto outline-none p-1 bg-card text-text custom-scrollbar space-y-0.5"
             >
               <Show
                 when={filteredOptions().length > 0}
@@ -926,213 +934,167 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
                   </div>
                 }
               >
-                <div
-                  style={{
-                    height: `${rowVirtualizer.getTotalSize()}px`,
-                    width: "100%",
-                    position: "relative",
-                  }}
-                >
-                  <For each={rowVirtualizer.getVirtualItems()}>
-                    {(virtualRow) => {
-                      const opt = () => filteredOptions()[virtualRow.index];
-
-                      const optId = () => {
-                        const o = opt();
-                        return o ? props.optionValue(o) : -1;
-                      };
-                      const nodeMeta = () => {
-                        const id = optId();
-                        return id !== -1 ? nodeMetaMap().get(id) : undefined;
-                      };
-                      const depth = () => nodeMeta()?.depth ?? 0;
-                      const hasKids = () => {
-                        const id = optId();
-                        return id !== -1 ? hasChildren(id) : false;
-                      };
-                      const expanded = () => {
-                        const id = optId();
-                        if (id === -1) return false;
-                        const searchVisible = visibleNodeIdsInSearch();
-                        if (
-                          searchVisible &&
-                          ancestorsOfMatches().has(id) &&
-                          hasKids()
-                        ) {
-                          return true;
-                        }
-                        return isExpanded(id);
-                      };
-                      const isHighlighted = () =>
-                        highlightedIndex() === virtualRow.index;
-                      const isSelected = () => {
-                        const id = optId();
-                        return id !== -1 ? props.value === id : false;
-                      };
-                      const label = () => {
-                        const o = opt();
-                        return o ? props.optionLabel(o) : "";
-                      };
-                      const allowParentSelection = () =>
-                        props.parentSelectable ?? true;
-                      const isNonSelectableParent = () =>
-                        !allowParentSelection() && hasKids();
-
+                <For each={filteredOptions()}>
+                  {(opt, index) => {
+                    const optId = () => Number(props.optionValue(opt));
+                    const nodeMeta = () => nodeMetaMap().get(optId());
+                    const depth = () => nodeMeta()?.depth ?? 0;
+                    const hasKids = () => hasChildren(optId());
+                    const expanded = () => {
+                      const id = optId();
+                      const searchVisible = visibleNodeIdsInSearch();
+                      if (
+                        searchVisible &&
+                        ancestorsOfMatches().has(id) &&
+                        hasKids()
+                      ) {
+                        return true;
+                      }
+                      return isExpanded(id);
+                    };
+                    const isHighlighted = () =>
+                      highlightedIndex() === index();
+                    const isSelected = () => {
+                      const v = props.value;
                       return (
-                        <div
-                          data-index={virtualRow.index}
-                          style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                            height: `${virtualRow.size}px`,
-                            transform: `translateY(${virtualRow.start}px)`,
-                          }}
-                          onClick={() => {
-                            const o = opt();
-                            if (o) handleItemClick(o);
-                          }}
-                          onMouseEnter={() => {
-                            if (Date.now() - lastKeyboardNavTime() < 150)
-                              return;
-                            if (highlightedIndex() !== virtualRow.index) {
-                              setHighlightedIndex(virtualRow.index);
-                            }
-                          }}
-                          class={cn(
-                            "group/row relative flex w-full min-w-0 overflow-hidden cursor-pointer select-none items-center justify-between rounded-lg px-1.5 py-1 text-sm outline-none transition-colors duration-150",
-                            isSelected()
-                              ? isHighlighted()
-                                ? "bg-primary/20 text-primary font-semibold shadow-xs"
-                                : "bg-primary-soft text-primary font-semibold"
-                              : isHighlighted()
-                                ? "bg-primary/10 text-primary font-semibold"
-                                : "text-text hover:bg-card-alt",
-                            isNonSelectableParent() &&
-                              "hover:bg-primary/5 text-heading font-medium",
-                          )}
-                        >
-                          <div class="flex items-center w-full min-w-0 pr-1 select-none relative self-stretch">
-                            {/* Main Content Row indented dynamically */}
-                            <div
-                              class="flex items-center w-full min-w-0 flex-1 z-10"
-                              style={{ "padding-left": `${depth() * 16}px` }}
-                            >
-                              {/* Expand / Collapse Spacer / Chevron */}
-                              <div class="size-6 shrink-0 flex items-center justify-center">
-                                <Show when={hasKids()}>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      const id = optId();
-                                      if (id !== -1) toggleExpand(id);
-                                    }}
-                                    class="size-5 shrink-0 flex items-center justify-center rounded-md hover:bg-primary/20 text-muted hover:text-primary transition-all duration-150 cursor-pointer z-20"
-                                    title={
-                                      expanded() ? "Colapsar" : "Desplegar"
-                                    }
-                                  >
-                                    <ChevronRightIcon
-                                      stroke-width={2.5}
-                                      class={cn(
-                                        "size-3 transition-transform duration-200",
-                                        expanded()
-                                          ? "rotate-90 text-primary"
-                                          : isHighlighted() || isSelected()
-                                            ? "text-primary/70"
-                                            : "text-muted",
-                                      )}
-                                    />
-                                  </button>
-                                </Show>
-                              </div>
+                        v !== null &&
+                        v !== undefined &&
+                        Number(v) === optId()
+                      );
+                    };
+                    const label = () => props.optionLabel(opt);
+                    const allowParentSelection = () =>
+                      props.parentSelectable ?? true;
+                    const isNonSelectableParent = () =>
+                      !allowParentSelection() && hasKids();
 
-                              {/* Custom or standard item rendering */}
-                              <Show when={opt()}>
-                                {(nonNullOpt) => {
-                                  const currentOptId = () =>
-                                    props.optionValue(nonNullOpt());
-                                  const currentLabel = () =>
-                                    props.optionLabel(nonNullOpt());
-
-                                  return (
-                                    <Show
-                                      when={props.itemRenderer}
-                                      fallback={
-                                        <div class="flex flex-col min-w-0 flex-1 ml-0.5">
-                                          <div class="flex items-center gap-1.5 min-w-0">
-                                            {renderOptionLabel(
-                                              currentLabel(),
-                                              isHighlighted(),
-                                              isSelected(),
-                                            )}
-                                            <Show
-                                              when={isNonSelectableParent()}
-                                            >
-                                              <span class="text-[10px] text-muted font-normal px-1.5 py-0.5 rounded-md bg-surface/70 border border-border/50 shrink-0">
-                                                Grupo
-                                              </span>
-                                            </Show>
-                                          </div>
-                                          <Show
-                                            when={getBreadcrumb(currentOptId())}
-                                          >
-                                            <span
-                                              class={cn(
-                                                "text-[11px] truncate mt-0.5 transition-colors duration-150",
-                                                isHighlighted() || isSelected()
-                                                  ? "text-primary/70"
-                                                  : "text-muted/70",
-                                              )}
-                                            >
-                                              {getBreadcrumb(currentOptId())}
-                                            </span>
-                                          </Show>
-                                        </div>
-                                      }
-                                    >
-                                      {props.itemRenderer!(nonNullOpt(), {
-                                        depth: depth(),
-                                        hasChildren: hasKids(),
-                                        expanded: expanded(),
-                                        query: isSearching()
-                                          ? inputValue()
-                                          : "",
-                                        highlighted: isHighlighted(),
-                                        selected: isSelected(),
-                                      })}
-                                    </Show>
-                                  );
-                                }}
-                              </Show>
-
-                              {/* Checkmark Indicator on the right for selected item */}
-                              <Show when={isSelected()}>
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  class="size-4 text-primary shrink-0 ml-2 animate-in zoom-in-50 duration-200"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                  stroke-width="3"
+                    return (
+                      <div
+                        id={`tree-opt-${optId()}`}
+                        data-index={index()}
+                        onClick={() => handleItemClick(opt)}
+                        onMouseEnter={() => {
+                          if (Date.now() - lastKeyboardNavTime() < 150)
+                            return;
+                          if (highlightedIndex() !== index()) {
+                            setHighlightedIndex(index());
+                          }
+                        }}
+                        class={cn(
+                          "group/row relative flex w-full min-w-0 overflow-hidden cursor-pointer select-none items-center justify-between rounded-lg px-1.5 py-1 text-sm outline-none transition-colors duration-150",
+                          isSelected()
+                            ? isHighlighted()
+                              ? "bg-primary/20 text-primary font-semibold shadow-xs"
+                              : "bg-primary-soft text-primary font-semibold"
+                            : isHighlighted()
+                              ? "bg-primary/10 text-primary font-semibold"
+                              : "text-text hover:bg-card-alt",
+                          isNonSelectableParent() &&
+                            "hover:bg-primary/5 text-heading font-medium",
+                        )}
+                      >
+                        <div class="flex items-center w-full min-w-0 pr-1 select-none relative self-stretch">
+                          {/* Main Content Row indented dynamically */}
+                          <div
+                            class="flex items-center w-full min-w-0 flex-1 z-10"
+                            style={{ "padding-left": `${depth() * 16}px` }}
+                          >
+                            {/* Expand / Collapse Spacer / Chevron */}
+                            <div class="size-6 shrink-0 flex items-center justify-center">
+                              <Show when={hasKids()}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const id = optId();
+                                    if (id > 0) toggleExpand(id);
+                                  }}
+                                  class="size-5 shrink-0 flex items-center justify-center rounded-md hover:bg-primary/20 text-muted hover:text-primary transition-all duration-150 cursor-pointer z-20"
+                                  title={
+                                    expanded() ? "Colapsar" : "Desplegar"
+                                  }
                                 >
-                                  <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M5 13l4 4L19 7"
+                                  <ChevronRightIcon
+                                    stroke-width={2.5}
+                                    class={cn(
+                                      "size-3.5 transition-transform duration-200",
+                                      expanded()
+                                        ? "rotate-90 text-primary"
+                                        : isHighlighted() || isSelected()
+                                          ? "text-primary/70"
+                                          : "text-muted",
+                                    )}
                                   />
-                                </svg>
+                                </button>
                               </Show>
                             </div>
+
+                            {/* Custom or standard item rendering */}
+                            <Show
+                              when={props.itemRenderer}
+                              fallback={
+                                <div class="flex flex-col min-w-0 flex-1 ml-0.5">
+                                  <div class="flex items-center gap-1.5 min-w-0">
+                                    {renderOptionLabel(
+                                      label(),
+                                      isHighlighted(),
+                                      isSelected(),
+                                    )}
+                                    <Show when={isNonSelectableParent()}>
+                                      <span class="text-[10px] text-muted font-normal px-1.5 py-0.5 rounded-md bg-surface/70 border border-border/50 shrink-0">
+                                        Grupo
+                                      </span>
+                                    </Show>
+                                  </div>
+                                  <Show when={getBreadcrumb(optId())}>
+                                    <span
+                                      class={cn(
+                                        "text-[11px] truncate mt-0.5 transition-colors duration-150",
+                                        isHighlighted() || isSelected()
+                                          ? "text-primary/70"
+                                          : "text-muted/70",
+                                      )}
+                                    >
+                                      {getBreadcrumb(optId())}
+                                    </span>
+                                  </Show>
+                                </div>
+                              }
+                            >
+                              {props.itemRenderer!(opt, {
+                                depth: depth(),
+                                hasChildren: hasKids(),
+                                expanded: expanded(),
+                                query: isSearching() ? inputValue() : "",
+                                highlighted: isHighlighted(),
+                                selected: isSelected(),
+                              })}
+                            </Show>
+
+                            {/* Checkmark Indicator on the right for selected item */}
+                            <Show when={isSelected()}>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="size-4 text-primary shrink-0 ml-2 animate-in zoom-in-50 duration-200"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                stroke-width="3"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </Show>
                           </div>
                         </div>
-                      );
-                    }}
-                  </For>
-                </div>
+                      </div>
+                    );
+                  }}
+                </For>
               </Show>
             </div>
           </div>
