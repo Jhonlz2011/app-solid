@@ -84,8 +84,8 @@ export const actions = {
             enableReconnect();
             connect(currentSessionId);
 
-            // Notify other tabs via centralized broadcast
-            broadcast.emit(BroadcastEvents.AUTH_LOGIN, { user: sanitizeUser(user), sessionId: currentSessionId });
+            // Notify other tabs via centralized broadcast (remote only, leaving active tab navigation to Login.tsx)
+            broadcast.emit(BroadcastEvents.AUTH_LOGIN, { user: sanitizeUser(user), sessionId: currentSessionId }, { remoteOnly: true });
 
             // Sync branding if user has a companySlug
             if (user.companySlug) {
@@ -283,7 +283,7 @@ export const actions = {
             }
         });
 
-        broadcast.on(BroadcastEvents.AUTH_LOGIN, (data) => {
+        broadcast.on(BroadcastEvents.AUTH_LOGIN, async (data) => {
             if (!data?.user) return;
             currentSessionId = data.sessionId ?? null;
             batch(() => {
@@ -296,10 +296,16 @@ export const actions = {
             // Navigate if still on the login page
             // Preserve redirect param if present (e.g., /login?redirect=/suppliers → /suppliers)
             if (window.location.pathname.startsWith('/login')) {
+                const { isGlobalPortalHost, buildTenantUrl } = await import('@app/schema/utils');
                 const params = new URLSearchParams(window.location.search);
                 const redirectTo = params.get('redirect');
                 const safePath = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
-                window.location.href = safePath;
+                const isGlobal = isGlobalPortalHost(window.location.hostname);
+                if (isGlobal && data.user.companySlug) {
+                    window.location.href = buildTenantUrl(data.user.companySlug, safePath, { queryParams: { session: 'true' } });
+                } else {
+                    window.location.href = safePath;
+                }
             }
         });
 
