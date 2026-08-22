@@ -12,8 +12,8 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { createVirtualizer } from "@tanstack/solid-virtual";
-import { CloseIcon } from '@icons/CloseIcon'
-import { ChevronRightIcon } from '@icons/ChevronRightIcon'
+import { CloseIcon } from "@icons/CloseIcon";
+import { ChevronRightIcon } from "@icons/ChevronRightIcon";
 import type { FieldLike } from "./form.types";
 import {
   hasFieldError,
@@ -71,14 +71,14 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   let triggerRef: HTMLDivElement | undefined;
   let inputRef: HTMLInputElement | undefined;
   let dropdownRef: HTMLDivElement | undefined;
-  let _lastSelectionTime = 0;
+  let lastSelectionTime = 0;
 
   // Monitor input resizing for the dropdown portal width & positioning coordinates
   const updateCoords = () => {
     if (triggerRef) {
       const rect = triggerRef.getBoundingClientRect();
       setCoords({
-        top: rect.bottom + window.scrollY + 4, // elegant 4px gap
+        top: rect.bottom + window.scrollY + 4,
         left: rect.left + window.scrollX,
         width: rect.width,
       });
@@ -89,14 +89,12 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     if (isOpen()) {
       updateCoords();
 
-      // Observe resizes of trigger container dynamically
       if (triggerRef) {
         const resizeObserver = new ResizeObserver(updateCoords);
         resizeObserver.observe(triggerRef);
         onCleanup(() => resizeObserver.disconnect());
       }
 
-      // Window-level events to keep layout perfectly aligned
       window.addEventListener("resize", updateCoords);
       window.addEventListener("scroll", updateCoords, true);
       onCleanup(() => {
@@ -109,15 +107,15 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   // Handle click outside to close dropdown
   createEffect(() => {
     if (isOpen()) {
-      const handleDocClick = (e: MouseEvent) => {
+      const handleDocMouseDown = (e: MouseEvent) => {
         const target = e.target as Node;
         if (triggerRef && triggerRef.contains(target)) return;
         if (dropdownRef && dropdownRef.contains(target)) return;
         setIsOpen(false);
       };
-      document.addEventListener("click", handleDocClick, true);
+      document.addEventListener("mousedown", handleDocMouseDown);
       onCleanup(() => {
-        document.removeEventListener("click", handleDocClick, true);
+        document.removeEventListener("mousedown", handleDocMouseDown);
       });
     }
   });
@@ -186,13 +184,9 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     return { roots, childrenMap };
   });
 
-  // Determine relative depths + ancestor "isLastChild" chain for proper L-connector rendering.
-  // ancestorIsLast[i] tells whether to suppress the continuing vertical line at guide column i:
-  //   - For i < depth-1: true = ancestor at that level IS last child → no continuing line
-  //   - For i = depth-1: true = THIS node IS last child → draw L-connector (half vertical)
   interface NodeMeta {
     depth: number;
-    ancestorIsLast: boolean[]; // length === depth, one entry per guide column
+    ancestorIsLast: boolean[];
   }
 
   const nodeMetaMap = createMemo(() => {
@@ -213,8 +207,6 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
         const childId = props.optionValue(child);
         const isLast = idx === children.length - 1;
         const fullChain = [...parentChain, isLast];
-        // Store only entries relevant for guide columns (skip root-level entry)
-        // Result: root nodes (depth 0) get [], depth 1 gets 1 entry, etc.
         map.set(childId, { depth, ancestorIsLast: fullChain.slice(1) });
         traverse(childId, depth + 1, fullChain);
       }
@@ -242,29 +234,28 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       next.add(nodeId);
     }
     setExpandedIds(next);
-    inputRef?.focus();
   };
 
   // Auto-expand parents of the selected node on load, keeping everything else collapsed
   createEffect(() => {
     const list = props.options || [];
-    if (list.length > 0 && untrack(expandedIds).size === 0) {
-      const v = props.value;
+    const v = props.value;
+    if (list.length > 0 && v && untrack(expandedIds).size === 0) {
       const parentIds = new Set<number>();
-      if (v) {
-        const makeAncestorsVisible = (nodeId: number) => {
-          const item = optionsMap().get(nodeId);
-          if (item) {
-            const pid = props.optionParentId(item);
-            if (pid !== null && pid !== undefined) {
-              parentIds.add(pid);
-              makeAncestorsVisible(pid);
-            }
+      const makeAncestorsVisible = (nodeId: number) => {
+        const item = optionsMap().get(nodeId);
+        if (item) {
+          const pid = props.optionParentId(item);
+          if (pid !== null && pid !== undefined) {
+            parentIds.add(pid);
+            makeAncestorsVisible(pid);
           }
-        };
-        makeAncestorsVisible(v);
+        }
+      };
+      makeAncestorsVisible(v);
+      if (parentIds.size > 0) {
+        setExpandedIds(parentIds);
       }
-      setExpandedIds(parentIds);
     }
   });
 
@@ -435,18 +426,14 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       for (const child of children) {
         const childId = props.optionValue(child);
 
-        // Visibility: during search, only show nodes in searchVisible set (matches + ancestors + descendants)
-        // Without search, all nodes at traversed levels are visible
-        const isNodeVisible =
-          !isSearchActive || searchVisible.has(childId);
+        const isNodeVisible = !isSearchActive || searchVisible.has(childId);
 
         if (isNodeVisible) {
           result.push(child);
         }
 
-        // Expansion: during search, expand ancestors of matches OR manually expanded nodes
         const shouldExpand = isSearchActive
-          ? (ancestors.has(childId) || isExpanded(childId))
+          ? ancestors.has(childId) || isExpanded(childId)
           : isExpanded(childId);
 
         if (shouldExpand && hasChildren(childId)) {
@@ -459,7 +446,6 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     return result;
   });
 
-  // Filtered by search input — Unified tree traverser
   const filteredOptions = createMemo(() => {
     return visibleTreeOptions() || [];
   });
@@ -486,20 +472,24 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   });
 
   // -------------------------------------------------------------
-  // Virtualization setup
+  // Virtualization setup with stable item keys
   // -------------------------------------------------------------
   const rowVirtualizer = createVirtualizer({
     get count() {
       return (filteredOptions() || []).length;
     },
-    getScrollElement: () => scrollContainer()!,
+    getScrollElement: () => scrollContainer(),
     estimateSize: (index) => {
       const opt = filteredOptions()[index];
-      if (!opt) return 40;
+      if (!opt) return 38;
       const optId = props.optionValue(opt);
       const hasBreadcrumb = getBreadcrumb(optId) !== "";
       const hasWarehouse = (opt as any).warehouse_name !== undefined;
-      return hasBreadcrumb || hasWarehouse ? 50 : 40;
+      return hasBreadcrumb || hasWarehouse ? 48 : 38;
+    },
+    getItemKey: (index) => {
+      const opt = filteredOptions()[index];
+      return opt ? props.optionValue(opt) : index;
     },
     overscan: 8,
   });
@@ -514,11 +504,10 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
           const idx = list.findIndex((opt) => props.optionValue(opt) === v);
           if (idx !== -1) {
             setHighlightedIndex(idx);
-            setLastKeyboardNavTime(Date.now()); // Lock hover to prevent scroll-under pointer hijack!
-            // Center selected element on dropdown mount
+            setLastKeyboardNavTime(Date.now());
             setTimeout(() => {
               rowVirtualizer.scrollToIndex(idx, { align: "center" });
-            }, 50);
+            }, 30);
             return;
           }
         }
@@ -539,7 +528,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
         );
         if (idx !== -1) {
           setHighlightedIndex(idx);
-          setLastKeyboardNavTime(Date.now()); // Lock hover to prevent scroll-under pointer hijack!
+          setLastKeyboardNavTime(Date.now());
           untrack(() => {
             rowVirtualizer.scrollToIndex(idx, { align: "auto" });
           });
@@ -553,10 +542,10 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   });
 
   // -------------------------------------------------------------
-  // Core Handlers
+  // Core Selection & Row Interaction Logic
   // -------------------------------------------------------------
   const handleSelect = (opt: T) => {
-    _lastSelectionTime = Date.now();
+    lastSelectionTime = Date.now();
     setIsSelectedState(true);
     const selectedId = props.optionValue(opt);
     props.onChange(selectedId, opt);
@@ -564,6 +553,20 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     setIsSearching(false);
     setIsOpen(false);
     inputRef?.focus();
+  };
+
+  const handleItemClick = (opt: T) => {
+    const optId = props.optionValue(opt);
+    const hasKids = hasChildren(optId);
+    const allowParentSelection = props.parentSelectable ?? true;
+
+    if (!allowParentSelection && hasKids) {
+      // Parent node is not selectable: clicking the row toggles expansion
+      toggleExpand(optId);
+    } else {
+      // Selectable node: leaf node or parent when parentSelectable is true
+      handleSelect(opt);
+    }
   };
 
   const handleClear = (e: MouseEvent) => {
@@ -603,12 +606,11 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
 
   const handleInputChange = (e: Event) => {
     const inputVal = (e.currentTarget as HTMLInputElement).value;
-    if (Date.now() - _lastSelectionTime < 150) return;
+    if (Date.now() - lastSelectionTime < 150) return;
 
     if (getDisplayText(props.value) !== inputVal) {
       setIsSelectedState(false);
     }
-    // Lock hover immediately to prevent mousemove events from capturing focus during search layout updates
     setLastKeyboardNavTime(Date.now());
     setInputValue(inputVal);
     setIsSearching(true);
@@ -618,10 +620,12 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
 
   const handleInputFocus = (e: FocusEvent) => {
     setIsFocused(true);
-    updateCoords();
-    setIsOpen(true);
-    (e.currentTarget as HTMLInputElement).select();
-    setIsSelectedState(false);
+    if (Date.now() - lastSelectionTime > 200) {
+      updateCoords();
+      setIsOpen(true);
+      (e.currentTarget as HTMLInputElement).select();
+      setIsSelectedState(false);
+    }
   };
 
   const handleInputBlur = () => {
@@ -687,13 +691,11 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
           if (hasKids) {
             if (!expanded) {
               toggleExpand(optId);
-            } else {
-              if (highlightedIndex() + 1 < count) {
-                setHighlightedIndex(highlightedIndex() + 1);
-                rowVirtualizer.scrollToIndex(highlightedIndex(), {
-                  align: "auto",
-                });
-              }
+            } else if (highlightedIndex() + 1 < count) {
+              setHighlightedIndex(highlightedIndex() + 1);
+              rowVirtualizer.scrollToIndex(highlightedIndex(), {
+                align: "auto",
+              });
             }
           }
         }
@@ -730,12 +732,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
         e.preventDefault();
         const opt = list[highlightedIndex()];
         if (opt) {
-          const oId = props.optionValue(opt);
-          if (props.parentSelectable === false && hasChildren(oId)) {
-            toggleExpand(oId);
-          } else {
-            handleSelect(opt);
-          }
+          handleItemClick(opt);
         }
         break;
       }
@@ -760,16 +757,16 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   ) => {
     const query = isSearching() ? inputValue().trim() : "";
     const textColorClass = isHighlighted
-      ? "text-primary"
+      ? "text-primary font-semibold"
       : isSelected
         ? "text-primary font-semibold"
-        : "text-text";
+        : "text-text font-medium";
 
     if (!query)
       return (
         <span
           class={cn(
-            "text-sm font-semibold truncate transition-colors duration-150",
+            "text-sm truncate transition-colors duration-150",
             textColorClass,
           )}
         >
@@ -782,7 +779,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
       return (
         <span
           class={cn(
-            "text-sm font-semibold truncate transition-colors duration-150",
+            "text-sm truncate transition-colors duration-150",
             textColorClass,
           )}
         >
@@ -797,12 +794,12 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
     return (
       <span
         class={cn(
-          "text-sm font-semibold truncate transition-colors duration-150",
+          "text-sm truncate transition-colors duration-150",
           textColorClass,
         )}
       >
         {before}
-        <mark class="bg-primary/20 text-primary font-bold rounded-sm px-0.5">
+        <mark class="bg-primary/25 text-primary font-bold rounded-xs px-0.5">
           {match}
         </mark>
         {after}
@@ -831,7 +828,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
           isFocused() && "border-primary/65 ring-2 ring-primary/25 bg-card",
           props.disabled && "cursor-not-allowed opacity-50 pointer-events-none",
           validationState() === "invalid" &&
-            "border-red-500/50 ring-2 ring-red-500/25",
+            "border-danger/50 ring-2 ring-danger/25",
         )}
       >
         <Show when={props.inputPrefix}>
@@ -851,12 +848,12 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
           placeholder={props.placeholder}
           disabled={props.disabled}
           class={cn(
-            "focus-visible:none focus-visible:shadow-none flex-1 bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0 select-text",
+            "focus-visible:none focus-visible:shadow-none flex-1 bg-transparent py-2 outline-none placeholder:text-muted text-text font-medium min-w-0 select-text text-sm",
             isSelectedState() && "cursor-default",
           )}
         />
 
-        <div class="ml-2 flex shrink-0 items-center justify-center gap-1.5 text-muted group-hover:text-text-secondary transition-colors h-full">
+        <div class="ml-2 flex shrink-0 items-center justify-center gap-1.5 text-muted group-hover:text-text transition-colors h-full">
           {/* Clear selection action */}
           <Show when={props.value}>
             <button
@@ -874,11 +871,12 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
             type="button"
             onClick={handleTriggerClick}
             class="trigger-btn cursor-pointer hover:text-primary transition-colors flex items-center justify-center p-0.5 rounded-md border-0 bg-transparent"
+            title={isOpen() ? "Cerrar menú" : "Abrir menú"}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class={cn(
-                "size-4 text-muted/60 transition-transform duration-200",
+                "size-4 text-muted transition-transform duration-200",
                 isOpen() && "rotate-180 text-primary",
               )}
               fill="none"
@@ -901,15 +899,14 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
         <Portal>
           <div
             ref={dropdownRef}
-            onPointerDown={(e) => {
+            onMouseDown={(e) => {
               const target = e.target as HTMLElement;
-              // If clicking dropdown background or scrollbars, prevent input focus loss
-              if (target.tagName !== "INPUT" && !target.closest("button")) {
+              // Prevent input blur when clicking empty background areas or scroll container
+              if (target === dropdownRef || target === scrollContainer()) {
                 e.preventDefault();
-                inputRef?.focus();
               }
             }}
-            class="absolute z-100 min-w-32 overflow-hidden bg-card/95 backdrop-blur-md border border-border shadow-xl rounded-xl p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
+            class="absolute z-100 min-w-32 overflow-hidden bg-card/95 backdrop-blur-md border border-border shadow-card rounded-xl p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
             style={{
               top: `${coords().top}px`,
               left: `${coords().left}px`,
@@ -948,12 +945,9 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
                       };
                       const nodeMeta = () => {
                         const id = optId();
-                        return id !== -1
-                          ? nodeMetaMap().get(id)
-                          : undefined;
+                        return id !== -1 ? nodeMetaMap().get(id) : undefined;
                       };
                       const depth = () => nodeMeta()?.depth ?? 0;
-                      const ancestorIsLast = () => nodeMeta()?.ancestorIsLast ?? [];
                       const hasKids = () => {
                         const id = optId();
                         return id !== -1 ? hasChildren(id) : false;
@@ -981,6 +975,10 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
                         const o = opt();
                         return o ? props.optionLabel(o) : "";
                       };
+                      const allowParentSelection = () =>
+                        props.parentSelectable ?? true;
+                      const isNonSelectableParent = () =>
+                        !allowParentSelection() && hasKids();
 
                       return (
                         <div
@@ -995,16 +993,9 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
                           }}
                           onClick={() => {
                             const o = opt();
-                            if (o) {
-                              const oId = props.optionValue(o);
-                              if (props.parentSelectable === false && hasChildren(oId)) {
-                                toggleExpand(oId);
-                              } else {
-                                handleSelect(o);
-                              }
-                            }
+                            if (o) handleItemClick(o);
                           }}
-                          onMouseMove={() => {
+                          onMouseEnter={() => {
                             if (Date.now() - lastKeyboardNavTime() < 150)
                               return;
                             if (highlightedIndex() !== virtualRow.index) {
@@ -1012,19 +1003,19 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
                             }
                           }}
                           class={cn(
-                            "relative flex w-full min-w-0 overflow-hidden cursor-pointer select-none items-center justify-between rounded-lg px-1 text-sm outline-none text-text-secondary border-none",
+                            "group/row relative flex w-full min-w-0 overflow-hidden cursor-pointer select-none items-center justify-between rounded-lg px-1.5 py-1 text-sm outline-none transition-colors duration-150",
                             isSelected()
                               ? isHighlighted()
-                                ? "bg-primary/20 dark:bg-primary/30 border-primary/45 shadow-sm text-primary font-semibold"
-                                : "bg-primary-soft/40 dark:bg-primary-soft/20 border-primary/30 text-primary font-semibold"
+                                ? "bg-primary/20 text-primary font-semibold shadow-xs"
+                                : "bg-primary-soft text-primary font-semibold"
                               : isHighlighted()
-                                ? "bg-primary/15 dark:bg-primary/25 border-primary/20 shadow-sm text-primary font-semibold"
-                                : "hover:bg-card-alt/50",
+                                ? "bg-primary/10 text-primary font-semibold"
+                                : "text-text hover:bg-card-alt",
+                            isNonSelectableParent() &&
+                              "hover:bg-primary/5 text-heading font-medium",
                           )}
                         >
-                          <div class="flex items-center w-full min-w-0 pr-2 select-none relative self-stretch">
-                        
-
+                          <div class="flex items-center w-full min-w-0 pr-1 select-none relative self-stretch">
                             {/* Main Content Row indented dynamically */}
                             <div
                               class="flex items-center w-full min-w-0 flex-1 z-10"
@@ -1035,27 +1026,26 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
                                 <Show when={hasKids()}>
                                   <button
                                     type="button"
-                                    onPointerDown={(e) => {
+                                    onClick={(e) => {
+                                      e.preventDefault();
                                       e.stopPropagation();
-                                      e.preventDefault(); // Prevents input focus loss
                                       const id = optId();
                                       if (id !== -1) toggleExpand(id);
                                     }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault(); // Prevents click event bubbling to parent row
-                                    }}
-                                    class="size-5 shrink-0 flex items-center justify-center rounded-md hover:bg-primary/20 text-muted/60 hover:text-primary transition-all duration-150 cursor-pointer z-20"
+                                    class="size-5 shrink-0 flex items-center justify-center rounded-md hover:bg-primary/20 text-muted hover:text-primary transition-all duration-150 cursor-pointer z-20"
+                                    title={
+                                      expanded() ? "Colapsar" : "Desplegar"
+                                    }
                                   >
                                     <ChevronRightIcon
-                                        stroke-width={3}
+                                      stroke-width={2.5}
                                       class={cn(
                                         "size-3 transition-transform duration-200",
                                         expanded()
                                           ? "rotate-90 text-primary"
                                           : isHighlighted() || isSelected()
-                                            ? "text-primary/60"
-                                            : "text-muted/50",
+                                            ? "text-primary/70"
+                                            : "text-muted",
                                       )}
                                     />
                                   </button>
@@ -1074,23 +1064,30 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
                                     <Show
                                       when={props.itemRenderer}
                                       fallback={
-                                        <div class="flex flex-col min-w-0 flex-1">
-                                          {renderOptionLabel(
-                                            currentLabel(),
-                                            isHighlighted(),
-                                            isSelected(),
-                                          )}
+                                        <div class="flex flex-col min-w-0 flex-1 ml-0.5">
+                                          <div class="flex items-center gap-1.5 min-w-0">
+                                            {renderOptionLabel(
+                                              currentLabel(),
+                                              isHighlighted(),
+                                              isSelected(),
+                                            )}
+                                            <Show
+                                              when={isNonSelectableParent()}
+                                            >
+                                              <span class="text-[10px] text-muted font-normal px-1.5 py-0.5 rounded-md bg-surface/70 border border-border/50 shrink-0">
+                                                Grupo
+                                              </span>
+                                            </Show>
+                                          </div>
                                           <Show
                                             when={getBreadcrumb(currentOptId())}
                                           >
                                             <span
                                               class={cn(
                                                 "text-[11px] truncate mt-0.5 transition-colors duration-150",
-                                                isHighlighted()
+                                                isHighlighted() || isSelected()
                                                   ? "text-primary/70"
-                                                  : isSelected()
-                                                    ? "text-primary/70"
-                                                    : "text-muted/70",
+                                                  : "text-muted/70",
                                               )}
                                             >
                                               {getBreadcrumb(currentOptId())}
@@ -1114,7 +1111,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
                                 }}
                               </Show>
 
-                              {/* Checkmark Indicator on the right */}
+                              {/* Checkmark Indicator on the right for selected item */}
                               <Show when={isSelected()}>
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
@@ -1122,7 +1119,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
-                                  stroke-width="3.5"
+                                  stroke-width="3"
                                 >
                                   <path
                                     stroke-linecap="round"

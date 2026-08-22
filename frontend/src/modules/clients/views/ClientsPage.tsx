@@ -7,7 +7,7 @@ import { clientKeys } from '../data/clients.keys';
 import { clientQueries } from '../data/clients.queries';
 import { clientMutations } from '../data/clients.mutations';
 import { createClientColumns } from '../data/client.columns';
-import { taxIdTypeLabels, personTypeLabels } from '../models/client.types';
+import { taxIdTypeLabels, personTypeLabels } from '@modules/entities/models/entity.types';
 
 const ClientsPage: Component = () => {
     const state = useEntityState({

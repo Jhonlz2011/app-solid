@@ -1,6 +1,7 @@
 import { Component, JSX, Show } from 'solid-js';
 import { TreeSelect } from '@/shared/ui/form/TreeSelect';
 import { useCategoriesFlat } from '@modules/categories/data/categories.queries';
+import type { CategoryNode } from '@modules/categories/data/categories.api';
 import type { FieldLike } from '@shared/ui/form/form.types';
 
 export interface CategorySelectProps {
@@ -32,14 +33,14 @@ export const CategorySelect: Component<CategorySelectProps> = (props) => {
                 </div>
             }
         >
-            <TreeSelect
+            <TreeSelect<CategoryNode>
                 value={props.value}
                 onChange={(id) => props.onChange(id)}
-                options={categoriesQuery.data || []}
-                optionValue={(c: any) => c.id}
-                optionLabel={(c: any) => c.name}
-                optionParentId={(c: any) => c.parent_id}
-                optionIsActive={(c: any) => c.is_active}
+                options={(categoriesQuery.data || []) as CategoryNode[]}
+                optionValue={(c) => c.id}
+                optionLabel={(c) => c.name}
+                optionParentId={(c) => c.parent_id}
+                optionIsActive={(c) => c.is_active}
                 parentSelectable={props.parentSelectable}
                 editingId={props.editingId}
                 label={props.label}

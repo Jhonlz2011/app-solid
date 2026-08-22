@@ -7,7 +7,7 @@ import { employeeKeys } from '../data/employees.keys';
 import { employeeQueries } from '../data/employees.queries';
 import { employeeMutations } from '../data/employees.mutations';
 import { createEmployeeColumns } from '../data/employee.columns';
-import { taxIdTypeLabels, personTypeLabels } from '../models/employee.types';
+import { taxIdTypeLabels, personTypeLabels } from '@modules/entities/models/entity.types';
 
 const EmployeesPage: Component = () => {
     const state = useEntityState({

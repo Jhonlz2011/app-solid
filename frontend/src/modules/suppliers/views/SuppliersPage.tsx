@@ -7,7 +7,7 @@ import { supplierKeys } from '../data/suppliers.keys';
 import { supplierQueries } from '../data/suppliers.queries';
 import { supplierMutations } from '../data/suppliers.mutations';
 import { createSupplierColumns } from '../data/supplier.columns';
-import { taxIdTypeLabels, personTypeLabels } from '../models/supplier.types';
+import { taxIdTypeLabels, personTypeLabels } from '@modules/entities/models/entity.types';
 
 const SuppliersPage: Component = () => {
     const state = useEntityState({
