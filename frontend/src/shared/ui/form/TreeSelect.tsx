@@ -66,6 +66,7 @@ export function TreeSelect<T>(props: TreeSelectProps<T>) {
   const [lastKeyboardNavTime, setLastKeyboardNavTime] = createSignal(0);
 
   let containerRef: HTMLDivElement | undefined;
+  let triggerRef: HTMLDivElement | undefined;
   let inputRef: HTMLInputElement | undefined;
   let dropdownRef: HTMLDivElement | undefined;
   let lastSelectionTime = 0;
