@@ -19,7 +19,8 @@ import { useDeactivateAttribute, useRestoreAttribute } from '../data/attributes.
 import type { AttributeItem } from '../data/attributes.api';
 import { attributeKeys } from '../data/attributes.keys';
 import { ATTRIBUTE_TYPE_LABELS } from '../data/attributes.constants';
-import { ATTRIBUTE_DATA_TYPES, type AttributeDataType } from '@app/schema/frontend';
+import { ATTRIBUTE_DATA_TYPES } from '@app/schema/enums';
+import type { AttributeDataType } from '@app/schema/enums';
 import { createAttributeColumns } from '../data/attributes.columns';
 import { useRealtimeInvalidation } from '@shared/hooks/useDataTableSSE';
 

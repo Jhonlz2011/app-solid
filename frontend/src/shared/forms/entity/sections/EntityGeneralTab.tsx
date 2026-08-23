@@ -1,5 +1,5 @@
 import { Component, createSignal, Show, Index, batch, createMemo } from 'solid-js';
-import type { EntityFormData, TaxIdTypeForm, PersonType, TaxRegimeType } from '@app/schema/frontend';
+import type { TaxIdTypeForm, PersonType, TaxRegimeType } from '@app/schema/enums';
 import { useQueryClient, createQuery, createMutation } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { api } from '@shared/lib/eden';

@@ -1,7 +1,8 @@
 import { Component, createSignal, Show, createEffect, on } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
-import { EntityFormSchema, type EntityFormData, type TaxIdTypeForm, type PersonType, type TaxRegimeType } from '@app/schema/frontend';
+import { EntityFormSchema, EntityFormData } from '@app/schema/frontend';
+import type { TaxIdTypeForm, PersonType, TaxRegimeType } from '@app/schema/enums';
 import { ApiError } from '@shared/utils/api-errors';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { createTabErrorSelector, resolveTabFlags } from '@shared/forms/useTabErrors';

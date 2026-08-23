@@ -10,7 +10,7 @@ import type { UomItem } from '@modules/uom/data/uom.api';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
 import { Select as KSelect } from '@kobalte/core/select';
 import { FieldLabel } from '@form/TextField';
-import { UOM_GROUPS, type UomGroup } from '@app/schema/frontend';
+import { UOM_GROUPS, type UomGroup } from '@app/schema/enums';
 import { UOM_GROUP_META } from '@modules/uom/data/uom.constants';
 import { BoxIcon } from '@icons/BoxIcon';
 

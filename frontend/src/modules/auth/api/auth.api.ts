@@ -13,7 +13,6 @@ export const authApi = {
         if (error) throwApiError(error);
         return data!;
     },
-
     checkSlug: async (slug: string) => {
         const { data, error } = await api.tenants['check-slug']({ slug }).get();
         if (error) throwApiError(error);
@@ -25,7 +24,6 @@ export const authApi = {
         if (error) throwApiError(error);
         return data!;
     },
-
     getTenantInfo: async (slug?: string) => {
         const { data, error } = await api.tenants['tenant-info'].get({ query: { slug } });
         if (error) throwApiError(error);

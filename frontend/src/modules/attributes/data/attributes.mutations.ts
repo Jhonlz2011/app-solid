@@ -11,7 +11,8 @@
 import { createMutation, useQueryClient } from '@tanstack/solid-query';
 import { attributesApi, type AttributeItem } from './attributes.api';
 import { attributeKeys } from './attributes.keys';
-import type { AttributeFormData, AttributeDataType } from '@app/schema/frontend';
+import type { AttributeFormData } from '@app/schema/frontend';
+import type { AttributeDataType } from '@app/schema/enums';
 
 // =============================================================================
 // Create — Optimistic insert with temporary negative ID

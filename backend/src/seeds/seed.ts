@@ -24,6 +24,7 @@ import {
     seedCompanyWarehouse,
 } from '../modules/auth/provisioning.service';
 import { UOM_DATA } from './seed-data';
+import { v7 as uuidv7 } from 'uuid';
 
 async function seed() {
     console.log('🌱 Starting Complete System & Better-Auth Seed...\n');
@@ -52,7 +53,7 @@ async function seed() {
 
         // Register organization in Better-Auth for multi-tenancy & company switching
         console.log('🏢 Creating / verifying Better-Auth organization...');
-        const orgId = crypto.randomUUID();
+        const orgId = devCompany.organization_id || uuidv7();
         await db
             .insert(organization)
             .values({
@@ -126,11 +127,12 @@ async function seed() {
                     business_name: 'CONSUMIDOR FINAL',
                     is_client: true,
                     is_active: true,
+                    is_system: true,
                     obligado_contabilidad: false,
                 })
                 .onConflictDoUpdate({
                     target: [entities.company_id, entities.tax_id],
-                    set: { business_name: 'CONSUMIDOR FINAL' }
+                    set: { business_name: 'CONSUMIDOR FINAL', is_system: true }
                 })
                 .returning();
             console.log(`   ✅ Entity verified: ${consumidorFinal.business_name}`);

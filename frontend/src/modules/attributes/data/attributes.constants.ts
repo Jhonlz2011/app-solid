@@ -3,7 +3,7 @@
  * Centralized to eliminate duplication across AttributeForm, AttributeColumns, AttributeShowPanel, etc.
  */
 import type { Component } from 'solid-js';
-import type { AttributeDataType } from '@app/schema/frontend';
+import type { AttributeDataType } from '@app/schema/enums';
 import type { IconProps } from '@icons/BaseIcon';
 import { FileTextIcon } from '@icons/FileTextIcon';
 import { HashIcon } from '@icons/HashIcon';

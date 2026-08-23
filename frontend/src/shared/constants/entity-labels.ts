@@ -2,7 +2,7 @@
  * Centralized entity label maps — Single source of truth.
  * Form labels are a strict enum-typed SUBSET of display labels.
  */
-import type { TaxIdTypeForm, PersonType, TaxRegimeType } from '@app/schema/frontend';
+import type { TaxIdTypeForm, PersonType, TaxRegimeType } from '@app/schema/enums';
 
 // ─── Form Labels (strict enum keys) ─────────────────────────────
 export const taxIdTypeFormLabels: Record<TaxIdTypeForm, string> = {

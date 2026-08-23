@@ -4,8 +4,9 @@
  * Centralized labels, default values, and reactive helper types
  * for the unified EntityForm component.
  */
-import type { TaxIdTypeForm, PersonType, TaxRegimeType, EntityFormData } from '@app/schema/frontend';
-import { TAX_ID_TYPES_FORM } from '@app/schema/frontend';
+import type { EntityFormData } from '@app/schema/frontend';
+import type { TaxIdTypeForm, PersonType, TaxRegimeType } from '@app/schema/enums'
+import { TAX_ID_TYPES_FORM } from '@app/schema/enums';
 import {
     taxIdTypeFormLabels,
     personTypeLabels,

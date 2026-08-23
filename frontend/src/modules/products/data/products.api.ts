@@ -6,7 +6,8 @@
  */
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { ProductFormData, ProductType, ProductSubtype } from '@app/schema/frontend';
+import type { ProductFormData } from '@app/schema/frontend';
+import type { ProductType, ProductSubtype } from '@app/schema/enums';
 import type { ProductBodyType } from '@app/schema/dto';
 
 // =============================================================================
