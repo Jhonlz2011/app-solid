@@ -5,6 +5,73 @@ import { PlusIcon } from '@icons/PlusIcon';
 import Button from '@form/Button';
 import type { EntityFormApi } from '../entity-form.types';
 
+interface ContactRowProps {
+    form: EntityFormApi;
+    index: number;
+    onRemove: () => void;
+}
+
+const ContactRow: Component<ContactRowProps> = (props) => {
+    return (
+        <div class="relative grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-card rounded-xl border border-border/50 shadow-sm animate-in slide-in-from-top-2">
+            <div class="col-span-12 md:col-span-3">
+                <props.form.Field name={`contacts[${props.index}].name`}>
+                    {(subField) => (
+                        <TextField.Root field={subField()}>
+                            <TextField.Label>Nombre Completo</TextField.Label>
+                            <TextField.Input type="text" placeholder="Ej: Juan Pérez" />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
+                    )}
+                </props.form.Field>
+            </div>
+            <div class="col-span-12 md:col-span-3">
+                <props.form.Field name={`contacts[${props.index}].position`}>
+                    {(subField) => (
+                        <TextField.Root field={subField()}>
+                            <TextField.Label>Cargo/Área</TextField.Label>
+                            <TextField.Input type="text" placeholder="Ej: Ventas" />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
+                    )}
+                </props.form.Field>
+            </div>
+            <div class="col-span-12 md:col-span-3">
+                <props.form.Field name={`contacts[${props.index}].email`}>
+                    {(subField) => (
+                        <TextField.Root field={subField()}>
+                            <TextField.Label>Email</TextField.Label>
+                            <TextField.Input type="email" placeholder="@" />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
+                    )}
+                </props.form.Field>
+            </div>
+            <div class="col-span-12 md:col-span-2">
+                <props.form.Field name={`contacts[${props.index}].phone`}>
+                    {(subField) => (
+                        <TextField.Root field={subField()}>
+                            <TextField.Label>Teléfono</TextField.Label>
+                            <TextField.Input type="text" placeholder="099..." />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
+                    )}
+                </props.form.Field>
+            </div>
+            <div class="col-span-12 md:col-span-1 flex items-center justify-end md:justify-center pt-5">
+                <button
+                    type="button"
+                    onClick={props.onRemove}
+                    class="p-2 text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                    title="Eliminar Contacto"
+                >
+                    <TrashIcon class="size-4" />
+                </button>
+            </div>
+        </div>
+    );
+};
+
 export interface EntityContactsArrayProps {
     form: EntityFormApi;
 }
@@ -36,62 +103,7 @@ export const EntityContactsArray: Component<EntityContactsArrayProps> = (props) 
                         </Show>
                         <Index each={field().state.value}>
                             {(_, i) => (
-                                <div class="relative grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-card rounded-xl border border-border/50 shadow-sm animate-in slide-in-from-top-2">
-                                    <div class="col-span-12 md:col-span-3">
-                                        <props.form.Field name={`contacts[${i}].name`}>
-                                            {(subField) => (
-                                                <TextField.Root field={subField()}>
-                                                    <TextField.Label>Nombre Completo</TextField.Label>
-                                                    <TextField.Input type="text" placeholder="Ej: Juan Pérez" />
-                                                    <TextField.ErrorMessage />
-                                                </TextField.Root>
-                                            )}
-                                        </props.form.Field>
-                                    </div>
-                                    <div class="col-span-12 md:col-span-3">
-                                        <props.form.Field name={`contacts[${i}].position`}>
-                                            {(subField) => (
-                                                <TextField.Root field={subField()}>
-                                                    <TextField.Label>Cargo/Área</TextField.Label>
-                                                    <TextField.Input type="text" placeholder="Ej: Ventas" />
-                                                    <TextField.ErrorMessage />
-                                                </TextField.Root>
-                                            )}
-                                        </props.form.Field>
-                                    </div>
-                                    <div class="col-span-12 md:col-span-3">
-                                        <props.form.Field name={`contacts[${i}].email`}>
-                                            {(subField) => (
-                                                <TextField.Root field={subField()}>
-                                                    <TextField.Label>Email</TextField.Label>
-                                                    <TextField.Input type="email" placeholder="@" />
-                                                    <TextField.ErrorMessage />
-                                                </TextField.Root>
-                                            )}
-                                        </props.form.Field>
-                                    </div>
-                                    <div class="col-span-12 md:col-span-2">
-                                        <props.form.Field name={`contacts[${i}].phone`}>
-                                            {(subField) => (
-                                                <TextField.Root field={subField()}>
-                                                    <TextField.Label>Teléfono</TextField.Label>
-                                                    <TextField.Input type="text" placeholder="099..." />
-                                                    <TextField.ErrorMessage />
-                                                </TextField.Root>
-                                            )}
-                                        </props.form.Field>
-                                    </div>
-                                    <div class="col-span-12 md:col-span-1 flex items-center justify-end md:justify-center pt-5">
-                                        <button
-                                            type="button"
-                                            onClick={() => field().removeValue(i)}
-                                            class="p-2 text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
-                                            title="Eliminar Contacto"
-                                        >
-                                            <TrashIcon class="size-4" />
-                                        </button>
-                                    </div>
-                                </div>
+                                <ContactRow form={props.form} index={i} onRemove={() => field().removeValue(i)} />
                             )}
                         </Index>
                     </div>

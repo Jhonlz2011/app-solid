@@ -17,16 +17,18 @@ import {
     BulkStringIdsBodySchema,
     IdStringParamSchema,
     EntityDetailResponseSchema,
+    EntityLookupResponseSchema,
+    EntityListResponseSchema,
 } from '@app/schema/backend';
 import type { EntityBodyType, EntityAddressType, EntityContactType, DepartmentType, JobTitleType, EntityType } from '@app/schema/dto';
 import { getIpAndUserAgent } from '../../plugins/ip';
 import { rbac } from '../../plugins/rbac';
 import { createEntityService } from './entities.service';
 import { addAddress, addContact, updateContact, deleteContact, createDepartment, createJobTitle } from './entities.command.service';
-import { getAddresses, getContacts, listDepartments, listJobTitles } from './entities.query.service';
+import { getAddresses, getContacts, listDepartments, listJobTitles, lookupEntityByTaxId } from './entities.query.service';
 
 /**
- * Entities routes — lightweight endpoints for entity picker/autocomplete, departments, job-titles.
+ * Entities routes — lightweight endpoints for entity picker/autocomplete, departments, job-titles, and taxId lookup.
  * Mounted at /api/entities via server.ts.
  */
 export const entityRoutes = new Elysia({ prefix: '/entities' })
@@ -44,6 +46,12 @@ export const entityRoutes = new Elysia({ prefix: '/entities' })
             query: EntityPickerQuerySchema,
         }
     )
+    .get('/lookup/:taxId', async ({ params, currentCompanyId }) => {
+        return lookupEntityByTaxId(params.taxId, currentCompanyId);
+    }, {
+        params: t.Object({ taxId: t.String() }),
+        response: EntityLookupResponseSchema,
+    })
     .get('/departments', ({ currentCompanyId }) => {
         return listDepartments(currentCompanyId);
     }, {
@@ -111,6 +119,7 @@ export function createEntityRoutes(config: EntityRouteConfig) {
             },
             {
                 query: EntityListQuerySchema,
+                response: EntityListResponseSchema,
                 permission: `${config.permission}.read`,
             }
         )
@@ -154,6 +163,7 @@ export function createEntityRoutes(config: EntityRouteConfig) {
             },
             {
                 body: EntityBodySchema,
+                response: EntityDetailResponseSchema,
                 permission: `${config.permission}.create`,
             }
         )
@@ -171,6 +181,7 @@ export function createEntityRoutes(config: EntityRouteConfig) {
             {
                 params: IdStringParamSchema,
                 body: EntityUpdateBodySchema,
+                response: EntityDetailResponseSchema,
                 permission: `${config.permission}.update`,
             }
         )

@@ -7,7 +7,14 @@ import { LOCATION_TYPES } from '../enums';
 // Standard: Request Bodies -> *BodySchema, Responses -> *ResponseSchema
 // ============================================================================
 
-export const LocationTypeSchema = Type.Union(LOCATION_TYPES.map(t => Type.Literal(t)));
+export const LocationTypeSchema = Type.Union([
+    Type.Literal('VIEW'),
+    Type.Literal('INTERNAL'),
+    Type.Literal('SUPPLIER'),
+    Type.Literal('CUSTOMER'),
+    Type.Literal('ADJUSTMENT'),
+    Type.Literal('PRODUCTION'),
+]);
 
 export const WarehouseBodySchema = Type.Object({
     code: Type.String({ maxLength: 20 }),

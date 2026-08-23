@@ -21,15 +21,12 @@ export const EntityCarrierTab: Component<EntityCarrierTabProps> = (props) => {
         const alreadyExists = currentDrivers.some(d => d.identificationNumber === values.taxId);
         if (alreadyExists) return;
 
-        props.form.setFieldValue('drivers', [
-            ...currentDrivers,
-            {
-                identificationNumber: values.taxId || '',
-                fullName: values.businessName || '',
-                phone: values.phone || '',
-                isActive: true,
-            }
-        ]);
+        props.form.pushFieldValue('drivers', {
+            identificationNumber: values.taxId || '',
+            fullName: values.businessName || '',
+            phone: values.phone || '',
+            isActive: true,
+        });
     };
 
     const isEmployee = () => props.form.state.values.isEmployee;

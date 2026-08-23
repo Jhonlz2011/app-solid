@@ -1,13 +1,13 @@
-import { Component, createSignal, Show, createEffect, on } from 'solid-js';
+import { Component, createSignal, Show } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { EntityFormSchema, EntityFormData } from '@app/schema/frontend';
-import type { TaxIdTypeForm, PersonType, TaxRegimeType } from '@app/schema/enums';
 import { ApiError } from '@shared/utils/api-errors';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { createTabErrorSelector, resolveTabFlags } from '@shared/forms/useTabErrors';
 
-import { createDefaultEntityFormValues, EMPTY_EMPLOYEE_DETAILS } from './entity-form.utils';
+import { createDefaultEntityFormValues, mapEntityDetailToFormData } from './entity-form.utils';
+import { useEntityBusinessRules } from './hooks/useEntityBusinessRules';
 
 import { InfoIcon } from '@icons/InfoIcon';
 import { MapPinIcon } from '@icons/MapPinIcon';
@@ -36,53 +36,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
 
     const initialValues = (): EntityFormData => {
         if (props.entity) {
-            const e = props.entity;
-            return {
-                taxId: e.tax_id,
-                taxIdType: e.tax_id_type as TaxIdTypeForm,
-                personType: e.person_type as PersonType,
-                businessName: e.business_name,
-                tradeName: e.trade_name ?? '',
-                emailBilling: e.email_billing ?? '',
-                phone: e.phone ?? '',
-                isClient: e.is_client,
-                isSupplier: e.is_supplier,
-                isEmployee: e.is_employee,
-                isCarrier: e.is_carrier,
-                taxRegimeType: (e.tax_regime_type ?? undefined) as TaxRegimeType | undefined,
-                obligadoContabilidad: e.obligado_contabilidad,
-                isRetentionAgent: e.is_retention_agent,
-                isSpecialContributor: e.is_special_contributor,
-                employeeDetails: e.employeeDetails ? {
-                    departmentId: e.employeeDetails.department_id ?? undefined,
-                    jobTitleId: e.employeeDetails.job_title_id ?? undefined,
-                    salaryBase: e.employeeDetails.salary_base ? Number(e.employeeDetails.salary_base) : undefined,
-                    hireDate: e.employeeDetails.hire_date ?? '',
-                    costPerHour: e.employeeDetails.cost_per_hour ? Number(e.employeeDetails.cost_per_hour) : undefined,
-                } : undefined,
-                contacts: e.contacts?.map((c) => ({
-                    name: c.name, position: c.position ?? '', email: c.email ?? '', phone: c.phone ?? '', isPrimary: c.is_primary ?? false
-                })) ?? [],
-                addresses: e.addresses?.map((a) => ({
-                    addressLine: a.address_line ?? '',
-                    city: a.city ?? '',
-                    country: a.country ?? 'Ecuador',
-                    countryCode: a.country_code ?? 'EC',
-                    postalCode: a.postal_code ?? '',
-                    isMain: a.is_main ?? false
-                })) ?? [],
-                vehicles: e.vehicles?.map((v) => ({
-                    licensePlate: v.license_plate ?? '',
-                    description: v.description ?? '',
-                    isActive: v.is_active ?? true,
-                })) ?? [],
-                drivers: e.drivers?.map((d) => ({
-                    identificationNumber: d.identification_number ?? '',
-                    fullName: d.full_name ?? '',
-                    phone: d.phone ?? '',
-                    isActive: d.is_active ?? true,
-                })) ?? [],
-            };
+            return mapEntityDetailToFormData(props.entity, props.lockedRoles);
         }
         return createDefaultEntityFormValues(props.lockedRoles);
     };
@@ -113,53 +67,13 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
         },
     }));
 
-    // Form-wide rules
-    const taxIdType = form.useStore((s) => s.values.taxIdType);
-    const personType = form.useStore((s) => s.values.personType);
+    // Form-wide rules encapsulated in dedicated hook
+    useEntityBusinessRules(form);
+
     const isEmployeeVal = form.useStore((s) => s.values.isEmployee);
     const isSupplierVal = form.useStore((s) => s.values.isSupplier);
     const isClientVal = form.useStore((s) => s.values.isClient);
     const isCarrierVal = form.useStore((s) => s.values.isCarrier);
-    const hasEmployeeDetails = form.useStore((s) => !!s.values.employeeDetails);
-
-    createEffect(on(taxIdType, (type) => {
-        if ((type === 'CEDULA' || type === 'PASAPORTE') && personType() !== 'NATURAL') {
-            form.setFieldValue('personType', 'NATURAL');
-        }
-    }, { defer: true }));
-
-    createEffect(on(personType, (pt) => {
-        if (pt === 'JURIDICA') {
-            const obligado = form.getFieldValue('obligadoContabilidad');
-            if (!obligado) form.setFieldValue('obligadoContabilidad', true);
-            const curr = taxIdType();
-            if (curr === 'CEDULA' || curr === 'PASAPORTE') {
-                form.setFieldValue('taxIdType', 'RUC');
-            }
-        }
-    }, { defer: true }));
-
-    createEffect(on(isEmployeeVal, (isEmp) => {
-        if (isEmp) {
-            if (personType() !== 'NATURAL') form.setFieldValue('personType', 'NATURAL');
-            if (!hasEmployeeDetails()) {
-                form.setFieldValue('employeeDetails', { ...EMPTY_EMPLOYEE_DETAILS });
-            }
-        } else {
-            if (hasEmployeeDetails()) {
-                form.setFieldValue('employeeDetails', undefined);
-            }
-        }
-    }, { defer: true }));
-
-    const taxRegimeType = form.useStore((s) => s.values.taxRegimeType);
-    createEffect(on(taxRegimeType, (regime) => {
-        if (regime === 'RIMPE_NEGOCIO_POPULAR') {
-            if (personType() !== 'NATURAL') form.setFieldValue('personType', 'NATURAL');
-            if (form.getFieldValue('obligadoContabilidad')) form.setFieldValue('obligadoContabilidad', false);
-            if (form.getFieldValue('isSpecialContributor')) form.setFieldValue('isSpecialContributor', false);
-        }
-    }, { defer: true }));
 
     const showContacts = () => isEmployeeVal() || isSupplierVal() || isClientVal() || isCarrierVal();
 
@@ -194,7 +108,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                                         <Show when={showContacts()}>
                                             <form.Subscribe selector={(state) => state.values.contacts?.length || 0}>
                                                 {(count) => (
-                                                <TabsTrigger value="contacts" count={count()} hasError={getFlags().contacts}>
+                                                    <TabsTrigger value="contacts" count={count()} hasError={getFlags().contacts}>
                                                         <UsersIcon class="size-4" /> Contactos
                                                     </TabsTrigger>
                                                 )}
@@ -248,4 +162,5 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
         </FormSubmissionContext.Provider>
     );
 };
+
 

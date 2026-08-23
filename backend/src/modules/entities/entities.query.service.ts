@@ -252,6 +252,17 @@ export async function getEntity(id: string, companyId: number) {
     }, 3600);
 }
 
+export async function lookupEntityByTaxId(taxId: string, companyId: number) {
+    const [entity] = await db
+        .select({ id: entities.id })
+        .from(entities)
+        .where(and(eq(entities.company_id, companyId), eq(entities.tax_id, taxId.trim())))
+        .limit(1);
+
+    if (!entity) return null;
+    return getEntity(entity.id, companyId);
+}
+
 export async function listDepartments(companyId: number) {
     return db
         .select({

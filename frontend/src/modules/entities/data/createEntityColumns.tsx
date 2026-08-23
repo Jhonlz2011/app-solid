@@ -3,9 +3,10 @@ import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import Checkbox from '@form/Checkbox';
 import { StatusBadge, Badge } from '@display/Badge';
-import ActionMenu from '@/shared/ui/overlay/ActionMenu';
+import ActionMenu from '@shared/ui/overlay/ActionMenu';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
+import type { RbacModule }  from '@app/schema/enums';
 
 export interface ColumnFilterConfig {
     options: () => FilterOption[];
@@ -17,7 +18,7 @@ export interface ColumnFilterConfig {
 export interface BaseEntityHandlers<T> {
     onDelete: (entity: T) => void;
     onRestore: (entity: T) => void;
-    baseRoute: string;
+    baseRoute: RbacModule;
     filters?: {
         isActive?: ColumnFilterConfig;
         businessName?: ColumnFilterConfig;
@@ -28,7 +29,7 @@ export interface BaseEntityHandlers<T> {
 }
 
 export interface BaseEntityListItem {
-    id: number;
+    id: string;
     is_active: boolean;
     business_name: string;
     tax_id: string;

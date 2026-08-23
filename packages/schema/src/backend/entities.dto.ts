@@ -1,6 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
-import type { CursorFilters } from './common.dto';
-import { TAX_ID_TYPES, PERSON_TYPES, TAX_REGIME_TYPES, type PersonType, type TaxIdType } from '../enums';
+import { CursorMetaSchema, type CursorFilters } from './common.dto';
+import type { PersonType, TaxIdType } from '../enums';
 
 // ============================================================================
 // ENTITY ENUMS & SUB-SCHEMAS (TypeBox for Elysia routes & Eden Treaty)
@@ -13,11 +13,31 @@ export interface EntityFilters extends CursorFilters {
     isCarrier?: boolean;
 }
 
-const TaxIdTypeSchema = Type.Union(TAX_ID_TYPES.map((t) => Type.Literal(t)));
+export const TaxIdTypeSchema = Type.Union([
+    Type.Literal('RUC'),
+    Type.Literal('CEDULA'),
+    Type.Literal('PASAPORTE'),
+    Type.Literal('CONSUMIDOR_FINAL'),
+    Type.Literal('EXTERIOR'),
+]);
 
-const PersonTypeSchema = Type.Union(PERSON_TYPES.map((t) => Type.Literal(t)));
+export const TaxIdTypeFormSchema = Type.Union([
+    Type.Literal('RUC'),
+    Type.Literal('CEDULA'),
+    Type.Literal('PASAPORTE'),
+    Type.Literal('EXTERIOR'),
+]);
 
-export const TaxRegimeTypeSchema = Type.Union(TAX_REGIME_TYPES.map((t) => Type.Literal(t)));
+export const PersonTypeSchema = Type.Union([
+    Type.Literal('NATURAL'),
+    Type.Literal('JURIDICA'),
+]);
+
+export const TaxRegimeTypeSchema = Type.Union([
+    Type.Literal('RIMPE_NEGOCIO_POPULAR'),
+    Type.Literal('RIMPE_EMPRENDEDOR'),
+    Type.Literal('GENERAL'),
+]);
 
 export const ContactBodySchema = Type.Object({
     name: Type.String(),
@@ -87,7 +107,7 @@ export const CarrierDriverBodySchema = Type.Object({
 // Main Entity Form Schema (TypeBox) - Aligned strictly with frontend Valibot schema
 export const EntityBodySchema = Type.Object({
     taxId: Type.String(),
-    taxIdType: TaxIdTypeSchema,
+    taxIdType: TaxIdTypeFormSchema,
     personType: PersonTypeSchema,
     businessName: Type.String(),
     tradeName: Type.String(),
@@ -127,6 +147,7 @@ export const EntityListQuerySchema = Type.Object({
     taxIdType: Type.Optional(Type.String()),
     isActive: Type.Optional(Type.String()),
     businessName: Type.Optional(Type.String()),
+    isCarrier: Type.Optional(Type.Boolean()),
 });
 
 export const EntityFacetsQuerySchema = Type.Object({
@@ -135,6 +156,38 @@ export const EntityFacetsQuerySchema = Type.Object({
     taxIdType: Type.Optional(Type.String()),
     isActive: Type.Optional(Type.String()),
     businessName: Type.Optional(Type.String()),
+});
+
+export const EntityListItemResponseSchema = Type.Object({
+    id: Type.String(),
+    company_id: Type.Number(),
+    tax_id: Type.String(),
+    tax_id_type: Type.String(),
+    person_type: Type.String(),
+    business_name: Type.String(),
+    trade_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    email_billing: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    phone: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    is_client: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    is_supplier: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    is_employee: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    is_carrier: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    is_system: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    tax_regime_type: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    is_retention_agent: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    is_special_contributor: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    obligado_contabilidad: Type.Boolean(),
+    default_price_list_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    is_active: Type.Boolean(),
+    created_at: Type.Union([Type.Date(), Type.String()]),
+    updated_at: Type.Union([Type.Date(), Type.String()]),
+    deleted_at: Type.Optional(Type.Union([Type.Date(), Type.String(), Type.Null()])),
+    deleted_by: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+});
+
+export const EntityListResponseSchema = Type.Object({
+    data: Type.Array(EntityListItemResponseSchema),
+    meta: CursorMetaSchema,
 });
 
 export const EntityPickerResponseSchema = Type.Object({
@@ -243,6 +296,8 @@ export const EntityDetailResponseSchema = Type.Object({
 });
 
 
+export const EntityLookupResponseSchema = Type.Union([EntityDetailResponseSchema, Type.Null()]);
+
 // ============================================================================
 // CANONICAL INFERRED TYPES (Single Source of Truth)
 // ============================================================================
@@ -250,6 +305,9 @@ export const EntityDetailResponseSchema = Type.Object({
 export type EntityBodyType = Static<typeof EntityBodySchema>;
 export type EntityUpdateType = Static<typeof EntityUpdateBodySchema>;
 export type EntityDetailType = Static<typeof EntityDetailResponseSchema>;
+export type EntityLookupResponseType = Static<typeof EntityLookupResponseSchema>;
+export type EntityListItemType = Static<typeof EntityListItemResponseSchema>;
+export type EntityListResponseType = Static<typeof EntityListResponseSchema>;
 
 export type EntityContactType = Static<typeof ContactBodySchema>;
 export type EntityAddressType = Static<typeof AddressBodySchema>;

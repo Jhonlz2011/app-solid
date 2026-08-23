@@ -100,7 +100,7 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
             }));
         },
 
-        useDetail: (id: () => string | number, enabled?: () => boolean) => {
+        useDetail: (id: () => string, enabled?: () => boolean) => {
             return createQuery(() => ({
                 queryKey: keys.detail(id()),
                 queryFn: () => api.get(id()),
@@ -110,7 +110,7 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
             }));
         },
 
-        useCheckReferences: (id: () => string | number | null, enabled: () => boolean) => {
+        useCheckReferences: (id: () => string | null, enabled: () => boolean) => {
             return createQuery(() => ({
                 queryKey: [...keys.all, 'can-delete', id()],
                 queryFn: async (): Promise<EntityReferencesType> => {

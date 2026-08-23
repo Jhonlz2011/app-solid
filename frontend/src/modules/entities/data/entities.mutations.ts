@@ -18,12 +18,12 @@ export function createEntityMutations(api: EntityApi, keys: EntityKeys, endpoint
 
     function applyIsActiveToCache(
         queryClient: ReturnType<typeof useQueryClient>,
-        ids: Array<string | number>,
+        ids: string[],
         isActive: boolean
     ) {
         queryClient.setQueriesData<CacheShape<EntityListItem>>({ queryKey: keys.lists() }, (old) => {
             if (!old) return old;
-            return ids.reduce<CacheShape<EntityListItem>>(
+            return ids.reduce<CacheShape<EntityListItem> | undefined>(
                 (acc, id) => updateCacheItem(acc, { id, is_active: isActive } as unknown as EntityListItem) ?? acc,
                 old
             );
@@ -73,7 +73,7 @@ export function createEntityMutations(api: EntityApi, keys: EntityKeys, endpoint
             const queryClient = useQueryClient();
             return createMutation(() => ({
                 mutationKey: [...keys.all, 'update'],
-                mutationFn: async ({ id, data: body }: { id: string | number; data: Partial<EntityFormData> }) => {
+                mutationFn: async ({ id, data: body }: { id: string; data: Partial<EntityFormData> }) => {
                     const { data, error } = await endpoint({ id }).put(body);
                     if (error) throwApiError(error);
                     return data!;
@@ -107,17 +107,17 @@ export function createEntityMutations(api: EntityApi, keys: EntityKeys, endpoint
         useDelete: () => {
             const queryClient = useQueryClient();
             return createMutation(() => ({
-                mutationFn: async (id: string | number) => {
+                mutationFn: async (id: string) => {
                     await api.deactivate(id);
                     return id;
                 },
-                onMutate: async (id: string | number) => {
+                onMutate: async (id: string) => {
                     await queryClient.cancelQueries({ queryKey: keys.lists() });
                     const previousLists = queryClient.getQueriesData({ queryKey: keys.lists() });
                     applyIsActiveToCache(queryClient, [id], false);
                     return { previousLists };
                 },
-                onError: (_err: unknown, _id: string | number, context: any) => {
+                onError: (_err: unknown, _id: string, context: any) => {
                     context?.previousLists?.forEach(([key, data]: [unknown, unknown]) => queryClient.setQueryData(key as any, data));
                 },
                 onSettled: onSettled(queryClient),
@@ -127,16 +127,16 @@ export function createEntityMutations(api: EntityApi, keys: EntityKeys, endpoint
         useBulkDelete: () => {
             const queryClient = useQueryClient();
             return createMutation(() => ({
-                mutationFn: async (ids: Array<string | number>) => {
+                mutationFn: async (ids: string[]) => {
                     return await api.bulkDelete(ids);
                 },
-                onMutate: async (ids: Array<string | number>) => {
+                onMutate: async (ids: string[]) => {
                     await queryClient.cancelQueries({ queryKey: keys.lists() });
                     const previousLists = queryClient.getQueriesData({ queryKey: keys.lists() });
                     applyIsActiveToCache(queryClient, ids, false);
                     return { previousLists };
                 },
-                onError: (_err: unknown, _ids: Array<string | number>, context: any) => {
+                onError: (_err: unknown, _ids: string[], context: any) => {
                     context?.previousLists?.forEach(([key, data]: [unknown, unknown]) => queryClient.setQueryData(key as any, data));
                 },
                 onSettled: onSettled(queryClient),
@@ -146,16 +146,16 @@ export function createEntityMutations(api: EntityApi, keys: EntityKeys, endpoint
         useBulkRestore: () => {
             const queryClient = useQueryClient();
             return createMutation(() => ({
-                mutationFn: async (ids: Array<string | number>) => {
+                mutationFn: async (ids: string[]) => {
                     return await api.bulkRestore(ids);
                 },
-                onMutate: async (ids: Array<string | number>) => {
+                onMutate: async (ids: string[]) => {
                     await queryClient.cancelQueries({ queryKey: keys.lists() });
                     const previousLists = queryClient.getQueriesData({ queryKey: keys.lists() });
                     applyIsActiveToCache(queryClient, ids, true);
                     return { previousLists };
                 },
-                onError: (_err: unknown, _ids: Array<string | number>, context: any) => {
+                onError: (_err: unknown, _ids: string[], context: any) => {
                     context?.previousLists?.forEach(([key, data]: [unknown, unknown]) => queryClient.setQueryData(key as any, data));
                 },
                 onSettled: onSettled(queryClient),
@@ -165,17 +165,17 @@ export function createEntityMutations(api: EntityApi, keys: EntityKeys, endpoint
         useRestore: () => {
             const queryClient = useQueryClient();
             return createMutation(() => ({
-                mutationFn: async (id: string | number) => {
+                mutationFn: async (id: string) => {
                     await api.restore(id);
                     return id;
                 },
-                onMutate: async (id: string | number) => {
+                onMutate: async (id: string) => {
                     await queryClient.cancelQueries({ queryKey: keys.lists() });
                     const previousLists = queryClient.getQueriesData({ queryKey: keys.lists() });
                     applyIsActiveToCache(queryClient, [id], true);
                     return { previousLists };
                 },
-                onError: (_err: unknown, _id: string | number, context: any) => {
+                onError: (_err: unknown, _id: string, context: any) => {
                     context?.previousLists?.forEach(([key, data]: [unknown, unknown]) => queryClient.setQueryData(key as any, data));
                 },
                 onSettled: onSettled(queryClient),
@@ -185,11 +185,11 @@ export function createEntityMutations(api: EntityApi, keys: EntityKeys, endpoint
         useHardDelete: () => {
             const queryClient = useQueryClient();
             return createMutation(() => ({
-                mutationFn: async (id: string | number) => {
+                mutationFn: async (id: string) => {
                     await api.hardDelete(id);
                     return id;
                 },
-                onMutate: async (id: string | number) => {
+                onMutate: async (id: string) => {
                     await queryClient.cancelQueries({ queryKey: keys.lists() });
                     const previousLists = queryClient.getQueriesData({ queryKey: keys.lists() });
 
@@ -200,7 +200,7 @@ export function createEntityMutations(api: EntityApi, keys: EntityKeys, endpoint
 
                     return { previousLists };
                 },
-                onError: (_err: unknown, _id: string | number, context: any) => {
+                onError: (_err: unknown, _id: string, context: any) => {
                     context?.previousLists?.forEach(([key, data]: [unknown, unknown]) => {
                         queryClient.setQueryData(key as any, data);
                     });

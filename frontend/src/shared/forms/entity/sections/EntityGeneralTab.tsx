@@ -1,11 +1,5 @@
-import { Component, createSignal, Show, Index, batch, createMemo } from 'solid-js';
+import { Component, Show, Index, createMemo } from 'solid-js';
 import type { TaxIdTypeForm, PersonType, TaxRegimeType } from '@app/schema/enums';
-import { useQueryClient, createQuery, createMutation } from '@tanstack/solid-query';
-import { toast } from 'solid-sonner';
-import { api } from '@shared/lib/eden';
-import type { SriSearchResult } from '@modules/sri/sri.types';
-import { fetchSriByRuc, sriKeys } from '@modules/sri/sri.queries';
-import { STALE_TIME } from '@shared/constants/cache.constants';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 
 import {
@@ -15,6 +9,7 @@ import {
     roleLabels,
     getTaxIdTypeDisabledKeys,
     getTaxIdConfig,
+    isPersonalTaxId,
     type SelectOption,
 } from '../entity-form.utils';
 
@@ -34,7 +29,11 @@ import {
     SegmentedControlItemLabel
 } from '@form/SegmentedControl';
 
+import { InfoIcon } from '@icons/InfoIcon';
+
 import type { EntityFormApi } from '../entity-form.types';
+import { useEntityQueries } from '../hooks/useEntityQueries';
+import { useEntitySmartLookup } from '../hooks/useEntitySmartLookup';
 
 export interface EntityGeneralTabProps {
     form: EntityFormApi;
@@ -44,7 +43,6 @@ export interface EntityGeneralTabProps {
 
 export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
     const auth = useAuth();
-    const queryClient = useQueryClient();
     let businessNameInputRef: HTMLInputElement | undefined;
 
     // =========================================================================
@@ -62,10 +60,10 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
     // =========================================================================
     const isPureEmployee = createMemo(() => isEmployeeVal() && !isSupplierVal() && !isClientVal() && !isCarrierVal());
 
-    // SRI Section: hide if pure employee, or if CEDULA/PASAPORTE without being a supplier
+    // SRI Section: hide if pure employee, or if personal ID without being a supplier
     const showTaxSection = createMemo(() => {
         if (isPureEmployee()) return false;
-        if ((taxIdType() === 'CEDULA' || taxIdType() === 'PASAPORTE') && !isSupplierVal()) return false;
+        if (isPersonalTaxId(taxIdType()) && !isSupplierVal()) return false;
         if (taxIdType() === 'RUC') return true;
         if (isSupplierVal()) return true;
         return false;
@@ -75,7 +73,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
 
     const showTradeName = createMemo(() => {
         if (isPureEmployee()) return false;
-        if ((taxIdType() === 'CEDULA' || taxIdType() === 'PASAPORTE') && !isSupplierVal() && !isClientVal()) return false;
+        if (isPersonalTaxId(taxIdType()) && !isSupplierVal() && !isClientVal()) return false;
         return true;
     });
 
@@ -93,7 +91,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
         return 'Ej: Corporación Favorita C.A.';
     });
 
-    const personTypeLocked = createMemo(() => taxIdType() === 'CEDULA' || taxIdType() === 'PASAPORTE' || isEmployeeVal());
+    const personTypeLocked = createMemo(() => isPersonalTaxId(taxIdType()) || isEmployeeVal());
 
     const personTypeTooltip = createMemo(() => {
         if (props.isEdit()) return undefined;
@@ -114,158 +112,58 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
     });
 
     // =========================================================================
-    // Departments & Job Titles (HR / Employees)
+    // Custom Hooks (SRP Encapsulation)
     // =========================================================================
-    const departmentsQuery = createQuery(() => ({
-        queryKey: ['entities', 'departments'],
-        queryFn: async () => {
-            const { data, error } = await api.entities.departments.get();
-            if (error) throw error;
-            return (data || []) as Array<{ id: number; name: string; code?: string | null; is_active: boolean }>;
-        },
-        staleTime: STALE_TIME.MEDIUM,
-        enabled: showEmployeeSection(),
-    }));
+    const {
+        departmentOptions,
+        getJobTitleOptions,
+        handleCreateDepartment,
+        handleCreateJobTitle,
+    } = useEntityQueries(props.form, showEmployeeSection);
 
-    const jobTitlesQuery = createQuery(() => ({
-        queryKey: ['entities', 'job-titles'],
-        queryFn: async () => {
-            const { data, error } = await api.entities['job-titles'].get({ query: {} });
-            if (error) throw error;
-            return (data || []) as Array<{ id: number; name: string; department_id?: number | null; is_active: boolean }>;
-        },
-        staleTime: STALE_TIME.MEDIUM,
-        enabled: showEmployeeSection(),
-    }));
+    const {
+        isSearchingRuc,
+        sriError,
+        setSriError,
+        existingEntityNotice,
+        triggerRucSearch,
+        handleSriSelect,
+        handleNameInput,
+    } = useEntitySmartLookup(props.form, props.lockedRoles, () => {
+        businessNameInputRef?.focus();
+        businessNameInputRef?.select();
+    });
 
-    const createDeptMutation = createMutation(() => ({
-        mutationFn: async (name: string) => {
-            const { data, error } = await api.entities.departments.post({ name });
-            if (error) throw error;
-            return data!;
-        },
-        onSuccess: (newDept) => {
-            queryClient.invalidateQueries({ queryKey: ['entities', 'departments'] });
-            props.form.setFieldValue('employeeDetails.departmentId', newDept.id);
-            toast.success(`Departamento "${newDept.name}" creado`);
-        },
-    }));
-
-    const createJobTitleMutation = createMutation(() => ({
-        mutationFn: async (name: string) => {
-            const deptId = props.form.getFieldValue('employeeDetails.departmentId');
-            const { data, error } = await api.entities['job-titles'].post({ name, departmentId: deptId ?? undefined });
-            if (error) throw error;
-            return data!;
-        },
-        onSuccess: (newJob) => {
-            queryClient.invalidateQueries({ queryKey: ['entities', 'job-titles'] });
-            props.form.setFieldValue('employeeDetails.jobTitleId', newJob.id);
-            toast.success(`Cargo "${newJob.name}" creado`);
-        },
-    }));
-
-    const handleCreateDepartment = () => {
+    const promptCreateDepartment = () => {
         const name = prompt('Nombre del nuevo departamento:');
-        if (name && name.trim()) {
-            createDeptMutation.mutate(name.trim());
-        }
+        if (name) handleCreateDepartment(name);
     };
 
-    const handleCreateJobTitle = () => {
+    const promptCreateJobTitle = () => {
         const name = prompt('Nombre del nuevo cargo:');
-        if (name && name.trim()) {
-            createJobTitleMutation.mutate(name.trim());
-        }
+        if (name) handleCreateJobTitle(name);
     };
-
-    // =========================================================================
-    // SRI Integration
-    // =========================================================================
-    const [isSearchingRuc, setIsSearchingRuc] = createSignal(false);
-    const [sriError, setSriError] = createSignal('');
-
-    const triggerRucSearch = async () => {
-        const val = props.form.getFieldValue('taxId');
-        if (val.length === 13) {
-            try {
-                setSriError('');
-                setIsSearchingRuc(true);
-                const data = await queryClient.fetchQuery({
-                    queryKey: sriKeys.byRuc(val),
-                    queryFn: () => fetchSriByRuc(val),
-                    staleTime: STALE_TIME.DAY,
-                });
-                if (data && data.length > 0) {
-                    handleSriSelect('RUC')(data[0]);
-                    toast.success('Datos del SRI obtenidos correctamente');
-                } else {
-                    setSriError('No se encontró información para este RUC en el SRI.');
-                    toast.error('RUC no encontrado. Ingrese los detalles manualmente.');
-                    batch(() => {
-                        props.form.setFieldValue('businessName', '');
-                        props.form.setFieldValue('tradeName', '');
-                        props.form.setFieldValue('taxRegimeType', undefined);
-                        props.form.setFieldValue('obligadoContabilidad', false);
-                        props.form.setFieldValue('isSpecialContributor', false);
-                        props.form.setFieldValue('isRetentionAgent', false);
-                    });
-                    queueMicrotask(() => {
-                        businessNameInputRef?.focus();
-                        businessNameInputRef?.select();
-                    });
-                }
-            } catch {
-                toast.error('Error de conexión con el SRI.');
-            } finally {
-                setIsSearchingRuc(false);
-            }
-        } else {
-            setSriError('');
-            toast.error('El RUC debe tener 13 dígitos.');
-        }
-    };
-
-    const handleNameInput = (value: string) => {
-        if (props.form.getFieldValue('businessName') === value) return;
-        props.form.setFieldValue('businessName', value);
-    };
-
-    const handleSriSelect = (source: 'RUC' | 'NAME') => (supplierResult: SriSearchResult | null) => {
-        if (!supplierResult) return;
-
-        props.form.setFieldValue('taxId', supplierResult.ruc);
-        props.form.setFieldValue('businessName', supplierResult.razonSocial);
-        props.form.setFieldValue('tradeName', supplierResult.nombreComercial ?? '');
-        props.form.setFieldValue('taxIdType', 'RUC');
-        props.form.setFieldValue('personType', supplierResult.isSociedad ? 'JURIDICA' : 'NATURAL');
-        props.form.setFieldValue('obligadoContabilidad', !!supplierResult.obligadoContabilidad);
-        props.form.setFieldValue('isRetentionAgent', !!supplierResult.agenteRetencion);
-        props.form.setFieldValue('isSpecialContributor', !!supplierResult.contribuyenteEspecial);
-        props.form.setFieldValue('taxRegimeType', supplierResult.isRimpe ? 'RIMPE_EMPRENDEDOR' : 'GENERAL');
-
-        if (source === 'NAME') {
-            queryClient.setQueryData(sriKeys.byName(supplierResult.razonSocial), [supplierResult]);
-        }
-
-        if (supplierResult.city) {
-            const addresses = props.form.getFieldValue('addresses');
-            if (addresses.length === 0) {
-                props.form.pushFieldValue('addresses', {
-                    addressLine: '', city: supplierResult.city, country: 'Ecuador', countryCode: 'EC', postalCode: '', isMain: true,
-                });
-            } else {
-                props.form.setFieldValue('addresses[0].city', supplierResult.city);
-                props.form.setFieldValue('addresses[0].country', 'Ecuador');
-                props.form.setFieldValue('addresses[0].countryCode', 'EC');
-            }
-        }
-    };
-
-
 
     return (
         <div class="w-full space-y-4">
+            {/* --- Existing Multi-Role Entity Notice Banner --- */}
+            <Show when={existingEntityNotice()}>
+                {(notice) => (
+                    <div class="p-3.5 bg-primary/10 border border-primary/25 rounded-2xl flex items-start gap-3 text-sm text-text animate-fade-in">
+                        <div class="p-1 bg-primary/20 text-primary rounded-lg shrink-0 mt-0.5">
+                            <InfoIcon class="w-4 h-4" />
+                        </div>
+                        <div>
+                            <p class="font-semibold text-primary">Entidad registrada previamente: {notice().businessName}</p>
+                            <p class="text-xs text-text-muted mt-0.5">
+                                Esta empresa ya se encuentra registrada con el rol de <span class="font-semibold text-text">{notice().roles.join(', ')}</span>.
+                                Al guardar este formulario, se le habilitará el nuevo rol seleccionado conservando sus contactos, direcciones e historial comercial unificado.
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </Show>
+
             {/* --- Roles Section --- */}
             <fieldset class="bg-surface/30 p-4 rounded-2xl border border-border/40">
                 <div class="flex items-center gap-2 mb-2">
@@ -302,7 +200,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                                     >
                                         {label}
                                     </Checkbox>
-                                )
+                                );
                             }}
                         </props.form.Field>
                     ))}
@@ -601,14 +499,14 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         <props.form.Field name="employeeDetails.departmentId">
                             {(field) => {
-                                const opts = () => (departmentsQuery.data || []).map(d => ({ value: d.id, label: d.name }));
+                                const opts = departmentOptions;
                                 return (
                                     <div class="space-y-1.5">
                                         <div class="flex items-center justify-between">
                                             <FieldLabel>Departamento</FieldLabel>
                                             <button
                                                 type="button"
-                                                onClick={handleCreateDepartment}
+                                                onClick={promptCreateDepartment}
                                                 class="text-xs text-primary hover:underline flex items-center gap-0.5"
                                             >
                                                 <PlusIcon class="size-3" /> Nuevo
@@ -642,18 +540,14 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                         <props.form.Field name="employeeDetails.jobTitleId">
                             {(field) => {
                                 const deptId = props.form.getFieldValue('employeeDetails.departmentId');
-                                const opts = () => {
-                                    const all = jobTitlesQuery.data || [];
-                                    const filtered = deptId ? all.filter(j => !j.department_id || j.department_id === deptId) : all;
-                                    return filtered.map(j => ({ value: j.id, label: j.name }));
-                                };
+                                const opts = () => getJobTitleOptions(deptId);
                                 return (
                                     <div class="space-y-1.5">
                                         <div class="flex items-center justify-between">
                                             <FieldLabel>Cargo</FieldLabel>
                                             <button
                                                 type="button"
-                                                onClick={handleCreateJobTitle}
+                                                onClick={promptCreateJobTitle}
                                                 class="text-xs text-primary hover:underline flex items-center gap-0.5"
                                             >
                                                 <PlusIcon class="size-3" /> Nuevo
@@ -714,3 +608,4 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
         </div>
     );
 };
+

@@ -26,17 +26,157 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
 
 export async function createEntity(type: EntityType, payload: EntityBodyType, audit: AuditContext | undefined, companyId: number) {
     return await withAuditTransaction(audit, async (tx) => {
+        const typeColumn = type === 'client' ? 'is_client' : type === 'supplier' ? 'is_supplier' : type === 'employee' ? 'is_employee' : 'is_carrier';
+        const cleanTaxId = payload.taxId.trim();
+
+        // 1. Check if entity with taxId already exists in this company
+        const [existing] = await tx
+            .select()
+            .from(entities)
+            .where(and(eq(entities.company_id, companyId), eq(entities.tax_id, cleanTaxId)))
+            .limit(1);
+
+        if (existing) {
+            // If already has the target role active -> 409 Conflict
+            if (existing[typeColumn] && existing.is_active) {
+                const roleName = type === 'client' ? 'cliente' : type === 'supplier' ? 'proveedor' : type === 'employee' ? 'empleado' : 'transportista';
+                throw new DomainError(`Ya existe un ${roleName} registrado con el número de identificación ${cleanTaxId}`, 409);
+            }
+
+            // PROMOTION OF ROLE
+            const [promoted] = await tx
+                .update(entities)
+                .set(stripUndefined({
+                    [typeColumn]: true,
+                    is_active: true,
+                    deleted_at: null,
+                    deleted_by: null,
+                    business_name: payload.businessName.trim() || existing.business_name,
+                    trade_name: payload.tradeName?.trim() ?? existing.trade_name,
+                    email_billing: payload.emailBilling?.trim() ?? existing.email_billing,
+                    phone: payload.phone?.trim() ?? existing.phone,
+                    person_type: payload.personType ?? existing.person_type,
+                    tax_regime_type: payload.taxRegimeType ?? existing.tax_regime_type,
+                    obligado_contabilidad: payload.obligadoContabilidad ?? existing.obligado_contabilidad,
+                    is_retention_agent: payload.isRetentionAgent ?? existing.is_retention_agent,
+                    is_special_contributor: payload.isSpecialContributor ?? existing.is_special_contributor,
+                    is_client: type === 'client' ? true : (payload.isClient ?? existing.is_client),
+                    is_supplier: type === 'supplier' ? true : (payload.isSupplier ?? existing.is_supplier),
+                    is_employee: type === 'employee' ? true : (payload.isEmployee ?? existing.is_employee),
+                    is_carrier: type === 'carrier' ? true : (payload.isCarrier ?? existing.is_carrier),
+                    updated_at: new Date(),
+                }))
+                .where(eq(entities.id, existing.id))
+                .returning();
+
+            // Employee Details Upsert
+            if (type === 'employee' || payload.isEmployee || type === 'carrier' || payload.isCarrier) {
+                if (payload.employeeDetails) {
+                    const [existingEmp] = await tx
+                        .select({ id: employeeDetails.id })
+                        .from(employeeDetails)
+                        .where(eq(employeeDetails.entity_id, existing.id))
+                        .limit(1);
+
+                    if (existingEmp) {
+                        await tx
+                            .update(employeeDetails)
+                            .set(stripUndefined({
+                                department_id: payload.employeeDetails.departmentId,
+                                job_title_id: payload.employeeDetails.jobTitleId,
+                                salary_base: toDecimal(payload.employeeDetails.salaryBase),
+                                hire_date: payload.employeeDetails.hireDate,
+                                cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
+                            }))
+                            .where(eq(employeeDetails.id, existingEmp.id));
+                    } else {
+                        await tx.insert(employeeDetails).values({
+                            entity_id: existing.id,
+                            department_id: payload.employeeDetails.departmentId ?? null,
+                            job_title_id: payload.employeeDetails.jobTitleId ?? null,
+                            salary_base: toDecimal(payload.employeeDetails.salaryBase),
+                            hire_date: payload.employeeDetails.hireDate,
+                            cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
+                        });
+                    }
+                }
+            }
+
+            // Carrier Vehicles & Drivers Upsert
+            if (type === 'carrier' || payload.isCarrier) {
+                if (payload.vehicles && payload.vehicles.length > 0) {
+                    await tx.insert(carrierVehicles).values(
+                        payload.vehicles.map(v => ({
+                            company_id: companyId,
+                            carrier_id: existing.id,
+                            license_plate: v.licensePlate.toUpperCase().trim(),
+                            description: v.description || null,
+                            is_active: v.isActive ?? true,
+                        }))
+                    ).onConflictDoNothing();
+                }
+                if (payload.drivers && payload.drivers.length > 0) {
+                    await tx.insert(carrierDrivers).values(
+                        payload.drivers.map(d => ({
+                            carrier_id: existing.id,
+                            identification_number: d.identificationNumber.trim(),
+                            full_name: d.fullName.trim(),
+                            phone: d.phone || null,
+                            is_active: d.isActive ?? true,
+                        }))
+                    ).onConflictDoNothing();
+                }
+            }
+
+            // Append new addresses if provided
+            if (payload.addresses && payload.addresses.length > 0) {
+                await tx.insert(entityAddresses).values(
+                    payload.addresses.map(addr => ({
+                        entity_id: existing.id,
+                        address_line: addr.addressLine,
+                        city: addr.city,
+                        country: addr.country,
+                        country_code: addr.countryCode,
+                        postal_code: addr.postalCode,
+                        is_main: addr.isMain ?? false
+                    }))
+                );
+            }
+
+            // Append new contacts if provided
+            if (payload.contacts && payload.contacts.length > 0) {
+                await tx.insert(entityContacts).values(
+                    payload.contacts.map(contact => ({
+                        entity_id: existing.id,
+                        name: contact.name,
+                        position: contact.position,
+                        email: contact.email,
+                        phone: contact.phone,
+                        is_primary: contact.isPrimary ?? false
+                    }))
+                );
+            }
+
+            await cacheService.invalidate(`entity:c${companyId}:${existing.id}`);
+            await cacheService.invalidate(`${type}s:c${companyId}:*`);
+            await cacheService.invalidate(`entities:c${companyId}:*`);
+            broadcast(RealtimeEvents.ENTITY.CREATED, { type, entity: promoted, clientId: audit?.clientId }, `${type}s`);
+
+            return promoted;
+        }
+
+        // 2. New Entity Insertion
         const [created] = await tx
             .insert(entities)
             .values({
                 company_id: companyId,
-                tax_id: payload.taxId,
+                tax_id: cleanTaxId,
                 tax_id_type: payload.taxIdType,
                 person_type: payload.personType ?? 'NATURAL',
-                business_name: payload.businessName,
-                trade_name: payload.tradeName,
-                email_billing: payload.emailBilling,
-                phone: payload.phone,
+                business_name: payload.businessName.trim(),
+                trade_name: payload.tradeName?.trim() || null,
+                email_billing: payload.emailBilling?.trim() || null,
+                phone: payload.phone?.trim() || null,
                 tax_regime_type: payload.taxRegimeType,
                 obligado_contabilidad: payload.obligadoContabilidad ?? false,
                 is_client: type === 'client' || (payload.isClient ?? false),
@@ -48,7 +188,7 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
             })
             .returning();
 
-        if (type === 'employee' || payload.isEmployee || type === 'carrier') {
+        if (type === 'employee' || payload.isEmployee || type === 'carrier' || payload.isCarrier) {
             if (payload.employeeDetails) {
                 await tx.insert(employeeDetails).values({
                     entity_id: created.id,
@@ -271,18 +411,46 @@ export async function deactivateEntity(
 ) {
     return withAuditTransaction(audit, async (tx) => {
         const typeColumn = getTypeColumn(type);
-        const [updated] = await tx
-            .update(entities)
-            .set({
-                is_active: false,
-                deleted_at: new Date(),
-                deleted_by: deletedBy ?? null,
-                updated_at: new Date(),
-            })
+        const [existing] = await tx
+            .select()
+            .from(entities)
             .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)))
-            .returning();
+            .limit(1);
 
-        if (!updated) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
+        if (!existing) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
+
+        const otherRolesActive = [
+            type !== 'client' && existing.is_client,
+            type !== 'supplier' && existing.is_supplier,
+            type !== 'employee' && existing.is_employee,
+            type !== 'carrier' && existing.is_carrier,
+        ].filter(Boolean).length;
+
+        let updated;
+        if (otherRolesActive > 0) {
+            // Only deactivate the specific role for this entity
+            [updated] = await tx
+                .update(entities)
+                .set({
+                    [type === 'client' ? 'is_client' : type === 'supplier' ? 'is_supplier' : type === 'employee' ? 'is_employee' : 'is_carrier']: false,
+                    updated_at: new Date(),
+                })
+                .where(and(eq(entities.id, id), eq(entities.company_id, companyId)))
+                .returning();
+        } else {
+            // Full entity deactivation
+            [updated] = await tx
+                .update(entities)
+                .set({
+                    [type === 'client' ? 'is_client' : type === 'supplier' ? 'is_supplier' : type === 'employee' ? 'is_employee' : 'is_carrier']: false,
+                    is_active: false,
+                    deleted_at: new Date(),
+                    deleted_by: deletedBy ?? null,
+                    updated_at: new Date(),
+                })
+                .where(and(eq(entities.id, id), eq(entities.company_id, companyId)))
+                .returning();
+        }
 
         await cacheService.invalidate(`entity:c${companyId}:${id}`);
         await cacheService.invalidate(`${type}s:c${companyId}:*`);

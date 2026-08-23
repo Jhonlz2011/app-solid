@@ -32,41 +32,40 @@ export function createEntityApi(endpoint: AnyEntityEndpoint) {
             return data!;
         },
 
-        get: async (id: string | number) => {
+        get: async (id: string) => {
             const { data, error } = await endpoint({ id }).get();
             if (error) throwApiError(error);
             return data!;
         },
 
-        deactivate: async (id: string | number) => {
+        deactivate: async (id: string) => {
             const { error } = await endpoint({ id }).deactivate.patch();
             if (error) throwApiError(error);
         },
 
-        restore: async (id: string | number) => {
+        restore: async (id: string) => {
             const { error } = await endpoint({ id }).restore.patch();
             if (error) throwApiError(error);
         },
 
-        hardDelete: async (id: string | number) => {
+        hardDelete: async (id: string) => {
             const { error } = await endpoint({ id }).delete();
             if (error) throwApiError(error);
         },
 
-        bulkDelete: async (ids: (number | string)[]) => {
+        bulkDelete: async (ids: string[]) => {
             const { data, error } = await endpoint.bulk.delete({ ids });
             if (error) throwApiError(error);
             return data!;
         },
 
-        bulkRestore: async (ids: (number | string)[]) => {
+        bulkRestore: async (ids: string[]) => {
             const { data, error } = await endpoint.bulk.restore.patch({ ids });
             if (error) throwApiError(error);
             return data!;
         },
 
-        canDelete: async (id: string | number): Promise<EntityReferencesType> => {
-            const { data, error } = await endpoint({ id })['can-delete'].get();
+        canDelete: async (id: string): Promise<EntityReferencesType> => {            const { data, error } = await endpoint({ id })['can-delete'].get();
             if (error) throwApiError(error);
             return data!;
         },
