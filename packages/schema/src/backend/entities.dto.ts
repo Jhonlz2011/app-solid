@@ -92,7 +92,7 @@ export const JobTitleResponseSchema = Type.Object({
 export const CarrierVehicleBodySchema = Type.Object({
     licensePlate: Type.String(),
     description: Type.Optional(Type.String()),
-    isActive: Type.Optional(Type.Boolean()),
+    isActive: Type.Boolean(),
 });
 
 export const CarrierVehicleUpdateSchema = Type.Partial(CarrierVehicleBodySchema);
@@ -101,7 +101,7 @@ export const CarrierDriverBodySchema = Type.Object({
     identificationNumber: Type.String(),
     fullName: Type.String(),
     phone: Type.Optional(Type.String()),
-    isActive: Type.Optional(Type.Boolean()),
+    isActive: Type.Boolean(),
 });
 
 // Main Entity Form Schema (TypeBox) - Aligned strictly with frontend Valibot schema
@@ -124,8 +124,8 @@ export const EntityBodySchema = Type.Object({
     employeeDetails: Type.Optional(EmployeeDetailsBodySchema),
     contacts: Type.Array(ContactBodySchema),
     addresses: Type.Array(AddressBodySchema),
-    vehicles: Type.Optional(Type.Array(CarrierVehicleBodySchema)),
-    drivers: Type.Optional(Type.Array(CarrierDriverBodySchema)),
+    vehicles: Type.Array(CarrierVehicleBodySchema),
+    drivers: Type.Array(CarrierDriverBodySchema),
 });
 
 export const EntityUpdateBodySchema = Type.Partial(Type.Omit(EntityBodySchema, ['taxId', 'taxIdType']));

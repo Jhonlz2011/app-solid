@@ -220,7 +220,6 @@ export const EntityCarrierTab: Component<EntityCarrierTabProps> = (props) => {
                                                 )}
                                             </props.form.Field>
                                         </div>
-
                                         <div class="col-span-12 md:col-span-2">
                                             <props.form.Field name={`drivers[${i}].phone`}>
                                                 {(subField) => (

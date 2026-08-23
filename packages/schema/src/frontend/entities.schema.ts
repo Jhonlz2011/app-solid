@@ -47,14 +47,14 @@ export const EmployeeDetailsFormSchema = object({
 export const CarrierVehicleFormSchema = object({
     licensePlate: pipe(string(), minLength(1, 'La placa es requerida')),
     description: optional(string()),
-    isActive: optional(boolean()),
+    isActive: boolean(),
 });
 
 export const CarrierDriverFormSchema = object({
     identificationNumber: pipe(string(), minLength(1, 'La identificación es requerida')),
     fullName: pipe(string(), minLength(1, 'El nombre es requerido')),
     phone: optional(string()),
-    isActive: optional(boolean()),
+    isActive: boolean(),
 });
 
 // Complete Entity form validation schema
@@ -78,8 +78,8 @@ export const EntityFormSchema = pipe(
         employeeDetails: optional(EmployeeDetailsFormSchema),
         contacts: array(ContactFormSchema),
         addresses: array(AddressFormSchema),
-        vehicles: optional(array(CarrierVehicleFormSchema)),
-        drivers: optional(array(CarrierDriverFormSchema)),
+        vehicles: array(CarrierVehicleFormSchema),
+        drivers: array(CarrierDriverFormSchema),
     }),
     forward(
         check((input) => {

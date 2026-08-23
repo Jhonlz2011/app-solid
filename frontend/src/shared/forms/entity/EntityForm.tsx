@@ -4,7 +4,7 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { EntityFormSchema, EntityFormData } from '@app/schema/frontend';
 import { ApiError } from '@shared/utils/api-errors';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import { createTabErrorSelector, resolveTabFlags } from '@shared/forms/useTabErrors';
+import { useTabErrors } from '@shared/forms/useTabErrors';
 
 import { createDefaultEntityFormValues, mapEntityDetailToFormData } from './entity-form.utils';
 import { useEntityBusinessRules } from './hooks/useEntityBusinessRules';
@@ -70,6 +70,14 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
     // Form-wide rules encapsulated in dedicated hook
     useEntityBusinessRules(form);
 
+    // Multi-tab error indicators
+    const tabErrors = useTabErrors(form, hasAttemptedSubmit, {
+        general: { prefixes: [], isDefault: true },
+        contacts: { prefixes: ['contacts'] },
+        addresses: { prefixes: ['addresses'] },
+        carrier: { prefixes: ['vehicles', 'drivers'] },
+    });
+
     const isEmployeeVal = form.useStore((s) => s.values.isEmployee);
     const isSupplierVal = form.useStore((s) => s.values.isSupplier);
     const isClientVal = form.useStore((s) => s.values.isClient);
@@ -91,49 +99,36 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
             >
                 <Tabs defaultValue="general" class="w-full h-full flex flex-col">
                     <div class="sticky top-0 z-20 max-w-full bg-card pt-4 pb-2">
-                        <form.Subscribe 
-                            selector={createTabErrorSelector(hasAttemptedSubmit, {
-                                general: { prefixes: [], isDefault: true },
-                                contacts: { prefixes: ['contacts'] },
-                                addresses: { prefixes: ['addresses'] },
-                                carrier: { prefixes: ['vehicles', 'drivers'] },
-                            })}
-                        >
-                            {(flagsAccessor) => {
-                                const getFlags = () => resolveTabFlags(flagsAccessor as any);
-                                
-                                return (
-                                    <TabsList class="flex overflow-x-auto shadow-sm rounded-xl">
-                                        <TabsTrigger value="general" hasError={getFlags().general}><InfoIcon /> General</TabsTrigger>
-                                        <Show when={showContacts()}>
-                                            <form.Subscribe selector={(state) => state.values.contacts?.length || 0}>
-                                                {(count) => (
-                                                    <TabsTrigger value="contacts" count={count()} hasError={getFlags().contacts}>
-                                                        <UsersIcon class="size-4" /> Contactos
-                                                    </TabsTrigger>
-                                                )}
-                                            </form.Subscribe>
-                                        </Show>
-                                        <form.Subscribe selector={(state) => state.values.addresses?.length || 0}>
-                                            {(count) => (
-                                                <TabsTrigger value="addresses" count={count()} hasError={getFlags().addresses}>
-                                                    <MapPinIcon class="size-4" /> Direcciones
-                                                </TabsTrigger>
-                                            )}
-                                        </form.Subscribe>
-                                        <Show when={isCarrierVal()}>
-                                            <form.Subscribe selector={(state) => (state.values.vehicles?.length || 0) + (state.values.drivers?.length || 0)}>
-                                                {(count) => (
-                                                    <TabsTrigger value="carrier" count={count()} hasError={getFlags().carrier}>
-                                                        <TruckIcon class="size-4" /> Transporte
-                                                    </TabsTrigger>
-                                                )}
-                                            </form.Subscribe>
-                                        </Show>
-                                    </TabsList>
-                                );
-                            }}
-                        </form.Subscribe>
+                        <TabsList class="flex overflow-x-auto shadow-sm rounded-xl">
+                            <TabsTrigger value="general" hasError={tabErrors().general}>
+                                <InfoIcon /> General
+                            </TabsTrigger>
+                            <Show when={showContacts()}>
+                                <form.Subscribe selector={(state) => state.values.contacts?.length || 0}>
+                                    {(count) => (
+                                        <TabsTrigger value="contacts" count={count()} hasError={tabErrors().contacts}>
+                                            <UsersIcon class="size-4" /> Contactos
+                                        </TabsTrigger>
+                                    )}
+                                </form.Subscribe>
+                            </Show>
+                            <form.Subscribe selector={(state) => state.values.addresses?.length || 0}>
+                                {(count) => (
+                                    <TabsTrigger value="addresses" count={count()} hasError={tabErrors().addresses}>
+                                        <MapPinIcon class="size-4" /> Direcciones
+                                    </TabsTrigger>
+                                )}
+                            </form.Subscribe>
+                            <Show when={isCarrierVal()}>
+                                <form.Subscribe selector={(state) => (state.values.vehicles?.length || 0) + (state.values.drivers?.length || 0)}>
+                                    {(count) => (
+                                        <TabsTrigger value="carrier" count={count()} hasError={tabErrors().carrier}>
+                                            <TruckIcon class="size-4" /> Transporte
+                                        </TabsTrigger>
+                                    )}
+                                </form.Subscribe>
+                            </Show>
+                        </TabsList>
                     </div>
 
                     <div class="pt-3">
@@ -162,5 +157,3 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
         </FormSubmissionContext.Provider>
     );
 };
-
-

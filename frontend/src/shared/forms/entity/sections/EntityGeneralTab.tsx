@@ -346,8 +346,6 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                                             ref={businessNameInputRef}
                                             type="text"
                                             placeholder={businessNamePlaceholder()}
-                                            value={field().state.value}
-                                            onInput={(e) => field().handleChange(e.currentTarget.value)}
                                         />
                                         <TextField.ErrorMessage />
                                     </TextField.Root>
@@ -608,4 +606,3 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
         </div>
     );
 };
-

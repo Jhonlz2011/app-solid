@@ -93,3 +93,16 @@ export function resolveTabFlags<T extends Record<string, boolean>>(
     const val = typeof accessor === 'function' ? (accessor as () => T)() : accessor;
     return val || ({} as T);
 }
+
+/**
+ * useTabErrors — Custom hook for clean, reactive multi-tab error detection.
+ * Subscribes directly to form state via `form.useStore` without needing JSX wrappers.
+ */
+export function useTabErrors<TTabs extends Record<string, TabConfig>>(
+    form: { useStore: <T>(selector: (state: any) => T) => () => T },
+    hasAttemptedSubmit: () => boolean,
+    tabs: TTabs
+): () => Record<keyof TTabs, boolean> {
+    const selector = createTabErrorSelector(hasAttemptedSubmit, tabs);
+    return form.useStore(selector);
+}

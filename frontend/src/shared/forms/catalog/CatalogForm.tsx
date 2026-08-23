@@ -36,7 +36,7 @@ import DynamicAttributeFields from '@/modules/products/components/DynamicAttribu
 import NameTemplatePreview from '@shared/forms/catalog/sections/NameTemplatePreview';
 
 import type { CatalogModeConfig } from './catalog-form.utils';
-import { createTabErrorSelector, resolveTabFlags } from '@shared/forms/useTabErrors';
+import { useTabErrors } from '@shared/forms/useTabErrors';
 
 export interface CatalogFormProps {
     mode: CatalogModeConfig;
@@ -227,6 +227,14 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
 
     createEffect(() => { categoryId(); setManualNameOverride(false); });
 
+    // Multi-tab error indicators
+    const tabErrors = useTabErrors(form, hasAttemptedSubmit, {
+        general: { prefixes: [], isDefault: true },
+        ventas: { prefixes: ['default_base_price', 'iva_rate_code', 'variants[0].sale_uom_id'] },
+        compras: { prefixes: ['variants[0].last_cost'] },
+        inventario: { prefixes: ['uom_inventory_id', 'min_stock_alert', 'has_dimensional_tracking', 'variants[0].content_quantity', 'variants[0].std_length_cm', 'variants[0].std_width_cm'] },
+    });
+
     const removeImageUrl = (url: string) => {
         const current = form.getFieldValue('image_urls') ?? [];
         form.setFieldValue('image_urls', current.filter(u => u !== url));
@@ -320,32 +328,18 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                             return (
                                 <Tabs defaultValue="general">
                                     <div class="sticky top-0 z-20 max-w-full bg-card pt-4 pb-2">
-                                        <form.Subscribe
-                                            selector={createTabErrorSelector(hasAttemptedSubmit, {
-                                                general: { prefixes: [], isDefault: true },
-                                                ventas: { prefixes: ['default_base_price', 'iva_rate_code', 'variants[0].sale_uom_id'] },
-                                                compras: { prefixes: ['variants[0].last_cost'] },
-                                                inventario: { prefixes: ['uom_inventory_id', 'min_stock_alert', 'has_dimensional_tracking', 'variants[0].content_quantity', 'variants[0].std_length_cm', 'variants[0].std_width_cm'] },
-                                            })}
-                                        >
-                                            {(flagsAccessor) => {
-                                                const getFlags = () => resolveTabFlags(flagsAccessor as any);
-                                                return (
-                                                    <TabsList>
-                                                        <TabsTrigger value="general" hasError={getFlags().general}><InfoIcon />General</TabsTrigger>
-                                                        <Show when={props.mode.features.salesTab}>
-                                                            <TabsTrigger value="ventas" hasError={getFlags().ventas}>Ventas</TabsTrigger>
-                                                        </Show>
-                                                        <Show when={props.mode.features.purchaseTab}>
-                                                            <TabsTrigger value="compras" hasError={getFlags().compras}>Compras</TabsTrigger>
-                                                        </Show>
-                                                        <Show when={props.mode.features.inventoryTab}>
-                                                            <TabsTrigger value="inventario" hasError={getFlags().inventario}>Inventario</TabsTrigger>
-                                                        </Show>
-                                                    </TabsList>
-                                                );
-                                            }}
-                                        </form.Subscribe>
+                                        <TabsList>
+                                            <TabsTrigger value="general" hasError={tabErrors().general}><InfoIcon />General</TabsTrigger>
+                                            <Show when={props.mode.features.salesTab}>
+                                                <TabsTrigger value="ventas" hasError={tabErrors().ventas}>Ventas</TabsTrigger>
+                                            </Show>
+                                            <Show when={props.mode.features.purchaseTab}>
+                                                <TabsTrigger value="compras" hasError={tabErrors().compras}>Compras</TabsTrigger>
+                                            </Show>
+                                            <Show when={props.mode.features.inventoryTab}>
+                                                <TabsTrigger value="inventario" hasError={tabErrors().inventario}>Inventario</TabsTrigger>
+                                            </Show>
+                                        </TabsList>
                                     </div>
 
                                     {/* Tab: General */}
