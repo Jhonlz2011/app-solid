@@ -178,9 +178,22 @@ export const EntityBodySchema = Type.Object({
 
 export const EntityUpdateBodySchema = Type.Partial(Type.Omit(EntityBodySchema, ['taxId', 'taxIdType']));
 
+export const EntityTypeSchema = Type.Union([
+    Type.Literal('client'),
+    Type.Literal('supplier'),
+    Type.Literal('employee'),
+    Type.Literal('carrier'),
+]);
+
 export const EntityPickerQuerySchema = Type.Object({
     search: Type.Optional(Type.String()),
     limit: Type.Optional(Type.Number()),
+    type: Type.Optional(EntityTypeSchema),
+    isClient: Type.Optional(Type.Boolean()),
+    isSupplier: Type.Optional(Type.Boolean()),
+    isEmployee: Type.Optional(Type.Boolean()),
+    isCarrier: Type.Optional(Type.Boolean()),
+    isActive: Type.Optional(Type.Boolean()),
 });
 
 export const EntityListQuerySchema = Type.Object({
@@ -242,6 +255,12 @@ export const EntityPickerResponseSchema = Type.Object({
     id: Type.String(),
     businessName: Type.String(),
     taxId: Type.String(),
+    taxIdType: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    personType: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    isClient: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    isSupplier: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    isEmployee: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    isCarrier: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
 });
 
 export const EntityReferencesResponseSchema = Type.Object({
@@ -384,6 +403,7 @@ export type CarrierVehicleType = Static<typeof CarrierVehicleBodySchema>;
 export type CarrierDriverType = Static<typeof CarrierDriverBodySchema>;
 
 export type EntityPickerType = Static<typeof EntityPickerResponseSchema>;
+export type EntityPickerQueryType = Static<typeof EntityPickerQuerySchema>;
 export type EntityReferencesType = Static<typeof EntityReferencesResponseSchema>;
 
 export type DepartmentType = Static<typeof DepartmentBodySchema>;

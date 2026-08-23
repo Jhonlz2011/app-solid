@@ -4,18 +4,18 @@ import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { UserFormSchema, UserCreateSchema, type UserFormData } from '@app/schema/frontend';
 import type { RoleType } from '@app/schema/dto';
 import { TextField } from '@form/TextField';
-import { Autocomplete } from '@form/Autocomplete';
+import { EntitySelect } from '@shared/ui/selectors';
 import Checkbox from '@form/Checkbox';
 import Switch from '@/shared/ui/form/Switch';
 import Button from '@form/Button';
 import { RoleBadge } from '@display/Badge';
 import { SkeletonLoader } from '@display/SkeletonLoader';
-import { CloseIcon } from '@icons/CloseIcon';
 import { CopyIcon } from '@icons/CopyIcon';
 import { KeyIcon } from '@icons/KeyIcon';
 import { copyToClipboard } from '@shared/utils/clipboard';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { toast } from 'solid-sonner';
+import { generatePassword } from '@shared/utils/password.utils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -42,25 +42,17 @@ export interface UserFormProps {
     showPasswordChange?: boolean;
     showIsActive?: boolean;
     showEntityPicker?: boolean;
+    initialEntity?: { id: string; businessName: string; taxId: string } | null;
     entities?: EntityOption[];
     entitiesLoading?: boolean;
     onSubmit: (values: UserFormData & { newPassword?: string }) => void | Promise<void>;
     isSubmitting?: boolean;
 }
 
-import { generatePassword } from '@shared/utils/password.utils';
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const UserForm: Component<UserFormProps> = (props) => {
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
-
-    // Entity selection (managed outside TanStack Form since it uses Autocomplete)
-    const [entitySearchText, setEntitySearchText] = createSignal(
-        props.defaultValues?.entityId
-            ? props.entities?.find(e => e.id === props.defaultValues?.entityId)?.businessName ?? ''
-            : ''
-    );
 
     // Password change section (edit mode)
     const [showPwSection, setShowPwSection] = createSignal(false);
@@ -112,11 +104,6 @@ const UserForm: Component<UserFormProps> = (props) => {
 
     const isActive = form.useStore((s) => s.values.isActive);
     const selectedRoleIds = form.useStore((s) => s.values.roleIds);
-    const selectedEntityId = form.useStore((s) => s.values.entityId);
-
-    const selectedEntity = createMemo(() =>
-        props.entities?.find(e => e.id === selectedEntityId()) ?? null
-    );
 
     const isUserSuperadmin = createMemo(() => {
         const superRole = props.roles?.find(r => r.name === 'superadmin');
@@ -211,72 +198,22 @@ const UserForm: Component<UserFormProps> = (props) => {
                     </div>
                 </Show>
 
-                {/* ═══ Entity picker (Autocomplete) ═══ */}
+                {/* ═══ Entity picker (Standardized EntitySelect) ═══ */}
                 <Show when={props.showEntityPicker}>
-                    <div class="space-y-3">
-                        <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                            <div class="size-1.5 rounded-full bg-emerald-500" />
-                            Persona vinculada
-                        </div>
-
-                        {/* Selected entity card */}
-                        <Show when={selectedEntity()}>
-                            {(entity) => (
-                                <div class="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                                    <div class="size-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-                                        <span class="text-emerald-600 text-sm font-bold">
-                                            {entity().businessName.charAt(0)}
-                                        </span>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-semibold text-text truncate">{entity().businessName}</p>
-                                        <p class="text-xs text-muted">{entity().taxId}</p>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                            form.setFieldValue('entityId', null);
-                                            setEntitySearchText('');
-                                        }}
-                                        disabled={props.isSubmitting}
-                                        class="text-muted hover:text-danger shrink-0"
-                                        title="Desvincular persona"
-                                    >
-                                        <CloseIcon class="size-4" />
-                                    </Button>
-                                </div>
-                            )}
-                        </Show>
-
-                        {/* Autocomplete picker */}
-                        <Show when={!selectedEntity()}>
-                            <Show
-                                when={!props.entitiesLoading}
-                                fallback={<SkeletonLoader type="text" count={1} />}
-                            >
-                                <Autocomplete.Root>
-                                    <Autocomplete.Input<EntityOption>
-                                        value={entitySearchText()}
-                                        onInputChange={setEntitySearchText}
-                                        options={props.entities ?? []}
-                                        optionValue={(e) => String(e.id)}
-                                        optionLabel={(e) => e.businessName}
-                                        optionDescription={(e) => e.taxId}
-                                        onSelect={(entity) => {
-                                            if (entity) {
-                                                form.setFieldValue('entityId', entity.id);
-                                                setEntitySearchText(entity.businessName);
-                                            }
-                                        }}
-                                        placeholder="Buscar por nombre o RUC/cédula..."
-                                        disabled={props.isSubmitting}
-                                        minLength={1}
-                                    />
-                                </Autocomplete.Root>
-                            </Show>
-                        </Show>
-                    </div>
+                    <form.Field name="entityId">
+                        {(field) => (
+                            <EntitySelect
+                                value={field().state.value}
+                                onChange={(id) => field().handleChange(id)}
+                                label="Persona vinculada (Empleado)"
+                                placeholder="Buscar empleado por nombre o identificación..."
+                                isEmployee={true}
+                                disabled={props.isSubmitting}
+                                field={field()}
+                                initialEntity={props.initialEntity}
+                            />
+                        )}
+                    </form.Field>
                 </Show>
 
                 {/* ═══ Password change (edit mode) ═══ */}

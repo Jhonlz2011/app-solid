@@ -6,9 +6,46 @@ import { createEffect } from 'solid-js';
 import { throwApiError } from '@shared/utils/api-errors';
 import type { EntityApi } from './entities.api';
 import type { EntityKeys } from './entities.keys';
-import type { EntityFilters, FacetData, EntityReferencesType } from '@app/schema/dto';
+import type { EntityFilters, FacetData, EntityReferencesType, EntityPickerType } from '@app/schema/dto';
+import type { EntityType } from '@app/schema/enums';
 import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
-import type { api } from '@shared/lib/eden';
+import { api } from '@shared/lib/eden';
+
+export interface UseEntityPickerOptions {
+    search?: string;
+    limit?: number;
+    type?: EntityType;
+    isClient?: boolean;
+    isSupplier?: boolean;
+    isEmployee?: boolean;
+    isCarrier?: boolean;
+    isActive?: boolean;
+}
+
+export function useEntityPicker(options: () => UseEntityPickerOptions = () => ({})) {
+    return createQuery(() => ({
+        queryKey: ['entities', 'picker', options()] as const,
+        queryFn: async () => {
+            const opts = options();
+            const { data, error } = await api.entities.get({
+                query: {
+                    search: opts.search,
+                    limit: opts.limit,
+                    type: opts.type,
+                    isClient: opts.isClient,
+                    isSupplier: opts.isSupplier,
+                    isEmployee: opts.isEmployee,
+                    isCarrier: opts.isCarrier,
+                    isActive: opts.isActive,
+                },
+            });
+            if (error) throwApiError(error);
+            return (data || []) as EntityPickerType[];
+        },
+        staleTime: STALE_TIME.MEDIUM,
+        gcTime: GC_TIME.DEFAULT,
+    }));
+}
 
 export type AnyFacetsEndpoint = typeof api.suppliers.facets;
 
@@ -49,7 +86,6 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
 
             return query;
         },
-
         useInfinite: (filters: () => Omit<EntityFilters, 'cursor' | 'direction'>) => {
             return createInfiniteQuery(() => ({
                 queryKey: [...keys.lists(), 'infinite', filters()] as const,

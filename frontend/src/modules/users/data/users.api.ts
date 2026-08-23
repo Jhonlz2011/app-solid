@@ -7,6 +7,7 @@
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
 import type { RoleBody } from '../models/users.types';
+import { UsersFilters } from '@app/schema/dto';
 export type { UsersFilters } from '@app/schema/dto';
 
 
@@ -188,15 +189,6 @@ export const usersApi = {
         const { data, error } = await userPath.entity.patch({ entityId });
         if (error) throwApiError(error);
         return data!;
-    },
-
-    // ─── Entities (for picker) ───────────────────────────────────
-    listEntities: async (search?: string) => {
-        const { data, error } = await api.entities.get({
-            query: { limit: 10, search },
-        });
-        if (error) throwApiError(error);
-        return data ?? [];
     },
 
     // ─── User Audit Log ──────────────────────────────────────────

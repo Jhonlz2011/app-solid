@@ -336,11 +336,59 @@ export async function getAddresses(entityId: string, companyId: number) {
     return db.select().from(entityAddresses).where(eq(entityAddresses.entity_id, entityId));
 }
 
-export async function listForPicker(companyId: number, search?: string, limit: number = 200): Promise<EntityPickerType[]> {
-    const conditions: SQL[] = [eq(entities.company_id, companyId), eq(entities.is_active, true)];
+export interface ListForPickerOptions {
+    search?: string;
+    limit?: number;
+    type?: EntityType;
+    isClient?: boolean;
+    isSupplier?: boolean;
+    isEmployee?: boolean;
+    isCarrier?: boolean;
+    isActive?: boolean;
+}
+
+export async function listForPicker(companyId: number, options: ListForPickerOptions = {}): Promise<EntityPickerType[]> {
+    const {
+        search,
+        limit = 200,
+        type,
+        isClient,
+        isSupplier,
+        isEmployee,
+        isCarrier,
+        isActive = true,
+    } = options;
+
+    const conditions: SQL[] = [eq(entities.company_id, companyId)];
+
+    if (isActive !== undefined) {
+        conditions.push(eq(entities.is_active, isActive));
+    }
+
+    if (type) {
+        switch (type) {
+            case 'client':
+                conditions.push(eq(entities.is_client, true));
+                break;
+            case 'supplier':
+                conditions.push(eq(entities.is_supplier, true));
+                break;
+            case 'employee':
+                conditions.push(eq(entities.is_employee, true));
+                break;
+            case 'carrier':
+                conditions.push(eq(entities.is_carrier, true));
+                break;
+        }
+    }
+
+    if (isClient !== undefined) conditions.push(eq(entities.is_client, isClient));
+    if (isSupplier !== undefined) conditions.push(eq(entities.is_supplier, isSupplier));
+    if (isEmployee !== undefined) conditions.push(eq(entities.is_employee, isEmployee));
+    if (isCarrier !== undefined) conditions.push(eq(entities.is_carrier, isCarrier));
 
     if (search && search.length >= 1) {
-        const term = `%${search}%`;
+        const term = `%${search.trim()}%`;
         const searchCond = or(
             ilike(entities.business_name, term),
             ilike(entities.tax_id, term)
@@ -353,6 +401,12 @@ export async function listForPicker(companyId: number, search?: string, limit: n
             id: entities.id,
             businessName: entities.business_name,
             taxId: entities.tax_id,
+            taxIdType: entities.tax_id_type,
+            personType: entities.person_type,
+            isClient: entities.is_client,
+            isSupplier: entities.is_supplier,
+            isEmployee: entities.is_employee,
+            isCarrier: entities.is_carrier,
         })
         .from(entities)
         .where(and(...conditions))

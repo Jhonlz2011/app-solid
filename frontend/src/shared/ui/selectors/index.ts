@@ -8,3 +8,4 @@ export { SelectorBreadcrumbs, buildBreadcrumbs, useResolvedSelectorPath, type Se
 export { CitySelect, type CitySelectProps } from './CitySelect';
 export { ProductSelect, type ProductSelectProps } from './ProductSelect';
 export { SriBusinessNameSelect, type SriBusinessNameSelectProps } from './SriBusinessNameSelect';
+export { EntitySelect, type EntitySelectProps } from './EntitySelect';

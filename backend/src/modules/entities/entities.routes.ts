@@ -38,8 +38,16 @@ export const entityRoutes = new Elysia({ prefix: '/entities' })
         ({ query, currentCompanyId }) => {
             return listForPicker(
                 currentCompanyId,
-                query.search,
-                query.limit ? Number(query.limit) : 200,
+                {
+                    search: query.search,
+                    limit: query.limit ? Number(query.limit) : 200,
+                    type: query.type,
+                    isClient: query.isClient,
+                    isSupplier: query.isSupplier,
+                    isEmployee: query.isEmployee,
+                    isCarrier: query.isCarrier,
+                    isActive: query.isActive,
+                }
             );
         },
         {

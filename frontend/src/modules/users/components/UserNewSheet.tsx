@@ -5,11 +5,10 @@ import type { UserFormData } from '@app/schema/frontend';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
-import { useRoles, useEntitiesList } from '../data/users.queries';
+import { useRoles } from '../data/users.queries';
 import { useCreateUser, useSetUserEntity } from '../data/users.mutations';
-import { ApiError, isNetworkError } from '@shared/utils/api-errors';
+import { isNetworkError } from '@shared/utils/api-errors';
 import UserForm from './UserForm';
-import type { EntityOption } from './UserForm';
 
 interface UserNewSheetProps {
     onClose?: () => void;
@@ -19,18 +18,7 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
     const createMutation = useCreateUser();
     const rolesQuery = useRoles();
-    const entitiesQuery = useEntitiesList();
     const setEntityMutation = useSetUserEntity();
-
-    const entityOptions = createMemo((): EntityOption[] => {
-        const raw = entitiesQuery.data;
-        if (!raw || !Array.isArray(raw)) return [];
-        return raw.map((e: any) => ({
-            id: e.id,
-            businessName: e.business_name ?? e.businessName ?? '',
-            taxId: e.tax_id ?? e.taxId ?? '',
-        }));
-    });
 
     const handleSubmit = async (values: UserFormData & { newPassword?: string }) => {
         if (!values.password) return;
@@ -98,8 +86,6 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
                 showPassword={true}
                 showIsActive={false}
                 showEntityPicker={true}
-                entities={entityOptions()}
-                entitiesLoading={entitiesQuery.isPending}
                 onSubmit={handleSubmit}
                 isSubmitting={isPending()}
             />

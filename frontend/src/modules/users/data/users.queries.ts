@@ -17,19 +17,6 @@ import type {
 } from '@app/schema/dto';
 
 // =============================================================================
-// Entity Picker
-// =============================================================================
-
-export function useEntitiesList() {
-    return createQuery(() => ({
-        queryKey: ['entities', 'list-all'] as const,
-        queryFn: () => usersApi.listEntities(),
-        staleTime: STALE_TIME.MEDIUM,
-        gcTime: GC_TIME.DEFAULT,
-    }));
-}
-
-// =============================================================================
 // User Queries
 // =============================================================================
 

@@ -7,13 +7,12 @@ import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { SkeletonLoader } from '@display/SkeletonLoader';
-import { useUser, useRoles, useEntitiesList } from '../data/users.queries';
+import { useUser, useRoles } from '../data/users.queries';
 import {
     useUpdateUser, useAssignUserRoles,
     useSetUserEntity, useAdminResetPassword,
 } from '../data/users.mutations';
 import UserForm from './UserForm';
-import type { EntityOption } from './UserForm';
 
 interface UserEditSheetProps {
     userId?: number;
@@ -28,21 +27,10 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
 
     const userQuery = useUser(userId);
     const rolesQuery = useRoles();
-    const entitiesQuery = useEntitiesList();
     const updateMutation = useUpdateUser();
     const assignRolesMutation = useAssignUserRoles();
     const setEntityMutation = useSetUserEntity();
     const resetPwMutation = useAdminResetPassword();
-
-    const entityOptions = createMemo((): EntityOption[] => {
-        const raw = entitiesQuery.data;
-        if (!raw || !Array.isArray(raw)) return [];
-        return raw.map((e: any) => ({
-            id: e.id,
-            businessName: e.business_name ?? e.businessName ?? '',
-            taxId: e.tax_id ?? e.taxId ?? '',
-        }));
-    });
 
     const handleSubmit = async (values: UserFormData & { newPassword?: string }) => {
         try {
@@ -153,8 +141,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                             showPasswordChange={true}
                             showIsActive={true}
                             showEntityPicker={true}
-                            entities={entityOptions()}
-                            entitiesLoading={entitiesQuery.isPending}
+                            initialEntity={user().entity}
                             onSubmit={handleSubmit}
                             isSubmitting={isPending()}
                         />
