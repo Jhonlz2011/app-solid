@@ -4,6 +4,7 @@ import { eq, count, and } from '@app/schema';
 import { DomainError } from '../../core/errors';
 import { broadcast } from '../../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
+import { SYSTEM_ROLES } from '@app/schema/enums';
 import { invalidateUserRbacCache } from './rbac.permission.service';
 
 /**
@@ -82,8 +83,13 @@ export async function getRoleById(roleId: number, companyId?: number) {
  * Create a new role
  */
 export async function createRole(name: string, description?: string | null, currentUserId?: string | number, companyId?: number) {
+    const trimmedName = name.trim();
+    if (trimmedName.toLowerCase() === SYSTEM_ROLES.SUPERADMIN) {
+        throw new DomainError('No se puede crear un rol con el nombre reservado superadmin', 400);
+    }
+
     const existing = await db.query.authRoles.findFirst({
-        where: and(eq(authRoles.company_id, companyId!), eq(authRoles.name, name)),
+        where: and(eq(authRoles.company_id, companyId!), eq(authRoles.name, trimmedName)),
     });
 
     if (existing) {
@@ -92,10 +98,10 @@ export async function createRole(name: string, description?: string | null, curr
 
     const [role] = await db
         .insert(authRoles)
-        .values({ name, description, company_id: companyId! })
+        .values({ name: trimmedName, description, company_id: companyId! })
         .returning();
 
-    if (currentUserId) logAudit(currentUserId, 'INSERT', 'auth_roles', role.id, { name, description });
+    if (currentUserId) logAudit(currentUserId, 'INSERT', 'auth_roles', role.id, { name: trimmedName, description });
 
     return role;
 }
@@ -105,18 +111,26 @@ export async function createRole(name: string, description?: string | null, curr
  */
 export async function updateRole(id: number, name: string, description?: string | null, currentUserId?: string | number) {
     const oldRole = await db.query.authRoles.findFirst({ where: eq(authRoles.id, id) });
-
-    const [updated] = await db
-        .update(authRoles)
-        .set({ name, description })
-        .where(eq(authRoles.id, id))
-        .returning();
-
-    if (!updated) {
+    if (!oldRole) {
         throw new DomainError('Rol no encontrado', 404);
     }
 
-    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_roles', id, { name, description }, oldRole ? { name: oldRole.name, description: oldRole.description } : undefined);
+    const trimmedName = name.trim();
+    if (oldRole.name === SYSTEM_ROLES.SUPERADMIN && trimmedName.toLowerCase() !== SYSTEM_ROLES.SUPERADMIN) {
+        throw new DomainError('No se puede cambiar el nombre del rol superadmin', 403);
+    }
+
+    if (oldRole.name !== SYSTEM_ROLES.SUPERADMIN && trimmedName.toLowerCase() === SYSTEM_ROLES.SUPERADMIN) {
+        throw new DomainError('No se puede renombrar un rol al nombre reservado superadmin', 400);
+    }
+
+    const [updated] = await db
+        .update(authRoles)
+        .set({ name: trimmedName, description })
+        .where(eq(authRoles.id, id))
+        .returning();
+
+    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_roles', id, { name: trimmedName, description }, { name: oldRole.name, description: oldRole.description });
 
     return updated;
 }
@@ -219,7 +233,7 @@ export async function updateRolePermissions(roleId: number, permissionIds: numbe
         .from(authUserRoles)
         .where(eq(authUserRoles.role_id, roleId));
 
-    await Promise.all(usersWithRole.map(({ userId }) => invalidateUserRbacCache(userId)));
+    await Promise.all(usersWithRole.map(({ userId }) => invalidateUserRbacCache(userId, role.company_id )));
 
     for (const { userId } of usersWithRole) {
         broadcast(RealtimeEvents.USER.RBAC_CHANGED, { userId }, `user:${userId}`);

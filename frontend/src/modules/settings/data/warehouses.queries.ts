@@ -1,4 +1,5 @@
 import { createQuery } from '@tanstack/solid-query';
+import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
 import { warehousesApi } from './warehouses.api';
 import { warehouseKeys } from './warehouses.keys';
 
@@ -10,7 +11,7 @@ export function useWarehousesList() {
     return createQuery(() => ({
         queryKey: warehouseKeys.warehouses,
         queryFn: () => warehousesApi.list(),
-        staleTime: 1000 * 60 * 10,
-        gcTime: 1000 * 60 * 60,
+        staleTime: STALE_TIME.LONG,
+        gcTime: GC_TIME.DEFAULT,
     }));
 }

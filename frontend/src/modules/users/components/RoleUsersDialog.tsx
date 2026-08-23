@@ -147,6 +147,12 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
                 onSubmit={(e) => e.preventDefault()}
             >
                 <div class="space-y-4 py-4">
+                    <Show when={props.roleName === 'superadmin'}>
+                        <div class="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs text-primary font-medium flex items-center gap-2">
+                            <span>🛡️ El rol Superadmin pertenece exclusivamente al propietario de la organización y es inmutable.</span>
+                        </div>
+                    </Show>
+
                     {/* Search + Add button */}
                     <div class="flex items-center gap-2">
                         <SearchInput
@@ -155,18 +161,20 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
                             placeholder="Buscar usuarios..."
                             class="flex-1"
                         />
-                        <Button
-                            variant={showAddPanel() ? 'outline' : 'primary'}
-                            size="sm"
-                            icon={<PlusIcon />}
-                            onClick={() => setShowAddPanel(!showAddPanel())}
-                        >
-                            <span class="hidden sm:inline">{showAddPanel() ? 'Cerrar' : 'Agregar'}</span>
-                        </Button>
+                        <Show when={props.roleName !== 'superadmin'}>
+                            <Button
+                                variant={showAddPanel() ? 'outline' : 'primary'}
+                                size="sm"
+                                icon={<PlusIcon />}
+                                onClick={() => setShowAddPanel(!showAddPanel())}
+                            >
+                                <span class="hidden sm:inline">{showAddPanel() ? 'Cerrar' : 'Agregar'}</span>
+                            </Button>
+                        </Show>
                     </div>
 
                     {/* Add user panel */}
-                    <Show when={showAddPanel()}>
+                    <Show when={showAddPanel() && props.roleName !== 'superadmin'}>
                         <div class="border border-primary/20 bg-primary/5 rounded-xl p-4 space-y-3">
                             <div class="text-xs font-semibold text-primary uppercase tracking-wider">
                                 Agregar usuario al rol
@@ -240,14 +248,16 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
                                                 <div class="text-sm font-medium text-text truncate">{user.username}</div>
                                                 <div class="text-xs text-muted truncate">{user.email}</div>
                                             </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon_md"
-                                                class="text-muted hover:text-danger hover:bg-danger/10 opacity-0 group-hover/item:opacity-100 transition-opacity"
-                                                onClick={() => setConfirmRemove({ userId: user.id, username: user.username })}
-                                            >
-                                                <UserMinusIcon class="size-4" />
-                                            </Button>
+                                            <Show when={props.roleName !== 'superadmin'}>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon_md"
+                                                    class="text-muted hover:text-danger hover:bg-danger/10 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                                                    onClick={() => setConfirmRemove({ userId: user.id, username: user.username })}
+                                                >
+                                                    <UserMinusIcon class="size-4" />
+                                                </Button>
+                                            </Show>
                                         </div>
                                     )}
                                 </For>

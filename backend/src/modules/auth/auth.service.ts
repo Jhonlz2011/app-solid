@@ -1,6 +1,6 @@
-import { db } from '../../core/db';
+import { db, adminDb } from '../../core/db';
 import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, account, organization, member } from '@app/schema/tables';
-import { eq, sql } from '@app/schema';
+import { eq, and, sql } from '@app/schema';
 import type { TaxRegimeType } from '@app/schema/enums';
 import { DomainError } from '../../core/errors';
 import {
@@ -45,6 +45,26 @@ export async function register(
   ipAddress?: string
 ) {
   await verifyTurnstileToken(data.turnstileToken, ipAddress);
+
+  const normalizedUsername = data.username.trim().toLowerCase();
+  const normalizedEmail = data.email.trim().toLowerCase();
+
+  // 1. Validar unicidad global del username
+  const existingUsername = await adminDb.query.authUsers.findFirst({
+    where: eq(users.username, normalizedUsername),
+  });
+  if (existingUsername) {
+    throw new DomainError('Este nombre de usuario ya está registrado en el sistema', 409);
+  }
+
+  // 2. Comprobar si el email ya fue verificado globalmente en cualquier cuenta previa
+  const globallyVerifiedUser = await adminDb.query.authUsers.findFirst({
+    where: and(
+      eq(users.email, normalizedEmail),
+      eq(users.emailVerified, true)
+    ),
+  });
+  const isAlreadyVerified = Boolean(globallyVerifiedUser);
 
   const result = await db.transaction(async (tx) => {
     const [existingSlug] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.slug, data.slug)).limit(1);
@@ -119,11 +139,11 @@ export async function register(
         name: data.fullName,
         company_id: company.id,          // Denormalized cache
         entity_id: ownerEntity.id,       // Denormalized cache
-        email: data.email.toLowerCase(),
-        username: data.username.toLowerCase(),
-        displayUsername: data.username,
+        email: normalizedEmail,
+        username: normalizedUsername,
+        displayUsername: data.username.trim(),
         is_active: true,
-        emailVerified: false,
+        emailVerified: isAlreadyVerified,
       })
       .returning({
         id: users.id,
@@ -200,22 +220,25 @@ export async function register(
     };
   });
 
-  // 1. Limpiar cualquier cooldown previo en Redis para asegurar el envío en un nuevo registro
-  await redis.del(`email_cooldown:${result.user.email.toLowerCase()}`).catch(() => {});
+  // Si el email no ha sido verificado globalmente, disparar el envío de verificación
+  if (!isAlreadyVerified) {
+    // 1. Limpiar cualquier cooldown previo en Redis para asegurar el envío en un nuevo registro
+    await redis.del(`email_cooldown:${result.user.email.toLowerCase()}`).catch(() => {});
 
-  // 2. Disparar envío automático de email de verificación vía Better Auth
-  try {
-    await auth.api.sendVerificationEmail({
-      body: {
-        email: result.user.email,
-        callbackURL: '/verify-email',
-      },
-      headers: new Headers({
-        origin: env.BETTER_AUTH_URL,
-      }),
-    });
-  } catch (err) {
-    console.error('[Register] Error sending verification email:', err);
+    // 2. Disparar envío automático de email de verificación vía Better Auth
+    try {
+      await auth.api.sendVerificationEmail({
+        body: {
+          email: result.user.email,
+          callbackURL: '/verify-email',
+        },
+        headers: new Headers({
+          origin: env.BETTER_AUTH_URL,
+        }),
+      });
+    } catch (err) {
+      console.error('[Register] Error sending verification email:', err);
+    }
   }
 
   return result;

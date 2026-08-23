@@ -1,5 +1,5 @@
 import { customType, text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex, pgPolicy, uuid } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
+import { v7 as uuidv7 } from 'uuid';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { entities } from './entities';
 import { companies } from './config';
@@ -11,19 +11,19 @@ const inet = customType<{ data: string }>({
 });
 
 // ============================================================================
-// 1. BETTER-AUTH CORE TABLES (PostgreSQL 18 Native UUIDv7)
+// 1. BETTER-AUTH CORE TABLES (Application-Level UUIDv7 + PostgreSQL 18 Native)
 // ============================================================================
 
 export const user = pgTableV2("user", {
-    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
     name: text("name").notNull(),
-    email: text("email").notNull().unique(),
+    email: text("email").notNull(),
     emailVerified: boolean("email_verified").default(false).notNull(),
     image: text("image"),
     createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", TZ).defaultNow().notNull(),
     
-    // Better-Auth username plugin
+    // Better-Auth username plugin (Unique globally)
     username: text("username").unique().notNull(),
     displayUsername: text("display_username"),
     
@@ -40,10 +40,11 @@ export const user = pgTableV2("user", {
     index("idx_user_email").on(t.email),
     index("idx_user_username").on(t.username),
     index("idx_user_company").on(t.company_id),
+    uniqueIndex("idx_user_company_email").on(t.company_id, t.email),
 ]);
 
 export const session = pgTableV2("session", {
-    id: text("id").primaryKey().default(sql`uuidv7()::text`),
+    id: text("id").primaryKey().$defaultFn(() => uuidv7()),
     expiresAt: timestamp("expires_at", TZ).notNull(),
     token: text("token").notNull().unique(),
     createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
@@ -60,7 +61,7 @@ export const session = pgTableV2("session", {
 ]);
 
 export const account = pgTableV2("account", {
-    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
     accountId: text("account_id").notNull(),
     providerId: text("provider_id").notNull(),
     userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
@@ -79,7 +80,7 @@ export const account = pgTableV2("account", {
 ]);
 
 export const verification = pgTableV2("verification", {
-    id: text("id").primaryKey().default(sql`uuidv7()::text`),
+    id: text("id").primaryKey().$defaultFn(() => uuidv7()),
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
     expiresAt: timestamp("expires_at", TZ).notNull(),
@@ -94,7 +95,7 @@ export const verification = pgTableV2("verification", {
 // ============================================================================
 
 export const organization = pgTableV2("organization", {
-    id: text("id").primaryKey().default(sql`uuidv7()::text`),
+    id: text("id").primaryKey().$defaultFn(() => uuidv7()),
     name: text("name").notNull(),
     slug: text("slug").unique(),
     logo: text("logo"),
@@ -110,7 +111,7 @@ export const organization = pgTableV2("organization", {
  * (client/supplier/employee) within each company context.
  */
 export const member = pgTableV2("member", {
-    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
     organizationId: text("organization_id").references(() => organization.id, { onDelete: 'cascade' }).notNull(),
     userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
     role: text("role").default("member").notNull(),
@@ -123,7 +124,7 @@ export const member = pgTableV2("member", {
 ]);
 
 export const invitation = pgTableV2("invitation", {
-    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
     organizationId: text("organization_id").references(() => organization.id, { onDelete: 'cascade' }).notNull(),
     email: text("email").notNull(),
     role: text("role"),
@@ -137,7 +138,7 @@ export const invitation = pgTableV2("invitation", {
 
 // Better-Auth Two-Factor & Passkey Plugins
 export const twoFactor = pgTableV2("two_factor", {
-    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
     secret: text("secret").notNull(),
     backupCodes: text("backup_codes").notNull(),
     userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),

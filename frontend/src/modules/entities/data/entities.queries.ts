@@ -3,6 +3,7 @@
  */
 import { createQuery, createInfiniteQuery, keepPreviousData, useQueryClient } from '@tanstack/solid-query';
 import { createEffect } from 'solid-js';
+import { throwApiError } from '@shared/utils/api-errors';
 import type { EntityApi } from './entities.api';
 import type { EntityKeys } from './entities.keys';
 import type { EntityFilters, FacetData, EntityReferencesType } from '@app/schema/dto';
@@ -90,7 +91,7 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
                             businessName: cf?.businessName?.length ? cf.businessName.join(',') : undefined,
                         },
                     });
-                    if (error) throw error; // Will be handled by Error Boundary or similar
+                    if (error) throwApiError(error);
                     return data as unknown as FacetData;
                 },
                 staleTime: STALE_TIME.MEDIUM,
@@ -100,23 +101,23 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
             }));
         },
 
-        useDetail: (id: () => string, enabled?: () => boolean) => {
+        useDetail: (id: () => string | null | undefined, enabled?: () => boolean) => {
             return createQuery(() => ({
-                queryKey: keys.detail(id()),
-                queryFn: () => api.get(id()),
+                queryKey: keys.detail(id() ?? ''),
+                queryFn: () => api.get(id()!),
                 enabled: (enabled ? enabled() : true) && Boolean(id()),
                 staleTime: STALE_TIME.MEDIUM,
                 gcTime: GC_TIME.DEFAULT,
             }));
         },
 
-        useCheckReferences: (id: () => string | null, enabled: () => boolean) => {
+        useCheckReferences: (id: () => string | null | undefined, enabled: () => boolean) => {
             return createQuery(() => ({
-                queryKey: [...keys.all, 'can-delete', id()],
+                queryKey: [...keys.all, 'can-delete', id() ?? ''],
                 queryFn: async (): Promise<EntityReferencesType> => {
-                    return await api.canDelete(id()!);
+                    return api.canDelete(id()!);
                 },
-                enabled: enabled() && id() !== null && Boolean(id()),
+                enabled: enabled() && Boolean(id()),
                 staleTime: 10_000,
                 gcTime: GC_TIME.PREFLIGHT,
                 retry: false,

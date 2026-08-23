@@ -129,20 +129,32 @@ export async function revokeAllUserSessions(userId: string | number): Promise<vo
 }
 
 /**
- * Guard: throws if userId is the last active superadmin.
+ * Checks if a user has the superadmin role in the given company context (or globally).
  */
-export async function ensureNotLastSuperadmin(userId: string | number): Promise<void> {
-    const userIdStr = String(userId);
-    const roles = await getUserRoles(userId);
-    if (!roles.includes(SYSTEM_ROLES.SUPERADMIN)) return;
-    // CRÍTICO: usar adminDb para evitar que RLS bloquee la query cuando no hay companyId en tenantStorage
-    // Si db retorna count=0 por RLS → dejaría eliminar al último superadmin
-    const [result] = await adminDb.select({ count: count() })
-        .from(authUserRoles)
-        .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-        .innerJoin(authUsers, eq(authUserRoles.user_id, authUsers.id))
-        .where(and(eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN), eq(authUsers.is_active, true)));
-    if (Number(result.count) <= 1) {
-        throw new DomainError('No se puede modificar al último superadmin activo', 403);
+export async function isUserSuperadmin(userId: string | number, companyId?: number | null): Promise<boolean> {
+    const roles = await getUserRoles(userId, companyId);
+    return roles.includes(SYSTEM_ROLES.SUPERADMIN);
+}
+
+/**
+ * Guard: throws 403 if userId is the superadmin / owner of the company.
+ * In a multi-tenant SaaS, each organization has exactly 1 immutable superadmin (the owner).
+ * The superadmin can NEVER be deactivated, deleted, or stripped of their role.
+ */
+export async function assertNotSuperadmin(
+    userId: string | number,
+    companyId?: number | null,
+    action: string = 'modificar'
+): Promise<void> {
+    const isSuper = await isUserSuperadmin(userId, companyId);
+    if (isSuper) {
+        throw new DomainError(`No se puede ${action} al Superadmin / Propietario de la empresa`, 403);
     }
+}
+
+/**
+ * Backward compatibility alias for assertNotSuperadmin
+ */
+export async function ensureNotLastSuperadmin(userId: string | number, companyId?: number | null): Promise<void> {
+    await assertNotSuperadmin(userId, companyId, 'modificar');
 }

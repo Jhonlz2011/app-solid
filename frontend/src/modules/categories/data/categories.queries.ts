@@ -1,50 +1,53 @@
 import { createQuery } from '@tanstack/solid-query';
-import { categoriesApi, type CategoryNode, type CategoryDetail } from './categories.api';
-import { categorieKeys } from './categories.keys';
-import type { Accessor } from 'solid-js';
+import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
+import { categoriesApi } from './categories.api';
+import { categoryKeys } from './categories.keys';
 
 export function useCategoriesTree() {
     return createQuery(() => ({
-        queryKey: categorieKeys.categoriesTree(),
-        queryFn: () => categoriesApi.listCategories(false) as Promise<CategoryNode[]>,
-        staleTime: 1000 * 60 * 10,
-        gcTime: 1000 * 60 * 60,
+        queryKey: categoryKeys.categoriesTree(),
+        queryFn: () => categoriesApi.listCategories(false),
+        staleTime: STALE_TIME.LONG,
+        gcTime: GC_TIME.DEFAULT,
     }));
 }
 
 export function useCategoriesFlat() {
     return createQuery(() => ({
-        queryKey: categorieKeys.categoriesFlat(),
+        queryKey: categoryKeys.categoriesFlat(),
         queryFn: () => categoriesApi.listCategories(true),
-        staleTime: 1000 * 60 * 10,
-        gcTime: 1000 * 60 * 60,
+        staleTime: STALE_TIME.LONG,
+        gcTime: GC_TIME.DEFAULT,
     }));
 }
 
-export function useCategoryDetail(id: () => number | null) {
+export function useCategoryDetail(id: () => number | null | undefined) {
     return createQuery(() => ({
-        queryKey: categorieKeys.categoryDetail(id()!),
-        queryFn: () => categoriesApi.getCategory(id()!) as Promise<CategoryDetail>,
-        enabled: id() !== null && id()! > 0,
-        staleTime: 1000 * 60 * 5,
+        queryKey: categoryKeys.categoryDetail(id() ?? 0),
+        queryFn: () => categoriesApi.getCategory(id()!),
+        enabled: Boolean(id() && id()! > 0),
+        staleTime: STALE_TIME.MEDIUM,
+        gcTime: GC_TIME.DEFAULT,
     }));
 }
 
-export function useCategoryFormSchema(id: () => number | null) {
+export function useCategoryFormSchema(id: () => number | null | undefined) {
     return createQuery(() => ({
-        queryKey: categorieKeys.categoryFormSchema(id()!),
+        queryKey: categoryKeys.categoryFormSchema(id() ?? 0),
         queryFn: () => categoriesApi.getCategoryFormSchema(id()!),
-        enabled: id() !== null && id()! > 0,
-        staleTime: 1000 * 60 * 10,
+        enabled: Boolean(id() && id()! > 0),
+        staleTime: STALE_TIME.LONG,
+        gcTime: GC_TIME.DEFAULT,
     }));
 }
 
-export function useCheckCategoryReferences(id: Accessor<number | null>, enabled: Accessor<boolean>) {
+export function useCheckCategoryReferences(id: () => number | null | undefined, enabled: () => boolean) {
     return createQuery(() => ({
-        queryKey: categorieKeys.references(id()!),
+        queryKey: categoryKeys.references(id() ?? 0),
         queryFn: () => categoriesApi.checkReferences(id()!),
-        enabled: enabled() && id() !== null,
+        enabled: enabled() && Boolean(id()),
         staleTime: 0,
+        gcTime: GC_TIME.PREFLIGHT,
         retry: false,
     }));
 }

@@ -163,18 +163,10 @@ export interface ProductReferences {
     canDelete: boolean;
 }
 // =============================================================================
-// Query Keys
+// Query Keys (re-exported from products.keys.ts)
 // =============================================================================
 
-export const productKeys = {
-    all: ['products'] as const,
-    lists: () => [...productKeys.all, 'list'] as const,
-    list: (filters: ProductFilters) => [...productKeys.lists(), filters] as const,
-    details: () => [...productKeys.all, 'detail'] as const,
-    detail: (id: number) => [...productKeys.details(), id] as const,
-    facets: (search?: string, filters?: Record<string, string[] | undefined>) =>
-        [...productKeys.all, 'facets', { search, ...filters }] as const,
-};
+export { productKeys } from './products.keys';
 
 // =============================================================================
 // UI Label Mappings

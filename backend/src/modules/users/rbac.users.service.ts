@@ -1,12 +1,19 @@
-import { db } from '../../core/db';
+import { db, adminDb } from '../../core/db';
+import { v7 as uuidv7 } from 'uuid';
 import { authUsers, authUserRoles, authRoles, entities, auditLogs, sessions, account, member, companies } from '@app/schema/tables';
-import { eq, sql, count, and, inArray, ilike, or, asc, desc, type SQL } from '@app/schema';
+import { eq, ne,sql, count, and, inArray, ilike, or, asc, desc, type SQL } from '@app/schema';
 import { cacheService } from '../../core/cache';
 import { DomainError } from '../../core/errors';
 import { broadcast } from '../../core/sse/events';
 import { RealtimeEvents, getTenantRoom } from '@app/schema/realtime-events';
 import { SYSTEM_ROLES } from '@app/schema/enums';
-import { invalidateUserRbacCache, revokeAllUserSessions, ensureNotLastSuperadmin, getUserRoles } from './rbac.permission.service';
+import {
+    invalidateUserRbacCache,
+    revokeAllUserSessions,
+    isUserSuperadmin,
+    assertNotSuperadmin,
+    getUserRoles,
+} from './rbac.permission.service';
 import { logAudit } from './rbac.roles.service';
 import { hashPassword } from '../../core/security';
 
@@ -282,13 +289,34 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
     const oldRoles = await db.select({ id: authUserRoles.role_id }).from(authUserRoles).where(eq(authUserRoles.user_id, userIdStr));
     const oldRoleIds = oldRoles.map(r => r.id);
 
-    if (roleIds.length > 0) {
-        const currentRoles = await getUserRoles(currentUserId);
+    // Superadmin protection: exactly 1 superadmin per company (the owner)
+    const isTargetSuperadmin = await isUserSuperadmin(userIdStr, user.company_id);
+    const superadminRole = await db.query.authRoles.findFirst({
+        where: and(eq(authRoles.company_id, user.company_id!), eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN)),
+    });
+
+    let finalRoleIds = [...roleIds];
+    if (superadminRole) {
+        if (isTargetSuperadmin) {
+            // The owner can never lose their superadmin role
+            if (!finalRoleIds.includes(superadminRole.id)) {
+                finalRoleIds.push(superadminRole.id);
+            }
+        } else {
+            // No other user can be granted the superadmin role
+            if (finalRoleIds.includes(superadminRole.id)) {
+                throw new DomainError('El rol superadmin es exclusivo del propietario de la empresa y no puede ser asignado', 403);
+            }
+        }
+    }
+
+    if (finalRoleIds.length > 0) {
+        const currentRoles = await getUserRoles(currentUserId, user.company_id);
         if (!currentRoles.includes(SYSTEM_ROLES.SUPERADMIN)) {
             const systemRoles = await db.select({ id: authRoles.id })
                 .from(authRoles)
                 .where(and(
-                    inArray(authRoles.id, roleIds),
+                    inArray(authRoles.id, finalRoleIds),
                     eq(authRoles.is_system, true)
                 ));
             if (systemRoles.length > 0) {
@@ -300,9 +328,9 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
     await db.transaction(async (tx) => {
         await tx.delete(authUserRoles).where(eq(authUserRoles.user_id, userIdStr));
 
-        if (roleIds.length > 0) {
+        if (finalRoleIds.length > 0) {
             await tx.insert(authUserRoles).values(
-                roleIds.map(roleId => ({
+                finalRoleIds.map(roleId => ({
                     user_id: userIdStr,
                     role_id: roleId,
                     company_id: user.company_id!,
@@ -311,12 +339,12 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
         }
     });
 
-    await invalidateUserRbacCache(userIdStr);
+    await invalidateUserRbacCache(userIdStr, user.company_id);
     broadcast(RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr }, `user:${userIdStr}`);
     const targetRoom = user.company_id ? getTenantRoom(user.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, targetRoom);
 
-    logAudit(currentUserId, 'UPDATE', 'auth_user_roles', userIdStr, { roleIds }, { roleIds: oldRoleIds });
+    logAudit(currentUserId, 'UPDATE', 'auth_user_roles', userIdStr, { roleIds: finalRoleIds }, { roleIds: oldRoleIds });
 
     return { success: true };
 }
@@ -325,38 +353,75 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
  * Create a new user (admin function with Better-Auth credential account creation & organization member sync)
  */
 export async function createUser(data: { username: string; email: string; password: string; roleIds?: number[] }, currentUserId?: string | number, companyId?: number) {
-    const existing = await db.query.authUsers.findFirst({
-        where: and(eq(authUsers.company_id, companyId!), eq(authUsers.email, data.email)),
-    });
+    const normalizedEmail = data.email.trim().toLowerCase();
+    const normalizedUsername = data.username.trim().toLowerCase();
+    const displayName = data.username.trim();
 
-    if (existing) {
-        throw new DomainError('Ya existe un usuario con ese email', 409);
-    }
-
-    const existingUsername = await db.query.authUsers.findFirst({
-        where: and(eq(authUsers.company_id, companyId!), eq(authUsers.username, data.username)),
+    // 1. Validar que el username sea único globalmente
+    const existingUsername = await adminDb.query.authUsers.findFirst({
+        where: eq(authUsers.username, normalizedUsername),
     });
 
     if (existingUsername) {
         throw new DomainError('Ya existe un usuario con ese nombre de usuario', 409);
     }
 
+    // 2. Validar que el email sea único dentro de la empresa actual
+    if (companyId) {
+        const existingEmailInCompany = await adminDb.query.authUsers.findFirst({
+            where: and(
+                eq(authUsers.company_id, companyId),
+                eq(authUsers.email, normalizedEmail)
+            ),
+        });
+
+        if (existingEmailInCompany) {
+            throw new DomainError('Ya existe un usuario con ese email en esta empresa', 409);
+        }
+    }
+
+    // 3. Comprobar si el email ya fue verificado globalmente en cualquier otra cuenta previa
+    const globallyVerifiedUser = await adminDb.query.authUsers.findFirst({
+        where: and(
+            eq(authUsers.email, normalizedEmail),
+            eq(authUsers.emailVerified, true)
+        ),
+    });
+    const isAlreadyVerified = Boolean(globallyVerifiedUser);
+
+    // Superadmin protection: prevent creating a second superadmin
+    if (data.roleIds && data.roleIds.length > 0 && companyId) {
+        const superadminRole = await db.query.authRoles.findFirst({
+            where: and(eq(authRoles.company_id, companyId), eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN)),
+        });
+        if (superadminRole && data.roleIds.includes(superadminRole.id)) {
+            throw new DomainError('El rol superadmin es exclusivo del propietario de la empresa y no puede ser asignado', 403);
+        }
+    }
+
     const password_hash = await hashPassword(data.password);
 
     const newUser = await db.transaction(async (tx) => {
+        const userId = uuidv7();
+        const accountId = uuidv7();
+        const memberId = uuidv7();
+
         const [user] = await tx
             .insert(authUsers)
             .values({
-                name: data.username,
-                username: data.username,
-                email: data.email,
+                id: userId,
+                name: displayName,
+                username: normalizedUsername,
+                displayUsername: displayName,
+                email: normalizedEmail,
                 company_id: companyId!,
                 is_active: true,
-                emailVerified: false,
+                emailVerified: isAlreadyVerified,
             })
             .returning({ id: authUsers.id, username: authUsers.username, email: authUsers.email });
 
         await tx.insert(account).values({
+            id: accountId,
             accountId: user.id,
             providerId: 'credential',
             userId: user.id,
@@ -373,6 +438,7 @@ export async function createUser(data: { username: string; email: string; passwo
 
             if (company?.organization_id) {
                 await tx.insert(member).values({
+                    id: memberId,
                     organizationId: company.organization_id,
                     userId: user.id,
                     role: 'member',
@@ -396,7 +462,7 @@ export async function createUser(data: { username: string; email: string; passwo
     const targetRoom = companyId ? getTenantRoom(companyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.CREATED, { id: newUser.id }, targetRoom);
 
-    if (currentUserId) logAudit(currentUserId, 'INSERT', 'user', newUser.id, { username: data.username, email: data.email, roleIds: data.roleIds });
+    if (currentUserId) logAudit(currentUserId, 'INSERT', 'user', newUser.id, { username: displayName, email: normalizedEmail, roleIds: data.roleIds });
 
     return newUser;
 }
@@ -425,6 +491,13 @@ export async function getUsersByRole(roleId: number) {
  */
 export async function removeUserFromRole(userId: string | number, roleId: number) {
     const userIdStr = String(userId);
+    
+    // Superadmin protection: owner cannot be removed from superadmin
+    const role = await db.query.authRoles.findFirst({ where: eq(authRoles.id, roleId) });
+    if (role?.name === SYSTEM_ROLES.SUPERADMIN) {
+        throw new DomainError('No se puede remover el rol superadmin del propietario de la empresa', 403);
+    }
+
     const deleted = await db
         .delete(authUserRoles)
         .where(and(
@@ -434,7 +507,7 @@ export async function removeUserFromRole(userId: string | number, roleId: number
         .returning();
 
     const user = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
-    await invalidateUserRbacCache(userIdStr);
+    await invalidateUserRbacCache(userIdStr, user?.company_id);
     const targetRoom = user?.company_id ? getTenantRoom(user.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, targetRoom);
 
@@ -446,42 +519,65 @@ export async function removeUserFromRole(userId: string | number, roleId: number
  */
 export async function updateUser(userId: string | number, data: { username?: string; email?: string; isActive?: boolean }, currentUserId?: string | number, companyId?: number) {
     const userIdStr = String(userId);
-    if (data.email) {
-        const emailConds = [eq(authUsers.email, data.email), sql`${authUsers.id} != ${userIdStr}`];
-        if (companyId) emailConds.push(eq(authUsers.company_id, companyId));
-        const existing = await db.query.authUsers.findFirst({
-            where: and(...emailConds),
+    const updateData: Partial<{ username: string; name: string; email: string; is_active: boolean; emailVerified: boolean }> = {};
+
+    if (data.username !== undefined) {
+        const normalizedUsername = data.username.trim().toLowerCase();
+        // Validar unicidad global del username
+        const existingUsername = await adminDb.query.authUsers.findFirst({
+            where: and(
+                eq(authUsers.username, normalizedUsername),
+                ne(authUsers.id, userIdStr)
+            ),
         });
 
-        if (existing) {
-            throw new DomainError('Ya existe un usuario con ese email', 409);
-        }
-    }
-
-    if (data.username) {
-        const usernameConds = [eq(authUsers.username, data.username), sql`${authUsers.id} != ${userIdStr}`];
-        if (companyId) usernameConds.push(eq(authUsers.company_id, companyId));
-        const existing = await db.query.authUsers.findFirst({
-            where: and(...usernameConds),
-        });
-
-        if (existing) {
+        if (existingUsername) {
             throw new DomainError('Ya existe un usuario con ese nombre de usuario', 409);
         }
+
+        updateData.username = normalizedUsername;
+        updateData.name = data.username.trim();
     }
+
+    if (data.email !== undefined) {
+        const normalizedEmail = data.email.trim().toLowerCase();
+        const targetCompanyId = companyId ?? (await adminDb.query.authUsers.findFirst({
+            where: eq(authUsers.id, userIdStr),
+            columns: { company_id: true }
+        }))?.company_id;
+
+        if (targetCompanyId) {
+            const existingEmail = await adminDb.query.authUsers.findFirst({
+                where: and(
+                    eq(authUsers.company_id, targetCompanyId),
+                    eq(authUsers.email, normalizedEmail),
+                    ne(authUsers.id, userIdStr)
+                ),
+            });
+
+            if (existingEmail) {
+                throw new DomainError('Ya existe un usuario con ese email en esta empresa', 409);
+            }
+        }
+
+        // Comprobar si el nuevo email ya fue verificado globalmente
+        const globallyVerifiedUser = await adminDb.query.authUsers.findFirst({
+            where: and(
+                eq(authUsers.email, normalizedEmail),
+                eq(authUsers.emailVerified, true)
+            ),
+        });
+
+        updateData.email = normalizedEmail;
+        updateData.emailVerified = Boolean(globallyVerifiedUser);
+    }
+
+    if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
     const oldUser = currentUserId ? await db.query.authUsers.findFirst({
         where: eq(authUsers.id, userIdStr),
         columns: { username: true, email: true, is_active: true, company_id: true },
     }) : undefined;
-
-    const updateData: Partial<{ username: string; name: string; email: string; is_active: boolean }> = {};
-    if (data.username !== undefined) {
-        updateData.username = data.username;
-        updateData.name = data.username;
-    }
-    if (data.email !== undefined) updateData.email = data.email;
-    if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
     const [updated] = await db
         .update(authUsers)
@@ -511,7 +607,12 @@ export async function deactivateUser(userId: string | number, currentUserId: str
         throw new DomainError('No puedes desactivar tu propia cuenta', 403);
     }
 
-    await ensureNotLastSuperadmin(userIdStr);
+    const targetUser = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
+    if (!targetUser) {
+        throw new DomainError('Usuario no encontrado', 404);
+    }
+
+    await assertNotSuperadmin(userIdStr, targetUser.company_id, 'desactivar');
 
     const [updated] = await db
         .update(authUsers)
@@ -519,11 +620,7 @@ export async function deactivateUser(userId: string | number, currentUserId: str
         .where(eq(authUsers.id, userIdStr))
         .returning();
 
-    if (!updated) {
-        throw new DomainError('Usuario no encontrado', 404);
-    }
-
-    await invalidateUserRbacCache(userIdStr);
+    await invalidateUserRbacCache(userIdStr, targetUser.company_id);
     broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId: userIdStr }, `user:${userIdStr}`);
     const targetRoom = updated?.company_id ? getTenantRoom(updated.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
@@ -553,7 +650,7 @@ export async function restoreUser(userId: string | number, currentUserId: string
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    await invalidateUserRbacCache(userIdStr);
+    await invalidateUserRbacCache(userIdStr, updated?.company_id);
     const targetRoom = updated?.company_id ? getTenantRoom(updated.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
 
@@ -572,7 +669,12 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
         throw new DomainError('No puedes destruir tu propia cuenta', 403);
     }
 
-    await ensureNotLastSuperadmin(userIdStr);
+    const targetUser = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
+    if (!targetUser) {
+        throw new DomainError('Usuario no encontrado', 404);
+    }
+
+    await assertNotSuperadmin(userIdStr, targetUser.company_id, 'eliminar');
 
     await db.delete(authUserRoles).where(eq(authUserRoles.user_id, userIdStr));
     await revokeAllUserSessions(userIdStr);
@@ -584,7 +686,7 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    await invalidateUserRbacCache(userIdStr);
+    await invalidateUserRbacCache(userIdStr, targetUser.company_id);
     const targetRoom = deleted[0]?.company_id ? getTenantRoom(deleted[0].company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.DELETED, { userId: userIdStr }, targetRoom);
 
@@ -601,6 +703,8 @@ export async function checkUserReferences(userId: string | number) {
     const user = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
     if (!user) throw new DomainError('Usuario no encontrado', 404);
 
+    const isSuper = await isUserSuperadmin(userIdStr, user.company_id);
+
     const [rolesResult, sessionsResult] = await Promise.all([
         db.select({ count: count() }).from(authUserRoles).where(eq(authUserRoles.user_id, userIdStr)),
         db.select({ count: count() }).from(sessions).where(eq(sessions.userId, userIdStr)),
@@ -610,7 +714,7 @@ export async function checkUserReferences(userId: string | number) {
     const activeSessionsCount = Number(sessionsResult[0]?.count ?? 0);
     const total = rolesCount + activeSessionsCount;
 
-    return { roles: rolesCount, activeSessions: activeSessionsCount, total, canDelete: true };
+    return { roles: rolesCount, activeSessions: activeSessionsCount, total, canDelete: !isSuper };
 }
 
 /**
@@ -740,10 +844,10 @@ export async function batchDeleteUsers(userIds: (string)[], currentUserId: strin
     const safeIds: string[] = [];
     const errors: { userId: string; success: false; error: string }[] = [];
 
-    for (const userId of userIds) {
+    for (const userId of idsStr) {
         try {
-            await ensureNotLastSuperadmin(userId);
-            safeIds.push(String(userId));
+            await assertNotSuperadmin(userId, undefined, 'desactivar');
+            safeIds.push(userId);
         } catch (error: any) {
             errors.push({ userId, success: false, error: error.message });
         }

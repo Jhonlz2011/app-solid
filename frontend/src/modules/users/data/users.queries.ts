@@ -7,14 +7,14 @@
 import { createQuery, keepPreviousData } from '@tanstack/solid-query';
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
+import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
 import { rbacKeys } from './users.keys';
 import { usersApi } from './users.api';
 import type {
     UsersFilters,
     UserReferencesType,
+    FacetData,
 } from '@app/schema/dto';
-import type { FacetData } from '@app/schema/dto';
-
 
 // =============================================================================
 // Entity Picker
@@ -24,8 +24,8 @@ export function useEntitiesList() {
     return createQuery(() => ({
         queryKey: ['entities', 'list-all'] as const,
         queryFn: () => usersApi.listEntities(),
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 30,
+        staleTime: STALE_TIME.MEDIUM,
+        gcTime: GC_TIME.DEFAULT,
     }));
 }
 
@@ -54,8 +54,8 @@ export function useUserFacets(
             if (error) throwApiError(error);
             return data as unknown as FacetData;
         },
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 30,
+        staleTime: STALE_TIME.MEDIUM,
+        gcTime: GC_TIME.DEFAULT,
         retry: 2,
         placeholderData: keepPreviousData,
     }));
@@ -65,20 +65,20 @@ export function useUsers(filters: () => UsersFilters, enabled?: () => boolean) {
     return createQuery(() => ({
         queryKey: rbacKeys.list(filters()),
         queryFn: () => usersApi.listUsersWithRoles(filters()),
-        staleTime: 1000 * 60 * 2,
-        gcTime: 1000 * 60 * 30,
+        staleTime: STALE_TIME.SHORT,
+        gcTime: GC_TIME.DEFAULT,
         placeholderData: keepPreviousData,
         enabled: enabled ? enabled() : true,
     }));
 }
 
-export function useUser(id: () => number | null) {
+export function useUser(id: () => string | number | null | undefined) {
     return createQuery(() => ({
-        queryKey: rbacKeys.user(id() ?? 0),
+        queryKey: rbacKeys.user(id() ?? ''),
         queryFn: () => usersApi.getUser(id()!),
-        enabled: id() !== null && id()! > 0,
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 30,
+        enabled: Boolean(id()),
+        staleTime: STALE_TIME.MEDIUM,
+        gcTime: GC_TIME.DEFAULT,
         placeholderData: keepPreviousData,
     }));
 }
@@ -91,19 +91,19 @@ export function useRoles() {
     return createQuery(() => ({
         queryKey: rbacKeys.roles(),
         queryFn: () => usersApi.listRoles(),
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 30,
+        staleTime: STALE_TIME.MEDIUM,
+        gcTime: GC_TIME.DEFAULT,
         placeholderData: keepPreviousData,
     }));
 }
 
-export function useRole(id: () => number | null) {
+export function useRole(id: () => number | null | undefined) {
     return createQuery(() => ({
-        queryKey: rbacKeys.role(id()!),
+        queryKey: rbacKeys.role(id() ?? 0),
         queryFn: () => usersApi.getRole(id()!),
-        enabled: id() !== null && id()! > 0,
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 30,
+        enabled: Boolean(id() && id()! > 0),
+        staleTime: STALE_TIME.MEDIUM,
+        gcTime: GC_TIME.DEFAULT,
         placeholderData: keepPreviousData,
     }));
 }
@@ -116,28 +116,28 @@ export function usePermissions() {
     return createQuery(() => ({
         queryKey: rbacKeys.permissions(),
         queryFn: () => usersApi.listPermissions(),
-        staleTime: 1000 * 60 * 10,
-        gcTime: 1000 * 60 * 60,
+        staleTime: STALE_TIME.LONG,
+        gcTime: GC_TIME.DEFAULT,
         placeholderData: keepPreviousData,
     }));
 }
 
-export function useRolePermissions(roleId: () => number | null) {
+export function useRolePermissions(roleId: () => number | null | undefined) {
     return createQuery(() => ({
-        queryKey: rbacKeys.rolePermissions(roleId()!),
+        queryKey: rbacKeys.rolePermissions(roleId() ?? 0),
         queryFn: () => usersApi.getRolePermissions(roleId()!),
-        enabled: roleId() !== null,
-        staleTime: 1000 * 60 * 5,
+        enabled: Boolean(roleId() && roleId()! > 0),
+        staleTime: STALE_TIME.MEDIUM,
         placeholderData: keepPreviousData,
     }));
 }
 
-export function useRoleUsers(roleId: () => number | null) {
+export function useRoleUsers(roleId: () => number | null | undefined) {
     return createQuery(() => ({
-        queryKey: rbacKeys.roleUsers(roleId()!),
+        queryKey: rbacKeys.roleUsers(roleId() ?? 0),
         queryFn: () => usersApi.getRoleUsers(roleId()!),
-        enabled: roleId() !== null,
-        staleTime: 1000 * 60 * 2,
+        enabled: Boolean(roleId() && roleId()! > 0),
+        staleTime: STALE_TIME.SHORT,
         placeholderData: keepPreviousData,
     }));
 }
@@ -146,36 +146,36 @@ export function useRoleUsers(roleId: () => number | null) {
 // User Detail Queries (Sessions, References, Audit)
 // =============================================================================
 
-export function useUserSessions(userId: () => number) {
+export function useUserSessions(userId: () => string | number | null | undefined) {
     return createQuery(() => ({
-        queryKey: rbacKeys.userSessions(userId()),
-        queryFn: () => usersApi.getUserSessions(userId()),
-        enabled: userId() > 0,
-        staleTime: 1000 * 60,
-        gcTime: 1000 * 60 * 5,
+        queryKey: rbacKeys.userSessions(userId() ?? ''),
+        queryFn: () => usersApi.getUserSessions(userId()!),
+        enabled: Boolean(userId()),
+        staleTime: 60_000,
+        gcTime: STALE_TIME.MEDIUM,
     }));
 }
 
-export function useCheckUserReferences(id: () => number | null, enabled: () => boolean) {
+export function useCheckUserReferences(id: () => string | number | null | undefined, enabled: () => boolean) {
     return createQuery(() => ({
-        queryKey: rbacKeys.canDelete(id()!),
+        queryKey: rbacKeys.canDelete(id() ?? ''),
         queryFn: async (): Promise<UserReferencesType> => {
-            return await usersApi.canDeleteUser(id()!) as UserReferences;
+            return await usersApi.canDeleteUser(id()!) as UserReferencesType;
         },
-        enabled: enabled() && id() !== null,
+        enabled: enabled() && Boolean(id()),
         staleTime: 10_000,
-        gcTime: 30_000,
+        gcTime: GC_TIME.PREFLIGHT,
         retry: false,
     }));
 }
 
-export function useUserAuditLog(userId: () => number, page: () => number) {
+export function useUserAuditLog(userId: () => string | number | null | undefined, page: () => number) {
     return createQuery(() => ({
-        queryKey: rbacKeys.userAuditLog(userId(), page()),
-        queryFn: () => usersApi.getUserAuditLog(userId(), page()),
-        enabled: userId() > 0,
-        staleTime: 1000 * 60 * 2,
-        gcTime: 1000 * 60 * 10,
+        queryKey: rbacKeys.userAuditLog(userId() ?? '', page()),
+        queryFn: () => usersApi.getUserAuditLog(userId()!, page()),
+        enabled: Boolean(userId()),
+        staleTime: STALE_TIME.SHORT,
+        gcTime: STALE_TIME.LONG,
         placeholderData: keepPreviousData,
     }));
 }

@@ -1,6 +1,7 @@
 import { createQuery, keepPreviousData } from '@tanstack/solid-query';
 import type { SriSearchResult } from './sri.types';
 import { api } from '@shared/lib/eden';
+import { throwApiError } from '@shared/utils/api-errors';
 import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
 
 /**
@@ -20,7 +21,7 @@ export async function fetchSriByRuc(ruc: string): Promise<SriSearchResult[]> {
     const { data, error } = await api.sri['by-ruc'].get({
         query: { q: ruc },
     });
-    if (error) throw new Error(String(error.value));
+    if (error) throwApiError(error);
     return (data || []) as SriSearchResult[];
 }
 
@@ -32,7 +33,7 @@ export async function fetchSriByName(name: string): Promise<SriSearchResult[]> {
     const { data, error } = await api.sri['by-name'].get({
         query: { q: name },
     });
-    if (error) throw new Error(String(error.value));
+    if (error) throwApiError(error);
     return (data || []) as SriSearchResult[];
 }
 

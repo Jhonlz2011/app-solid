@@ -1,6 +1,7 @@
 import { createQuery, keepPreviousData } from '@tanstack/solid-query';
-import { createSignal, onCleanup } from 'solid-js';
 import { api } from '@shared/lib/eden';
+import { throwApiError } from '@shared/utils/api-errors';
+import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
 
 // =============================================================================
 // Types
@@ -38,12 +39,12 @@ export function useGeoNamesCities(querySignal: () => string) {
             if (q.length < 2) return [];
             
             const { data, error } = await (api.geonames.cities as any).get({ query: { q } });
-            if (error) throw new Error(String(error.value));
+            if (error) throwApiError(error);
             return (data ?? []) as GeoNameCity[];
         },
         enabled: querySignal().length >= 2,
-        staleTime: 1000 * 60 * 60 * 24, // 24h — city data is static
-        gcTime: 1000 * 60 * 60 * 24,
+        staleTime: STALE_TIME.DAY,
+        gcTime: GC_TIME.WEEK,
         placeholderData: keepPreviousData,
     }));
 }

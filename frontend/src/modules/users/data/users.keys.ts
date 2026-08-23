@@ -9,9 +9,9 @@ export const rbacKeys = {
     users: () => [...rbacKeys.all, 'users'] as const,
     lists: () => [...rbacKeys.users(), 'list'] as const,
     list: (filters: object) => [...rbacKeys.lists(), filters] as const,
-    user: (id: number) => [...rbacKeys.users(), 'detail', id] as const,
-    userSessions: (id: number) => [...rbacKeys.users(), 'sessions', id] as const,
-    userAuditLog: (id: number, page: number) => [...rbacKeys.users(), 'audit-log', id, page] as const,
+    user: (id: string | number) => [...rbacKeys.users(), 'detail', String(id)] as const,
+    userSessions: (id: string | number) => [...rbacKeys.users(), 'sessions', String(id)] as const,
+    userAuditLog: (id: string | number, page: number) => [...rbacKeys.users(), 'audit-log', String(id), page] as const,
 
     // Roles
     roles: () => [...rbacKeys.all, 'roles'] as const,
@@ -26,5 +26,5 @@ export const rbacKeys = {
     facets: (search?: string, filters?: Record<string, string[] | undefined>) =>
         [...rbacKeys.all, 'facets', { search, filters }] as const,
 
-    canDelete: (id: number) => [...rbacKeys.users(), 'can-delete', id] as const,
+    canDelete: (id: string | number) => [...rbacKeys.users(), 'can-delete', String(id)] as const,
 };

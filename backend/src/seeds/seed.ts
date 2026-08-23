@@ -190,10 +190,10 @@ async function seed() {
                         emailVerified: true,
                     })
                     .onConflictDoUpdate({
-                        target: authUsers.email,
+                        target: authUsers.username,
                         set: {
                             name: userData.name,
-                            username: userData.username.toLowerCase(),
+                            email: userData.email.toLowerCase(),
                             displayUsername: userData.username,
                             company_id: devCompany.id,
                             is_active: true,

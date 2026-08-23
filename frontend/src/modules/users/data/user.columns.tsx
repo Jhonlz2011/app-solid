@@ -56,14 +56,28 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
                     checked={table.getIsAllPageRowsSelected()}
                     onChange={(checked) => table.toggleAllPageRowsSelected(checked)} />
             ),
-            cell: ({ row }) => (
-                <div onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                        checked={row.getIsSelected()}
-                        onChange={(checked) => row.toggleSelected(checked)}
-                    />
-                </div>
-            ),
+            cell: ({ row }) => {
+                const isSuperadmin = row.original.roles?.some(r => r.name === 'superadmin') ?? false;
+                if (isSuperadmin) {
+                    return (
+                        <div
+                            class="size-4 flex items-center justify-center opacity-30 cursor-not-allowed"
+                            title="El propietario de la empresa no puede ser seleccionado para acciones en lote"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Checkbox checked={false} disabled />
+                        </div>
+                    );
+                }
+                return (
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                            checked={row.getIsSelected()}
+                            onChange={(checked) => row.toggleSelected(checked)}
+                        />
+                    </div>
+                );
+            },
 
         },
 
@@ -258,14 +272,15 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
             enableHiding: false,
             cell: (info) => {
                 const user = info.row.original;
+                const isSuperadmin = user.roles?.some(r => r.name === 'superadmin') ?? false;
                 return (
                     <ActionMenu
                         module="users"
                         isActive={user.isActive ?? false}
                         showTo={`/users/${user.id}/show`}
                         editTo={`/users/${user.id}/edit`}
-                        onRestore={() => handlers.onRestore(user)}
-                        onDelete={() => handlers.onDelete(user)}
+                        onRestore={isSuperadmin ? undefined : () => handlers.onRestore(user)}
+                        onDelete={isSuperadmin ? undefined : () => handlers.onDelete(user)}
                     />
                 );
             },

@@ -1,7 +1,7 @@
 import { Component } from 'solid-js';
 import { useEntityState } from '@modules/entities/hooks/useEntityState';
 import { EntityPage } from '@modules/entities/views/EntityPage';
-import { UsersIcon } from '@icons/UsersIcon';
+import { SupplierIcon } from '@icons/SupplierIcon';
 import { suppliersApi } from '../data/suppliers.api';
 import { supplierKeys } from '../data/suppliers.keys';
 import { supplierQueries } from '../data/suppliers.queries';
@@ -26,7 +26,7 @@ const SuppliersPage: Component = () => {
     return (
         <EntityPage
             title="Proveedores"
-            icon={<UsersIcon />}
+            icon={<SupplierIcon />}
             iconBg="linear-gradient(135deg, #ffdb03, #a37014)"
             description="Gestiona los proveedores de tu negocio. Puedes agregar, editar, eliminar y buscar proveedores."
             state={state}

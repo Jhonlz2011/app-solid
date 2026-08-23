@@ -48,8 +48,8 @@ export interface BaseEventPayload<TEntity = Record<string, unknown>> {
     entity?: TEntity;
     clientId?: string;
     type?: string;
-    // For backwards compatibility or explicit manual overrides
-    userId?: number;
+    // Explicit user ID for targeted routing or audit
+    userId?: string | number;
 }
 
 export type EntityEventPayload<TEntity = Record<string, unknown>> = BaseEventPayload<TEntity> & {

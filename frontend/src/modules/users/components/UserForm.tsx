@@ -118,6 +118,15 @@ const UserForm: Component<UserFormProps> = (props) => {
         props.entities?.find(e => e.id === selectedEntityId()) ?? null
     );
 
+    const isUserSuperadmin = createMemo(() => {
+        const superRole = props.roles?.find(r => r.name === 'superadmin');
+        return superRole ? (selectedRoleIds()?.includes(superRole.id) ?? false) : false;
+    });
+
+    const visibleRoles = createMemo(() => {
+        return (props.roles ?? []).filter(r => r.name !== 'superadmin' || isUserSuperadmin());
+    });
+
     // ── Role toggle ──────────────────────────────────────────────────────────
 
     const toggleRole = (roleId: number) => {
@@ -188,12 +197,16 @@ const UserForm: Component<UserFormProps> = (props) => {
                     <div class="flex items-center justify-between p-4 bg-surface/40 rounded-xl border border-border/40">
                         <div class="space-y-0.5">
                             <p class="text-sm font-medium text-text">Estado de la cuenta</p>
-                            <p class="text-xs text-muted">Un usuario inactivo no puede iniciar sesión</p>
+                            <p class="text-xs text-muted">
+                                {isUserSuperadmin()
+                                    ? 'El propietario de la empresa no puede ser desactivado'
+                                    : 'Un usuario inactivo no puede iniciar sesión'}
+                            </p>
                         </div>
                         <Switch
-                            checked={isActive() ?? true}
-                            onChange={(val) => form.setFieldValue('isActive', val)}
-                            disabled={props.isSubmitting}
+                            checked={isUserSuperadmin() ? true : (isActive() ?? true)}
+                            onChange={(val) => !isUserSuperadmin() && form.setFieldValue('isActive', val)}
+                            disabled={props.isSubmitting || isUserSuperadmin()}
                         />
                     </div>
                 </Show>
@@ -353,32 +366,38 @@ const UserForm: Component<UserFormProps> = (props) => {
                         }
                     >
                         <Show
-                            when={props.roles.length > 0}
+                            when={visibleRoles().length > 0}
                             fallback={<p class="text-sm text-muted">No hay roles disponibles</p>}
                         >
                             <div class="space-y-2">
-                                <For each={props.roles}>
+                                <For each={visibleRoles()}>
                                     {(role) => {
                                         const isChecked = () => selectedRoleIds()?.includes(role.id) ?? false;
-                                        const isSystemRole = () => role.is_system ?? false;
+                                        const isSuperadminRole = () => role.name === 'superadmin';
+                                        const isLocked = () => isSuperadminRole() && isChecked();
                                         return (
                                             <label
-                                                class="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors border border-transparent group"
+                                                class="flex items-center gap-3 p-3 rounded-xl transition-colors border border-transparent group"
                                                 classList={{
-                                                    'hover:bg-surface/50 hover:border-border/40': !isSystemRole(),
-                                                    'opacity-60 cursor-not-allowed': isSystemRole(),
+                                                    'cursor-pointer hover:bg-surface/50 hover:border-border/40': !isLocked(),
+                                                    'cursor-not-allowed bg-surface/30 opacity-80': isLocked(),
                                                 }}
                                             >
                                                 <Checkbox
                                                     name="roleIds"
                                                     value={String(role.id)}
                                                     checked={isChecked()}
-                                                    onChange={() => !isSystemRole() && toggleRole(role.id)}
-                                                    disabled={props.isSubmitting || isSystemRole()}
+                                                    onChange={() => !isLocked() && toggleRole(role.id)}
+                                                    disabled={props.isSubmitting || isLocked()}
                                                 />
                                                 <div class="flex-1 min-w-0">
                                                     <div class="flex items-center gap-2">
                                                         <RoleBadge name={role.name} />
+                                                        <Show when={isLocked()}>
+                                                            <span class="text-[11px] text-primary font-semibold bg-primary/10 px-2 py-0.5 rounded-md">
+                                                                Propietario (Inmutable)
+                                                            </span>
+                                                        </Show>
                                                     </div>
                                                     <Show when={role.description}>
                                                         <p class="text-xs text-muted mt-0.5 truncate">{role.description}</p>

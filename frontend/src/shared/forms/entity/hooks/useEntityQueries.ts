@@ -7,6 +7,7 @@ import type { Accessor } from 'solid-js';
 import { useQueryClient, createQuery, createMutation } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { api } from '@shared/lib/eden';
+import { throwApiError } from '@shared/utils/api-errors';
 import { STALE_TIME } from '@shared/constants/cache.constants';
 import type { EntityFormApi } from '../entity-form.types';
 
@@ -20,7 +21,7 @@ export function useEntityQueries(form: EntityFormApi, enabled: Accessor<boolean>
         queryKey: ['entities', 'departments'],
         queryFn: async () => {
             const { data, error } = await api.entities.departments.get();
-            if (error) throw error;
+            if (error) throwApiError(error);
             return (data || []) as Array<{ id: number; name: string; code?: string | null; is_active: boolean }>;
         },
         staleTime: STALE_TIME.MEDIUM,
@@ -31,7 +32,7 @@ export function useEntityQueries(form: EntityFormApi, enabled: Accessor<boolean>
         queryKey: ['entities', 'job-titles'],
         queryFn: async () => {
             const { data, error } = await api.entities['job-titles'].get({ query: {} });
-            if (error) throw error;
+            if (error) throwApiError(error);
             return (data || []) as Array<{ id: number; name: string; department_id?: number | null; is_active: boolean }>;
         },
         staleTime: STALE_TIME.MEDIUM,
@@ -44,7 +45,7 @@ export function useEntityQueries(form: EntityFormApi, enabled: Accessor<boolean>
     const createDeptMutation = createMutation(() => ({
         mutationFn: async (name: string) => {
             const { data, error } = await api.entities.departments.post({ name });
-            if (error) throw error;
+            if (error) throwApiError(error);
             return data!;
         },
         onSuccess: (newDept) => {
@@ -58,7 +59,7 @@ export function useEntityQueries(form: EntityFormApi, enabled: Accessor<boolean>
         mutationFn: async (name: string) => {
             const deptId = form.getFieldValue('employeeDetails.departmentId');
             const { data, error } = await api.entities['job-titles'].post({ name, departmentId: deptId ?? undefined });
-            if (error) throw error;
+            if (error) throwApiError(error);
             return data!;
         },
         onSuccess: (newJob) => {

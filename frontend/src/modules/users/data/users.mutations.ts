@@ -30,13 +30,13 @@ function userOnSettled(queryClient: ReturnType<typeof useQueryClient>) {
 /** Apply is_active change to all cached user lists (optimistic) */
 function applyIsActiveToCache(
     queryClient: ReturnType<typeof useQueryClient>,
-    ids: number[],
+    ids: (string | number)[],
     isActive: boolean
 ) {
     queryClient.setQueriesData<CacheShape<UserListItemType>>({ queryKey: rbacKeys.lists() }, (old) => {
         if (!old) return old;
         return ids.reduce<CacheShape<UserListItemType>>(
-            (acc, id) => updateCacheItem(acc, { id, isActive } as unknown as UserListItemType) ?? acc,
+            (acc, id) => updateCacheItem(acc, { id: String(id), isActive } as unknown as UserListItemType) ?? acc,
             old
         );
     });
@@ -135,15 +135,15 @@ export function useAssignUserRoles() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ userId, roleIds }: { userId: number; roleIds: number[] }) =>
+        mutationFn: ({ userId, roleIds }: { userId: string | number; roleIds: number[] }) =>
             usersApi.assignUserRoles(userId, roleIds),
         onMutate: async ({ userId, roleIds }) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.lists() });
             const previousLists = queryClient.getQueriesData({ queryKey: rbacKeys.lists() });
 
-            queryClient.setQueriesData<CacheShape<UserListItem>>({ queryKey: rbacKeys.lists() }, (old) => {
+            queryClient.setQueriesData<CacheShape<UserListItemType>>({ queryKey: rbacKeys.lists() }, (old) => {
                 if (!old) return old;
-                return updateCacheItem(old, { id: userId, roleIds } as unknown as UserListItem);
+                return updateCacheItem(old, { id: String(userId), roleIds } as unknown as UserListItemType);
             });
 
             return { previousLists };
@@ -166,13 +166,13 @@ export function useRemoveUserFromRole() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ roleId, userId }: { roleId: number; userId: number }) =>
+        mutationFn: ({ roleId, userId }: { roleId: number; userId: string | number }) =>
             usersApi.removeUserFromRole(roleId, userId),
         onMutate: async ({ roleId, userId }) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.roleUsers(roleId) });
             const previous = queryClient.getQueryData<RoleUserType[]>(rbacKeys.roleUsers(roleId));
             queryClient.setQueryData<RoleUserType[]>(rbacKeys.roleUsers(roleId), (old) =>
-                old?.filter(u => u.id !== userId) ?? []
+                old?.filter(u => String(u.id) !== String(userId)) ?? []
             );
             return { previous, roleId };
         },
@@ -203,16 +203,16 @@ export function useCreateUser() {
             await queryClient.cancelQueries({ queryKey: rbacKeys.lists() });
             const previousLists = queryClient.getQueriesData({ queryKey: rbacKeys.lists() });
 
-            queryClient.setQueriesData<CacheShape<UserListItem>>({ queryKey: rbacKeys.lists() }, (old) => {
+            queryClient.setQueriesData<CacheShape<UserListItemType>>({ queryKey: rbacKeys.lists() }, (old) => {
                 if (!old) return old;
                 const optimistic = {
-                    id: -Date.now(),
+                    id: String(-Date.now()),
                     username: newUser.username,
                     email: newUser.email,
                     isActive: true,
                     lastLogin: null,
                     roles: [],
-                } as unknown as UserListItem;
+                } as unknown as UserListItemType;
                 return addOptimisticItem(old, optimistic);
             });
 
@@ -232,7 +232,7 @@ export function useUpdateUser() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ id, ...data }: { id: number; username?: string; email?: string; isActive?: boolean }) =>
+        mutationFn: ({ id, ...data }: { id: string | number; username?: string; email?: string; isActive?: boolean }) =>
             usersApi.updateUser(id, data),
         onMutate: async ({ id, ...updates }) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.user(id) });
@@ -245,9 +245,9 @@ export function useUpdateUser() {
                 });
             }
 
-            queryClient.setQueriesData<CacheShape<UserListItem>>({ queryKey: rbacKeys.lists() }, (old) => {
+            queryClient.setQueriesData<CacheShape<UserListItemType>>({ queryKey: rbacKeys.lists() }, (old) => {
                 if (!old) return old;
-                return updateCacheItem(old, { id, ...updates } as unknown as UserListItem);
+                return updateCacheItem(old, { id: String(id), ...updates } as unknown as UserListItemType);
             });
 
             return { previousUser };
@@ -270,7 +270,7 @@ export function useDeactivateUser() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: async (id: number) => {
+        mutationFn: async (id: string | number) => {
             await usersApi.deactivateUser(id);
             return id;
         },
@@ -291,7 +291,7 @@ export function useRestoreUser() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: async (id: number) => {
+        mutationFn: async (id: string | number) => {
             await usersApi.restoreUser(id);
             return id;
         },
@@ -312,7 +312,7 @@ export function useHardDeleteUser() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: async (id: number) => {
+        mutationFn: async (id: string | number) => {
             await usersApi.hardDeleteUser(id);
             return id;
         },
@@ -320,9 +320,9 @@ export function useHardDeleteUser() {
             await queryClient.cancelQueries({ queryKey: rbacKeys.lists() });
             const previousLists = queryClient.getQueriesData({ queryKey: rbacKeys.lists() });
 
-            queryClient.setQueriesData<CacheShape<UserListItem>>({ queryKey: rbacKeys.lists() }, (old) => {
+            queryClient.setQueriesData<CacheShape<UserListItemType>>({ queryKey: rbacKeys.lists() }, (old) => {
                 if (!old) return old;
-                return removeCacheItems(old, [id]);
+                return removeCacheItems(old, [id as any]);
             });
 
             return { previousLists };
@@ -342,7 +342,7 @@ export function useBulkDeactivateUsers() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: async (ids: number[]) => {
+        mutationFn: async (ids: (string | number)[]) => {
             return await usersApi.bulkDeactivateUsers(ids);
         },
         onMutate: async (ids) => {
@@ -362,7 +362,7 @@ export function useBulkRestoreUsers() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: async (ids: number[]) => {
+        mutationFn: async (ids: (string | number)[]) => {
             return await usersApi.bulkRestoreUsers(ids);
         },
         onMutate: async (ids) => {
@@ -386,7 +386,7 @@ export function useRevokeUserSession() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ userId, sessionId }: { userId: number; sessionId: string }) =>
+        mutationFn: ({ userId, sessionId }: { userId: string | number; sessionId: string }) =>
             usersApi.revokeUserSession(userId, sessionId),
         onSuccess: (_data, { userId }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.userSessions(userId) });
@@ -396,7 +396,7 @@ export function useRevokeUserSession() {
 
 export function useAdminResetPassword() {
     return createMutation(() => ({
-        mutationFn: ({ userId, newPassword }: { userId: number; newPassword: string }) =>
+        mutationFn: ({ userId, newPassword }: { userId: string | number; newPassword: string }) =>
             usersApi.adminResetPassword(userId, newPassword),
     }));
 }

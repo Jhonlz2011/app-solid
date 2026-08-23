@@ -71,22 +71,33 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
         }, this.config.ttl ?? 120);
     }
 
-    /** Get cached min(id) and max(id) bounds */
+    /** Get cached min(id) and max(id) bounds using index-accelerated subqueries */
     async getCachedBounds(companyId: number, search?: string, filters?: TFilters): Promise<{ minId: number | string; maxId: number | string }> {
         const key = `${this.config.cacheNamespace}:c${companyId}:bounds:${this.hashKey({ search: search || 'all', filters })}`;
         return cacheService.getOrSet(key, async () => {
             const conditions = this.config.buildConditions({ companyId, search, filters });
             const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-            const [result] = await db
-                .select({
-                    minId: sql`min(${this.config.idColumn})`,
-                    maxId: sql`max(${this.config.idColumn})`,
-                })
+
+            // Direct B-Tree Index Scan Forward & Backward (O(1) execution time for Integer and UUID)
+            const minQuery = db
+                .select({ id: this.config.idColumn })
                 .from(this.table)
-                .where(whereClause);
+                .where(whereClause)
+                .orderBy(asc(this.config.idColumn))
+                .limit(1);
+
+            const maxQuery = db
+                .select({ id: this.config.idColumn })
+                .from(this.table)
+                .where(whereClause)
+                .orderBy(desc(this.config.idColumn))
+                .limit(1);
+
+            const [minResult, maxResult] = await Promise.all([minQuery, maxQuery]);
+
             return {
-                minId: (result?.minId as number | string) ?? 0,
-                maxId: (result?.maxId as number | string) ?? 0,
+                minId: (minResult[0]?.id as number | string) ?? '',
+                maxId: (maxResult[0]?.id as number | string) ?? '',
             };
         }, this.config.ttl ?? 120);
     }

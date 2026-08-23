@@ -1,5 +1,6 @@
 import { text, integer, boolean, timestamp, numeric, date, index, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import { v7 as uuidv7 } from 'uuid';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { taxIdTypeEnum, personTypeEnum, taxRegimeTypeEnum } from '../enums';
 import { companies } from './config';
@@ -7,7 +8,7 @@ import { priceLists } from './pricing';
 
 // --- 1. ENTITIES (CORE) ---
 export const entities = pgTableV2("entities", {
-    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
     company_id: integer("company_id").references(() => companies.id).notNull(),
     tax_id: text("tax_id").notNull(),
     tax_id_type: taxIdTypeEnum("tax_id_type").notNull(),

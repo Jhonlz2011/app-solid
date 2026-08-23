@@ -1,6 +1,7 @@
 import { createQuery, keepPreviousData, useQueryClient } from '@tanstack/solid-query';
 import { createEffect } from 'solid-js';
-import { brandsApi, type BrandFilters, type BrandItem } from './brands.api';
+import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
+import { brandsApi, type BrandFilters } from './brands.api';
 import { brandKeys } from './brands.keys';
 
 /**
@@ -11,8 +12,8 @@ export function useBrands(filters: () => BrandFilters) {
     const query = createQuery(() => ({
         queryKey: brandKeys.list(filters()),
         queryFn: () => brandsApi.list(filters()),
-        staleTime: 1000 * 60 * 2,
-        gcTime: 1000 * 60 * 30,
+        staleTime: STALE_TIME.SHORT,
+        gcTime: GC_TIME.DEFAULT,
         placeholderData: keepPreviousData,
     }));
 
@@ -27,14 +28,14 @@ export function useBrands(filters: () => BrandFilters) {
             queryClient.prefetchQuery({
                 queryKey: brandKeys.list({ ...currentFilters, cursor: cursorMeta.nextCursor, direction: 'next' }),
                 queryFn: () => brandsApi.list({ ...currentFilters, cursor: cursorMeta.nextCursor!, direction: 'next' }),
-                staleTime: 1000 * 60 * 2,
+                staleTime: STALE_TIME.SHORT,
             });
         }
         if (cursorMeta.prevCursor && cursorMeta.hasPrevPage) {
             queryClient.prefetchQuery({
                 queryKey: brandKeys.list({ ...currentFilters, cursor: cursorMeta.prevCursor, direction: 'prev' }),
                 queryFn: () => brandsApi.list({ ...currentFilters, cursor: cursorMeta.prevCursor!, direction: 'prev' }),
-                staleTime: 1000 * 60 * 2,
+                staleTime: STALE_TIME.SHORT,
             });
         }
     });
@@ -45,12 +46,13 @@ export function useBrands(filters: () => BrandFilters) {
 /**
  * Single brand detail query by ID.
  */
-export function useBrand(id: () => number) {
+export function useBrand(id: () => number | null | undefined) {
     return createQuery(() => ({
-        queryKey: brandKeys.detail(id()),
-        queryFn: () => brandsApi.get(id()),
-        enabled: id() > 0,
-        staleTime: 1000 * 60 * 5,
+        queryKey: brandKeys.detail(id() ?? 0),
+        queryFn: () => brandsApi.get(id()!),
+        enabled: Boolean(id() && id()! > 0),
+        staleTime: STALE_TIME.MEDIUM,
+        gcTime: GC_TIME.DEFAULT,
     }));
 }
 
@@ -59,8 +61,9 @@ export function useBrand(id: () => number) {
  */
 export function useBrandsList() {
     return createQuery(() => ({
-        queryKey: [...brandKeys.all, 'all'] as const,
-        queryFn: () => brandsApi.listAll() as Promise<BrandItem[]>,
-        staleTime: 1000 * 60 * 30,
+        queryKey: brandKeys.allList(),
+        queryFn: () => brandsApi.listAll(),
+        staleTime: STALE_TIME.LONG,
+        gcTime: GC_TIME.DEFAULT,
     }));
 }
