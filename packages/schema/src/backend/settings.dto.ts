@@ -10,7 +10,7 @@ export const MenuItemStatusSchema = Type.Union(
     MENU_ITEM_STATUSES.map(s => Type.Literal(s))
 );
 
-export const MenuItemUpdateSchema = Type.Object({
+export const MenuItemUpdateBodySchema = Type.Object({
     label: Type.Optional(Type.String()),
     icon: Type.Optional(Type.String()),
     sort_order: Type.Optional(Type.Number()),
@@ -22,28 +22,13 @@ export const MenuItemReorderItemSchema = Type.Object({
     sort_order: Type.Number(),
 });
 
-export const MenuItemReorderSchema = Type.Object({
+export const MenuItemReorderBodySchema = Type.Object({
     items: Type.Array(MenuItemReorderItemSchema),
 });
-
-export type MenuItemUpdateType = Static<typeof MenuItemUpdateSchema>;
-export type MenuItemReorderItemType = Static<typeof MenuItemReorderItemSchema>;
-export type MenuItemReorderType = Static<typeof MenuItemReorderSchema>;
 
 // ============================================================================
 // BRANDING & COMPANY SETTINGS
 // ============================================================================
-
-export const TenantBrandingResponseDto = Type.Object({
-    id: Type.Number(),
-    slug: Type.String(),
-    businessName: Type.String(),
-    tradeName: Type.Union([Type.String(), Type.Null()]),
-    logoUrl: Type.Union([Type.String(), Type.Null()]),
-    primaryColor: Type.String(),
-    themeColor: Type.String(),
-    loginBgUrl: Type.Union([Type.String(), Type.Null()]),
-});
 
 export const CompanySettingsBodySchema = Type.Object({
     logoUrl: Type.Union([Type.String(), Type.Null()]),
@@ -85,7 +70,26 @@ export const UploadLoginBgBodySchema = Type.Object({
     cropFlipY: Type.Optional(Type.BooleanString()),
 });
 
-export type TenantBrandingResponseDtoType = Static<typeof TenantBrandingResponseDto>;
+export const CompanyVehicleResponseSchema = Type.Object({
+    id: Type.Number(),
+    company_id: Type.Number(),
+    entity_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    carrier_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    license_plate: Type.String(),
+    description: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    is_active: Type.Boolean(),
+    created_at: Type.Optional(Type.Union([Type.Date(), Type.String(), Type.Null()])),
+    updated_at: Type.Optional(Type.Union([Type.Date(), Type.String(), Type.Null()])),
+});
+
+// ============================================================================
+// CANONICAL INFERRED TYPES (Single Source of Truth)
+// ============================================================================
+
+export type MenuItemUpdateType = Static<typeof MenuItemUpdateBodySchema>;
+export type MenuItemReorderItemType = Static<typeof MenuItemReorderItemSchema>;
+export type MenuItemReorderType = Static<typeof MenuItemReorderBodySchema>;
 export type CompanySettingsBodyType = Static<typeof CompanySettingsBodySchema>;
 export type UploadLogoBodyType = Static<typeof UploadLogoBodySchema>;
 export type UploadLoginBgBodyType = Static<typeof UploadLoginBgBodySchema>;
+export type CompanyVehicleItemType = Static<typeof CompanyVehicleResponseSchema>;

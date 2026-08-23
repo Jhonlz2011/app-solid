@@ -3,7 +3,7 @@ import { db } from '../../core/db';
 import { carrierVehicles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
-import type { CarrierVehiclePayload } from '@app/schema/dto';
+import type { CarrierVehicleType } from '@app/schema/dto';
 
 export const vehiclesService = {
     async list(companyId: number) {
@@ -35,7 +35,7 @@ export const vehiclesService = {
         return vehicle;
     },
 
-    async create(companyId: number, data: CarrierVehiclePayload, audit?: AuditContext) {
+    async create(companyId: number, data: CarrierVehicleType, audit?: AuditContext) {
         return await withAuditTransaction(audit, async (tx) => {
             const [created] = await tx
                 .insert(carrierVehicles)
@@ -52,7 +52,7 @@ export const vehiclesService = {
         });
     },
 
-    async update(companyId: number, id: number, data: Partial<CarrierVehiclePayload>, audit?: AuditContext) {
+    async update(companyId: number, id: number, data: Partial<CarrierVehicleType>, audit?: AuditContext) {
         return await withAuditTransaction(audit, async (tx) => {
             const updateSet: Record<string, unknown> = {};
             if (data.licensePlate !== undefined) updateSet.license_plate = data.licensePlate.toUpperCase().trim();

@@ -2,7 +2,7 @@
 import { Component, Show, createMemo } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
-import type { ProfileDto } from '@app/schema/dto';
+import type { ProfileType } from '@app/schema/dto';
 import { UpdateProfileSchema } from '@app/schema/frontend';
 import { TextField } from '@form/TextField';
 import Button from '@form/Button';
@@ -10,7 +10,7 @@ import { AlertCircleIcon } from '@icons/AlertCircleIcon';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 
 interface AccountSectionProps {
-    profile: ProfileDto;
+    profile: ProfileType;
     onUpdate: (data: { username?: string; email?: string }) => Promise<void>;
     isUpdating: boolean;
 }

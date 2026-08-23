@@ -6,12 +6,12 @@ import {
     useHardDeleteUser,
 } from '../data/users.mutations';
 
-import type { UserListItemDto, UserReferencesDto } from '@app/schema/dto';
+import type { UserListItemType, UserReferencesType } from '@app/schema/dto';
 
 import DeleteDialog from '@overlay/DeleteDialog';
 
 export interface UserDeleteDialogProps {
-    user: UserListItemDto | null;
+    user: UserListItemType | null;
     onClose: () => void;
     onSuccess?: () => void;
 }
@@ -50,7 +50,7 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
 
     const referenceLines = () => {
         if (refsQuery.isPending) return [];
-        const data = refsQuery.data as UserReferencesDto | undefined;
+        const data = refsQuery.data as UserReferencesType | undefined;
         if (!data) return [];
         const lines: string[] = [];
         if (data.roles > 0) lines.push(`${data.roles} rol(es) asignado(s)`);

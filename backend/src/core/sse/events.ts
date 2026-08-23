@@ -5,6 +5,7 @@ export interface SseClient {
     controller: ReadableStreamDefaultController<string>;
     rooms: Set<string>;
     userId: string | null;
+    companyId: number | null;
     pingInterval: ReturnType<typeof setInterval>;
 }
 
@@ -70,7 +71,6 @@ function getTargetClientIds(room: string): string[] {
         for (const id of clients.keys()) targets.add(id);
     } else {
         roomIndex.get(room)?.forEach(id => targets.add(id));
-        roomIndex.get('*')?.forEach(id => targets.add(id));
     }
     return Array.from(targets);
 }

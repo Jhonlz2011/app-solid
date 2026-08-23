@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { authGuard } from '../../plugins/auth-guard';
+import { tenantGuard } from '../../plugins/tenant-guard';
 import { rbac } from '../../plugins/rbac';
 import {
     listAttributes,
@@ -13,13 +13,13 @@ import {
 } from './attributes.service';
 import {
     AttributeBodySchema,
-    AttributeUpdateSchema,
+    AttributeUpdateBodySchema,
     AttributeReferencesResponseSchema,
     IdParamSchema,
     SuccessResponseSchema,
 } from '@app/schema/backend';
 export const attributeRoutes = new Elysia({ prefix: '/attributes' })
-    .use(authGuard)
+    .use(tenantGuard)
     .use(rbac)
     // List all attributes for the current tenant
     .get('/', ({ currentCompanyId }) => listAttributes(currentCompanyId), {
@@ -56,7 +56,7 @@ export const attributeRoutes = new Elysia({ prefix: '/attributes' })
         ({ params, body, currentCompanyId }) => updateAttribute(params.id, body, currentCompanyId),
         {
             params: IdParamSchema,
-            body: AttributeUpdateSchema,
+            body: AttributeUpdateBodySchema,
             permission: 'attributes.update',
         }
     )

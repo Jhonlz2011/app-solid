@@ -9,9 +9,9 @@ import { addOptimisticItem, removeCacheItems, updateCacheItem, type CacheShape }
 import { rbacKeys } from './users.keys';
 import { usersApi } from './users.api';
 import type {
-    UserListItemDto,
-    RoleDto,
-    RoleUsersDto,
+    UserListItemType,
+    RoleType,
+    RoleUserType,
 } from '@app/schema/dto';
 
 // =============================================================================
@@ -33,10 +33,10 @@ function applyIsActiveToCache(
     ids: number[],
     isActive: boolean
 ) {
-    queryClient.setQueriesData<CacheShape<UserListItemDto>>({ queryKey: rbacKeys.lists() }, (old) => {
+    queryClient.setQueriesData<CacheShape<UserListItemType>>({ queryKey: rbacKeys.lists() }, (old) => {
         if (!old) return old;
-        return ids.reduce<CacheShape<UserListItemDto>>(
-            (acc, id) => updateCacheItem(acc, { id, isActive } as unknown as UserListItemDto) ?? acc,
+        return ids.reduce<CacheShape<UserListItemType>>(
+            (acc, id) => updateCacheItem(acc, { id, isActive } as unknown as UserListItemType) ?? acc,
             old
         );
     });
@@ -53,10 +53,10 @@ export function useCreateRole() {
         mutationFn: (data: { name: string; description?: string }) => usersApi.createRole(data),
         onMutate: async (newRole) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.roles() });
-            const previous = queryClient.getQueryData<RoleDto[]>(rbacKeys.roles());
-            queryClient.setQueryData<RoleDto[]>(rbacKeys.roles(), (old) => [
+            const previous = queryClient.getQueryData<RoleType[]>(rbacKeys.roles());
+            queryClient.setQueryData<RoleType[]>(rbacKeys.roles(), (old) => [
                 ...(old ?? []),
-                { id: -Date.now(), name: newRole.name, description: newRole.description ?? null, userCount: 0, is_system: false, permissionCount: 0 } as RoleDto,
+                { id: -Date.now(), name: newRole.name, description: newRole.description ?? null, userCount: 0, is_system: false, permissionCount: 0 } as RoleType,
             ]);
             return { previous };
         },
@@ -76,8 +76,8 @@ export function useUpdateRole() {
             usersApi.updateRole(id, data),
         onMutate: async ({ id, name, description }) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.roles() });
-            const previous = queryClient.getQueryData<RoleDto[]>(rbacKeys.roles());
-            queryClient.setQueryData<RoleDto[]>(rbacKeys.roles(), (old) =>
+            const previous = queryClient.getQueryData<RoleType[]>(rbacKeys.roles());
+            queryClient.setQueryData<RoleType[]>(rbacKeys.roles(), (old) =>
                 old?.map(r => r.id === id ? { ...r, name, description: description ?? null } : r) ?? []
             );
             return { previous };
@@ -99,8 +99,8 @@ export function useDeleteRole() {
         mutationFn: (id: number) => usersApi.deleteRole(id),
         onMutate: async (id) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.roles() });
-            const previous = queryClient.getQueryData<RoleDto[]>(rbacKeys.roles());
-            queryClient.setQueryData<RoleDto[]>(rbacKeys.roles(), (old) =>
+            const previous = queryClient.getQueryData<RoleType[]>(rbacKeys.roles());
+            queryClient.setQueryData<RoleType[]>(rbacKeys.roles(), (old) =>
                 old?.filter(r => r.id !== id) ?? []
             );
             return { previous };
@@ -170,8 +170,8 @@ export function useRemoveUserFromRole() {
             usersApi.removeUserFromRole(roleId, userId),
         onMutate: async ({ roleId, userId }) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.roleUsers(roleId) });
-            const previous = queryClient.getQueryData<RoleUsersDto[]>(rbacKeys.roleUsers(roleId));
-            queryClient.setQueryData<RoleUsersDto[]>(rbacKeys.roleUsers(roleId), (old) =>
+            const previous = queryClient.getQueryData<RoleUserType[]>(rbacKeys.roleUsers(roleId));
+            queryClient.setQueryData<RoleUserType[]>(rbacKeys.roleUsers(roleId), (old) =>
                 old?.filter(u => u.id !== userId) ?? []
             );
             return { previous, roleId };
@@ -405,7 +405,7 @@ export function useSetUserEntity() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ userId, entityId }: { userId: number; entityId: number | null }) =>
+        mutationFn: ({ userId, entityId }: { userId: string | number; entityId: string | null }) =>
             usersApi.setUserEntity(userId, entityId),
         onSuccess: (_data, { userId }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.user(userId) });

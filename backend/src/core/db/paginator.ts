@@ -1,4 +1,5 @@
 import { sql, and, eq, lt, gt, asc, desc, inArray, type AnyColumn, type SQL, type PgColumn, type Table } from '@app/schema';
+import type { CursorMetaType, PaginatedResult as SchemaPaginatedResult } from '@app/schema/backend';
 import { db } from './db';
 import { cacheService } from '../cache/cache.service';
 import { createHash } from 'crypto';
@@ -14,20 +15,8 @@ export interface PaginationParams<TFilters = Record<string, any>> {
     filters?: TFilters;
 }
 
-export interface PaginationMeta {
-    nextCursor: string | null;
-    prevCursor: string | null;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
-    total: number;
-    page: number | null;
-    pageCount: number | null;
-}
-
-export interface PaginatedResult<T> {
-    data: T[];
-    meta: PaginationMeta;
-}
+export type PaginationMetaType = CursorMetaType;
+export type PaginatedResult<T> = SchemaPaginatedResult<T>;
 
 export interface CursorPaginatorConfig<TTable extends Table<any> = Table<any>, TFilters = Record<string, any>> {
     table: TTable;
@@ -56,11 +45,11 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
         return createHash('md5').update(JSON.stringify(obj)).digest('hex').slice(0, 12);
     }
 
-    encodeCursor(id: number): string {
+    encodeCursor(id: number | string): string {
         return Buffer.from(JSON.stringify({ id })).toString('base64url');
     }
 
-    decodeCursor(cursor: string): { id: number } | null {
+    decodeCursor(cursor: string): { id: number | string } | null {
         try {
             return JSON.parse(Buffer.from(cursor, 'base64url').toString('utf-8'));
         } catch {
@@ -83,21 +72,21 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
     }
 
     /** Get cached min(id) and max(id) bounds */
-    async getCachedBounds(companyId: number, search?: string, filters?: TFilters): Promise<{ minId: number; maxId: number }> {
+    async getCachedBounds(companyId: number, search?: string, filters?: TFilters): Promise<{ minId: number | string; maxId: number | string }> {
         const key = `${this.config.cacheNamespace}:c${companyId}:bounds:${this.hashKey({ search: search || 'all', filters })}`;
         return cacheService.getOrSet(key, async () => {
             const conditions = this.config.buildConditions({ companyId, search, filters });
             const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
             const [result] = await db
                 .select({
-                    minId: sql<number>`min(${this.config.idColumn})`.mapWith((v) => (v === null || v === undefined ? 0 : Number(v))),
-                    maxId: sql<number>`max(${this.config.idColumn})`.mapWith((v) => (v === null || v === undefined ? 0 : Number(v))),
+                    minId: sql`min(${this.config.idColumn})`,
+                    maxId: sql`max(${this.config.idColumn})`,
                 })
                 .from(this.table)
                 .where(whereClause);
             return {
-                minId: result?.minId ? Number(result.minId) : 0,
-                maxId: result?.maxId ? Number(result.maxId) : 0,
+                minId: (result?.minId as number | string) ?? 0,
+                maxId: (result?.maxId as number | string) ?? 0,
             };
         }, this.config.ttl ?? 120);
     }
@@ -106,7 +95,7 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
     async paginate<TResult = unknown>(
         params: PaginationParams<TFilters>,
         companyId: number,
-        fetchRowsFn?: (ids: number[]) => Promise<TResult[]>
+        fetchRowsFn?: (ids: Array<number | string>) => Promise<TResult[]>
     ): Promise<PaginatedResult<TResult>> {
         const { sortBy } = params;
         if (sortBy && sortBy !== 'id' && this.config.sortableColumns[sortBy]) {
@@ -119,7 +108,7 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
     async paginateCursor<TResult = unknown>(
         params: PaginationParams<TFilters>,
         companyId: number,
-        fetchRowsFn?: (ids: number[]) => Promise<TResult[]>
+        fetchRowsFn?: (ids: Array<number | string>) => Promise<TResult[]>
     ): Promise<PaginatedResult<TResult>> {
         const { cursor, limit: limitRaw = 25, search, direction = 'first', filters } = params;
         const limit = Number(limitRaw);
@@ -153,7 +142,9 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
                 .limit(fetchLimit)
                 .orderBy(isDescending ? desc(this.config.idColumn) : asc(this.config.idColumn));
 
-            let ids = idRows.map((r: { id: unknown }) => Number(r.id));
+            let ids: Array<number | string> = idRows.map((r: { id: unknown }) =>
+                typeof r.id === 'number' ? r.id : String(r.id)
+            );
             const hasMore = ids.length > effectiveLimit;
             if (hasMore) ids = ids.slice(0, effectiveLimit);
             if (direction === 'prev' || direction === 'last') ids = ids.reverse();
@@ -164,7 +155,7 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
             } else if (fetchRowsFn) {
                 const rows = await fetchRowsFn(ids);
                 const idOrder = new Map(ids.map((id, i) => [id, i]));
-                data = (rows as Array<Record<string, unknown> & { id: number }>).sort(
+                data = (rows as Array<Record<string, unknown> & { id: number | string }>).sort(
                     (a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0)
                 ) as unknown as TResult[];
             } else {
@@ -173,12 +164,12 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
                     .from(this.table)
                     .where(and(eq(this.config.companyIdColumn, companyId), inArray(this.config.idColumn, ids)));
                 const idOrder = new Map(ids.map((id, i) => [id, i]));
-                data = (rows as Array<Record<string, unknown> & { id: number }>).sort(
+                data = (rows as Array<Record<string, unknown> & { id: number | string }>).sort(
                     (a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0)
                 ) as unknown as TResult[];
             }
 
-            const meta: PaginationMeta = {
+            const meta: PaginationMetaType = {
                 nextCursor: null,
                 prevCursor: null,
                 hasNextPage: false,
@@ -191,9 +182,9 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
             if (ids.length > 0) {
                 const firstId = ids[0];
                 const lastId = ids[ids.length - 1];
-                meta.hasPrevPage = firstId < maxId;
+                meta.hasPrevPage = firstId !== minId;
                 meta.prevCursor = meta.hasPrevPage ? this.encodeCursor(firstId) : null;
-                meta.hasNextPage = lastId > minId;
+                meta.hasNextPage = lastId !== maxId;
                 meta.nextCursor = meta.hasNextPage ? this.encodeCursor(lastId) : null;
             }
 
@@ -205,7 +196,7 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
     async paginateSorted<TResult = unknown>(
         params: PaginationParams<TFilters>,
         companyId: number,
-        fetchRowsFn?: (ids: number[]) => Promise<TResult[]>
+        fetchRowsFn?: (ids: Array<number | string>) => Promise<TResult[]>
     ): Promise<PaginatedResult<TResult>> {
         const { limit: limitRaw = 25, search, sortBy = this.config.defaultSortBy || 'id', sortOrder = 'asc', page: pageRaw = 1, filters } = params;
         const limit = Number(limitRaw);
@@ -246,13 +237,15 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
                 };
             }
 
-            const ids = idRows.map((r: { id: unknown }) => Number(r.id));
+            const ids: Array<number | string> = idRows.map((r: { id: unknown }) =>
+                typeof r.id === 'number' ? r.id : String(r.id)
+            );
             let data: TResult[];
 
             if (fetchRowsFn) {
                 const rows = await fetchRowsFn(ids);
                 const idOrder = new Map(ids.map((id, i) => [id, i]));
-                data = (rows as Array<Record<string, unknown> & { id: number }>).sort(
+                data = (rows as Array<Record<string, unknown> & { id: number | string }>).sort(
                     (a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0)
                 ) as unknown as TResult[];
             } else {
@@ -262,7 +255,7 @@ export class CursorPaginator<TTable extends Table<any> = Table<any>, TFilters = 
                     .where(and(eq(this.config.companyIdColumn, companyId), inArray(this.config.idColumn, ids)));
 
                 const idOrder = new Map(ids.map((id, i) => [id, i]));
-                data = (rows as Array<Record<string, unknown> & { id: number }>).sort(
+                data = (rows as Array<Record<string, unknown> & { id: number | string }>).sort(
                     (a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0)
                 ) as unknown as TResult[];
             }

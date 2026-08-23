@@ -69,3 +69,24 @@ export interface RealtimeMessage<T = unknown> {
     data: T;
     room?: string;
 }
+
+/**
+ * Generates tenant-scoped room name: `company:{companyId}:{room}`
+ */
+export function getTenantRoom(companyId: number | string, room: string): string {
+    return `company:${companyId}:${room}`;
+}
+
+/**
+ * Generates company root room name: `company:{companyId}`
+ */
+export function getCompanyRoom(companyId: number | string): string {
+    return `company:${companyId}`;
+}
+
+/**
+ * Generates user personal room name: `user:{userId}`
+ */
+export function getUserRoom(userId: number | string): string {
+    return `user:${userId}`;
+}

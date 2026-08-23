@@ -1,7 +1,7 @@
 // Profile Header Component
 import { Component, For, createMemo, Show } from 'solid-js';
 import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
-import type { ProfileDto } from '@app/schema/dto';
+import type { ProfileType } from '@app/schema/dto';
 import { Badge, RoleBadge } from '@display/Badge';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { Skeleton } from '@display/Skeleton';
@@ -35,7 +35,7 @@ export const ProfileHeaderSkeleton: Component = () => (
 );
 
 interface ProfileHeaderProps {
-    profile: ProfileDto | undefined;
+    profile: ProfileType | undefined;
     isLoading?: boolean;
 }
 

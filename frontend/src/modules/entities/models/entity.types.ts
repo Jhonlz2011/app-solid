@@ -11,10 +11,10 @@ import {
 
 export type {
     EntityFilters,
-    EntityReferences,
-    EntityPickerItem,
-    EntityDetailDto,
-    EntityPayload,
+    EntityReferencesType,
+    EntityPickerType,
+    EntityDetailType,
+    EntityType,
 } from '@app/schema/dto';
 
 export const taxIdTypeLabels = taxIdTypeDisplayLabels;

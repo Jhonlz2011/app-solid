@@ -101,7 +101,7 @@ export function createDefaultEntityFormValues(
 // Form Config & Rule Helpers
 // =============================================================================
 
-/** TaxIdType disabled keys for JURIDICA — CEDULA and PASAPORTE are invalid */
+/** TaxIdEnum disabled keys for JURIDICA — CEDULA and PASAPORTE are invalid */
 export function getTaxIdTypeDisabledKeys(personType: PersonType): TaxIdTypeForm[] {
     if (personType === 'JURIDICA') return ['CEDULA', 'PASAPORTE'];
     return [];

@@ -20,10 +20,10 @@ import { EntityContactsArray } from './sections/EntityContactsArray';
 import { EntityAddressArray } from './sections/EntityAddressArray';
 import { EntityCarrierTab } from './sections/EntityCarrierTab';
 
-import type { EntityDetailDto } from '@app/schema/dto';
+import type { EntityDetailType } from '@app/schema/dto';
 
 export interface EntityFormProps {
-    entity?: EntityDetailDto | null;
+    entity?: EntityDetailType | null;
     onSubmit: (data: EntityFormData) => Promise<void>;
     isSubmitting: boolean;
     lockedRoles?: Partial<Record<'isClient' | 'isSupplier' | 'isEmployee' | 'isCarrier', boolean>>;

@@ -1,4 +1,4 @@
-import { text, integer, boolean, timestamp, numeric, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, numeric, date, index, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { taxIdTypeEnum, personTypeEnum, taxRegimeTypeEnum } from '../enums';
@@ -7,7 +7,7 @@ import { priceLists } from './pricing';
 
 // --- 1. ENTITIES (CORE) ---
 export const entities = pgTableV2("entities", {
-    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    id: uuid("id").primaryKey().default(sql`uuidv7()`),
     company_id: integer("company_id").references(() => companies.id).notNull(),
     tax_id: text("tax_id").notNull(),
     tax_id_type: taxIdTypeEnum("tax_id_type").notNull(),
@@ -50,7 +50,7 @@ export const entities = pgTableV2("entities", {
 
 export const entityContacts = pgTableV2("entity_contacts", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    entity_id: integer("entity_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
+    entity_id: uuid("entity_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
     name: text("name").notNull(),
     position: text("position"),
     email: text("email"),
@@ -89,7 +89,7 @@ export const jobTitles = pgTableV2("job_titles", {
 ]).enableRLS();
 
 export const employeeDetails = pgTableV2("employee_details", {
-    entity_id: integer("entity_id").primaryKey().references(() => entities.id, { onDelete: 'cascade' }),
+    entity_id: uuid("entity_id").primaryKey().references(() => entities.id, { onDelete: 'cascade' }),
     department_id: integer("department_id").references(() => departments.id, { onDelete: 'set null' }),
     job_title_id: integer("job_title_id").references(() => jobTitles.id, { onDelete: 'set null' }),
     salary_base: numeric("salary_base", { precision: 10, scale: 2 }),
@@ -99,7 +99,7 @@ export const employeeDetails = pgTableV2("employee_details", {
 
 export const entityAddresses = pgTableV2("entity_addresses", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    entity_id: integer("entity_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
+    entity_id: uuid("entity_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
     address_line: text("address_line").notNull(),
     country: text("country").default('Ecuador').notNull(),
     country_code: text("country_code").default('EC'),
@@ -116,7 +116,7 @@ export const carrierVehicles = pgTableV2("carrier_vehicles", {
     company_id: integer("company_id").references(() => companies.id).notNull(),
     // NULL = Vehículo de la Flota Propia de la Empresa
     // NOT NULL = Vehículo de un Transportista / Proveedor externo
-    carrier_id: integer("carrier_id").references(() => entities.id, { onDelete: 'cascade' }),
+    carrier_id: uuid("carrier_id").references(() => entities.id, { onDelete: 'cascade' }),
     // OBLIGATORIO PARA SRI: Etiqueta <placa> en el XML de la Guía de Remisión
     license_plate: text("license_plate").notNull(), 
     // Útil para UI del ERP ("Seleccione el camión Hino 500")
@@ -132,7 +132,7 @@ export const carrierVehicles = pgTableV2("carrier_vehicles", {
 
 export const carrierDrivers = pgTableV2("carrier_drivers", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    carrier_id: integer("carrier_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
+    carrier_id: uuid("carrier_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
     // SRI y Control Policial: Cédula o pasaporte del conductor real
     identification_number: text("identification_number").notNull(),
     full_name: text("full_name").notNull(),

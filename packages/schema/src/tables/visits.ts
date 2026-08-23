@@ -11,8 +11,8 @@ import { companies } from './config';
 export const technicalVisits = pgTableV2("technical_visits", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }).notNull(),
-    client_id: integer("client_id").references(() => entities.id).notNull(),
-    assigned_employee_id: integer("assigned_employee_id").references(() => entities.id),
+    client_id: uuid("client_id").references(() => entities.id).notNull(),
+    assigned_employee_id: uuid("assigned_employee_id").references(() => entities.id),
     visit_date: timestamp("visit_date", TZ).notNull(),
     status: technicalVisitStatusEnum("status").default('SCHEDULED'),
     notes: text("notes"),
@@ -29,7 +29,7 @@ export const quotations = pgTableV2("quotations", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }).notNull(),
     code_sequence: integer("code_sequence"), // Secuencial interno de cotización
-    client_id: integer("client_id").references(() => entities.id).notNull(),
+    client_id: uuid("client_id").references(() => entities.id).notNull(),
     technical_visit_id: integer("technical_visit_id").references(() => technicalVisits.id),
 
     status: quotationStatusEnum("status").default('DRAFT'),

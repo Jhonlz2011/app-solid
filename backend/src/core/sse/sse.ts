@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia';
-import { auth } from '../../config/better-auth';
+import { auth, resolveCompanyIdFromOrg } from '../../config/better-auth';
 import {
     clients,
     addToRoomIndex,
@@ -7,6 +7,32 @@ import {
     removeClientFromAllRooms,
     type SseClient,
 } from './events';
+import { getUserRoom, getCompanyRoom, getTenantRoom } from '@app/schema/realtime-events';
+
+// Helper to normalize room name into a tenant-scoped room when appropriate
+function normalizeRoomName(rawRoom: string, clientCompanyId: number | null, clientUserId: string | null): string | null {
+    // Personal user room
+    if (rawRoom.startsWith('user:')) {
+        const targetUserId = rawRoom.slice(5);
+        if (targetUserId === clientUserId) return rawRoom;
+        return null; // Deny subscribing to another user's personal room
+    }
+
+    // Already explicitly tenant-scoped room
+    if (rawRoom.startsWith('company:')) {
+        if (!clientCompanyId) return rawRoom;
+        const targetCompanyId = rawRoom.split(':')[1];
+        if (String(clientCompanyId) === targetCompanyId) return rawRoom;
+        return null; // Deny subscribing to another tenant's room
+    }
+
+    // Relative module room (e.g. 'suppliers', 'products', 'users')
+    if (clientCompanyId) {
+        return getTenantRoom(clientCompanyId, rawRoom);
+    }
+
+    return rawRoom;
+}
 
 // --- SSE ROUTE PLUGIN ---
 export const ssePlugin = (app: Elysia) =>
@@ -29,11 +55,25 @@ export const ssePlugin = (app: Elysia) =>
             const userId = sessionData.user.id;
             const clientId = query.clientId || `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
+            // Resolve company context for this SSE connection
+            let companyId: number | null = null;
+            const activeOrgId = sessionData.session.activeOrganizationId;
+            if (activeOrgId) {
+                companyId = await resolveCompanyIdFromOrg(activeOrgId);
+            }
+            if (!companyId) {
+                const rawUser = sessionData.user as typeof sessionData.user & { companyId?: number; company_id?: number };
+                companyId = rawUser.companyId || rawUser.company_id || null;
+            }
+
             const stream = new ReadableStream({
                 start(controller) {
-                    const rooms = new Set<string>(['*']);
+                    const rooms = new Set<string>();
                     if (userId) {
-                        rooms.add(`user:${userId}`);
+                        rooms.add(getUserRoom(userId));
+                    }
+                    if (companyId) {
+                        rooms.add(getCompanyRoom(companyId));
                     }
 
                     const pingInterval = setInterval(() => {
@@ -44,7 +84,7 @@ export const ssePlugin = (app: Elysia) =>
                         }
                     }, 25000);
 
-                    const clientObj: SseClient = { controller, rooms, userId, pingInterval };
+                    const clientObj: SseClient = { controller, rooms, userId, companyId, pingInterval };
 
                     // Close existing if reconnecting with same ID
                     const existingClient = clients.get(clientId);
@@ -61,7 +101,7 @@ export const ssePlugin = (app: Elysia) =>
                         addToRoomIndex(clientId, room);
                     }
 
-                    console.log("🔌 SSE Connected: " + clientId + " (userId: " + (userId ?? "anonymous") + ", Total: " + clients.size + ")");
+                    console.log(`🔌 SSE Connected: ${clientId} (userId: ${userId}, companyId: ${companyId ?? 'none'}, Total: ${clients.size})`);
 
                     const connectPayload = JSON.stringify(clientId);
                     controller.enqueue(`event: connected\ndata: ${connectPayload}\n\n`);
@@ -73,7 +113,7 @@ export const ssePlugin = (app: Elysia) =>
                         removeClientFromAllRooms(clientId, client.rooms);
                     }
                     clients.delete(clientId);
-                    console.log("🔌 SSE Disconnected: " + clientId + " (Total: " + clients.size + ")");
+                    console.log(`🔌 SSE Disconnected: ${clientId} (Total: ${clients.size})`);
                 }
             });
 
@@ -96,11 +136,18 @@ export const ssePlugin = (app: Elysia) =>
                 set.status = 404;
                 return { error: 'Client not found or disconnected' };
             }
-            if (!client.rooms.has(body.room)) {
-                client.rooms.add(body.room);
-                addToRoomIndex(body.clientId, body.room);
+
+            const canonicalRoom = normalizeRoomName(body.room, client.companyId, client.userId);
+            if (!canonicalRoom) {
+                set.status = 403;
+                return { error: 'Access to this room is forbidden' };
             }
-            return { success: true, room: body.room };
+
+            if (!client.rooms.has(canonicalRoom)) {
+                client.rooms.add(canonicalRoom);
+                addToRoomIndex(body.clientId, canonicalRoom);
+            }
+            return { success: true, room: canonicalRoom };
         }, {
             body: t.Object({
                 clientId: t.String(),
@@ -113,11 +160,13 @@ export const ssePlugin = (app: Elysia) =>
                 set.status = 404;
                 return { error: 'Client not found or disconnected' };
             }
-            if (client.rooms.has(body.room)) {
-                client.rooms.delete(body.room);
-                removeFromRoomIndex(body.clientId, body.room);
+
+            const canonicalRoom = normalizeRoomName(body.room, client.companyId, client.userId) || body.room;
+            if (client.rooms.has(canonicalRoom)) {
+                client.rooms.delete(canonicalRoom);
+                removeFromRoomIndex(body.clientId, canonicalRoom);
             }
-            return { success: true, room: body.room };
+            return { success: true, room: canonicalRoom };
         }, {
             body: t.Object({
                 clientId: t.String(),

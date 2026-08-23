@@ -81,7 +81,7 @@ export async function getRoleById(roleId: number, companyId?: number) {
 /**
  * Create a new role
  */
-export async function createRole(name: string, description?: string, currentUserId?: string | number, companyId?: number) {
+export async function createRole(name: string, description?: string | null, currentUserId?: string | number, companyId?: number) {
     const existing = await db.query.authRoles.findFirst({
         where: and(eq(authRoles.company_id, companyId!), eq(authRoles.name, name)),
     });
@@ -103,7 +103,7 @@ export async function createRole(name: string, description?: string, currentUser
 /**
  * Update a role
  */
-export async function updateRole(id: number, name: string, description?: string, currentUserId?: string | number) {
+export async function updateRole(id: number, name: string, description?: string | null, currentUserId?: string | number) {
     const oldRole = await db.query.authRoles.findFirst({ where: eq(authRoles.id, id) });
 
     const [updated] = await db

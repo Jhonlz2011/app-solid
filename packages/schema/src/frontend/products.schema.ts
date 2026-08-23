@@ -1,6 +1,6 @@
 import { pipe, string, minLength, minValue, object, picklist, boolean, array, number, optional, nullable, record, unknown, type InferInput } from 'valibot';
 import { PRODUCT_TYPES, PRODUCT_SUBTYPES } from '../enums';
-import type { ProductPayload } from '../dto/products.dto';
+import type { ProductBodyType } from '../backend/products.dto';
 
 // --- PRODUCT FORM SCHEMAS (Valibot) ---
 
@@ -55,6 +55,6 @@ export type ProductVariantFormData = InferInput<typeof ProductVariantFormSchema>
 export type ProductComponentFormData = InferInput<typeof ProductComponentFormSchema>;
 
 // Compile-Time Assertion: Ensures Valibot schema matches exactly the E2E contract interface
-type AssertProductValibot<T extends ProductPayload> = T;
+type AssertProductValibot<T extends ProductBodyType> = T;
 const _checkProductFormData: AssertProductValibot<ProductFormData> = {} as any as ProductFormData;
 void _checkProductFormData;

@@ -1,5 +1,5 @@
 import { db, adminDb } from '../../core/db';
-import { authUserRoles, authRoles, authUsers, sessions, member } from '@app/schema/tables';
+import { authUserRoles, authRoles, authUsers, sessions, member, companies } from '@app/schema/tables';
 import { eq, sql, count, and } from '@app/schema';
 import { redis } from '../../core/cache/redis';
 import { cacheService } from '../../core/cache';
@@ -35,15 +35,18 @@ export async function getUserRoles(userId: string | number, companyId?: number |
             return userRoles.map(r => r.roleName);
         }
 
-        // Fallback: check Better-Auth member table for owner role
-        const [memberRow] = await adminDb
-            .select({ role: member.role })
-            .from(member)
-            .where(eq(member.userId, userIdStr))
-            .limit(1);
+        // Fallback: check Better-Auth member table for owner role IN THIS SPECIFIC COMPANY CONTEXT
+        if (companyId) {
+            const [memberRow] = await adminDb
+                .select({ role: member.role })
+                .from(member)
+                .innerJoin(companies, eq(companies.organization_id, member.organizationId))
+                .where(and(eq(member.userId, userIdStr), eq(companies.id, companyId)))
+                .limit(1);
 
-        if (memberRow?.role === 'owner') {
-            return ['superadmin'];
+            if (memberRow?.role === 'owner') {
+                return ['superadmin'];
+            }
         }
 
         return [];

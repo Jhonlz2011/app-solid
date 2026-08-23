@@ -5,11 +5,6 @@ import type { CropCoordinates } from '@app/schema/dto';
 
 /**
  * Branding API wrappers.
- *
- * NOTE on `as any`: Eden treaty cannot resolve hyphenated route segments
- * (e.g. 'upload-logo') as JS property accessors. This is a known Eden limitation.
- * The `as any` casts are scoped to the minimal accessor chain and the return
- * types are explicitly annotated to preserve end-to-end type safety.
  */
 export const brandingApi = {
     get: async (): Promise<CompanySettingsFormData> => {
@@ -19,8 +14,7 @@ export const brandingApi = {
     },
 
     uploadLogo: async (file: File): Promise<string> => {
-        // Eden can't resolve 'upload-logo' (hyphenated segment)
-        const { data, error } = await (api.settings.company as any)['upload-logo'].post({
+        const { data, error } = await api.settings.company['upload-logo'].post({
             file,
         });
         if (error) throwApiError(error);
@@ -28,7 +22,6 @@ export const brandingApi = {
     },
 
     uploadLoginBg: async (file: File, cropData?: CropCoordinates): Promise<string> => {
-        // Eden can't resolve 'upload-bg' (hyphenated segment)
         const body: Record<string, unknown> = { file };
         if (cropData) {
             body.cropX = cropData.x;
@@ -39,7 +32,7 @@ export const brandingApi = {
             if (cropData.flipX) body.cropFlipX = cropData.flipX;
             if (cropData.flipY) body.cropFlipY = cropData.flipY;
         }
-        const { data, error } = await (api.settings.company as any)['upload-bg'].post(body);
+        const { data, error } = await api.settings.company['upload-bg'].post(body as any);
         if (error) throwApiError(error);
         return (data as { url: string }).url;
     },
@@ -62,9 +55,8 @@ export const brandingApi = {
             loginBgUrl,
         };
 
-        // Eden can't infer PATCH method on nested routes
-        const { data, error } = await (api.settings.company as any).patch(finalBody);
+        const { data, error } = await api.settings.company.patch(finalBody as any);
         if (error) throwApiError(error);
         return data as CompanySettingsFormData;
-    }
+    },
 };

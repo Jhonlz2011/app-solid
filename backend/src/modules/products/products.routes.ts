@@ -2,7 +2,7 @@ import { Elysia, t } from 'elysia';
 import { db } from '../../core/db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
-import { authGuard } from '../../plugins/auth-guard';
+import { tenantGuard } from '../../plugins/tenant-guard';
 import { rbac } from '../../plugins/rbac';
 import {
     createProduct,
@@ -19,7 +19,7 @@ import { listProducts,getProduct, checkProductReferences, getProductFacets,
     } from './products.query.service'
 import { publicStorageService } from '../../core/storage';
 import {
-    ProductPayloadSchema,
+    ProductBodySchema,
     ProductUploadImagesBodySchema,
     ProductDeleteImageBodySchema,
     ProductListQuerySchema,
@@ -27,22 +27,22 @@ import {
     GenerateSkuQuerySchema,
     IdParamSchema,
     BulkIdsBodySchema,
-    type ProductPayload
+    type ProductBodyType
 } from '@app/schema/backend';
 
 export const productRoutes = new Elysia({ prefix: '/products' })
-    .use(authGuard)
+    .use(tenantGuard)
     .use(rbac)
 
     // ─── LIST (cursor + offset pagination) ───────────────────────
     .get('/', ({ query, currentCompanyId }) =>
         listProducts({
             cursor: query.cursor,
-            direction: query.direction as any,
+            direction: query.direction,
             limit: query.limit ? Number(query.limit) : undefined,
             search: query.search,
             sortBy: query.sortBy,
-            sortOrder: query.sortOrder as any,
+            sortOrder: query.sortOrder,
             page: query.page ? Number(query.page) : undefined,
             categoryId: query.categoryId ? query.categoryId.split(',') : undefined,
             brandId: query.brandId ? query.brandId.split(',') : undefined,
@@ -155,20 +155,20 @@ export const productRoutes = new Elysia({ prefix: '/products' })
 
     // ─── CREATE ──────────────────────────────────────────────────
     .post('/', async ({ body, currentUserId, currentCompanyId, set }) => {
-        const product = await createProduct(body as ProductPayload, currentUserId, currentCompanyId);
+        const product = await createProduct(body as ProductBodyType, currentUserId, currentCompanyId);
         set.status = 201;
         return product;
     }, {
-        body: ProductPayloadSchema,
+        body: ProductBodySchema,
         permission: 'products.create',
     })
 
     // ─── UPDATE ──────────────────────────────────────────────────
     .put('/:id', ({ params, body, currentUserId, currentCompanyId }) =>
-        updateProduct(Number(params.id), body as Partial<ProductPayload>, currentUserId, currentCompanyId),
+        updateProduct(Number(params.id), body as Partial<ProductBodyType>, currentUserId, currentCompanyId),
         {
             params: IdParamSchema,
-            body: t.Partial(ProductPayloadSchema),
+            body: t.Partial(ProductBodySchema),
             permission: 'products.update',
         }
     )
@@ -201,6 +201,13 @@ export const productRoutes = new Elysia({ prefix: '/products' })
     })
 
     // ─── BULK DEACTIVATE ─────────────────────────────────────────
+    .delete('/bulk', ({ body, currentUserId, currentCompanyId }) =>
+        bulkDeactivateProducts(body.ids, currentUserId, currentCompanyId),
+        {
+            body: BulkIdsBodySchema,
+            permission: 'products.delete',
+        }
+    )
     .post('/bulk/delete', ({ body, currentUserId, currentCompanyId }) =>
         bulkDeactivateProducts(body.ids, currentUserId, currentCompanyId),
         {

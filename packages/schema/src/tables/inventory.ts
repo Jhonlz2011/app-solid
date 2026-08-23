@@ -15,7 +15,7 @@ export const warehouses = pgTableV2("warehouses", {
     address: text("address"),
     is_mobile: boolean("is_mobile").default(false),
     // Responsable de la bodega (para aprobaciones de despacho)
-    manager_id: integer("manager_id").references(() => entities.id),
+    manager_id: uuid("manager_id").references(() => entities.id),
     is_active: boolean("is_active").default(true),
 }, (t) => [
     unique("unq_warehouse_code_company").on(t.company_id, t.code),

@@ -9,7 +9,7 @@ export function createEntityKeys(entityName: string) {
         lists,
         list: (filters: EntityFilters) => [...lists(), filters] as const,
         details: () => [...all, 'detail'] as const,
-        detail: (id: number) => [...all, 'detail', id] as const,
+        detail: (id: string | number) => [...all, 'detail', id] as const,
         facets: (search?: string, filters?: Record<string, string[] | undefined>) =>
             [...all, 'facets', { search, ...filters }] as const,
     };

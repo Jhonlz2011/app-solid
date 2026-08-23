@@ -6,12 +6,12 @@
  */
 import { Component, Show } from 'solid-js';
 import { parseUserAgent, formatSessionDate } from '@shared/utils/session.utils';
-import type { UserSessionDto } from '@app/schema/dto';
+import type { UserSessionType } from '@app/schema/dto';
 import Button from '@form/Button';
 import { LogoutIcon } from '@icons/LogoutIcon';
 
 interface SessionItemProps {
-    session: UserSessionDto;
+    session: UserSessionType;
     onRevoke: (id: string) => void;
     isRevoking: boolean;
     /** Compact mode for narrower contexts like Sheets */

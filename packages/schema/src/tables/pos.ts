@@ -56,7 +56,7 @@ export const posSales = pgTableV2("pos_sales", {
     session_id: integer("session_id").references(() => posSessions.id).notNull(),
 
     // Optional client (for "Consumidor Final" use null)
-    client_id: integer("client_id").references(() => entities.id),
+    client_id: uuid("client_id").references(() => entities.id),
 
     // Link to electronic document when generated
     document_id: integer("document_id").references(() => electronicDocuments.id),

@@ -3,7 +3,7 @@
 // ============================================================================
 
 // Re-export enum types for frontend convenience
-export { type TaxIdType, type TaxIdTypeForm, type PersonType, type TaxRegimeType } from '../enums';
+export { type TaxIdEnum, type TaxIdTypeForm, type PersonType, type TaxRegimeType } from '../enums';
 export { type RbacModule, type RbacAction, type PermissionSlug } from '../enums';
 export { type ProductType, type ProductSubtype } from '../enums';
 export { TAX_ID_TYPES_FORM, PRODUCT_TYPES, PRODUCT_SUBTYPES, ATTRIBUTE_DATA_TYPES, UOM_GROUPS, LOCATION_TYPES } from '../enums';

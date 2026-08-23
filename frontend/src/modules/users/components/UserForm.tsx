@@ -2,7 +2,7 @@ import { Component, For, Show, createSignal, createMemo } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { UserFormSchema, UserCreateSchema, type UserFormData } from '@app/schema/frontend';
-import type { RoleDto } from '@app/schema/dto';
+import type { RoleType } from '@app/schema/dto';
 import { TextField } from '@form/TextField';
 import { Autocomplete } from '@form/Autocomplete';
 import Checkbox from '@form/Checkbox';
@@ -20,7 +20,7 @@ import { toast } from 'solid-sonner';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface EntityOption {
-    id: number;
+    id: string;
     businessName: string;
     taxId: string;
 }
@@ -31,10 +31,10 @@ export interface UserFormProps {
         email?: string;
         isActive?: boolean;
         roleIds?: number[];
-        entityId?: number | null;
+        entityId?: string | null;
     };
     formId?: string;
-    roles: RoleDto[];
+    roles: RoleType[];
     rolesLoading?: boolean;
     /** Show password field (new user creation) */
     showPassword?: boolean;

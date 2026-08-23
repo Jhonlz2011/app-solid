@@ -1,30 +1,25 @@
 import { Type, type Static } from '@sinclair/typebox';
-import type { EntityPayload } from '../dto/entities.dto';
+import type { CursorFilters } from './common.dto';
+import { TAX_ID_TYPES, PERSON_TYPES, TAX_REGIME_TYPES, type PersonType, type TaxIdType } from '../enums';
 
 // ============================================================================
-// ENTITY ENUMS & SUB-SCHEMAS (TypeBox for Elysia routes)
+// ENTITY ENUMS & SUB-SCHEMAS (TypeBox for Elysia routes & Eden Treaty)
 // ============================================================================
+export interface EntityFilters extends CursorFilters {
+    personType?: PersonType[];
+    taxIdType?: TaxIdType[];
+    isActive?: string[];
+    businessName?: string[];
+    isCarrier?: boolean;
+}
 
-export const TaxIdTypeSchema = Type.Union([
-    Type.Literal('RUC'),
-    Type.Literal('CEDULA'),
-    Type.Literal('PASAPORTE'),
-    Type.Literal('CONSUMIDOR_FINAL'),
-    Type.Literal('EXTERIOR'),
-]);
+const TaxIdTypeSchema = Type.Union(TAX_ID_TYPES.map((t) => Type.Literal(t)));
 
-export const PersonTypeSchema = Type.Union([
-    Type.Literal('NATURAL'),
-    Type.Literal('JURIDICA'),
-]);
+const PersonTypeSchema = Type.Union(PERSON_TYPES.map((t) => Type.Literal(t)));
 
-export const TaxRegimeTypeSchema = Type.Union([
-    Type.Literal('RIMPE_NEGOCIO_POPULAR'),
-    Type.Literal('RIMPE_EMPRENDEDOR'),
-    Type.Literal('GENERAL'),
-]);
+export const TaxRegimeTypeSchema = Type.Union(TAX_REGIME_TYPES.map((t) => Type.Literal(t)));
 
-export const ContactPayloadSchema = Type.Object({
+export const ContactBodySchema = Type.Object({
     name: Type.String(),
     position: Type.String(),
     email: Type.Union([Type.String({ format: 'email' }), Type.Literal('')]),
@@ -32,7 +27,7 @@ export const ContactPayloadSchema = Type.Object({
     isPrimary: Type.Boolean()
 });
 
-export const AddressPayloadSchema = Type.Object({
+export const AddressBodySchema = Type.Object({
     addressLine: Type.String(),
     city: Type.String(),
     country: Type.String(),
@@ -41,7 +36,7 @@ export const AddressPayloadSchema = Type.Object({
     isMain: Type.Boolean()
 });
 
-export const EmployeeDetailsPayloadSchema = Type.Object({
+export const EmployeeDetailsBodySchema = Type.Object({
     departmentId: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     jobTitleId: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     salaryBase: Type.Optional(Type.Number()),
@@ -50,12 +45,12 @@ export const EmployeeDetailsPayloadSchema = Type.Object({
 });
 
 // Departments & Job Titles DTOs (TypeBox)
-export const DepartmentPayloadSchema = Type.Object({
+export const DepartmentBodySchema = Type.Object({
     name: Type.String({ minLength: 1 }),
     code: Type.Optional(Type.String()),
 });
 
-export const JobTitlePayloadSchema = Type.Object({
+export const JobTitleBodySchema = Type.Object({
     name: Type.String({ minLength: 1 }),
     departmentId: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
 });
@@ -74,15 +69,15 @@ export const JobTitleResponseSchema = Type.Object({
     is_active: Type.Boolean(),
 });
 
-export const CarrierVehiclePayloadSchema = Type.Object({
+export const CarrierVehicleBodySchema = Type.Object({
     licensePlate: Type.String(),
     description: Type.Optional(Type.String()),
     isActive: Type.Optional(Type.Boolean()),
 });
 
-export const CarrierVehicleUpdateSchema = Type.Partial(CarrierVehiclePayloadSchema);
+export const CarrierVehicleUpdateSchema = Type.Partial(CarrierVehicleBodySchema);
 
-export const CarrierDriverPayloadSchema = Type.Object({
+export const CarrierDriverBodySchema = Type.Object({
     identificationNumber: Type.String(),
     fullName: Type.String(),
     phone: Type.Optional(Type.String()),
@@ -90,7 +85,7 @@ export const CarrierDriverPayloadSchema = Type.Object({
 });
 
 // Main Entity Form Schema (TypeBox) - Aligned strictly with frontend Valibot schema
-export const EntityFormSchema = Type.Object({
+export const EntityBodySchema = Type.Object({
     taxId: Type.String(),
     taxIdType: TaxIdTypeSchema,
     personType: PersonTypeSchema,
@@ -98,29 +93,22 @@ export const EntityFormSchema = Type.Object({
     tradeName: Type.String(),
     emailBilling: Type.Union([Type.String({ format: 'email' }), Type.Literal('')]),
     phone: Type.String(),
-    
     isClient: Type.Boolean(),
     isSupplier: Type.Boolean(),
     isEmployee: Type.Boolean(),
     isCarrier: Type.Boolean(),
-    
     taxRegimeType: Type.Optional(TaxRegimeTypeSchema),
     obligadoContabilidad: Type.Boolean(),
     isRetentionAgent: Type.Boolean(),
     isSpecialContributor: Type.Boolean(),
-    
-    employeeDetails: Type.Optional(EmployeeDetailsPayloadSchema),
-    contacts: Type.Array(ContactPayloadSchema),
-    addresses: Type.Array(AddressPayloadSchema),
-    vehicles: Type.Optional(Type.Array(CarrierVehiclePayloadSchema)),
-    drivers: Type.Optional(Type.Array(CarrierDriverPayloadSchema)),
+    employeeDetails: Type.Optional(EmployeeDetailsBodySchema),
+    contacts: Type.Array(ContactBodySchema),
+    addresses: Type.Array(AddressBodySchema),
+    vehicles: Type.Optional(Type.Array(CarrierVehicleBodySchema)),
+    drivers: Type.Optional(Type.Array(CarrierDriverBodySchema)),
 });
 
-// Compile-Time Assertions
-type AssertTypeBox<T extends EntityPayload> = T;
-const _checkEntityBodySchema: AssertTypeBox<Static<typeof EntityFormSchema>> = {} as any as Static<typeof EntityFormSchema>;
-
-export const EntityUpdateSchema = Type.Partial(Type.Omit(EntityFormSchema, ['taxId', 'taxIdType']));
+export const EntityUpdateBodySchema = Type.Partial(Type.Omit(EntityBodySchema, ['taxId', 'taxIdType']));
 
 export const EntityPickerQuerySchema = Type.Object({
     search: Type.Optional(Type.String()),
@@ -149,8 +137,8 @@ export const EntityFacetsQuerySchema = Type.Object({
     businessName: Type.Optional(Type.String()),
 });
 
-export const EntityPickerItemSchema = Type.Object({
-    id: Type.Number(),
+export const EntityPickerResponseSchema = Type.Object({
+    id: Type.String(),
     businessName: Type.String(),
     taxId: Type.String(),
 });
@@ -163,18 +151,6 @@ export const EntityReferencesResponseSchema = Type.Object({
     canDelete: Type.Boolean(),
 });
 
-export type EntityFormType = Static<typeof EntityFormSchema>;
-export type EntityUpdateType = Static<typeof EntityUpdateSchema>;
-export type EntityPickerQueryType = Static<typeof EntityPickerQuerySchema>;
-export type EntityListQueryType = Static<typeof EntityListQuerySchema>;
-export type EntityFacetsQueryType = Static<typeof EntityFacetsQuerySchema>;
-export type EntityPickerItemType = Static<typeof EntityPickerItemSchema>;
-export type EntityReferencesResponseType = Static<typeof EntityReferencesResponseSchema>;
-export type DepartmentPayloadType = Static<typeof DepartmentPayloadSchema>;
-export type JobTitlePayloadType = Static<typeof JobTitlePayloadSchema>;
-export type DepartmentResponseType = Static<typeof DepartmentResponseSchema>;
-export type JobTitleResponseType = Static<typeof JobTitleResponseSchema>;
-
 // Employee Schedules
 export const EmployeeScheduleReportQuerySchema = Type.Object({
     start_date: Type.Optional(Type.String()),
@@ -182,26 +158,114 @@ export const EmployeeScheduleReportQuerySchema = Type.Object({
     employee_id: Type.Optional(Type.String()),
 });
 
-export const EmployeeScheduleCreateSchema = Type.Object({
-    employee_id: Type.Number(),
-    work_order_id: Type.Optional(Type.Number()),
-    work_date: Type.String(),
-    hours_normal: Type.Optional(Type.Number()),
-    hours_supplementary: Type.Optional(Type.Number()),
-    hours_extraordinary: Type.Optional(Type.Number()),
-    labor_cost: Type.Optional(Type.String()),
-    project_expense: Type.Optional(Type.String()),
-    justification: Type.Optional(Type.String()),
+export const EntityDetailContactResponseSchema = Type.Object({
+    id: Type.Number(),
+    entity_id: Type.Optional(Type.String()),
+    name: Type.String(),
+    position: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    email: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    phone: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    is_primary: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
 });
 
-export const EmployeeScheduleUpdateSchema = Type.Object({
-    hours_normal: Type.Optional(Type.Number()),
-    hours_supplementary: Type.Optional(Type.Number()),
-    hours_extraordinary: Type.Optional(Type.Number()),
-    labor_cost: Type.Optional(Type.String()),
-    project_expense: Type.Optional(Type.String()),
-    justification: Type.Optional(Type.String()),
+export const EntityDetailAddressResponseSchema = Type.Object({
+    id: Type.Number(),
+    entity_id: Type.Optional(Type.String()),
+    address_line: Type.String(),
+    country: Type.String(),
+    country_code: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    state: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    city: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    parish: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    postal_code: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    is_main: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
 });
 
-export type EmployeeScheduleCreateType = Static<typeof EmployeeScheduleCreateSchema>;
-export type EmployeeScheduleUpdateType = Static<typeof EmployeeScheduleUpdateSchema>;
+export const EntityDetailEmployeeDetailsResponseSchema = Type.Object({
+    entity_id: Type.Optional(Type.String()),
+    department_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    department_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    job_title_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    job_title_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    salary_base: Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()])),
+    hire_date: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    cost_per_hour: Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()])),
+});
+
+export const EntityDetailVehicleResponseSchema = Type.Object({
+    id: Type.Number(),
+    company_id: Type.Optional(Type.Number()),
+    carrier_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    license_plate: Type.String(),
+    description: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    is_active: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+});
+
+export const EntityDetailDriverResponseSchema = Type.Object({
+    id: Type.Number(),
+    carrier_id: Type.Optional(Type.String()),
+    identification_number: Type.String(),
+    full_name: Type.String(),
+    phone: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    is_active: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+});
+
+export const EntityDetailResponseSchema = Type.Object({
+    id: Type.String(),
+    company_id: Type.Optional(Type.Number()),
+    tax_id: Type.String(),
+    tax_id_type: Type.String(),
+    person_type: Type.String(),
+    business_name: Type.String(),
+    trade_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    email_billing: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    phone: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    is_client: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    is_supplier: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    is_employee: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    is_carrier: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    is_system: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    tax_regime_type: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    obligado_contabilidad: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    is_retention_agent: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    is_special_contributor: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    default_price_list_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    is_active: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    created_at: Type.Optional(Type.Union([Type.Date(), Type.String(), Type.Null()])),
+    updated_at: Type.Optional(Type.Union([Type.Date(), Type.String(), Type.Null()])),
+    deleted_at: Type.Optional(Type.Union([Type.Date(), Type.String(), Type.Null()])),
+    deleted_by: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    contacts: Type.Optional(Type.Array(EntityDetailContactResponseSchema)),
+    addresses: Type.Optional(Type.Array(EntityDetailAddressResponseSchema)),
+    employeeDetails: Type.Optional(Type.Union([EntityDetailEmployeeDetailsResponseSchema, Type.Null()])),
+    vehicles: Type.Optional(Type.Array(EntityDetailVehicleResponseSchema)),
+    drivers: Type.Optional(Type.Array(EntityDetailDriverResponseSchema)),
+});
+
+
+// ============================================================================
+// CANONICAL INFERRED TYPES (Single Source of Truth)
+// ============================================================================
+
+export type EntityBodyType = Static<typeof EntityBodySchema>;
+export type EntityUpdateType = Static<typeof EntityUpdateBodySchema>;
+export type EntityDetailType = Static<typeof EntityDetailResponseSchema>;
+
+export type EntityContactType = Static<typeof ContactBodySchema>;
+export type EntityAddressType = Static<typeof AddressBodySchema>;
+
+export type EntityEmployeeDetailsType = Static<typeof EmployeeDetailsBodySchema>;
+
+export type CarrierVehicleType = Static<typeof CarrierVehicleBodySchema>;
+export type CarrierDriverType = Static<typeof CarrierDriverBodySchema>;
+
+export type EntityPickerType = Static<typeof EntityPickerResponseSchema>;
+export type EntityReferencesType = Static<typeof EntityReferencesResponseSchema>;
+
+export type DepartmentType = Static<typeof DepartmentBodySchema>;
+export type DepartmentDetailType = Static<typeof DepartmentResponseSchema>;
+
+export type JobTitleType = Static<typeof JobTitleBodySchema>;
+export type JobTitleDetailType = Static<typeof JobTitleResponseSchema>;
+
+export type { EntityType } from '../enums';

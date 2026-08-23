@@ -1,11 +1,11 @@
 import { Type, type Static } from './typebox';
-import type { ProductPayload } from '../dto/products.dto';
 
 // ============================================================================
 // PRODUCTS & VARIANTS
+// Standard: Request Bodies -> *BodySchema, Responses -> *ResponseSchema
 // ============================================================================
 
-export const ProductVariantPayloadSchema = Type.Object({
+export const ProductVariantBodySchema = Type.Object({
     id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     sku: Type.String({ minLength: 1 }),
     variant_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
@@ -23,7 +23,7 @@ export const ProductVariantPayloadSchema = Type.Object({
     sort_order: Type.Optional(Type.Number()),
 });
 
-export const ProductComponentPayloadSchema = Type.Object({
+export const ProductComponentBodySchema = Type.Object({
     id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     component_product_id: Type.Number(),
     quantity_per_parent: Type.Number(),
@@ -31,7 +31,7 @@ export const ProductComponentPayloadSchema = Type.Object({
     notes: Type.Optional(Type.Union([Type.String(), Type.Null()])),
 });
 
-export const ProductPayloadSchema = Type.Object({
+export const ProductBodySchema = Type.Object({
     product_type: Type.Union([Type.Literal('PRODUCTO'), Type.Literal('SERVICIO')]),
     product_subtype: Type.Optional(Type.Union([Type.Literal('SIMPLE'), Type.Literal('COMPUESTO'), Type.Literal('FABRICADO'), Type.Null()])),
     category_id: Type.Number(),
@@ -47,17 +47,9 @@ export const ProductPayloadSchema = Type.Object({
     default_base_price: Type.Number(),
     iva_rate_code: Type.Number(),
     is_active: Type.Boolean(),
-    variants: Type.Array(ProductVariantPayloadSchema),
-    components: Type.Optional(Type.Array(ProductComponentPayloadSchema)),
+    variants: Type.Array(ProductVariantBodySchema),
+    components: Type.Optional(Type.Array(ProductComponentBodySchema)),
 });
-
-export type ProductPayloadType = Static<typeof ProductPayloadSchema>;
-export type ProductVariantPayloadType = Static<typeof ProductVariantPayloadSchema>;
-export type ProductComponentPayloadType = Static<typeof ProductComponentPayloadSchema>;
-
-// Compile-Time Assertions
-type AssertProductTypeBox<T extends ProductPayload> = T;
-const _checkProductBodySchema: AssertProductTypeBox<Static<typeof ProductPayloadSchema>> = {} as any as Static<typeof ProductPayloadSchema>;
 
 export const ProductUploadImagesBodySchema = Type.Object({
     files: Type.Union([Type.File(), Type.Array(Type.File())]),
@@ -69,11 +61,13 @@ export const ProductDeleteImageBodySchema = Type.Object({
 
 export const ProductListQuerySchema = Type.Object({
     cursor: Type.Optional(Type.String()),
-    direction: Type.Optional(Type.String()),
+    direction: Type.Optional(Type.Union([
+        Type.Literal('first'), Type.Literal('next'), Type.Literal('prev'), Type.Literal('last')
+    ])),
     limit: Type.Optional(Type.Number()),
     search: Type.Optional(Type.String()),
     sortBy: Type.Optional(Type.String()),
-    sortOrder: Type.Optional(Type.String()),
+    sortOrder: Type.Optional(Type.Union([Type.Literal('asc'), Type.Literal('desc')])),
     page: Type.Optional(Type.Number()),
     categoryId: Type.Optional(Type.String()),
     brandId: Type.Optional(Type.String()),
@@ -94,6 +88,13 @@ export const GenerateSkuQuerySchema = Type.Object({
     brandId: Type.Optional(Type.Number()),
 });
 
+// ============================================================================
+// CANONICAL INFERRED TYPES (Single Source of Truth)
+// ============================================================================
+
+export type ProductBodyType = Static<typeof ProductBodySchema>;
+export type ProductVariantBodyType = Static<typeof ProductVariantBodySchema>;
+export type ProductComponentBodyType = Static<typeof ProductComponentBodySchema>;
 export type ProductUploadImagesBodyType = Static<typeof ProductUploadImagesBodySchema>;
 export type ProductDeleteImageBodyType = Static<typeof ProductDeleteImageBodySchema>;
 export type ProductListQueryType = Static<typeof ProductListQuerySchema>;

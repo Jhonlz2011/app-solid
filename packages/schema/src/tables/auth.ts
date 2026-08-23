@@ -24,7 +24,7 @@ export const user = pgTableV2("user", {
     updatedAt: timestamp("updated_at", TZ).defaultNow().notNull(),
     
     // Better-Auth username plugin
-    username: text("username").unique(),
+    username: text("username").unique().notNull(),
     displayUsername: text("display_username"),
     
     // Better-Auth twoFactor plugin
@@ -33,7 +33,7 @@ export const user = pgTableV2("user", {
     // Denormalized cache — updated by org switch hook. NOT the source of truth.
     // Source of truth: member.organizationId → organization → companies.organization_id
     company_id: integer("company_id").references(() => companies.id),
-    entity_id: integer("entity_id").references(() => entities.id),
+    entity_id: uuid("entity_id").references(() => entities.id),
     is_active: boolean("is_active").default(true),
     last_login: timestamp("last_login", TZ),
 }, (t) => [
@@ -116,7 +116,7 @@ export const member = pgTableV2("member", {
     role: text("role").default("member").notNull(),
     createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
     // Per-org entity mapping: resolves user → entity (client/supplier/employee) per company
-    entityId: integer("entity_id").references(() => entities.id),
+    entityId: uuid("entity_id").references(() => entities.id),
 }, (t) => [
     index("idx_member_org").on(t.organizationId),
     index("idx_member_user").on(t.userId),

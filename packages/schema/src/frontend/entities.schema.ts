@@ -1,6 +1,6 @@
 import { pipe, string, minLength, object, email, picklist, boolean, union, literal, array, number, optional, null_, forward, check, type InferInput } from 'valibot';
 import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES } from '../enums';
-import type { EntityPayload } from '../dto/entities.dto';
+import type { EntityBodyType } from '../backend/entities.dto';
 
 // --- REUSABLE ENUM SCHEMAS ---
 export const TaxIdTypeSchema = picklist(TAX_ID_TYPES);
@@ -112,6 +112,6 @@ export type CarrierVehicleFormData = InferInput<typeof CarrierVehicleFormSchema>
 export type CarrierDriverFormData = InferInput<typeof CarrierDriverFormSchema>;
 
 // Compile-Time Assertion: Ensures Valibot schema matches exactly the E2E contract interface
-type AssertValibot<T extends EntityPayload> = T;
+type AssertValibot<T extends EntityBodyType> = T;
 const _checkEntityFormData: AssertValibot<EntityFormData> = {} as any as EntityFormData;
 void _checkEntityFormData;

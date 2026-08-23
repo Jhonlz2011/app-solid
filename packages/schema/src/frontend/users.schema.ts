@@ -8,7 +8,7 @@ export const UserFormSchema = object({
     password: optional(string()),
     isActive: optional(boolean()),
     roleIds: array(number()),
-    entityId: optional(nullable(number())),
+    entityId: optional(nullable(string())),
 });
 
 /** Create variant — password required with minLength */

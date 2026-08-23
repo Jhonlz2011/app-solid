@@ -2,15 +2,15 @@ import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
 import type {
     BrandItem,
-    BrandPayload,
-    BrandUpdatePayload,
+    BrandBodyType,
+    BrandUpdateType,
     BrandFilters,
-    BrandReferences,
+    BrandReferencesType,
     PaginatedResult,
 } from '@app/schema/dto';
 
 // Re-export shared contracts for local module consumers
-export type { BrandItem, BrandPayload, BrandUpdatePayload, BrandFilters, BrandReferences, PaginatedResult };
+export type { BrandItem, BrandBodyType, BrandUpdateType, BrandFilters, BrandReferencesType, PaginatedResult };
 
 // =============================================================================
 // API Wrappers — Brands (/api/brands)
@@ -48,13 +48,13 @@ export const brandsApi = {
         return (data as BrandItem[]) || [];
     },
 
-    create: async (body: BrandPayload): Promise<BrandItem> => {
+    create: async (body: BrandBodyType): Promise<BrandItem> => {
         const { data, error } = await api.brands.post(body);
         if (error) throwApiError(error);
         return data as BrandItem;
     },
 
-    update: async (id: number, body: BrandUpdatePayload): Promise<BrandItem> => {
+    update: async (id: number, body: BrandUpdateType): Promise<BrandItem> => {
         const { data, error } = await api.brands({ id }).put(body);
         if (error) throwApiError(error);
         return data as BrandItem;
@@ -72,10 +72,10 @@ export const brandsApi = {
         return data as BrandItem;
     },
 
-    checkReferences: async (id: number): Promise<BrandReferences> => {
+    checkReferences: async (id: number): Promise<BrandReferencesType> => {
         const { data, error } = await api.brands({ id }).references.get();
         if (error) throwApiError(error);
-        return data as BrandReferences;
+        return data as BrandReferencesType;
     },
 
     hardDelete: async (id: number): Promise<{ success: boolean }> => {

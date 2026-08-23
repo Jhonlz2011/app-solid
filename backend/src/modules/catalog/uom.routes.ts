@@ -1,18 +1,18 @@
 import { Elysia } from 'elysia';
-import { authGuard } from '../../plugins/auth-guard';
+import { tenantGuard } from '../../plugins/tenant-guard';
 import { rbac } from '../../plugins/rbac';
 import { uomService } from './uom.service';
 import {
     UomBodySchema,
-    UomUpdateSchema,
+    UomUpdateBodySchema,
     UomReferencesResponseSchema,
     IdParamSchema,
     SuccessResponseSchema,
 } from '@app/schema/backend';
-import type { UomPayload, UomUpdatePayload } from '@app/schema/dto';
+import type { UomBodyType, UomUpdateType } from '@app/schema/dto';
 
 export const uomRoutes = new Elysia({ prefix: '/uom' })
-    .use(authGuard)
+    .use(tenantGuard)
     .use(rbac)
 
     // Simple catalog list (all system + tenant UOMs)
@@ -35,7 +35,7 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
         '/',
         async ({ body, set, headers, currentCompanyId }) => {
             const created = await uomService.create(
-                body as UomPayload,
+                body as UomBodyType,
                 currentCompanyId,
                 headers['x-client-id']
             );
@@ -54,13 +54,13 @@ export const uomRoutes = new Elysia({ prefix: '/uom' })
         ({ params, body, headers, currentCompanyId }) =>
             uomService.update(
                 params.id,
-                body as UomUpdatePayload,
+                body as UomUpdateType,
                 currentCompanyId,
                 headers['x-client-id']
             ),
         {
             params: IdParamSchema,
-            body: UomUpdateSchema,
+            body: UomUpdateBodySchema,
             permission: 'uom.update',
         }
     )

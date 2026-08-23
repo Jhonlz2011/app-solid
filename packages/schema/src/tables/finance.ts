@@ -21,7 +21,7 @@ export const accountsReceivable = pgTableV2("accounts_receivable", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     company_id: integer("company_id").references(() => companies.id).notNull(),
     document_id: integer("document_id").references(() => electronicDocuments.id).notNull(),
-    entity_id: integer("entity_id").references(() => entities.id).notNull(),  // Client
+    entity_id: uuid("entity_id").references(() => entities.id).notNull(),  // Client
 
     total_amount: numeric("total_amount", { precision: 12, scale: 2 }).notNull(),
     amount_paid: numeric("amount_paid", { precision: 12, scale: 2 }).default('0').notNull(),
@@ -53,7 +53,7 @@ export const accountsPayable = pgTableV2("accounts_payable", {
     // Supplier invoice reference (external document)
     supplier_invoice_number: text("supplier_invoice_number"),
     supplier_invoice_date: date("supplier_invoice_date"),
-    entity_id: integer("entity_id").references(() => entities.id).notNull(),  // Supplier
+    entity_id: uuid("entity_id").references(() => entities.id).notNull(),  // Supplier
 
     total_amount: numeric("total_amount", { precision: 12, scale: 2 }).notNull(),
     amount_paid: numeric("amount_paid", { precision: 12, scale: 2 }).default('0').notNull(),
@@ -101,7 +101,7 @@ export const purchaseQuotes = pgTableV2("purchase_quotes", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     company_id: integer("company_id").references(() => companies.id).notNull(),
     code_sequence: integer("code_sequence"),
-    supplier_id: integer("supplier_id").references(() => entities.id).notNull(),
+    supplier_id: uuid("supplier_id").references(() => entities.id).notNull(),
     status: purchaseQuoteStatusEnum("status").default('DRAFT').notNull(),
 
     // Totals

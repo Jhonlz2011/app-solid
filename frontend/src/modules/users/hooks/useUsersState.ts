@@ -26,7 +26,7 @@ import {
 } from '../data/users.mutations';
 import { rbacKeys } from '../data/users.keys';
 import { usersApi } from '../data/users.api';
-import type { RoleDto, UserListItemDto, UsersFilters } from '@app/schema/dto'
+import type { RoleType, UserListItemType, UsersFilters } from '@app/schema/dto'
 import { createUserColumns } from '../data/user.columns';
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -54,10 +54,10 @@ export function useUsersState() {
     };
 
     // ─── Users tab state ────────────────────────────────────────
-    let getQueryData = () => [] as UserListItemDto[];
+    let getQueryData = () => [] as UserListItemType[];
     let getQueryMeta = () => undefined as any;
 
-    const tableState = useDataTable<UserListItemDto>({
+    const tableState = useDataTable<UserListItemType>({
         data: () => getQueryData(),
         meta: () => getQueryMeta(),
         isCursorBased: false
@@ -74,7 +74,7 @@ export function useUsersState() {
     const [usersDialog, setUsersDialog] = createSignal<{ roleId: number; roleName: string } | null>(null);
 
     // ─── Confirm dialogs ────────────────────────────────────────
-    const [deleteTarget, setDeleteTarget] = createSignal<UserListItemDto | null>(null);
+    const [deleteTarget, setDeleteTarget] = createSignal<UserListItemType | null>(null);
     const [confirmDeleteRole, setConfirmDeleteRole] = createSignal<{ id: number; name: string } | null>(null);
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = createSignal(false);
     const [showBulkRestoreConfirm, setShowBulkRestoreConfirm] = createSignal(false);
@@ -137,14 +137,14 @@ export function useUsersState() {
         };
     };
 
-    const handleRestore = (user: UserListItemDto) => {
+    const handleRestore = (user: UserListItemType) => {
         restoreMutation.mutate(user.id, {
             onSuccess: () => toast.success(`Se ha restaurado el usuario '${user.username}'`),
             onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
 
-    const handlePrefetchUser = (u: UserListItemDto) => {
+    const handlePrefetchUser = (u: UserListItemType) => {
         queryClient.prefetchQuery({
             queryKey: rbacKeys.user(u.id),
             queryFn: () => usersApi.getUser(u.id),
@@ -154,17 +154,17 @@ export function useUsersState() {
 
     // ─── Role handlers ──────────────────────────────────────────
     const handleNewRole = () => setRoleDialog({ mode: 'create' });
-    const handleEditRole = (r: RoleDto) => setRoleDialog({ mode: 'edit', roleId: r.id });
+    const handleEditRole = (r: RoleType) => setRoleDialog({ mode: 'edit', roleId: r.id });
     const handleCloseRoleDialog = () => setRoleDialog(null);
 
-    const handlePrefetchRole = (r: RoleDto) => {
+    const handlePrefetchRole = (r: RoleType) => {
         queryClient.prefetchQuery({ queryKey: rbacKeys.role(r.id), queryFn: () => usersApi.getRole(r.id), staleTime: 1000 * 60 * 5 });
         queryClient.prefetchQuery({ queryKey: rbacKeys.rolePermissions(r.id), queryFn: () => usersApi.getRolePermissions(r.id), staleTime: 1000 * 60 * 5 });
     };
 
     // ─── Delete handlers ────────────────────────────────────────
-    const handleDeleteUser = (u: UserListItemDto) => setDeleteTarget(u);
-    const handleDeleteRole = (r: RoleDto) => setConfirmDeleteRole({ id: r.id, name: r.name });
+    const handleDeleteUser = (u: UserListItemType) => setDeleteTarget(u);
+    const handleDeleteRole = (r: RoleType) => setConfirmDeleteRole({ id: r.id, name: r.name });
 
     const confirmDeleteRoleAction = () => {
         const target = confirmDeleteRole();

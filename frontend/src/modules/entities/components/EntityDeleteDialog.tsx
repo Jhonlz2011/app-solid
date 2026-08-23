@@ -1,7 +1,7 @@
 import { Component, createSignal } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useAuth } from '@/modules/auth/store/auth.store';
-import type { EntityReferences } from '@app/schema/dto';
+import type { EntityReferencesType } from '@app/schema/dto';
 import type { RbacModule } from '@app/schema/enums';
 import type { EntityListItem } from '../data/entities.api';
 import DeleteDialog from '@overlay/DeleteDialog';
@@ -76,7 +76,7 @@ export const EntityDeleteDialog: Component<EntityDeleteDialogProps> = (props) =>
 
     const referenceLines = () => {
         if (refsQuery.isPending) return [];
-        const data = refsQuery.data as EntityReferences | undefined;
+        const data = refsQuery.data as EntityReferencesType | undefined;
         if (!data) return [];
         const lines: string[] = [];
         if (data.supplierProducts > 0) lines.push(`${data.supplierProducts} producto(s) vinculado(s)`);

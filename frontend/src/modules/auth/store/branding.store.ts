@@ -1,6 +1,6 @@
 import { createStore } from "solid-js/store";
 import { authApi } from "../api/auth.api";
-import type { TenantBrandingDto } from '@app/schema/dto';
+import type { TenantBrandingType } from '@app/schema/dto';
 import { getContrastColor } from '@app/schema/utils/color';
 import { THEME_PRESETS } from '@app/schema/utils';
 import { resolveSlugFromHost } from '@app/schema/utils';
@@ -10,7 +10,7 @@ let activeBrandingAbort: AbortController | null = null;
 
 
 interface BrandingState {
-    tenant: TenantBrandingDto | null;
+    tenant: TenantBrandingType | null;
     loading: boolean;
     error: string | null;
 }
@@ -21,7 +21,7 @@ export const getSubdomain = (): string | null =>
         new URLSearchParams(window.location.search).get('slug'),
     );
 
-const getInitialTenant = (): TenantBrandingDto | null => {
+const getInitialTenant = (): TenantBrandingType | null => {
     if (typeof window === 'undefined') return null;
     const serverDataElement = document.getElementById("tenant-data");
     if (serverDataElement) {
@@ -50,7 +50,7 @@ const [state, setState] = createStore<BrandingState>({
     error: null,
 });
 
-export const applyBranding = (tenant: TenantBrandingDto | null) => {
+export const applyBranding = (tenant: TenantBrandingType | null) => {
     const updateDOM = () => {
         setState('tenant', tenant);
         const root = document.documentElement;

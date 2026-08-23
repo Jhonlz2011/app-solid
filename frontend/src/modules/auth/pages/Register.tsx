@@ -213,14 +213,7 @@ const Register: Component = () => {
 
             await actions.initSession();
 
-            // Automatic verification email dispatch via Better Auth client
-            await authClient.sendVerificationEmail({
-                email: s1.email,
-                callbackURL: '/verify-email',
-            }).catch((err) => {
-                console.warn('[Register] Error enviando email de verificación:', err);
-            });
-
+            // Verification email is already dispatched atomically by the backend register endpoint
             sessionStorage.setItem('resend_cooldown_until', String(Date.now() + 60000));
             toast.success('¡Cuenta creada exitosamente!');
             navigate({ to: '/dashboard', replace: true });

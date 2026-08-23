@@ -1,60 +1,60 @@
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { UomItem, UomReferences, UomPayload, UomUpdatePayload } from '@app/schema/dto';
+import type { UomItem, UomReferencesResponseType, UomBodyType, UomUpdateType } from '@app/schema/dto';
 
 // Re-export shared contracts for local module consumers
-export type { UomItem, UomReferences, UomPayload, UomUpdatePayload };
+export type { UomItem, UomReferencesResponseType, UomBodyType, UomUpdateType };
 
 export const uomApi = {
     list: async (): Promise<UomItem[]> => {
         const { data, error } = await api.uom.get();
         if (error) throwApiError(error);
-        return data as unknown as UomItem[];
+        return (data as UomItem[]) || [];
     },
 
     get: async (id: number): Promise<UomItem> => {
         const { data, error } = await api.uom({ id }).get();
         if (error) throwApiError(error);
-        return data as unknown as UomItem;
+        return data as UomItem;
     },
 
-    create: async (body: UomPayload): Promise<UomItem> => {
-        const { data, error } = await api.uom.post(body as any);
+    create: async (body: UomBodyType): Promise<UomItem> => {
+        const { data, error } = await api.uom.post(body);
         if (error) throwApiError(error);
-        return data as unknown as UomItem;
+        return data as UomItem;
     },
 
     /** Update by integer id */
-    update: async (id: number, body: UomUpdatePayload): Promise<UomItem> => {
-        const { data, error } = await (api.uom as any)({ id }).put(body);
+    update: async (id: number, body: UomUpdateType): Promise<UomItem> => {
+        const { data, error } = await api.uom({ id }).put(body);
         if (error) throwApiError(error);
-        return data as unknown as UomItem;
+        return data as UomItem;
     },
 
     /** Soft delete (deactivate) — PATCH /:id/deactivate */
     deactivate: async (id: number): Promise<void> => {
-        const { error } = await (api.uom as any)({ id }).deactivate.patch();
+        const { error } = await api.uom({ id }).deactivate.patch();
         if (error) throwApiError(error);
     },
 
     /** Restore a soft-deleted UOM — PATCH /:id/restore */
     restore: async (id: number): Promise<UomItem> => {
-        const { data, error } = await (api.uom as any)({ id }).restore.patch();
+        const { data, error } = await api.uom({ id }).restore.patch();
         if (error) throwApiError(error);
-        return data as unknown as UomItem;
+        return data as UomItem;
     },
 
     /** Check references before hard delete */
-    checkReferences: async (id: number): Promise<UomReferences> => {
-        const { data, error } = await (api.uom as any)({ id }).references.get();
+    checkReferences: async (id: number): Promise<UomReferencesResponseType> => {
+        const { data, error } = await api.uom({ id }).references.get();
         if (error) throwApiError(error);
-        return data! as UomReferences;
+        return data! as UomReferencesResponseType;
     },
 
     /** Hard delete by integer id (non-system UOMs only) */
     hardDelete: async (id: number): Promise<{ success: boolean }> => {
-        const { data, error } = await (api.uom as any)({ id }).delete();
+        const { data, error } = await api.uom({ id }).delete();
         if (error) throwApiError(error);
-        return data as unknown as { success: boolean };
+        return data as { success: boolean };
     },
 };

@@ -203,7 +203,7 @@ export async function seedCompanyWarehouse(
     tx: Tx,
     companyId: number,
     companyAddress?: string,
-    managerEntityId?: number
+    managerEntityId?: string
 ) {
     // 1. Create default physical warehouse
     const [mainWarehouse] = await tx

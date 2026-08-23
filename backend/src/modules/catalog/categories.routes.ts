@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { authGuard } from '../../plugins/auth-guard';
+import { tenantGuard } from '../../plugins/tenant-guard';
 import { rbac } from '../../plugins/rbac';
 import {
     listCategoriesEnhanced,
@@ -31,7 +31,7 @@ import {
 import { getIpAndUserAgent } from '../../plugins/ip';
 
 export const categoryRoutes = new Elysia({ prefix: '/categories' })
-    .use(authGuard)
+    .use(tenantGuard)
     .use(rbac)
     // ─── LIST CATEGORIES (flat or tree) ───────────────────────────
     .get(

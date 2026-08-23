@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
-import { authGuard } from '../../plugins/auth-guard';
+import { tenantGuard } from '../../plugins/tenant-guard';
+import { rbac } from '../../plugins/rbac';
 import { companyService } from './company.service';
 import { publicStorageService } from '../../core/storage';
 
@@ -23,15 +24,19 @@ const resolveCompanySlug = async (companyId: number): Promise<string | null> => 
 };
 
 export const companyRoutes = new Elysia({ prefix: '/settings/company' })
-  .use(authGuard)
+  .use(tenantGuard)
+  .use(rbac)
   // GET and PATCH don't need slug — removed derive() to save 1 SELECT per request
   .get('/', async ({ currentCompanyId }) => {
     return await companyService.getBranding(currentCompanyId);
+  }, {
+    permission: 'config.read',
   })
   .patch('/', async ({ currentCompanyId, body }) => {
     return await companyService.updateBranding(currentCompanyId, body);
   }, {
     body: CompanySettingsBodySchema,
+    permission: 'config.update',
   })
   // Upload routes resolve slug on-demand (only when needed for R2 key paths)
   .post('/upload-logo', async ({ currentCompanyId, body, set }) => {
@@ -49,6 +54,7 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
     return { url: logoUrl };
   }, {
     body: UploadLogoBodySchema,
+    permission: 'config.update',
   })
   .post('/upload-bg', async ({ currentCompanyId, body, set }) => {
     const companySlug = await resolveCompanySlug(currentCompanyId);
@@ -87,4 +93,5 @@ export const companyRoutes = new Elysia({ prefix: '/settings/company' })
     return { url: bgUrl };
   }, {
     body: UploadLoginBgBodySchema,
+    permission: 'config.update',
   });

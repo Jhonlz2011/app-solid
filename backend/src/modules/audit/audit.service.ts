@@ -1,5 +1,5 @@
 import { sql, inArray } from '@app/schema';
-import { db, adminDb, listener, tenantStorage } from '../../core/db';
+import { db, adminDb, listener, tenantStorage, type Tx } from '../../core/db';
 import { auditQueue, auditLogs } from '@app/schema/tables';
 
 export interface AuditContext {
@@ -14,9 +14,9 @@ export interface AuditContext {
  */
 export async function withAuditTransaction<T>(
     context: AuditContext | undefined,
-    operation: (tx: any) => Promise<T>
+    operation: (tx: Tx) => Promise<T>
 ): Promise<T> {
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx: Tx) => {
         // Tenant context (company_id) is now auto-injected by the db proxy
         // from AsyncLocalStorage when the transaction starts.
         // We only need to set user_id and ip_address here for audit triggers.

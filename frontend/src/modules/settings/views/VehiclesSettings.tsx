@@ -2,11 +2,11 @@ import { Component } from 'solid-js';
 import { useNavigate } from '@tanstack/solid-router';
 import { useVehiclesList } from '../data/vehicles.queries';
 import { useUpdateVehicle, useDeleteVehicle } from '../data/vehicles.mutations';
-import type { CompanyVehicleItem } from '@app/schema/dto';
+import type { CompanyVehicleItemType } from '@app/schema/dto';
 import { TruckIcon } from '@icons/TruckIcon';
 import SettingsTable, { type SettingsColumn } from '../components/shared/SettingsTable';
 
-const columns: SettingsColumn<CompanyVehicleItem>[] = [
+const columns: SettingsColumn<CompanyVehicleItemType>[] = [
     {
         key: 'license_plate',
         label: 'Placa',
@@ -37,24 +37,24 @@ const VehiclesSettings: Component = () => {
     const updateMut = useUpdateVehicle();
     const deleteMut = useDeleteVehicle();
 
-    const handleToggleActive = (item: CompanyVehicleItem) => {
+    const handleToggleActive = (item: CompanyVehicleItemType) => {
         updateMut.mutate({
             id: item.id,
             data: { isActive: !item.is_active },
         });
     };
 
-    const handleDelete = (item: CompanyVehicleItem) => {
+    const handleDelete = (item: CompanyVehicleItemType) => {
         if (confirm(`¿Estás seguro de eliminar el vehículo con placa ${item.license_plate}?`)) {
             deleteMut.mutate(item.id);
         }
     };
 
     return (
-        <SettingsTable<CompanyVehicleItem>
+        <SettingsTable<CompanyVehicleItemType>
             title="Vehículos"
             description="Gestiona la flota propia de vehículos de la empresa para despachos y emisión de Guías de Remisión."
-            data={query.data as CompanyVehicleItem[]}
+            data={query.data as CompanyVehicleItemType[]}
             isLoading={query.isPending}
             columns={columns}
             searchable

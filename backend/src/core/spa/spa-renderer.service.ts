@@ -1,7 +1,7 @@
 import { adminDb } from '../db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
-import type { TenantBrandingResponseDtoType } from '@app/schema/backend';
+import type { TenantBrandingType } from '@app/schema/backend';
 import { env } from '../../config/env';
 import { resolveSlugFromHost, getContrastColor, isHexColor, THEME_PRESETS, BRANDING_DEFAULTS } from '@app/schema/utils';
 
@@ -181,7 +181,7 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
 `;
 
                 // 2. Pre-injected branding JSON data for SolidJS store hydration
-                const tenantData: TenantBrandingResponseDtoType = {
+                const tenantData: TenantBrandingType = {
                     id: company.id,
                     slug: company.slug,
                     businessName: company.businessName,

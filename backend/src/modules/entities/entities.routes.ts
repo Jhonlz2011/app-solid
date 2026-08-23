@@ -1,36 +1,36 @@
 import { Elysia, t } from 'elysia';
-import { authGuard } from '../../plugins/auth-guard';
+import { tenantGuard } from '../../plugins/tenant-guard';
 import { listForPicker } from './entities.query.service';
 import {
-    EntityFormSchema,
-    EntityUpdateSchema,
-    ContactPayloadSchema,
-    AddressPayloadSchema,
+    EntityBodySchema,
+    EntityUpdateBodySchema,
+    ContactBodySchema,
+    AddressBodySchema,
     EntityPickerQuerySchema,
     EntityListQuerySchema,
     EntityFacetsQuerySchema,
     EntityReferencesResponseSchema,
-    DepartmentPayloadSchema,
-    JobTitlePayloadSchema,
+    DepartmentBodySchema,
+    JobTitleBodySchema,
     DepartmentResponseSchema,
     JobTitleResponseSchema,
-    BulkIdsBodySchema,
-    IdParamSchema,
-    SuccessResponseSchema,
+    BulkStringIdsBodySchema,
+    IdStringParamSchema,
+    EntityDetailResponseSchema,
 } from '@app/schema/backend';
-import type { EntityPayload, EntityAddressPayload, EntityContactPayload, DepartmentPayload, JobTitlePayload } from '@app/schema/dto';
+import type { EntityBodyType, EntityAddressType, EntityContactType, DepartmentType, JobTitleType, EntityType } from '@app/schema/dto';
 import { getIpAndUserAgent } from '../../plugins/ip';
 import { rbac } from '../../plugins/rbac';
 import { createEntityService } from './entities.service';
 import { addAddress, addContact, updateContact, deleteContact, createDepartment, createJobTitle } from './entities.command.service';
-import { getAddresses, getContacts, listDepartments, listJobTitles, type EntityType } from './entities.query.service';
+import { getAddresses, getContacts, listDepartments, listJobTitles } from './entities.query.service';
 
 /**
  * Entities routes — lightweight endpoints for entity picker/autocomplete, departments, job-titles.
  * Mounted at /api/entities via server.ts.
  */
 export const entityRoutes = new Elysia({ prefix: '/entities' })
-    .use(authGuard)
+    .use(tenantGuard)
     .get(
         '/',
         ({ query, currentCompanyId }) => {
@@ -50,40 +50,46 @@ export const entityRoutes = new Elysia({ prefix: '/entities' })
         response: t.Array(DepartmentResponseSchema),
     })
     .post('/departments', async ({ body, set, currentCompanyId }) => {
-        const dept = await createDepartment(body as DepartmentPayload, currentCompanyId);
+        const dept = await createDepartment(body as DepartmentType, currentCompanyId);
         set.status = 201;
         return dept;
     }, {
-        body: DepartmentPayloadSchema,
+        body: DepartmentBodySchema,
         response: DepartmentResponseSchema,
     })
-    .get('/job-titles', ({ query, currentCompanyId }) => {
-        return listJobTitles(currentCompanyId, query.departmentId ? Number(query.departmentId) : undefined);
+    .get('/job-titles', ({ currentCompanyId, query }) => {
+        const deptId = query.departmentId ? Number(query.departmentId) : undefined;
+        return listJobTitles(currentCompanyId, deptId);
     }, {
-        query: t.Object({ departmentId: t.Optional(t.String()) }),
+        query: t.Object({ departmentId: t.Optional(t.Numeric()) }),
         response: t.Array(JobTitleResponseSchema),
     })
     .post('/job-titles', async ({ body, set, currentCompanyId }) => {
-        const job = await createJobTitle(body as JobTitlePayload, currentCompanyId);
+        const job = await createJobTitle(body as JobTitleType, currentCompanyId);
         set.status = 201;
         return job;
     }, {
-        body: JobTitlePayloadSchema,
+        body: JobTitleBodySchema,
         response: JobTitleResponseSchema,
     });
 
-/** Parse comma-separated string into array (shared by list + facets) */
+/**
+ * Generic route factory that builds standard CRUD endpoints for any Entity type.
+ * Mounted at: /api/clients, /api/suppliers, /api/employees.
+ */
+interface EntityRouteConfig {
+    prefix: string;
+    type: EntityType;
+    permission: string;
+}
+
 const parseArray = (val?: string) => val?.split(',').filter(Boolean);
 
-/**
- * Generic factory for entity routes (Suppliers, Clients, Employees).
- * Replaces boilerplate route files with a single generic implementation.
- */
-export function createEntityRoutes(config: { prefix: string; type: EntityType; permission: string }) {
+export function createEntityRoutes(config: EntityRouteConfig) {
     const service = createEntityService(config.type);
 
     return new Elysia({ prefix: config.prefix })
-        .use(authGuard)
+        .use(tenantGuard)
         .use(rbac)
         // List with cursor pagination
         .get(
@@ -91,14 +97,14 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
             ({ query, currentCompanyId }) => {
                 return service.list({
                     cursor: query.cursor,
-                    direction: query.direction as 'next' | 'prev' | 'first' | 'last' | undefined,
-                    limit: query.limit ? Number(query.limit) : undefined,
+                    direction: query.direction as any,
+                    limit: query.limit !== undefined ? Number(query.limit) : undefined,
                     search: query.search,
                     sortBy: query.sortBy,
                     sortOrder: query.sortOrder as 'asc' | 'desc' | undefined,
-                    page: query.page ? Number(query.page) : undefined,
-                    personType: parseArray(query.personType),
-                    taxIdType: parseArray(query.taxIdType),
+                    page: query.page !== undefined ? Number(query.page) : undefined,
+                    personType: parseArray(query.personType) as any,
+                    taxIdType: parseArray(query.taxIdType) as any,
                     isActive: parseArray(query.isActive),
                     businessName: parseArray(query.businessName),
                 }, currentCompanyId);
@@ -114,8 +120,8 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
             ({ query, currentCompanyId }) => {
                 return service.facets({
                     search: query.search,
-                    personType: parseArray(query.personType),
-                    taxIdType: parseArray(query.taxIdType),
+                    personType: parseArray(query.personType) as any,
+                    taxIdType: parseArray(query.taxIdType) as any,
                     isActive: parseArray(query.isActive),
                     businessName: parseArray(query.businessName),
                 }, currentCompanyId);
@@ -127,9 +133,10 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
         )
         .get(
             '/:id',
-            ({ params, currentCompanyId }) => service.get(Number(params.id), currentCompanyId),
+            ({ params, currentCompanyId }) => service.get(params.id, currentCompanyId),
             {
-                params: IdParamSchema,
+                params: IdStringParamSchema,
+                response: EntityDetailResponseSchema,
                 permission: `${config.permission}.read`,
             }
         )
@@ -138,7 +145,7 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
             async ({ body, set, headers, currentUserId, currentCompanyId, request }) => {
                 const { ipAddress } = getIpAndUserAgent(request);
                 const entity = await service.create(
-                    body as EntityPayload,
+                    body as EntityBodyType,
                     { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] },
                     currentCompanyId
                 );
@@ -146,7 +153,7 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
                 return entity;
             },
             {
-                body: EntityFormSchema,
+                body: EntityBodySchema,
                 permission: `${config.permission}.create`,
             }
         )
@@ -155,15 +162,15 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
             ({ params, body, headers, currentUserId, currentCompanyId, request }) => {
                 const { ipAddress } = getIpAndUserAgent(request);
                 return service.update(
-                    Number(params.id),
-                    body as Partial<EntityPayload>,
+                    params.id,
+                    body as Partial<EntityBodyType>,
                     { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] },
                     currentCompanyId
                 );
             },
             {
-                params: IdParamSchema,
-                body: EntityUpdateSchema,
+                params: IdStringParamSchema,
+                body: EntityUpdateBodySchema,
                 permission: `${config.permission}.update`,
             }
         )
@@ -179,7 +186,7 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
                 );
             },
             {
-                body: BulkIdsBodySchema,
+                body: BulkStringIdsBodySchema,
                 permission: `${config.permission}.delete`,
             }
         )
@@ -195,16 +202,16 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
                 );
             },
             {
-                body: BulkIdsBodySchema,
+                body: BulkStringIdsBodySchema,
                 permission: `${config.permission}.restore`,
             }
         )
         // Pre-flight: check references
         .get(
             '/:id/can-delete',
-            ({ params, currentCompanyId }) => service.checkReferences(Number(params.id), currentCompanyId),
+            ({ params, currentCompanyId }) => service.checkReferences(params.id, currentCompanyId),
             {
-                params: IdParamSchema,
+                params: IdStringParamSchema,
                 response: EntityReferencesResponseSchema,
                 permission: `${config.permission}.read`,
             }
@@ -215,7 +222,7 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
             async ({ params, set, headers, currentUserId, currentCompanyId, request }) => {
                 const { ipAddress } = getIpAndUserAgent(request);
                 await service.softDelete(
-                    Number(params.id),
+                    params.id,
                     undefined,
                     { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] },
                     currentCompanyId
@@ -223,7 +230,7 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
                 set.status = 204;
             },
             {
-                params: IdParamSchema,
+                params: IdStringParamSchema,
                 permission: `${config.permission}.delete`,
             }
         )
@@ -233,13 +240,13 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
             async ({ params, headers, currentUserId, currentCompanyId, request }) => {
                 const { ipAddress } = getIpAndUserAgent(request);
                 return service.restore(
-                    Number(params.id),
+                    params.id,
                     { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] },
                     currentCompanyId
                 );
             },
             {
-                params: IdParamSchema,
+                params: IdStringParamSchema,
                 permission: `${config.permission}.restore`,
             }
         )
@@ -249,67 +256,67 @@ export function createEntityRoutes(config: { prefix: string; type: EntityType; p
             async ({ params, set, headers, currentUserId, currentCompanyId, request }) => {
                 const { ipAddress } = getIpAndUserAgent(request);
                 await service.hardDelete(
-                    Number(params.id),
+                    params.id,
                     { userId: currentUserId, ipAddress, clientId: headers['x-client-id'] },
                     currentCompanyId
                 );
                 set.status = 204;
             },
             {
-                params: IdParamSchema,
+                params: IdStringParamSchema,
                 permission: `${config.permission}.destroy`,
             }
         )
         // Addresses
         .get(
             '/:id/addresses',
-            ({ params, currentCompanyId }) => getAddresses(Number(params.id), currentCompanyId),
+            ({ params, currentCompanyId }) => getAddresses(params.id, currentCompanyId),
             {
-                params: IdParamSchema,
+                params: IdStringParamSchema,
                 permission: `${config.permission}.read`,
             }
         )
         .post(
             '/:id/addresses',
             async ({ params, body, currentCompanyId, set }) => {
-                const address = await addAddress(Number(params.id), body as EntityAddressPayload, currentCompanyId);
+                const address = await addAddress(params.id, body as EntityAddressType, currentCompanyId);
                 set.status = 201;
                 return address;
             },
             {
-                params: IdParamSchema,
-                body: AddressPayloadSchema,
+                params: IdStringParamSchema,
+                body: AddressBodySchema,
                 permission: `${config.permission}.update`,
             }
         )
         // Contacts
         .get(
             '/:id/contacts',
-            ({ params, currentCompanyId }) => getContacts(Number(params.id), currentCompanyId),
+            ({ params, currentCompanyId }) => getContacts(params.id, currentCompanyId),
             {
-                params: IdParamSchema,
+                params: IdStringParamSchema,
                 permission: `${config.permission}.read`,
             }
         )
         .post(
             '/:id/contacts',
             async ({ params, body, currentCompanyId, set }) => {
-                const contact = await addContact(Number(params.id), body as EntityContactPayload, currentCompanyId);
+                const contact = await addContact(params.id, body as EntityContactType, currentCompanyId);
                 set.status = 201;
                 return contact;
             },
             {
-                params: IdParamSchema,
-                body: ContactPayloadSchema,
+                params: IdStringParamSchema,
+                body: ContactBodySchema,
                 permission: `${config.permission}.update`,
             }
         )
         .put(
             '/contacts/:contactId',
-            ({ params, body, currentCompanyId }) => updateContact(Number(params.contactId), body as Partial<EntityContactPayload>, currentCompanyId),
+            ({ params, body, currentCompanyId }) => updateContact(Number(params.contactId), body as Partial<EntityContactType>, currentCompanyId),
             {
                 params: t.Object({ contactId: t.Numeric() }),
-                body: t.Partial(ContactPayloadSchema),
+                body: t.Partial(ContactBodySchema),
                 permission: `${config.permission}.update`,
             }
         )

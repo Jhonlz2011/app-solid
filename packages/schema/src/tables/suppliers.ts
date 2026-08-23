@@ -16,7 +16,7 @@ import { authUsers } from './auth';
 export const supplierProducts = pgTableV2("supplier_products", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     company_id: integer("company_id").references(() => companies.id).notNull(),
-    supplier_id: integer("supplier_id").references(() => entities.id).notNull(),
+    supplier_id: uuid("supplier_id").references(() => entities.id).notNull(),
     // Primary: which variant (= SKU) does this supplier sell
     variant_id: integer("variant_id").references(() => productVariants.id).notNull(),
     supplier_sku: text("supplier_sku"),
@@ -47,7 +47,7 @@ export const purchaseOrders = pgTableV2("purchase_orders", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     company_id: integer("company_id").references(() => companies.id).notNull(),
     code_sequence: integer("code_sequence"),
-    supplier_id: integer("supplier_id").references(() => entities.id).notNull(),
+    supplier_id: uuid("supplier_id").references(() => entities.id).notNull(),
     // Opcional: vinculada a una orden de trabajo
     work_order_id: integer("work_order_id").references(() => workOrders.id),
     status: purchaseOrderStatusEnum("status").default('DRAFT'),

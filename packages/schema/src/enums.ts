@@ -5,6 +5,9 @@ import { pgEnum } from 'drizzle-orm/pg-core';
 // ============================================================================
 
 // Entity-related enums
+export const ENTITY_TYPES = ['client', 'supplier', 'employee', 'carrier'] as const;
+export type EntityType = typeof ENTITY_TYPES[number];
+
 export const TAX_ID_TYPES = ['RUC', 'CEDULA', 'PASAPORTE', 'CONSUMIDOR_FINAL', 'EXTERIOR'] as const;
 /** Form-only subset: excludes CONSUMIDOR_FINAL (seed-only DB record) */
 export const TAX_ID_TYPES_FORM = ['RUC', 'CEDULA', 'PASAPORTE', 'EXTERIOR'] as const;
@@ -36,7 +39,6 @@ export const MOVEMENT_REFERENCE_TYPES = [
     'MATERIAL_REQUEST', 'ADJUSTMENT', 'POS_SALE', 'RETURN'
 ] as const;
 
-// Other enums
 export const RETENTION_TYPES = ['IVA', 'RENTA', 'ISD'] as const;
 
 // SRI Payment Method codes (Ficha Técnica v2.1 — all official codes)
@@ -73,7 +75,6 @@ export const PURCHASE_QUOTE_STATUSES = ['DRAFT', 'SENT', 'APPROVED', 'REJECTED',
 // Payment status (for invoices, CxC, CxP)
 export const PAYMENT_STATUSES = ['PENDING', 'PARTIAL', 'PAID', 'OVERDUE', 'WRITTEN_OFF'] as const;
 
-
 // Price change source types (for variant_price_history)
 export const PRICE_CHANGE_TYPES = ['COST', 'SALE'] as const;
 export const PRICE_CHANGE_SOURCES = ['PURCHASE_ORDER', 'GOODS_RECEIPT', 'MANUAL', 'IMPORT'] as const;
@@ -89,6 +90,43 @@ export const MENU_ITEM_STATUSES = ['active', 'development', 'deprecated'] as con
 
 // SaaS plans
 export const SAAS_PLANS = ['free', 'starter', 'pro', 'enterprise'] as const;
+
+
+export const SYSTEM_ROLES = {
+    SUPERADMIN: 'superadmin',
+    ADMIN: 'admin',
+} as const;
+
+/** All business modules that can have permissions */
+export const RBAC_MODULES = [
+    'dashboard',
+    // CRM children
+    'crm', 'clients', 'visits', 'budgets', 'invoices',
+    // Catalog children
+    'products', 'services', 'categories', 'brands', 'uom', 'attributes',
+    // Warehouse children
+    'inventory', 'movements', 'orders', 'locations', 'reception_materials', 'remission_guides',
+    // Operations children
+    'operations', 'work_orders', 'schedule', 'projects',
+    // Production children
+    'production', 'planning', 'bom', 'dispatch_requests', 'materials',
+    // Purchases children
+    'suppliers', 'purchase_quotes', 'purchase_orders', 'purchase_invoices', 'retentions',
+    // POS children
+    'pos_sell', 'pos_sessions', 'pos_history',
+    // Finance children
+    'documents', 'receivable', 'payable',
+    // HR children
+    'hr', 'employees', 'schedules', 'hours',
+    // System children
+    'system', 'config', 'users', 'audit', 'roles', 'permissions',
+    // Other
+    'manufacturing', 'pos', 'menu', 'companies', 'stock_taking',
+] as const;
+
+/** Standard CRUD actions */
+export const RBAC_ACTIONS = ['read', 'create', 'update', 'delete', 'restore', 'destroy', 'export', 'import', 'assign', 'unassign'] as const;
+
 
 // ============================================================================
 // TYPESCRIPT TYPES - Derived from const arrays
@@ -128,6 +166,12 @@ export type BusinessType = typeof BUSINESS_TYPES[number];
 export type SaasPlan = typeof SAAS_PLANS[number];
 export type MenuItemStatus = typeof MENU_ITEM_STATUSES[number];
 
+export type RbacModule = typeof RBAC_MODULES[number];
+export type RbacAction = typeof RBAC_ACTIONS[number];
+
+/** Compile-time permission slug: 'suppliers.create' | 'invoices.read' | ... */
+export type PermissionSlug = `${RbacModule}.${RbacAction}`;
+
 // ============================================================================
 // PG ENUMS - For Drizzle schema definitions
 // ============================================================================
@@ -161,48 +205,3 @@ export const purchaseQuoteStatusEnum = pgEnum('purchase_quote_status', PURCHASE_
 export const paymentStatusEnum = pgEnum('payment_status', PAYMENT_STATUSES);
 export const priceChangeTypeEnum = pgEnum('price_change_type', PRICE_CHANGE_TYPES);
 export const priceChangeSourceEnum = pgEnum('price_change_source', PRICE_CHANGE_SOURCES);
-
-// ============================================================================
-// RBAC ENUMS — Single Source of Truth for permissions
-// ============================================================================
-
-export const SYSTEM_ROLES = {
-    SUPERADMIN: 'superadmin',
-    ADMIN: 'admin',
-} as const;
-
-/** All business modules that can have permissions */
-export const RBAC_MODULES = [
-    'dashboard',
-    // CRM children
-    'crm', 'clients', 'visits', 'budgets', 'invoices',
-    // Catalog children
-    'products', 'services', 'categories', 'brands', 'uom', 'attributes',
-    // Warehouse children
-    'inventory', 'movements', 'orders', 'locations', 'reception_materials', 'remission_guides',
-    // Operations children
-    'operations', 'work_orders', 'schedule', 'projects',
-    // Production children
-    'production', 'planning', 'bom', 'dispatch_requests', 'materials',
-    // Purchases children
-    'suppliers', 'purchase_quotes', 'purchase_orders', 'purchase_invoices', 'retentions',
-    // POS children
-    'pos_sell', 'pos_sessions', 'pos_history',
-    // Finance children
-    'documents', 'receivable', 'payable',
-    // HR children
-    'hr', 'employees', 'schedules', 'hours',
-    // System children
-    'system', 'config', 'users', 'audit', 'roles', 'permissions',
-    // Other
-    'manufacturing', 'pos', 'menu', 'companies', 'stock_taking',
-] as const;
-
-/** Standard CRUD actions */
-export const RBAC_ACTIONS = ['read', 'create', 'update', 'delete', 'restore', 'destroy', 'export', 'import', 'assign', 'unassign'] as const;
-
-export type RbacModule = typeof RBAC_MODULES[number];
-export type RbacAction = typeof RBAC_ACTIONS[number];
-
-/** Compile-time permission slug: 'suppliers.create' | 'invoices.read' | ... */
-export type PermissionSlug = `${RbacModule}.${RbacAction}`;

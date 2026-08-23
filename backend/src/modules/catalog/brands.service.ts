@@ -1,7 +1,7 @@
 import { and, eq, ilike, or, asc, sql, inArray, type AnyColumn, type SQL } from '@app/schema';
 import { db, withTenantContext } from '../../core/db';
 import { brands, products } from '@app/schema/tables';
-import type { BrandPayload, BrandUpdatePayload, BrandItem, BrandFilters, BrandReferences } from '@app/schema/dto';
+import type { BrandBodyType, BrandUpdateType, BrandItem, BrandFilters, BrandReferencesType } from '@app/schema/dto';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/events';
@@ -93,7 +93,7 @@ export const brandsService = {
         }, 3600);
     },
 
-    async create(data: BrandPayload, companyId: number, clientId?: string): Promise<BrandItem> {
+    async create(data: BrandBodyType, companyId: number, clientId?: string): Promise<BrandItem> {
         return withTenantContext({ companyId }, async () => {
             const [created] = await db.insert(brands).values({
                 ...data,
@@ -110,7 +110,7 @@ export const brandsService = {
         });
     },
 
-    async update(id: number, data: BrandUpdatePayload, companyId: number, clientId?: string): Promise<BrandItem> {
+    async update(id: number, data: BrandUpdateType, companyId: number, clientId?: string): Promise<BrandItem> {
         return withTenantContext({ companyId }, async () => {
             const [updated] = await db.update(brands)
                 .set({ ...data, updated_at: new Date() })
@@ -165,7 +165,7 @@ export const brandsService = {
     },
 
     /** Check references to a brand across products */
-    async checkReferences(id: number, companyId: number): Promise<BrandReferences> {
+    async checkReferences(id: number, companyId: number): Promise<BrandReferencesType> {
         const [brand] = await db.select({ id: brands.id }).from(brands)
             .where(and(eq(brands.id, id), eq(brands.company_id, companyId)));
         if (!brand) throw new DomainError('Marca no encontrada', 404);

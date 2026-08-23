@@ -2,7 +2,7 @@ import { createStore } from "solid-js/store";
 import { batch } from "solid-js";
 import { authClient } from "@shared/lib/auth-client";
 import { profileApi } from "@modules/profile/data/profile.api";
-import type { ProfileDto } from '@app/schema/dto';
+import type { ProfileType } from '@app/schema/dto';
 import { type RbacModule, type PermissionSlug, SYSTEM_ROLES } from '@app/schema/enums';
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
@@ -18,13 +18,13 @@ const SESSION_FLAG_KEY = 'hasSession';
 // Current session ID — used to compare with WS revoke events
 let currentSessionId: string | null = null;
 
-// Helper to strip non-serializable fields from ProfileDto before sending via BroadcastChannel
-const sanitizeUser = ({ id, username, email, roles, permissions, entity }: ProfileDto): Partial<ProfileDto> =>
+// Helper to strip non-serializable fields from ProfileType before sending via BroadcastChannel
+const sanitizeUser = ({ id, username, email, roles, permissions, entity }: ProfileType): Partial<ProfileType> =>
     ({ id, username, email, roles, permissions, entity });
 
 // --- ESTADO REACTIVO ---
 interface AuthState {
-    user: ProfileDto | null;
+    user: ProfileType | null;
     status: 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
 }
 
@@ -72,7 +72,7 @@ export const actions = {
             // Hydrate ERP profile with RBAC & Entity metadata
             const profile = await profileApi.getMe();
             currentSessionId = profile.sessionId ?? null;
-            const user = profile as ProfileDto;
+            const user = profile as ProfileType;
 
             batch(() => {
                 setState('user', user);
@@ -116,7 +116,7 @@ export const actions = {
             // Refresh ERP profile with new company's RBAC and permissions
             const profile = await profileApi.getMe();
             currentSessionId = profile.sessionId ?? null;
-            const user = profile as ProfileDto;
+            const user = profile as ProfileType;
 
             batch(() => {
                 setState('user', user);
@@ -167,7 +167,7 @@ export const actions = {
     },
 
     // Update user profile in store (for fine-grained reactivity)
-    updateUser: (updates: Partial<ProfileDto>, shouldBroadcast = true) => {
+    updateUser: (updates: Partial<ProfileType>, shouldBroadcast = true) => {
         if (!state.user) return;
         const updatedUser = { ...state.user, ...updates };
         setState('user', updatedUser);
@@ -187,7 +187,7 @@ export const actions = {
             const userData = await profileApi.getMe();
             currentSessionId = userData.sessionId ?? null;
             batch(() => {
-                setState('user', userData as ProfileDto);
+                setState('user', userData as ProfileType);
                 setState('status', 'authenticated');
             });
             setSessionFlag(true);
@@ -215,7 +215,7 @@ export const actions = {
         try {
             const userData = await profileApi.getMe();
             // Store is reactively updated, keeping the currentSessionId and authenticated status intact
-            setState('user', userData as ProfileDto);
+            setState('user', userData as ProfileType);
             return true;
         } catch (error) {
             console.error('[Auth] Failed to refresh session:', error);

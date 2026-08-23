@@ -7,7 +7,7 @@
 import { Show, For } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
-export type { UserListItemDto } from '@app/schema/dto';
+export type { UserListItemType } from '@app/schema/dto';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { Avatar } from '@/shared/ui/display/Avatar';
 import { RoleBadge, StatusBadge, EntityTypeBadge } from '@display/Badge';
@@ -26,10 +26,10 @@ export interface ColumnFilterConfig {
 }
 
 export interface UserColumnHandlers {
-    // onView: (user: UserListItemDto) => void;
-    // onEdit: (user: UserListItemDto) => void;
-    onDelete: (user: UserListItemDto) => void;
-    onRestore: (user: UserListItemDto) => void;
+    // onView: (user: UserListItemType) => void;
+    // onEdit: (user: UserListItemType) => void;
+    onDelete: (user: UserListItemType) => void;
+    onRestore: (user: UserListItemType) => void;
     onRoleBadgeClick?: (role: { id: number; name: string }) => void;
     auth: ReturnType<typeof useAuth>;
     filters?: {
@@ -40,7 +40,7 @@ export interface UserColumnHandlers {
     };
 }
 
-export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserListItemDto>[] {
+export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserListItemType>[] {
     return [
         // -------------------------------------------------------------------
         // Select checkbox (pinned left)

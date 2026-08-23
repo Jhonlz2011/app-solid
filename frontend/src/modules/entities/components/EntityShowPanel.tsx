@@ -27,10 +27,10 @@ import type { EntityModuleType } from './EntityNewSheet';
 import { getPersonTypeLabel, getTaxIdTypeLabel, getTaxRegimeTypeLabel } from '../models/entity.types';
 
 export interface EntityShowPanelProps {
-    id?: number;
-    clientId?: number;
-    supplierId?: number;
-    employeeId?: number;
+    id?: string | number;
+    clientId?: string | number;
+    supplierId?: string | number;
+    employeeId?: string | number;
     type?: EntityModuleType;
     onClose?: () => void;
 }
@@ -51,12 +51,13 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
     };
 
     const entityId = () => {
-        if (props.id) return props.id;
-        if (props.clientId) return props.clientId;
-        if (props.supplierId) return props.supplierId;
-        if (props.employeeId) return props.employeeId;
+        if (props.id) return String(props.id);
+        if (props.clientId) return String(props.clientId);
+        if (props.supplierId) return String(props.supplierId);
+        if (props.employeeId) return String(props.employeeId);
         const p = params();
-        return Number(p?.id ?? p?.clientId ?? p?.supplierId ?? p?.employeeId ?? 0);
+        const raw = p?.id ?? p?.clientId ?? p?.supplierId ?? p?.employeeId;
+        return raw ? String(raw) : '';
     };
 
     const clientQuery = useClient(entityId, () => resolvedType() === 'client');
@@ -121,7 +122,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
             }
         >
             <Show
-                when={entityId() > 0}
+                when={Boolean(entityId())}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center h-full">
                         <div class="text-4xl mb-4 opacity-50">🔍</div>

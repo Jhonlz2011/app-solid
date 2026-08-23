@@ -118,33 +118,15 @@ export async function resolveCompanyIdFromOrg(organizationId: string): Promise<n
     return null;
 }
 
+import { hashPassword, verifyPassword } from '../core/security';
+
 // ============================================================================
-// 2. PASSWORD — Argon2id via Bun.password (nativo, sin dependencias extra)
+// 2. PASSWORD — Argon2id via centralized password service
 // ============================================================================
 
 const argon2PasswordConfig = {
-    hash: async (password: string) =>
-        Bun.password.hash(password, {
-            algorithm: 'argon2id',
-            memoryCost: 65536,
-            timeCost: 2,
-        }),
-    verify: async ({ password, hash }: { password: string; hash: string }) => {
-        if (!hash || !password) return false;
-        try {
-            // Argon2 nativo ($argon2...) o formato legacy Better-Auth (hash:salt)
-            if (hash.startsWith('$')) {
-                return await Bun.password.verify(password, hash);
-            }
-            if (hash.includes(':')) {
-                const { verifyPassword } = await import('better-auth/crypto').catch(() => ({ verifyPassword: null }));
-                if (verifyPassword) return await verifyPassword({ hash, password });
-            }
-            return await Bun.password.verify(password, hash);
-        } catch {
-            return false;
-        }
-    },
+    hash: (password: string) => hashPassword(password),
+    verify: ({ password, hash }: { password: string; hash: string }) => verifyPassword(password, hash),
 };
 
 // ============================================================================
@@ -260,7 +242,7 @@ export const auth = betterAuth({
                 input: false,
             },
             entityId: {
-                type: 'number',
+                type: 'string',
                 required: false,
                 fieldName: 'entity_id',
                 input: false,

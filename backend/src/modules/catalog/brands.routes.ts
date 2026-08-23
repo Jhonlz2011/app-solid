@@ -1,22 +1,22 @@
 import { Elysia } from 'elysia';
-import { authGuard } from '../../plugins/auth-guard';
+import { tenantGuard } from '../../plugins/tenant-guard';
 import { rbac } from '../../plugins/rbac';
 import { brandsService } from './brands.service';
 import {
     BrandBodySchema,
-    BrandUpdateSchema,
+    BrandUpdateBodySchema,
     BrandListQuerySchema,
     BrandReferencesResponseSchema,
     BulkIdsBodySchema,
     IdParamSchema,
     SuccessResponseSchema,
 } from '@app/schema/backend';
-import type { BrandPayload, BrandUpdatePayload } from '@app/schema/dto';
+import type { BrandBodyType, BrandUpdateType } from '@app/schema/dto';
 
 const parseArray = (val?: string) => val?.split(',').filter(Boolean);
 
 export const brandRoutes = new Elysia({ prefix: '/brands' })
-    .use(authGuard)
+    .use(tenantGuard)
     .use(rbac)
 
     // Paginated list
@@ -25,11 +25,11 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
         ({ query, currentCompanyId }) => {
             return brandsService.list({
                 cursor: query.cursor,
-                direction: query.direction as any,
+                direction: query.direction,
                 limit: query.limit !== undefined ? Number(query.limit) : undefined,
                 search: query.search,
                 sortBy: query.sortBy,
-                sortOrder: query.sortOrder as 'asc' | 'desc' | undefined,
+                sortOrder: query.sortOrder,
                 page: query.page !== undefined ? Number(query.page) : undefined,
                 isActive: parseArray(query.isActive),
             }, currentCompanyId);
@@ -71,7 +71,7 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
         '/',
         async ({ body, set, headers, currentCompanyId }) => {
             const brand = await brandsService.create(
-                body as BrandPayload,
+                body as BrandBodyType,
                 currentCompanyId,
                 headers['x-client-id']
             );
@@ -90,13 +90,13 @@ export const brandRoutes = new Elysia({ prefix: '/brands' })
         ({ params, body, headers, currentCompanyId }) =>
             brandsService.update(
                 params.id,
-                body as BrandUpdatePayload,
+                body as BrandUpdateType,
                 currentCompanyId,
                 headers['x-client-id']
             ),
         {
             params: IdParamSchema,
-            body: BrandUpdateSchema,
+            body: BrandUpdateBodySchema,
             permission: 'brands.update',
         }
     )

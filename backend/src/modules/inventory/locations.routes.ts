@@ -1,21 +1,21 @@
 import { Elysia } from 'elysia';
-import { authGuard } from '../../plugins/auth-guard';
+import { tenantGuard } from '../../plugins/tenant-guard';
 import { rbac } from '../../plugins/rbac';
 import { getIpAndUserAgent } from '../../plugins/ip';
 import { locationsService } from './locations.service';
 import {
     LocationBodySchema,
-    LocationUpdateSchema,
-    LocationReparentSchema,
+    LocationUpdateBodySchema,
+    LocationReparentBodySchema,
     LocationListQuerySchema,
     BulkIdsBodySchema,
     IdParamSchema,
     SuccessResponseSchema,
 } from '@app/schema/backend';
-import type { LocationPayload, LocationUpdatePayload } from '@app/schema/dto';
+import type { LocationBodyType, LocationUpdateType } from '@app/schema/dto';
 
 export const locationsRoutes = new Elysia({ prefix: '/locations' })
-    .use(authGuard)
+    .use(tenantGuard)
     .use(rbac)
     .get(
         '/',
@@ -77,7 +77,7 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
         '/',
         async ({ body, set, headers, currentCompanyId }) => {
             const location = await locationsService.create(
-                body as LocationPayload,
+                body as LocationBodyType,
                 currentCompanyId,
                 headers['x-client-id']
             );
@@ -96,13 +96,13 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
         ({ params, body, headers, currentCompanyId }) =>
             locationsService.update(
                 params.id,
-                body as LocationUpdatePayload,
+                body as LocationUpdateType,
                 currentCompanyId,
                 headers['x-client-id']
             ),
         {
             params: IdParamSchema,
-            body: LocationUpdateSchema,
+            body: LocationUpdateBodySchema,
             permission: 'locations.update',
         }
     )
@@ -119,7 +119,7 @@ export const locationsRoutes = new Elysia({ prefix: '/locations' })
             ),
         {
             params: IdParamSchema,
-            body: LocationReparentSchema,
+            body: LocationReparentBodySchema,
             permission: 'locations.update',
         }
     )

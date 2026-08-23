@@ -14,7 +14,7 @@ export const workOrders = pgTableV2("work_orders", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     company_id: integer("company_id").references(() => companies.id).notNull(),
     code_sequence: integer("code_sequence"),
-    client_id: integer("client_id").references(() => entities.id),
+    client_id: uuid("client_id").references(() => entities.id),
     quotation_id: integer("quotation_id").references(() => quotations.id),
     status: workOrderStatusEnum("status").default('DRAFT'),
     start_date: date("start_date"),
@@ -74,7 +74,7 @@ export const manufacturingOrders = pgTableV2("manufacturing_orders", {
     // Planificación
     start_date: timestamp("start_date", TZ),
     end_date: timestamp("end_date", TZ),
-    assigned_supervisor_id: integer("assigned_supervisor_id").references(() => entities.id),
+    assigned_supervisor_id: uuid("assigned_supervisor_id").references(() => entities.id),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
@@ -126,7 +126,7 @@ export const manufacturingLog = pgTableV2("manufacturing_log", {
 export const employeeWorkSchedules = pgTableV2("employee_work_schedules", {
     id: bigint("id", { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
     company_id: integer("company_id").references(() => companies.id).notNull(),
-    employee_id: integer("employee_id").references(() => entities.id).notNull(),
+    employee_id: uuid("employee_id").references(() => entities.id).notNull(),
     work_order_id: integer("work_order_id").references(() => workOrders.id),
 
     work_date: timestamp("work_date", TZ).notNull(),

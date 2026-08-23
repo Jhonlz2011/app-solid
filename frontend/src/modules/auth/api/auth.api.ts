@@ -5,10 +5,10 @@
  */
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { AuthRegisterPayload } from '@app/schema/dto';
+import type { TenantRegisterType } from '@app/schema/dto';
 
 export const authApi = {
-    register: async (payload: AuthRegisterPayload, signal?: AbortSignal) => {
+    register: async (payload: TenantRegisterType, signal?: AbortSignal) => {
         const { data, error } = await api.tenants.register.post(payload, { fetch: { signal } });
         if (error) throwApiError(error);
         return data!;

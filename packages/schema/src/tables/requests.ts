@@ -1,22 +1,27 @@
-import { text, integer, boolean, timestamp, numeric, date, index, check } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, numeric, date, index, unique, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { pgTableV2, TZ } from '../utils';
+import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { requestDestinationEnum, materialRequestStatusEnum, conditionEnum } from '../enums';
 import { workOrders } from './manufacturing';
 import { entities } from './entities';
 import { products, productVariants } from './products';
-
 import { warehouses, warehouseLocations, inventoryDimensionalItems } from './inventory';
+import { companies } from './config';
 
 // --- REQUEST TEMPLATES (Kits preestablecidos) ---
 // Templates stay at PRODUCT level — they define generic material lists
 
 export const requestTemplates = pgTableV2("request_templates", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id).notNull(),
     name: text("name").notNull(), // "Kit Instalación Básica"
     description: text("description"),
     is_active: boolean("is_active").default(true),
-});
+}, (t) => [
+    unique("unq_request_template_name").on(t.company_id, t.name),
+    index("idx_request_templates_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
 
 export const requestTemplateItems = pgTableV2("request_template_items", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
@@ -30,7 +35,7 @@ export const requestTemplateItems = pgTableV2("request_template_items", {
 export const materialRequests = pgTableV2("material_requests", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     work_order_id: integer("work_order_id").references(() => workOrders.id).notNull(),
-    requester_id: integer("requester_id").references(() => entities.id).notNull(),
+    requester_id: uuid("requester_id").references(() => entities.id).notNull(),
     destination_type: requestDestinationEnum("destination_type").default('WORKSHOP').notNull(),
     location_detail: text("location_detail"), // Dirección exacta si es FIELD_SITE
     status: materialRequestStatusEnum("status").default('PENDING'),
@@ -74,7 +79,7 @@ export const materialRequestDispatches = pgTableV2("material_request_dispatches"
     // Trazabilidad del despacho
     dispatched_from_location_id: integer("dispatched_from_location_id")
         .references(() => warehouseLocations.id).notNull(),
-    dispatched_by: integer("dispatched_by")
+    dispatched_by: uuid("dispatched_by")
         .references(() => entities.id).notNull(),
     dispatched_at: timestamp("dispatched_at", TZ).defaultNow().notNull(),
 
@@ -91,7 +96,7 @@ export const requestReturns = pgTableV2("request_returns", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     request_id: integer("request_id").references(() => materialRequests.id).notNull(),
     return_date: timestamp("return_date", TZ).defaultNow(),
-    received_by: integer("received_by").references(() => entities.id).notNull(),
+    received_by: uuid("received_by").references(() => entities.id).notNull(),
     notes: text("notes"),
 }, (t) => [
     index("idx_returns_request").on(t.request_id),

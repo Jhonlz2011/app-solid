@@ -1,13 +1,13 @@
 import { db, adminDb } from '../../core/db';
 import { authUsers as users, companies, member } from '@app/schema/tables';
 import { eq, and } from '@app/schema';
-import type { AuthUserEntityDto } from '@app/schema/dto';
+import type { ProfileEntityType } from '@app/schema/dto';
 import { getUserRoles, getUserPermissions } from '../users/rbac.permission.service';
 import { broadcast } from '../../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
-import { AuthError } from './session.service';
+import { AuthError } from '../auth/session.service';
 
-export function mapEntity(entity: { id: number; business_name: string; is_client: boolean | null; is_supplier: boolean | null; is_employee: boolean | null } | null | undefined): AuthUserEntityDto | undefined {
+export function mapEntity(entity: { id: string; business_name: string; is_client: boolean | null; is_supplier: boolean | null; is_employee: boolean | null } | null | undefined): ProfileEntityType | undefined {
   if (!entity) return undefined;
   return {
     id: entity.id,
@@ -100,7 +100,7 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
  * User personal profile update
  */
 export async function updateProfile(
-  userId: string | number,
+  userId: string,
   data: { username?: string; email?: string }
 ) {
   const userIdStr = String(userId);

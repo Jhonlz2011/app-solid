@@ -1,9 +1,9 @@
 import { Elysia, t } from 'elysia';
 import { register } from '../auth/auth.service';
 import {
-  AuthRegisterDto,
-  AuthUserResponse,
-  TenantBrandingResponseDto,
+  TenantRegisterBodySchema,
+  TenantRegisterResponseSchema,
+  TenantBrandingResponseSchema,
 } from '@app/schema/backend';
 import { registerRateLimit } from '../../plugins/register-rate-limit';
 import { ipPlugin, getIpAndUserAgent } from '../../plugins/ip';
@@ -25,16 +25,9 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
       return result;
     },
     {
-      body: AuthRegisterDto,
+      body: TenantRegisterBodySchema,
       response: {
-        201: t.Object({
-          company: t.Object({
-            id: t.Number(),
-            slug: t.String(),
-            businessName: t.String(),
-          }),
-          user: AuthUserResponse,
-        }),
+        201: TenantRegisterResponseSchema,
       },
       beforeHandle: registerRateLimit as any,
     }
@@ -119,7 +112,7 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
     query: t.Object({
       slug: t.Optional(t.String()),
     }),
-    response: TenantBrandingResponseDto,
+    response: TenantBrandingResponseSchema,
     afterHandle: ({ set }) => {
       set.headers['cache-control'] = 'public, max-age=60, s-maxage=120, stale-while-revalidate=300';
     },

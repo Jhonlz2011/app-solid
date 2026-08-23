@@ -1,16 +1,16 @@
 import { Elysia } from 'elysia';
-import { authGuard } from '../../plugins/auth-guard';
+import { tenantGuard } from '../../plugins/tenant-guard';
 import { rbac } from '../../plugins/rbac';
 import { getIpAndUserAgent } from '../../plugins/ip';
 import { vehiclesService } from './vehicles.service';
 import {
-    CarrierVehiclePayloadSchema,
+    CarrierVehicleBodySchema,
     CarrierVehicleUpdateSchema,
     IdParamSchema,
 } from '@app/schema/backend';
 
 export const vehiclesRoutes = new Elysia({ prefix: '/settings/vehicles' })
-    .use(authGuard)
+    .use(tenantGuard)
     .use(rbac)
     .get(
         '/',
@@ -44,7 +44,7 @@ export const vehiclesRoutes = new Elysia({ prefix: '/settings/vehicles' })
             return vehicle;
         },
         {
-            body: CarrierVehiclePayloadSchema,
+            body: CarrierVehicleBodySchema,
             permission: 'config.update',
         }
     )

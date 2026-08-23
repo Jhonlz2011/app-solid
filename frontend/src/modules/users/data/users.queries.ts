@@ -11,7 +11,7 @@ import { rbacKeys } from './users.keys';
 import { usersApi } from './users.api';
 import type {
     UsersFilters,
-    UserReferencesDto,
+    UserReferencesType,
 } from '@app/schema/dto';
 import type { FacetData } from '@app/schema/dto';
 
@@ -159,7 +159,7 @@ export function useUserSessions(userId: () => number) {
 export function useCheckUserReferences(id: () => number | null, enabled: () => boolean) {
     return createQuery(() => ({
         queryKey: rbacKeys.canDelete(id()!),
-        queryFn: async (): Promise<UserReferencesDto> => {
+        queryFn: async (): Promise<UserReferencesType> => {
             return await usersApi.canDeleteUser(id()!) as UserReferences;
         },
         enabled: enabled() && id() !== null,

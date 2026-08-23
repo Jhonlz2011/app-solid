@@ -9,7 +9,6 @@
         "src/index.ts",
         "src/frontend/index.ts",
         "src/backend/index.ts",
-        "src/dto/*.ts",
         "src/tables/index.ts",
         "src/tables/*.ts",
         "src/enums.ts",

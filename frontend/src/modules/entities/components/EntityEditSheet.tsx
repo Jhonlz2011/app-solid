@@ -22,10 +22,10 @@ import { employeeMutations } from '@modules/employees/data/employees.mutations';
 import type { EntityModuleType } from './EntityNewSheet';
 
 export interface EntityEditSheetProps {
-    id?: number;
-    clientId?: number;
-    supplierId?: number;
-    employeeId?: number;
+    id?: string | number;
+    clientId?: string | number;
+    supplierId?: string | number;
+    employeeId?: string | number;
     type?: EntityModuleType;
     onClose?: () => void;
 }
@@ -45,12 +45,13 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
     };
 
     const entityId = () => {
-        if (props.id) return props.id;
-        if (props.clientId) return props.clientId;
-        if (props.supplierId) return props.supplierId;
-        if (props.employeeId) return props.employeeId;
+        if (props.id) return String(props.id);
+        if (props.clientId) return String(props.clientId);
+        if (props.supplierId) return String(props.supplierId);
+        if (props.employeeId) return String(props.employeeId);
         const p = params();
-        return Number(p?.id ?? p?.clientId ?? p?.supplierId ?? p?.employeeId ?? 0);
+        const raw = p?.id ?? p?.clientId ?? p?.supplierId ?? p?.employeeId;
+        return raw ? String(raw) : '';
     };
 
     const clientQuery = useClient(entityId, () => resolvedType() === 'client');
@@ -124,7 +125,7 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
 
     const handleSubmit = async (data: EntityFormData) => {
         const id = entityId();
-        if (id === 0) return;
+        if (!id) return;
         const { taxId, taxIdType, ...updateData } = data;
         const mutation = activeMutation();
         const config = typeConfig();
@@ -184,7 +185,7 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
             }
         >
             <Show
-                when={entityId() > 0}
+                when={Boolean(entityId())}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center">
                         <div class="text-4xl mb-4">🔍</div>

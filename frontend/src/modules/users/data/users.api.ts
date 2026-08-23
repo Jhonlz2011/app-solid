@@ -183,8 +183,8 @@ export const usersApi = {
     },
 
     // ─── User Entity Assignment ──────────────────────────────────
-    setUserEntity: async (userId: number, entityId: number | null) => {
-        const userPath = api.rbac.users({ id: userId });
+    setUserEntity: async (userId: string | number, entityId: string | null) => {
+        const userPath = api.rbac.users({ id: userId as any });
         const { data, error } = await userPath.entity.patch({ entityId });
         if (error) throwApiError(error);
         return data!;

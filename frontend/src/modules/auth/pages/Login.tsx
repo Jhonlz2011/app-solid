@@ -4,11 +4,10 @@ import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { AuthLoginSchema, type AuthLoginFormData } from '@app/schema/frontend';
-import type { DiscoverTenantItemDto, AuthUserResponseDto } from '@app/schema/dto';
+import type { DiscoverTenantItemType } from '@app/schema/dto';
 import { actions } from '@modules/auth/store/auth.store';
-import { authApi } from '../api/auth.api';
-import { useBranding, getSubdomain, applyBranding } from '../store/branding.store';
-import { ApiError, getFriendlyErrorMessage } from '@shared/utils/api-errors';
+import { useBranding, getSubdomain } from '../store/branding.store';
+import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import { buildTenantUrl } from '@app/schema/utils';
 import Input from '@/shared/ui/form/Input';
 import Button from '@form/Button';
@@ -40,7 +39,7 @@ const Login: Component = () => {
 
   // UI state
   const [showTenants, setShowTenants] = createSignal(false);
-  const [discoveredTenants, setDiscoveredTenants] = createSignal<DiscoverTenantItemDto[]>([]);
+  const [discoveredTenants, setDiscoveredTenants] = createSignal<DiscoverTenantItemType[]>([]);
   const [loadingTenants, setLoadingTenants] = createSignal(false);
 
   // Turnstile token state
@@ -52,7 +51,7 @@ const Login: Component = () => {
     window.location.href = buildTenantUrl(slug, path, { queryParams: { session: 'true' } });
   };
 
-  const handleSelectTenant = async (tenant: DiscoverTenantItemDto) => {
+  const handleSelectTenant = async (tenant: DiscoverTenantItemType) => {
     setLoadingTenants(true);
     try {
       // organizationId es el UUIDv7 de Better-Auth organization.id, requerido para setActive

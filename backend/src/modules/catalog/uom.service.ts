@@ -5,7 +5,7 @@ import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
-import type { UomItem, UomPayload, UomUpdatePayload, UomReferences } from '@app/schema/dto';
+import type { UomItem, UomBodyType, UomUpdateType, UomReferencesResponseType } from '@app/schema/dto';
 
 // =============================================================================
 // UOM Service — Tenant-Aware with System Guard
@@ -41,7 +41,7 @@ export const uomService = {
      * Create a tenant-scoped UOM.
      * Always sets company_id and is_system = false.
      */
-    async create(data: UomPayload, companyId: number, clientId?: string): Promise<UomItem> {
+    async create(data: UomBodyType, companyId: number, clientId?: string): Promise<UomItem> {
         const codeUpper = data.code.toUpperCase();
 
         // Check global uniqueness: system UOM codes can't be shadowed
@@ -77,7 +77,7 @@ export const uomService = {
      * BLOCKS updates to system UOMs (is_system = true).
      * Only allows updates to the tenant's own UOMs.
      */
-    async update(id: number, data: UomUpdatePayload, companyId: number, clientId?: string): Promise<UomItem> {
+    async update(id: number, data: UomUpdateType, companyId: number, clientId?: string): Promise<UomItem> {
         // Fetch the UOM first to check ownership and system flag
         const [existing] = await db.select().from(uom).where(eq(uom.id, id));
         if (!existing) throw new DomainError('Unidad no encontrada', 404);
@@ -163,7 +163,7 @@ export const uomService = {
      *   work_order_items.requested_uom  → workOrderItems
      *   purchase_quote_items.purchase_uom → quoteItems
      */
-    async checkReferences(id: number, companyId?: number): Promise<UomReferences> {
+    async checkReferences(id: number, companyId?: number): Promise<UomReferencesResponseType> {
         /** Safe count — returns 0 if the table doesn't exist yet (unmigrated). */
         const countQuery = async (query: ReturnType<typeof db.select>): Promise<number> => {
             try {

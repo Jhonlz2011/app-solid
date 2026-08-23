@@ -1,4 +1,4 @@
-import { db, adminDb } from '../../core/db';
+import { db } from '../../core/db';
 import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, account, organization, member } from '@app/schema/tables';
 import { eq, sql } from '@app/schema';
 import type { TaxRegimeType } from '@app/schema/enums';
@@ -10,8 +10,9 @@ import {
   seedCompanyVirtualLocations,
   seedCompanyWarehouse,
 } from './provisioning.service';
-import { verifyTurnstileToken } from '../../core/security';
-import { mapEntity } from './profile.service';
+import { verifyTurnstileToken, hashPassword } from '../../core/security';
+import { v7 as uuidv7 } from 'uuid';
+import { mapEntity } from '../profile/profile.service';
 import { auth } from '../../config/better-auth';
 import { env } from '../../config/env';
 import { redis } from '../../core/cache/redis';
@@ -45,15 +46,15 @@ export async function register(
 ) {
   await verifyTurnstileToken(data.turnstileToken, ipAddress);
 
-  return await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [existingSlug] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.slug, data.slug)).limit(1);
     if (existingSlug) throw new DomainError('Este identificador (slug) ya está en uso', 409);
 
     const [existingRuc] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.ruc, data.ruc)).limit(1);
     if (existingRuc) throw new DomainError('Este RUC ya está registrado', 409);
 
-    // 1. Create Better Auth Organization first (to get its ID)
-    const orgId = crypto.randomUUID();
+    // 1. Create Better Auth Organization first (UUIDv7)
+    const orgId = uuidv7();
     await tx.insert(organization).values({
       id: orgId,
       name: data.businessName,
@@ -109,11 +110,7 @@ export async function register(
       tax_regime_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
     }).returning();
 
-    const password_hash = await Bun.password.hash(data.password, {
-      algorithm: 'argon2id',
-      memoryCost: 65536,
-      timeCost: 2,
-    });
+    const password_hash = await hashPassword(data.password);
 
     // 3. Create user with explicit username and displayUsername
     const [user] = await tx

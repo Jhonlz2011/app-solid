@@ -6,10 +6,8 @@
  */
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { ProductFormData } from '@app/schema/frontend';
-import type { ProductType, ProductSubtype } from '@app/schema/frontend';
-
-
+import type { ProductFormData, ProductType, ProductSubtype } from '@app/schema/frontend';
+import type { ProductBodyType } from '@app/schema/dto';
 
 // =============================================================================
 // API Fetchers
@@ -42,69 +40,57 @@ export const productsApi = {
         return data!;
     },
 
-    deactivate: async (id: number) => {
-        const { error } = await (api.products as any)({ id }).deactivate.patch();
-        if (error) throwApiError(error);
-    },
-
-    restore: async (id: number) => {
-        const { error } = await (api.products as any)({ id }).restore.patch();
-        if (error) throwApiError(error);
-    },
-
-    hardDelete: async (id: number) => {
-        const { error } = await (api.products as any)({ id }).delete();
-        if (error) throwApiError(error);
-    },
-
-    bulkDelete: async (ids: number[]) => {
-        const { data, error } = await (api.products.bulk as any).delete({ ids });
+    create: async (body: ProductBodyType) => {
+        const { data, error } = await api.products.post(body);
         if (error) throwApiError(error);
         return data!;
     },
 
-    bulkRestore: async (ids: number[]) => {
-        const { data, error } = await (api.products.bulk.restore as any).patch({ ids });
+    update: async (id: number, body: Partial<ProductBodyType>) => {
+        const { data, error } = await api.products({ id }).put(body);
+        if (error) throwApiError(error);
+        return data!;
+    },
+
+    deactivate: async (id: number) => {
+        const { error } = await api.products({ id }).deactivate.patch();
+        if (error) throwApiError(error);
+    },
+
+    restore: async (id: number) => {
+        const { error } = await api.products({ id }).restore.patch();
+        if (error) throwApiError(error);
+    },
+
+    hardDelete: async (id: number) => {
+        const { error } = await api.products({ id }).delete();
+        if (error) throwApiError(error);
+    },
+
+    bulkDelete: async (ids: (number | string)[]) => {
+        const { data, error } = await api.products.bulk.delete.post({ ids });
+        if (error) throwApiError(error);
+        return data!;
+    },
+
+    bulkRestore: async (ids: (number | string)[]) => {
+        const { data, error } = await api.products.bulk.restore.patch({ ids });
         if (error) throwApiError(error);
         return data!;
     },
 
     canDelete: async (id: number): Promise<ProductReferences> => {
-        const { data, error } = await (api.products as any)({ id })['can-delete'].get();
+        const { data, error } = await api.products({ id })['can-delete'].get();
         if (error) throwApiError(error);
         return data as ProductReferences;
     },
 
     generateSku: async (categoryId?: number, brandId?: number): Promise<string> => {
-        const { data, error } = await (api.products as any)['generate-sku'].get({
+        const { data, error } = await api.products['generate-sku'].get({
             query: { categoryId, brandId },
         });
         if (error) throwApiError(error);
         return data as string;
-    },
-
-    /** Obtiene una URL firmada (Presigned URL) de Cloudflare R2 para subir un archivo directamente. */
-    getPresignedUploadUrl: async (fileName: string, contentType: string): Promise<{ uploadUrl: string; fileKey: string; publicUrl: string }> => {
-        const { data, error } = await (api.products as any)['upload-url'].post({
-            fileName,
-            contentType,
-        });
-        if (error) throwApiError(error);
-        return data as { uploadUrl: string; fileKey: string; publicUrl: string };
-    },
-
-    /** Sube un archivo directamente a Cloudflare R2 utilizando la Presigned URL via HTTP PUT. */
-    uploadFileToR2: async (uploadUrl: string, file: File): Promise<void> => {
-        const response = await fetch(uploadUrl, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': file.type || 'image/webp',
-            },
-            body: file,
-        });
-        if (!response.ok) {
-            throw new Error(`Error al cargar el archivo a Cloudflare R2 (${response.statusText})`);
-        }
     },
 
     /** Upload product images to Cloudflare R2 Public bucket with Sharp optimization. Returns public CDN URLs. */
@@ -122,10 +108,11 @@ export const productsApi = {
         const data = await res.json();
         return data.urls ?? [];
     },
+
     /** Delete a product image from R2 public bucket */
     deleteImage: async (url: string) => {
         try {
-            const { error } = await (api.products as any)['delete-image'].post({ url });
+            const { error } = await api.products['delete-image'].post({ url });
             if (error) console.warn('[R2] Failed to delete orphaned image:', error);
         } catch (err) {
             console.warn('[R2] deleteImage request failed:', err);
@@ -189,7 +176,7 @@ export const productKeys = {
 };
 
 // =============================================================================
-// UI Label Mappings (moved from product.types.ts)
+// UI Label Mappings
 // =============================================================================
 
 export const productTypeLabels: Record<ProductType, string> = {
@@ -202,6 +189,5 @@ export const productSubtypeLabels: Record<ProductSubtype, string> = {
     COMPUESTO: 'Compuesto',
     FABRICADO: 'Fabricado',
 };
-
 
 export { isActiveLabels } from '@shared/constants/labels';

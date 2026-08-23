@@ -2,12 +2,12 @@ import { createMutation, useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { vehiclesApi } from './vehicles.api';
 import { vehicleKeys } from './vehicles.keys';
-import type { CarrierVehiclePayload } from '@app/schema/dto';
+import type { CarrierVehicleType } from '@app/schema/dto';
 
 export function useCreateVehicle() {
     const queryClient = useQueryClient();
     return createMutation(() => ({
-        mutationFn: (data: CarrierVehiclePayload) => vehiclesApi.create(data),
+        mutationFn: (data: CarrierVehicleType) => vehiclesApi.create(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: vehicleKeys.all });
             toast.success('Vehículo registrado correctamente');
@@ -21,7 +21,7 @@ export function useCreateVehicle() {
 export function useUpdateVehicle() {
     const queryClient = useQueryClient();
     return createMutation(() => ({
-        mutationFn: ({ id, data }: { id: number; data: Partial<CarrierVehiclePayload> }) =>
+        mutationFn: ({ id, data }: { id: number; data: Partial<CarrierVehicleType> }) =>
             vehiclesApi.update(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: vehicleKeys.all });

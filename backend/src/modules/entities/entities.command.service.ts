@@ -6,8 +6,8 @@ import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
-import type { EntityPayload, EntityContactPayload, EntityAddressPayload, EntityReferences, DepartmentPayload, JobTitlePayload } from '@app/schema/dto';
-import type { EntityType } from './entities.query.service';
+import type { EntityBodyType, EntityContactType, EntityAddressType, EntityReferencesType, DepartmentType, JobTitleType } from '@app/schema/dto';
+import type { EntityType } from '@app/schema/enums';
 
 // Helper for numeric conversion
 const toDecimal = (val?: number | null): string | undefined =>
@@ -24,7 +24,7 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
 // Create Entity
 // =============================================================================
 
-export async function createEntity(type: EntityType, payload: EntityPayload, audit: AuditContext | undefined, companyId: number) {
+export async function createEntity(type: EntityType, payload: EntityBodyType, audit: AuditContext | undefined, companyId: number) {
     return await withAuditTransaction(audit, async (tx) => {
         const [created] = await tx
             .insert(entities)
@@ -125,8 +125,18 @@ export async function createEntity(type: EntityType, payload: EntityPayload, aud
 // Update Entity
 // =============================================================================
 
-export async function updateEntity(id: number, type: EntityType, payload: Partial<EntityPayload>, audit: AuditContext | undefined, companyId: number) {
+function getTypeColumn(type: EntityType) {
+    switch (type) {
+        case 'client': return entities.is_client;
+        case 'supplier': return entities.is_supplier;
+        case 'employee': return entities.is_employee;
+        case 'carrier': return entities.is_carrier;
+    }
+}
+
+export async function updateEntity(id: string, type: EntityType, payload: Partial<EntityBodyType>, audit: AuditContext | undefined, companyId: number) {
     return withAuditTransaction(audit, async (tx) => {
+        const typeColumn = getTypeColumn(type);
         const [updated] = await tx
             .update(entities)
             .set(stripUndefined({
@@ -145,10 +155,10 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
                 is_carrier: payload.isCarrier,
                 updated_at: new Date(),
             }))
-            .where(and(eq(entities.id, id), eq(entities.company_id, companyId)))
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)))
             .returning();
 
-        if (!updated) throw new DomainError('Entidad no encontrada', 404);
+        if (!updated) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
 
         if ((type === 'employee' || payload.isEmployee || type === 'carrier') && payload.employeeDetails) {
             const result = await tx
@@ -179,14 +189,14 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
             await tx.delete(entityAddresses).where(eq(entityAddresses.entity_id, id));
             if (payload.addresses.length > 0) {
                 await tx.insert(entityAddresses).values(
-                    payload.addresses.map(addr => ({
+                    payload.addresses.map(a => ({
                         entity_id: id,
-                        address_line: addr.addressLine,
-                        city: addr.city,
-                        country: addr.country,
-                        country_code: addr.countryCode,
-                        postal_code: addr.postalCode,
-                        is_main: addr.isMain ?? false
+                        address_line: a.addressLine,
+                        city: a.city,
+                        country: a.country,
+                        country_code: a.countryCode,
+                        postal_code: a.postalCode,
+                        is_main: a.isMain ?? false,
                     }))
                 );
             }
@@ -196,52 +206,52 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
             await tx.delete(entityContacts).where(eq(entityContacts.entity_id, id));
             if (payload.contacts.length > 0) {
                 await tx.insert(entityContacts).values(
-                    payload.contacts.map(contact => ({
+                    payload.contacts.map(c => ({
                         entity_id: id,
-                        name: contact.name,
-                        position: contact.position,
-                        email: contact.email,
-                        phone: contact.phone,
-                        is_primary: contact.isPrimary ?? false
+                        name: c.name,
+                        position: c.position,
+                        email: c.email,
+                        phone: c.phone,
+                        is_primary: c.isPrimary ?? false,
                     }))
                 );
             }
         }
 
-        if (payload.vehicles) {
-            await tx.delete(carrierVehicles).where(eq(carrierVehicles.carrier_id, id));
-            if (payload.vehicles.length > 0) {
-                await tx.insert(carrierVehicles).values(
-                    payload.vehicles.map(v => ({
-                        company_id: companyId,
-                        carrier_id: id,
-                        license_plate: v.licensePlate.toUpperCase().trim(),
-                        description: v.description || null,
-                        is_active: v.isActive ?? true,
-                    }))
-                );
+        if ((type === 'carrier' || payload.isCarrier)) {
+            if (payload.vehicles) {
+                await tx.delete(carrierVehicles).where(eq(carrierVehicles.carrier_id, id));
+                if (payload.vehicles.length > 0) {
+                    await tx.insert(carrierVehicles).values(
+                        payload.vehicles.map(v => ({
+                            company_id: companyId,
+                            carrier_id: id,
+                            license_plate: v.licensePlate.trim().toUpperCase(),
+                            description: v.description || null,
+                            is_active: v.isActive ?? true,
+                        }))
+                    );
+                }
             }
-        }
-
-        if (payload.drivers) {
-            await tx.delete(carrierDrivers).where(eq(carrierDrivers.carrier_id, id));
-            if (payload.drivers.length > 0) {
-                await tx.insert(carrierDrivers).values(
-                    payload.drivers.map(d => ({
-                        carrier_id: id,
-                        identification_number: d.identificationNumber.trim(),
-                        full_name: d.fullName.trim(),
-                        phone: d.phone || null,
-                        is_active: d.isActive ?? true,
-                    }))
-                );
+            if (payload.drivers) {
+                await tx.delete(carrierDrivers).where(eq(carrierDrivers.carrier_id, id));
+                if (payload.drivers.length > 0) {
+                    await tx.insert(carrierDrivers).values(
+                        payload.drivers.map(d => ({
+                            carrier_id: id,
+                            identification_number: d.identificationNumber.trim(),
+                            full_name: d.fullName.trim(),
+                            phone: d.phone || null,
+                            is_active: d.isActive ?? true,
+                        }))
+                    );
+                }
             }
         }
 
         await cacheService.invalidate(`entity:c${companyId}:${id}`);
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
         await cacheService.invalidate(`entities:c${companyId}:*`);
-
         broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
 
         return updated;
@@ -253,13 +263,14 @@ export async function updateEntity(id: number, type: EntityType, payload: Partia
 // =============================================================================
 
 export async function deactivateEntity(
-    id: number,
+    id: string,
     type: EntityType,
     deletedBy: number | undefined,
     audit: AuditContext | undefined,
     companyId: number
 ) {
     return withAuditTransaction(audit, async (tx) => {
+        const typeColumn = getTypeColumn(type);
         const [updated] = await tx
             .update(entities)
             .set({
@@ -268,10 +279,10 @@ export async function deactivateEntity(
                 deleted_by: deletedBy ?? null,
                 updated_at: new Date(),
             })
-            .where(and(eq(entities.id, id), eq(entities.company_id, companyId)))
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)))
             .returning();
 
-        if (!updated) throw new DomainError('Entidad no encontrada', 404);
+        if (!updated) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
 
         await cacheService.invalidate(`entity:c${companyId}:${id}`);
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
@@ -284,12 +295,13 @@ export async function deactivateEntity(
 }
 
 export async function restoreEntity(
-    id: number,
+    id: string,
     type: EntityType,
     audit: AuditContext | undefined,
     companyId: number
 ) {
     return withAuditTransaction(audit, async (tx) => {
+        const typeColumn = getTypeColumn(type);
         const [updated] = await tx
             .update(entities)
             .set({
@@ -298,10 +310,10 @@ export async function restoreEntity(
                 deleted_by: null,
                 updated_at: new Date(),
             })
-            .where(and(eq(entities.id, id), eq(entities.company_id, companyId)))
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)))
             .returning();
 
-        if (!updated) throw new DomainError('Entidad no encontrada', 404);
+        if (!updated) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
 
         await cacheService.invalidate(`entity:c${companyId}:${id}`);
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
@@ -312,7 +324,7 @@ export async function restoreEntity(
     });
 }
 
-export async function checkEntityReferences(id: number, companyId: number): Promise<EntityReferences> {
+export async function checkEntityReferences(id: string, companyId: number): Promise<EntityReferencesType> {
     const [[spCount], [docCount], [woCount]] = await Promise.all([
         db.select({ value: count() }).from(supplierProducts).where(
             and(eq(supplierProducts.supplier_id, id), eq(supplierProducts.company_id, companyId))
@@ -340,7 +352,7 @@ export async function checkEntityReferences(id: number, companyId: number): Prom
 }
 
 export async function hardDeleteEntity(
-    id: number,
+    id: string,
     type: EntityType,
     audit: AuditContext | undefined,
     companyId: number
@@ -354,14 +366,15 @@ export async function hardDeleteEntity(
     }
 
     return withAuditTransaction(audit, async (tx) => {
+        const typeColumn = getTypeColumn(type);
         const [target] = await tx
             .select({ id: entities.id })
             .from(entities)
-            .where(and(eq(entities.id, id), eq(entities.company_id, companyId)));
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)));
 
-        if (!target) throw new DomainError('Entidad no encontrada', 404);
+        if (!target) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
 
-        await tx.delete(entities).where(and(eq(entities.id, id), eq(entities.company_id, companyId)));
+        await tx.delete(entities).where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)));
         
         await cacheService.invalidate(`entity:c${companyId}:${id}`);
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
@@ -376,7 +389,7 @@ export async function hardDeleteEntity(
 // Contacts CRUD
 // =============================================================================
 
-export async function addContact(entityId: number, payload: EntityContactPayload, companyId: number) {
+export async function addContact(entityId: string, payload: EntityContactType, companyId: number) {
     return db.transaction(async (tx) => {
         const [ent] = await tx
             .select({ id: entities.id })
@@ -408,7 +421,7 @@ export async function addContact(entityId: number, payload: EntityContactPayload
     });
 }
 
-export async function updateContact(contactId: number, payload: Partial<EntityContactPayload>, companyId: number) {
+export async function updateContact(contactId: number, payload: Partial<EntityContactType>, companyId: number) {
     const [contact] = await db
         .select()
         .from(entityContacts)
@@ -469,7 +482,7 @@ export async function deleteContact(contactId: number, companyId: number) {
 // Addresses CRUD
 // =============================================================================
 
-export async function addAddress(entityId: number, payload: EntityAddressPayload, companyId: number) {
+export async function addAddress(entityId: string, payload: EntityAddressType, companyId: number) {
     return db.transaction(async (tx) => {
         const [ent] = await tx
             .select({ id: entities.id })
@@ -508,7 +521,7 @@ export async function addAddress(entityId: number, payload: EntityAddressPayload
 
 export async function bulkDeactivateEntities(
     type: EntityType,
-    ids: number[],
+    ids: string[],
     audit: AuditContext | undefined,
     companyId: number
 ) {
@@ -527,7 +540,7 @@ export async function bulkDeactivateEntities(
             .from(entities)
             .where(and(...conditions));
 
-        const existingIds = existing.map((e: { id: number }) => e.id);
+        const existingIds = existing.map(e => e.id);
         if (existingIds.length === 0) {
             throw new DomainError('No se encontraron entidades válidas para eliminar', 404);
         }
@@ -557,7 +570,7 @@ export async function bulkDeactivateEntities(
 
 export async function bulkRestoreEntities(
     type: EntityType,
-    ids: number[],
+    ids: string[],
     audit: AuditContext | undefined,
     companyId: number
 ) {
@@ -576,7 +589,7 @@ export async function bulkRestoreEntities(
             .from(entities)
             .where(and(...conditions));
 
-        const existingIds = existing.map((e: { id: number }) => e.id);
+        const existingIds = existing.map(e => e.id);
         if (existingIds.length === 0) {
             throw new DomainError('No se encontraron entidades válidas para restaurar', 404);
         }
@@ -609,7 +622,7 @@ export async function bulkRestoreEntities(
 // Departments & Job Titles CRUD
 // =============================================================================
 
-export async function createDepartment(payload: DepartmentPayload, companyId: number) {
+export async function createDepartment(payload: DepartmentType, companyId: number) {
     const [created] = await db
         .insert(departments)
         .values({
@@ -622,7 +635,7 @@ export async function createDepartment(payload: DepartmentPayload, companyId: nu
     return created;
 }
 
-export async function createJobTitle(payload: JobTitlePayload, companyId: number) {
+export async function createJobTitle(payload: JobTitleType, companyId: number) {
     const [created] = await db
         .insert(jobTitles)
         .values({

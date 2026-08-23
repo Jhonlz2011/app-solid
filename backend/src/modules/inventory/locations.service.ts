@@ -8,8 +8,8 @@ import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
 import type {
     LocationItem,
-    LocationPayload,
-    LocationUpdatePayload,
+    LocationBodyType,
+    LocationUpdateType,
     LocationReferences,
 } from '@app/schema/dto';
 
@@ -107,7 +107,7 @@ export const locationsService = {
     /**
      * Create a new location with parent_id + derived ltree path.
      */
-    async create(data: LocationPayload, companyId: number, clientId?: string): Promise<LocationItem> {
+    async create(data: LocationBodyType, companyId: number, clientId?: string): Promise<LocationItem> {
         if (data.type && data.type !== 'INTERNAL' && data.type !== 'VIEW') {
             throw new DomainError('No está permitido crear ubicaciones virtuales manualmente', 400);
         }
@@ -149,7 +149,7 @@ export const locationsService = {
      * Update a location by id.
      * Delegates all cascading path and warehouse updates to PostgreSQL trigger.
      */
-    async update(id: number, data: LocationUpdatePayload, companyId: number, clientId?: string): Promise<LocationItem> {
+    async update(id: number, data: LocationUpdateType, companyId: number, clientId?: string): Promise<LocationItem> {
         const [existing] = await db.select().from(warehouseLocations)
             .where(and(eq(warehouseLocations.id, id), eq(warehouseLocations.company_id, companyId)));
         if (!existing) throw new DomainError('Ubicación no encontrada', 404);

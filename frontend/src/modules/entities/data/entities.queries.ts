@@ -5,7 +5,7 @@ import { createQuery, createInfiniteQuery, keepPreviousData, useQueryClient } fr
 import { createEffect } from 'solid-js';
 import type { EntityApi } from './entities.api';
 import type { EntityKeys } from './entities.keys';
-import type { EntityFilters, FacetData, EntityReferences } from '@app/schema/dto';
+import type { EntityFilters, FacetData, EntityReferencesType } from '@app/schema/dto';
 import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
 import type { api } from '@shared/lib/eden';
 
@@ -100,23 +100,23 @@ export function createEntityQueries(api: EntityApi, keys: EntityKeys, facetsEndp
             }));
         },
 
-        useDetail: (id: () => number, enabled?: () => boolean) => {
+        useDetail: (id: () => string | number, enabled?: () => boolean) => {
             return createQuery(() => ({
                 queryKey: keys.detail(id()),
                 queryFn: () => api.get(id()),
-                enabled: (enabled ? enabled() : true) && !!id() && id() > 0,
+                enabled: (enabled ? enabled() : true) && Boolean(id()),
                 staleTime: STALE_TIME.MEDIUM,
                 gcTime: GC_TIME.DEFAULT,
             }));
         },
 
-        useCheckReferences: (id: () => number | null, enabled: () => boolean) => {
+        useCheckReferences: (id: () => string | number | null, enabled: () => boolean) => {
             return createQuery(() => ({
                 queryKey: [...keys.all, 'can-delete', id()],
-                queryFn: async (): Promise<EntityReferences> => {
+                queryFn: async (): Promise<EntityReferencesType> => {
                     return await api.canDelete(id()!);
                 },
-                enabled: enabled() && id() !== null,
+                enabled: enabled() && id() !== null && Boolean(id()),
                 staleTime: 10_000,
                 gcTime: GC_TIME.PREFLIGHT,
                 retry: false,

@@ -12,9 +12,9 @@
         "./utils/*": "./src/utils/*.ts",
         "./backend": "./src/backend/index.ts",
         "./backend/*": "./src/backend/*.ts",
-        "./dto": "./src/dto/index.ts",
-        "./dto/*": "./src/dto/*.ts",
-        "./frontend": "./src/frontend.ts",
+        "./dto": "./src/backend/index.ts",
+        "./frontend": "./src/frontend/index.ts",
+        "./frontend/*": "./src/frontend/*.ts",
         "./enums": "./src/enums.ts",
         "./realtime-events": "./src/realtime-events.ts",
         "./sri": "./src/tables/sri.ts",
@@ -35,7 +35,10 @@
                 "./src/utils/*.ts"
             ],
             "frontend": [
-                "./src/frontend/d.ts"
+                "./src/frontend/index.ts"
+            ],
+            "frontend/*": [
+                "./src/frontend/*.ts"
             ],
             "backend": [
                 "./src/backend/index.ts"
@@ -44,10 +47,7 @@
                 "./src/backend/*.ts"
             ],
             "dto": [
-                "./src/dto/index.ts"
-            ],
-            "dto/*": [
-                "./src/dto/*.ts"
+                "./src/backend/index.ts"
             ],
             "enums": [
                 "./src/enums.ts"

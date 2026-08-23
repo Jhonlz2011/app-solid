@@ -2,8 +2,8 @@ import { Elysia } from 'elysia';
 import { UnauthorizedError } from '../core/errors';
 import { auth, resolveCompanyIdFromOrg } from '../config/better-auth';
 import { adminDb, tenantStorage } from '../core/db';
-import { companies } from '@app/schema/tables';
-import { eq } from '@app/schema';
+import { companies, member } from '@app/schema/tables';
+import { eq, and } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
 import { getIpAndUserAgent } from './ip';
 import { getUserRoles, getUserPermissions } from '../modules/users/rbac.permission.service';
@@ -29,13 +29,13 @@ export const authGuard = (app: Elysia) => app
         resolvedCompanyId = await resolveCompanyIdFromOrg(activeOrgId);
       }
 
-      // 3. Validate subdomain matches active organization
+      // 3. Validate subdomain matches active organization & verify user membership
       const host = request.headers.get('host') || '';
       const slug = resolveSlugFromHost(host);
 
       if (slug) {
         const [hostCompany] = await adminDb
-          .select({ id: companies.id })
+          .select({ id: companies.id, organization_id: companies.organization_id })
           .from(companies)
           .where(eq(companies.slug, slug))
           .limit(1);
@@ -46,8 +46,34 @@ export const authGuard = (app: Elysia) => app
             set.status = 403;
             throw new UnauthorizedError('Acceso denegado a este inquilino');
           }
-          // If no active org set, use the host company
+
+          // If no active org set, verify user actually belongs to this host company before granting access
           if (!resolvedCompanyId) {
+            let isAuthorizedMember = false;
+
+            if (hostCompany.organization_id) {
+              const [memberRow] = await adminDb
+                .select({ id: member.id })
+                .from(member)
+                .where(and(
+                  eq(member.userId, sessionData.user.id),
+                  eq(member.organizationId, hostCompany.organization_id)
+                ))
+                .limit(1);
+
+              if (memberRow) isAuthorizedMember = true;
+            }
+
+            const rawUser = sessionData.user as typeof sessionData.user & { companyId?: number; company_id?: number };
+            if ((rawUser.companyId || rawUser.company_id) === hostCompany.id) {
+              isAuthorizedMember = true;
+            }
+
+            if (!isAuthorizedMember) {
+              set.status = 403;
+              throw new UnauthorizedError('Acceso denegado a este inquilino');
+            }
+
             resolvedCompanyId = hostCompany.id;
           }
         }

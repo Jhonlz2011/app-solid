@@ -4,36 +4,8 @@ import { entities, entityAddresses, entityContacts, employeeDetails, carrierVehi
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { CursorPaginator } from '../../core/db/paginator';
-import type { EntityPickerItem } from '@app/schema/dto';
-
-// Entity type discriminator
-export type EntityType = 'client' | 'supplier' | 'employee' | 'carrier';
-
-// =============================================================================
-// Pagination Types
-// =============================================================================
-
-export interface CursorData {
-    id: number;
-}
-
-export interface ColumnFilters {
-    personType?: string[];
-    taxIdType?: string[];
-    isActive?: string[];
-    businessName?: string[];
-}
-
-export interface ListFilters extends ColumnFilters {
-    cursor?: string;
-    limit?: number;
-    search?: string;
-    isCarrier?: boolean;
-    direction?: 'next' | 'prev' | 'first' | 'last';
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-    page?: number;
-}
+import type { EntityPickerType, EntityFilters } from '@app/schema/dto';
+import type { EntityType } from '@app/schema/enums';
 
 export const SORTABLE_COLUMNS: Record<string, AnyColumn> = {
     id: entities.id,
@@ -54,8 +26,7 @@ export interface FilterBuildOptions {
     type?: EntityType;
     search?: string;
     isCarrier?: boolean;
-    filters?: ColumnFilters & { isCarrier?: boolean };
-    columnFilters?: ColumnFilters;
+    filters?: EntityFilters;
     excludeColumn?: string;
     excludeFilterKey?: string;
 }
@@ -97,7 +68,7 @@ export function buildWhereConditions(opts: FilterBuildOptions): SQL[] {
         if (searchCondition) conditions.push(searchCondition);
     }
 
-    const cf = opts.filters || opts.columnFilters;
+    const cf = opts.filters;
     const exclude = opts.excludeFilterKey || opts.excludeColumn;
 
     if (exclude !== 'isActive') {
@@ -112,10 +83,10 @@ export function buildWhereConditions(opts: FilterBuildOptions): SQL[] {
     }
 
     if (exclude !== 'personType' && cf?.personType && cf.personType.length > 0) {
-        conditions.push(inArray(entities.person_type, cf.personType as any));
+        conditions.push(inArray(entities.person_type, cf.personType));
     }
     if (exclude !== 'taxIdType' && cf?.taxIdType && cf.taxIdType.length > 0) {
-        conditions.push(inArray(entities.tax_id_type, cf.taxIdType as any));
+        conditions.push(inArray(entities.tax_id_type, cf.taxIdType));
     }
     if (exclude !== 'businessName' && cf?.businessName && cf.businessName.length > 0) {
         conditions.push(inArray(entities.business_name, cf.businessName));
@@ -129,7 +100,7 @@ export function buildWhereConditions(opts: FilterBuildOptions): SQL[] {
 // =============================================================================
 
 function createEntityPaginator(type: EntityType) {
-    return new CursorPaginator<typeof entities, ColumnFilters & { isCarrier?: boolean }>({
+    return new CursorPaginator<typeof entities, EntityFilters>({
         table: entities,
         idColumn: entities.id,
         companyIdColumn: entities.company_id,
@@ -148,7 +119,7 @@ function createEntityPaginator(type: EntityType) {
     });
 }
 
-const entityPaginators: Record<EntityType, CursorPaginator<typeof entities, ColumnFilters & { isCarrier?: boolean }>> = {
+const entityPaginators: Record<EntityType, CursorPaginator<typeof entities, EntityFilters>> = {
     client: createEntityPaginator('client'),
     supplier: createEntityPaginator('supplier'),
     employee: createEntityPaginator('employee'),
@@ -159,7 +130,7 @@ const entityPaginators: Record<EntityType, CursorPaginator<typeof entities, Colu
 // List Entities
 // =============================================================================
 
-export async function listEntities(type: EntityType, filters: ListFilters, companyId: number) {
+export async function listEntities(type: EntityType, filters: EntityFilters, companyId: number) {
     const paginator = entityPaginators[type] || createEntityPaginator(type);
     const { cursor, direction, limit, search, isCarrier, sortBy, sortOrder, page, ...columnFilters } = filters;
     return paginator.paginate(
@@ -168,7 +139,7 @@ export async function listEntities(type: EntityType, filters: ListFilters, compa
     );
 }
 
-export async function listEntitiesCursor(type: EntityType, filters: ListFilters, companyId: number) {
+export async function listEntitiesCursor(type: EntityType, filters: EntityFilters, companyId: number) {
     const paginator = entityPaginators[type] || createEntityPaginator(type);
     const { cursor, direction, limit, search, isCarrier, sortBy, sortOrder, page, ...columnFilters } = filters;
     return paginator.paginateCursor(
@@ -177,7 +148,7 @@ export async function listEntitiesCursor(type: EntityType, filters: ListFilters,
     );
 }
 
-export async function listEntitiesSorted(type: EntityType, filters: ListFilters, companyId: number) {
+export async function listEntitiesSorted(type: EntityType, filters: EntityFilters, companyId: number) {
     const paginator = entityPaginators[type] || createEntityPaginator(type);
     const { cursor, direction, limit, search, isCarrier, sortBy, sortOrder, page, ...columnFilters } = filters;
     return paginator.paginateSorted(
@@ -187,14 +158,14 @@ export async function listEntitiesSorted(type: EntityType, filters: ListFilters,
 }
 
 export async function getCachedTotal(
-    companyId: number, type: EntityType, search?: string, isCarrier?: boolean, columnFilters?: ColumnFilters
+    companyId: number, type: EntityType, search?: string, isCarrier?: boolean, columnFilters?: Partial<EntityFilters>
 ) {
     const paginator = entityPaginators[type] || createEntityPaginator(type);
     return paginator.getCachedTotal(companyId, search, { ...columnFilters, isCarrier });
 }
 
 export async function getCachedBounds(
-    companyId: number, type: EntityType, search?: string, isCarrier?: boolean, columnFilters?: ColumnFilters
+    companyId: number, type: EntityType, search?: string, isCarrier?: boolean, columnFilters?: Partial<EntityFilters>
 ) {
     const paginator = entityPaginators[type] || createEntityPaginator(type);
     return paginator.getCachedBounds(companyId, search, { ...columnFilters, isCarrier });
@@ -206,22 +177,17 @@ export async function getCachedBounds(
 
 export type FacetColumn = 'person_type' | 'tax_id_type' | 'is_active' | 'business_name';
 
-export const FACET_TO_FILTER_KEY: Record<FacetColumn, keyof ColumnFilters> = {
+export const FACET_TO_FILTER_KEY: Record<FacetColumn, keyof EntityFilters> = {
     person_type: 'personType',
     tax_id_type: 'taxIdType',
     is_active: 'isActive',
     business_name: 'businessName',
 };
 
-export interface FacetFilters extends ColumnFilters {
-    search?: string;
-    isCarrier?: boolean;
-}
-
 export async function getEntityFacets(
     type: EntityType,
     columns: FacetColumn[],
-    filters: FacetFilters,
+    filters: EntityFilters,
     companyId: number
 ): Promise<Record<string, { value: string; count: number }[]>> {
     const paginator = entityPaginators[type] || createEntityPaginator(type);
@@ -246,7 +212,7 @@ export async function getEntityFacets(
 // Get Single Entity
 // =============================================================================
 
-export async function getEntity(id: number, companyId: number) {
+export async function getEntity(id: string, companyId: number) {
     const cacheKey = `entity:c${companyId}:${id}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
@@ -319,7 +285,7 @@ export async function listJobTitles(companyId: number, departmentId?: number) {
         .orderBy(asc(jobTitles.name));
 }
 
-export async function getContacts(entityId: number, companyId: number) {
+export async function getContacts(entityId: string, companyId: number) {
     const [ent] = await db
         .select({ id: entities.id })
         .from(entities)
@@ -329,7 +295,7 @@ export async function getContacts(entityId: number, companyId: number) {
     return db.select().from(entityContacts).where(eq(entityContacts.entity_id, entityId));
 }
 
-export async function getAddresses(entityId: number, companyId: number) {
+export async function getAddresses(entityId: string, companyId: number) {
     const [ent] = await db
         .select({ id: entities.id })
         .from(entities)
@@ -339,7 +305,7 @@ export async function getAddresses(entityId: number, companyId: number) {
     return db.select().from(entityAddresses).where(eq(entityAddresses.entity_id, entityId));
 }
 
-export async function listForPicker(companyId: number, search?: string, limit: number = 200): Promise<EntityPickerItem[]> {
+export async function listForPicker(companyId: number, search?: string, limit: number = 200): Promise<EntityPickerType[]> {
     const conditions: SQL[] = [eq(entities.company_id, companyId), eq(entities.is_active, true)];
 
     if (search && search.length >= 1) {

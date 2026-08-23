@@ -25,7 +25,7 @@ export const electronicDocuments = pgTableV2("electronic_documents", {
     issue_date: date("issue_date").notNull(),
 
     // Entidad relacionada (Cliente para factura, Transportista para guía, etc)
-    entity_id: integer("entity_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
+    entity_id: uuid("entity_id").references(() => entities.id, { onDelete: 'cascade' }).notNull(),
     work_order_id: integer("work_order_id").references(() => workOrders.id),
 
     status: invoiceStatusEnum("status").default('DRAFT'),
@@ -110,7 +110,7 @@ export const remissionGuides = pgTableV2("remission_guides", {
     // Documento de venta relacionado
     related_invoice_id: integer("related_invoice_id").references(() => electronicDocuments.id),
 
-    carrier_id: integer("carrier_id").references(() => entities.id),
+    carrier_id: uuid("carrier_id").references(() => entities.id),
     vehicle_plate: text("vehicle_plate").notNull(),
 
     start_date: date("start_date").notNull(),
@@ -169,7 +169,7 @@ export const withholdingReceipts = pgTableV2("withholding_receipts", {
     // The purchase invoice being retained against
     supplier_invoice_number: text("supplier_invoice_number").notNull(),
     supplier_invoice_date: date("supplier_invoice_date").notNull(),
-    supplier_id: integer("supplier_id").references(() => entities.id).notNull(),
+    supplier_id: uuid("supplier_id").references(() => entities.id).notNull(),
     fiscal_period: text("fiscal_period").notNull(), // "2026-04"
     total_retained: numeric("total_retained", { precision: 12, scale: 2 }).notNull(),
 }, (t) => [

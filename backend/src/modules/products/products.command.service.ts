@@ -4,7 +4,7 @@ import { products, productVariants, productComponents } from '@app/schema/tables
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { broadcast } from '../../core/sse/events';
-import type { ProductPayload } from '@app/schema/backend';
+import type { ProductBodyType } from '@app/schema/backend';
 import { publicStorageService } from '../../core/storage';
 import { checkProductReferences } from './products.query.service';
 
@@ -18,7 +18,7 @@ function extractSkuFromDetail(detail?: string): string {
     return match?.[1] ?? detail;
 }
 
-export function validateProductPayload(payload: ProductPayload, productId?: number) {
+export function validateProductPayload(payload: ProductBodyType, productId?: number) {
     if (!payload.variants?.length) {
         throw new DomainError('El producto debe tener al menos una variante', 400);
     }
@@ -67,7 +67,7 @@ async function checkVariantReferences(tx: Tx, variantId: number): Promise<boolea
 // Create Product
 // =============================================================================
 
-export async function createProduct(payload: ProductPayload, userId: number, companyId: number) {
+export async function createProduct(payload: ProductBodyType, userId: string, companyId: number) {
     validateProductPayload(payload);
 
     const existing = await db
@@ -168,9 +168,9 @@ export async function createProduct(payload: ProductPayload, userId: number, com
 // Update Product
 // =============================================================================
 
-export async function updateProduct(productId: number, payload: Partial<ProductPayload>, userId: number, companyId: number) {
+export async function updateProduct(productId: number, payload: Partial<ProductBodyType>, userId: string, companyId: number) {
     if (payload.variants !== undefined && payload.product_type !== undefined) {
-        validateProductPayload(payload as ProductPayload, productId);
+        validateProductPayload(payload as ProductBodyType, productId);
     }
 
     return db.transaction(async (tx: Tx) => {
@@ -329,7 +329,7 @@ export async function updateProduct(productId: number, payload: Partial<ProductP
 // Deactivate / Restore / Hard Delete
 // =============================================================================
 
-export async function deactivateProduct(productId: number, userId: number, companyId: number) {
+export async function deactivateProduct(productId: number, userId: string, companyId: number) {
     return db.transaction(async (tx) => {
         const [updated] = await tx
             .update(products)
@@ -349,7 +349,7 @@ export async function deactivateProduct(productId: number, userId: number, compa
     });
 }
 
-export async function restoreProduct(productId: number, userId: number, companyId: number) {
+export async function restoreProduct(productId: number, userId: string, companyId: number) {
     return db.transaction(async (tx) => {
         const [updated] = await tx
             .update(products)
@@ -428,7 +428,7 @@ export async function hardDeleteProduct(productId: number, companyId: number) {
 // Bulk Operations
 // =============================================================================
 
-export async function bulkDeactivateProducts(ids: number[], userId: number, companyId: number) {
+export async function bulkDeactivateProducts(ids: number[], userId: string, companyId: number) {
     await db.transaction(async (tx) => {
         await tx
             .update(products)
@@ -446,7 +446,7 @@ export async function bulkDeactivateProducts(ids: number[], userId: number, comp
     return { affected: ids.length };
 }
 
-export async function bulkRestoreProducts(ids: number[], userId: number, companyId: number) {
+export async function bulkRestoreProducts(ids: number[], userId: string, companyId: number) {
     await db.transaction(async (tx) => {
         await tx
             .update(products)

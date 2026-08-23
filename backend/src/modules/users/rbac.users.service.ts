@@ -1,13 +1,14 @@
 import { db } from '../../core/db';
-import { authUsers, authUserRoles, authRoles, entities, auditLogs, sessions, account } from '@app/schema/tables';
+import { authUsers, authUserRoles, authRoles, entities, auditLogs, sessions, account, member, companies } from '@app/schema/tables';
 import { eq, sql, count, and, inArray, ilike, or, asc, desc, type SQL } from '@app/schema';
 import { cacheService } from '../../core/cache';
 import { DomainError } from '../../core/errors';
 import { broadcast } from '../../core/sse/events';
-import { RealtimeEvents } from '@app/schema/realtime-events';
+import { RealtimeEvents, getTenantRoom } from '@app/schema/realtime-events';
 import { SYSTEM_ROLES } from '@app/schema/enums';
 import { invalidateUserRbacCache, revokeAllUserSessions, ensureNotLastSuperadmin, getUserRoles } from './rbac.permission.service';
 import { logAudit } from './rbac.roles.service';
+import { hashPassword } from '../../core/security';
 
 export interface UsersListFilters {
     search?: string;
@@ -312,7 +313,8 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
 
     await invalidateUserRbacCache(userIdStr);
     broadcast(RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr }, `user:${userIdStr}`);
-    broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    const targetRoom = user.company_id ? getTenantRoom(user.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, targetRoom);
 
     logAudit(currentUserId, 'UPDATE', 'auth_user_roles', userIdStr, { roleIds }, { roleIds: oldRoleIds });
 
@@ -320,7 +322,7 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
 }
 
 /**
- * Create a new user (admin function with Better-Auth credential account creation)
+ * Create a new user (admin function with Better-Auth credential account creation & organization member sync)
  */
 export async function createUser(data: { username: string; email: string; password: string; roleIds?: number[] }, currentUserId?: string | number, companyId?: number) {
     const existing = await db.query.authUsers.findFirst({
@@ -339,38 +341,60 @@ export async function createUser(data: { username: string; email: string; passwo
         throw new DomainError('Ya existe un usuario con ese nombre de usuario', 409);
     }
 
-    const password_hash = await Bun.password.hash(data.password);
+    const password_hash = await hashPassword(data.password);
 
-    const [newUser] = await db
-        .insert(authUsers)
-        .values({
-            name: data.username,
-            username: data.username,
-            email: data.email,
-            company_id: companyId!,
-            is_active: true,
-            emailVerified: false,
-        })
-        .returning({ id: authUsers.id, username: authUsers.username, email: authUsers.email });
+    const newUser = await db.transaction(async (tx) => {
+        const [user] = await tx
+            .insert(authUsers)
+            .values({
+                name: data.username,
+                username: data.username,
+                email: data.email,
+                company_id: companyId!,
+                is_active: true,
+                emailVerified: false,
+            })
+            .returning({ id: authUsers.id, username: authUsers.username, email: authUsers.email });
 
-    await db.insert(account).values({
-        accountId: newUser.id,
-        providerId: 'credential',
-        userId: newUser.id,
-        password: password_hash,
+        await tx.insert(account).values({
+            accountId: user.id,
+            providerId: 'credential',
+            userId: user.id,
+            password: password_hash,
+        });
+
+        // Better-Auth organization membership sync (DATA-01)
+        if (companyId) {
+            const [company] = await tx
+                .select({ organization_id: companies.organization_id })
+                .from(companies)
+                .where(eq(companies.id, companyId))
+                .limit(1);
+
+            if (company?.organization_id) {
+                await tx.insert(member).values({
+                    organizationId: company.organization_id,
+                    userId: user.id,
+                    role: 'member',
+                }).onConflictDoNothing();
+            }
+        }
+
+        if (data.roleIds && data.roleIds.length > 0) {
+            await tx.insert(authUserRoles).values(
+                data.roleIds.map(roleId => ({
+                    user_id: user.id,
+                    role_id: roleId,
+                    company_id: companyId!,
+                }))
+            );
+        }
+
+        return user;
     });
 
-    if (data.roleIds && data.roleIds.length > 0) {
-        await db.insert(authUserRoles).values(
-            data.roleIds.map(roleId => ({
-                user_id: newUser.id,
-                role_id: roleId,
-                company_id: companyId!,
-            }))
-        );
-    }
-
-    broadcast(RealtimeEvents.USER.CREATED, { id: newUser.id }, RealtimeEvents.ROOMS.USERS);
+    const targetRoom = companyId ? getTenantRoom(companyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    broadcast(RealtimeEvents.USER.CREATED, { id: newUser.id }, targetRoom);
 
     if (currentUserId) logAudit(currentUserId, 'INSERT', 'user', newUser.id, { username: data.username, email: data.email, roleIds: data.roleIds });
 
@@ -409,12 +433,10 @@ export async function removeUserFromRole(userId: string | number, roleId: number
         ))
         .returning();
 
-    if (deleted.length === 0) {
-        throw new DomainError('El usuario no tiene este rol', 404);
-    }
-
+    const user = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
     await invalidateUserRbacCache(userIdStr);
-    broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    const targetRoom = user?.company_id ? getTenantRoom(user.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, targetRoom);
 
     return { success: true };
 }
@@ -450,7 +472,7 @@ export async function updateUser(userId: string | number, data: { username?: str
 
     const oldUser = currentUserId ? await db.query.authUsers.findFirst({
         where: eq(authUsers.id, userIdStr),
-        columns: { username: true, email: true, is_active: true },
+        columns: { username: true, email: true, is_active: true, company_id: true },
     }) : undefined;
 
     const updateData: Partial<{ username: string; name: string; email: string; is_active: boolean }> = {};
@@ -465,13 +487,14 @@ export async function updateUser(userId: string | number, data: { username?: str
         .update(authUsers)
         .set(updateData)
         .where(eq(authUsers.id, userIdStr))
-        .returning({ id: authUsers.id, username: authUsers.username, email: authUsers.email, isActive: authUsers.is_active });
+        .returning({ id: authUsers.id, username: authUsers.username, email: authUsers.email, isActive: authUsers.is_active, company_id: authUsers.company_id });
 
     if (!updated) {
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    const targetRoom = updated?.company_id ? getTenantRoom(updated.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
 
     if (currentUserId) logAudit(currentUserId, 'UPDATE', 'user', userIdStr, updateData, oldUser ? { username: oldUser.username, email: oldUser.email, is_active: oldUser.is_active } : undefined);
 
@@ -502,7 +525,8 @@ export async function deactivateUser(userId: string | number, currentUserId: str
 
     await invalidateUserRbacCache(userIdStr);
     broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId: userIdStr }, `user:${userIdStr}`);
-    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    const targetRoom = updated?.company_id ? getTenantRoom(updated.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
 
     logAudit(currentUserId, 'UPDATE', 'user', userIdStr, { is_active: false }, { is_active: true });
 
@@ -530,7 +554,8 @@ export async function restoreUser(userId: string | number, currentUserId: string
     }
 
     await invalidateUserRbacCache(userIdStr);
-    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    const targetRoom = updated?.company_id ? getTenantRoom(updated.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
 
     logAudit(currentUserId, 'UPDATE', 'user', userIdStr, { is_active: true }, { is_active: false });
 
@@ -553,14 +578,15 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
     await revokeAllUserSessions(userIdStr);
 
     const deleted = await db.delete(authUsers).where(eq(authUsers.id, userIdStr)).returning({
-        id: authUsers.id, username: authUsers.username, email: authUsers.email,
+        id: authUsers.id, username: authUsers.username, email: authUsers.email, company_id: authUsers.company_id,
     });
     if (deleted.length === 0) {
         throw new DomainError('Usuario no encontrado', 404);
     }
 
     await invalidateUserRbacCache(userIdStr);
-    broadcast(RealtimeEvents.USER.DELETED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    const targetRoom = deleted[0]?.company_id ? getTenantRoom(deleted[0].company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    broadcast(RealtimeEvents.USER.DELETED, { userId: userIdStr }, targetRoom);
 
     logAudit(currentUserId, 'DELETE', 'user', userIdStr, undefined, { username: deleted[0].username, email: deleted[0].email });
 
@@ -651,7 +677,7 @@ export async function adminResetPassword(
     });
     if (!user) throw new DomainError('Usuario no encontrado', 404);
 
-    const newHash = await Bun.password.hash(newPassword);
+    const newHash = await hashPassword(newPassword);
     
     // Update Better-Auth account table
     await db.update(account)
@@ -670,7 +696,7 @@ export async function adminResetPassword(
  */
 export async function setUserEntity(
     userId: string | number,
-    entityId: number | null,
+    entityId: string | null,
     currentUserId?: string | number,
 ) {
     const userIdStr = String(userId);
@@ -690,12 +716,13 @@ export async function setUserEntity(
         .update(authUsers)
         .set({ entity_id: entityId })
         .where(eq(authUsers.id, userIdStr))
-        .returning({ id: authUsers.id, entityId: authUsers.entity_id });
+        .returning({ id: authUsers.id, entityId: authUsers.entity_id, company_id: authUsers.company_id });
 
     if (!updated) throw new DomainError('Usuario no encontrado', 404);
 
     if (currentUserId) logAudit(currentUserId, 'UPDATE', 'user', userIdStr, { entity_id: entityId }, { entity_id: oldUser?.entity_id ?? null });
-    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    const targetRoom = updated?.company_id ? getTenantRoom(updated.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
 
     return updated;
 }
@@ -703,7 +730,7 @@ export async function setUserEntity(
 /**
  * Batch deactivate multiple users
  */
-export async function batchDeleteUsers(userIds: (string | number)[], currentUserId: string | number) {
+export async function batchDeleteUsers(userIds: (string)[], currentUserId: string) {
     const currentUserIdStr = String(currentUserId);
     const idsStr = userIds.map(id => String(id));
     if (idsStr.includes(currentUserIdStr)) {
@@ -711,7 +738,7 @@ export async function batchDeleteUsers(userIds: (string | number)[], currentUser
     }
 
     const safeIds: string[] = [];
-    const errors: { userId: string | number; success: false; error: string }[] = [];
+    const errors: { userId: string; success: false; error: string }[] = [];
 
     for (const userId of userIds) {
         try {
@@ -742,11 +769,11 @@ export async function batchDeleteUsers(userIds: (string | number)[], currentUser
 /**
  * Batch restore multiple users
  */
-export async function batchRestoreUsers(userIds: (string | number)[], currentUserId: string | number) {
+export async function batchRestoreUsers(userIds: (string)[], currentUserId: string) {
     const currentUserIdStr = String(currentUserId);
     const idsStr = userIds.map(id => String(id));
     const safeIds = idsStr.filter(id => id !== currentUserIdStr);
-    const errors: { userId: string | number; success: false; error: string }[] = [];
+    const errors: { userId: string; success: false; error: string }[] = [];
 
     if (idsStr.includes(currentUserIdStr)) {
         errors.push({ userId: currentUserId, success: false, error: 'No puedes restaurar tu propia cuenta' });

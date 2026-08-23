@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia';
-import { authGuard } from '../../plugins/auth-guard';
+import { tenantGuard } from '../../plugins/tenant-guard';
 import { rbac } from '../../plugins/rbac';
 import {
     getAllRoles,
@@ -32,13 +32,13 @@ import {
 import { getActiveSessions, revokeSession } from '../auth/session.service';
 import {
     RoleBodySchema,
-    RolePermissionsUpdateSchema,
-    RbacUserCreateSchema,
-    RbacUserUpdateSchema,
-    RbacUserResetPasswordSchema,
-    RbacUserAssignEntitySchema,
-    UserRolesAssignSchema,
-    UserSessionItemSchema,
+    RolePermissionsUpdateBodySchema,
+    RbacUserCreateBodySchema,
+    RbacUserUpdateBodySchema,
+    RbacUserResetPasswordBodySchema,
+    RbacUserAssignEntityBodySchema,
+    UserRolesAssignBodySchema,
+    UserSessionResponseSchema,
     UserReferencesResponseSchema,
     BatchResultItemSchema,
     UserAuditLogQuerySchema,
@@ -46,25 +46,26 @@ import {
     UserListQuerySchema,
     AuditLogResponseSchema,
     IdParamSchema,
-    BulkIdsBodySchema,
+    IdStringParamSchema,
+    BulkStringIdsBodySchema,
 } from '@app/schema/backend';
 
 export const rbacRoutes = new Elysia({ prefix: '/rbac' })
-    .use(authGuard)
+    .use(tenantGuard)
     .use(rbac)
     .get('/roles', async ({ currentCompanyId }) => {
-        return await getAllRoles(currentCompanyId!);
+        return await getAllRoles(currentCompanyId);
     }, { permission: 'roles.read' })
 
     .post('/roles', async ({ body, currentUserId, currentCompanyId }) => {
-        return await createRole(body.name, body.description ?? null, currentUserId, currentCompanyId);
+        return await createRole(body.name, body.description, currentUserId, currentCompanyId);
     }, {
         permission: 'roles.create',
         body: RoleBodySchema,
     })
 
     .put('/roles/:id', async ({ params, body, currentUserId }) => {
-        return await updateRole(Number(params.id), body.name, body.description ?? null, currentUserId);
+        return await updateRole(Number(params.id), body.name, body.description, currentUserId);
     }, {
         permission: 'roles.update',
         params: IdParamSchema,
@@ -98,8 +99,13 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     }, {
         permission: 'permissions.update',
         params: IdParamSchema,
-        body: RolePermissionsUpdateSchema,
+        body: RolePermissionsUpdateBodySchema,
     })
+
+    // Permissions (read-only)
+    .get('/permissions', async () => {
+        return await getAllPermissions();
+    }, { permission: 'permissions.read' })
 
     // Role users
     .get('/roles/:id/users', async ({ params }) => {
@@ -115,11 +121,6 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         permission: 'roles.update',
         params: t.Object({ id: t.Numeric(), userId: t.String() }),
     })
-
-    // Permissions (read-only)
-    .get('/permissions', async () => {
-        return await getAllPermissions();
-    }, { permission: 'permissions.read' })
 
     // Parse arrays
     .get('/users/facets', async ({ query, currentCompanyId }) => {
@@ -156,22 +157,22 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await getUserById(params.id, currentCompanyId);
     }, {
         permission: 'users.read',
-        params: IdParamSchema,
+        params: IdStringParamSchema,
     })
 
     .post('/users', async ({ body, currentUserId, currentCompanyId }) => {
         return await createUser(body, currentUserId, currentCompanyId);
     }, {
         permission: 'users.create',
-        body: RbacUserCreateSchema,
+        body: RbacUserCreateBodySchema,
     })
 
     .put('/users/:id', async ({ params, body, currentUserId, currentCompanyId }) => {
         return await updateUser(params.id, body, currentUserId, currentCompanyId);
     }, {
         permission: 'users.update',
-        params: IdParamSchema,
-        body: RbacUserUpdateSchema,
+        params: IdStringParamSchema,
+        body: RbacUserUpdateBodySchema,
     })
 
     // Soft-delete (deactivate) — preserves roles
@@ -179,7 +180,7 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await deactivateUser(params.id, currentUserId);
     }, {
         permission: 'users.delete',
-        params: IdParamSchema,
+        params: IdStringParamSchema,
         response: t.Object({ success: t.Boolean() }),
     })
 
@@ -188,7 +189,7 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await hardDeleteUser(params.id, currentUserId);
     }, {
         permission: 'users.destroy',
-        params: IdParamSchema,
+        params: IdStringParamSchema,
         response: t.Object({ success: t.Boolean() }),
     })
 
@@ -197,7 +198,7 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await restoreUser(params.id, currentUserId);
     }, {
         permission: 'users.restore',
-        params: IdParamSchema,
+        params: IdStringParamSchema,
         response: t.Object({ success: t.Boolean() }),
     })
 
@@ -206,7 +207,7 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await checkUserReferences(params.id);
     }, {
         permission: 'users.destroy',
-        params: IdParamSchema,
+        params: IdStringParamSchema,
         response: UserReferencesResponseSchema,
     })
 
@@ -214,15 +215,15 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await getUserRolesById(params.id);
     }, {
         permission: 'users.read',
-        params: IdParamSchema,
+        params: IdStringParamSchema,
     })
 
     .put('/users/:id/roles', async ({ params, body, currentUserId }) => {
         return await assignUserRoles(params.id, body.roleIds, currentUserId);
     }, {
         permission: 'users.update',
-        params: IdParamSchema,
-        body: UserRolesAssignSchema,
+        params: IdStringParamSchema,
+        body: UserRolesAssignBodySchema,
     })
 
     // =========================================================================
@@ -234,8 +235,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await getActiveSessions(params.id, currentSessionId);
     }, {
         permission: 'users.read',
-        params: IdParamSchema,
-        response: t.Array(UserSessionItemSchema),
+        params: IdStringParamSchema,
+        response: t.Array(UserSessionResponseSchema),
     })
 
     // Admin: revoke a specific session for a user
@@ -256,7 +257,7 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         );
     }, {
         permission: 'users.read',
-        params: IdParamSchema,
+        params: IdStringParamSchema,
         query: UserAuditLogQuerySchema,
         response: AuditLogResponseSchema,
     })
@@ -266,8 +267,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await adminResetPassword(currentUserId, params.id, body.newPassword);
     }, {
         permission: 'users.update',
-        params: IdParamSchema,
-        body: RbacUserResetPasswordSchema,
+        params: IdStringParamSchema,
+        body: RbacUserResetPasswordBodySchema,
         response: t.Object({ success: t.Boolean() }),
     })
 
@@ -276,11 +277,11 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await setUserEntity(params.id, body.entityId, currentUserId);
     }, {
         permission: 'users.update',
-        params: IdParamSchema,
-        body: RbacUserAssignEntitySchema,
+        params: IdStringParamSchema,
+        body: RbacUserAssignEntityBodySchema,
         response: t.Object({
             id: t.Union([t.String(), t.Number()]),
-            entityId: t.Union([t.Number(), t.Null()]),
+            entityId: t.Union([t.String(), t.Null()]),
         }),
     })
 
@@ -292,7 +293,7 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await batchDeleteUsers(body.ids, currentUserId);
     }, {
         permission: 'users.delete',
-        body: BulkIdsBodySchema,
+        body: BulkStringIdsBodySchema,
         response: t.Array(BatchResultItemSchema),
     })
 
@@ -301,6 +302,6 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         return await batchRestoreUsers(body.ids, currentUserId);
     }, {
         permission: 'users.restore',
-        body: BulkIdsBodySchema,
+        body: BulkStringIdsBodySchema,
         response: t.Array(BatchResultItemSchema),
     });
