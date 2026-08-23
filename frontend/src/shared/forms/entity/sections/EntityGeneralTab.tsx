@@ -15,7 +15,7 @@ import {
 
 import TextField, { FieldLabel } from '@form/TextField';
 import Checkbox from '@form/Checkbox';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
+import { SelectField } from '@form/Select';
 import { SriBusinessNameSelect } from '@shared/ui/selectors';
 import { SearchIcon } from '@icons/SearchIcon';
 import { useAuth } from '@modules/auth/store/auth.store';
@@ -197,31 +197,13 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <props.form.Field name="taxIdType">
                         {(field) => (
-                            <div class="space-y-1.5">
-                                <FieldLabel>Tipo de Identificación</FieldLabel>
-                                <Select
-                                    value={computedTaxIdTypeOptions().find(o => o.value === field().state.value)}
-                                    onChange={(opt) => opt && field().handleChange(opt.value)}
-                                    options={computedTaxIdTypeOptions()}
-                                    optionValue="value"
-                                    optionTextValue="label"
-                                    optionDisabled="disabled"
-                                    disabled={props.isEdit()}
-                                    placeholder="Seleccionar..."
-                                    itemComponent={(itemProps) => (
-                                        <SelectItem item={itemProps.item}>
-                                            {itemProps.item.rawValue.label}
-                                        </SelectItem>
-                                    )}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue<SelectOption<TaxIdTypeForm>>>
-                                            {(state) => state.selectedOption()?.label}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent />
-                                </Select>
-                            </div>
+                            <SelectField
+                                field={field()}
+                                label="Tipo de Identificación"
+                                options={computedTaxIdTypeOptions()}
+                                disabled={props.isEdit()}
+                                placeholder="Seleccionar..."
+                            />
                         )}
                     </props.form.Field>
 
@@ -392,29 +374,12 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-0 sm:gap-4 place-items-start">
                         <props.form.Field name="taxRegimeType">
                             {(field) => (
-                                <div class="space-y-1.5 w-full">
-                                    <FieldLabel>Régimen Fiscal (Asignado SRI)</FieldLabel>
-                                    <Select
-                                        value={taxRegimeTypeOptions.find(o => o.value === field().state.value)}
-                                        onChange={(opt) => field().handleChange(opt?.value)}
-                                        options={taxRegimeTypeOptions}
-                                        optionValue="value"
-                                        optionTextValue="label"
-                                        placeholder="Seleccionar..."
-                                        itemComponent={(itemProps) => (
-                                            <SelectItem item={itemProps.item}>
-                                                {itemProps.item.rawValue.label}
-                                            </SelectItem>
-                                        )}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue<SelectOption<TaxRegimeType>>>
-                                                {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
-                                            </SelectValue>
-                                        </SelectTrigger>
-                                        <SelectContent />
-                                    </Select>
-                                </div>
+                                <SelectField
+                                    field={field()}
+                                    label="Régimen Fiscal (Asignado SRI)"
+                                    options={taxRegimeTypeOptions}
+                                    placeholder="Seleccionar..."
+                                />
                             )}
                         </props.form.Field>
 

@@ -13,8 +13,8 @@ export const taxIdTypeFormLabels: Record<TaxIdTypeForm, string> = {
 };
 
 export const personTypeLabels: Record<PersonType, string> = {
-    NATURAL: 'Persona Natural',
-    JURIDICA: 'Persona Jurídica',
+    NATURAL: 'Natural',
+    JURIDICA: 'Jurídica',
 };
 
 export const taxRegimeTypeLabels: Record<TaxRegimeType, string> = {

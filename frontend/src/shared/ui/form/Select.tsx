@@ -1,33 +1,14 @@
-import { Component, splitProps } from "solid-js";
+import { Component, JSX, splitProps, createMemo, Show } from "solid-js";
 import { Select as KSelect } from "@kobalte/core/select";
 import { CheckIcon } from "@icons/CheckIcon";
 import { ChevronsUpDownIcon } from "@icons/ChevronsUpDownIcon";
+import type { FieldLike } from '@form/form.types';
 
-/**
- * Enhanced Select component with optional TanStack Form field integration.
- * 
- * Usage with field prop (auto-binds to form):
- * ```tsx
- * <form.Field name="taxIdType">
- *   {(field) => (
- *     <SelectField
- *       field={field()}
- *       options={options}
- *       optionValue="value"
- *       optionTextValue="label"
- *       // ...
- *     />
- *   )}
- * </form.Field>
- * ```
- * 
- * Usage without field (standalone):
- * ```tsx
- * <Select value={value()} onChange={setValue} options={options} />
- * ```
- */
+// ============================================================================
+// PRIMITIVE KOBALTE COMPOUND COMPONENTS
+// ============================================================================
 
-// 1. ROOT - Standard Kobalte wrapper (maintains original behavior)
+// 1. ROOT - Standard Kobalte wrapper
 export const Select = <T,>(props: Parameters<typeof KSelect<T>>[0] & { class?: string }) => {
     const [local, others] = splitProps(props, ['class']);
     return (
@@ -56,7 +37,7 @@ export const SelectTrigger: Component<Parameters<typeof KSelect.Trigger>[0] & { 
         /* HOVER:*/
         hover:bg-card hover:border-border-strong
         
-        /* FOCUS: Replica tu color-mix usando opacidad de Tailwind */
+        /* FOCUS: */
         focus:outline-none 
         focus-visible:border-primary/65 
         focus-visible:ring-2 focus-visible:ring-primary/25
@@ -87,33 +68,26 @@ export const SelectValue = <T,>(props: Parameters<typeof KSelect.Value<T>>[0] & 
     );
 };
 
-// 4. CONTENT (El Menú Flotante)
+// 4. CONTENT (El Menú Flotante sin bloqueos de puntero)
 export const SelectContent: Component<Parameters<typeof KSelect.Content>[0] & { class?: string }> = (props) => {
     const [local, others] = splitProps(props, ['class', 'children']);
     return (
         <KSelect.Portal>
             <KSelect.Content
                 {...others}
-                onPointerDownOutside={(e: any) => {
-                    // Si el click fue en un control de formulario, no cerrar automáticamente
-                    const target = e.target as HTMLElement;
-                    if (target.closest('button, input, [role="combobox"], [data-kb-combobox-trigger]')) {
-                        e.preventDefault();
-                    }
-                }}
                 class={`
-          relative z-[100] min-w-[8rem] overflow-hidden 
+          relative z-100 min-w-32 overflow-hidden 
           
           bg-card border border-border rounded-xl shadow-card-soft p-1
           
           transform-origin-var
-          data-[expanded]:animate-in data-[expanded]:fade-in-0 data-[expanded]:zoom-in-95 data-[expanded]:slide-in-from-top-2
-          data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:zoom-out-95 data-[closed]:slide-out-to-top-2
+          data-expanded:animate-in data-expanded:fade-in-0 data-expanded:zoom-in-95 data-expanded:slide-in-from-top-2
+          data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:slide-out-to-top-2
           
           ${local.class ?? ''}
         `}
             >
-                <KSelect.Listbox class="max-h-[256px] overflow-y-auto outline-none p-1" />
+                <KSelect.Listbox class="max-h-64 overflow-y-auto outline-none p-1" />
             </KSelect.Content>
         </KSelect.Portal>
     );
@@ -129,18 +103,15 @@ export const SelectItem: Component<Parameters<typeof KSelect.Item>[0] & { class?
         relative flex w-full cursor-pointer select-none items-center justify-between 
         rounded-lg px-3 py-2 text-sm outline-none transition-colors duration-150
         text-text-secondary
-        data-[highlighted]:bg-primary-soft data-[highlighted]:text-primary-strong
-        data-[selected]:text-primary data-[selected]:font-medium
+        data-highlighted:bg-primary-soft data-highlighted:text-primary-strong
+        data-selected:text-primary data-selected:font-medium
         /* DISABLED */
-        data-[disabled]:pointer-events-none data-[disabled]:opacity-50
+        data-disabled:pointer-events-none data-disabled:opacity-50
         
         ${local.class ?? ''}
       `}
         >
-            {/* TEXTO DE LA OPCIÓN */}
             <KSelect.ItemLabel class="flex-1 truncate">{local.children}</KSelect.ItemLabel>
-
-            {/* INDICADOR (Check a la derecha) */}
             <KSelect.ItemIndicator class="ml-2 flex items-center justify-center animate-in fade-in duration-200">
                 <CheckIcon class="size-4 text-primary" stroke-width={2.5} />
             </KSelect.ItemIndicator>
@@ -148,7 +119,99 @@ export const SelectItem: Component<Parameters<typeof KSelect.Item>[0] & { class?
     );
 };
 
-// 6. LABEL (Opcional, para títulos)
-export const SelectLabel = (props: { class?: string; children?: any }) => {
+// 6. LABEL
+export const SelectLabel = (props: { class?: string; children?: JSX.Element }) => {
     return <KSelect.Label class={`text-sm font-medium text-muted mb-1 ml-1 ${props.class ?? ''}`}>{props.children}</KSelect.Label>;
 };
+
+// ============================================================================
+// HIGH-LEVEL FORM-CONNECTED COMPONENT: SelectField
+// ============================================================================
+
+export interface SelectOption<T = string | number> {
+    value: T;
+    label: string;
+    disabled?: boolean;
+}
+
+export interface SelectFieldProps<
+    TOption = string | number,
+    TValue extends TOption | null | undefined = TOption | null | undefined
+> {
+    field?: FieldLike<TValue>;
+    value?: TValue;
+    onChange?: (value: TValue) => void;
+    options: SelectOption<TOption>[];
+    label?: string;
+    placeholder?: string;
+    disabled?: boolean;
+    class?: string;
+    required?: boolean;
+}
+
+export function SelectField<
+    TOption = string | number,
+    TValue extends TOption | null | undefined = TOption | null | undefined
+>(
+    props: SelectFieldProps<TOption, TValue>
+) {
+    const activeValue = () => (props.field ? (props.field.state.value as TValue) : props.value);
+
+    const selectedOption = createMemo(() => {
+        const val = activeValue();
+        if (val === undefined || val === null) return undefined;
+        return props.options.find((opt) => (opt.value as unknown) === (val as unknown));
+    });
+
+    const handleChange = (opt: SelectOption<TOption> | null) => {
+        const val = (opt ? opt.value : null) as unknown as TValue;
+        if (props.field) {
+            props.field.handleChange(val);
+        }
+        props.onChange?.(val);
+    };
+
+    const handleBlur = () => {
+        props.field?.handleBlur();
+    };
+
+    return (
+        <div class={`space-y-1.5 w-full ${props.class ?? ''}`}>
+            <Show when={props.label}>
+                <label class="text-sm font-medium text-muted ml-1 w-fit block">
+                    {props.label}
+                    <Show when={props.required}>
+                        <span class="text-danger ml-1">*</span>
+                    </Show>
+                </label>
+            </Show>
+
+            <KSelect<SelectOption<TOption>>
+                value={selectedOption()}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                options={props.options}
+                optionValue="value"
+                optionTextValue="label"
+                optionDisabled="disabled"
+                disabled={props.disabled}
+                placeholder={props.placeholder ?? "Seleccionar..."}
+                gutter={4}
+                itemComponent={(itemProps) => (
+                    <SelectItem item={itemProps.item}>
+                        {itemProps.item.rawValue.label}
+                    </SelectItem>
+                )}
+            >
+                <SelectTrigger>
+                    <SelectValue<SelectOption<TOption>>>
+                        {(state) => state.selectedOption()?.label ?? props.placeholder ?? "Seleccionar..."}
+                    </SelectValue>
+                </SelectTrigger>
+                <SelectContent />
+            </KSelect>
+        </div>
+    );
+}
+
+export default SelectField;

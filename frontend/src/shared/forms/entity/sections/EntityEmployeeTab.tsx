@@ -1,8 +1,8 @@
-import { Component } from 'solid-js';
+import { Component, createMemo } from 'solid-js';
 import TextField from '@form/TextField';
 import Checkbox from '@form/Checkbox';
 import { FieldLabel } from '@form/TextField';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
+import { SelectField } from '@form/Select';
 import { EntitySelect } from '@shared/ui/selectors';
 import { PlusIcon } from '@icons/PlusIcon';
 import { BriefcaseIcon } from '@icons/BriefcaseIcon';
@@ -16,7 +16,6 @@ import {
     workModalityOptions,
     bankAccountTypeOptions,
     bloodTypeOptions,
-    type SelectOption,
 } from '../entity-form.utils';
 import type { ContractType, WorkModality, BankAccountType, BloodType } from '@app/schema/enums';
 
@@ -27,9 +26,14 @@ export interface EntityEmployeeTabProps {
 }
 
 export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
-    const isEmployee = () => props.form.state.values.isEmployee;
+    // Reactive store subscriptions for TanStack Form in SolidJS
+    const isEmployee = props.form.useStore((s) => s.values.isEmployee);
+    const selectedDeptId = props.form.useStore((s) => s.values.employeeDetails?.departmentId);
 
     const queries = useEntityQueries(props.form, isEmployee);
+
+    // Derived reactive options for Job Titles based on selected Department
+    const jobTitleOptions = createMemo(() => queries.getJobTitleOptions(selectedDeptId()));
 
     const promptCreateDepartment = () => {
         const name = prompt('Ingrese el nombre del nuevo departamento:');
@@ -58,85 +62,48 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* Departamento */}
                     <props.form.Field name="employeeDetails.departmentId">
-                        {(field) => {
-                            const opts = queries.departmentOptions;
-                            return (
-                                <div class="space-y-1.5">
-                                    <div class="flex items-center justify-between">
-                                        <FieldLabel>Departamento</FieldLabel>
-                                        <button
-                                            type="button"
-                                            onClick={promptCreateDepartment}
-                                            class="text-xs text-primary hover:underline flex items-center gap-0.5"
-                                        >
-                                            <PlusIcon class="size-3" /> Nuevo
-                                        </button>
-                                    </div>
-                                    <Select
-                                        value={opts().find((o) => o.value === field().state.value)}
-                                        onChange={(opt) => field().handleChange(opt?.value ?? null)}
-                                        options={opts()}
-                                        optionValue="value"
-                                        optionTextValue="label"
-                                        placeholder="Seleccionar..."
-                                        itemComponent={(itemProps) => (
-                                            <SelectItem item={itemProps.item}>
-                                                {itemProps.item.rawValue.label}
-                                            </SelectItem>
-                                        )}
+                        {(field) => (
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <FieldLabel>Departamento</FieldLabel>
+                                    <button
+                                        type="button"
+                                        onClick={promptCreateDepartment}
+                                        class="text-xs text-primary hover:underline flex items-center gap-0.5"
                                     >
-                                        <SelectTrigger>
-                                            <SelectValue<{ value: number; label: string }>>
-                                                {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
-                                            </SelectValue>
-                                        </SelectTrigger>
-                                        <SelectContent />
-                                    </Select>
+                                        <PlusIcon class="size-3" /> Nuevo
+                                    </button>
                                 </div>
-                            );
-                        }}
+                                <SelectField
+                                    field={field()}
+                                    options={queries.departmentOptions()}
+                                    placeholder="Seleccionar departamento..."
+                                />
+                            </div>
+                        )}
                     </props.form.Field>
 
                     {/* Cargo */}
                     <props.form.Field name="employeeDetails.jobTitleId">
-                        {(field) => {
-                            const deptId = props.form.getFieldValue('employeeDetails.departmentId');
-                            const opts = () => queries.getJobTitleOptions(deptId);
-                            return (
-                                <div class="space-y-1.5">
-                                    <div class="flex items-center justify-between">
-                                        <FieldLabel>Cargo</FieldLabel>
-                                        <button
-                                            type="button"
-                                            onClick={promptCreateJobTitle}
-                                            class="text-xs text-primary hover:underline flex items-center gap-0.5"
-                                        >
-                                            <PlusIcon class="size-3" /> Nuevo
-                                        </button>
-                                    </div>
-                                    <Select
-                                        value={opts().find((o) => o.value === field().state.value)}
-                                        onChange={(opt) => field().handleChange(opt?.value ?? null)}
-                                        options={opts()}
-                                        optionValue="value"
-                                        optionTextValue="label"
-                                        placeholder="Seleccionar..."
-                                        itemComponent={(itemProps) => (
-                                            <SelectItem item={itemProps.item}>
-                                                {itemProps.item.rawValue.label}
-                                            </SelectItem>
-                                        )}
+                        {(field) => (
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <FieldLabel>Cargo</FieldLabel>
+                                    <button
+                                        type="button"
+                                        onClick={promptCreateJobTitle}
+                                        class="text-xs text-primary hover:underline flex items-center gap-0.5"
                                     >
-                                        <SelectTrigger>
-                                            <SelectValue<{ value: number; label: string }>>
-                                                {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
-                                            </SelectValue>
-                                        </SelectTrigger>
-                                        <SelectContent />
-                                    </Select>
+                                        <PlusIcon class="size-3" /> Nuevo
+                                    </button>
                                 </div>
-                            );
-                        }}
+                                <SelectField
+                                    field={field()}
+                                    options={jobTitleOptions()}
+                                    placeholder="Seleccionar cargo..."
+                                />
+                            </div>
+                        )}
                     </props.form.Field>
 
                     {/* Supervisor Directo (Organigrama) */}
@@ -167,58 +134,24 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                     {/* Tipo de Contrato */}
                     <props.form.Field name="employeeDetails.contractType">
                         {(field) => (
-                            <div class="space-y-1.5">
-                                <FieldLabel>Tipo de Contrato</FieldLabel>
-                                <Select
-                                    value={contractTypeOptions.find((o) => o.value === field().state.value)}
-                                    onChange={(opt) => field().handleChange(opt?.value ?? 'INDEFINIDO')}
-                                    options={contractTypeOptions}
-                                    optionValue="value"
-                                    optionTextValue="label"
-                                    placeholder="Seleccionar..."
-                                    itemComponent={(itemProps) => (
-                                        <SelectItem item={itemProps.item}>
-                                            {itemProps.item.rawValue.label}
-                                        </SelectItem>
-                                    )}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue<SelectOption<ContractType>>>
-                                            {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent />
-                                </Select>
-                            </div>
+                            <SelectField
+                                field={field()}
+                                label="Tipo de Contrato"
+                                options={contractTypeOptions}
+                                placeholder="Seleccionar..."
+                            />
                         )}
                     </props.form.Field>
 
                     {/* Modalidad de Trabajo */}
                     <props.form.Field name="employeeDetails.workModality">
                         {(field) => (
-                            <div class="space-y-1.5">
-                                <FieldLabel>Modalidad de Trabajo</FieldLabel>
-                                <Select
-                                    value={workModalityOptions.find((o) => o.value === field().state.value)}
-                                    onChange={(opt) => field().handleChange(opt?.value ?? 'PRESENCIAL')}
-                                    options={workModalityOptions}
-                                    optionValue="value"
-                                    optionTextValue="label"
-                                    placeholder="Seleccionar..."
-                                    itemComponent={(itemProps) => (
-                                        <SelectItem item={itemProps.item}>
-                                            {itemProps.item.rawValue.label}
-                                        </SelectItem>
-                                    )}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue<SelectOption<WorkModality>>>
-                                            {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent />
-                                </Select>
-                            </div>
+                            <SelectField
+                                field={field()}
+                                label="Modalidad de Trabajo"
+                                options={workModalityOptions}
+                                placeholder="Seleccionar..."
+                            />
                         )}
                     </props.form.Field>
 
@@ -398,29 +331,12 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
 
                         <props.form.Field name="employeeDetails.bankAccountType">
                             {(field) => (
-                                <div class="space-y-1.5">
-                                    <FieldLabel>Tipo de Cuenta</FieldLabel>
-                                    <Select
-                                        value={bankAccountTypeOptions.find((o) => o.value === field().state.value)}
-                                        onChange={(opt) => field().handleChange(opt?.value ?? null)}
-                                        options={bankAccountTypeOptions}
-                                        optionValue="value"
-                                        optionTextValue="label"
-                                        placeholder="Seleccionar..."
-                                        itemComponent={(itemProps) => (
-                                            <SelectItem item={itemProps.item}>
-                                                {itemProps.item.rawValue.label}
-                                            </SelectItem>
-                                        )}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue<SelectOption<BankAccountType>>>
-                                                {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
-                                            </SelectValue>
-                                        </SelectTrigger>
-                                        <SelectContent />
-                                    </Select>
-                                </div>
+                                <SelectField
+                                    field={field()}
+                                    label="Tipo de Cuenta"
+                                    options={bankAccountTypeOptions}
+                                    placeholder="Seleccionar..."
+                                />
                             )}
                         </props.form.Field>
 
@@ -446,29 +362,12 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
 
                     <props.form.Field name="employeeDetails.bloodType">
                         {(field) => (
-                            <div class="space-y-1.5">
-                                <FieldLabel>Tipo de Sangre</FieldLabel>
-                                <Select
-                                    value={bloodTypeOptions.find((o) => o.value === field().state.value)}
-                                    onChange={(opt) => field().handleChange(opt?.value ?? null)}
-                                    options={bloodTypeOptions}
-                                    optionValue="value"
-                                    optionTextValue="label"
-                                    placeholder="Seleccionar..."
-                                    itemComponent={(itemProps) => (
-                                        <SelectItem item={itemProps.item}>
-                                            {itemProps.item.rawValue.label}
-                                        </SelectItem>
-                                    )}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue<SelectOption<BloodType>>>
-                                            {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent />
-                                </Select>
-                            </div>
+                            <SelectField
+                                field={field()}
+                                label="Tipo de Sangre"
+                                options={bloodTypeOptions}
+                                placeholder="Seleccionar..."
+                            />
                         )}
                     </props.form.Field>
                 </fieldset>
