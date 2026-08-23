@@ -6,7 +6,7 @@
  * Minimal field state interface compatible with TanStack Form's FieldApi
  * This abstraction allows components to work without importing TanStack directly
  */
-export interface FieldState<TValue = string> {
+export interface FieldState<TValue = unknown> {
     value: TValue;
     meta: {
         errors: readonly unknown[];
@@ -20,10 +20,10 @@ export interface FieldState<TValue = string> {
  * Minimal field interface for atomic form components
  * Compatible with TanStack Form's field() return value
  */
-export interface FieldLike<TValue = string> {
+export interface FieldLike<TValue = unknown> {
     name: string;
     state: FieldState<TValue>;
-    handleChange: (value: TValue) => void;
+    handleChange: (updater: TValue | ((prev: TValue) => TValue)) => void;
     handleBlur: () => void;
 }
 

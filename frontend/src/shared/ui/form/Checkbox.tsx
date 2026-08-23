@@ -1,19 +1,22 @@
-import { Component, splitProps, Show, createMemo } from 'solid-js';
+import { JSX, splitProps, Show, createMemo } from 'solid-js';
 import { Checkbox as KCheckbox } from "@kobalte/core/checkbox";
 import type { FieldLike } from '@form/form.types';
 
-type CheckboxProps = Omit<Parameters<typeof KCheckbox>[0], 'checked' | 'onChange'> & {
+export interface CheckboxProps<TValue extends boolean | undefined | null = boolean | undefined>
+    extends Omit<Parameters<typeof KCheckbox>[0], 'checked' | 'onChange'> {
     class?: string;
-    children?: any;
-    /** TanStack Form field - when provided, controls checked/onChange automatically */
-    field?: FieldLike<boolean>;
+    children?: JSX.Element;
+    /** TanStack Form field - 100% type-safe generic binding */
+    field?: FieldLike<TValue>;
     /** Controlled checked state - ignored if field is provided */
     checked?: boolean;
     /** Change handler - ignored if field is provided */
     onChange?: (checked: boolean) => void;
-};
+}
 
-const Checkbox: Component<CheckboxProps> = (props) => {
+export function Checkbox<TValue extends boolean | undefined | null = boolean | undefined>(
+    props: CheckboxProps<TValue>
+) {
     const [local, others] = splitProps(props, [
         'class',
         'children',
@@ -28,14 +31,14 @@ const Checkbox: Component<CheckboxProps> = (props) => {
 
     // Reactive checked state: from field or props
     const isChecked = createMemo(() => {
-        if (hasField()) return local.field!.state.value;
-        return local.checked;
+        if (hasField()) return Boolean(local.field!.state.value);
+        return local.checked ?? false;
     });
 
     // Handle change: route to field or prop handler
     const handleChange = (checked: boolean) => {
         if (hasField()) {
-            local.field!.handleChange(checked);
+            local.field!.handleChange(checked as unknown as TValue);
         } else {
             local.onChange?.(checked);
         }

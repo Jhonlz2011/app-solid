@@ -12,9 +12,9 @@ import Tooltip from '@overlay/Tooltip';
 // ============================================================================
 type ValidationState = 'valid' | 'invalid';
 
-interface TextFieldRootProps {
-    /** TanStack Form field - accepts any field type (string, number, undefined presentations) */
-    field?: FieldLike<any>;
+export interface TextFieldRootProps<TValue extends string | number | undefined | null = string | number | undefined | null> {
+    /** TanStack Form field - 100% type-safe generic binding */
+    field?: FieldLike<TValue>;
     /** Current value (controlled) - ignored if field is provided */
     value?: string;
     /** Default value (uncontrolled) */
@@ -90,6 +90,7 @@ interface TextFieldContextValue {
     onChange: (value: any) => void;
     onBlur: () => void;
     validationState: () => ValidationState;
+    isInvalid: () => boolean;
     disabled: () => boolean;
     readOnly: () => boolean;
     errorMessage: () => string;
@@ -122,7 +123,9 @@ const inputBaseStyles = `
 // ============================================================================
 
 /** Root container - provides context to children */
-const Root = (props: TextFieldRootProps) => {
+const Root = <TValue extends string | number | undefined | null = string | number | undefined | null>(
+    props: TextFieldRootProps<TValue>
+) => {
     const [local, others] = splitProps(props, [
         'field',
         'value',
@@ -182,6 +185,7 @@ const Root = (props: TextFieldRootProps) => {
             }
         },
         validationState,
+        isInvalid: () => validationState() === 'invalid',
         disabled: () => local.disabled ?? false,
         readOnly: () => local.readOnly ?? false,
         errorMessage,

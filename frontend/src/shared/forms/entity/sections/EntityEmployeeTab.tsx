@@ -3,12 +3,14 @@ import TextField from '@form/TextField';
 import Checkbox from '@form/Checkbox';
 import { FieldLabel } from '@form/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
+import { EntitySelect } from '@shared/ui/selectors';
 import { PlusIcon } from '@icons/PlusIcon';
 import { BriefcaseIcon } from '@icons/BriefcaseIcon';
 import { BuildingIcon } from '@icons/BuildingIcon';
 import { UsersIcon } from '@icons/UsersIcon';
 import type { EntityFormApi } from '../entity-form.types';
 import { useEntityQueries } from '../hooks/useEntityQueries';
+import type { EntityDetailType } from '@app/schema/dto';
 import {
     contractTypeOptions,
     workModalityOptions,
@@ -21,6 +23,7 @@ import type { ContractType, WorkModality, BankAccountType, BloodType } from '@ap
 export interface EntityEmployeeTabProps {
     form: EntityFormApi;
     isEdit: () => boolean;
+    entity?: EntityDetailType | null;
 }
 
 export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
@@ -138,34 +141,27 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
 
                     {/* Supervisor Directo (Organigrama) */}
                     <props.form.Field name="employeeDetails.reportsTo">
-                        {(field) => {
-                            const opts = queries.supervisorOptions;
-                            return (
-                                <div class="space-y-1.5">
-                                    <FieldLabel>Supervisor / Jefe Directo</FieldLabel>
-                                    <Select
-                                        value={opts().find((o) => o.value === field().state.value)}
-                                        onChange={(opt) => field().handleChange(opt?.value ?? null)}
-                                        options={opts()}
-                                        optionValue="value"
-                                        optionTextValue="label"
-                                        placeholder="Sin supervisor asignado"
-                                        itemComponent={(itemProps) => (
-                                            <SelectItem item={itemProps.item}>
-                                                {itemProps.item.rawValue.label}
-                                            </SelectItem>
-                                        )}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue<{ value: string; label: string }>>
-                                                {(state) => state.selectedOption()?.label ?? 'Sin supervisor asignado'}
-                                            </SelectValue>
-                                        </SelectTrigger>
-                                        <SelectContent />
-                                    </Select>
-                                </div>
-                            );
-                        }}
+                        {(field) => (
+                            <EntitySelect
+                                value={field().state.value}
+                                onChange={(id) => field().handleChange(id)}
+                                label="Supervisor / Jefe Directo (Organigrama)"
+                                placeholder="Buscar supervisor por nombre o identificación..."
+                                isEmployee={true}
+                                excludeEntityId={props.entity?.id}
+                                initialEntity={
+                                    props.entity?.employeeDetails?.reports_to
+                                        ? {
+                                              id: props.entity.employeeDetails.reports_to,
+                                              businessName: props.entity.employeeDetails.reports_to_name ?? 'Supervisor asignado',
+                                              taxId: '',
+                                          }
+                                        : null
+                                }
+                                disabled={props.form.state.isSubmitting}
+                                field={field()}
+                            />
+                        )}
                     </props.form.Field>
 
                     {/* Tipo de Contrato */}

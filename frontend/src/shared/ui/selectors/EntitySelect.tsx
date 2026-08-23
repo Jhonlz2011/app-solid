@@ -16,12 +16,12 @@ import { CloseIcon } from '@icons/CloseIcon';
 import { UserIcon } from '@icons/UserIcon';
 import Button from '@form/Button';
 
-export interface EntitySelectProps {
-    value: string | null | undefined;
-    onChange: (id: string | null, entity: EntityPickerType | null) => void;
+export interface EntitySelectProps<TValue extends string | null | undefined = string | null | undefined> {
+    value?: TValue;
+    onChange?: (id: string | null, entity: EntityPickerType | null) => void;
     label?: string;
     placeholder?: string;
-    field?: FieldLike<any>;
+    field?: FieldLike<TValue>;
     disabled?: boolean;
     type?: EntityType;
     isClient?: boolean;
@@ -34,7 +34,9 @@ export interface EntitySelectProps {
     initialEntity?: { id: string; businessName: string; taxId: string } | null;
 }
 
-export const EntitySelect: Component<EntitySelectProps> = (props) => {
+export function EntitySelect<TValue extends string | null | undefined = string | null | undefined>(
+    props: EntitySelectProps<TValue>
+) {
     const [localQuery, setLocalQuery] = createSignal('');
     const [debouncedQuery, setDebouncedQuery] = createSignal('');
     const [selectedEntityCache, setSelectedEntityCache] = createSignal<{
@@ -71,9 +73,11 @@ export const EntitySelect: Component<EntitySelectProps> = (props) => {
         return raw;
     });
 
+    const activeValue = () => props.field ? (props.field.state.value as string | null | undefined) : props.value;
+
     // Hydrate or track selected entity details
     const selectedEntity = createMemo(() => {
-        const val = props.value;
+        const val = activeValue();
         if (!val) return null;
 
         // 1. Check current fetched list
@@ -92,7 +96,7 @@ export const EntitySelect: Component<EntitySelectProps> = (props) => {
         const entity = selectedEntity();
         if (entity) {
             setLocalQuery(entity.businessName);
-        } else if (!props.value) {
+        } else if (!activeValue()) {
             setLocalQuery('');
         }
     });
@@ -118,12 +122,14 @@ export const EntitySelect: Component<EntitySelectProps> = (props) => {
             setSelectedEntityCache(item);
             setLocalQuery(item.businessName);
             setDebouncedQuery('');
-            props.onChange(item.id, item);
+            props.onChange?.(item.id, item);
+            props.field?.handleChange(item.id as unknown as TValue);
         } else {
             setSelectedEntityCache(null);
             setLocalQuery('');
             setDebouncedQuery('');
-            props.onChange(null, null);
+            props.onChange?.(null, null);
+            props.field?.handleChange(null as unknown as TValue);
         }
     };
 

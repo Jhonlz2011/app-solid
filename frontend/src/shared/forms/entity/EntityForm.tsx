@@ -146,7 +146,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
 
                         <Show when={isEmployeeVal()}>
                             <TabsContent value="employee" forceMount={false} class="w-full max-w-5xl">
-                                <EntityEmployeeTab form={form} isEdit={isEdit} />
+                                <EntityEmployeeTab form={form} isEdit={isEdit} entity={props.entity} />
                             </TabsContent>
                         </Show>
 

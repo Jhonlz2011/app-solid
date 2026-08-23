@@ -75,6 +75,51 @@ function mapEmployeeDetailsUpdate(details: NonNullable<EntityBodyType['employeeD
     });
 }
 
+async function validateSupervisor(
+    tx: any,
+    reportsTo: string | null | undefined,
+    currentEntityId: string | null | undefined,
+    companyId: number
+) {
+    if (!reportsTo) return;
+
+    if (currentEntityId && reportsTo === currentEntityId) {
+        throw new DomainError('Un empleado no puede ser asignado como su propio supervisor directo.', 400);
+    }
+
+    const [supervisor] = await tx
+        .select({
+            id: entities.id,
+            isActive: entities.is_active,
+            isEmployee: entities.is_employee,
+            businessName: entities.business_name,
+        })
+        .from(entities)
+        .where(and(eq(entities.id, reportsTo), eq(entities.company_id, companyId)))
+        .limit(1);
+
+    if (!supervisor) {
+        throw new DomainError('El supervisor seleccionado no existe en la empresa.', 404);
+    }
+
+    if (!supervisor.isEmployee || !supervisor.isActive) {
+        throw new DomainError(`"${supervisor.businessName}"no es un empleado activo y no puede ser asignado como supervisor.`, 400);
+    }
+
+    // Direct circular hierarchy check (A reports to B, and B already reports to A)
+    if (currentEntityId) {
+        const [supervisorDetails] = await tx
+            .select({ reports_to: employeeDetails.reports_to })
+            .from(employeeDetails)
+            .where(eq(employeeDetails.entity_id, reportsTo))
+            .limit(1);
+
+        if (supervisorDetails?.reports_to === currentEntityId) {
+            throw new DomainError(`Jerarquía circular detectada: "${supervisor.businessName}" ya tiene como supervisor a este empleado.`, 400);
+        }
+    }
+}
+
 // =============================================================================
 // Create Entity
 // =============================================================================
@@ -127,6 +172,9 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
             // Employee Details Upsert
             if (type === 'employee' || payload.isEmployee || type === 'carrier' || payload.isCarrier) {
                 if (payload.employeeDetails) {
+                    if (payload.employeeDetails.reportsTo) {
+                        await validateSupervisor(tx, payload.employeeDetails.reportsTo, existing.id, companyId);
+                    }
                     const [existingEmp] = await tx
                         .select({ entity_id: employeeDetails.entity_id })
                         .from(employeeDetails)
@@ -234,6 +282,9 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
 
         if (type === 'employee' || payload.isEmployee || type === 'carrier' || payload.isCarrier) {
             if (payload.employeeDetails) {
+                if (payload.employeeDetails.reportsTo) {
+                    await validateSupervisor(tx, payload.employeeDetails.reportsTo, null, companyId);
+                }
                 await tx.insert(employeeDetails).values(
                     mapEmployeeDetailsValues(payload.employeeDetails, created.id)
                 );
@@ -340,6 +391,9 @@ export async function updateEntity(id: string, type: EntityType, payload: Partia
         if (!updated) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
 
         if ((type === 'employee' || payload.isEmployee || type === 'carrier') && payload.employeeDetails) {
+            if (payload.employeeDetails.reportsTo) {
+                await validateSupervisor(tx, payload.employeeDetails.reportsTo, id, companyId);
+            }
             const result = await tx
                 .update(employeeDetails)
                 .set(mapEmployeeDetailsUpdate(payload.employeeDetails))
