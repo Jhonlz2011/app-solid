@@ -56,6 +56,25 @@ export const employeeWorkSchedulesRelations = relations(tables.employeeWorkSched
     workOrder: one(tables.workOrders, { fields: [tables.employeeWorkSchedules.work_order_id], references: [tables.workOrders.id] }),
 }));
 
+export const employeeDetailsRelations = relations(tables.employeeDetails, ({ one }) => ({
+    entity: one(tables.entities, {
+        fields: [tables.employeeDetails.entity_id],
+        references: [tables.entities.id],
+    }),
+    department: one(tables.departments, {
+        fields: [tables.employeeDetails.department_id],
+        references: [tables.departments.id],
+    }),
+    jobTitle: one(tables.jobTitles, {
+        fields: [tables.employeeDetails.job_title_id],
+        references: [tables.jobTitles.id],
+    }),
+    reportsTo: one(tables.entities, {
+        fields: [tables.employeeDetails.reports_to],
+        references: [tables.entities.id],
+    }),
+}));
+
 // =============================================================================
 // 2. Auth & Roles
 // =============================================================================

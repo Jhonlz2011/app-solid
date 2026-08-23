@@ -18,8 +18,6 @@ import Checkbox from '@form/Checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
 import { SriBusinessNameSelect } from '@shared/ui/selectors';
 import { SearchIcon } from '@icons/SearchIcon';
-import { BriefcaseIcon } from '@icons/BriefcaseIcon';
-import { PlusIcon } from '@icons/PlusIcon';
 import { useAuth } from '@modules/auth/store/auth.store';
 import {
     SegmentedControl,
@@ -32,7 +30,6 @@ import {
 import { InfoIcon } from '@icons/InfoIcon';
 
 import type { EntityFormApi } from '../entity-form.types';
-import { useEntityQueries } from '../hooks/useEntityQueries';
 import { useEntitySmartLookup } from '../hooks/useEntitySmartLookup';
 
 export interface EntityGeneralTabProps {
@@ -68,8 +65,6 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
         if (isSupplierVal()) return true;
         return false;
     });
-
-    const showEmployeeSection = createMemo(() => isEmployeeVal());
 
     const showTradeName = createMemo(() => {
         if (isPureEmployee()) return false;
@@ -115,13 +110,6 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
     // Custom Hooks (SRP Encapsulation)
     // =========================================================================
     const {
-        departmentOptions,
-        getJobTitleOptions,
-        handleCreateDepartment,
-        handleCreateJobTitle,
-    } = useEntityQueries(props.form, showEmployeeSection);
-
-    const {
         isSearchingRuc,
         sriError,
         setSriError,
@@ -133,16 +121,6 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
         businessNameInputRef?.focus();
         businessNameInputRef?.select();
     });
-
-    const promptCreateDepartment = () => {
-        const name = prompt('Nombre del nuevo departamento:');
-        if (name) handleCreateDepartment(name);
-    };
-
-    const promptCreateJobTitle = () => {
-        const name = prompt('Nombre del nuevo cargo:');
-        if (name) handleCreateJobTitle(name);
-    };
 
     return (
         <div class="w-full space-y-4">
@@ -481,126 +459,6 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                             Persona Jurídica siempre está obligada a llevar contabilidad
                         </small>
                     </Show>
-                </fieldset>
-            </Show>
-
-            {/* --- Employee Details Section (conditionally visible) --- */}
-            <Show when={showEmployeeSection()}>
-                <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40 animate-in slide-in-from-top-2">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div class="w-1.5 h-4 bg-secondary rounded-full"></div>
-                        <h3 class="font-semibold text-text uppercase tracking-wide text-sm">
-                            <BriefcaseIcon class="size-4 inline-block mr-1 -mt-0.5 mb-0.5" />
-                            Detalles de Empleado
-                        </h3>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        <props.form.Field name="employeeDetails.departmentId">
-                            {(field) => {
-                                const opts = departmentOptions;
-                                return (
-                                    <div class="space-y-1.5">
-                                        <div class="flex items-center justify-between">
-                                            <FieldLabel>Departamento</FieldLabel>
-                                            <button
-                                                type="button"
-                                                onClick={promptCreateDepartment}
-                                                class="text-xs text-primary hover:underline flex items-center gap-0.5"
-                                            >
-                                                <PlusIcon class="size-3" /> Nuevo
-                                            </button>
-                                        </div>
-                                        <Select
-                                            value={opts().find(o => o.value === field().state.value)}
-                                            onChange={(opt) => field().handleChange(opt?.value ?? null)}
-                                            options={opts()}
-                                            optionValue="value"
-                                            optionTextValue="label"
-                                            placeholder="Seleccionar..."
-                                            itemComponent={(itemProps) => (
-                                                <SelectItem item={itemProps.item}>
-                                                    {itemProps.item.rawValue.label}
-                                                </SelectItem>
-                                            )}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue<{ value: number; label: string }>>
-                                                    {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
-                                                </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent />
-                                        </Select>
-                                    </div>
-                                );
-                            }}
-                        </props.form.Field>
-
-                        <props.form.Field name="employeeDetails.jobTitleId">
-                            {(field) => {
-                                const deptId = props.form.getFieldValue('employeeDetails.departmentId');
-                                const opts = () => getJobTitleOptions(deptId);
-                                return (
-                                    <div class="space-y-1.5">
-                                        <div class="flex items-center justify-between">
-                                            <FieldLabel>Cargo</FieldLabel>
-                                            <button
-                                                type="button"
-                                                onClick={promptCreateJobTitle}
-                                                class="text-xs text-primary hover:underline flex items-center gap-0.5"
-                                            >
-                                                <PlusIcon class="size-3" /> Nuevo
-                                            </button>
-                                        </div>
-                                        <Select
-                                            value={opts().find(o => o.value === field().state.value)}
-                                            onChange={(opt) => field().handleChange(opt?.value ?? null)}
-                                            options={opts()}
-                                            optionValue="value"
-                                            optionTextValue="label"
-                                            placeholder="Seleccionar..."
-                                            itemComponent={(itemProps) => (
-                                                <SelectItem item={itemProps.item}>
-                                                    {itemProps.item.rawValue.label}
-                                                </SelectItem>
-                                            )}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue<{ value: number; label: string }>>
-                                                    {(state) => state.selectedOption()?.label ?? 'Seleccionar...'}
-                                                </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent />
-                                        </Select>
-                                    </div>
-                                );
-                            }}
-                        </props.form.Field>
-
-                        <props.form.Field name="employeeDetails.hireDate">
-                            {(field) => (
-                                <TextField.Root field={field()}>
-                                    <TextField.Label>Fecha de Contratación</TextField.Label>
-                                    <TextField.Input type="date" />
-                                </TextField.Root>
-                            )}
-                        </props.form.Field>
-                        <props.form.Field name="employeeDetails.salaryBase">
-                            {(field) => (
-                                <TextField.Root field={field()}>
-                                    <TextField.Label>Salario Base ($)</TextField.Label>
-                                    <TextField.Input type="number" placeholder="0.00" step="0.01" />
-                                </TextField.Root>
-                            )}
-                        </props.form.Field>
-                        <props.form.Field name="employeeDetails.costPerHour">
-                            {(field) => (
-                                <TextField.Root field={field()}>
-                                    <TextField.Label>Costo por Hora ($)</TextField.Label>
-                                    <TextField.Input type="number" placeholder="0.00" step="0.01" />
-                                </TextField.Root>
-                            )}
-                        </props.form.Field>
-                    </div>
                 </fieldset>
             </Show>
         </div>

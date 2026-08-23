@@ -2,7 +2,7 @@ import { text, integer, boolean, timestamp, numeric, date, index, uniqueIndex, u
 import { sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
-import { taxIdTypeEnum, personTypeEnum, taxRegimeTypeEnum } from '../enums';
+import { taxIdTypeEnum, personTypeEnum, taxRegimeTypeEnum, contractTypeEnum, workModalityEnum, bankAccountTypeEnum, bloodTypeEnum } from '../enums';
 import { companies } from './config';
 import { priceLists } from './pricing';
 
@@ -93,10 +93,41 @@ export const employeeDetails = pgTableV2("employee_details", {
     entity_id: uuid("entity_id").primaryKey().references(() => entities.id, { onDelete: 'cascade' }),
     department_id: integer("department_id").references(() => departments.id, { onDelete: 'set null' }),
     job_title_id: integer("job_title_id").references(() => jobTitles.id, { onDelete: 'set null' }),
-    salary_base: numeric("salary_base", { precision: 10, scale: 2 }),
+    reports_to: uuid("reports_to").references(() => entities.id, { onDelete: 'set null' }),
+
+    // --- Contratación y Modalidad ---
     hire_date: date("hire_date"),
+    termination_date: date("termination_date"),
+    contract_type: contractTypeEnum("contract_type").default('INDEFINIDO'),
+    work_modality: workModalityEnum("work_modality").default('PRESENCIAL'),
+
+    // --- Compensación y Operaciones ---
+    salary_base: numeric("salary_base", { precision: 10, scale: 2 }),
     cost_per_hour: numeric("cost_per_hour", { precision: 10, scale: 2 }),
-});
+    commission_percentage: numeric("commission_percentage", { precision: 5, scale: 2 }).default('0.00'),
+    approval_limit_amount: numeric("approval_limit_amount", { precision: 12, scale: 2 }),
+
+    // --- Nómina & IESS / SRI (Ecuador) ---
+    accumulate_thirteenth: boolean("accumulate_thirteenth").default(true).notNull(),
+    accumulate_fourteenth: boolean("accumulate_fourteenth").default(true).notNull(),
+    accumulate_reserve_funds: boolean("accumulate_reserve_funds").default(true).notNull(),
+    iess_code: text("iess_code"),
+    dependents_count: integer("dependents_count").default(0).notNull(),
+    disability_percentage: numeric("disability_percentage", { precision: 5, scale: 2 }),
+    conadis_id: text("conadis_id"),
+
+    // --- Datos Bancarios (Cash Management) ---
+    bank_name: text("bank_name"),
+    bank_account_type: bankAccountTypeEnum("bank_account_type"),
+    bank_account_number: text("bank_account_number"),
+
+    // --- Salud ---
+    blood_type: bloodTypeEnum("blood_type"),
+}, (t) => [
+    index("idx_employee_details_department").on(t.department_id),
+    index("idx_employee_details_job_title").on(t.job_title_id),
+    index("idx_employee_details_reports_to").on(t.reports_to),
+]);
 
 export const entityAddresses = pgTableV2("entity_addresses", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),

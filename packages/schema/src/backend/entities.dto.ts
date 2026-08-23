@@ -39,6 +39,37 @@ export const TaxRegimeTypeSchema = Type.Union([
     Type.Literal('GENERAL'),
 ]);
 
+export const ContractTypeSchema = Type.Union([
+    Type.Literal('INDEFINIDO'),
+    Type.Literal('EVENTUAL'),
+    Type.Literal('PLAZO_FIJO'),
+    Type.Literal('OBRA_CIERTA'),
+    Type.Literal('PASANTIA'),
+    Type.Literal('SERVICIOS_PROFESIONALES'),
+]);
+
+export const WorkModalitySchema = Type.Union([
+    Type.Literal('PRESENCIAL'),
+    Type.Literal('TELETRABAJO'),
+    Type.Literal('HIBRIDO'),
+]);
+
+export const BankAccountTypeSchema = Type.Union([
+    Type.Literal('AHORROS'),
+    Type.Literal('CORRIENTE'),
+]);
+
+export const BloodTypeSchema = Type.Union([
+    Type.Literal('O+'),
+    Type.Literal('O-'),
+    Type.Literal('A+'),
+    Type.Literal('A-'),
+    Type.Literal('B+'),
+    Type.Literal('B-'),
+    Type.Literal('AB+'),
+    Type.Literal('AB-'),
+]);
+
 export const ContactBodySchema = Type.Object({
     name: Type.String(),
     position: Type.String(),
@@ -59,9 +90,26 @@ export const AddressBodySchema = Type.Object({
 export const EmployeeDetailsBodySchema = Type.Object({
     departmentId: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     jobTitleId: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    reportsTo: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    hireDate: Type.Optional(Type.String()),
+    terminationDate: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    contractType: Type.Optional(ContractTypeSchema),
+    workModality: Type.Optional(WorkModalitySchema),
     salaryBase: Type.Optional(Type.Number()),
-    hireDate: Type.String(),
     costPerHour: Type.Optional(Type.Number()),
+    commissionPercentage: Type.Optional(Type.Number()),
+    approvalLimitAmount: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    accumulateThirteenth: Type.Boolean(),
+    accumulateFourteenth: Type.Boolean(),
+    accumulateReserveFunds: Type.Boolean(),
+    iessCode: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    dependentsCount: Type.Optional(Type.Number()),
+    disabilityPercentage: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    conadisId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    bankName: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    bankAccountType: Type.Optional(Type.Union([BankAccountTypeSchema, Type.Null()])),
+    bankAccountNumber: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    bloodType: Type.Optional(Type.Union([BloodTypeSchema, Type.Null()])),
 });
 
 // Departments & Job Titles DTOs (TypeBox)
@@ -240,9 +288,27 @@ export const EntityDetailEmployeeDetailsResponseSchema = Type.Object({
     department_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     job_title_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     job_title_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-    salary_base: Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()])),
+    reports_to: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    reports_to_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     hire_date: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    termination_date: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    contract_type: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    work_modality: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    salary_base: Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()])),
     cost_per_hour: Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()])),
+    commission_percentage: Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()])),
+    approval_limit_amount: Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()])),
+    accumulate_thirteenth: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    accumulate_fourteenth: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    accumulate_reserve_funds: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    iess_code: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    dependents_count: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    disability_percentage: Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()])),
+    conadis_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    bank_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    bank_account_type: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    bank_account_number: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    blood_type: Type.Optional(Type.Union([Type.String(), Type.Null()])),
 });
 
 export const EntityDetailVehicleResponseSchema = Type.Object({

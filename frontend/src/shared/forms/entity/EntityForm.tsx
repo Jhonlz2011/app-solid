@@ -13,6 +13,7 @@ import { InfoIcon } from '@icons/InfoIcon';
 import { MapPinIcon } from '@icons/MapPinIcon';
 import { UsersIcon } from '@icons/UsersIcon';
 import { TruckIcon } from '@icons/TruckIcon';
+import { BriefcaseIcon } from '@icons/BriefcaseIcon';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/form/Tabs';
 
 // Subcomponents
@@ -20,6 +21,7 @@ import { EntityGeneralTab } from './sections/EntityGeneralTab';
 import { EntityContactsArray } from './sections/EntityContactsArray';
 import { EntityAddressArray } from './sections/EntityAddressArray';
 import { EntityCarrierTab } from './sections/EntityCarrierTab';
+import { EntityEmployeeTab } from './sections/EntityEmployeeTab';
 
 import type { EntityDetailType } from '@app/schema/dto';
 
@@ -75,6 +77,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
         general: { prefixes: [], isDefault: true },
         contacts: { prefixes: ['contacts'] },
         addresses: { prefixes: ['addresses'] },
+        employee: { prefixes: ['employeeDetails'] },
         carrier: { prefixes: ['vehicles', 'drivers'] },
     });
 
@@ -103,6 +106,11 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                             <TabsTrigger value="general" hasError={tabErrors().general}>
                                 <InfoIcon /> General
                             </TabsTrigger>
+                            <Show when={isEmployeeVal()}>
+                                <TabsTrigger value="employee" hasError={tabErrors().employee}>
+                                    <BriefcaseIcon class="size-4" /> Datos Laborales
+                                </TabsTrigger>
+                            </Show>
                             <Show when={showContacts()}>
                                 <form.Subscribe selector={(state) => state.values.contacts?.length || 0}>
                                     {(count) => (
@@ -135,6 +143,12 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                         <TabsContent value="general">
                             <EntityGeneralTab form={form} isEdit={isEdit} lockedRoles={props.lockedRoles} />
                         </TabsContent>
+
+                        <Show when={isEmployeeVal()}>
+                            <TabsContent value="employee" forceMount={false} class="w-full max-w-5xl">
+                                <EntityEmployeeTab form={form} isEdit={isEdit} />
+                            </TabsContent>
+                        </Show>
 
                         <Show when={showContacts()}>
                             <TabsContent value="contacts" forceMount={false} class="w-full max-w-5xl">

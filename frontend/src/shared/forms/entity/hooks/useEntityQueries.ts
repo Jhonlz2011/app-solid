@@ -39,6 +39,17 @@ export function useEntityQueries(form: EntityFormApi, enabled: Accessor<boolean>
         enabled: enabled(),
     }));
 
+    const employeesPickerQuery = createQuery(() => ({
+        queryKey: ['employees', 'picker'],
+        queryFn: async () => {
+            const { data, error } = await api.employees.get({ query: { isActive: 'true', limit: 200 } });
+            if (error) throwApiError(error);
+            return (data?.data || []).map((emp) => ({ value: emp.id, label: `${emp.business_name} (${emp.tax_id})` }));
+        },
+        staleTime: STALE_TIME.MEDIUM,
+        enabled: enabled(),
+    }));
+
     // =========================================================================
     // Mutations
     // =========================================================================
@@ -92,11 +103,15 @@ export function useEntityQueries(form: EntityFormApi, enabled: Accessor<boolean>
         }
     };
 
+    const supervisorOptions = () => employeesPickerQuery.data || [];
+
     return {
         departmentsQuery,
         jobTitlesQuery,
+        employeesPickerQuery,
         departmentOptions,
         getJobTitleOptions,
+        supervisorOptions,
         createDeptMutation,
         createJobTitleMutation,
         handleCreateDepartment,

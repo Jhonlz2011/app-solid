@@ -3,7 +3,7 @@ import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { purchaseOrderStatusEnum } from '../enums';
 import { entities } from './entities';
-import { products, productVariants } from './products';
+import { productVariants } from './products';
 import { companies } from './config';
 import { uom } from './catalogs'
 import { workOrders } from './manufacturing';

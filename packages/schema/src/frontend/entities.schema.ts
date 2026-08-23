@@ -1,5 +1,5 @@
 import { pipe, string, minLength, object, email, picklist, boolean, union, literal, array, number, optional, null_, forward, check, type InferInput } from 'valibot';
-import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES } from '../enums';
+import { TAX_ID_TYPES, TAX_ID_TYPES_FORM, PERSON_TYPES, TAX_REGIME_TYPES, CONTRACT_TYPES, WORK_MODALITIES, BANK_ACCOUNT_TYPES, BLOOD_TYPES } from '../enums';
 import type { EntityBodyType } from '../backend/entities.dto';
 
 // --- REUSABLE ENUM SCHEMAS ---
@@ -7,6 +7,10 @@ export const TaxIdTypeSchema = picklist(TAX_ID_TYPES);
 export const TaxIdTypeFormSchema = picklist(TAX_ID_TYPES_FORM);
 export const PersonTypeSchema = picklist(PERSON_TYPES);
 export const TaxRegimeTypeSchema = picklist(TAX_REGIME_TYPES);
+export const ContractTypeSchema = picklist(CONTRACT_TYPES);
+export const WorkModalitySchema = picklist(WORK_MODALITIES);
+export const BankAccountTypeSchema = picklist(BANK_ACCOUNT_TYPES);
+export const BloodTypeSchema = picklist(BLOOD_TYPES);
 
 // --- SUB-SCHEMAS ---
 export const ContactFormSchema = object({
@@ -39,9 +43,26 @@ export const JobTitleFormSchema = object({
 export const EmployeeDetailsFormSchema = object({
     departmentId: optional(union([number(), null_()])),
     jobTitleId: optional(union([number(), null_()])),
+    reportsTo: optional(union([string(), null_()])),
+    hireDate: optional(string()),
+    terminationDate: optional(union([string(), null_()])),
+    contractType: optional(ContractTypeSchema),
+    workModality: optional(WorkModalitySchema),
     salaryBase: optional(number()),
-    hireDate: string(),
     costPerHour: optional(number()),
+    commissionPercentage: optional(number()),
+    approvalLimitAmount: optional(union([number(), null_()])),
+    accumulateThirteenth: boolean(),
+    accumulateFourteenth: boolean(),
+    accumulateReserveFunds: boolean(),
+    iessCode: optional(union([string(), null_()])),
+    dependentsCount: optional(number()),
+    disabilityPercentage: optional(union([number(), null_()])),
+    conadisId: optional(union([string(), null_()])),
+    bankName: optional(union([string(), null_()])),
+    bankAccountType: optional(union([BankAccountTypeSchema, null_()])),
+    bankAccountNumber: optional(union([string(), null_()])),
+    bloodType: optional(union([BloodTypeSchema, null_()])),
 });
 
 export const CarrierVehicleFormSchema = object({

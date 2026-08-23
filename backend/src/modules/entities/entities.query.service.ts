@@ -1,4 +1,4 @@
-import { and, eq, ilike, or, asc, inArray, type AnyColumn, type SQL } from '@app/schema';
+import {  alias, and, eq, ilike, or, asc, inArray, type AnyColumn, type SQL } from '@app/schema';
 import { db } from '../../core/db';
 import { entities, entityAddresses, entityContacts, employeeDetails, carrierVehicles, carrierDrivers, departments, jobTitles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
@@ -230,6 +230,7 @@ export async function getEntity(id: string, companyId: number) {
 
         let details = null;
         if (entity.is_employee) {
+            const supervisors = alias(entities, 'supervisors');
             const [empDetails] = await db
                 .select({
                     entity_id: employeeDetails.entity_id,
@@ -237,13 +238,32 @@ export async function getEntity(id: string, companyId: number) {
                     department_name: departments.name,
                     job_title_id: employeeDetails.job_title_id,
                     job_title_name: jobTitles.name,
-                    salary_base: employeeDetails.salary_base,
+                    reports_to: employeeDetails.reports_to,
+                    reports_to_name: supervisors.business_name,
                     hire_date: employeeDetails.hire_date,
+                    termination_date: employeeDetails.termination_date,
+                    contract_type: employeeDetails.contract_type,
+                    work_modality: employeeDetails.work_modality,
+                    salary_base: employeeDetails.salary_base,
                     cost_per_hour: employeeDetails.cost_per_hour,
+                    commission_percentage: employeeDetails.commission_percentage,
+                    approval_limit_amount: employeeDetails.approval_limit_amount,
+                    accumulate_thirteenth: employeeDetails.accumulate_thirteenth,
+                    accumulate_fourteenth: employeeDetails.accumulate_fourteenth,
+                    accumulate_reserve_funds: employeeDetails.accumulate_reserve_funds,
+                    iess_code: employeeDetails.iess_code,
+                    dependents_count: employeeDetails.dependents_count,
+                    disability_percentage: employeeDetails.disability_percentage,
+                    conadis_id: employeeDetails.conadis_id,
+                    bank_name: employeeDetails.bank_name,
+                    bank_account_type: employeeDetails.bank_account_type,
+                    bank_account_number: employeeDetails.bank_account_number,
+                    blood_type: employeeDetails.blood_type,
                 })
                 .from(employeeDetails)
                 .leftJoin(departments, eq(employeeDetails.department_id, departments.id))
                 .leftJoin(jobTitles, eq(employeeDetails.job_title_id, jobTitles.id))
+                .leftJoin(supervisors, eq(employeeDetails.reports_to, supervisors.id))
                 .where(eq(employeeDetails.entity_id, id));
             details = empDetails || null;
         }

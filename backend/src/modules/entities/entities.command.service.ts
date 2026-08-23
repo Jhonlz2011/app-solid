@@ -20,6 +20,61 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
     ) as Partial<T>;
 }
 
+function mapEmployeeDetailsValues(details: NonNullable<EntityBodyType['employeeDetails']>, entityId: string) {
+    return {
+        entity_id: entityId,
+        department_id: details.departmentId ?? null,
+        job_title_id: details.jobTitleId ?? null,
+        reports_to: details.reportsTo ?? null,
+        hire_date: details.hireDate || null,
+        termination_date: details.terminationDate || null,
+        contract_type: details.contractType ?? 'INDEFINIDO',
+        work_modality: details.workModality ?? 'PRESENCIAL',
+        salary_base: toDecimal(details.salaryBase),
+        cost_per_hour: toDecimal(details.costPerHour),
+        commission_percentage: toDecimal(details.commissionPercentage) ?? '0.00',
+        approval_limit_amount: toDecimal(details.approvalLimitAmount),
+        accumulate_thirteenth: details.accumulateThirteenth ?? true,
+        accumulate_fourteenth: details.accumulateFourteenth ?? true,
+        accumulate_reserve_funds: details.accumulateReserveFunds ?? true,
+        iess_code: details.iessCode?.trim() || null,
+        dependents_count: details.dependentsCount ?? 0,
+        disability_percentage: toDecimal(details.disabilityPercentage),
+        conadis_id: details.conadisId?.trim() || null,
+        bank_name: details.bankName?.trim() || null,
+        bank_account_type: details.bankAccountType || null,
+        bank_account_number: details.bankAccountNumber?.trim() || null,
+        blood_type: details.bloodType || null,
+    };
+}
+
+function mapEmployeeDetailsUpdate(details: NonNullable<EntityBodyType['employeeDetails']>) {
+    return stripUndefined({
+        department_id: details.departmentId,
+        job_title_id: details.jobTitleId,
+        reports_to: details.reportsTo,
+        hire_date: details.hireDate,
+        termination_date: details.terminationDate,
+        contract_type: details.contractType,
+        work_modality: details.workModality,
+        salary_base: toDecimal(details.salaryBase),
+        cost_per_hour: toDecimal(details.costPerHour),
+        commission_percentage: toDecimal(details.commissionPercentage),
+        approval_limit_amount: toDecimal(details.approvalLimitAmount),
+        accumulate_thirteenth: details.accumulateThirteenth,
+        accumulate_fourteenth: details.accumulateFourteenth,
+        accumulate_reserve_funds: details.accumulateReserveFunds,
+        iess_code: details.iessCode?.trim(),
+        dependents_count: details.dependentsCount,
+        disability_percentage: toDecimal(details.disabilityPercentage),
+        conadis_id: details.conadisId?.trim(),
+        bank_name: details.bankName?.trim(),
+        bank_account_type: details.bankAccountType,
+        bank_account_number: details.bankAccountNumber?.trim(),
+        blood_type: details.bloodType,
+    });
+}
+
 // =============================================================================
 // Create Entity
 // =============================================================================
@@ -73,7 +128,7 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
             if (type === 'employee' || payload.isEmployee || type === 'carrier' || payload.isCarrier) {
                 if (payload.employeeDetails) {
                     const [existingEmp] = await tx
-                        .select({ id: employeeDetails.id })
+                        .select({ entity_id: employeeDetails.entity_id })
                         .from(employeeDetails)
                         .where(eq(employeeDetails.entity_id, existing.id))
                         .limit(1);
@@ -81,23 +136,12 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
                     if (existingEmp) {
                         await tx
                             .update(employeeDetails)
-                            .set(stripUndefined({
-                                department_id: payload.employeeDetails.departmentId,
-                                job_title_id: payload.employeeDetails.jobTitleId,
-                                salary_base: toDecimal(payload.employeeDetails.salaryBase),
-                                hire_date: payload.employeeDetails.hireDate,
-                                cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
-                            }))
-                            .where(eq(employeeDetails.id, existingEmp.id));
+                            .set(mapEmployeeDetailsUpdate(payload.employeeDetails))
+                            .where(eq(employeeDetails.entity_id, existing.id));
                     } else {
-                        await tx.insert(employeeDetails).values({
-                            entity_id: existing.id,
-                            department_id: payload.employeeDetails.departmentId ?? null,
-                            job_title_id: payload.employeeDetails.jobTitleId ?? null,
-                            salary_base: toDecimal(payload.employeeDetails.salaryBase),
-                            hire_date: payload.employeeDetails.hireDate,
-                            cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
-                        });
+                        await tx.insert(employeeDetails).values(
+                            mapEmployeeDetailsValues(payload.employeeDetails, existing.id)
+                        );
                     }
                 }
             }
@@ -190,14 +234,9 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
 
         if (type === 'employee' || payload.isEmployee || type === 'carrier' || payload.isCarrier) {
             if (payload.employeeDetails) {
-                await tx.insert(employeeDetails).values({
-                    entity_id: created.id,
-                    department_id: payload.employeeDetails.departmentId ?? null,
-                    job_title_id: payload.employeeDetails.jobTitleId ?? null,
-                    salary_base: toDecimal(payload.employeeDetails.salaryBase),
-                    hire_date: payload.employeeDetails.hireDate,
-                    cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
-                });
+                await tx.insert(employeeDetails).values(
+                    mapEmployeeDetailsValues(payload.employeeDetails, created.id)
+                );
             }
         }
 
@@ -303,25 +342,14 @@ export async function updateEntity(id: string, type: EntityType, payload: Partia
         if ((type === 'employee' || payload.isEmployee || type === 'carrier') && payload.employeeDetails) {
             const result = await tx
                 .update(employeeDetails)
-                .set(stripUndefined({
-                    department_id: payload.employeeDetails.departmentId,
-                    job_title_id: payload.employeeDetails.jobTitleId,
-                    salary_base: toDecimal(payload.employeeDetails.salaryBase),
-                    hire_date: payload.employeeDetails.hireDate,
-                    cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
-                }))
+                .set(mapEmployeeDetailsUpdate(payload.employeeDetails))
                 .where(eq(employeeDetails.entity_id, id))
                 .returning();
             
             if (result.length === 0) {
-                await tx.insert(employeeDetails).values({
-                    entity_id: id,
-                    department_id: payload.employeeDetails.departmentId ?? null,
-                    job_title_id: payload.employeeDetails.jobTitleId ?? null,
-                    salary_base: toDecimal(payload.employeeDetails.salaryBase),
-                    hire_date: payload.employeeDetails.hireDate,
-                    cost_per_hour: toDecimal(payload.employeeDetails.costPerHour),
-                });
+                await tx.insert(employeeDetails).values(
+                    mapEmployeeDetailsValues(payload.employeeDetails, id)
+                );
             }
         }
 
