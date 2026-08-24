@@ -46,7 +46,14 @@ const Login: Component = () => {
   // Turnstile token state
   const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
 
-  onMount(() => actions.cleanupStaleSession());
+  onMount(() => {
+    actions.cleanupStaleSession();
+    const params = new URLSearchParams(window.location.search);
+    const errorParam = params.get('error');
+    if (errorParam) {
+      toast.error(getFriendlyErrorMessage(errorParam, 'Error al autenticar con el proveedor social'));
+    }
+  });
 
   const handleRedirect = (slug: string, path: string) => {
     window.location.href = buildTenantUrl(slug, path, { queryParams: { session: 'true' } });

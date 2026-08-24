@@ -189,6 +189,13 @@ export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,        // https://api.zelys.app
     basePath: '/api/auth',
     trustedOrigins: dynamicTrustedOrigins,
+    onAPIError: {
+        errorURL: (error, ctx) => {
+            const frontendBase = env.NODE_ENV === 'production' ? 'https://in.zelys.app' : env.FRONTEND_URL;
+            const errorMsg = error?.message || 'oauth_error';
+            return `${frontendBase.replace(/\/$/, '')}/login?error=${encodeURIComponent(errorMsg)}`;
+        },
+    },
     socialProviders: {
         ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? {
             google: {
@@ -196,6 +203,25 @@ export const auth = betterAuth({
                 clientSecret: env.GOOGLE_CLIENT_SECRET,
                 accessType: 'offline',
                 prompt: 'select_account',
+                mapProfileToUser: (profile) => {
+                    const rawEmail = profile.email || '';
+                    const rawName = profile.name || '';
+                    const rawBase = rawEmail
+                        ? rawEmail.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase()
+                        : (rawName ? rawName.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() : 'user');
+                    const base = rawBase.length >= 3 ? rawBase : `${rawBase}usr`;
+                    const randomSuffix = Math.random().toString(36).substring(2, 6);
+                    const generatedUsername = `${base.slice(0, 24)}_${randomSuffix}`;
+
+                    return {
+                        name: profile.name || generatedUsername,
+                        email: profile.email,
+                        image: profile.picture || null,
+                        username: generatedUsername,
+                        displayUsername: profile.name || generatedUsername,
+                        emailVerified: profile.email_verified ?? true,
+                    };
+                },
             },
         } : {}),
         ...(env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET ? {
@@ -203,6 +229,25 @@ export const auth = betterAuth({
                 clientId: env.MICROSOFT_CLIENT_ID,
                 clientSecret: env.MICROSOFT_CLIENT_SECRET,
                 tenantId: env.MICROSOFT_TENANT_ID || 'common',
+                mapProfileToUser: (profile) => {
+                    const rawEmail = profile.email || (profile as any).userPrincipalName || (profile as any).mail || '';
+                    const rawName = profile.name || (profile as any).displayName || '';
+                    const rawBase = rawEmail
+                        ? rawEmail.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase()
+                        : (rawName ? rawName.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() : 'user');
+                    const base = rawBase.length >= 3 ? rawBase : `${rawBase}usr`;
+                    const randomSuffix = Math.random().toString(36).substring(2, 6);
+                    const generatedUsername = `${base.slice(0, 24)}_${randomSuffix}`;
+
+                    return {
+                        name: rawName || generatedUsername,
+                        email: rawEmail,
+                        image: (profile as any).picture || null,
+                        username: generatedUsername,
+                        displayUsername: rawName || generatedUsername,
+                        emailVerified: true,
+                    };
+                },
             },
         } : {}),
     },
@@ -232,6 +277,7 @@ export const auth = betterAuth({
                             ...user,
                             username: generatedUsername,
                             displayUsername: (user as any).displayUsername || user.name || generatedUsername,
+                            emailVerified: (user as any).emailVerified ?? false,
                         },
                     };
                 },

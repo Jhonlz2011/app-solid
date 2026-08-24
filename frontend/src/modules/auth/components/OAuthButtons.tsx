@@ -53,10 +53,12 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
         : '/dashboard';
       
       const callbackURL = `${window.location.origin}${targetPath}`;
+      const errorCallbackURL = `${window.location.origin}/login`;
 
       const res = await authClient.signIn.social({
         provider,
         callbackURL,
+        errorCallbackURL,
       });
 
       if (res?.error) {
