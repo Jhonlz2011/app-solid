@@ -26,7 +26,7 @@ const SuppliersPage: Component = () => {
     return (
         <EntityPage
             title="Proveedores"
-            icon={<SupplierIcon />}
+            icon={<SupplierIcon class="size-7" />}
             iconBg="linear-gradient(135deg, #ffdb03, #a37014)"
             description="Gestiona los proveedores de tu negocio. Puedes agregar, editar, eliminar y buscar proveedores."
             state={state}

@@ -5,17 +5,15 @@
  * for the unified EntityForm component.
  */
 import type { EntityFormData } from '@app/schema/frontend';
-import type { TaxIdTypeForm, PersonType, TaxRegimeType, ContractType, WorkModality, BankAccountType, BloodType } from '@app/schema/enums';
-import { TAX_ID_TYPES_FORM, CONTRACT_TYPES, WORK_MODALITIES, BANK_ACCOUNT_TYPES, BLOOD_TYPES } from '@app/schema/enums';
+import type { TaxIdTypeForm, PersonType, TaxRegimeType, SalaryType, ContractType, BankAccountType } from '@app/schema/enums';
+import { TAX_ID_TYPES_FORM, CONTRACT_TYPES, BANK_ACCOUNT_TYPES, DEFAULT_SBU, MONTHLY_WORK_HOURS } from '@app/schema/enums';
 import type { EntityDetailType } from '@app/schema/dto';
 import {
     taxIdTypeFormLabels,
     personTypeLabels,
     taxRegimeTypeLabels,
     contractTypeLabels,
-    workModalityLabels,
     bankAccountTypeLabels,
-    bloodTypeLabels,
     roleLabels,
 } from '@shared/constants/entity-labels';
 
@@ -23,7 +21,7 @@ import {
 // Re-export Centralized Labels & Maps
 // =============================================================================
 
-export { personTypeLabels, taxRegimeTypeLabels, contractTypeLabels, workModalityLabels, bankAccountTypeLabels, bloodTypeLabels, roleLabels };
+export { personTypeLabels, taxRegimeTypeLabels, contractTypeLabels, bankAccountTypeLabels, roleLabels };
 export const taxIdTypeLabels = taxIdTypeFormLabels;
 
 // =============================================================================
@@ -55,16 +53,8 @@ export const contractTypeOptions: SelectOption<ContractType>[] = CONTRACT_TYPES.
     (value) => ({ value, label: contractTypeLabels[value] })
 );
 
-export const workModalityOptions: SelectOption<WorkModality>[] = WORK_MODALITIES.map(
-    (value) => ({ value, label: workModalityLabels[value] })
-);
-
 export const bankAccountTypeOptions: SelectOption<BankAccountType>[] = BANK_ACCOUNT_TYPES.map(
     (value) => ({ value, label: bankAccountTypeLabels[value] })
-);
-
-export const bloodTypeOptions: SelectOption<BloodType>[] = BLOOD_TYPES.map(
-    (value) => ({ value, label: bloodTypeLabels[value] })
 );
 
 // =============================================================================
@@ -78,9 +68,9 @@ export const EMPTY_EMPLOYEE_DETAILS = {
     hireDate: '',
     terminationDate: undefined as string | null | undefined,
     contractType: 'INDEFINIDO' as ContractType | undefined,
-    workModality: 'PRESENCIAL' as WorkModality | undefined,
-    salaryBase: undefined as number | undefined,
-    costPerHour: undefined as number | undefined,
+    salaryType: 'SBU' as SalaryType | undefined,
+    salaryBase: DEFAULT_SBU,
+    costPerHour: Number((DEFAULT_SBU / MONTHLY_WORK_HOURS).toFixed(2)),
     accumulateThirteenth: true,
     accumulateFourteenth: true,
     accumulateReserveFunds: true,
@@ -89,7 +79,6 @@ export const EMPTY_EMPLOYEE_DETAILS = {
     bankName: '',
     bankAccountType: undefined as BankAccountType | undefined,
     bankAccountNumber: '',
-    bloodType: undefined as BloodType | undefined,
     notes: '',
 };
 
@@ -163,9 +152,9 @@ export function mapEntityDetailToFormData(
             hireDate: e.employeeDetails.hire_date ?? '',
             terminationDate: e.employeeDetails.termination_date ?? undefined,
             contractType: (e.employeeDetails.contract_type ?? 'INDEFINIDO') as ContractType,
-            workModality: (e.employeeDetails.work_modality ?? 'PRESENCIAL') as WorkModality,
-            salaryBase: e.employeeDetails.salary_base ? Number(e.employeeDetails.salary_base) : undefined,
-            costPerHour: e.employeeDetails.cost_per_hour ? Number(e.employeeDetails.cost_per_hour) : undefined,
+            salaryType: (e.employeeDetails.salary_type ?? 'SBU') as SalaryType,
+            salaryBase: e.employeeDetails.salary_base ? Number(e.employeeDetails.salary_base) : DEFAULT_SBU,
+            costPerHour: e.employeeDetails.cost_per_hour ? Number(e.employeeDetails.cost_per_hour) : Number((DEFAULT_SBU / MONTHLY_WORK_HOURS).toFixed(2)),
             accumulateThirteenth: e.employeeDetails.accumulate_thirteenth ?? true,
             accumulateFourteenth: e.employeeDetails.accumulate_fourteenth ?? true,
             accumulateReserveFunds: e.employeeDetails.accumulate_reserve_funds ?? true,
@@ -174,7 +163,6 @@ export function mapEntityDetailToFormData(
             bankName: e.employeeDetails.bank_name ?? '',
             bankAccountType: (e.employeeDetails.bank_account_type ?? undefined) as BankAccountType | undefined,
             bankAccountNumber: e.employeeDetails.bank_account_number ?? '',
-            bloodType: (e.employeeDetails.blood_type ?? undefined) as BloodType | undefined,
             notes: e.employeeDetails.notes ?? '',
         } : undefined,
         contacts: e.contacts?.map((c) => ({

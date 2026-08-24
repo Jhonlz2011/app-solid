@@ -1,6 +1,7 @@
 import { Component, createMemo } from 'solid-js';
 import TextField from '@form/TextField';
 import Checkbox from '@form/Checkbox';
+import Switch from '@form/Switch';
 import { FieldLabel } from '@form/TextField';
 import { SelectField } from '@form/Select';
 import { EntitySelect } from '@shared/ui/selectors';
@@ -13,11 +14,10 @@ import { FileTextIcon } from '@icons/FileTextIcon';
 import type { EntityFormApi } from '../entity-form.types';
 import { useEntityQueries } from '../hooks/useEntityQueries';
 import type { EntityDetailType } from '@app/schema/dto';
+import { DEFAULT_SBU, MONTHLY_WORK_HOURS } from '@app/schema/enums';
 import {
     contractTypeOptions,
-    workModalityOptions,
     bankAccountTypeOptions,
-    bloodTypeOptions,
 } from '../entity-form.utils';
 
 export interface EntityEmployeeTabProps {
@@ -30,6 +30,9 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
     // Reactive store subscriptions for TanStack Form in SolidJS
     const isEmployee = props.form.useStore((s) => s.values.isEmployee);
     const selectedDeptId = props.form.useStore((s) => s.values.employeeDetails?.departmentId);
+    const salaryType = props.form.useStore((s) => s.values.employeeDetails?.salaryType);
+
+    const isSbu = createMemo(() => (salaryType() ?? 'SBU') === 'SBU');
 
     const queries = useEntityQueries(props.form, isEmployee);
 
@@ -44,6 +47,19 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
     const promptCreateJobTitle = () => {
         const name = prompt('Ingrese el nombre del nuevo cargo:');
         if (name) queries.handleCreateJobTitle(name);
+    };
+
+    const handleToggleSbu = (checked: boolean) => {
+        if (checked) {
+            props.form.setFieldValue('employeeDetails.salaryType', 'SBU');
+            props.form.setFieldValue('employeeDetails.salaryBase', DEFAULT_SBU);
+            props.form.setFieldValue(
+                'employeeDetails.costPerHour',
+                Number((DEFAULT_SBU / MONTHLY_WORK_HOURS).toFixed(2))
+            );
+        } else {
+            props.form.setFieldValue('employeeDetails.salaryType', 'CUSTOM');
+        }
     };
 
     return (
@@ -133,7 +149,7 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                     </props.form.Field>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
                     {/* Tipo de Contrato */}
                     <props.form.Field name="employeeDetails.contractType">
                         {(field) => (
@@ -141,18 +157,6 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                                 field={field()}
                                 label="Tipo de Contrato"
                                 options={contractTypeOptions}
-                                placeholder="Seleccionar..."
-                            />
-                        )}
-                    </props.form.Field>
-
-                    {/* Modalidad de Trabajo */}
-                    <props.form.Field name="employeeDetails.workModality">
-                        {(field) => (
-                            <SelectField
-                                field={field()}
-                                label="Modalidad de Trabajo"
-                                options={workModalityOptions}
                                 placeholder="Seleccionar..."
                             />
                         )}
@@ -186,30 +190,97 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
             {/* 2. COMPENSACIÓN Y COSTEO LABORAL                                 */}
             {/* ================================================================= */}
             <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
-                        <BriefcaseIcon class="size-4 text-primary" />
-                        Compensación y Costeo Laboral
-                    </h3>
+                <div class="flex items-center justify-between mb-1">
+                    <div class="flex items-center gap-2">
+                        <div class="w-1.5 h-4 bg-primary rounded-full"></div>
+                        <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
+                            <BriefcaseIcon class="size-4 text-primary" />
+                            Compensación y Costeo Laboral
+                        </h3>
+                    </div>
+                    <span class="text-xs text-muted font-normal hidden sm:inline">
+                        Base cálculo: 240h/mes (30 días × 8h)
+                    </span>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Salario Base con Switch SBU */}
                     <props.form.Field name="employeeDetails.salaryBase">
                         {(field) => (
                             <TextField.Root field={field()}>
-                                <TextField.Label>Salario Base Mensual ($)</TextField.Label>
-                                <TextField.Input type="number" placeholder="0.00" step="0.01" />
+                                <div class="flex items-center justify-between">
+                                    <TextField.Label>Salario Base Mensual ($)</TextField.Label>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-medium text-muted">
+                                            SBU (${DEFAULT_SBU.toFixed(2)})
+                                        </span>
+                                        <Switch
+                                            checked={isSbu()}
+                                            onChange={handleToggleSbu}
+                                        />
+                                    </div>
+                                </div>
+                                <TextField.Input
+                                    type="number"
+                                    placeholder={DEFAULT_SBU.toFixed(2)}
+                                    step="0.01"
+                                    onInput={(e) => {
+                                        const raw = e.currentTarget.value;
+                                        if (raw === '' || raw == null) {
+                                            props.form.setFieldValue('employeeDetails.costPerHour', undefined);
+                                            props.form.setFieldValue('employeeDetails.salaryType', 'CUSTOM');
+                                            return;
+                                        }
+                                        const val = parseFloat(raw);
+                                        if (!isNaN(val) && val > 0) {
+                                            const calculatedCost = Number((val / MONTHLY_WORK_HOURS).toFixed(2));
+                                            props.form.setFieldValue('employeeDetails.costPerHour', calculatedCost);
+                                            if (val === DEFAULT_SBU) {
+                                                props.form.setFieldValue('employeeDetails.salaryType', 'SBU');
+                                            } else {
+                                                props.form.setFieldValue('employeeDetails.salaryType', 'CUSTOM');
+                                            }
+                                        }
+                                    }}
+                                />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
                     </props.form.Field>
 
+                    {/* Costo por Hora */}
                     <props.form.Field name="employeeDetails.costPerHour">
                         {(field) => (
                             <TextField.Root field={field()}>
-                                <TextField.Label>Costo por Hora ($ Mano de Obra)</TextField.Label>
-                                <TextField.Input type="number" placeholder="0.00" step="0.01" />
+                                <div class="flex items-center justify-between">
+                                    <TextField.Label>Costo por Hora ($ Mano de Obra)</TextField.Label>
+                                    <span class="text-2xs text-muted font-normal">
+                                        Salario ÷ 240
+                                    </span>
+                                </div>
+                                <TextField.Input
+                                    type="number"
+                                    placeholder={(DEFAULT_SBU / MONTHLY_WORK_HOURS).toFixed(2)}
+                                    step="0.01"
+                                    onInput={(e) => {
+                                        const raw = e.currentTarget.value;
+                                        if (raw === '' || raw == null) {
+                                            props.form.setFieldValue('employeeDetails.salaryBase', undefined);
+                                            props.form.setFieldValue('employeeDetails.salaryType', 'CUSTOM');
+                                            return;
+                                        }
+                                        const val = parseFloat(raw);
+                                        if (!isNaN(val) && val > 0) {
+                                            const calculatedSalary = Number((val * MONTHLY_WORK_HOURS).toFixed(2));
+                                            props.form.setFieldValue('employeeDetails.salaryBase', calculatedSalary);
+                                            if (calculatedSalary === DEFAULT_SBU) {
+                                                props.form.setFieldValue('employeeDetails.salaryType', 'SBU');
+                                            } else {
+                                                props.form.setFieldValue('employeeDetails.salaryType', 'CUSTOM');
+                                            }
+                                        }
+                                    }}
+                                />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
@@ -280,18 +351,18 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
             </fieldset>
 
             {/* ================================================================= */}
-            {/* 4. DATOS BANCARIOS Y SALUD OCUPACIONAL                           */}
+            {/* 4. DATOS BANCARIOS (CASH MANAGEMENT / TRANSFERENCIAS)             */}
             {/* ================================================================= */}
             <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
                 <div class="flex items-center gap-2 mb-1">
                     <div class="w-1.5 h-4 bg-primary rounded-full"></div>
                     <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
                         <IdCardIcon class="size-4 text-primary" />
-                        Datos Bancarios (Cash Management) y Salud Ocupacional
+                        Datos Bancarios (Cash Management / Transferencias)
                     </h3>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <props.form.Field name="employeeDetails.bankName">
                         {(field) => (
                             <TextField.Root field={field()}>
@@ -322,17 +393,6 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                             </TextField.Root>
                         )}
                     </props.form.Field>
-
-                    <props.form.Field name="employeeDetails.bloodType">
-                        {(field) => (
-                            <SelectField
-                                field={field()}
-                                label="Tipo de Sangre"
-                                options={bloodTypeOptions}
-                                placeholder="Seleccionar..."
-                            />
-                        )}
-                    </props.form.Field>
                 </div>
             </fieldset>
 
@@ -344,14 +404,14 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                     <div class="w-1.5 h-4 bg-primary rounded-full"></div>
                     <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
                         <FileTextIcon class="size-4 text-primary" />
-                        Observaciones y Notas Laborales
+                        Observaciones
                     </h3>
                 </div>
 
                 <props.form.Field name="employeeDetails.notes">
                     {(field) => (
                         <TextField.Root field={field()}>
-                            <TextField.Label>Notas Internas / Historial Laboral</TextField.Label>
+                            <TextField.Label>Notas Internas</TextField.Label>
                             <TextField.TextArea
                                 placeholder="Escriba aquí condiciones especiales de contratación, historial interno, acuerdos laborales o notas administrativas..."
                                 rows={3}

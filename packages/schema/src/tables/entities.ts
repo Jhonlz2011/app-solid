@@ -2,7 +2,7 @@ import { text, integer, boolean, timestamp, numeric, date, index, uniqueIndex, u
 import { sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
-import { taxIdTypeEnum, personTypeEnum, taxRegimeTypeEnum, contractTypeEnum, workModalityEnum, bankAccountTypeEnum, bloodTypeEnum } from '../enums';
+import { taxIdTypeEnum, personTypeEnum, taxRegimeTypeEnum, salaryTypeEnum, contractTypeEnum, bankAccountTypeEnum } from '../enums';
 import { companies } from './config';
 import { priceLists } from './pricing';
 
@@ -95,13 +95,13 @@ export const employeeDetails = pgTableV2("employee_details", {
     job_title_id: integer("job_title_id").references(() => jobTitles.id, { onDelete: 'set null' }),
     reports_to: uuid("reports_to").references(() => entities.id, { onDelete: 'set null' }),
 
-    // --- Contratación y Modalidad ---
+    // --- Contratación ---
     hire_date: date("hire_date"),
     termination_date: date("termination_date"),
     contract_type: contractTypeEnum("contract_type").default('INDEFINIDO'),
-    work_modality: workModalityEnum("work_modality").default('PRESENCIAL'),
 
     // --- Compensación y Nómina ---
+    salary_type: salaryTypeEnum("salary_type").default('SBU').notNull(),
     salary_base: numeric("salary_base", { precision: 10, scale: 2 }),
     cost_per_hour: numeric("cost_per_hour", { precision: 10, scale: 2 }),
 
@@ -116,9 +116,6 @@ export const employeeDetails = pgTableV2("employee_details", {
     bank_name: text("bank_name"),
     bank_account_type: bankAccountTypeEnum("bank_account_type"),
     bank_account_number: text("bank_account_number"),
-
-    // --- Salud ---
-    blood_type: bloodTypeEnum("blood_type"),
 
     // --- Observaciones / Notas Laborales ---
     notes: text("notes"),

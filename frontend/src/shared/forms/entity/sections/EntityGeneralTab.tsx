@@ -155,7 +155,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                                 const isRoleDisabledByAuth = (roleKey: string) => {
                                     if (roleKey === 'isEmployee' && personType() === 'JURIDICA') return true;
                                     if (auth?.isAdmin && auth.isAdmin()) return false;
-                                    const canManage = (module: any) => {
+                                    const canManage = (module: string) => {
                                         if (!auth) return false;
                                         return props.isEdit() ? (auth.canEdit && auth.canEdit(module)) : (auth.canAdd && auth.canAdd(module));
                                     };
@@ -227,7 +227,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                                                     e.currentTarget.value = val;
                                                 }
                                             }
-                                            field().handleChange(val as any);
+                                            field().handleChange(val);
                                         }}
                                         onKeyDown={(e) => {
                                             setSriError('');

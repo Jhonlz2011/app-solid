@@ -16,10 +16,13 @@ export const PERSON_TYPES = ['NATURAL', 'JURIDICA'] as const;
 export const TAX_REGIME_TYPES = ['RIMPE_NEGOCIO_POPULAR', 'RIMPE_EMPRENDEDOR', 'GENERAL'] as const;
 
 // Employee / HR Enums
+export const SALARY_TYPES = ['SBU', 'CUSTOM'] as const;
+export type SalaryType = typeof SALARY_TYPES[number];
+export const DEFAULT_SBU = 482.00;
+export const MONTHLY_WORK_HOURS = 240;
+
 export const CONTRACT_TYPES = ['INDEFINIDO', 'EVENTUAL', 'PLAZO_FIJO', 'OBRA_CIERTA', 'PASANTIA', 'SERVICIOS_PROFESIONALES'] as const;
-export const WORK_MODALITIES = ['PRESENCIAL', 'TELETRABAJO', 'HIBRIDO'] as const;
 export const BANK_ACCOUNT_TYPES = ['AHORROS', 'CORRIENTE'] as const;
-export const BLOOD_TYPES = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'] as const;
 
 // Document enums
 export const QUOTATION_STATUSES = ['DRAFT', 'SENT', 'APPROVED', 'REJECTED', 'CONVERTED_TO_WO'] as const;
@@ -173,9 +176,7 @@ export type SaasPlan = typeof SAAS_PLANS[number];
 export type MenuItemStatus = typeof MENU_ITEM_STATUSES[number];
 
 export type ContractType = typeof CONTRACT_TYPES[number];
-export type WorkModality = typeof WORK_MODALITIES[number];
 export type BankAccountType = typeof BANK_ACCOUNT_TYPES[number];
-export type BloodType = typeof BLOOD_TYPES[number];
 
 export type RbacModule = typeof RBAC_MODULES[number];
 export type RbacAction = typeof RBAC_ACTIONS[number];
@@ -190,10 +191,9 @@ export const menuItemStatusEnum = pgEnum('menu_item_status', MENU_ITEM_STATUSES)
 export const taxIdTypeEnum = pgEnum('tax_id_type', TAX_ID_TYPES);
 export const personTypeEnum = pgEnum('person_type', PERSON_TYPES);
 export const taxRegimeTypeEnum = pgEnum('tax_regime_type', TAX_REGIME_TYPES);
+export const salaryTypeEnum = pgEnum('salary_type', SALARY_TYPES);
 export const contractTypeEnum = pgEnum('contract_type', CONTRACT_TYPES);
-export const workModalityEnum = pgEnum('work_modality', WORK_MODALITIES);
 export const bankAccountTypeEnum = pgEnum('bank_account_type', BANK_ACCOUNT_TYPES);
-export const bloodTypeEnum = pgEnum('blood_type', BLOOD_TYPES);
 export const quotationStatusEnum = pgEnum('quotation_status', QUOTATION_STATUSES);
 export const documentTypeEnum = pgEnum('document_type', DOCUMENT_TYPES);
 export const invoiceStatusEnum = pgEnum('invoice_status', INVOICE_STATUSES);

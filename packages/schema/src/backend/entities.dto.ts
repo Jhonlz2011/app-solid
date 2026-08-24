@@ -39,6 +39,11 @@ export const TaxRegimeTypeSchema = Type.Union([
     Type.Literal('GENERAL'),
 ]);
 
+export const SalaryTypeSchema = Type.Union([
+    Type.Literal('SBU'),
+    Type.Literal('CUSTOM'),
+]);
+
 export const ContractTypeSchema = Type.Union([
     Type.Literal('INDEFINIDO'),
     Type.Literal('EVENTUAL'),
@@ -48,26 +53,9 @@ export const ContractTypeSchema = Type.Union([
     Type.Literal('SERVICIOS_PROFESIONALES'),
 ]);
 
-export const WorkModalitySchema = Type.Union([
-    Type.Literal('PRESENCIAL'),
-    Type.Literal('TELETRABAJO'),
-    Type.Literal('HIBRIDO'),
-]);
-
 export const BankAccountTypeSchema = Type.Union([
     Type.Literal('AHORROS'),
     Type.Literal('CORRIENTE'),
-]);
-
-export const BloodTypeSchema = Type.Union([
-    Type.Literal('O+'),
-    Type.Literal('O-'),
-    Type.Literal('A+'),
-    Type.Literal('A-'),
-    Type.Literal('B+'),
-    Type.Literal('B-'),
-    Type.Literal('AB+'),
-    Type.Literal('AB-'),
 ]);
 
 export const ContactBodySchema = Type.Object({
@@ -94,18 +82,17 @@ export const EmployeeDetailsBodySchema = Type.Object({
     hireDate: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     terminationDate: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     contractType: Type.Optional(ContractTypeSchema),
-    workModality: Type.Optional(WorkModalitySchema),
+    salaryType: Type.Optional(SalaryTypeSchema),
     salaryBase: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     costPerHour: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
-    accumulateThirteenth: Type.Boolean(),
-    accumulateFourteenth: Type.Boolean(),
-    accumulateReserveFunds: Type.Boolean(),
+    accumulateThirteenth: Type.Optional(Type.Boolean()),
+    accumulateFourteenth: Type.Optional(Type.Boolean()),
+    accumulateReserveFunds: Type.Optional(Type.Boolean()),
     iessCode: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     dependentsCount: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     bankName: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     bankAccountType: Type.Optional(Type.Union([BankAccountTypeSchema, Type.Null()])),
     bankAccountNumber: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-    bloodType: Type.Optional(Type.Union([BloodTypeSchema, Type.Null()])),
     notes: Type.Optional(Type.Union([Type.String(), Type.Null()])),
 });
 
@@ -309,7 +296,7 @@ export const EntityDetailEmployeeDetailsResponseSchema = Type.Object({
     hire_date: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     termination_date: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     contract_type: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-    work_modality: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    salary_type: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     salary_base: Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()])),
     cost_per_hour: Type.Optional(Type.Union([Type.String(), Type.Number(), Type.Null()])),
     accumulate_thirteenth: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
@@ -320,7 +307,6 @@ export const EntityDetailEmployeeDetailsResponseSchema = Type.Object({
     bank_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     bank_account_type: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     bank_account_number: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-    blood_type: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     notes: Type.Optional(Type.Union([Type.String(), Type.Null()])),
 });
 

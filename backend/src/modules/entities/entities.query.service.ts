@@ -243,7 +243,7 @@ export async function getEntity(id: string, companyId: number) {
                     hire_date: employeeDetails.hire_date,
                     termination_date: employeeDetails.termination_date,
                     contract_type: employeeDetails.contract_type,
-                    work_modality: employeeDetails.work_modality,
+                    salary_type: employeeDetails.salary_type,
                     salary_base: employeeDetails.salary_base,
                     cost_per_hour: employeeDetails.cost_per_hour,
                     accumulate_thirteenth: employeeDetails.accumulate_thirteenth,
@@ -254,7 +254,6 @@ export async function getEntity(id: string, companyId: number) {
                     bank_name: employeeDetails.bank_name,
                     bank_account_type: employeeDetails.bank_account_type,
                     bank_account_number: employeeDetails.bank_account_number,
-                    blood_type: employeeDetails.blood_type,
                     notes: employeeDetails.notes,
                 })
                 .from(employeeDetails)

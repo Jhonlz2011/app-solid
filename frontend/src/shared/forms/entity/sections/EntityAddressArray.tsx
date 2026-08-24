@@ -17,7 +17,7 @@ const AddressRow: Component<AddressRowProps> = (props) => {
         <div class="relative grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-card rounded-xl border border-border/50 shadow-sm animate-in slide-in-from-top-2">
             <div class="col-span-12 md:col-span-5">
                 <props.form.Field name={`addresses[${props.index}].addressLine`}>
-                    {(subField: any) => (
+                    {(subField) => (
                         <TextField.Root field={subField()}>
                             <TextField.Label>Dirección Completa</TextField.Label>
                             <TextField.Input type="text" placeholder="Av. Principal y Secundaria..." />
@@ -29,9 +29,9 @@ const AddressRow: Component<AddressRowProps> = (props) => {
             
             <div class="col-span-12 sm:col-span-6 md:col-span-4">
                 <props.form.Field name={`addresses[${props.index}].city`}>
-                    {(cityField: any) => (
+                    {(cityField) => (
                         <props.form.Field name={`addresses[${props.index}].countryCode`}>
-                            {(countryCodeField: any) => (
+                            {(countryCodeField) => (
                                 <CitySelect
                                     field={cityField()}
                                     label="Ciudad/Cantón"
@@ -59,7 +59,7 @@ const AddressRow: Component<AddressRowProps> = (props) => {
 
             <div class="col-span-12 sm:col-span-6 md:col-span-2">
                 <props.form.Field name={`addresses[${props.index}].postalCode`}>
-                    {(subField: any) => (
+                    {(subField) => (
                         <TextField.Root field={subField()}>
                             <TextField.Label>Código Postal</TextField.Label>
                             <TextField.Input type="text" placeholder="Ej: 170515" />

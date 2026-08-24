@@ -29,7 +29,7 @@ export const EntityCarrierTab: Component<EntityCarrierTabProps> = (props) => {
         });
     };
 
-    const isEmployee = () => props.form.state.values.isEmployee;
+    const isEmployee = props.form.useStore((s) => s.values.isEmployee);
 
     return (
         <div class="space-y-6">

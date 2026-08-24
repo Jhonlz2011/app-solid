@@ -1,4 +1,4 @@
-import { text, integer, boolean, timestamp, customType, index, unique } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, numeric, customType, index, unique } from 'drizzle-orm/pg-core';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { taxRegimeTypeEnum } from '../enums';
 
@@ -46,6 +46,8 @@ export const companies = pgTableV2("companies", {
     contribuyente_especial: text("contribuyente_especial"),  // Resolución SRI (null = no es)
     agente_retencion: text("agente_retencion"),               // Resolución SRI (null = no es)
     rimpe_type: taxRegimeTypeEnum("rimpe_type"),
+    // Parámetros de Nómina / Salarios
+    sbu: numeric("sbu", { precision: 10, scale: 2 }).default('482.00').notNull(),
     // SRI environment (1=Pruebas, 2=Producción)
     sri_environment: text("sri_environment").default('2').notNull(),
     logo_url: text("logo_url"),

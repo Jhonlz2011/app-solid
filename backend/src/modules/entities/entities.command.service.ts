@@ -29,7 +29,7 @@ function mapEmployeeDetailsValues(details: NonNullable<EntityBodyType['employeeD
         hire_date: details.hireDate || null,
         termination_date: details.terminationDate || null,
         contract_type: details.contractType ?? 'INDEFINIDO',
-        work_modality: details.workModality ?? 'PRESENCIAL',
+        salary_type: details.salaryType ?? 'SBU',
         salary_base: toDecimal(details.salaryBase),
         cost_per_hour: toDecimal(details.costPerHour),
         accumulate_thirteenth: details.accumulateThirteenth ?? true,
@@ -40,7 +40,6 @@ function mapEmployeeDetailsValues(details: NonNullable<EntityBodyType['employeeD
         bank_name: details.bankName?.trim() || null,
         bank_account_type: details.bankAccountType || null,
         bank_account_number: details.bankAccountNumber?.trim() || null,
-        blood_type: details.bloodType || null,
         notes: details.notes?.trim() || null,
     };
 }
@@ -53,7 +52,7 @@ function mapEmployeeDetailsUpdate(details: NonNullable<EntityBodyType['employeeD
         hire_date: details.hireDate,
         termination_date: details.terminationDate,
         contract_type: details.contractType,
-        work_modality: details.workModality,
+        salary_type: details.salaryType,
         salary_base: toDecimal(details.salaryBase),
         cost_per_hour: toDecimal(details.costPerHour),
         accumulate_thirteenth: details.accumulateThirteenth,
@@ -64,7 +63,6 @@ function mapEmployeeDetailsUpdate(details: NonNullable<EntityBodyType['employeeD
         bank_name: details.bankName?.trim(),
         bank_account_type: details.bankAccountType,
         bank_account_number: details.bankAccountNumber?.trim(),
-        blood_type: details.bloodType,
         notes: details.notes?.trim() ?? null,
     });
 }
