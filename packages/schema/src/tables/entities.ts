@@ -101,11 +101,9 @@ export const employeeDetails = pgTableV2("employee_details", {
     contract_type: contractTypeEnum("contract_type").default('INDEFINIDO'),
     work_modality: workModalityEnum("work_modality").default('PRESENCIAL'),
 
-    // --- Compensación y Operaciones ---
+    // --- Compensación y Nómina ---
     salary_base: numeric("salary_base", { precision: 10, scale: 2 }),
     cost_per_hour: numeric("cost_per_hour", { precision: 10, scale: 2 }),
-    commission_percentage: numeric("commission_percentage", { precision: 5, scale: 2 }).default('0.00'),
-    approval_limit_amount: numeric("approval_limit_amount", { precision: 12, scale: 2 }),
 
     // --- Nómina & IESS / SRI (Ecuador) ---
     accumulate_thirteenth: boolean("accumulate_thirteenth").default(true).notNull(),
@@ -113,8 +111,6 @@ export const employeeDetails = pgTableV2("employee_details", {
     accumulate_reserve_funds: boolean("accumulate_reserve_funds").default(true).notNull(),
     iess_code: text("iess_code"),
     dependents_count: integer("dependents_count").default(0).notNull(),
-    disability_percentage: numeric("disability_percentage", { precision: 5, scale: 2 }),
-    conadis_id: text("conadis_id"),
 
     // --- Datos Bancarios (Cash Management) ---
     bank_name: text("bank_name"),
@@ -123,6 +119,9 @@ export const employeeDetails = pgTableV2("employee_details", {
 
     // --- Salud ---
     blood_type: bloodTypeEnum("blood_type"),
+
+    // --- Observaciones / Notas Laborales ---
+    notes: text("notes"),
 }, (t) => [
     index("idx_employee_details_department").on(t.department_id),
     index("idx_employee_details_job_title").on(t.job_title_id),

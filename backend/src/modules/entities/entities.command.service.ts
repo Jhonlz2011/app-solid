@@ -32,19 +32,16 @@ function mapEmployeeDetailsValues(details: NonNullable<EntityBodyType['employeeD
         work_modality: details.workModality ?? 'PRESENCIAL',
         salary_base: toDecimal(details.salaryBase),
         cost_per_hour: toDecimal(details.costPerHour),
-        commission_percentage: toDecimal(details.commissionPercentage) ?? '0.00',
-        approval_limit_amount: toDecimal(details.approvalLimitAmount),
         accumulate_thirteenth: details.accumulateThirteenth ?? true,
         accumulate_fourteenth: details.accumulateFourteenth ?? true,
         accumulate_reserve_funds: details.accumulateReserveFunds ?? true,
         iess_code: details.iessCode?.trim() || null,
         dependents_count: details.dependentsCount ?? 0,
-        disability_percentage: toDecimal(details.disabilityPercentage),
-        conadis_id: details.conadisId?.trim() || null,
         bank_name: details.bankName?.trim() || null,
         bank_account_type: details.bankAccountType || null,
         bank_account_number: details.bankAccountNumber?.trim() || null,
         blood_type: details.bloodType || null,
+        notes: details.notes?.trim() || null,
     };
 }
 
@@ -59,19 +56,16 @@ function mapEmployeeDetailsUpdate(details: NonNullable<EntityBodyType['employeeD
         work_modality: details.workModality,
         salary_base: toDecimal(details.salaryBase),
         cost_per_hour: toDecimal(details.costPerHour),
-        commission_percentage: toDecimal(details.commissionPercentage),
-        approval_limit_amount: toDecimal(details.approvalLimitAmount),
         accumulate_thirteenth: details.accumulateThirteenth,
         accumulate_fourteenth: details.accumulateFourteenth,
         accumulate_reserve_funds: details.accumulateReserveFunds,
         iess_code: details.iessCode?.trim(),
         dependents_count: details.dependentsCount,
-        disability_percentage: toDecimal(details.disabilityPercentage),
-        conadis_id: details.conadisId?.trim(),
         bank_name: details.bankName?.trim(),
         bank_account_type: details.bankAccountType,
         bank_account_number: details.bankAccountNumber?.trim(),
         blood_type: details.bloodType,
+        notes: details.notes?.trim() ?? null,
     });
 }
 

@@ -6,11 +6,12 @@
  * - Multi-Role Filtering: Supports isEmployee, isClient, isSupplier, isCarrier, or type.
  * - TanStack Form & Controlled support with full E2E type safety.
  */
-import { Component, Show, createMemo, createSignal, createEffect, onCleanup } from 'solid-js';
+import { Component, Show, createMemo, createSignal, createEffect, onCleanup, useContext } from 'solid-js';
 import { useEntityPicker } from '@modules/entities/data/entities.queries';
 import type { EntityPickerType } from '@app/schema/dto';
 import type { EntityType } from '@app/schema/enums';
 import type { FieldLike } from '@shared/ui/form/form.types';
+import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import { Autocomplete } from '@form/Autocomplete';
 import { CloseIcon } from '@icons/CloseIcon';
 import { UserIcon } from '@icons/UserIcon';
@@ -37,6 +38,7 @@ export interface EntitySelectProps<TValue extends string | null | undefined = st
 export function EntitySelect<TValue extends string | null | undefined = string | null | undefined>(
     props: EntitySelectProps<TValue>
 ) {
+    const isFormSubmitted = useContext(FormSubmissionContext);
     const [localQuery, setLocalQuery] = createSignal('');
     const [debouncedQuery, setDebouncedQuery] = createSignal('');
     const [selectedEntityCache, setSelectedEntityCache] = createSignal<{
@@ -199,8 +201,14 @@ export function EntitySelect<TValue extends string | null | undefined = string |
                     </div>
                 )}
             </Show>
+
+            <Show when={props.field && hasFieldError(props.field, isFormSubmitted())}>
+                <span class="text-xs font-medium text-danger ml-1 block animate-fade-in">
+                    {getFieldError(props.field!)}
+                </span>
+            </Show>
         </div>
     );
-};
+}
 
 export default EntitySelect;

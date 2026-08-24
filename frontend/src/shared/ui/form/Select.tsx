@@ -149,13 +149,20 @@ export interface SelectFieldProps<
     required?: boolean;
 }
 
+import { FormSubmissionContext, hasFieldError, getFieldError } from '@form/form.types';
+import { useContext } from 'solid-js';
+
 export function SelectField<
     TOption = string | number,
     TValue extends TOption | null | undefined = TOption | null | undefined
 >(
     props: SelectFieldProps<TOption, TValue>
 ) {
+    const isFormSubmitted = useContext(FormSubmissionContext);
     const activeValue = () => (props.field ? (props.field.state.value as TValue) : props.value);
+
+    const isInvalid = () => (props.field ? hasFieldError(props.field, isFormSubmitted()) : false);
+    const errorMessage = () => (props.field ? getFieldError(props.field) : '');
 
     const selectedOption = createMemo(() => {
         const val = activeValue();
@@ -203,13 +210,19 @@ export function SelectField<
                     </SelectItem>
                 )}
             >
-                <SelectTrigger>
+                <SelectTrigger data-invalid={isInvalid()}>
                     <SelectValue<SelectOption<TOption>>>
                         {(state) => state.selectedOption()?.label ?? props.placeholder ?? "Seleccionar..."}
                     </SelectValue>
                 </SelectTrigger>
                 <SelectContent />
             </KSelect>
+
+            <Show when={isInvalid()}>
+                <span class="text-xs font-medium text-danger ml-1 block animate-fade-in">
+                    {errorMessage()}
+                </span>
+            </Show>
         </div>
     );
 }

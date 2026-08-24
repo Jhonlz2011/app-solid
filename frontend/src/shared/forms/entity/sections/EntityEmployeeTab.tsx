@@ -8,6 +8,8 @@ import { PlusIcon } from '@icons/PlusIcon';
 import { BriefcaseIcon } from '@icons/BriefcaseIcon';
 import { BuildingIcon } from '@icons/BuildingIcon';
 import { UsersIcon } from '@icons/UsersIcon';
+import { IdCardIcon } from '@icons/IdCardIcon';
+import { FileTextIcon } from '@icons/FileTextIcon';
 import type { EntityFormApi } from '../entity-form.types';
 import { useEntityQueries } from '../hooks/useEntityQueries';
 import type { EntityDetailType } from '@app/schema/dto';
@@ -17,7 +19,6 @@ import {
     bankAccountTypeOptions,
     bloodTypeOptions,
 } from '../entity-form.utils';
-import type { ContractType, WorkModality, BankAccountType, BloodType } from '@app/schema/enums';
 
 export interface EntityEmployeeTabProps {
     form: EntityFormApi;
@@ -112,7 +113,7 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                             <EntitySelect
                                 value={field().state.value}
                                 onChange={(id) => field().handleChange(id)}
-                                label="Supervisor / Jefe Directo (Organigrama)"
+                                label="Jefe Directo"
                                 placeholder="Buscar supervisor por nombre o identificación..."
                                 isEmployee={true}
                                 excludeEntityId={props.entity?.id}
@@ -130,7 +131,9 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                             />
                         )}
                     </props.form.Field>
+                </div>
 
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
                     {/* Tipo de Contrato */}
                     <props.form.Field name="employeeDetails.contractType">
                         {(field) => (
@@ -161,16 +164,18 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                             <TextField.Root field={field()}>
                                 <TextField.Label>Fecha de Contratación</TextField.Label>
                                 <TextField.Input type="date" />
+                                <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
                     </props.form.Field>
 
-                    {/* Fecha de Terminación / Salida */}
+                    {/* Fecha de Salida */}
                     <props.form.Field name="employeeDetails.terminationDate">
                         {(field) => (
                             <TextField.Root field={field()}>
                                 <TextField.Label>Fecha de Salida (Opcional)</TextField.Label>
                                 <TextField.Input type="date" />
+                                <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
                     </props.form.Field>
@@ -178,23 +183,24 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
             </fieldset>
 
             {/* ================================================================= */}
-            {/* 2. COMPENSACIÓN Y OPERACIONES DEL ERP                            */}
+            {/* 2. COMPENSACIÓN Y COSTEO LABORAL                                 */}
             {/* ================================================================= */}
             <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
                 <div class="flex items-center gap-2 mb-1">
                     <div class="w-1.5 h-4 bg-primary rounded-full"></div>
                     <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
                         <BriefcaseIcon class="size-4 text-primary" />
-                        Compensación, Costeo y Límites Operativos
+                        Compensación y Costeo Laboral
                     </h3>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <props.form.Field name="employeeDetails.salaryBase">
                         {(field) => (
                             <TextField.Root field={field()}>
-                                <TextField.Label>Salario Base ($)</TextField.Label>
+                                <TextField.Label>Salario Base Mensual ($)</TextField.Label>
                                 <TextField.Input type="number" placeholder="0.00" step="0.01" />
+                                <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
                     </props.form.Field>
@@ -204,24 +210,7 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                             <TextField.Root field={field()}>
                                 <TextField.Label>Costo por Hora ($ Mano de Obra)</TextField.Label>
                                 <TextField.Input type="number" placeholder="0.00" step="0.01" />
-                            </TextField.Root>
-                        )}
-                    </props.form.Field>
-
-                    <props.form.Field name="employeeDetails.commissionPercentage">
-                        {(field) => (
-                            <TextField.Root field={field()}>
-                                <TextField.Label>% Comisión en Ventas</TextField.Label>
-                                <TextField.Input type="number" placeholder="0.00" step="0.01" min="0" max="100" />
-                            </TextField.Root>
-                        )}
-                    </props.form.Field>
-
-                    <props.form.Field name="employeeDetails.approvalLimitAmount">
-                        {(field) => (
-                            <TextField.Root field={field()}>
-                                <TextField.Label>Límite Aprobación Compras ($)</TextField.Label>
-                                <TextField.Input type="number" placeholder="Sin límite" step="0.01" />
+                                <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
                     </props.form.Field>
@@ -236,7 +225,7 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                     <div class="w-1.5 h-4 bg-primary rounded-full"></div>
                     <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
                         <UsersIcon class="size-4 text-primary" />
-                        Parámetros Laborales IESS y SRI (Ecuador)
+                        Nómina, Beneficios de Ley y Parámetros IESS / SRI (Ecuador)
                     </h3>
                 </div>
 
@@ -267,12 +256,13 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                     </props.form.Field>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <props.form.Field name="employeeDetails.iessCode">
                         {(field) => (
                             <TextField.Root field={field()}>
                                 <TextField.Label>Código Sectorial / IESS</TextField.Label>
                                 <TextField.Input placeholder="Ej: 2110000000" />
+                                <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
                     </props.form.Field>
@@ -282,24 +272,7 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                             <TextField.Root field={field()}>
                                 <TextField.Label>Cargas Familiares SRI (GP)</TextField.Label>
                                 <TextField.Input type="number" min="0" placeholder="0" />
-                            </TextField.Root>
-                        )}
-                    </props.form.Field>
-
-                    <props.form.Field name="employeeDetails.disabilityPercentage">
-                        {(field) => (
-                            <TextField.Root field={field()}>
-                                <TextField.Label>% Discapacidad</TextField.Label>
-                                <TextField.Input type="number" min="0" max="100" placeholder="0" />
-                            </TextField.Root>
-                        )}
-                    </props.form.Field>
-
-                    <props.form.Field name="employeeDetails.conadisId">
-                        {(field) => (
-                            <TextField.Root field={field()}>
-                                <TextField.Label>N° Carnet CONADIS / MSP</TextField.Label>
-                                <TextField.Input placeholder="Número de carnet" />
+                                <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
                     </props.form.Field>
@@ -307,58 +280,48 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
             </fieldset>
 
             {/* ================================================================= */}
-            {/* 4. DATOS BANCARIOS Y SALUD                                       */}
+            {/* 4. DATOS BANCARIOS Y SALUD OCUPACIONAL                           */}
             {/* ================================================================= */}
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Datos Bancarios (Cash Management) */}
-                <fieldset class="lg:col-span-2 space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
-                    <div class="flex items-center gap-2 mb-1">
-                        <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                        <h3 class="font-semibold text-text uppercase tracking-wide text-sm">
-                            Cuenta Bancaria (Cash Management / Nómina)
-                        </h3>
-                    </div>
+            <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
+                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
+                        <IdCardIcon class="size-4 text-primary" />
+                        Datos Bancarios (Cash Management) y Salud Ocupacional
+                    </h3>
+                </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <props.form.Field name="employeeDetails.bankName">
-                            {(field) => (
-                                <TextField.Root field={field()}>
-                                    <TextField.Label>Institución Financiera</TextField.Label>
-                                    <TextField.Input placeholder="Ej: Banco Pichincha" />
-                                </TextField.Root>
-                            )}
-                        </props.form.Field>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <props.form.Field name="employeeDetails.bankName">
+                        {(field) => (
+                            <TextField.Root field={field()}>
+                                <TextField.Label>Institución Financiera</TextField.Label>
+                                <TextField.Input placeholder="Ej: Banco Pichincha" />
+                                <TextField.ErrorMessage />
+                            </TextField.Root>
+                        )}
+                    </props.form.Field>
 
-                        <props.form.Field name="employeeDetails.bankAccountType">
-                            {(field) => (
-                                <SelectField
-                                    field={field()}
-                                    label="Tipo de Cuenta"
-                                    options={bankAccountTypeOptions}
-                                    placeholder="Seleccionar..."
-                                />
-                            )}
-                        </props.form.Field>
+                    <props.form.Field name="employeeDetails.bankAccountType">
+                        {(field) => (
+                            <SelectField
+                                field={field()}
+                                label="Tipo de Cuenta"
+                                options={bankAccountTypeOptions}
+                                placeholder="Seleccionar..."
+                            />
+                        )}
+                    </props.form.Field>
 
-                        <props.form.Field name="employeeDetails.bankAccountNumber">
-                            {(field) => (
-                                <TextField.Root field={field()}>
-                                    <TextField.Label>N° de Cuenta</TextField.Label>
-                                    <TextField.Input placeholder="Ej: 2200123456" class="font-mono font-medium" />
-                                </TextField.Root>
-                            )}
-                        </props.form.Field>
-                    </div>
-                </fieldset>
-
-                {/* Salud */}
-                <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
-                    <div class="flex items-center gap-2 mb-1">
-                        <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                        <h3 class="font-semibold text-text uppercase tracking-wide text-sm">
-                            Salud Ocupacional
-                        </h3>
-                    </div>
+                    <props.form.Field name="employeeDetails.bankAccountNumber">
+                        {(field) => (
+                            <TextField.Root field={field()}>
+                                <TextField.Label>N° de Cuenta</TextField.Label>
+                                <TextField.Input placeholder="Ej: 2200123456" class="font-mono font-medium" />
+                                <TextField.ErrorMessage />
+                            </TextField.Root>
+                        )}
+                    </props.form.Field>
 
                     <props.form.Field name="employeeDetails.bloodType">
                         {(field) => (
@@ -370,8 +333,34 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                             />
                         )}
                     </props.form.Field>
-                </fieldset>
-            </div>
+                </div>
+            </fieldset>
+
+            {/* ================================================================= */}
+            {/* 5. OBSERVACIONES Y NOTAS LABORALES                               */}
+            {/* ================================================================= */}
+            <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
+                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
+                        <FileTextIcon class="size-4 text-primary" />
+                        Observaciones y Notas Laborales
+                    </h3>
+                </div>
+
+                <props.form.Field name="employeeDetails.notes">
+                    {(field) => (
+                        <TextField.Root field={field()}>
+                            <TextField.Label>Notas Internas / Historial Laboral</TextField.Label>
+                            <TextField.TextArea
+                                placeholder="Escriba aquí condiciones especiales de contratación, historial interno, acuerdos laborales o notas administrativas..."
+                                rows={3}
+                            />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
+                    )}
+                </props.form.Field>
+            </fieldset>
         </div>
     );
 };
