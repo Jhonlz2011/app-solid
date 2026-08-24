@@ -274,6 +274,7 @@ export const auth = betterAuth({
                     return {
                         data: {
                             ...user,
+                            id: (user as any).id || uuidv7(),
                             username: generatedUsername,
                             displayUsername: (user as any).displayUsername || user.name || generatedUsername,
                             emailVerified: (user as any).emailVerified ?? true,
@@ -290,6 +291,30 @@ export const auth = betterAuth({
                             `user:${user.id}`
                         );
                     }
+                },
+            },
+        },
+        account: {
+            create: {
+                before: async (acc) => {
+                    return {
+                        data: {
+                            ...acc,
+                            id: (acc as any).id || uuidv7(),
+                        },
+                    };
+                },
+            },
+        },
+        session: {
+            create: {
+                before: async (sess) => {
+                    return {
+                        data: {
+                            ...sess,
+                            id: (sess as any).id || uuidv7(),
+                        },
+                    };
                 },
             },
         },
@@ -347,7 +372,9 @@ export const auth = betterAuth({
         },
     },
     advanced: {
-        // argon2PasswordConfig va SOLO en emailAndPassword.password
+        database: {
+            generateId: () => uuidv7(),
+        },
         generateId: () => uuidv7(),
         crossSubDomainCookies: {
             enabled: Boolean(env.COOKIE_DOMAIN),
