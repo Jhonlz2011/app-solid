@@ -71,13 +71,13 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
   };
 
   return (
-    <div class={`flex flex-col gap-2.5 w-full ${props.class || ''}`}>
+    <div class={`flex flex-row gap-2.5 w-full ${props.class || ''}`}>
       {/* Botón Google */}
       <button
         type="button"
         disabled={loadingProvider() !== null}
         onClick={() => handleOAuthSignIn('google')}
-        class="relative flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl border border-border bg-card hover:bg-card-alt hover:border-primary/40 text-heading text-sm font-semibold transition-all duration-200 shadow-xs hover:shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group active:scale-[0.99]"
+        class="relative flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl border border-border bg-card hover:bg-card-alt text-heading text-sm font-semibold transition-all duration-200 shadow-xs hover:shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group active:scale-[0.99]"
       >
         <Show
           when={loadingProvider() === 'google'}
@@ -99,7 +99,7 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
         type="button"
         disabled={loadingProvider() !== null}
         onClick={() => handleOAuthSignIn('microsoft')}
-        class="relative flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl border border-border bg-card hover:bg-card-alt hover:border-primary/40 text-heading text-sm font-semibold transition-all duration-200 shadow-xs hover:shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group active:scale-[0.99]"
+        class="relative flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl border border-border bg-card hover:bg-card-alt text-heading text-sm font-semibold transition-all duration-200 shadow-xs hover:shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group active:scale-[0.99]"
       >
         <Show
           when={loadingProvider() === 'microsoft'}

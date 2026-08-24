@@ -41,7 +41,7 @@ export default function Input(props: InputProps) {
         <input
           {...inputProps}
           type={effectiveType()}
-          class={`w-full bg-card-alt border text-text rounded-xl outline-none transition-all duration-200 py-3
+          class={`w-full bg-card-alt border text-text rounded-xl outline-none transition-all duration-200 py-2
             ${hasLeading() ? 'pl-11' : 'pl-4'}
             ${hasTrailing() ? 'pr-11' : 'pr-4'}
             ${local.error
