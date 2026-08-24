@@ -5,11 +5,16 @@
  */
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { TenantRegisterType } from '@app/schema/dto';
+import type { TenantRegisterType, TenantOnboardType } from '@app/schema/dto';
 
 export const authApi = {
     register: async (payload: TenantRegisterType, signal?: AbortSignal) => {
         const { data, error } = await api.tenants.register.post(payload, { fetch: { signal } });
+        if (error) throwApiError(error);
+        return data!;
+    },
+    onboard: async (payload: TenantOnboardType, signal?: AbortSignal) => {
+        const { data, error } = await api.tenants.onboard.post(payload, { fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },

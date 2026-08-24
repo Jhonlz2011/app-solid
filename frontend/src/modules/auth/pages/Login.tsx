@@ -157,6 +157,9 @@ const Login: Component = () => {
         // Fallback: direct redirect using user profile companySlug
         if (user?.companySlug) {
           handleRedirect(user.companySlug, safePath);
+        } else if (organizations.length === 0) {
+          toast.info('Completa los datos de tu empresa para comenzar');
+          navigate({ to: '/register', replace: true });
         } else {
           navigate({ to: safePath, replace: true });
         }
@@ -234,7 +237,7 @@ const Login: Component = () => {
       </div>
 
       {/* ── Decorative separator ── */}
-      <div class="flex items-center gap-3 mb-6 animate-in fade-in duration-700" style={stagger(3)}>
+      <div class="flex items-center gap-3 mb-4 animate-in fade-in duration-700" style={stagger(3)}>
         <div class="flex-1 h-px bg-linear-to-r from-transparent to-border" />
         <div class="w-1 h-1 rounded-full bg-border-strong" />
         <div class="flex-1 h-px bg-linear-to-l from-transparent to-border" />

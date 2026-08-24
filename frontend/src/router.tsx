@@ -85,6 +85,10 @@ const layoutRoute = createRoute({
 
     const enforceTenantHost = (user: any): boolean => {
       if (typeof window === 'undefined') return false;
+      // Si el usuario está autenticado pero aún no tiene empresa configurada -> redirigir a /register
+      if (!user?.companySlug && (!user?.companyId || user.companyId === 0)) {
+        throw redirect({ to: '/register' });
+      }
       const isGlobal = isGlobalPortalHost(window.location.hostname);
       if (isGlobal && user?.companySlug) {
         window.location.href = buildTenantUrl(user.companySlug, location.pathname, { queryParams: { session: 'true' } });

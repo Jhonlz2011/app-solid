@@ -12,6 +12,14 @@ export const createAuthRoutes = (rootRoute: any) => {
             const auth = useAuth();
 
             const handleAuthenticatedRedirect = (user: any) => {
+                // Si el usuario se autenticó (ej. vía OAuth) pero aún no tiene empresa creada -> ir a /register
+                if (!user?.companySlug && (!user?.companyId || user.companyId === 0)) {
+                    if (typeof window !== 'undefined' && window.location.pathname.includes('/register')) {
+                        return;
+                    }
+                    throw redirect({ to: '/register' });
+                }
+
                 const isGlobal = isGlobalPortalHost(window.location.hostname);
                 if (isGlobal && user?.companySlug) {
                     window.location.href = buildTenantUrl(user.companySlug, '/dashboard', { queryParams: { session: 'true' } });

@@ -243,3 +243,166 @@ export async function register(
 
   return result;
 }
+
+/**
+ * Onboard existing authenticated user (e.g. from Google / Microsoft OAuth):
+ * Creates Company, Better Auth Organization, Owner Entity, seeds RBAC, Menus, UOMs, Locations, Warehouse,
+ * and sets the user as Organization owner.
+ */
+export async function onboardTenant(
+  userId: string,
+  data: {
+    slug: string;
+    ruc: string;
+    businessName: string;
+    tradeName?: string;
+    businessType?: string;
+    mainAddress?: string;
+    obligadoContabilidad?: boolean;
+    contribuyenteEspecial?: string;
+    taxRegime?: string;
+    cedula?: string;
+    phone?: string;
+    turnstileToken?: string;
+  },
+  ipAddress?: string
+) {
+  await verifyTurnstileToken(data.turnstileToken, ipAddress);
+
+  const existingUser = await adminDb.query.authUsers.findFirst({
+    where: eq(users.id, userId),
+  });
+  if (!existingUser) {
+    throw new DomainError('Usuario no encontrado', 404);
+  }
+
+  const result = await db.transaction(async (tx) => {
+    const [existingSlug] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.slug, data.slug)).limit(1);
+    if (existingSlug) throw new DomainError('Este identificador (slug) ya está en uso', 409);
+
+    const [existingRuc] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.ruc, data.ruc)).limit(1);
+    if (existingRuc) throw new DomainError('Este RUC ya está registrado', 409);
+
+    // 1. Create Better Auth Organization (UUIDv7)
+    const orgId = uuidv7();
+    await tx.insert(organization).values({
+      id: orgId,
+      name: data.businessName,
+      slug: data.slug,
+    });
+
+    // 2. Create company with organization_id link
+    const [company] = await tx
+      .insert(companies)
+      .values({
+        organization_id: orgId,
+        slug: data.slug,
+        ruc: data.ruc,
+        business_name: data.businessName,
+        trade_name: data.tradeName || null,
+        main_address: data.mainAddress || data.businessName,
+        business_type: data.businessType || null,
+        obligado_contabilidad: data.obligadoContabilidad ?? false,
+        contribuyente_especial: data.contribuyenteEspecial || null,
+        rimpe_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
+      })
+      .returning();
+
+    await tx.execute(sql`SELECT set_config('app.current_company_id', ${company.id.toString()}, true)`);
+
+    await tx.insert(sriEstablishments).values({
+      company_id: company.id,
+      code: '001',
+      name: 'Matriz',
+      address: company.main_address,
+      emission_points: ['001'],
+    });
+
+    await tx.insert(entities).values({
+      company_id: company.id,
+      tax_id: '9999999999999',
+      tax_id_type: 'CONSUMIDOR_FINAL',
+      person_type: 'NATURAL',
+      business_name: 'CONSUMIDOR FINAL',
+      is_client: true,
+      is_system: true,
+    });
+
+    const [ownerEntity] = await tx.insert(entities).values({
+      company_id: company.id,
+      tax_id: data.cedula || data.ruc,
+      tax_id_type: data.cedula ? 'CEDULA' : 'RUC',
+      person_type: 'NATURAL',
+      business_name: existingUser.name,
+      phone: data.phone || null,
+      email_billing: existingUser.email,
+      is_employee: true,
+      tax_regime_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
+    }).returning();
+
+    // 3. Update user with company_id and entity_id (if not set yet)
+    await tx.update(users).set({
+      company_id: existingUser.company_id || company.id,
+      entity_id: existingUser.entity_id || ownerEntity.id,
+      updatedAt: new Date(),
+    }).where(eq(users.id, userId));
+
+    // 4. Create Better-Auth member (owner role) with entity_id link
+    await tx.insert(member).values({
+      organizationId: orgId,
+      userId: existingUser.id,
+      role: 'owner',
+      entityId: ownerEntity.id,
+    });
+
+    // 5. Seed initial system data for this company
+    await seedCompanyRBAC(tx, company.id, existingUser.id);
+    await seedCompanyMenus(tx);
+    await seedCompanyUOMs(tx, company.id);
+    await seedCompanyVirtualLocations(tx, company.id);
+    await seedCompanyWarehouse(tx, company.id, company.main_address, ownerEntity.id);
+
+    // Roles and permissions for initial response
+    const txRoles = await tx
+      .select({ roleName: authRoles.name })
+      .from(authUserRoles)
+      .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
+      .where(eq(authUserRoles.user_id, existingUser.id));
+
+    const txPermissions = await tx.execute(sql`
+      SELECT DISTINCT ap.slug
+      FROM auth_user_roles ur
+      JOIN auth_role_permissions rp ON ur.role_id = rp.role_id
+      JOIN auth_permissions ap ON rp.permission_id = ap.id
+      WHERE ur.user_id = ${existingUser.id}
+    `);
+
+    const roles = txRoles.map(r => r.roleName);
+    const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
+
+    return {
+      company: {
+        id: company.id,
+        slug: company.slug,
+        businessName: company.business_name,
+        organizationId: orgId,
+      },
+      user: {
+        id: existingUser.id,
+        companyId: company.id,
+        companySlug: company.slug,
+        username: existingUser.username,
+        email: existingUser.email,
+        isActive: existingUser.is_active,
+        lastLogin: existingUser.last_login,
+        entityId: ownerEntity.id,
+        emailVerifiedAt: existingUser.emailVerified ? new Date() : null,
+        roles,
+        permissions,
+        entity: mapEntity(ownerEntity),
+      },
+    };
+  });
+
+  return result;
+}

@@ -62,6 +62,21 @@ export const TenantBrandingResponseSchema = Type.Object({
     loginBgUrl: Type.Union([Type.String(), Type.Null()]),
 });
 
+export const TenantOnboardBodySchema = Type.Object({
+    slug: Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9-]+$' }),
+    ruc: Type.String({ minLength: 13, maxLength: 13 }),
+    businessName: Type.String({ minLength: 3 }),
+    tradeName: Type.Optional(Type.String()),
+    businessType: Type.Optional(Type.String()),
+    mainAddress: Type.Optional(Type.String()),
+    obligadoContabilidad: Type.Optional(Type.Boolean()),
+    contribuyenteEspecial: Type.Optional(Type.String()),
+    taxRegime: Type.Optional(Type.String()),
+    phone: Type.Optional(Type.String()),
+    cedula: Type.Optional(Type.String()),
+    turnstileToken: Type.Optional(Type.String()),
+});
+
 export const DiscoverTenantItemResponseSchema = Type.Object({
     id: Type.Optional(Type.Number()),
     organizationId: Type.String(),
@@ -76,6 +91,7 @@ export const DiscoverTenantItemResponseSchema = Type.Object({
 // ============================================================================
 
 export type TenantRegisterType = Static<typeof TenantRegisterBodySchema>;
+export type TenantOnboardType = Static<typeof TenantOnboardBodySchema>;
 export type TenantRegisterResponseType = Static<typeof TenantRegisterResponseSchema>;
 export type TenantBrandingType = Static<typeof TenantBrandingResponseSchema>;
 export type DiscoverTenantItemType = Static<typeof DiscoverTenantItemResponseSchema>;

@@ -1,7 +1,8 @@
 import { Elysia, t } from 'elysia';
-import { register } from '../auth/auth.service';
+import { register, onboardTenant } from '../auth/auth.service';
 import {
   TenantRegisterBodySchema,
+  TenantOnboardBodySchema,
   TenantRegisterResponseSchema,
   TenantBrandingResponseSchema,
 } from '@app/schema/backend';
@@ -12,6 +13,8 @@ import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
 import { getTenantBySlug } from '../../core/spa';
+import { auth } from '../../config/better-auth';
+import { UnauthorizedError } from '../../core/errors';
 
 export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   .use(ipPlugin)
@@ -26,6 +29,32 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
     },
     {
       body: TenantRegisterBodySchema,
+      response: {
+        201: TenantRegisterResponseSchema,
+      },
+      beforeHandle: registerRateLimit as any,
+    }
+  )
+  .post(
+    '/onboard',
+    async ({ body, request, set }) => {
+      const sessionData = await auth.api.getSession({
+        headers: request.headers,
+      });
+
+      if (!sessionData || !sessionData.user) {
+        set.status = 401;
+        throw new UnauthorizedError('Debes haber iniciado sesión para completar el registro de tu empresa');
+      }
+
+      const { ipAddress } = getIpAndUserAgent(request);
+      const result = await onboardTenant(sessionData.user.id, body, ipAddress);
+
+      set.status = 201;
+      return result;
+    },
+    {
+      body: TenantOnboardBodySchema,
       response: {
         201: TenantRegisterResponseSchema,
       },

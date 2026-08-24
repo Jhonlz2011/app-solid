@@ -1,13 +1,14 @@
-import { Component, createSignal, Show, For, onCleanup } from 'solid-js';
+import { Component, createSignal, Show, For, onCleanup, onMount } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useNavigate } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { RegisterStep1Schema, RegisterStep2Schema, type RegisterStep1Data } from '@app/schema/frontend';
 import { BUSINESS_TYPES, TAX_REGIME_TYPES } from '@app/schema/enums';
+import { isGlobalPortalHost, buildTenantUrl } from '@app/schema/utils';
 import { authApi } from '@modules/auth/api/auth.api';
 import { authClient } from '@shared/lib/auth-client';
-import { actions } from '@modules/auth/store/auth.store';
+import { actions, useAuth } from '@modules/auth/store/auth.store';
 import TextField from '@form/TextField';
 import { FieldLabel } from '@form/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
@@ -32,11 +33,11 @@ const taxRegimeOptions: SelectOption[] = [
 ];
 
 // ─── Step Indicator ───
-const Stepper: Component<{ current: number }> = (props) => {
-    const steps = ['Usuario', 'Empresa', 'Confirmar'];
+const Stepper: Component<{ current: number; isOAuth?: boolean }> = (props) => {
+    const steps = () => props.isOAuth ? ['Usuario', 'Empresa', 'Confirmar'] : ['Usuario', 'Empresa', 'Confirmar'];
     return (
         <div class="flex items-center justify-center gap-2 mb-6">
-            <For each={steps}>{(label, i) => (
+            <For each={steps()}>{(label, i) => (
                 <div class="flex items-center gap-2">
                     <div class={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
                         i() < props.current ? 'bg-primary text-on-primary' :
@@ -48,7 +49,7 @@ const Stepper: Component<{ current: number }> = (props) => {
                         </Show>
                     </div>
                     <span class={`text-xs font-medium hidden sm:inline ${i() <= props.current ? 'text-text' : 'text-muted'}`}>{label}</span>
-                    <Show when={i() < steps.length - 1}>
+                    <Show when={i() < steps().length - 1}>
                         <div class={`w-8 h-0.5 ${i() < props.current ? 'bg-primary' : 'bg-border'} transition-colors duration-300`} />
                     </Show>
                 </div>
@@ -88,6 +89,9 @@ const PasswordStrength: Component<{ password: string }> = (props) => {
 // ─── Main Component ───
 const Register: Component = () => {
     const navigate = useNavigate();
+    const auth = useAuth();
+    const isOAuthUser = () => auth.isAuthenticated() && !auth.user()?.companySlug;
+
     const [step, setStep] = createSignal(0);
     const [step1Submitted, setStep1Submitted] = createSignal(false);
     const [step2Submitted, setStep2Submitted] = createSignal(false);
@@ -108,7 +112,10 @@ const Register: Component = () => {
     // ─── STEP 1 FORM ───
     const step1Form = createForm(() => ({
         defaultValues: {
-            fullName: '', username: '', email: '', password: '',
+            fullName: auth.user()?.name || '',
+            username: auth.user()?.username || '',
+            email: auth.user()?.email || '',
+            password: '',
             phone: undefined as string | undefined,
             cedula: undefined as string | undefined,
         },
@@ -118,6 +125,21 @@ const Register: Component = () => {
             setStep(1);
         },
     }));
+
+    // Auto-onboarding for OAuth user on mount
+    onMount(() => {
+        if (isOAuthUser()) {
+            const u = auth.user();
+            if (u) {
+                step1Form.setFieldValue('fullName', u.name || '');
+                step1Form.setFieldValue('username', u.username || '');
+                step1Form.setFieldValue('email', u.email || '');
+                step1Form.setFieldValue('password', 'OAuthPass123!');
+                setStep(1);
+                toast.info(`¡Hola ${u.name || ''}! Completa los datos de tu empresa para comenzar.`);
+            }
+        }
+    });
 
     // ─── STEP 2 FORM ───
     const step2Form = createForm(() => ({
@@ -179,6 +201,45 @@ const Register: Component = () => {
         const s2 = step2Form.state.values;
         setSubmitting(true);
         try {
+            if (isOAuthUser()) {
+                // Caso Onboarding: el usuario ya está autenticado con Google/Microsoft
+                const res = await authApi.onboard({
+                    slug: s2.slug,
+                    ruc: s2.ruc,
+                    businessName: s2.businessName,
+                    tradeName: s2.tradeName || undefined,
+                    businessType: s2.businessType || undefined,
+                    mainAddress: s2.mainAddress || undefined,
+                    obligadoContabilidad: s2.obligadoContabilidad || undefined,
+                    contribuyenteEspecial: s2.contribuyenteEspecial || undefined,
+                    taxRegime: s2.taxRegime || undefined,
+                    phone: s1.phone || undefined,
+                    cedula: s1.cedula || undefined,
+                    turnstileToken: turnstileToken() ?? undefined,
+                });
+
+                // Set active organization in Better-Auth session
+                const orgList = await authClient.organization.list();
+                if (orgList?.data && orgList.data.length > 0) {
+                    const matchingOrg = orgList.data.find((o: any) => o.slug === s2.slug) || orgList.data[0];
+                    if (matchingOrg) {
+                        await authClient.organization.setActive({ organizationId: matchingOrg.id });
+                    }
+                }
+
+                await actions.initSession();
+                toast.success('¡Empresa creada exitosamente!');
+
+                const isGlobal = isGlobalPortalHost(window.location.hostname);
+                if (isGlobal && s2.slug) {
+                    window.location.href = buildTenantUrl(s2.slug, '/dashboard', { queryParams: { session: 'true' } });
+                } else {
+                    navigate({ to: '/dashboard', replace: true });
+                }
+                return;
+            }
+
+            // Caso Registro Estándar (Email + Password)
             await authApi.register({
                 fullName: s1.fullName, username: s1.username, email: s1.email, password: s1.password,
                 phone: s1.phone || undefined, cedula: s1.cedula || undefined,
@@ -217,7 +278,13 @@ const Register: Component = () => {
             // Verification email is already dispatched atomically by the backend register endpoint
             sessionStorage.setItem('resend_cooldown_until', String(Date.now() + 60000));
             toast.success('¡Cuenta creada exitosamente!');
-            navigate({ to: '/dashboard', replace: true });
+
+            const isGlobal = isGlobalPortalHost(window.location.hostname);
+            if (isGlobal && s2.slug) {
+                window.location.href = buildTenantUrl(s2.slug, '/dashboard', { queryParams: { session: 'true' } });
+            } else {
+                navigate({ to: '/dashboard', replace: true });
+            }
         } catch (err: any) {
             // Reset token on failure — widget will auto-refresh
             setTurnstileToken(null);
@@ -275,37 +342,41 @@ const Register: Component = () => {
                         <step1Form.Field name="email" children={(f) => (
                             <TextField.Root field={f()}>
                                 <TextField.Label>Correo electrónico</TextField.Label>
-                                <TextField.Input type="email" placeholder="correo@ejemplo.com" autocomplete="email" />
+                                <TextField.Input type="email" placeholder="correo@ejemplo.com" autocomplete="email" disabled={isOAuthUser()} />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )} />
-                          <step1Form.Field name="password" children={(f) => (
-                            <div class="flex flex-col gap-1">
-                                <TextField.Root field={f()}>
-                                    <TextField.Label>Contraseña</TextField.Label>
-                                    <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
-                                    <TextField.ErrorMessage />
-                                </TextField.Root>
-                                <PasswordStrength password={f().state.value} />
-                            </div>
-                        )} />
+                        <Show when={!isOAuthUser()}>
+                            <step1Form.Field name="password" children={(f) => (
+                                <div class="flex flex-col gap-1">
+                                    <TextField.Root field={f()}>
+                                        <TextField.Label>Contraseña</TextField.Label>
+                                        <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+                                        <TextField.ErrorMessage />
+                                    </TextField.Root>
+                                    <PasswordStrength password={f().state.value} />
+                                </div>
+                            )} />
+                        </Show>
                     </div>
                     <step1Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting, isDirty: s.isDirty })}
                         children={(s) => (
-                            <Button class="mt-1" type="submit" fullWidth disabled={!s().isDirty || s().isSubmitting}
+                            <Button class="mt-1" type="submit" fullWidth disabled={(!isOAuthUser() && !s().isDirty) || s().isSubmitting}
                                 loading={s().isSubmitting} loadingText="Validando…">
                                 Siguiente
                             </Button>
                         )} />
 
                     {/* ── OAuth Social Providers ── */}
-                    <div class="relative flex items-center justify-center my-2">
-                        <div class="grow border-t border-border" />
-                        <span class="px-3 text-xs text-muted font-medium uppercase tracking-wider bg-card">o regístrate con</span>
-                        <div class="grow border-t border-border" />
-                    </div>
+                    <Show when={!isOAuthUser()}>
+                        <div class="relative flex items-center justify-center my-2">
+                            <div class="grow border-t border-border" />
+                            <span class="px-3 text-xs text-muted font-medium uppercase tracking-wider bg-card">o regístrate con</span>
+                            <div class="grow border-t border-border" />
+                        </div>
 
-                    <OAuthButtons mode="register" />
+                        <OAuthButtons mode="register" />
+                    </Show>
 
                     <div class="text-sm text-muted mt-2 text-center">
                         ¿Ya tienes cuenta?{' '}
@@ -319,6 +390,12 @@ const Register: Component = () => {
 
             {/* ─── STEP 2: Company ─── */}
             <Show when={step() === 1}>
+                <Show when={isOAuthUser()}>
+                    <div class="flex items-center gap-3 p-3 mb-4 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium">
+                        <div class="size-2 rounded-full bg-primary animate-pulse" />
+                        <span>Autenticado como <strong>{auth.user()?.email}</strong>. Configura los datos de tu empresa:</span>
+                    </div>
+                </Show>
                 <h2 class="text-2xl font-bold mb-1 text-dark">Datos de empresa</h2>
                 <p class="text-muted text-sm mb-5">Configuración de tu negocio</p>
                 <FormSubmissionContext.Provider value={step2Submitted}>
