@@ -115,12 +115,7 @@ const layoutRoute = createRoute({
       return p;
     };
 
-    // Fast path: no session flag → redirect to login instantly (zero API calls)
-    if (!localStorage.getItem('hasSession')) {
-      throw redirect({ to: '/login', search: { redirect: getSafeRedirect() } });
-    }
-
-    // Session flag exists but state not initialized → validate with server
+    // Validar sesión con el servidor (vía cookie HttpOnly better-auth.session_token)
     const restored = await actions.initSession();
     if (restored) {
       const u = auth.user();

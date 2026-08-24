@@ -133,7 +133,7 @@ const argon2PasswordConfig = {
 // 3. TRUSTED ORIGINS — zelys.app + *.zelys.app en prod; localhost en dev
 // ============================================================================
 
-const PRODUCTION_ORIGINS = ['https://zelys.app', 'https://api.zelys.app'];
+const PRODUCTION_ORIGINS = ['https://zelys.app', 'https://api.zelys.app', 'https://in.zelys.app'];
 
 async function dynamicTrustedOrigins(request?: Request): Promise<string[]> {
     if (!request) return PRODUCTION_ORIGINS;

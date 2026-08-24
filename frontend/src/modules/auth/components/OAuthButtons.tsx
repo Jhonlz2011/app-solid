@@ -47,13 +47,16 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
 
     setLoadingProvider(provider);
     try {
-      // Determinar la URL canónica de retorno
+      // Determinar la URL canónica de retorno con session=true para sincronizar pestañas
       const targetPath = props.redirectPath && props.redirectPath.startsWith('/')
         ? props.redirectPath
         : '/dashboard';
       
-      const callbackURL = `${window.location.origin}${targetPath}`;
+      const targetWithParam = targetPath.includes('?') ? `${targetPath}&session=true` : `${targetPath}?session=true`;
+      const callbackURL = `${window.location.origin}${targetWithParam}`;
       const errorCallbackURL = `${window.location.origin}/login`;
+
+      localStorage.setItem('hasSession', 'true');
 
       const res = await authClient.signIn.social({
         provider,

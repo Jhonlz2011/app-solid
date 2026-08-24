@@ -47,7 +47,6 @@ const Login: Component = () => {
   const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
 
   onMount(() => {
-    actions.cleanupStaleSession();
     const params = new URLSearchParams(window.location.search);
     const errorParam = params.get('error');
     if (errorParam) {

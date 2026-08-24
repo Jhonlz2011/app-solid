@@ -43,14 +43,27 @@ const corsOriginValidator = (request: Request): boolean => {
   const origin = request.headers.get('origin');
   if (!origin) return false;
 
-  // Producción: zelys.app y cualquier subdominio *.zelys.app
-  if (/^https:\/\/([a-z0-9-]+\.)*zelys\.app$/i.test(origin)) return true;
+  try {
+    const { hostname } = new URL(origin);
 
-  // Desarrollo: localhost, 127.0.0.1 y LAN
-  if (env.NODE_ENV !== 'production') {
-    if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin)) {
-      return true;
+    // Producción: zelys.app y cualquier subdominio *.zelys.app
+    if (hostname === 'zelys.app' || hostname.endsWith('.zelys.app')) return true;
+
+    // Desarrollo: localhost, *.localhost, 127.0.0.1 y LAN
+    if (env.NODE_ENV !== 'production') {
+      if (
+        hostname === 'localhost' ||
+        hostname.endsWith('.localhost') ||
+        hostname === '127.0.0.1' ||
+        /^192\.168\.\d+\.\d+$/.test(hostname) ||
+        /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
+        /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(hostname)
+      ) {
+        return true;
+      }
     }
+  } catch {
+    return false;
   }
 
   return false;
