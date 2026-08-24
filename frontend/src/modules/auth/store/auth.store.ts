@@ -141,26 +141,41 @@ export const actions = {
 
     logout: async (notifyServer = true) => {
         currentSessionId = null;
-        // Only change status — route guards read this, NOT the sidebar.
-        // SolidJS fine-grained reactivity: zero visual flash.
-        setState('status', 'unauthenticated');
-        setSessionFlag(false);
         disconnect();
 
-        // Notify other tabs via centralized broadcast (remote only, avoiding same-tab reload)
-        broadcast.emit(BroadcastEvents.AUTH_LOGOUT, undefined, { remoteOnly: true });
-
-        // Notify server via Better-Auth client
+        // 1. Await server sign-out so session cookie is revoked on backend
         if (notifyServer) {
-            authClient.signOut().catch(() => {});
+            try {
+                await authClient.signOut();
+            } catch (err) {
+                console.warn('[Auth] Error signing out from server:', err);
+            }
         }
+
+        // 2. Clear state in store and flags
+        batch(() => {
+            setState('user', null);
+            setState('status', 'unauthenticated');
+        });
+        setSessionFlag(false);
+
+        // 3. Clear cached modules
+        try {
+            const { actions: moduleActions } = await import('@shared/store/modules.store');
+            moduleActions.clearModules();
+        } catch {}
+
+        // 4. Notify other tabs via centralized broadcast
+        broadcast.emit(BroadcastEvents.AUTH_LOGOUT, undefined, { remoteOnly: true });
     },
 
-    // Phase 2 cleanup: called from auth route beforeLoad once login page is loading.
-    // At this point the sidebar/layout is already unmounted, so clearing is flash-free.
+    // Legacy cleanup
     cleanupStaleSession: async () => {
         if (state.user) {
-            setState('user', null);
+            batch(() => {
+                setState('user', null);
+                setState('status', 'unauthenticated');
+            });
             const { actions: moduleActions } = await import('@shared/store/modules.store');
             moduleActions.clearModules();
         }

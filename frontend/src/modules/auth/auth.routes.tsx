@@ -29,13 +29,20 @@ export const createAuthRoutes = (rootRoute: any) => {
             };
 
             // Fast path: already authenticated in memory → redirect immediately
-            if (auth.isAuthenticated()) {
+            if (auth.isAuthenticated() && auth.user()) {
                 handleAuthenticatedRedirect(auth.user());
+            }
+
+            // Si no hay flag de sesión ni parámetro OAuth, no consultar al servidor en páginas de login/register
+            const hasSessionFlag = localStorage.getItem('hasSession');
+            const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
+            if (!hasSessionFlag && !hasSessionParam) {
+                return;
             }
 
             // Validar sesión con el servidor (para soportar retorno de OAuth y cookies entre subdominios)
             const restored = await actions.initSession();
-            if (restored) {
+            if (restored && auth.user()) {
                 handleAuthenticatedRedirect(auth.user());
             }
         },
