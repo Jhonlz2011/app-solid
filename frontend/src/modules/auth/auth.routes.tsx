@@ -24,12 +24,14 @@ export const createAuthRoutes = (rootRoute: any) => {
             if (auth.isAuthenticated()) {
                 handleAuthenticatedRedirect(auth.user());
             }
-            // Fast path: no session flag → show login instantly (zero API calls)
-            if (!localStorage.getItem('hasSession')) {
+            // Fast path: no session flag and no session query param → show login instantly (zero API calls)
+            const hasSessionFlag = localStorage.getItem('hasSession');
+            const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
+            if (!hasSessionFlag && !hasSessionParam) {
                 return;
             }
 
-            // Session flag exists but state not initialized (page refresh) → validate with server
+            // Session flag exists but state not initialized (page refresh / OAuth callback) → validate with server
             const restored = await actions.initSession();
             if (restored) {
                 handleAuthenticatedRedirect(auth.user());

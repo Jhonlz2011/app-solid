@@ -12,6 +12,7 @@ import { buildTenantUrl } from '@app/schema/utils';
 import Input from '@/shared/ui/form/Input';
 import Button from '@form/Button';
 import Turnstile from '@shared/ui/Turnstile';
+import OAuthButtons from '../components/OAuthButtons';
 import { MailIcon } from '@icons/MailIcon';
 import { LockIcon } from '@icons/LockIcon';
 import { BuildingIcon } from '@icons/BuildingIcon';
@@ -326,8 +327,28 @@ const Login: Component = () => {
             />
           </div>
 
+          {/* ── OAuth Social Providers ── */}
+          <div class="relative flex items-center justify-center my-3 animate-in fade-in duration-500" style={stagger(8)}>
+            <div class="grow border-t border-border" />
+            <span class="px-3 text-xs text-muted font-medium uppercase tracking-wider bg-card">o continúa con</span>
+            <div class="grow border-t border-border" />
+          </div>
+
+          <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(9)}>
+            <OAuthButtons
+              redirectPath={
+                (() => {
+                  const searchParams = typeof search === 'function' ? search() : search;
+                  const redirectTo = (searchParams as any)?.redirect
+                    ?? new URLSearchParams(window.location.search).get('redirect');
+                  return typeof redirectTo === 'string' && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
+                })()
+              }
+            />
+          </div>
+
           <Show when={!branding.tenant()}>
-            <p class="text-sm text-muted text-center mt-2 animate-in fade-in duration-500" style={stagger(8)}>
+            <p class="text-sm text-muted text-center mt-3 animate-in fade-in duration-500" style={stagger(10)}>
               ¿No tienes cuenta?{' '}
               <a
                 href="/register"

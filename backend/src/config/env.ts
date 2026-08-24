@@ -32,4 +32,10 @@ export const env = {
   // Cloudflare Turnstile
   TURNSTILE_SITE_KEY: process.env.TURNSTILE_SITE_KEY || '',
   TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || '',
+  // OAuth (Google & Microsoft Entra ID)
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+  MICROSOFT_CLIENT_ID: process.env.MICROSOFT_CLIENT_ID || '',
+  MICROSOFT_CLIENT_SECRET: process.env.MICROSOFT_CLIENT_SECRET || '',
+  MICROSOFT_TENANT_ID: process.env.MICROSOFT_TENANT_ID || 'common',
 };

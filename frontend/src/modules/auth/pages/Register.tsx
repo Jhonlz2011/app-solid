@@ -13,6 +13,7 @@ import { FieldLabel } from '@form/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem, SegmentedControlItemInput, SegmentedControlItemLabel } from '@form/SegmentedControl';
 import Button from '@form/Button';
+import OAuthButtons from '../components/OAuthButtons';
 import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import Turnstile from '@shared/ui/Turnstile';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
@@ -296,7 +297,17 @@ const Register: Component = () => {
                                 Siguiente
                             </Button>
                         )} />
-                    <div class="text-sm text-muted mt-1 text-center">
+
+                    {/* ── OAuth Social Providers ── */}
+                    <div class="relative flex items-center justify-center my-2">
+                        <div class="grow border-t border-border" />
+                        <span class="px-3 text-xs text-muted font-medium uppercase tracking-wider bg-card">o regístrate con</span>
+                        <div class="grow border-t border-border" />
+                    </div>
+
+                    <OAuthButtons mode="register" />
+
+                    <div class="text-sm text-muted mt-2 text-center">
                         ¿Ya tienes cuenta?{' '}
                         <a href="/login" class="text-primary hover:underline font-medium" onClick={(e) => { e.preventDefault(); navigate({ to: '/login', search: { redirect: undefined } }); }}>
                             Inicia sesión

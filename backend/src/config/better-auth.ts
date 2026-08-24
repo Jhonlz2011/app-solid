@@ -189,8 +189,53 @@ export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,        // https://api.zelys.app
     basePath: '/api/auth',
     trustedOrigins: dynamicTrustedOrigins,
+    socialProviders: {
+        ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? {
+            google: {
+                clientId: env.GOOGLE_CLIENT_ID,
+                clientSecret: env.GOOGLE_CLIENT_SECRET,
+                accessType: 'offline',
+                prompt: 'select_account',
+            },
+        } : {}),
+        ...(env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET ? {
+            microsoft: {
+                clientId: env.MICROSOFT_CLIENT_ID,
+                clientSecret: env.MICROSOFT_CLIENT_SECRET,
+                tenantId: env.MICROSOFT_TENANT_ID || 'common',
+            },
+        } : {}),
+    },
+    account: {
+        accountLinking: {
+            enabled: true,
+            trustedProviders: ['google', 'microsoft'],
+        },
+    },
     databaseHooks: {
         user: {
+            create: {
+                before: async (user) => {
+                    // Generar username único si viene vacío (ej. registro directo vía OAuth Google/Microsoft)
+                    let generatedUsername = (user as any).username;
+                    if (!generatedUsername || !generatedUsername.trim()) {
+                        const rawBase = user.email
+                            ? user.email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase()
+                            : (user.name ? user.name.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() : 'user');
+                        const base = rawBase.length >= 3 ? rawBase : `${rawBase}usr`;
+                        const randomSuffix = Math.random().toString(36).substring(2, 6);
+                        generatedUsername = `${base.slice(0, 24)}_${randomSuffix}`;
+                    }
+
+                    return {
+                        data: {
+                            ...user,
+                            username: generatedUsername,
+                            displayUsername: (user as any).displayUsername || user.name || generatedUsername,
+                        },
+                    };
+                },
+            },
             update: {
                 after: async (user) => {
                     if (user.emailVerified) {

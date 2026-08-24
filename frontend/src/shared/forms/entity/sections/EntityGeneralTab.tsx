@@ -1,5 +1,5 @@
 import { Component, Show, Index, createMemo } from 'solid-js';
-import type { TaxIdTypeForm, PersonType, TaxRegimeType } from '@app/schema/enums';
+import type { PersonType, TaxRegimeType } from '@app/schema/enums';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 
 import {
@@ -10,7 +10,6 @@ import {
     getTaxIdTypeDisabledKeys,
     getTaxIdConfig,
     isPersonalTaxId,
-    type SelectOption,
 } from '../entity-form.utils';
 
 import TextField, { FieldLabel } from '@form/TextField';
@@ -28,7 +27,7 @@ import {
 } from '@form/SegmentedControl';
 
 import { InfoIcon } from '@icons/InfoIcon';
-
+import type { RbacModule } from '@app/schema/enums'
 import type { EntityFormApi } from '../entity-form.types';
 import { useEntitySmartLookup } from '../hooks/useEntitySmartLookup';
 
@@ -155,7 +154,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                                 const isRoleDisabledByAuth = (roleKey: string) => {
                                     if (roleKey === 'isEmployee' && personType() === 'JURIDICA') return true;
                                     if (auth?.isAdmin && auth.isAdmin()) return false;
-                                    const canManage = (module: string) => {
+                                    const canManage = (module: RbacModule) => {
                                         if (!auth) return false;
                                         return props.isEdit() ? (auth.canEdit && auth.canEdit(module)) : (auth.canAdd && auth.canAdd(module));
                                     };
@@ -268,7 +267,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                     <props.form.Field name="personType">
                         {(field) => (
                             <div class="space-y-1.5">
-                                <FieldLabel tooltip={personTypeTooltip()}>
+                                <FieldLabel class="mb-1" tooltip={personTypeTooltip()}>
                                     Tipo Persona
                                 </FieldLabel>
                                 <SegmentedControl
