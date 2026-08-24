@@ -59,8 +59,8 @@ export default function Input(props: InputProps) {
             tabIndex={-1}
             aria-label={showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'}
           >
-            <Show when={showPassword()} fallback={<EyeIcon class="size-[18px]" />}>
-              <EyeOffIcon class="size-[18px]" />
+            <Show when={showPassword()} fallback={<EyeIcon class="size-4.5" />}>
+              <EyeOffIcon class="size-4.5" />
             </Show>
           </button>
         </Show>

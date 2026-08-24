@@ -190,10 +190,9 @@ export const auth = betterAuth({
     basePath: '/api/auth',
     trustedOrigins: dynamicTrustedOrigins,
     onAPIError: {
-        errorURL: (error, ctx) => {
-            const frontendBase = env.NODE_ENV === 'production' ? 'https://in.zelys.app' : env.FRONTEND_URL;
-            const errorMsg = error?.message || 'oauth_error';
-            return `${frontendBase.replace(/\/$/, '')}/login?error=${encodeURIComponent(errorMsg)}`;
+        errorURL: `${(env.NODE_ENV === 'production' ? 'https://in.zelys.app' : env.FRONTEND_URL).replace(/\/$/, '')}/login`,
+        onError: (error) => {
+            console.error('[BetterAuth] API Error:', error);
         },
     },
     socialProviders: {
@@ -216,7 +215,7 @@ export const auth = betterAuth({
                     return {
                         name: profile.name || generatedUsername,
                         email: profile.email,
-                        image: profile.picture || null,
+                        image: profile.picture || undefined,
                         username: generatedUsername,
                         displayUsername: profile.name || generatedUsername,
                         emailVerified: profile.email_verified ?? true,
@@ -242,7 +241,7 @@ export const auth = betterAuth({
                     return {
                         name: rawName || generatedUsername,
                         email: rawEmail,
-                        image: (profile as any).picture || null,
+                        image: (profile as any).picture || undefined,
                         username: generatedUsername,
                         displayUsername: rawName || generatedUsername,
                         emailVerified: true,
@@ -277,7 +276,7 @@ export const auth = betterAuth({
                             ...user,
                             username: generatedUsername,
                             displayUsername: (user as any).displayUsername || user.name || generatedUsername,
-                            emailVerified: (user as any).emailVerified ?? false,
+                            emailVerified: (user as any).emailVerified ?? true,
                         },
                     };
                 },
