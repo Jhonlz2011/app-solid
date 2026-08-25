@@ -109,7 +109,7 @@ const layoutRoute = createRoute({
 
     const getSafeRedirect = () => {
       const p = location.pathname;
-      if (!p || p.startsWith('/login') || p.startsWith('/register') || p === '/verify-email') {
+      if (!p || p === '/' || p === '/dashboard' || p.startsWith('/login') || p.startsWith('/register') || p === '/verify-email') {
         return undefined;
       }
       return p;
@@ -139,11 +139,45 @@ const layoutRoute = createRoute({
   component: ProtectedLayout,
 });
 
-// --- ROUTES ---
+// --- ROOT INDEX ROUTE (Despacho limpio de la raíz "/" sin montar layout protegido) ---
 const indexRoute = createRoute({
-  getParentRoute: () => layoutRoute,
+  getParentRoute: () => rootRoute,
   path: '/',
-  beforeLoad: () => { throw redirect({ to: '/dashboard' }); },
+  beforeLoad: async () => {
+    const { actions, useAuth } = await import('./modules/auth/store/auth.store');
+    const { isGlobalPortalHost, buildTenantUrl } = await import('@app/schema/utils');
+    const auth = useAuth();
+
+    const handleAuthenticatedRedirect = (user: any) => {
+      if (!user?.companySlug && (!user?.companyId || user.companyId === 0)) {
+        throw redirect({ to: '/register' });
+      }
+      const isGlobal = isGlobalPortalHost(window.location.hostname);
+      if (isGlobal && user?.companySlug) {
+        window.location.href = buildTenantUrl(user.companySlug, '/dashboard', { queryParams: { session: 'true' } });
+        return;
+      }
+      throw redirect({ to: '/dashboard' });
+    };
+
+    // Fast path: usuario ya autenticado en memoria
+    if (auth.isAuthenticated() && auth.user()) {
+      handleAuthenticatedRedirect(auth.user());
+    }
+
+    // Comprobar si hay sesión activa antes de consultar al backend
+    const hasSessionFlag = localStorage.getItem('hasSession');
+    const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
+    if (hasSessionFlag || hasSessionParam) {
+      const restored = await actions.initSession();
+      if (restored && auth.user()) {
+        handleAuthenticatedRedirect(auth.user());
+      }
+    }
+
+    // Usuario no autenticado que ingresa a "/" -> ir directo a /login de forma limpia (sin parámetros de búsqueda)
+    throw redirect({ to: '/login' });
+  },
 });
 
 const dashboardRoute = createRoute({
@@ -167,10 +201,10 @@ const profileRoute = createRoute({
 
 // --- ROUTE TREE ---
 const routeTree = rootRoute.addChildren([
+  indexRoute,
   authRoute,
   verifyEmailRoute,
   layoutRoute.addChildren([
-    indexRoute,
     dashboardRoute,
     createUsersRoutes(layoutRoute),
     createSettingsRoutes(layoutRoute),
