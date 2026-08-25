@@ -7,6 +7,7 @@ import { resolveSlugFromHost } from '@app/schema/utils';
 
 // P1-8: AbortController for deduplicating concurrent branding API calls
 let activeBrandingAbort: AbortController | null = null;
+let isInitialLoad = true;
 
 
 interface BrandingState {
@@ -128,10 +129,11 @@ export const applyBranding = (tenant: TenantBrandingType | null) => {
         }
     };
 
-    // Smooth transition animations via native browser API (2026 standard)
-    if (typeof document !== 'undefined' && 'startViewTransition' in document) {
+    // Smooth transition animations via native browser API (2026 standard) — only on subsequent dynamic updates
+    if (!isInitialLoad && typeof document !== 'undefined' && 'startViewTransition' in document) {
         (document as any).startViewTransition(updateDOM);
     } else {
+        isInitialLoad = false;
         updateDOM();
     }
 };

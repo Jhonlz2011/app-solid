@@ -2,13 +2,45 @@
 <html lang="es" >
 
 <head>
-  <script src="/branding-fallback.js"></script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f4f7fb" media="(prefers-color-scheme: light)" />
-<!-- Para tema oscuro -->
-<meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
-<meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+
+  <!-- Critical Theme & Anti-FOUC initialization (Frame 0 — Zero latency) -->
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('app-theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.dataset.theme = t;
+          document.documentElement.style.colorScheme = t;
+        }
+      } catch(e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+    html, body, #root {
+      background-color: light-dark(#f4f7fb, #020617);
+      color: light-dark(#0f172a, #f8fafc);
+      margin: 0;
+      min-height: 100vh;
+    }
+    html[data-theme="light"], html[data-theme="light"] body, html[data-theme="light"] #root {
+      background-color: #f4f7fb;
+      color: #0f172a;
+    }
+    html[data-theme="dark"], html[data-theme="dark"] body, html[data-theme="dark"] #root {
+      background-color: #020617;
+      color: #f8fafc;
+    }
+  </style>
+
+  <script src="/branding-fallback.js"></script>
   <meta name="description" content="Zelys — Plataforma ERP de alto rendimiento con facturación electrónica, gestión de inventarios y experiencia de usuario optimizada." />
 
   <link rel="preconnect" href="https://api.zelys.app" crossorigin />
