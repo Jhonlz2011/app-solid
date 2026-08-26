@@ -46,11 +46,44 @@ const Login: Component = () => {
   // Turnstile token state
   const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
 
-  onMount(() => {
+  onMount(async () => {
     const params = new URLSearchParams(window.location.search);
     const errorParam = params.get('error');
     if (errorParam) {
       toast.error(getFriendlyErrorMessage(errorParam, 'Error al autenticar con el proveedor social'));
+    }
+
+    // Comprobar si el usuario ya está autenticado (ej. retorno de OAuth o sesión activa en portal global)
+    const hasSession = localStorage.getItem('hasSession') || params.get('session') === 'true';
+    if (hasSession) {
+      try {
+        const { authClient } = await import('@shared/lib/auth-client');
+        const orgRes = await authClient.organization.list();
+        const orgs = orgRes?.data || [];
+
+        if (orgs.length > 1) {
+          setDiscoveredTenants(orgs.map((o: any) => ({
+            id: 0,
+            organizationId: o.id,
+            slug: o.slug,
+            businessName: o.name,
+            tradeName: o.name,
+            logoUrl: o.logo || null,
+          })));
+          setShowTenants(true);
+        } else if (orgs.length === 1 && isGlobalLogin) {
+          const singleOrg = orgs[0];
+          await actions.switchOrganization(singleOrg.id);
+          handleRedirect(singleOrg.slug, '/dashboard');
+        } else if (orgs.length === 0 && isGlobalLogin) {
+          const user = (await import('@modules/auth/store/auth.store')).useAuth().user();
+          if (!user?.companySlug && (!user?.companyId || user.companyId === 0)) {
+            navigate({ to: '/register', replace: true });
+          }
+        }
+      } catch (err) {
+        console.warn('[Login] Error loading tenant list in onMount:', err);
+      }
     }
   });
 

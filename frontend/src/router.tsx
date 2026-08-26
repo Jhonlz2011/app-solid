@@ -83,16 +83,35 @@ const layoutRoute = createRoute({
     const { isGlobalPortalHost, buildTenantUrl } = await import('@app/schema/utils');
     const auth = useAuth();
 
-    const enforceTenantHost = (user: any): boolean => {
+    const enforceTenantHost = async (user: any): Promise<boolean> => {
       if (typeof window === 'undefined') return false;
-      // Si el usuario está autenticado pero aún no tiene empresa configurada -> redirigir a /register
-      if (!user?.companySlug && (!user?.companyId || user.companyId === 0)) {
-        throw redirect({ to: '/register' });
-      }
       const isGlobal = isGlobalPortalHost(window.location.hostname);
-      if (isGlobal && user?.companySlug) {
-        window.location.href = buildTenantUrl(user.companySlug, location.pathname, { queryParams: { session: 'true' } });
-        return true;
+      if (isGlobal) {
+        const { authClient } = await import('./shared/lib/auth-client');
+        let orgs: any[] = [];
+        try {
+          const orgRes = await authClient.organization.list();
+          orgs = orgRes?.data || [];
+        } catch {}
+
+        // Si el usuario está autenticado pero aún no tiene empresa configurada -> redirigir a /register
+        if (orgs.length === 0 && (!user?.companySlug && (!user?.companyId || user.companyId === 0))) {
+          throw redirect({ to: '/register' });
+        }
+
+        if (orgs.length > 1) {
+          throw redirect({ to: '/login' });
+        }
+
+        if (orgs.length === 1 && orgs[0].slug) {
+          window.location.href = buildTenantUrl(orgs[0].slug, location.pathname, { queryParams: { session: 'true' } });
+          return true;
+        }
+
+        if (user?.companySlug) {
+          window.location.href = buildTenantUrl(user.companySlug, location.pathname, { queryParams: { session: 'true' } });
+          return true;
+        }
       }
       return false;
     };
@@ -103,7 +122,7 @@ const layoutRoute = createRoute({
       if (u && !isEmailVerified(u)) {
         throw redirect({ to: '/verify-email', search: {} });
       }
-      if (enforceTenantHost(u)) return;
+      if (await enforceTenantHost(u)) return;
       return;
     }
 
@@ -122,7 +141,7 @@ const layoutRoute = createRoute({
       if (u && !isEmailVerified(u)) {
         throw redirect({ to: '/verify-email', search: {} });
       }
-      if (enforceTenantHost(u)) return;
+      if (await enforceTenantHost(u)) return;
       return;
     }
 
@@ -145,24 +164,50 @@ const indexRoute = createRoute({
   path: '/',
   beforeLoad: async () => {
     const { actions, useAuth } = await import('./modules/auth/store/auth.store');
+    const { authClient } = await import('./shared/lib/auth-client');
     const { isGlobalPortalHost, buildTenantUrl } = await import('@app/schema/utils');
     const auth = useAuth();
 
-    const handleAuthenticatedRedirect = (user: any) => {
-      if (!user?.companySlug && (!user?.companyId || user.companyId === 0)) {
+    const handleAuthenticatedRouting = async (user: any) => {
+      const isGlobal = isGlobalPortalHost(window.location.hostname);
+
+      let orgs: any[] = [];
+      try {
+        const orgRes = await authClient.organization.list();
+        orgs = orgRes?.data || [];
+      } catch {}
+
+      // 0 empresas -> onboarding
+      if (orgs.length === 0 && (!user?.companySlug && (!user?.companyId || user.companyId === 0))) {
         throw redirect({ to: '/register' });
       }
-      const isGlobal = isGlobalPortalHost(window.location.hostname);
+
+      // Portal global con múltiples empresas -> ir a /login para mostrar selector
+      if (isGlobal && orgs.length > 1) {
+        throw redirect({ to: '/login' });
+      }
+
+      // Portal global con 1 sola empresa -> fast-path
+      if (isGlobal && orgs.length === 1) {
+        const singleOrg = orgs[0];
+        if (singleOrg.slug) {
+          window.location.href = buildTenantUrl(singleOrg.slug, '/dashboard', { queryParams: { session: 'true' } });
+          return;
+        }
+      }
+
       if (isGlobal && user?.companySlug) {
         window.location.href = buildTenantUrl(user.companySlug, '/dashboard', { queryParams: { session: 'true' } });
         return;
       }
+
       throw redirect({ to: '/dashboard' });
     };
 
     // Fast path: usuario ya autenticado en memoria
     if (auth.isAuthenticated() && auth.user()) {
-      handleAuthenticatedRedirect(auth.user());
+      await handleAuthenticatedRouting(auth.user());
+      return;
     }
 
     // Comprobar si hay sesión activa antes de consultar al backend
@@ -171,7 +216,7 @@ const indexRoute = createRoute({
     if (hasSessionFlag || hasSessionParam) {
       const restored = await actions.initSession();
       if (restored && auth.user()) {
-        handleAuthenticatedRedirect(auth.user());
+        await handleAuthenticatedRouting(auth.user());
       }
     }
 

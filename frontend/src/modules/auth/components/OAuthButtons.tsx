@@ -3,6 +3,8 @@ import { toast } from 'solid-sonner';
 import { authClient } from '@shared/lib/auth-client';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 
+import { isGlobalPortalHost } from '@app/schema/utils';
+
 interface OAuthButtonsProps {
   redirectPath?: string;
   class?: string;
@@ -47,10 +49,15 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
 
     setLoadingProvider(provider);
     try {
-      // Determinar la URL canónica de retorno con session=true para sincronizar pestañas
-      const targetPath = props.redirectPath && props.redirectPath.startsWith('/')
+      // Determinar la URL canónica de retorno: en portal global retornar a /login para resolver tenants
+      const isGlobal = isGlobalPortalHost(window.location.hostname);
+      let targetPath = props.redirectPath && props.redirectPath.startsWith('/')
         ? props.redirectPath
-        : '/dashboard';
+        : (isGlobal ? '/login' : '/dashboard');
+
+      if (isGlobal && (targetPath === '/dashboard' || targetPath === '/')) {
+        targetPath = '/login';
+      }
       
       const targetWithParam = targetPath.includes('?') ? `${targetPath}&session=true` : `${targetPath}?session=true`;
       const callbackURL = `${window.location.origin}${targetWithParam}`;
