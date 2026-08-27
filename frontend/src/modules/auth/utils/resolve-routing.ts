@@ -32,30 +32,46 @@ export function mapOrgToTenant(org: BetterAuthOrg): DiscoverTenantItemType {
 
 let cachedOrgs: BetterAuthOrg[] | null = null;
 let cacheTimestamp = 0;
+let fetchPromise: Promise<BetterAuthOrg[]> | null = null;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Fetches user organizations from Better Auth with in-memory caching.
- * Avoids redundant HTTP calls across auth.routes.tsx, Login.tsx, router.tsx, SidebarHeader.
+ * Fetches user organizations from Better Auth with in-memory caching
+ * AND in-flight request deduplication.
+ *
+ * Multiple concurrent callers (auth.routes.tsx, router.tsx, SidebarHeader)
+ * share the same HTTP request instead of firing N separate ones.
  *
  * @param forceRefresh - Bypass cache and re-fetch from server
  */
 export async function fetchUserOrganizations(forceRefresh = false): Promise<BetterAuthOrg[]> {
     const now = Date.now();
 
+    // Return from cache if valid and not forced
     if (!forceRefresh && cachedOrgs && (now - cacheTimestamp) < CACHE_TTL_MS) {
         return cachedOrgs;
     }
 
-    try {
-        const res = await authClient.organization.list();
-        cachedOrgs = (res?.data || []) as BetterAuthOrg[];
-        cacheTimestamp = now;
-        return cachedOrgs;
-    } catch (err) {
-        console.error('[Auth] Failed to fetch organizations:', err);
-        return cachedOrgs || [];
+    // In-flight dedup: if a request is already in progress, piggyback on it
+    if (fetchPromise && !forceRefresh) {
+        return fetchPromise;
     }
+
+    fetchPromise = (async () => {
+        try {
+            const res = await authClient.organization.list();
+            cachedOrgs = (res?.data || []) as BetterAuthOrg[];
+            cacheTimestamp = Date.now();
+            return cachedOrgs;
+        } catch (err) {
+            console.error('[Auth] Failed to fetch organizations:', err);
+            return cachedOrgs || [];
+        } finally {
+            fetchPromise = null;
+        }
+    })();
+
+    return fetchPromise;
 }
 
 /**

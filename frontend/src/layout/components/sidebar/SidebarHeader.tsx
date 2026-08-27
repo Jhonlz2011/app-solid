@@ -1,4 +1,4 @@
-import { Component, Show, For, createSignal, onMount, createMemo } from 'solid-js';
+import { Component, Show, For, createSignal, createMemo } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useSidebar } from './SidebarContext';
 import { SidebarCollapseIcon } from '@icons/SidebarCollapseIcon';
@@ -60,9 +60,8 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
         }
     };
 
-    onMount(() => {
-        loadOrganizations();
-    });
+    // Load organizations using cache (populated by routing guards during login)
+    // No onMount needed — the cache is warm by the time SidebarHeader mounts
 
     const handleSwitch = async (org: OrganizationItem) => {
         if (org.slug === currentSlug() || switchingId()) return;
@@ -151,7 +150,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                             variant="none"
                             class="flex items-center gap-3 w-full text-left rounded-xl p-1 -ml-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer group"
                             aria-label="Cambiar de empresa"
-                            onClick={() => loadOrganizations(true)}
+                            onClick={() => loadOrganizations()}
                         >
                             {/* Spacer matching stationary logo underneath */}
                             <div class="size-10 shrink-0 opacity-0 pointer-events-none" />

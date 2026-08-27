@@ -44,7 +44,17 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
     const offset = (page - 1) * limit;
 
     const conditions: SQL[] = [];
-    if (companyId) conditions.push(eq(authUsers.company_id, companyId));
+    if (companyId) {
+        // Filter by org membership (not denormalized company_id).
+        // With user reuse across tenants, a user's company_id may point to their
+        // original tenant, but they can be a member of multiple organizations.
+        const memberSubquery = adminDb
+            .select({ userId: member.userId })
+            .from(member)
+            .innerJoin(companies, eq(companies.organization_id, member.organizationId))
+            .where(eq(companies.id, companyId));
+        conditions.push(inArray(authUsers.id, memberSubquery));
+    }
     if (filters.search) {
         const term = `%${filters.search}%`;
         const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term));

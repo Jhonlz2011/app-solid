@@ -13,6 +13,10 @@ import { invalidateOrgCache } from "../utils/resolve-routing";
 // Prevent multiple initStore() calls
 let storeInitialized = false;
 
+// In-flight dedup for initSession — prevents duplicate /me calls
+// when auth.routes.tsx and router.tsx both call initSession() in sequence
+let initSessionPromise: Promise<boolean> | null = null;
+
 // --- CONFIGURACIÓN ---
 const SESSION_FLAG_KEY = 'hasSession';
 
@@ -198,38 +202,48 @@ export const actions = {
         }
     },
 
-    // Session initialization — just call GET /me, cookie is sent automatically
+    // Session initialization — just call GET /me, cookie is sent automatically.
+    // Deduplicated: auth.routes.tsx + router.tsx may call this concurrently.
     initSession: async (): Promise<boolean> => {
         if (state.status === 'authenticated') return true;
 
-        setState('status', 'loading');
+        // In-flight dedup: share the same /me request across concurrent callers
+        if (initSessionPromise) return initSessionPromise;
 
-        try {
-            // Cookie goes automatically via credentials: 'include'
-            const userData = await profileApi.getMe();
-            currentSessionId = userData.sessionId ?? null;
-            batch(() => {
-                setState('user', userData as ProfileType);
-                setState('status', 'authenticated');
-            });
-            setSessionFlag(true);
+        initSessionPromise = (async () => {
+            setState('status', 'loading');
 
-            // WebSocket
-            enableReconnect();
-            connect(currentSessionId);
+            try {
+                // Cookie goes automatically via credentials: 'include'
+                const userData = await profileApi.getMe();
+                currentSessionId = userData.sessionId ?? null;
+                batch(() => {
+                    setState('user', userData as ProfileType);
+                    setState('status', 'authenticated');
+                });
+                setSessionFlag(true);
 
-            // Sync branding for sidebar (if entering via zelys.app without subdomain)
-            if (userData.companySlug) {
-                brandingActions.loadBrandingForSlug(userData.companySlug);
+                // WebSocket
+                enableReconnect();
+                connect(currentSessionId);
+
+                // Sync branding for sidebar (if entering via zelys.app without subdomain)
+                if (userData.companySlug) {
+                    brandingActions.loadBrandingForSlug(userData.companySlug);
+                }
+
+                return true;
+            } catch {
+                currentSessionId = null;
+                setState('status', 'unauthenticated');
+                setSessionFlag(false);
+                return false;
+            } finally {
+                initSessionPromise = null;
             }
+        })();
 
-            return true;
-        } catch {
-            currentSessionId = null;
-            setState('status', 'unauthenticated');
-            setSessionFlag(false);
-            return false;
-        }
+        return initSessionPromise;
     },
 
     // Refresh user session/profile data from server (silently in background)
