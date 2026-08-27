@@ -8,6 +8,7 @@ import { BUSINESS_TYPES, TAX_REGIME_TYPES } from '@app/schema/enums';
 import { isGlobalPortalHost, buildTenantUrl } from '@app/schema/utils';
 import { authApi } from '@modules/auth/api/auth.api';
 import { authClient } from '@shared/lib/auth-client';
+import { fetchUserOrganizations, invalidateOrgCache } from '../utils/resolve-routing';
 import { actions, useAuth } from '@modules/auth/store/auth.store';
 import TextField from '@form/TextField';
 import { FieldLabel } from '@form/TextField';
@@ -218,13 +219,12 @@ const Register: Component = () => {
                     turnstileToken: turnstileToken() ?? undefined,
                 });
 
-                // Set active organization in Better-Auth session
-                const orgList = await authClient.organization.list();
-                if (orgList?.data && orgList.data.length > 0) {
-                    const matchingOrg = orgList.data.find((o: any) => o.slug === s2.slug) || orgList.data[0];
-                    if (matchingOrg) {
-                        await authClient.organization.setActive({ organizationId: matchingOrg.id });
-                    }
+                // Set active organization in Better-Auth session (force refresh to pick up new org)
+                invalidateOrgCache();
+                const orgs = await fetchUserOrganizations(true);
+                const matchingOrg = orgs.find(o => o.slug === s2.slug) || orgs[0];
+                if (matchingOrg) {
+                    await authClient.organization.setActive({ organizationId: matchingOrg.id });
                 }
 
                 await actions.initSession();
@@ -264,13 +264,12 @@ const Register: Component = () => {
                 return;
             }
 
-            // Set active organization in Better-Auth session
-            const orgList = await authClient.organization.list();
-            if (orgList?.data && orgList.data.length > 0) {
-                const matchingOrg = orgList.data.find((o: any) => o.slug === s2.slug) || orgList.data[0];
-                if (matchingOrg) {
-                    await authClient.organization.setActive({ organizationId: matchingOrg.id });
-                }
+            // Set active organization in Better-Auth session (force refresh to pick up new org)
+            invalidateOrgCache();
+            const orgs = await fetchUserOrganizations(true);
+            const matchingOrgStd = orgs.find(o => o.slug === s2.slug) || orgs[0];
+            if (matchingOrgStd) {
+                await authClient.organization.setActive({ organizationId: matchingOrgStd.id });
             }
 
             await actions.initSession();

@@ -8,10 +8,8 @@ export const createAuthRoutes = (rootRoute: any) => {
         id: 'auth-layout',
         beforeLoad: async () => {
             const { actions, useAuth } = await import('./store/auth.store');
-            const { isGlobalPortalHost } = await import('@app/schema/utils');
-            const { buildTenantUrl } = await import('@app/schema/utils');
+            const { isGlobalPortalHost, buildTenantUrl, resolveSlugFromHost } = await import('@app/schema/utils');
             const { resolvePostAuthRouting } = await import('./utils/resolve-routing');
-            const { resolveSlugFromHost } = await import('@app/schema/utils');
             const auth = useAuth();
 
             const isGlobal = isGlobalPortalHost(window.location.hostname);

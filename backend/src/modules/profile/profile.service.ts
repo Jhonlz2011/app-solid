@@ -46,7 +46,10 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
 
   if (!user) throw new AuthError('Usuario no encontrado');
 
-  const resolvedCompanyId = activeCompanyId || user.company_id;
+  // Respect the auth-guard decision: if activeCompanyId is null/0,
+  // the user has multiple orgs and needs to pick one.
+  // Do NOT fallback to user.company_id here — that would bypass the tenant selector.
+  const resolvedCompanyId = activeCompanyId || null;
 
   // Resolve entity from member table (per-org entity mapping) if we have a company
   let resolvedEntityId = user.entity_id;
