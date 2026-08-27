@@ -80,40 +80,31 @@ const layoutRoute = createRoute({
   id: 'layout',
   beforeLoad: async ({ location }) => {
     const { actions, useAuth } = await import('./modules/auth/store/auth.store');
-    const { isGlobalPortalHost, buildTenantUrl } = await import('@app/schema/utils');
+    const { isGlobalPortalHost, buildTenantUrl, resolveSlugFromHost } = await import('@app/schema/utils');
+    const { resolvePostAuthRouting } = await import('./modules/auth/utils/resolve-routing');
     const auth = useAuth();
 
+    const isGlobal = isGlobalPortalHost(window.location.hostname);
+    const currentSlug = resolveSlugFromHost(window.location.hostname);
+
     const enforceTenantHost = async (user: any): Promise<boolean> => {
-      if (typeof window === 'undefined') return false;
-      const isGlobal = isGlobalPortalHost(window.location.hostname);
-      if (isGlobal) {
-        const { authClient } = await import('./shared/lib/auth-client');
-        let orgs: any[] = [];
-        try {
-          const orgRes = await authClient.organization.list();
-          orgs = orgRes?.data || [];
-        } catch {}
+      if (typeof window === 'undefined' || !isGlobal) return false;
 
-        // Si el usuario está autenticado pero aún no tiene empresa configurada -> redirigir a /register
-        if (orgs.length === 0 && (!user?.companySlug && (!user?.companyId || user.companyId === 0))) {
+      const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, location.pathname);
+
+      switch (decision.action) {
+        case 'onboard':
           throw redirect({ to: '/register' });
-        }
-
-        if (orgs.length > 1) {
+        case 'show-selector':
           throw redirect({ to: '/login' });
-        }
-
-        if (orgs.length === 1 && orgs[0].slug) {
-          window.location.href = buildTenantUrl(orgs[0].slug, location.pathname, { queryParams: { session: 'true' } });
+        case 'redirect-tenant':
+          window.location.href = buildTenantUrl(decision.slug, decision.path, {
+            queryParams: { session: 'true' },
+          });
           return true;
-        }
-
-        if (user?.companySlug) {
-          window.location.href = buildTenantUrl(user.companySlug, location.pathname, { queryParams: { session: 'true' } });
-          return true;
-        }
+        case 'stay':
+          return false;
       }
-      return false;
     };
 
     // Fast path: already authenticated in memory
@@ -148,9 +139,6 @@ const layoutRoute = createRoute({
     throw redirect({ to: '/login', search: { redirect: getSafeRedirect() } });
   },
   loader: async () => {
-    // Parallel Fetching: the Sidebar items will be downloaded IN PARALLEL 
-    // with any child route (like /profile or /suppliers).
-    // This entirely prevents layout shifting after the page mounts.
     const { actions } = await import('./shared/store/modules.store');
     return actions.fetchModules();
   },
@@ -164,49 +152,34 @@ const indexRoute = createRoute({
   path: '/',
   beforeLoad: async () => {
     const { actions, useAuth } = await import('./modules/auth/store/auth.store');
-    const { authClient } = await import('./shared/lib/auth-client');
-    const { isGlobalPortalHost, buildTenantUrl } = await import('@app/schema/utils');
+    const { isGlobalPortalHost, buildTenantUrl, resolveSlugFromHost } = await import('@app/schema/utils');
+    const { resolvePostAuthRouting } = await import('./modules/auth/utils/resolve-routing');
     const auth = useAuth();
 
-    const handleAuthenticatedRouting = async (user: any) => {
-      const isGlobal = isGlobalPortalHost(window.location.hostname);
+    const isGlobal = isGlobalPortalHost(window.location.hostname);
+    const currentSlug = resolveSlugFromHost(window.location.hostname);
 
-      let orgs: any[] = [];
-      try {
-        const orgRes = await authClient.organization.list();
-        orgs = orgRes?.data || [];
-      } catch {}
+    const handleRouting = async (user: any) => {
+      const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug);
 
-      // 0 empresas -> onboarding
-      if (orgs.length === 0 && (!user?.companySlug && (!user?.companyId || user.companyId === 0))) {
-        throw redirect({ to: '/register' });
-      }
-
-      // Portal global con múltiples empresas -> ir a /login para mostrar selector
-      if (isGlobal && orgs.length > 1) {
-        throw redirect({ to: '/login' });
-      }
-
-      // Portal global con 1 sola empresa -> fast-path
-      if (isGlobal && orgs.length === 1) {
-        const singleOrg = orgs[0];
-        if (singleOrg.slug) {
-          window.location.href = buildTenantUrl(singleOrg.slug, '/dashboard', { queryParams: { session: 'true' } });
+      switch (decision.action) {
+        case 'onboard':
+          throw redirect({ to: '/register' });
+        case 'show-selector':
+          throw redirect({ to: '/login' });
+        case 'redirect-tenant':
+          window.location.href = buildTenantUrl(decision.slug, '/dashboard', {
+            queryParams: { session: 'true' },
+          });
           return;
-        }
+        case 'stay':
+          throw redirect({ to: '/dashboard' });
       }
-
-      if (isGlobal && user?.companySlug) {
-        window.location.href = buildTenantUrl(user.companySlug, '/dashboard', { queryParams: { session: 'true' } });
-        return;
-      }
-
-      throw redirect({ to: '/dashboard' });
     };
 
     // Fast path: usuario ya autenticado en memoria
     if (auth.isAuthenticated() && auth.user()) {
-      await handleAuthenticatedRouting(auth.user());
+      await handleRouting(auth.user());
       return;
     }
 
@@ -216,11 +189,11 @@ const indexRoute = createRoute({
     if (hasSessionFlag || hasSessionParam) {
       const restored = await actions.initSession();
       if (restored && auth.user()) {
-        await handleAuthenticatedRouting(auth.user());
+        await handleRouting(auth.user());
       }
     }
 
-    // Usuario no autenticado que ingresa a "/" -> ir directo a /login de forma limpia (sin parámetros de búsqueda)
+    // Usuario no autenticado → ir a /login
     throw redirect({ to: '/login' });
   },
 });

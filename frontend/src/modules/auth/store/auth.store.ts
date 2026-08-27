@@ -8,6 +8,7 @@ import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
 import { brandingActions } from "./branding.store";
 import { getFriendlyErrorMessage } from "@shared/utils/api-errors";
+import { invalidateOrgCache } from "../utils/resolve-routing";
 
 // Prevent multiple initStore() calls
 let storeInitialized = false;
@@ -113,6 +114,9 @@ export const actions = {
                 throw new Error(res.error.message || 'Error al cambiar de empresa');
             }
 
+            // Invalidate cached org list so route guards re-fetch on next navigation
+            invalidateOrgCache();
+
             // Refresh ERP profile with new company's RBAC and permissions
             const profile = await profileApi.getMe();
             currentSessionId = profile.sessionId ?? null;
@@ -158,6 +162,9 @@ export const actions = {
             setState('status', 'unauthenticated');
         });
         setSessionFlag(false);
+
+        // Invalidate cached org list
+        invalidateOrgCache();
 
         // 3. Clear cached modules
         try {

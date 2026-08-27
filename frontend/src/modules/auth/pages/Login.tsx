@@ -9,6 +9,7 @@ import { actions } from '@modules/auth/store/auth.store';
 import { useBranding, getSubdomain } from '../store/branding.store';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import { buildTenantUrl } from '@app/schema/utils';
+import { fetchUserOrganizations, mapOrgToTenant } from '../utils/resolve-routing';
 import Input from '@/shared/ui/form/Input';
 import Button from '@form/Button';
 import Turnstile from '@shared/ui/Turnstile';
@@ -53,28 +54,20 @@ const Login: Component = () => {
       toast.error(getFriendlyErrorMessage(errorParam, 'Error al autenticar con el proveedor social'));
     }
 
-    // Comprobar si el usuario ya está autenticado (ej. retorno de OAuth o sesión activa en portal global)
+    // Check for active session (e.g. OAuth return or previously authenticated)
     const hasSession = localStorage.getItem('hasSession') || params.get('session') === 'true';
     if (hasSession) {
       try {
-        const { authClient } = await import('@shared/lib/auth-client');
-        const orgRes = await authClient.organization.list();
-        const orgs = orgRes?.data || [];
+        // Use cached org list (shared with route guards — avoids redundant HTTP calls)
+        const orgs = await fetchUserOrganizations();
 
         if (orgs.length > 1) {
-          setDiscoveredTenants(orgs.map((o: any) => ({
-            id: 0,
-            organizationId: o.id,
-            slug: o.slug,
-            businessName: o.name,
-            tradeName: o.name,
-            logoUrl: o.logo || null,
-          })));
+          setDiscoveredTenants(orgs.map(mapOrgToTenant));
           setShowTenants(true);
         } else if (orgs.length === 1 && isGlobalLogin) {
           const singleOrg = orgs[0];
           await actions.switchOrganization(singleOrg.id);
-          handleRedirect(singleOrg.slug, '/dashboard');
+          handleRedirect(singleOrg.slug || '', '/dashboard');
         } else if (orgs.length === 0 && isGlobalLogin) {
           const user = (await import('@modules/auth/store/auth.store')).useAuth().user();
           if (!user?.companySlug && (!user?.companyId || user.companyId === 0)) {
@@ -94,7 +87,6 @@ const Login: Component = () => {
   const handleSelectTenant = async (tenant: DiscoverTenantItemType) => {
     setLoadingTenants(true);
     try {
-      // organizationId es el UUIDv7 de Better-Auth organization.id, requerido para setActive
       await actions.switchOrganization(tenant.organizationId);
       const searchParams = typeof search === 'function' ? search() : search;
       const redirectTo = (searchParams as any)?.redirect
@@ -113,6 +105,19 @@ const Login: Component = () => {
     }
   };
 
+  /** Computes a safe redirect path from URL search params */
+  const getSafeRedirectPath = (): string => {
+    const searchParams = typeof search === 'function' ? search() : search;
+    const redirectTo = (searchParams as any)?.redirect
+      ?? new URLSearchParams(window.location.search).get('redirect');
+    const rawPath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
+      ? new URL(redirectTo, window.location.origin).pathname
+      : '/dashboard';
+    return (!rawPath || rawPath === '/verify-email' || rawPath.startsWith('/login') || rawPath.startsWith('/register') || rawPath.startsWith('/verify-email'))
+      ? '/dashboard'
+      : rawPath;
+  };
+
   const form = createForm(() => ({
     defaultValues: {
       email: '',
@@ -128,15 +133,7 @@ const Login: Component = () => {
         });
 
         const { user, organizations } = res;
-        const searchParams = typeof search === 'function' ? search() : search;
-        const redirectTo = (searchParams as any)?.redirect
-          ?? new URLSearchParams(window.location.search).get('redirect');
-        const rawPath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
-          ? new URL(redirectTo, window.location.origin).pathname
-          : '/dashboard';
-        const safePath = (!rawPath || rawPath === '/verify-email' || rawPath.startsWith('/login') || rawPath.startsWith('/register') || rawPath.startsWith('/verify-email'))
-          ? '/dashboard'
-          : rawPath;
+        const safePath = getSafeRedirectPath();
 
         // Case A: Logging in from a specific tenant subdomain (e.g. acme.zelys.app)
         if (!isGlobalLogin && subdomain) {
@@ -146,16 +143,8 @@ const Login: Component = () => {
             navigate({ to: safePath, replace: true });
             return;
           } else if (organizations.length > 0) {
-            // User belongs to other companies but not this subdomain
             toast.error(`No tienes acceso a ${subdomain}. Selecciona una de tus empresas:`);
-            setDiscoveredTenants(organizations.map((o: any) => ({
-              id: 0, // ERP company.id no disponible desde organization.list() — solo para display
-              organizationId: o.id,  // UUIDv7 de Better-Auth — requerido para setActive
-              slug: o.slug,
-              businessName: o.name,
-              tradeName: o.name,
-              logoUrl: o.logo || null,
-            })));
+            setDiscoveredTenants(organizations.map(mapOrgToTenant));
             setShowTenants(true);
             return;
           }
@@ -163,14 +152,7 @@ const Login: Component = () => {
 
         // Case B: Global portal login (e.g. in.zelys.app or dev localhost)
         if (organizations.length > 1) {
-          setDiscoveredTenants(organizations.map((o: any) => ({
-            id: 0, // ERP company.id no disponible desde organization.list() — solo para display
-            organizationId: o.id,  // UUIDv7 de Better-Auth — requerido para setActive
-            slug: o.slug,
-            businessName: o.name,
-            tradeName: o.name,
-            logoUrl: o.logo || null,
-          })));
+          setDiscoveredTenants(organizations.map(mapOrgToTenant));
           setShowTenants(true);
           return;
         }

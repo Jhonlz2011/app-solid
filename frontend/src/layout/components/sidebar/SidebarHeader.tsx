@@ -7,11 +7,10 @@ import { ChevronsUpDownIcon } from '@icons/ChevronsUpDownIcon';
 import { CheckIcon } from '@icons/CheckIcon';
 import { PlusIcon } from '@icons/PlusIcon';
 import { DropdownMenu } from '@display/DropdownMenu';
-import { authClient } from '@shared/lib/auth-client';
 import { actions, useAuth } from '@modules/auth/store/auth.store';
 import { useBranding } from '@modules/auth/store/branding.store';
-
-const BASE_DOMAIN = import.meta.env.VITE_BASE_DOMAIN || 'zelys.app';
+import { buildTenantUrl } from '@app/schema/utils';
+import { fetchUserOrganizations, invalidateOrgCache } from '@modules/auth/utils/resolve-routing';
 
 interface OrganizationItem {
     id: string;
@@ -49,13 +48,11 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
     const currentLogo = () => branding.tenant()?.logoUrl;
     const initialLetter = createMemo(() => currentTradeName().substring(0, 1).toUpperCase());
 
-    const loadOrganizations = async () => {
+    const loadOrganizations = async (forceRefresh = false) => {
         try {
             setLoading(true);
-            const res = await authClient.organization.list();
-            if (res?.data) {
-                setOrganizations(res.data as OrganizationItem[]);
-            }
+            const orgs = await fetchUserOrganizations(forceRefresh);
+            setOrganizations(orgs as OrganizationItem[]);
         } catch (error) {
             console.error('[SidebarHeader] Failed to load organizations:', error);
         } finally {
@@ -73,23 +70,13 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
         setSwitchingId(org.id);
         try {
             await actions.switchOrganization(org.id);
+            // Invalidate cached org list so next load reflects new active org
+            invalidateOrgCache();
             toast.success(`Cambiando a ${org.name}...`);
-
-            const host = window.location.hostname;
-            const port = window.location.port;
-            const protocol = window.location.protocol;
-            const ipRegex = /^[0-9.]+$/;
-
-            if (host === 'localhost' || ipRegex.test(host)) {
-                const url = new URL(window.location.origin + '/dashboard');
-                url.searchParams.set('slug', org.slug);
-                window.location.href = url.toString();
-            } else {
-                const domainParts = host.split('.');
-                const baseDomain = host.includes(BASE_DOMAIN) ? BASE_DOMAIN : domainParts.slice(-2).join('.');
-                const portStr = port ? `:${port}` : '';
-                window.location.href = `${protocol}//${org.slug}.${baseDomain}${portStr}/dashboard`;
-            }
+            // O-01: Use shared buildTenantUrl instead of manual host/port/IP parsing
+            window.location.href = buildTenantUrl(org.slug, '/dashboard', {
+                queryParams: { session: 'true' },
+            });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : typeof err === 'object' && err !== null && 'message' in err ? String((err as { message: unknown }).message) : 'Error al cambiar de empresa';
             toast.error(message);
@@ -164,7 +151,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                             variant="none"
                             class="flex items-center gap-3 w-full text-left rounded-xl p-1 -ml-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer group"
                             aria-label="Cambiar de empresa"
-                            onClick={() => loadOrganizations()}
+                            onClick={() => loadOrganizations(true)}
                         >
                             {/* Spacer matching stationary logo underneath */}
                             <div class="size-10 shrink-0 opacity-0 pointer-events-none" />

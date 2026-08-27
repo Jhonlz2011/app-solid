@@ -87,9 +87,29 @@ export const authGuard = (app: Elysia) => app
         }
       }
 
-      // 4. Final fallback: resolve from user.company_id denormalized cache
+      // 4. Final fallback: resolve from user.company_id ONLY if user belongs to a single org.
+      // If the user is a member of multiple organizations and no activeOrganizationId is set
+      // (e.g. fresh OAuth login), leave resolvedCompanyId null so the frontend shows the
+      // tenant selector instead of auto-routing to the first company.
       if (!resolvedCompanyId) {
-        resolvedCompanyId = rawUser.companyId ?? rawUser.company_id ?? null;
+        const userCompanyId = rawUser.companyId ?? rawUser.company_id ?? null;
+
+        if (userCompanyId) {
+          // Quick check: does the user belong to more than 1 org?
+          const memberRows = await adminDb
+            .select({ orgId: member.organizationId })
+            .from(member)
+            .where(eq(member.userId, user.id))
+            .limit(2);
+
+          // Only fallback to denormalized company_id if user has ≤ 1 membership
+          if (memberRows.length <= 1) {
+            resolvedCompanyId = userCompanyId;
+          }
+          // If > 1 memberships and no activeOrganizationId → null
+          // → getMe() returns companyId: 0, companySlug: null
+          // → Frontend shows org selector
+        }
       }
 
       const { ipAddress } = getIpAndUserAgent(request);

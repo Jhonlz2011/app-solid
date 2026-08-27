@@ -8,58 +8,45 @@ export const createAuthRoutes = (rootRoute: any) => {
         id: 'auth-layout',
         beforeLoad: async () => {
             const { actions, useAuth } = await import('./store/auth.store');
-            const { authClient } = await import('@shared/lib/auth-client');
-            const { isGlobalPortalHost, buildTenantUrl } = await import('@app/schema/utils');
+            const { isGlobalPortalHost } = await import('@app/schema/utils');
+            const { buildTenantUrl } = await import('@app/schema/utils');
+            const { resolvePostAuthRouting } = await import('./utils/resolve-routing');
+            const { resolveSlugFromHost } = await import('@app/schema/utils');
             const auth = useAuth();
 
-            const handleAuthenticatedRouting = async (user: any) => {
-                const isGlobal = isGlobalPortalHost(window.location.hostname);
+            const isGlobal = isGlobalPortalHost(window.location.hostname);
+            const currentSlug = resolveSlugFromHost(window.location.hostname);
 
-                // Consultar organizaciones reales del usuario desde Better Auth
-                let orgs: any[] = [];
-                try {
-                    const orgRes = await authClient.organization.list();
-                    orgs = orgRes?.data || [];
-                } catch {}
+            const handleRouting = async (user: any) => {
+                const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug);
 
-                // Caso 1: 0 Empresas -> Onboarding obligatorio
-                if (orgs.length === 0 && (!user?.companySlug && (!user?.companyId || user.companyId === 0))) {
-                    if (typeof window !== 'undefined' && window.location.pathname.includes('/register')) {
+                switch (decision.action) {
+                    case 'onboard':
+                        if (window.location.pathname.includes('/register')) return;
+                        throw redirect({ to: '/register' });
+
+                    case 'show-selector':
+                        // Let Login.tsx render and show the tenant selector
                         return;
-                    }
-                    throw redirect({ to: '/register' });
-                }
 
-                // Caso 2: Portal Global (in.zelys.app) con múltiples empresas -> Permitir que Login.tsx muestre el selector
-                if (isGlobal && orgs.length > 1) {
-                    return;
-                }
-
-                // Caso 3: Portal Global con 1 sola empresa -> Fast-Path a su subdominio
-                if (isGlobal && orgs.length === 1) {
-                    const singleOrg = orgs[0];
-                    if (singleOrg.slug) {
-                        window.location.href = buildTenantUrl(singleOrg.slug, '/dashboard', { queryParams: { session: 'true' } });
+                    case 'redirect-tenant':
+                        window.location.href = buildTenantUrl(decision.slug, decision.path, {
+                            queryParams: { session: 'true' },
+                        });
                         return;
-                    }
-                }
 
-                // Caso 4: Subdominio específico o fallback directo
-                if (isGlobal && user?.companySlug) {
-                    window.location.href = buildTenantUrl(user.companySlug, '/dashboard', { queryParams: { session: 'true' } });
-                    return;
+                    case 'stay':
+                        throw redirect({ to: '/dashboard' });
                 }
-
-                throw redirect({ to: '/dashboard' });
             };
 
             // Fast path: already authenticated in memory
             if (auth.isAuthenticated() && auth.user()) {
-                await handleAuthenticatedRouting(auth.user());
+                await handleRouting(auth.user());
                 return;
             }
 
-            // Si no hay flag de sesión ni parámetro OAuth, no consultar al servidor en páginas de login/register
+            // Si no hay flag de sesión ni parámetro OAuth, no consultar al servidor
             const hasSessionFlag = localStorage.getItem('hasSession');
             const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
             if (!hasSessionFlag && !hasSessionParam) {
@@ -69,7 +56,7 @@ export const createAuthRoutes = (rootRoute: any) => {
             // Validar sesión con el servidor (para soportar retorno de OAuth y cookies entre subdominios)
             const restored = await actions.initSession();
             if (restored && auth.user()) {
-                await handleAuthenticatedRouting(auth.user());
+                await handleRouting(auth.user());
             }
         },
         component: AuthLayout,
@@ -81,6 +68,7 @@ export const createAuthRoutes = (rootRoute: any) => {
         validateSearch: (search: Record<string, unknown>) => {
             return {
                 redirect: (search.redirect as string) || undefined,
+                showSelector: search.showSelector === 'true' || search.showSelector === true || undefined,
             };
         },
         component: Login,

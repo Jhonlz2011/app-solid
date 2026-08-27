@@ -49,19 +49,31 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
 
     setLoadingProvider(provider);
     try {
-      // Determinar la URL canónica de retorno: en portal global retornar a /login para resolver tenants
+      // OAuth callback should ALWAYS return to the global portal (/login) so the
+      // tenant selector can resolve multi-org membership. If the user only has 1 org,
+      // the Login.tsx onMount fast-paths to the tenant subdomain automatically.
       const isGlobal = isGlobalPortalHost(window.location.hostname);
-      let targetPath = props.redirectPath && props.redirectPath.startsWith('/')
-        ? props.redirectPath
-        : (isGlobal ? '/login' : '/dashboard');
 
-      if (isGlobal && (targetPath === '/dashboard' || targetPath === '/')) {
-        targetPath = '/login';
+      // For global portal or login mode: always callback to /login for org resolution
+      // For register mode on a specific subdomain: callback to current origin
+      let callbackOrigin = window.location.origin;
+      let targetPath = '/login';
+
+      if (props.mode === 'register') {
+        targetPath = props.redirectPath || '/register';
+      } else if (props.redirectPath && props.redirectPath !== '/dashboard' && props.redirectPath !== '/') {
+        // Preserve specific redirect paths (e.g. /suppliers) via ?redirect param
+        targetPath = `/login?redirect=${encodeURIComponent(props.redirectPath)}`;
       }
-      
-      const targetWithParam = targetPath.includes('?') ? `${targetPath}&session=true` : `${targetPath}?session=true`;
-      const callbackURL = `${window.location.origin}${targetWithParam}`;
-      const errorCallbackURL = `${window.location.origin}/login`;
+
+      const targetWithParam = targetPath.includes('?')
+        ? `${targetPath}&session=true`
+        : `${targetPath}?session=true`;
+
+      const callbackURL = `${callbackOrigin}${targetWithParam}`;
+      // O-02: errorCallbackURL is context-aware (returns to current page, not hardcoded /login)
+      const currentPath = window.location.pathname;
+      const errorCallbackURL = `${callbackOrigin}${currentPath === '/' ? '/login' : currentPath}`;
 
       localStorage.setItem('hasSession', 'true');
 
