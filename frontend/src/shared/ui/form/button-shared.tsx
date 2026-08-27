@@ -4,23 +4,23 @@ import { SpinnerIcon } from '@icons/SpinnerIcon';
 
 export const BUTTON_VARIANTS = {
   none: "",
-  primary: "bg-primary text-on-primary hover:bg-primary/90 transition-all duration-200 border border-transparent shadow-lg shadow-primary/20",
-  secondary: "bg-secondary text-on-secondary hover:bg-secondary transition-all duration-200 border border-transparent shadow-lg shadow-secondary/20",
-  outline: "bg-transparent border border-border text-text hover:bg-surface hover:border-border-strong active:bg-surface-3 transition-scale duration-200",
-  ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 border border-transparent transition-scale duration-200",
-  link: "bg-transparent text-primary hover:text-primary-strong hover:bg-primary-soft transition-colors",
-  danger: "bg-danger text-white hover:bg-danger/85 transition-scale duration-200 border border-transparent shadow-lg shadow-danger/20",
-  destructive: "bg-destructive text-white hover:bg-destructive/85 transition-scale duration-200 border border-transparent shadow-lg shadow-destructive/30",
-  warning: "bg-warning text-white hover:bg-warning/85 transition-scale duration-200 border border-transparent shadow-lg shadow-warning/20",
-  success: "bg-success text-white hover:bg-success/85 transition-scale duration-200 border border-transparent shadow-lg shadow-success/20",
+  primary: "bg-primary text-on-primary border-b-[4px] border-primary-strong shadow-sm shadow-primary/20 hover:brightness-110 hover:-translate-y-[1px] hover:border-b-[5px] hover:shadow-md active:border-b-[2px] active:translate-y-[2px] active:brightness-95",
+  secondary: "bg-secondary text-on-secondary border-b-[4px] border-secondary-strong shadow-sm shadow-secondary/20 hover:brightness-110 hover:-translate-y-[1px] hover:border-b-[5px] hover:shadow-md active:border-b-[2px] active:translate-y-[2px] active:brightness-95",
+  outline: "bg-card text-text border border-border border-b-[4px] border-b-border-strong shadow-xs hover:bg-surface hover:border-border-strong hover:border-b-primary/70 hover:-translate-y-[1px] hover:border-b-[5px] active:border-b-[2px] active:translate-y-[2px] active:bg-surface-3",
+  ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 border-transparent transition-colors active:scale-[0.98]",
+  link: "bg-transparent text-primary hover:text-primary-strong hover:underline transition-colors p-0 h-auto",
+  danger: "bg-danger text-white border-b-[4px] border-[color-mix(in_srgb,var(--color-danger)_70%,black)] shadow-sm shadow-danger/20 hover:brightness-110 hover:-translate-y-[1px] hover:border-b-[5px] hover:shadow-md active:border-b-[2px] active:translate-y-[2px] active:brightness-95",
+  destructive: "bg-destructive text-white border-b-[4px] border-[color-mix(in_srgb,var(--color-destructive)_70%,black)] shadow-sm shadow-destructive/30 hover:brightness-110 hover:-translate-y-[1px] hover:border-b-[5px] hover:shadow-md active:border-b-[2px] active:translate-y-[2px] active:brightness-95",
+  warning: "bg-warning text-white border-b-[4px] border-[color-mix(in_srgb,var(--color-warning)_70%,black)] shadow-sm shadow-warning/20 hover:brightness-110 hover:-translate-y-[1px] hover:border-b-[5px] hover:shadow-md active:border-b-[2px] active:translate-y-[2px] active:brightness-95",
+  success: "bg-success text-white border-b-[4px] border-[color-mix(in_srgb,var(--color-success)_70%,black)] shadow-sm shadow-success/20 hover:brightness-110 hover:-translate-y-[1px] hover:border-b-[5px] hover:shadow-md active:border-b-[2px] active:translate-y-[2px] active:brightness-95",
 };
 
 export const BUTTON_SIZES = {
   sm: "h-8 px-3 text-xs",
   md: "h-9.5 px-4 text-sm",
-  lg: "h-12 px-4 text-base",
+  lg: "h-12 px-5 text-base",
   icon: "h-10 w-10 p-0",
-  icon_md: "h-8 w-8",
+  icon_md: "h-8 w-8 p-0",
   none: ""  
 };
 
@@ -32,8 +32,6 @@ export const BUTTON_RADII = {
   full: "rounded-full",
   none: ""
 };
-
-
 
 export type ButtonVariant = keyof typeof BUTTON_VARIANTS;
 export type ButtonSize = keyof typeof BUTTON_SIZES;
@@ -69,9 +67,9 @@ export function buttonVariants(options?: ButtonVariantOptions): string {
   const hasLoadingText = options?.hasLoadingText;
 
   return cn(
-    "inline-flex items-center justify-center hover:brightness-110 active:scale-[0.97] border-b-[4px] hover:border-b-[6px] active:border-b-[2px] active:brightness-90 active:translate-y-[2px] gap-2 font-medium cursor-pointer select-none",
+    "inline-flex items-center justify-center gap-2 font-semibold cursor-pointer select-none transition-all duration-150 ease-out",
     "outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
-    "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
+    "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:brightness-100 disabled:shadow-none",
     BUTTON_VARIANTS[variant],
     BUTTON_SIZES[size],
     BUTTON_RADII[radius],
