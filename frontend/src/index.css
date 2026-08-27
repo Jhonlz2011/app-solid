@@ -32,6 +32,15 @@
   --color-warning: var(--warning);
   --color-danger: var(--danger);
   --color-destructive: var(--destructive);
+
+  /* Bordes y extrusión 3D exclusivos para botones */
+  --color-primary-edge: var(--primary-edge);
+  --color-secondary-edge: var(--secondary-edge);
+  --color-danger-edge: var(--danger-edge);
+  --color-destructive-edge: var(--destructive-edge);
+  --color-warning-edge: var(--warning-edge);
+  --color-success-edge: var(--success-edge);
+  --color-outline-edge: var(--outline-edge);
   
   /* Sombras corregidas */
   --shadow-card: var(--shadow-card);
@@ -63,7 +72,6 @@
   /* Colores base por defecto */
   --primary-default: light-dark(#1f86c2, #60dbfa);
   --primary: var(--primary-default);
-  
   /* Variaciones dinámicas calculadas automáticamente en el cliente en 2026 */
   --primary-strong: color-mix(in srgb, var(--primary) 85%, light-dark(black, white));
   --primary-soft: color-mix(in srgb, var(--primary) 15%, transparent);
@@ -74,6 +82,15 @@
   --secondary-strong: color-mix(in srgb, var(--secondary) 85%, light-dark(black, white));
   --secondary-soft: color-mix(in srgb, var(--secondary) 15%, transparent);
   --on-secondary: light-dark(#ffffff, #0f172a);
+
+  /* BORDES Y EXTRUSIÓN 3D EXCLUSIVOS PARA BOTONES */
+  --primary-edge: color-mix(in srgb, var(--primary) 70%, black);
+  --secondary-edge: color-mix(in srgb, var(--secondary) 70%, black);
+  --danger-edge: color-mix(in srgb, var(--danger) 70%, black);
+  --destructive-edge: color-mix(in srgb, var(--destructive) 70%, black);
+  --warning-edge: color-mix(in srgb, var(--warning) 70%, black);
+  --success-edge: color-mix(in srgb, var(--success) 70%, black);
+  --outline-edge: light-dark(#cbd5e1, #1e293b);
 
   --row-selected: light-dark(
     color-mix(in srgb, var(--primary) 12%, var(--surface)),
