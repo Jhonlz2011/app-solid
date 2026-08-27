@@ -1,6 +1,6 @@
 import { db, adminDb } from '../../core/db';
-import { authUserRoles, authRoles, authUsers, sessions, member, companies } from '@app/schema/tables';
-import { eq, sql, count, and } from '@app/schema';
+import { authUserRoles, authRoles, authRolePermissions, authPermissions, authUsers, sessions, member, companies } from '@app/schema/tables';
+import { eq, and } from '@app/schema';
 import { redis } from '../../core/cache/redis';
 import { cacheService } from '../../core/cache';
 import { DomainError } from '../../core/errors';
@@ -62,17 +62,17 @@ export async function getUserPermissions(userId: string | number, companyId?: nu
     const cacheKey = companyId ? `rbac:permissions:${userIdStr}:${companyId}` : `rbac:permissions:${userIdStr}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
-        const companyFilter = companyId ? sql`AND ur.company_id = ${companyId}` : sql``;
-        const result = await adminDb.execute(sql`
-            SELECT DISTINCT ap.slug
-            FROM auth_user_roles ur
-            JOIN auth_role_permissions rp ON ur.role_id = rp.role_id
-            JOIN auth_permissions ap ON rp.permission_id = ap.id
-            WHERE ur.user_id = ${userIdStr}
-            ${companyFilter}
-        `);
+        const conditions = [eq(authUserRoles.user_id, userIdStr)];
+        if (companyId) conditions.push(eq(authUserRoles.company_id, companyId));
 
-        const perms = (result as unknown as { slug: string }[]).map(r => r.slug);
+        const result = await adminDb
+            .selectDistinct({ slug: authPermissions.slug })
+            .from(authUserRoles)
+            .innerJoin(authRolePermissions, eq(authUserRoles.role_id, authRolePermissions.role_id))
+            .innerJoin(authPermissions, eq(authRolePermissions.permission_id, authPermissions.id))
+            .where(and(...conditions));
+
+        const perms = result.map(r => r.slug);
         if (perms.length > 0) return perms;
 
         // Fallback: if user is superadmin / owner, give full wildcard access
@@ -152,9 +152,3 @@ export async function assertNotSuperadmin(
     }
 }
 
-/**
- * Backward compatibility alias for assertNotSuperadmin
- */
-export async function ensureNotLastSuperadmin(userId: string | number, companyId?: number | null): Promise<void> {
-    await assertNotSuperadmin(userId, companyId, 'modificar');
-}

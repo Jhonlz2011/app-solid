@@ -6,13 +6,11 @@ import { ProfileEntityResponseSchema } from './profile.dto';
 // Standard: Request Bodies -> *BodySchema, Responses -> *ResponseSchema
 // ============================================================================
 
-export const TenantRegisterBodySchema = Type.Object({
-    fullName: Type.String({ minLength: 3 }),
-    username: Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9._-]+$' }),
-    email: Type.String({ format: 'email' }),
-    password: Type.String({ minLength: 8 }),
-    phone: Type.Optional(Type.String()),
-    cedula: Type.Optional(Type.String()),
+/**
+ * Shared company data fields — used by both Register and Onboard flows.
+ * Single source of truth for tenant provisioning validation.
+ */
+const CompanyDataSchema = Type.Object({
     slug: Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9-]+$' }),
     ruc: Type.String({ minLength: 13, maxLength: 13 }),
     businessName: Type.String({ minLength: 3 }),
@@ -22,8 +20,26 @@ export const TenantRegisterBodySchema = Type.Object({
     obligadoContabilidad: Type.Optional(Type.Boolean()),
     contribuyenteEspecial: Type.Optional(Type.String()),
     taxRegime: Type.Optional(Type.String()),
+    phone: Type.Optional(Type.String()),
+    cedula: Type.Optional(Type.String()),
     turnstileToken: Type.Optional(Type.String()),
 });
+
+export const TenantRegisterBodySchema = Type.Composite([
+    CompanyDataSchema,
+    Type.Object({
+        fullName: Type.String({ minLength: 3 }),
+        username: Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9._-]+$' }),
+        email: Type.String({ format: 'email' }),
+        password: Type.String({ minLength: 8 }),
+    }),
+]);
+
+export const TenantOnboardBodySchema = CompanyDataSchema;
+
+// ============================================================================
+// RESPONSE SCHEMAS
+// ============================================================================
 
 export const TenantRegisterUserResponseSchema = Type.Object({
     id: Type.String(),
@@ -35,7 +51,7 @@ export const TenantRegisterUserResponseSchema = Type.Object({
     lastLogin: Type.Optional(Type.Union([Type.Date(), Type.Null()])),
     entityId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     emailVerified: Type.Optional(Type.Boolean()),
-    emailVerifiedAt: Type.Optional(Type.Union([Type.Date(), Type.Null(), Type.String(), Type.Boolean()])),
+    emailVerifiedAt: Type.Optional(Type.Union([Type.Date(), Type.Null()])),
     roles: Type.Array(Type.String()),
     permissions: Type.Array(Type.String()),
     entity: Type.Optional(ProfileEntityResponseSchema),
@@ -60,21 +76,6 @@ export const TenantBrandingResponseSchema = Type.Object({
     primaryColor: Type.String(),
     themeColor: Type.String(),
     loginBgUrl: Type.Union([Type.String(), Type.Null()]),
-});
-
-export const TenantOnboardBodySchema = Type.Object({
-    slug: Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9-]+$' }),
-    ruc: Type.String({ minLength: 13, maxLength: 13 }),
-    businessName: Type.String({ minLength: 3 }),
-    tradeName: Type.Optional(Type.String()),
-    businessType: Type.Optional(Type.String()),
-    mainAddress: Type.Optional(Type.String()),
-    obligadoContabilidad: Type.Optional(Type.Boolean()),
-    contribuyenteEspecial: Type.Optional(Type.String()),
-    taxRegime: Type.Optional(Type.String()),
-    phone: Type.Optional(Type.String()),
-    cedula: Type.Optional(Type.String()),
-    turnstileToken: Type.Optional(Type.String()),
 });
 
 export const DiscoverTenantItemResponseSchema = Type.Object({

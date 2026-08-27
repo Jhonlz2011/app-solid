@@ -4,7 +4,7 @@ import { swagger } from '@elysiajs/swagger';
 import { staticPlugin } from '@elysiajs/static';
 
 // Routes
-import { auth, resolveTenantUrl, getTenantInfoForEmail } from './config/better-auth';
+import { auth, resolveTenantUrl, getTenantInfoForEmail, isAllowedOrigin } from './config/better-auth';
 import { tenantRoutes } from './modules/tenants';
 import { profileRoutes } from './modules/profile';
 import { productRoutes } from './modules/products';
@@ -36,7 +36,7 @@ import { serveSpa } from './core/spa';
 import { startAuditWorker } from './modules/audit';
 
 // ============================================================================
-// 1. CORS — zelys.app + *.zelys.app en producción, localhost en desarrollo
+// 1. CORS — Delegates to shared isAllowedOrigin() from better-auth config
 // ============================================================================
 
 const corsOriginValidator = (request: Request): boolean => {
@@ -45,28 +45,10 @@ const corsOriginValidator = (request: Request): boolean => {
 
   try {
     const { hostname } = new URL(origin);
-
-    // Producción: zelys.app y cualquier subdominio *.zelys.app
-    if (hostname === 'zelys.app' || hostname.endsWith('.zelys.app')) return true;
-
-    // Desarrollo: localhost, *.localhost, 127.0.0.1 y LAN
-    if (env.NODE_ENV !== 'production') {
-      if (
-        hostname === 'localhost' ||
-        hostname.endsWith('.localhost') ||
-        hostname === '127.0.0.1' ||
-        /^192\.168\.\d+\.\d+$/.test(hostname) ||
-        /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
-        /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(hostname)
-      ) {
-        return true;
-      }
-    }
+    return isAllowedOrigin(hostname);
   } catch {
     return false;
   }
-
-  return false;
 };
 
 // ============================================================================
@@ -242,5 +224,4 @@ console.log(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
 
-export type ApiApp = typeof apiApp;
 export type App = typeof apiApp;

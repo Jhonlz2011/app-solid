@@ -164,15 +164,13 @@ export const UserFacetsQuerySchema = Type.Object({
     roles: Type.Optional(Type.String()),
 });
 
-export const UserListQuerySchema = Type.Object({
-    search: Type.Optional(Type.String()),
-    page: Type.Optional(Type.Number()),
-    limit: Type.Optional(Type.Number()),
-    sortBy: Type.Optional(Type.String()),
-    sortOrder: Type.Optional(Type.String()),
-    isActive: Type.Optional(Type.String()),
-    roles: Type.Optional(Type.String()),
-});
+export const UserListQuerySchema = Type.Composite([
+    PaginationQuerySchema,
+    Type.Object({
+        isActive: Type.Optional(Type.String()),
+        roles: Type.Optional(Type.String()),
+    }),
+]);
 
 export const AuditLogEntrySchema = Type.Object({
     id: Type.String(),

@@ -8,6 +8,11 @@ import { resolveSlugFromHost } from '@app/schema/utils';
 import { getIpAndUserAgent } from './ip';
 import { getUserRoles, getUserPermissions } from '../modules/users/rbac.permission.service';
 
+// ============================================================================
+// Type for Better Auth user with application-level denormalized fields
+// ============================================================================
+type AuthUserWithCompany = { companyId?: number; company_id?: number };
+
 export const authGuard = (app: Elysia) => app
   .derive(
     async ({ set, request }) => {
@@ -16,17 +21,19 @@ export const authGuard = (app: Elysia) => app
         headers: request.headers,
       });
 
-      if (!sessionData || !sessionData.user) {
+      if (!sessionData?.user) {
         set.status = 401;
         throw new UnauthorizedError('Sesión requerida');
       }
 
+      const { user, session } = sessionData;
+      const rawUser = user as typeof user & AuthUserWithCompany;
+
       // 2. Resolve company from Better Auth Organization (single source of truth)
-      const activeOrgId = sessionData.session.activeOrganizationId;
       let resolvedCompanyId: number | null = null;
 
-      if (activeOrgId) {
-        resolvedCompanyId = await resolveCompanyIdFromOrg(activeOrgId);
+      if (session.activeOrganizationId) {
+        resolvedCompanyId = await resolveCompanyIdFromOrg(session.activeOrganizationId);
       }
 
       // 3. Validate subdomain matches active organization & verify user membership
@@ -47,7 +54,7 @@ export const authGuard = (app: Elysia) => app
             throw new UnauthorizedError('Acceso denegado a este inquilino');
           }
 
-          // If no active org set, verify user actually belongs to this host company before granting access
+          // If no active org set, verify user actually belongs to this host company
           if (!resolvedCompanyId) {
             let isAuthorizedMember = false;
 
@@ -56,7 +63,7 @@ export const authGuard = (app: Elysia) => app
                 .select({ id: member.id })
                 .from(member)
                 .where(and(
-                  eq(member.userId, sessionData.user.id),
+                  eq(member.userId, user.id),
                   eq(member.organizationId, hostCompany.organization_id)
                 ))
                 .limit(1);
@@ -64,8 +71,9 @@ export const authGuard = (app: Elysia) => app
               if (memberRow) isAuthorizedMember = true;
             }
 
-            const rawUser = sessionData.user as typeof sessionData.user & { companyId?: number; company_id?: number };
-            if ((rawUser.companyId || rawUser.company_id) === hostCompany.id) {
+            // Fallback: check denormalized company_id on user record
+            const userCompanyId = rawUser.companyId ?? rawUser.company_id;
+            if (userCompanyId === hostCompany.id) {
               isAuthorizedMember = true;
             }
 
@@ -79,35 +87,34 @@ export const authGuard = (app: Elysia) => app
         }
       }
 
-      // Fallback: resolve from user.company_id denormalized cache
+      // 4. Final fallback: resolve from user.company_id denormalized cache
       if (!resolvedCompanyId) {
-        const rawUser = sessionData.user as typeof sessionData.user & { companyId?: number; company_id?: number };
-        resolvedCompanyId = rawUser.companyId || rawUser.company_id || null;
+        resolvedCompanyId = rawUser.companyId ?? rawUser.company_id ?? null;
       }
 
       const { ipAddress } = getIpAndUserAgent(request);
 
-      // Set tenant context in AsyncLocalStorage for the entire request lifecycle.
+      // 5. Set tenant context in AsyncLocalStorage for the entire request lifecycle.
       // This enables auto-injection of set_config('app.current_company_id', ...)
       // inside every db.transaction() call, enforcing RLS policies automatically.
       tenantStorage.enterWith({
         companyId: resolvedCompanyId || undefined,
-        userId: sessionData.user.id,
+        userId: user.id,
         ipAddress: ipAddress || undefined,
       });
 
       const [roles, permissions] = await Promise.all([
-        getUserRoles(sessionData.user.id, resolvedCompanyId),
-        getUserPermissions(sessionData.user.id, resolvedCompanyId),
+        getUserRoles(user.id, resolvedCompanyId),
+        getUserPermissions(user.id, resolvedCompanyId),
       ]);
 
       return {
-        currentUserId: sessionData.user.id,
+        currentUserId: user.id,
         currentCompanyId: resolvedCompanyId,
-        currentSessionId: sessionData.session.id,
+        currentSessionId: session.id,
         currentRoles: roles,
         currentPermissions: permissions,
-        currentUser: sessionData.user,
+        currentUser: user,
       };
     }
   );

@@ -10,6 +10,7 @@ import { eq } from '@app/schema';
 import * as schema from '@app/schema/tables';
 import { emailService } from '../core/email';
 import { env } from './env';
+import { hashPassword, verifyPassword } from '../core/security';
 
 // ============================================================================
 // 1. TENANT URL RESOLVER
@@ -96,7 +97,7 @@ export async function getTenantInfoForEmail(email: string) {
 
 /**
  * Resuelve companies.id desde un active organization ID.
- * Cache Redis 5 min para evitar queries repetidas en authGuard.
+ * Cache Redis 1h — la relación org→company es inmutable.
  */
 export async function resolveCompanyIdFromOrg(organizationId: string): Promise<number | null> {
     const cacheKey = `org_to_company:${organizationId}`;
@@ -112,13 +113,12 @@ export async function resolveCompanyIdFromOrg(organizationId: string): Promise<n
         .limit(1);
 
     if (company) {
-        redis.set(cacheKey, String(company.id), 'EX', 300).catch(() => {});
+        redis.set(cacheKey, String(company.id), 'EX', 3600).catch(() => {});
         return company.id;
     }
     return null;
 }
 
-import { hashPassword, verifyPassword } from '../core/security';
 
 // ============================================================================
 // 2. PASSWORD — Argon2id via centralized password service
@@ -135,6 +135,31 @@ const argon2PasswordConfig = {
 
 const PRODUCTION_ORIGINS = ['https://zelys.app', 'https://api.zelys.app', 'https://in.zelys.app'];
 
+/**
+ * Validates whether a hostname belongs to an allowed origin.
+ * Shared logic for CORS (Elysia) and trustedOrigins (Better Auth).
+ */
+export function isAllowedOrigin(hostname: string): boolean {
+    // Producción: zelys.app y cualquier subdominio *.zelys.app
+    if (hostname === BASE_DOMAIN || hostname.endsWith(`.${BASE_DOMAIN}`)) return true;
+
+    // Desarrollo: localhost, *.localhost, 127.0.0.1 y subredes privadas
+    if (env.NODE_ENV !== 'production') {
+        if (
+            hostname === 'localhost' ||
+            hostname.endsWith('.localhost') ||
+            hostname === '127.0.0.1' ||
+            /^192\.168\.\d+\.\d+$/.test(hostname) ||
+            /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
+            /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(hostname)
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 async function dynamicTrustedOrigins(request?: Request): Promise<string[]> {
     if (!request) return PRODUCTION_ORIGINS;
 
@@ -143,32 +168,32 @@ async function dynamicTrustedOrigins(request?: Request): Promise<string[]> {
 
     try {
         const { hostname, origin } = new URL(rawOrigin);
-
-        // Producción: zelys.app y cualquier *.zelys.app
-        if (hostname === BASE_DOMAIN || hostname.endsWith(`.${BASE_DOMAIN}`)) {
-            return [origin];
-        }
-
-        // Desarrollo: localhost, *.localhost, 127.0.0.1 y subredes privadas
-        if (env.NODE_ENV !== 'production') {
-            if (
-                hostname === 'localhost' ||
-                hostname.endsWith('.localhost') ||
-                hostname === '127.0.0.1' ||
-                /^192\.168\.\d+\.\d+$/.test(hostname) ||
-                /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
-                /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(hostname)
-            ) {
-                return [origin];
-            }
-        }
+        if (isAllowedOrigin(hostname)) return [origin];
     } catch { /* origen inválido */ }
 
     return PRODUCTION_ORIGINS;
 }
 
 // ============================================================================
-// 4. BETTER AUTH INSTANCE
+// 4. HELPERS
+// ============================================================================
+
+/**
+ * Generate a unique username from an email or display name.
+ * Used by OAuth providers (Google, Microsoft) and databaseHooks fallback.
+ * Format: {base_slug}_{random4} — max 29 chars, always lowercase.
+ */
+function generateUsername(email?: string | null, name?: string | null): string {
+    const rawBase = email
+        ? email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase()
+        : (name ? name.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() : 'user');
+    const base = rawBase.length >= 3 ? rawBase : `${rawBase}usr`;
+    const randomSuffix = Math.random().toString(36).substring(2, 6);
+    return `${base.slice(0, 24)}_${randomSuffix}`;
+}
+
+// ============================================================================
+// 5. BETTER AUTH INSTANCE
 // ============================================================================
 
 export const auth = betterAuth({
@@ -203,21 +228,13 @@ export const auth = betterAuth({
                 accessType: 'offline',
                 prompt: 'select_account',
                 mapProfileToUser: (profile) => {
-                    const rawEmail = profile.email || '';
-                    const rawName = profile.name || '';
-                    const rawBase = rawEmail
-                        ? rawEmail.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase()
-                        : (rawName ? rawName.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() : 'user');
-                    const base = rawBase.length >= 3 ? rawBase : `${rawBase}usr`;
-                    const randomSuffix = Math.random().toString(36).substring(2, 6);
-                    const generatedUsername = `${base.slice(0, 24)}_${randomSuffix}`;
-
+                    const username = generateUsername(profile.email, profile.name);
                     return {
-                        name: profile.name || generatedUsername,
+                        name: profile.name || username,
                         email: profile.email,
                         image: profile.picture || undefined,
-                        username: generatedUsername,
-                        displayUsername: profile.name || generatedUsername,
+                        username,
+                        displayUsername: profile.name || username,
                         emailVerified: profile.email_verified ?? true,
                     };
                 },
@@ -231,19 +248,13 @@ export const auth = betterAuth({
                 mapProfileToUser: (profile) => {
                     const rawEmail = profile.email || (profile as any).userPrincipalName || (profile as any).mail || '';
                     const rawName = profile.name || (profile as any).displayName || '';
-                    const rawBase = rawEmail
-                        ? rawEmail.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase()
-                        : (rawName ? rawName.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() : 'user');
-                    const base = rawBase.length >= 3 ? rawBase : `${rawBase}usr`;
-                    const randomSuffix = Math.random().toString(36).substring(2, 6);
-                    const generatedUsername = `${base.slice(0, 24)}_${randomSuffix}`;
-
+                    const username = generateUsername(rawEmail, rawName);
                     return {
-                        name: rawName || generatedUsername,
+                        name: rawName || username,
                         email: rawEmail,
                         image: (profile as any).picture || undefined,
-                        username: generatedUsername,
-                        displayUsername: rawName || generatedUsername,
+                        username,
+                        displayUsername: rawName || username,
                         emailVerified: true,
                     };
                 },
@@ -260,23 +271,17 @@ export const auth = betterAuth({
         user: {
             create: {
                 before: async (user) => {
-                    // Generar username único si viene vacío (ej. registro directo vía OAuth Google/Microsoft)
-                    let generatedUsername = (user as any).username;
-                    if (!generatedUsername || !generatedUsername.trim()) {
-                        const rawBase = user.email
-                            ? user.email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase()
-                            : (user.name ? user.name.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() : 'user');
-                        const base = rawBase.length >= 3 ? rawBase : `${rawBase}usr`;
-                        const randomSuffix = Math.random().toString(36).substring(2, 6);
-                        generatedUsername = `${base.slice(0, 24)}_${randomSuffix}`;
-                    }
+                    const existingUsername = (user as any).username;
+                    const username = existingUsername?.trim()
+                        ? existingUsername
+                        : generateUsername(user.email, user.name);
 
                     return {
                         data: {
                             ...user,
                             id: (user as any).id || uuidv7(),
-                            username: generatedUsername,
-                            displayUsername: (user as any).displayUsername || user.name || generatedUsername,
+                            username,
+                            displayUsername: (user as any).displayUsername || user.name || username,
                             emailVerified: (user as any).emailVerified ?? true,
                         },
                     };

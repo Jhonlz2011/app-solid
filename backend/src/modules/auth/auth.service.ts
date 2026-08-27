@@ -1,5 +1,5 @@
 import { db, adminDb } from '../../core/db';
-import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, account, organization, member } from '@app/schema/tables';
+import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, authRolePermissions, authPermissions, account, organization, member } from '@app/schema/tables';
 import { eq, and, sql } from '@app/schema';
 import type { TaxRegimeType } from '@app/schema/enums';
 import { DomainError } from '../../core/errors';
@@ -18,27 +18,202 @@ import { env } from '../../config/env';
 import { redis } from '../../core/cache/redis';
 
 // ============================================================================
-// CORE SAAS TENANT PROVISIONING (ONBOARDING)
+// SHARED TYPES
+// ============================================================================
+
+interface CompanyData {
+  slug: string;
+  ruc: string;
+  businessName: string;
+  tradeName?: string;
+  businessType?: string;
+  mainAddress?: string;
+  obligadoContabilidad?: boolean;
+  contribuyenteEspecial?: string;
+  taxRegime?: string;
+  cedula?: string;
+  phone?: string;
+}
+
+interface ProvisionResult {
+  company: {
+    id: number;
+    slug: string;
+    businessName: string;
+    organizationId: string;
+  };
+  user: {
+    id: string;
+    companyId: number;
+    companySlug: string;
+    username: string | null;
+    email: string;
+    isActive: boolean | null;
+    lastLogin: Date | null;
+    entityId: string | null;
+    emailVerifiedAt: Date | null;
+    roles: string[];
+    permissions: string[];
+    entity: ReturnType<typeof mapEntity>;
+  };
+}
+
+// ============================================================================
+// CORE TENANT PROVISIONING (Shared between register & onboard)
+// ============================================================================
+
+/**
+ * Provisions a new tenant: Company, Organization, Owner Entity, RBAC seeds.
+ * Called by both `register()` (new user) and `onboardTenant()` (existing OAuth user).
+ */
+async function provisionTenant(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  data: CompanyData,
+  ownerInfo: {
+    userId: string;
+    fullName: string;
+    email: string;
+    entityId?: string | null;
+    companyId?: number | null;
+  },
+): Promise<ProvisionResult> {
+  // 1. Validate slug & RUC uniqueness
+  const [existingSlug] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.slug, data.slug)).limit(1);
+  if (existingSlug) throw new DomainError('Este identificador (slug) ya está en uso', 409);
+
+  const [existingRuc] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.ruc, data.ruc)).limit(1);
+  if (existingRuc) throw new DomainError('Este RUC ya está registrado', 409);
+
+  // 2. Create Better Auth Organization (UUIDv7)
+  const orgId = uuidv7();
+  await tx.insert(organization).values({
+    id: orgId,
+    name: data.businessName,
+    slug: data.slug,
+  });
+
+  // 3. Create company with organization_id link
+  const [company] = await tx
+    .insert(companies)
+    .values({
+      organization_id: orgId,
+      slug: data.slug,
+      ruc: data.ruc,
+      business_name: data.businessName,
+      trade_name: data.tradeName || null,
+      main_address: data.mainAddress || data.businessName,
+      business_type: data.businessType || null,
+      obligado_contabilidad: data.obligadoContabilidad ?? false,
+      contribuyente_especial: data.contribuyenteEspecial || null,
+      rimpe_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
+    })
+    .returning();
+
+  // 4. Set RLS context for tenant-scoped inserts
+  await tx.execute(sql`SELECT set_config('app.current_company_id', ${company.id.toString()}, true)`);
+
+  // 5. Seed default SRI establishment
+  await tx.insert(sriEstablishments).values({
+    company_id: company.id,
+    code: '001',
+    name: 'Matriz',
+    address: company.main_address,
+    emission_points: ['001'],
+  });
+
+  // 6. Seed Consumidor Final entity
+  await tx.insert(entities).values({
+    company_id: company.id,
+    tax_id: '9999999999999',
+    tax_id_type: 'CONSUMIDOR_FINAL',
+    person_type: 'NATURAL',
+    business_name: 'CONSUMIDOR FINAL',
+    is_client: true,
+    is_system: true,
+  });
+
+  // 7. Create owner entity
+  const [ownerEntity] = await tx.insert(entities).values({
+    company_id: company.id,
+    tax_id: data.cedula || data.ruc,
+    tax_id_type: data.cedula ? 'CEDULA' : 'RUC',
+    person_type: 'NATURAL',
+    business_name: ownerInfo.fullName,
+    phone: data.phone || null,
+    email_billing: ownerInfo.email,
+    is_employee: true,
+    tax_regime_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
+  }).returning();
+
+  // 8. Create Better-Auth member (owner role) with entity_id link
+  await tx.insert(member).values({
+    organizationId: orgId,
+    userId: ownerInfo.userId,
+    role: 'owner',
+    entityId: ownerEntity.id,
+  });
+
+  // 9. Seed initial system data
+  await seedCompanyRBAC(tx, company.id, ownerInfo.userId);
+  await seedCompanyMenus(tx);
+  await seedCompanyUOMs(tx, company.id);
+  await seedCompanyVirtualLocations(tx, company.id);
+  await seedCompanyWarehouse(tx, company.id, company.main_address, ownerEntity.id);
+
+  // 10. Query roles and permissions for initial response (type-safe Drizzle)
+  const txRoles = await tx
+    .select({ roleName: authRoles.name })
+    .from(authUserRoles)
+    .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
+    .where(eq(authUserRoles.user_id, ownerInfo.userId));
+
+  const txPermissions = await tx
+    .selectDistinct({ slug: authPermissions.slug })
+    .from(authUserRoles)
+    .innerJoin(authRolePermissions, eq(authUserRoles.role_id, authRolePermissions.role_id))
+    .innerJoin(authPermissions, eq(authRolePermissions.permission_id, authPermissions.id))
+    .where(eq(authUserRoles.user_id, ownerInfo.userId));
+
+  const roles = txRoles.map(r => r.roleName);
+  const permissions = txPermissions.map(r => r.slug);
+
+  return {
+    company: {
+      id: company.id,
+      slug: company.slug,
+      businessName: company.business_name,
+      organizationId: orgId,
+    },
+    user: {
+      id: ownerInfo.userId,
+      companyId: company.id,
+      companySlug: company.slug,
+      username: null,  // Overridden by caller
+      email: ownerInfo.email,
+      isActive: true,
+      lastLogin: null,
+      entityId: ownerEntity.id,
+      emailVerifiedAt: null,  // Overridden by caller
+      roles,
+      permissions,
+      entity: mapEntity(ownerEntity),
+    },
+  };
+}
+
+// ============================================================================
+// PUBLIC API: Register (new user + new tenant)
 // ============================================================================
 
 /**
  * Register new tenant, owner entity, user, credential account, organization, and seed initial system data.
- * 
- * Flow:
- * 1. Create company (ERP domain)
- * 2. Create organization (Better Auth) & link via companies.organization_id
- * 3. Create user with username/displayUsername
- * 4. Create credential account
- * 5. Create member with role 'owner' + entity_id
- * 6. Seed RBAC, menus, UOMs, locations, warehouse
  */
 export async function register(
-  data: {
-    fullName: string; username: string; email: string; password: string;
-    phone?: string; cedula?: string;
-    slug: string; ruc: string; businessName: string; tradeName?: string;
-    businessType?: string; mainAddress?: string;
-    obligadoContabilidad?: boolean; contribuyenteEspecial?: string; taxRegime?: string;
+  data: CompanyData & {
+    fullName: string;
+    username: string;
+    email: string;
+    password: string;
     turnstileToken?: string;
   },
   _userAgent?: string,
@@ -49,7 +224,7 @@ export async function register(
   const normalizedUsername = data.username.trim().toLowerCase();
   const normalizedEmail = data.email.trim().toLowerCase();
 
-  // 1. Validar unicidad global del username
+  // Validate global username uniqueness
   const existingUsername = await adminDb.query.authUsers.findFirst({
     where: eq(users.username, normalizedUsername),
   });
@@ -57,7 +232,7 @@ export async function register(
     throw new DomainError('Este nombre de usuario ya está registrado en el sistema', 409);
   }
 
-  // 2. Comprobar si el email ya fue verificado globalmente en cualquier cuenta previa
+  // Check if the email was already verified globally in any previous account
   const globallyVerifiedUser = await adminDb.query.authUsers.findFirst({
     where: and(
       eq(users.email, normalizedEmail),
@@ -67,78 +242,16 @@ export async function register(
   const isAlreadyVerified = Boolean(globallyVerifiedUser);
 
   const result = await db.transaction(async (tx) => {
-    const [existingSlug] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.slug, data.slug)).limit(1);
-    if (existingSlug) throw new DomainError('Este identificador (slug) ya está en uso', 409);
-
-    const [existingRuc] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.ruc, data.ruc)).limit(1);
-    if (existingRuc) throw new DomainError('Este RUC ya está registrado', 409);
-
-    // 1. Create Better Auth Organization first (UUIDv7)
-    const orgId = uuidv7();
-    await tx.insert(organization).values({
-      id: orgId,
-      name: data.businessName,
-      slug: data.slug,
-    });
-
-    // 2. Create company with organization_id link
-    const [company] = await tx
-      .insert(companies)
-      .values({
-        organization_id: orgId,
-        slug: data.slug,
-        ruc: data.ruc,
-        business_name: data.businessName,
-        trade_name: data.tradeName || null,
-        main_address: data.mainAddress || data.businessName,
-        business_type: data.businessType || null,
-        obligado_contabilidad: data.obligadoContabilidad ?? false,
-        contribuyente_especial: data.contribuyenteEspecial || null,
-        rimpe_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
-      })
-      .returning();
-
-    await tx.execute(sql`SELECT set_config('app.current_company_id', ${company.id.toString()}, true)`);
-
-    await tx.insert(sriEstablishments).values({
-      company_id: company.id,
-      code: '001',
-      name: 'Matriz',
-      address: company.main_address,
-      emission_points: ['001'],
-    });
-
-    await tx.insert(entities).values({
-      company_id: company.id,
-      tax_id: '9999999999999',
-      tax_id_type: 'CONSUMIDOR_FINAL',
-      person_type: 'NATURAL',
-      business_name: 'CONSUMIDOR FINAL',
-      is_client: true,
-      is_system: true,
-    });
-
-    const [ownerEntity] = await tx.insert(entities).values({
-      company_id: company.id,
-      tax_id: data.cedula || data.ruc,
-      tax_id_type: data.cedula ? 'CEDULA' : 'RUC',
-      person_type: 'NATURAL',
-      business_name: data.fullName,
-      phone: data.phone || null,
-      email_billing: data.email,
-      is_employee: true,
-      tax_regime_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
-    }).returning();
-
+    // ⚠️ CRITICAL: hashPassword() is called MANUALLY here because this flow
+    // bypasses Better Auth's signUp.email() — which would hash via argon2PasswordConfig.
+    // If migrating to signUp.email(), remove this manual hash.
     const password_hash = await hashPassword(data.password);
 
-    // 3. Create user with explicit username and displayUsername
+    // Create user with explicit username and displayUsername
     const [user] = await tx
       .insert(users)
       .values({
         name: data.fullName,
-        company_id: company.id,          // Denormalized cache
-        entity_id: ownerEntity.id,       // Denormalized cache
         email: normalizedEmail,
         username: normalizedUsername,
         displayUsername: data.username.trim(),
@@ -155,7 +268,7 @@ export async function register(
         emailVerified: users.emailVerified,
       });
 
-    // 4. Create Better-Auth credential account
+    // Create Better-Auth credential account
     await tx.insert(account).values({
       accountId: user.id,
       providerId: 'credential',
@@ -163,69 +276,35 @@ export async function register(
       password: password_hash,
     });
 
-    // 5. Create Better-Auth member (owner role) with entity_id link
-    await tx.insert(member).values({
-      organizationId: orgId,
+    // Provision tenant (company, org, entities, RBAC seeds)
+    const provision = await provisionTenant(tx, data, {
       userId: user.id,
-      role: 'owner',
-      entityId: ownerEntity.id,
+      fullName: data.fullName,
+      email: normalizedEmail,
     });
 
-    // 6. Seed initial system data
-    await seedCompanyRBAC(tx, company.id, user.id);
-    await seedCompanyMenus(tx);
-    await seedCompanyUOMs(tx, company.id);
-    await seedCompanyVirtualLocations(tx, company.id);
-    await seedCompanyWarehouse(tx, company.id, company.main_address, ownerEntity.id);
-
-    // Roles and permissions for initial response
-    const txRoles = await tx
-      .select({ roleName: authRoles.name })
-      .from(authUserRoles)
-      .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-      .where(eq(authUserRoles.user_id, user.id));
-
-    const txPermissions = await tx.execute(sql`
-      SELECT DISTINCT ap.slug
-      FROM auth_user_roles ur
-      JOIN auth_role_permissions rp ON ur.role_id = rp.role_id
-      JOIN auth_permissions ap ON rp.permission_id = ap.id
-      WHERE ur.user_id = ${user.id}
-    `);
-
-    const roles = txRoles.map(r => r.roleName);
-    const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
+    // Update user with denormalized company_id and entity_id
+    await tx.update(users).set({
+      company_id: provision.company.id,
+      entity_id: provision.user.entityId,
+    }).where(eq(users.id, user.id));
 
     return {
-      company: {
-        id: company.id,
-        slug: company.slug,
-        businessName: company.business_name,
-        organizationId: orgId,
-      },
+      ...provision,
       user: {
-        id: user.id,
-        companyId: company.id,
-        companySlug: company.slug,
+        ...provision.user,
         username: user.username || data.username,
-        email: user.email,
         isActive: user.is_active,
         lastLogin: user.last_login,
-        entityId: user.entity_id,
         emailVerifiedAt: user.emailVerified ? new Date() : null,
-        roles,
-        permissions,
-        entity: mapEntity(ownerEntity),
       },
     };
   });
 
-  // Si el email no ha sido verificado globalmente, disparar el envío de verificación
+  // If email hasn't been verified globally, trigger verification email
   if (!isAlreadyVerified) {
-    // 1. Limpiar cualquier cooldown previo en Redis para asegurar el envío en un nuevo registro
     await redis.del(`email_cooldown:${result.user.email.toLowerCase()}`).catch(() => {});
 
-    // 2. Disparar envío automático de email de verificación vía Better Auth
     try {
       await auth.api.sendVerificationEmail({
         body: {
@@ -244,6 +323,10 @@ export async function register(
   return result;
 }
 
+// ============================================================================
+// PUBLIC API: Onboard (existing OAuth user → new tenant)
+// ============================================================================
+
 /**
  * Onboard existing authenticated user (e.g. from Google / Microsoft OAuth):
  * Creates Company, Better Auth Organization, Owner Entity, seeds RBAC, Menus, UOMs, Locations, Warehouse,
@@ -251,20 +334,7 @@ export async function register(
  */
 export async function onboardTenant(
   userId: string,
-  data: {
-    slug: string;
-    ruc: string;
-    businessName: string;
-    tradeName?: string;
-    businessType?: string;
-    mainAddress?: string;
-    obligadoContabilidad?: boolean;
-    contribuyenteEspecial?: string;
-    taxRegime?: string;
-    cedula?: string;
-    phone?: string;
-    turnstileToken?: string;
-  },
+  data: CompanyData & { turnstileToken?: string },
   ipAddress?: string
 ) {
   await verifyTurnstileToken(data.turnstileToken, ipAddress);
@@ -277,129 +347,30 @@ export async function onboardTenant(
   }
 
   const result = await db.transaction(async (tx) => {
-    const [existingSlug] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.slug, data.slug)).limit(1);
-    if (existingSlug) throw new DomainError('Este identificador (slug) ya está en uso', 409);
-
-    const [existingRuc] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.ruc, data.ruc)).limit(1);
-    if (existingRuc) throw new DomainError('Este RUC ya está registrado', 409);
-
-    // 1. Create Better Auth Organization (UUIDv7)
-    const orgId = uuidv7();
-    await tx.insert(organization).values({
-      id: orgId,
-      name: data.businessName,
-      slug: data.slug,
+    // Provision tenant (company, org, entities, RBAC seeds)
+    const provision = await provisionTenant(tx, data, {
+      userId: existingUser.id,
+      fullName: existingUser.name,
+      email: existingUser.email,
+      entityId: existingUser.entity_id,
+      companyId: existingUser.company_id,
     });
 
-    // 2. Create company with organization_id link
-    const [company] = await tx
-      .insert(companies)
-      .values({
-        organization_id: orgId,
-        slug: data.slug,
-        ruc: data.ruc,
-        business_name: data.businessName,
-        trade_name: data.tradeName || null,
-        main_address: data.mainAddress || data.businessName,
-        business_type: data.businessType || null,
-        obligado_contabilidad: data.obligadoContabilidad ?? false,
-        contribuyente_especial: data.contribuyenteEspecial || null,
-        rimpe_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
-      })
-      .returning();
-
-    await tx.execute(sql`SELECT set_config('app.current_company_id', ${company.id.toString()}, true)`);
-
-    await tx.insert(sriEstablishments).values({
-      company_id: company.id,
-      code: '001',
-      name: 'Matriz',
-      address: company.main_address,
-      emission_points: ['001'],
-    });
-
-    await tx.insert(entities).values({
-      company_id: company.id,
-      tax_id: '9999999999999',
-      tax_id_type: 'CONSUMIDOR_FINAL',
-      person_type: 'NATURAL',
-      business_name: 'CONSUMIDOR FINAL',
-      is_client: true,
-      is_system: true,
-    });
-
-    const [ownerEntity] = await tx.insert(entities).values({
-      company_id: company.id,
-      tax_id: data.cedula || data.ruc,
-      tax_id_type: data.cedula ? 'CEDULA' : 'RUC',
-      person_type: 'NATURAL',
-      business_name: existingUser.name,
-      phone: data.phone || null,
-      email_billing: existingUser.email,
-      is_employee: true,
-      tax_regime_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
-    }).returning();
-
-    // 3. Update user with company_id and entity_id (if not set yet)
+    // Update user with company_id and entity_id (if not set yet)
     await tx.update(users).set({
-      company_id: existingUser.company_id || company.id,
-      entity_id: existingUser.entity_id || ownerEntity.id,
+      company_id: existingUser.company_id || provision.company.id,
+      entity_id: existingUser.entity_id || provision.user.entityId,
       updatedAt: new Date(),
     }).where(eq(users.id, userId));
 
-    // 4. Create Better-Auth member (owner role) with entity_id link
-    await tx.insert(member).values({
-      organizationId: orgId,
-      userId: existingUser.id,
-      role: 'owner',
-      entityId: ownerEntity.id,
-    });
-
-    // 5. Seed initial system data for this company
-    await seedCompanyRBAC(tx, company.id, existingUser.id);
-    await seedCompanyMenus(tx);
-    await seedCompanyUOMs(tx, company.id);
-    await seedCompanyVirtualLocations(tx, company.id);
-    await seedCompanyWarehouse(tx, company.id, company.main_address, ownerEntity.id);
-
-    // Roles and permissions for initial response
-    const txRoles = await tx
-      .select({ roleName: authRoles.name })
-      .from(authUserRoles)
-      .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-      .where(eq(authUserRoles.user_id, existingUser.id));
-
-    const txPermissions = await tx.execute(sql`
-      SELECT DISTINCT ap.slug
-      FROM auth_user_roles ur
-      JOIN auth_role_permissions rp ON ur.role_id = rp.role_id
-      JOIN auth_permissions ap ON rp.permission_id = ap.id
-      WHERE ur.user_id = ${existingUser.id}
-    `);
-
-    const roles = txRoles.map(r => r.roleName);
-    const permissions = (txPermissions as unknown as { slug: string }[]).map(r => r.slug);
-
     return {
-      company: {
-        id: company.id,
-        slug: company.slug,
-        businessName: company.business_name,
-        organizationId: orgId,
-      },
+      ...provision,
       user: {
-        id: existingUser.id,
-        companyId: company.id,
-        companySlug: company.slug,
+        ...provision.user,
         username: existingUser.username,
-        email: existingUser.email,
         isActive: existingUser.is_active,
         lastLogin: existingUser.last_login,
-        entityId: ownerEntity.id,
         emailVerifiedAt: existingUser.emailVerified ? new Date() : null,
-        roles,
-        permissions,
-        entity: mapEntity(ownerEntity),
       },
     };
   });
