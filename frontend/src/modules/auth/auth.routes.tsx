@@ -24,7 +24,11 @@ export const createAuthRoutes = (rootRoute: any) => {
                         throw redirect({ to: '/register' });
 
                     case 'show-selector':
-                        // Let Login.tsx render and show the tenant selector
+                        // Let Login.tsx render and show the tenant selector (global portal only)
+                        return;
+
+                    case 'no-access':
+                        // User doesn't belong to this tenant subdomain — let Login.tsx show denial UI
                         return;
 
                     case 'redirect-tenant':
@@ -34,6 +38,10 @@ export const createAuthRoutes = (rootRoute: any) => {
                         return;
 
                     case 'stay':
+                        // Auto-switch to the matching org if provided (subdomain match)
+                        if (decision.organizationId) {
+                            await actions.switchOrganization(decision.organizationId);
+                        }
                         throw redirect({ to: '/dashboard' });
                 }
             };

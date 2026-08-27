@@ -58,17 +58,43 @@ const Login: Component = () => {
     const hasSession = localStorage.getItem('hasSession') || params.get('session') === 'true';
     if (hasSession) {
       try {
-        // Use cached org list (shared with route guards — avoids redundant HTTP calls)
         const orgs = await fetchUserOrganizations();
 
+        // ─── TENANT SUBDOMAIN: strict membership validation ───
+        if (!isGlobalLogin && subdomain) {
+          const belongsToTenant = orgs.some(o => o.slug === subdomain);
+
+          if (belongsToTenant) {
+            // User belongs to this tenant — auto-switch and go to dashboard
+            const matchingOrg = orgs.find(o => o.slug === subdomain)!;
+            await actions.switchOrganization(matchingOrg.id);
+            navigate({ to: '/dashboard', replace: true });
+            return;
+          }
+
+          // User does NOT belong to this tenant
+          if (orgs.length > 0) {
+            // They have other tenants — show error + their actual companies
+            toast.error(`Tu cuenta no tiene acceso a ${subdomain}. Puedes acceder a tus empresas:`);
+            setDiscoveredTenants(orgs.map(mapOrgToTenant));
+            setShowTenants(true);
+          } else {
+            // No orgs at all — clear session
+            toast.error(`Tu cuenta no tiene acceso a ${subdomain}.`);
+            await actions.logout();
+          }
+          return;
+        }
+
+        // ─── GLOBAL PORTAL (in.zelys.app): selector or fast-path ───
         if (orgs.length > 1) {
           setDiscoveredTenants(orgs.map(mapOrgToTenant));
           setShowTenants(true);
-        } else if (orgs.length === 1 && isGlobalLogin) {
+        } else if (orgs.length === 1) {
           const singleOrg = orgs[0];
           await actions.switchOrganization(singleOrg.id);
           handleRedirect(singleOrg.slug || '', '/dashboard');
-        } else if (orgs.length === 0 && isGlobalLogin) {
+        } else if (orgs.length === 0) {
           const user = (await import('@modules/auth/store/auth.store')).useAuth().user();
           if (!user?.companySlug && (!user?.companyId || user.companyId === 0)) {
             navigate({ to: '/register', replace: true });

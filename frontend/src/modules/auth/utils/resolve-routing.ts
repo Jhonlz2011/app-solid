@@ -74,12 +74,18 @@ export type RoutingDecision =
     | { action: 'show-selector'; tenants: DiscoverTenantItemType[] }
     | { action: 'redirect-tenant'; slug: string; path: string }
     | { action: 'onboard' }
-    | { action: 'stay' };
+    | { action: 'stay'; organizationId?: string }
+    | { action: 'no-access'; currentSlug: string; tenants: DiscoverTenantItemType[] };
 
 /**
  * Determines what should happen after a user is authenticated.
  * Single source of truth for post-auth routing — replaces 3 duplicated
  * `handleAuthenticatedRouting` / `enforceTenantHost` implementations.
+ *
+ * Rules:
+ * - On a tenant subdomain (acme.zelys.app): ONLY allow access if user belongs to that tenant.
+ *   Never show the org selector — either grant access or deny with 'no-access'.
+ * - On the global portal (in.zelys.app, localhost): Show selector if >1 org, fast-path if 1 org.
  *
  * @param user - The authenticated user profile (from getMe or auth store)
  * @param isGlobalPortal - Whether the current host is the global portal (in.zelys.app, localhost, etc.)
@@ -99,25 +105,34 @@ export async function resolvePostAuthRouting(
         return { action: 'onboard' };
     }
 
-    // Case 1: On a specific tenant subdomain (e.g. acme.zelys.app)
+    // ══════════════════════════════════════════════════════════════════════
+    // TENANT SUBDOMAIN (e.g. acme.zelys.app) — strict membership enforcement
+    // ══════════════════════════════════════════════════════════════════════
     if (!isGlobalPortal && currentSlug) {
         const matchingOrg = orgs.find(o => o.slug === currentSlug);
         if (matchingOrg) {
-            // User belongs to this tenant — stay
-            return { action: 'stay' };
+            // User belongs to this tenant — stay and auto-switch
+            return { action: 'stay', organizationId: matchingOrg.id };
         }
-        // User doesn't belong here — show selector with all their orgs
-        if (orgs.length > 0) {
-            return { action: 'show-selector', tenants: orgs.map(mapOrgToTenant) };
-        }
+        // User does NOT belong to this tenant — deny access
+        // Pass their actual orgs so the UI can offer navigation to their own tenants
+        return {
+            action: 'no-access',
+            currentSlug,
+            tenants: orgs.map(mapOrgToTenant),
+        };
     }
 
-    // Case 2: Global portal with multiple orgs → show selector
+    // ══════════════════════════════════════════════════════════════════════
+    // GLOBAL PORTAL (in.zelys.app, localhost) — show selector or fast-path
+    // ══════════════════════════════════════════════════════════════════════
+
+    // Case 2: Multiple orgs → show selector
     if (isGlobalPortal && orgs.length > 1) {
         return { action: 'show-selector', tenants: orgs.map(mapOrgToTenant) };
     }
 
-    // Case 3: Global portal with exactly 1 org → fast-path redirect
+    // Case 3: Exactly 1 org → fast-path redirect
     if (isGlobalPortal && orgs.length === 1 && orgs[0].slug) {
         return { action: 'redirect-tenant', slug: orgs[0].slug, path: targetPath };
     }
@@ -127,6 +142,6 @@ export async function resolvePostAuthRouting(
         return { action: 'redirect-tenant', slug: user.companySlug, path: targetPath };
     }
 
-    // Default: stay on current page (render dashboard or whatever child route)
+    // Default: stay on current page
     return { action: 'stay' };
 }

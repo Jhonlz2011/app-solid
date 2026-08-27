@@ -357,26 +357,44 @@ export async function createUser(data: { username: string; email: string; passwo
     const normalizedUsername = data.username.trim().toLowerCase();
     const displayName = data.username.trim();
 
-    // 1. Validar que el username sea único globalmente
-    const existingUsername = await adminDb.query.authUsers.findFirst({
-        where: eq(authUsers.username, normalizedUsername),
+    // 1. Validar que el username sea único globalmente (only if no existing user with this email)
+    const existingGlobalUser = await adminDb.query.authUsers.findFirst({
+        where: eq(authUsers.email, normalizedEmail),
+        columns: { id: true },
     });
 
-    if (existingUsername) {
-        throw new DomainError('Ya existe un usuario con ese nombre de usuario', 409);
-    }
-
-    // 2. Validar que el email sea único dentro de la empresa actual
-    if (companyId) {
-        const existingEmailInCompany = await adminDb.query.authUsers.findFirst({
-            where: and(
-                eq(authUsers.company_id, companyId),
-                eq(authUsers.email, normalizedEmail)
-            ),
+    if (!existingGlobalUser) {
+        const existingUsername = await adminDb.query.authUsers.findFirst({
+            where: eq(authUsers.username, normalizedUsername),
         });
 
-        if (existingEmailInCompany) {
-            throw new DomainError('Ya existe un usuario con ese email en esta empresa', 409);
+        if (existingUsername) {
+            throw new DomainError('Ya existe un usuario con ese nombre de usuario', 409);
+        }
+    }
+
+    // 2. Validar que el email no tenga ya membresía en esta empresa (via org member table)
+    if (companyId) {
+        const [companyOrg] = await adminDb
+            .select({ organization_id: companies.organization_id })
+            .from(companies)
+            .where(eq(companies.id, companyId))
+            .limit(1);
+
+        if (companyOrg?.organization_id) {
+            const existingMember = await adminDb
+                .select({ id: member.id })
+                .from(member)
+                .innerJoin(authUsers, eq(authUsers.id, member.userId))
+                .where(and(
+                    eq(authUsers.email, normalizedEmail),
+                    eq(member.organizationId, companyOrg.organization_id)
+                ))
+                .limit(1);
+
+            if (existingMember.length > 0) {
+                throw new DomainError('Ya existe un usuario con ese email en esta empresa', 409);
+            }
         }
     }
 
@@ -402,6 +420,72 @@ export async function createUser(data: { username: string; email: string; passwo
     const password_hash = await hashPassword(data.password);
 
     const newUser = await db.transaction(async (tx) => {
+        // ──────────────────────────────────────────────────────────────────
+        // CHECK: Does a user with this email already exist globally?
+        // (e.g. registered via OAuth in another tenant, or via another tenant's admin)
+        // If so, reuse that user record — just add org membership + roles.
+        // This prevents duplicate user records and enables cross-tenant OAuth.
+        // ──────────────────────────────────────────────────────────────────
+        const existingUser = await tx.query.authUsers.findFirst({
+            where: eq(authUsers.email, normalizedEmail),
+            columns: { id: true, username: true, email: true, entity_id: true, company_id: true },
+        });
+
+        if (existingUser) {
+            const memberId = uuidv7();
+
+            // Add org membership for the existing user in THIS tenant
+            if (companyId) {
+                const [company] = await tx
+                    .select({ organization_id: companies.organization_id })
+                    .from(companies)
+                    .where(eq(companies.id, companyId))
+                    .limit(1);
+
+                if (company?.organization_id) {
+                    await tx.insert(member).values({
+                        id: memberId,
+                        organizationId: company.organization_id,
+                        userId: existingUser.id,
+                        role: 'member',
+                    }).onConflictDoNothing();
+                }
+            }
+
+            // Ensure the existing user has a credential account for this tenant's password login
+            const existingCredential = await tx.query.account.findFirst({
+                where: and(
+                    eq(account.userId, existingUser.id),
+                    eq(account.providerId, 'credential'),
+                ),
+            });
+            if (!existingCredential) {
+                await tx.insert(account).values({
+                    id: uuidv7(),
+                    accountId: existingUser.id,
+                    providerId: 'credential',
+                    userId: existingUser.id,
+                    password: password_hash,
+                });
+            }
+
+            // Assign roles to the existing user for this company
+            if (data.roleIds && data.roleIds.length > 0) {
+                await tx.insert(authUserRoles).values(
+                    data.roleIds.map(roleId => ({
+                        user_id: existingUser.id,
+                        role_id: roleId,
+                        company_id: companyId!,
+                    }))
+                );
+            }
+
+            return { id: existingUser.id, username: existingUser.username, email: existingUser.email };
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // No existing user — create a brand new user + account + membership
+        // ──────────────────────────────────────────────────────────────────
         const userId = uuidv7();
         const accountId = uuidv7();
         const memberId = uuidv7();
@@ -428,7 +512,7 @@ export async function createUser(data: { username: string; email: string; passwo
             password: password_hash,
         });
 
-        // Better-Auth organization membership sync (DATA-01)
+        // Better-Auth organization membership sync
         if (companyId) {
             const [company] = await tx
                 .select({ organization_id: companies.organization_id })

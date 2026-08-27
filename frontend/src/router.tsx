@@ -88,7 +88,7 @@ const layoutRoute = createRoute({
     const currentSlug = resolveSlugFromHost(window.location.hostname);
 
     const enforceTenantHost = async (user: any): Promise<boolean> => {
-      if (typeof window === 'undefined' || !isGlobal) return false;
+      if (typeof window === 'undefined') return false;
 
       const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, location.pathname);
 
@@ -97,12 +97,19 @@ const layoutRoute = createRoute({
           throw redirect({ to: '/register' });
         case 'show-selector':
           throw redirect({ to: '/login' });
+        case 'no-access':
+          // User doesn't belong to this tenant subdomain — send to login for denial UI
+          throw redirect({ to: '/login' });
         case 'redirect-tenant':
           window.location.href = buildTenantUrl(decision.slug, decision.path, {
             queryParams: { session: 'true' },
           });
           return true;
         case 'stay':
+          // Auto-switch to the matching org if on a subdomain and org hasn't been set
+          if (decision.organizationId) {
+            await actions.switchOrganization(decision.organizationId);
+          }
           return false;
       }
     };
@@ -167,12 +174,17 @@ const indexRoute = createRoute({
           throw redirect({ to: '/register' });
         case 'show-selector':
           throw redirect({ to: '/login' });
+        case 'no-access':
+          throw redirect({ to: '/login' });
         case 'redirect-tenant':
           window.location.href = buildTenantUrl(decision.slug, '/dashboard', {
             queryParams: { session: 'true' },
           });
           return;
         case 'stay':
+          if (decision.organizationId) {
+            await actions.switchOrganization(decision.organizationId);
+          }
           throw redirect({ to: '/dashboard' });
       }
     };
