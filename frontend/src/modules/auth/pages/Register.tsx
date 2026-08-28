@@ -91,7 +91,7 @@ const PasswordStrength: Component<{ password: string }> = (props) => {
 const Register: Component = () => {
     const navigate = useNavigate();
     const auth = useAuth();
-    const isOAuthUser = () => auth.isAuthenticated() && !auth.user()?.companySlug;
+    const isOAuthUser = () => auth.isAuthenticated() && !auth.user()?.companySlug && (!auth.user()?.companyId || auth.user()?.companyId === 0);
 
     const [step, setStep] = createSignal(0);
     const [step1Submitted, setStep1Submitted] = createSignal(false);
@@ -113,7 +113,7 @@ const Register: Component = () => {
     // ─── STEP 1 FORM ───
     const step1Form = createForm(() => ({
         defaultValues: {
-            fullName: auth.user()?.name || '',
+            fullName: auth.user()?.name || auth.user()?.username || '',
             username: auth.user()?.username || '',
             email: auth.user()?.email || '',
             password: '',
@@ -127,17 +127,17 @@ const Register: Component = () => {
         },
     }));
 
-    // Auto-onboarding for OAuth user on mount
-    onMount(() => {
-        if (isOAuthUser()) {
+    // Auto-onboarding for OAuth user reactively when user session becomes available
+    createEffect(() => {
+        if (isOAuthUser() && step() === 0) {
             const u = auth.user();
             if (u) {
-                step1Form.setFieldValue('fullName', u.name || '');
+                step1Form.setFieldValue('fullName', u.name || u.username || '');
                 step1Form.setFieldValue('username', u.username || '');
                 step1Form.setFieldValue('email', u.email || '');
                 step1Form.setFieldValue('password', 'OAuthPass123!');
                 setStep(1);
-                toast.info(`¡Hola ${u.name || ''}! Completa los datos de tu empresa para comenzar.`);
+                toast.info(`¡Hola ${u.name || u.username || ''}! Completa los datos de tu empresa para comenzar.`);
             }
         }
     });

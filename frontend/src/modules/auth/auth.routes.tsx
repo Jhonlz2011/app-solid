@@ -48,8 +48,12 @@ export const createAuthRoutes = (rootRoute: any) => {
 
             // Fast path: already authenticated in memory.
             // On preloads (defaultPreload:'intent'), this runs on every hover.
-            // Skip full routing decision — just redirect to dashboard.
             if (auth.isAuthenticated() && auth.user()) {
+                const u = auth.user();
+                if (!u?.companySlug && (!u?.companyId || u.companyId === 0)) {
+                    if (window.location.pathname.includes('/register')) return;
+                    throw redirect({ to: '/register' });
+                }
                 throw redirect({ to: '/dashboard' });
             }
 

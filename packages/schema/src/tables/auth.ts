@@ -1,4 +1,4 @@
-import { customType, text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex, pgPolicy, uuid } from 'drizzle-orm/pg-core';
+import { customType, text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { v7 as uuidv7 } from 'uuid';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { entities } from './entities';

@@ -94,6 +94,10 @@ const layoutRoute = createRoute({
       if (u && !isEmailVerified(u)) {
         throw redirect({ to: '/verify-email', search: {} });
       }
+      // Redirect users without an established tenant/company to onboarding
+      if (!u?.companySlug && (!u?.companyId || u.companyId === 0)) {
+        throw redirect({ to: '/register' });
+      }
       return; // ← NO enforceTenantHost here. Already validated on initial load.
     }
 

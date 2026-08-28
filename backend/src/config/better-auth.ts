@@ -361,12 +361,6 @@ export const auth = betterAuth({
                 fieldName: 'company_id',
                 input: false,
             },
-            entityId: {
-                type: 'string',
-                required: false,
-                fieldName: 'entity_id',
-                input: false,
-            },
             isActive: {
                 type: 'boolean',
                 required: false,

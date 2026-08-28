@@ -30,7 +30,7 @@ const client = treaty<App>(rawBase, {
             setOnlineStatus(true);
             // GLOBAL 401 INTERCEPTOR (Catches API drops before TanStack Query morphs them)
             if (response.status === 401) {
-                if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+                if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
                     window.dispatchEvent(new CustomEvent('auth:unauthorized'));
                 }
             }

@@ -103,6 +103,7 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     companyId: resolvedCompanyId ?? 0,
     companySlug: company?.slug ?? null,
     email: user.email,
+    name: user.name,
     username: user.username || user.name,
     entityId: resolvedEntityId,
     isActive: user.is_active,

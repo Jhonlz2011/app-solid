@@ -30,6 +30,7 @@ export const ProfileResponseSchema = Type.Object({
     companyId: Type.Number(),
     companySlug: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     email: Type.String({ format: 'email' }),
+    name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     username: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     entityId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     isActive: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
