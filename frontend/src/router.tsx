@@ -81,49 +81,26 @@ const layoutRoute = createRoute({
   beforeLoad: async ({ location }) => {
     const { actions, useAuth } = await import('./modules/auth/store/auth.store');
     const { isGlobalPortalHost, buildTenantUrl, resolveSlugFromHost } = await import('@app/schema/utils');
-    const { resolvePostAuthRouting } = await import('./modules/auth/utils/resolve-routing');
     const auth = useAuth();
 
-    const isGlobal = isGlobalPortalHost(window.location.hostname);
-    const currentSlug = resolveSlugFromHost(window.location.hostname);
-
-    const enforceTenantHost = async (user: any): Promise<boolean> => {
-      if (typeof window === 'undefined') return false;
-
-      const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, location.pathname);
-
-      switch (decision.action) {
-        case 'onboard':
-          throw redirect({ to: '/register' });
-        case 'show-selector':
-          throw redirect({ to: '/login' });
-        case 'no-access':
-          // User doesn't belong to this tenant subdomain — send to login for denial UI
-          throw redirect({ to: '/login' });
-        case 'redirect-tenant':
-          window.location.href = buildTenantUrl(decision.slug, decision.path, {
-            queryParams: { session: 'true' },
-          });
-          return true;
-        case 'stay':
-          // Auto-switch to the matching org if on a subdomain and org hasn't been set
-          if (decision.organizationId) {
-            await actions.switchOrganization(decision.organizationId);
-          }
-          return false;
-      }
-    };
-
-    // Fast path: already authenticated in memory
+    // ═══════════════════════════════════════════════════════════════════
+    // FAST PATH: User already authenticated in memory.
+    // This runs on EVERY navigation and link hover (defaultPreload:'intent').
+    // Skip tenant enforcement — it was already validated on initial load.
+    // Only check email verification (cheap, in-memory check).
+    // ═══════════════════════════════════════════════════════════════════
     if (auth.isAuthenticated()) {
       const u = auth.user();
       if (u && !isEmailVerified(u)) {
         throw redirect({ to: '/verify-email', search: {} });
       }
-      if (await enforceTenantHost(u)) return;
-      return;
+      return; // ← NO enforceTenantHost here. Already validated on initial load.
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // COLD PATH: No session in memory — try to restore from cookie.
+    // This runs ONCE on initial page load (or hard refresh).
+    // ═══════════════════════════════════════════════════════════════════
     const getSafeRedirect = () => {
       const p = location.pathname;
       if (!p || p === '/' || p === '/dashboard' || p.startsWith('/login') || p.startsWith('/register') || p === '/verify-email') {
@@ -132,15 +109,45 @@ const layoutRoute = createRoute({
       return p;
     };
 
-    // Validar sesión con el servidor (vía cookie HttpOnly better-auth.session_token)
+    // Check if there's a session flag before hitting the server
+    const hasSessionFlag = localStorage.getItem('hasSession');
+    const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
+    if (!hasSessionFlag && !hasSessionParam) {
+      throw redirect({ to: '/login', search: { redirect: getSafeRedirect() } });
+    }
+
+    // Restore session from server (cookie-based)
     const restored = await actions.initSession();
     if (restored) {
       const u = auth.user();
       if (u && !isEmailVerified(u)) {
         throw redirect({ to: '/verify-email', search: {} });
       }
-      if (await enforceTenantHost(u)) return;
-      return;
+
+      // Tenant enforcement — only on INITIAL load (cold path)
+      const isGlobal = isGlobalPortalHost(window.location.hostname);
+      const currentSlug = resolveSlugFromHost(window.location.hostname);
+      const { resolvePostAuthRouting } = await import('./modules/auth/utils/resolve-routing');
+      const decision = await resolvePostAuthRouting(u, isGlobal, currentSlug, location.pathname);
+
+      switch (decision.action) {
+        case 'onboard':
+          throw redirect({ to: '/register' });
+        case 'show-selector':
+          throw redirect({ to: '/login' });
+        case 'no-access':
+          throw redirect({ to: '/login' });
+        case 'redirect-tenant':
+          window.location.href = buildTenantUrl(decision.slug, decision.path, {
+            queryParams: { session: 'true' },
+          });
+          return;
+        case 'stay':
+          if (decision.organizationId) {
+            await actions.switchOrganization(decision.organizationId);
+          }
+          return;
+      }
     }
 
     throw redirect({ to: '/login', search: { redirect: getSafeRedirect() } });
@@ -149,6 +156,9 @@ const layoutRoute = createRoute({
     const { actions } = await import('./shared/store/modules.store');
     return actions.fetchModules();
   },
+  // Prevent re-running loader on every link hover (defaultPreload:'intent')
+  // The modules.store already has internal caching by userId
+  staleTime: 30_000, // 30s — loader result is considered fresh for this duration
   pendingComponent: LayoutSkeleton,
   component: ProtectedLayout,
 });

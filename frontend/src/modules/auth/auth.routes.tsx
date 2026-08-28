@@ -46,10 +46,11 @@ export const createAuthRoutes = (rootRoute: any) => {
                 }
             };
 
-            // Fast path: already authenticated in memory
+            // Fast path: already authenticated in memory.
+            // On preloads (defaultPreload:'intent'), this runs on every hover.
+            // Skip full routing decision — just redirect to dashboard.
             if (auth.isAuthenticated() && auth.user()) {
-                await handleRouting(auth.user());
-                return;
+                throw redirect({ to: '/dashboard' });
             }
 
             // Si no hay flag de sesión ni parámetro OAuth, no consultar al servidor
