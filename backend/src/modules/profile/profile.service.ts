@@ -3,6 +3,7 @@ import { authUsers as users, companies, member, entities } from '@app/schema/tab
 import { eq, and } from '@app/schema';
 import type { ProfileEntityType } from '@app/schema/dto';
 import { getUserRoles, getUserPermissions } from '../users/rbac.permission.service';
+import { getMenuForUser } from '../settings/menu.service';
 import { broadcast } from '../../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { AuthError } from '../auth/session.service';
@@ -82,7 +83,7 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     }
   }
 
-  const [roles, permissions, [company]] = await Promise.all([
+  const [roles, permissions, [company], modules] = await Promise.all([
     getUserRoles(user.id, resolvedCompanyId),
     getUserPermissions(user.id, resolvedCompanyId),
     resolvedCompanyId
@@ -91,6 +92,9 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
           .from(companies)
           .where(eq(companies.id, resolvedCompanyId))
           .limit(1)
+      : Promise.resolve([]),
+    resolvedCompanyId
+      ? getMenuForUser(user.id, resolvedCompanyId)
       : Promise.resolve([]),
   ]);
 
@@ -107,6 +111,7 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     roles,
     permissions,
     entity: mapEntity(resolvedEntity),
+    modules,
   };
 }
 

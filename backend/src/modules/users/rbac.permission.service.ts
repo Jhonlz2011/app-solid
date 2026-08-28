@@ -151,4 +151,3 @@ export async function assertNotSuperadmin(
         throw new DomainError(`No se puede ${action} al Superadmin / Propietario de la empresa`, 403);
     }
 }
-

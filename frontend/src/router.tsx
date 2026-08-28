@@ -156,9 +156,6 @@ const layoutRoute = createRoute({
     const { actions } = await import('./shared/store/modules.store');
     return actions.fetchModules();
   },
-  // Prevent re-running loader on every link hover (defaultPreload:'intent')
-  // The modules.store already has internal caching by userId
-  staleTime: 30_000, // 30s — loader result is considered fresh for this duration
   pendingComponent: LayoutSkeleton,
   component: ProtectedLayout,
 });
@@ -264,12 +261,12 @@ const routeTree = rootRoute.addChildren([
 
 
 // --- ROUTER ---
-const router = createRouter({
+export const router = createRouter({
   routeTree,
   context: { queryClient },
   defaultPreload: 'intent',
   defaultPreloadDelay: 100,
-  defaultViewTransition: false,
+  defaultViewTransition: true,
   defaultErrorComponent: ({ error }) => {
     console.error(error);
     return (
@@ -293,5 +290,3 @@ declare module '@tanstack/solid-router' {
 export function RouterApp() {
   return <RouterProvider router={router} />;
 }
-
-export default router;

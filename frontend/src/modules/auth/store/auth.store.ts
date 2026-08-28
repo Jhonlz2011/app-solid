@@ -70,12 +70,12 @@ export const actions = {
                 throw new Error(getFriendlyErrorMessage(authRes.error, 'Error al iniciar sesión'));
             }
 
-            // Fetch user's organizations via Better-Auth
-            const orgListRes = await authClient.organization.list();
+            // Parallel: fetch user's organizations and full ERP profile simultaneously
+            const [orgListRes, profile] = await Promise.all([
+                authClient.organization.list(),
+                profileApi.getMe(),
+            ]);
             const organizations = orgListRes?.data || [];
-
-            // Hydrate ERP profile with RBAC & Entity metadata
-            const profile = await profileApi.getMe();
             currentSessionId = profile.sessionId ?? null;
             const user = profile as ProfileType;
 
@@ -97,9 +97,16 @@ export const actions = {
                 brandingActions.loadBrandingForSlug(user.companySlug);
             }
 
-            // Invalidate module caches for fresh menu tree on login
-            const { actions: moduleActions } = await import('@shared/store/modules.store');
-            moduleActions.clearModules();
+            // Atomic in-memory hydration of modules (0ms navigation)
+            if (Array.isArray(profile.modules)) {
+                const { actions: moduleActions } = await import('@shared/store/modules.store');
+                moduleActions.setModules(profile.modules, user);
+            }
+
+            try {
+                const { router } = await import('@/router');
+                router.invalidate();
+            } catch {}
 
             return { user, sessionId: currentSessionId, organizations };
         } catch (error) {
@@ -121,7 +128,7 @@ export const actions = {
             // Invalidate cached org list so route guards re-fetch on next navigation
             invalidateOrgCache();
 
-            // Refresh ERP profile with new company's RBAC and permissions
+            // Refresh ERP profile with new company's RBAC, permissions, and module tree
             const profile = await profileApi.getMe();
             currentSessionId = profile.sessionId ?? null;
             const user = profile as ProfileType;
@@ -136,9 +143,17 @@ export const actions = {
                 brandingActions.loadBrandingForSlug(user.companySlug);
             }
 
-            // Invalidate module caches for fresh menu tree
-            const { actions: moduleActions } = await import('@shared/store/modules.store');
-            moduleActions.clearModules();
+            // Atomic in-memory hydration of modules for the new tenant
+            if (Array.isArray(profile.modules)) {
+                const { actions: moduleActions } = await import('@shared/store/modules.store');
+                moduleActions.setModules(profile.modules, user);
+            }
+
+            // Invalidate router so TanStack Router re-runs layoutRoute.loader for the new tenant
+            try {
+                const { router } = await import('@/router');
+                router.invalidate();
+            } catch {}
 
             return { success: true, user };
         } catch (error) {
@@ -176,7 +191,13 @@ export const actions = {
             moduleActions.clearModules();
         } catch {}
 
-        // 4. Notify other tabs via centralized broadcast
+        // 4. Invalidate router route match caches
+        try {
+            const { router } = await import('@/router');
+            router.invalidate();
+        } catch {}
+
+        // 5. Notify other tabs via centralized broadcast
         broadcast.emit(BroadcastEvents.AUTH_LOGOUT, undefined, { remoteOnly: true });
     },
 
@@ -230,6 +251,12 @@ export const actions = {
                 // Sync branding for sidebar (if entering via zelys.app without subdomain)
                 if (userData.companySlug) {
                     brandingActions.loadBrandingForSlug(userData.companySlug);
+                }
+
+                // Atomic in-memory hydration of modules (0ms)
+                if (Array.isArray(userData.modules)) {
+                    const { actions: moduleActions } = await import('@shared/store/modules.store');
+                    moduleActions.setModules(userData.modules, userData as ProfileType);
                 }
 
                 return true;

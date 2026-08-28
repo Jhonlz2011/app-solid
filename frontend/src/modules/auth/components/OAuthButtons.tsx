@@ -2,7 +2,6 @@ import { Component, createSignal, Show } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { authClient } from '@shared/lib/auth-client';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
-
 import { isGlobalPortalHost } from '@app/schema/utils';
 
 interface OAuthButtonsProps {

@@ -13,6 +13,18 @@ export const ProfileEntityResponseSchema = Type.Object({
     isEmployee: Type.Boolean(),
 });
 
+export const ModuleConfigSchema: any = Type.Recursive((Self) =>
+    Type.Object({
+        key: Type.String(),
+        label: Type.String(),
+        icon: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        path: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        permission: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        status: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        children: Type.Optional(Type.Array(Self)),
+    })
+);
+
 export const ProfileResponseSchema = Type.Object({
     id: Type.String(),
     companyId: Type.Number(),
@@ -28,6 +40,7 @@ export const ProfileResponseSchema = Type.Object({
     permissions: Type.Array(Type.String()),
     entity: Type.Optional(ProfileEntityResponseSchema),
     sessionId: Type.String(),
+    modules: Type.Optional(Type.Array(ModuleConfigSchema)),
 });
 
 export const UpdateProfileBodySchema = Type.Object({
