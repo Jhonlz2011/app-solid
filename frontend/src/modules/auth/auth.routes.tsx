@@ -6,7 +6,7 @@ export const createAuthRoutes = (rootRoute: any) => {
     const authRoute = createRoute({
         getParentRoute: () => rootRoute,
         id: 'auth-layout',
-        beforeLoad: async () => {
+        beforeLoad: async ({ location }) => {
             const { actions, useAuth } = await import('./store/auth.store');
             const { isGlobalPortalHost, buildTenantUrl, resolveSlugFromHost } = await import('@app/schema/utils');
             const { resolvePostAuthRouting } = await import('./utils/resolve-routing');
@@ -16,7 +16,7 @@ export const createAuthRoutes = (rootRoute: any) => {
             const currentSlug = resolveSlugFromHost(window.location.hostname);
 
             const handleRouting = async (user: any) => {
-                const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug);
+                const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, location.pathname);
 
                 switch (decision.action) {
                     case 'onboard':
@@ -24,11 +24,8 @@ export const createAuthRoutes = (rootRoute: any) => {
                         throw redirect({ to: '/register' });
 
                     case 'show-selector':
-                        // Let Login.tsx render and show the tenant selector (global portal only)
-                        return;
-
                     case 'no-access':
-                        // User doesn't belong to this tenant subdomain — let Login.tsx show denial UI
+                        // Let Login.tsx render and show the tenant selector
                         return;
 
                     case 'redirect-tenant':
@@ -46,18 +43,13 @@ export const createAuthRoutes = (rootRoute: any) => {
                 }
             };
 
-            // Fast path: already authenticated in memory.
-            // On preloads (defaultPreload:'intent'), this runs on every hover.
+            // Fast path: already authenticated in memory
             if (auth.isAuthenticated() && auth.user()) {
-                const u = auth.user();
-                if (!u?.companySlug && (!u?.companyId || u.companyId === 0)) {
-                    if (window.location.pathname.includes('/register')) return;
-                    throw redirect({ to: '/register' });
-                }
-                throw redirect({ to: '/dashboard' });
+                await handleRouting(auth.user());
+                return;
             }
 
-            // Si no hay flag de sesión ni parámetro OAuth, no consultar al servidor
+            // Cold path: check session flag before querying server
             const hasSessionFlag = localStorage.getItem('hasSession');
             const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
             if (!hasSessionFlag && !hasSessionParam) {

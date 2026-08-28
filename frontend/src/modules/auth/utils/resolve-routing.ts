@@ -130,13 +130,23 @@ export async function resolvePostAuthRouting(
             // User belongs to this tenant — stay and auto-switch
             return { action: 'stay', organizationId: matchingOrg.id };
         }
-        // User does NOT belong to this tenant — deny access
-        // Pass their actual orgs so the UI can offer navigation to their own tenants
-        return {
-            action: 'no-access',
-            currentSlug,
-            tenants: orgs.map(mapOrgToTenant),
-        };
+
+        // Case: User belongs to exactly 1 other tenant → seamless canonical auto-redirect
+        if (orgs.length === 1 && orgs[0].slug) {
+            return { action: 'redirect-tenant', slug: orgs[0].slug, path: targetPath };
+        }
+
+        // Case: User belongs to >1 other tenants (none matches current subdomain) → show denial & selector
+        if (orgs.length > 1) {
+            return {
+                action: 'no-access',
+                currentSlug,
+                tenants: orgs.map(mapOrgToTenant),
+            };
+        }
+
+        // Case: User has no organizations → onboarding
+        return { action: 'onboard' };
     }
 
     // ══════════════════════════════════════════════════════════════════════

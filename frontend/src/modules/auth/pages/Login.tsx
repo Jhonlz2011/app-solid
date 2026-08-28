@@ -8,8 +8,8 @@ import type { DiscoverTenantItemType } from '@app/schema/dto';
 import { actions } from '@modules/auth/store/auth.store';
 import { useBranding, getSubdomain } from '../store/branding.store';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
-import { buildTenantUrl } from '@app/schema/utils';
-import { fetchUserOrganizations, mapOrgToTenant } from '../utils/resolve-routing';
+import { buildTenantUrl, isGlobalPortalHost, resolveSlugFromHost } from '@app/schema/utils';
+import { resolvePostAuthRouting } from '../utils/resolve-routing';
 import Input from '@/shared/ui/form/Input';
 import Button from '@form/Button';
 import Turnstile from '@shared/ui/Turnstile';
@@ -33,7 +33,7 @@ const stagger = (index: number): JSX.CSSProperties => ({
 
 const Login: Component = () => {
   const navigate = useNavigate();
-  const search = useSearch({ strict: false });
+  const search = useSearch({ from: '/auth-layout/login' });
   const branding = useBranding();
 
   const subdomain = getSubdomain();
@@ -58,50 +58,41 @@ const Login: Component = () => {
     const hasSession = localStorage.getItem('hasSession') || params.get('session') === 'true';
     if (hasSession) {
       try {
-        const orgs = await fetchUserOrganizations();
+        const auth = (await import('@modules/auth/store/auth.store')).useAuth();
+        let user = auth.user();
+        if (!user) {
+          const restored = await actions.initSession();
+          if (restored) user = auth.user();
+        }
 
-        // ─── TENANT SUBDOMAIN: strict membership validation ───
-        if (!isGlobalLogin && subdomain) {
-          const belongsToTenant = orgs.some(o => o.slug === subdomain);
+        const isGlobal = isGlobalPortalHost(window.location.hostname);
+        const currentSlug = resolveSlugFromHost(window.location.hostname);
+        const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, '/dashboard');
 
-          if (belongsToTenant) {
-            // User belongs to this tenant — auto-switch and go to dashboard
-            const matchingOrg = orgs.find(o => o.slug === subdomain)!;
-            await actions.switchOrganization(matchingOrg.id);
+        switch (decision.action) {
+          case 'redirect-tenant':
+            handleRedirect(decision.slug, decision.path);
+            return;
+          case 'show-selector':
+          case 'no-access':
+            if (decision.action === 'no-access') {
+              toast.error(`Tu cuenta no tiene acceso a ${decision.currentSlug}. Puedes acceder a tus empresas:`);
+            }
+            setDiscoveredTenants(decision.tenants);
+            setShowTenants(true);
+            return;
+          case 'onboard':
+            navigate({ to: '/register', replace: true });
+            return;
+          case 'stay':
+            if (decision.organizationId) {
+              await actions.switchOrganization(decision.organizationId);
+            }
             navigate({ to: '/dashboard', replace: true });
             return;
-          }
-
-          // User does NOT belong to this tenant
-          if (orgs.length > 0) {
-            // They have other tenants — show error + their actual companies
-            toast.error(`Tu cuenta no tiene acceso a ${subdomain}. Puedes acceder a tus empresas:`);
-            setDiscoveredTenants(orgs.map(mapOrgToTenant));
-            setShowTenants(true);
-          } else {
-            // No orgs at all — clear session
-            toast.error(`Tu cuenta no tiene acceso a ${subdomain}.`);
-            await actions.logout();
-          }
-          return;
-        }
-
-        // ─── GLOBAL PORTAL (in.zelys.app): selector or fast-path ───
-        if (orgs.length > 1) {
-          setDiscoveredTenants(orgs.map(mapOrgToTenant));
-          setShowTenants(true);
-        } else if (orgs.length === 1) {
-          const singleOrg = orgs[0];
-          await actions.switchOrganization(singleOrg.id);
-          handleRedirect(singleOrg.slug || '', '/dashboard');
-        } else if (orgs.length === 0) {
-          const user = (await import('@modules/auth/store/auth.store')).useAuth().user();
-          if (!user?.companySlug && (!user?.companyId || user.companyId === 0)) {
-            navigate({ to: '/register', replace: true });
-          }
         }
       } catch (err) {
-        console.warn('[Login] Error loading tenant list in onMount:', err);
+        console.warn('[Login] Error resolving post-auth routing in onMount:', err);
       }
     }
   });
@@ -158,50 +149,34 @@ const Login: Component = () => {
           password: value.password,
         });
 
-        const { user, organizations } = res;
+        const { user } = res;
         const safePath = getSafeRedirectPath();
+        const isGlobal = isGlobalPortalHost(window.location.hostname);
+        const currentSlug = resolveSlugFromHost(window.location.hostname);
+        const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, safePath);
 
-        // Case A: Logging in from a specific tenant subdomain (e.g. acme.zelys.app)
-        if (!isGlobalLogin && subdomain) {
-          const matchingOrg = organizations.find((o: any) => o.slug === subdomain);
-          if (matchingOrg) {
-            await actions.switchOrganization(matchingOrg.id);
-            navigate({ to: safePath, replace: true });
+        switch (decision.action) {
+          case 'redirect-tenant':
+            handleRedirect(decision.slug, decision.path);
             return;
-          } else if (organizations.length > 0) {
-            toast.error(`No tienes acceso a ${subdomain}. Selecciona una de tus empresas:`);
-            setDiscoveredTenants(organizations.map(mapOrgToTenant));
+          case 'show-selector':
+          case 'no-access':
+            if (decision.action === 'no-access') {
+              toast.error(`No tienes acceso a ${decision.currentSlug}. Selecciona una de tus empresas:`);
+            }
+            setDiscoveredTenants(decision.tenants);
             setShowTenants(true);
             return;
-          }
-        }
-
-        // Case B: Global portal login (e.g. in.zelys.app or dev localhost)
-        if (organizations.length > 1) {
-          setDiscoveredTenants(organizations.map(mapOrgToTenant));
-          setShowTenants(true);
-          return;
-        }
-
-        if (organizations.length === 1) {
-          const singleOrg = organizations[0];
-          await actions.switchOrganization(singleOrg.id);
-          if (singleOrg.slug && singleOrg.slug !== subdomain) {
-            handleRedirect(singleOrg.slug, safePath);
-          } else {
+          case 'onboard':
+            toast.info('Completa los datos de tu empresa para comenzar');
+            navigate({ to: '/register', replace: true });
+            return;
+          case 'stay':
+            if (decision.organizationId) {
+              await actions.switchOrganization(decision.organizationId);
+            }
             navigate({ to: safePath, replace: true });
-          }
-          return;
-        }
-
-        // Fallback: direct redirect using user profile companySlug
-        if (user?.companySlug) {
-          handleRedirect(user.companySlug, safePath);
-        } else if (organizations.length === 0) {
-          toast.info('Completa los datos de tu empresa para comenzar');
-          navigate({ to: '/register', replace: true });
-        } else {
-          navigate({ to: safePath, replace: true });
+            return;
         }
       } catch (err) {
         setShowTenants(false);

@@ -81,30 +81,12 @@ const layoutRoute = createRoute({
   beforeLoad: async ({ location }) => {
     const { actions, useAuth } = await import('./modules/auth/store/auth.store');
     const { isGlobalPortalHost, buildTenantUrl, resolveSlugFromHost } = await import('@app/schema/utils');
+    const { resolvePostAuthRouting } = await import('./modules/auth/utils/resolve-routing');
     const auth = useAuth();
 
-    // ═══════════════════════════════════════════════════════════════════
-    // FAST PATH: User already authenticated in memory.
-    // This runs on EVERY navigation and link hover (defaultPreload:'intent').
-    // Skip tenant enforcement — it was already validated on initial load.
-    // Only check email verification (cheap, in-memory check).
-    // ═══════════════════════════════════════════════════════════════════
-    if (auth.isAuthenticated()) {
-      const u = auth.user();
-      if (u && !isEmailVerified(u)) {
-        throw redirect({ to: '/verify-email', search: {} });
-      }
-      // Redirect users without an established tenant/company to onboarding
-      if (!u?.companySlug && (!u?.companyId || u.companyId === 0)) {
-        throw redirect({ to: '/register' });
-      }
-      return; // ← NO enforceTenantHost here. Already validated on initial load.
-    }
+    const isGlobal = isGlobalPortalHost(window.location.hostname);
+    const currentSlug = resolveSlugFromHost(window.location.hostname);
 
-    // ═══════════════════════════════════════════════════════════════════
-    // COLD PATH: No session in memory — try to restore from cookie.
-    // This runs ONCE on initial page load (or hard refresh).
-    // ═══════════════════════════════════════════════════════════════════
     const getSafeRedirect = () => {
       const p = location.pathname;
       if (!p || p === '/' || p === '/dashboard' || p.startsWith('/login') || p.startsWith('/register') || p === '/verify-email') {
@@ -113,32 +95,17 @@ const layoutRoute = createRoute({
       return p;
     };
 
-    // Check if there's a session flag before hitting the server
-    const hasSessionFlag = localStorage.getItem('hasSession');
-    const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
-    if (!hasSessionFlag && !hasSessionParam) {
-      throw redirect({ to: '/login', search: { redirect: getSafeRedirect() } });
-    }
-
-    // Restore session from server (cookie-based)
-    const restored = await actions.initSession();
-    if (restored) {
-      const u = auth.user();
+    const handleProtectedRouting = async (u: any) => {
       if (u && !isEmailVerified(u)) {
         throw redirect({ to: '/verify-email', search: {} });
       }
 
-      // Tenant enforcement — only on INITIAL load (cold path)
-      const isGlobal = isGlobalPortalHost(window.location.hostname);
-      const currentSlug = resolveSlugFromHost(window.location.hostname);
-      const { resolvePostAuthRouting } = await import('./modules/auth/utils/resolve-routing');
       const decision = await resolvePostAuthRouting(u, isGlobal, currentSlug, location.pathname);
 
       switch (decision.action) {
         case 'onboard':
           throw redirect({ to: '/register' });
         case 'show-selector':
-          throw redirect({ to: '/login' });
         case 'no-access':
           throw redirect({ to: '/login' });
         case 'redirect-tenant':
@@ -152,6 +119,26 @@ const layoutRoute = createRoute({
           }
           return;
       }
+    };
+
+    // FAST PATH: Already authenticated in memory
+    if (auth.isAuthenticated() && auth.user()) {
+      await handleProtectedRouting(auth.user());
+      return;
+    }
+
+    // COLD PATH: Check session flag before hitting server
+    const hasSessionFlag = localStorage.getItem('hasSession');
+    const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
+    if (!hasSessionFlag && !hasSessionParam) {
+      throw redirect({ to: '/login', search: { redirect: getSafeRedirect() } });
+    }
+
+    // Restore session from server (cookie-based)
+    const restored = await actions.initSession();
+    if (restored && auth.user()) {
+      await handleProtectedRouting(auth.user());
+      return;
     }
 
     throw redirect({ to: '/login', search: { redirect: getSafeRedirect() } });

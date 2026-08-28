@@ -103,11 +103,6 @@ export const actions = {
                 moduleActions.setModules(profile.modules, user);
             }
 
-            try {
-                const { router } = await import('@/router');
-                router.invalidate();
-            } catch {}
-
             return { user, sessionId: currentSessionId, organizations };
         } catch (error) {
             setState('status', 'unauthenticated');
