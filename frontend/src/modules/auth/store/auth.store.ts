@@ -20,8 +20,9 @@ let initSessionPromise: Promise<boolean> | null = null;
 // --- CONFIGURACIÓN ---
 const SESSION_FLAG_KEY = 'hasSession';
 
-// Current session ID — used to compare with WS revoke events
+// Current session ID & active organization ID
 let currentSessionId: string | null = null;
+let currentActiveOrgId: string | null = null;
 
 // Helper to strip non-serializable fields from ProfileType before sending via BroadcastChannel
 const sanitizeUser = ({ id, username, email, roles, permissions, entity }: ProfileType): Partial<ProfileType> =>
@@ -114,14 +115,20 @@ export const actions = {
      * Switch active organization (Company) in Better-Auth session & reload ERP context
      */
     switchOrganization: async (organizationId: string) => {
+        if (!organizationId) return { success: true, user: state.user };
+
+        // Deduplication: if already active on this organization, skip redundant network call
+        if (currentActiveOrgId === organizationId && state.user?.companySlug) {
+            return { success: true, user: state.user };
+        }
+
         try {
             const res = await authClient.organization.setActive({ organizationId });
             if (res?.error) {
                 throw new Error(res.error.message || 'Error al cambiar de empresa');
             }
 
-            // Invalidate cached org list so route guards re-fetch on next navigation
-            invalidateOrgCache();
+            currentActiveOrgId = organizationId;
 
             // Refresh ERP profile with new company's RBAC, permissions, and module tree
             const profile = await profileApi.getMe();
@@ -144,12 +151,6 @@ export const actions = {
                 moduleActions.setModules(profile.modules, user);
             }
 
-            // Invalidate router so TanStack Router re-runs layoutRoute.loader for the new tenant
-            try {
-                const { router } = await import('@/router');
-                router.invalidate();
-            } catch {}
-
             return { success: true, user };
         } catch (error) {
             console.error('[Auth] Failed to switch organization:', error);
@@ -159,6 +160,7 @@ export const actions = {
 
     logout: async (notifyServer = true) => {
         currentSessionId = null;
+        currentActiveOrgId = null;
         disconnect();
 
         // 1. Await server sign-out so session cookie is revoked on backend

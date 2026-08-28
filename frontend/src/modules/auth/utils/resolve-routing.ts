@@ -127,8 +127,12 @@ export async function resolvePostAuthRouting(
     if (!isGlobalPortal && currentSlug) {
         const matchingOrg = orgs.find(o => o.slug === currentSlug);
         if (matchingOrg) {
-            // User belongs to this tenant — stay and auto-switch
-            return { action: 'stay', organizationId: matchingOrg.id };
+            // User belongs to this tenant — stay; only switch if active org is not already this tenant
+            const needsSwitch = user?.companySlug !== currentSlug;
+            return {
+                action: 'stay',
+                organizationId: needsSwitch ? matchingOrg.id : undefined,
+            };
         }
 
         // Case: User belongs to exactly 1 other tenant → seamless canonical auto-redirect
