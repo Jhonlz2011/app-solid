@@ -1,5 +1,5 @@
 import { db, adminDb } from '../../core/db';
-import { authUsers as users, companies, member } from '@app/schema/tables';
+import { authUsers as users, companies, member, entities } from '@app/schema/tables';
 import { eq, and } from '@app/schema';
 import type { ProfileEntityType } from '@app/schema/dto';
 import { getUserRoles, getUserPermissions } from '../users/rbac.permission.service';
@@ -22,12 +22,10 @@ export function mapEntity(entity: { id: string; business_name: string; is_client
  * Get current user profile with roles, permissions, and tenant metadata.
  * 
  * Company resolution: activeCompanyId (from auth-guard via activeOrganizationId) is the source of truth.
- * Falls back to user.company_id denormalized cache only if no active org is set.
+ * Entity resolution: member.entityId (per-org) is the source of truth, NOT user.entity_id (denormalized).
  */
 export async function getMe(userId: string | number, activeCompanyId?: number | null) {
   const userIdStr = String(userId);
-  // adminDb: tabla user no tiene RLS, pero adminDb es correcto para queries de infraestructura
-  // que no deben depender del contexto tenantStorage activo
   const user = await adminDb.query.authUsers.findFirst({
     where: eq(users.id, userIdStr),
     columns: {
@@ -36,28 +34,34 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
       email: true,
       username: true,
       name: true,
-      entity_id: true,
       is_active: true,
       last_login: true,
       emailVerified: true,
     },
-    with: { entity: true },
   });
 
   if (!user) throw new AuthError('Usuario no encontrado');
 
   // Respect the auth-guard decision: if activeCompanyId is null/0,
   // the user has multiple orgs and needs to pick one.
-  // Do NOT fallback to user.company_id here — that would bypass the tenant selector.
   const resolvedCompanyId = activeCompanyId || null;
 
-  // Resolve entity from member table (per-org entity mapping) if we have a company
-  let resolvedEntityId = user.entity_id;
+  // Resolve entity from member table (per-org entity mapping).
+  let resolvedEntityId: string | null = null;
+  let resolvedEntity: Parameters<typeof mapEntity>[0] = null;
+
   if (resolvedCompanyId) {
     const [memberRow] = await adminDb
-      .select({ entityId: member.entityId })
+      .select({
+        entityId: member.entityId,
+        entityBusinessName: entities.business_name,
+        entityIsClient: entities.is_client,
+        entityIsSupplier: entities.is_supplier,
+        entityIsEmployee: entities.is_employee,
+      })
       .from(member)
       .innerJoin(companies, eq(companies.organization_id, member.organizationId))
+      .leftJoin(entities, eq(entities.id, member.entityId))
       .where(
         and(
           eq(member.userId, userIdStr),
@@ -68,6 +72,13 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
 
     if (memberRow?.entityId) {
       resolvedEntityId = memberRow.entityId;
+      resolvedEntity = {
+        id: memberRow.entityId,
+        business_name: memberRow.entityBusinessName || '',
+        is_client: memberRow.entityIsClient,
+        is_supplier: memberRow.entityIsSupplier,
+        is_employee: memberRow.entityIsEmployee,
+      };
     }
   }
 
@@ -95,7 +106,7 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     emailVerified: Boolean(user.emailVerified),
     roles,
     permissions,
-    entity: mapEntity(user.entity),
+    entity: mapEntity(resolvedEntity),
   };
 }
 

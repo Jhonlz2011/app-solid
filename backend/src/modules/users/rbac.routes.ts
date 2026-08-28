@@ -272,9 +272,9 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         response: t.Object({ success: t.Boolean() }),
     })
 
-    // Assign/unassign entity to user
-    .patch('/users/:id/entity', async ({ params, body, currentUserId }) => {
-        return await setUserEntity(params.id, body.entityId, currentUserId);
+    // Assign/unassign entity to user's org membership
+    .patch('/users/:id/entity', async ({ params, body, currentUserId, currentCompanyId }) => {
+        return await setUserEntity(params.id, body.entityId, currentCompanyId, currentUserId);
     }, {
         permission: 'users.update',
         params: IdStringParamSchema,

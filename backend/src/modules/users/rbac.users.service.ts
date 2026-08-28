@@ -83,6 +83,17 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
         : authUsers.username;
     const orderFn = filters.sortOrder === 'desc' ? desc : asc;
 
+    // Resolve organization_id for the company to join member → entity
+    let companyOrgId: string | null = null;
+    if (companyId) {
+        const [companyRow] = await adminDb
+            .select({ orgId: companies.organization_id })
+            .from(companies)
+            .where(eq(companies.id, companyId))
+            .limit(1);
+        companyOrgId = companyRow?.orgId ?? null;
+    }
+
     const [totalResult, users] = await Promise.all([
         db.select({ count: count() }).from(authUsers).where(where),
         db.select({
@@ -100,7 +111,13 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
             entityIsEmployee: entities.is_employee,
         })
         .from(authUsers)
-        .leftJoin(entities, eq(authUsers.entity_id, entities.id))
+        .leftJoin(
+            member,
+            companyOrgId
+                ? and(eq(member.userId, authUsers.id), eq(member.organizationId, companyOrgId))
+                : eq(member.userId, authUsers.id)
+        )
+        .leftJoin(entities, eq(entities.id, member.entityId))
         .where(where)
         .orderBy(orderFn(sortCol))
         .limit(limit)
@@ -156,7 +173,13 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
         const results: Record<string, { value: string; count: number }[]> = {};
 
         const activeConditions: SQL[] = [];
-        if (companyId) activeConditions.push(eq(authUsers.company_id, companyId));
+        if (companyId) {
+            const memberSub = adminDb.select({ userId: member.userId })
+                .from(member)
+                .innerJoin(companies, eq(companies.organization_id, member.organizationId))
+                .where(eq(companies.id, companyId));
+            activeConditions.push(inArray(authUsers.id, memberSub));
+        }
         if (filters.search) {
             const term = `%${filters.search}%`;
             const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term));
@@ -185,7 +208,13 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
         results['isActive'] = activeRows.filter(r => r.value !== null).map(r => ({ value: r.value, count: Number(r.count) }));
 
         const rolesConditions: SQL[] = [];
-        if (companyId) rolesConditions.push(eq(authUsers.company_id, companyId));
+        if (companyId) {
+            const memberSub = adminDb.select({ userId: member.userId })
+                .from(member)
+                .innerJoin(companies, eq(companies.organization_id, member.organizationId))
+                .where(eq(companies.id, companyId));
+            rolesConditions.push(inArray(authUsers.id, memberSub));
+        }
         if (filters.search) {
             const term = `%${filters.search}%`;
             const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term));
@@ -222,10 +251,19 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
  */
 export async function getUserById(id: string | number, companyId?: number) {
     const idStr = String(id);
-    const conditions = [eq(authUsers.id, idStr)];
-    if (companyId) conditions.push(eq(authUsers.company_id, companyId));
+
+    // Verify membership if companyId is provided
+    if (companyId) {
+        const memberSub = adminDb.select({ userId: member.userId })
+            .from(member)
+            .innerJoin(companies, eq(companies.organization_id, member.organizationId))
+            .where(and(eq(companies.id, companyId), eq(member.userId, idStr)));
+        const [hasMembership] = await memberSub.limit(1);
+        if (!hasMembership) throw new DomainError('Usuario no encontrado', 404);
+    }
+
     const user = await db.query.authUsers.findFirst({
-        where: and(...conditions),
+        where: eq(authUsers.id, idStr),
         columns: {
             id: true,
             username: true,
@@ -233,12 +271,43 @@ export async function getUserById(id: string | number, companyId?: number) {
             email: true,
             is_active: true,
             last_login: true,
-            entity_id: true,
         },
-        with: { entity: true },
     });
 
     if (!user) throw new DomainError('Usuario no encontrado', 404);
+
+    // Resolve entity from member table (per-org)
+    let entityData: { id: string; businessName: string; taxId: string; isClient: boolean; isSupplier: boolean; isEmployee: boolean } | null = null;
+    let entityId: string | null = null;
+
+    if (companyId) {
+        const [memberRow] = await adminDb
+            .select({
+                entityId: member.entityId,
+                entityBusinessName: entities.business_name,
+                entityTaxId: entities.tax_id,
+                entityIsClient: entities.is_client,
+                entityIsSupplier: entities.is_supplier,
+                entityIsEmployee: entities.is_employee,
+            })
+            .from(member)
+            .innerJoin(companies, eq(companies.organization_id, member.organizationId))
+            .leftJoin(entities, eq(entities.id, member.entityId))
+            .where(and(eq(member.userId, idStr), eq(companies.id, companyId)))
+            .limit(1);
+
+        if (memberRow?.entityId) {
+            entityId = memberRow.entityId;
+            entityData = {
+                id: memberRow.entityId,
+                businessName: memberRow.entityBusinessName || '',
+                taxId: memberRow.entityTaxId || '',
+                isClient: memberRow.entityIsClient ?? false,
+                isSupplier: memberRow.entityIsSupplier ?? false,
+                isEmployee: memberRow.entityIsEmployee ?? false,
+            };
+        }
+    }
 
     const roles = await db
         .select({ id: authRoles.id, name: authRoles.name, description: authRoles.description })
@@ -252,15 +321,8 @@ export async function getUserById(id: string | number, companyId?: number) {
         email: user.email,
         isActive: user.is_active,
         lastLogin: user.last_login,
-        entityId: user.entity_id,
-        entity: user.entity ? {
-            id: user.entity.id,
-            businessName: user.entity.business_name,
-            taxId: user.entity.tax_id,
-            isClient: user.entity.is_client ?? false,
-            isSupplier: user.entity.is_supplier ?? false,
-            isEmployee: user.entity.is_employee ?? false,
-        } : null,
+        entityId,
+        entity: entityData,
         roles,
     };
 }
@@ -438,7 +500,7 @@ export async function createUser(data: { username: string; email: string; passwo
         // ──────────────────────────────────────────────────────────────────
         const existingUser = await tx.query.authUsers.findFirst({
             where: eq(authUsers.email, normalizedEmail),
-            columns: { id: true, username: true, email: true, entity_id: true, company_id: true },
+            columns: { id: true, username: true, email: true, company_id: true },
         });
 
         if (existingUser) {
@@ -635,23 +697,15 @@ export async function updateUser(userId: string | number, data: { username?: str
 
     if (data.email !== undefined) {
         const normalizedEmail = data.email.trim().toLowerCase();
-        const targetCompanyId = companyId ?? (await adminDb.query.authUsers.findFirst({
-            where: eq(authUsers.id, userIdStr),
-            columns: { company_id: true }
-        }))?.company_id;
+        const existingEmail = await adminDb.query.authUsers.findFirst({
+            where: and(
+                eq(authUsers.email, normalizedEmail),
+                ne(authUsers.id, userIdStr)
+            ),
+        });
 
-        if (targetCompanyId) {
-            const existingEmail = await adminDb.query.authUsers.findFirst({
-                where: and(
-                    eq(authUsers.company_id, targetCompanyId),
-                    eq(authUsers.email, normalizedEmail),
-                    ne(authUsers.id, userIdStr)
-                ),
-            });
-
-            if (existingEmail) {
-                throw new DomainError('Ya existe un usuario con ese email en esta empresa', 409);
-            }
+        if (existingEmail) {
+            throw new DomainError('Ya existe un usuario con ese email', 409);
         }
 
         // Comprobar si el nuevo email ya fue verificado globalmente
@@ -890,14 +944,18 @@ export async function adminResetPassword(
 }
 
 /**
- * Assign or unassign an entity to a user
+ * Assign or unassign an entity to a user's organization membership.
+ * Updates member.entityId (per-org entity mapping), NOT user.entity_id.
  */
 export async function setUserEntity(
     userId: string | number,
     entityId: string | null,
+    companyId: number,
     currentUserId?: string | number,
 ) {
     const userIdStr = String(userId);
+
+    // Validate entity exists (within tenant scope via RLS)
     if (entityId !== null) {
         const entity = await db.query.entities.findFirst({
             where: eq(entities.id, entityId),
@@ -905,24 +963,43 @@ export async function setUserEntity(
         if (!entity) throw new DomainError('Entidad no encontrada', 404);
     }
 
-    const oldUser = await db.query.authUsers.findFirst({
-        where: eq(authUsers.id, userIdStr),
-        columns: { entity_id: true },
-    });
+    // Resolve the organization_id for this company
+    const [companyRow] = await adminDb
+        .select({ orgId: companies.organization_id })
+        .from(companies)
+        .where(eq(companies.id, companyId))
+        .limit(1);
 
-    const [updated] = await db
-        .update(authUsers)
-        .set({ entity_id: entityId })
-        .where(eq(authUsers.id, userIdStr))
-        .returning({ id: authUsers.id, entityId: authUsers.entity_id, company_id: authUsers.company_id });
+    if (!companyRow?.orgId) throw new DomainError('Empresa no encontrada', 404);
 
-    if (!updated) throw new DomainError('Usuario no encontrado', 404);
+    // Find the member record for this user + organization
+    const [memberRow] = await adminDb
+        .select({ id: member.id, entityId: member.entityId })
+        .from(member)
+        .where(and(
+            eq(member.userId, userIdStr),
+            eq(member.organizationId, companyRow.orgId),
+        ))
+        .limit(1);
 
-    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'user', userIdStr, { entity_id: entityId }, { entity_id: oldUser?.entity_id ?? null });
-    const targetRoom = updated?.company_id ? getTenantRoom(updated.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    if (!memberRow) throw new DomainError('El usuario no es miembro de esta organización', 404);
+
+    const oldEntityId = memberRow.entityId;
+
+    // Update member.entityId
+    const [updated] = await adminDb
+        .update(member)
+        .set({ entityId })
+        .where(eq(member.id, memberRow.id))
+        .returning({ id: member.id, entityId: member.entityId, userId: member.userId });
+
+    if (!updated) throw new DomainError('No se pudo actualizar la entidad', 500);
+
+    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'member', memberRow.id, { entity_id: entityId }, { entity_id: oldEntityId ?? null });
+    const targetRoom = getTenantRoom(companyId, RealtimeEvents.ROOMS.USERS);
     broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
 
-    return updated;
+    return { id: userIdStr, entityId };
 }
 
 /**

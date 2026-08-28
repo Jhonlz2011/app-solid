@@ -102,10 +102,13 @@ export const authUsersRelations = relations(tables.authUsers, ({ one, many }) =>
     company: one(tables.companies, { fields: [tables.authUsers.company_id], references: [tables.companies.id] }),
     roles: many(tables.authUserRoles),
     sessions: many(tables.sessions),
-    entity: one(tables.entities, {
-        fields: [tables.authUsers.entity_id],
-        references: [tables.entities.id],
-    }),
+    members: many(tables.member),
+}));
+
+export const memberRelations = relations(tables.member, ({ one }) => ({
+    user: one(tables.authUsers, { fields: [tables.member.userId], references: [tables.authUsers.id] }),
+    organization: one(tables.organization, { fields: [tables.member.organizationId], references: [tables.organization.id] }),
+    entity: one(tables.entities, { fields: [tables.member.entityId], references: [tables.entities.id] }),
 }));
 
 export const sessionsRelations = relations(tables.sessions, ({ one }) => ({

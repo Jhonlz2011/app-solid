@@ -33,14 +33,12 @@ export const user = pgTableV2("user", {
     // Denormalized cache — updated by org switch hook. NOT the source of truth.
     // Source of truth: member.organizationId → organization → companies.organization_id
     company_id: integer("company_id").references(() => companies.id),
-    entity_id: uuid("entity_id").references(() => entities.id),
     is_active: boolean("is_active").default(true),
     last_login: timestamp("last_login", TZ),
 }, (t) => [
-    index("idx_user_email").on(t.email),
+    uniqueIndex("idx_user_email_unique").on(t.email),
     index("idx_user_username").on(t.username),
     index("idx_user_company").on(t.company_id),
-    uniqueIndex("idx_user_company_email").on(t.company_id, t.email),
 ]);
 
 export const session = pgTableV2("session", {

@@ -260,7 +260,6 @@ export async function register(
       })
       .returning({
         id: users.id,
-        entity_id: users.entity_id,
         username: users.username,
         email: users.email,
         is_active: users.is_active,
@@ -283,10 +282,9 @@ export async function register(
       email: normalizedEmail,
     });
 
-    // Update user with denormalized company_id and entity_id
+    // Update user with denormalized company_id (cache of last active company)
     await tx.update(users).set({
       company_id: provision.company.id,
-      entity_id: provision.user.entityId,
     }).where(eq(users.id, user.id));
 
     return {
@@ -352,14 +350,12 @@ export async function onboardTenant(
       userId: existingUser.id,
       fullName: existingUser.name,
       email: existingUser.email,
-      entityId: existingUser.entity_id,
       companyId: existingUser.company_id,
     });
 
-    // Update user with company_id and entity_id (if not set yet)
+    // Update user with company_id (if not set yet)
     await tx.update(users).set({
       company_id: existingUser.company_id || provision.company.id,
-      entity_id: existingUser.entity_id || provision.user.entityId,
       updatedAt: new Date(),
     }).where(eq(users.id, userId));
 
