@@ -1,4 +1,4 @@
-import { Component, createSignal, Show, For, onCleanup, onMount } from 'solid-js';
+import { Component, createSignal, Show, For, onCleanup, createEffect } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useNavigate } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
