@@ -131,6 +131,11 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
     let roleMap = new Map<string, { id: number; name: string }[]>();
 
     if (userIds.length > 0) {
+        const roleConditions = [inArray(authUserRoles.user_id, userIds)];
+        if (companyId) {
+            roleConditions.push(eq(authUserRoles.company_id, companyId));
+        }
+
         const userRoles = await db
             .select({
                 userId: authUserRoles.user_id,
@@ -139,7 +144,7 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
             })
             .from(authUserRoles)
             .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-            .where(inArray(authUserRoles.user_id, userIds));
+            .where(and(...roleConditions));
 
         for (const ur of userRoles) {
             if (!roleMap.has(ur.userId)) roleMap.set(ur.userId, []);
@@ -309,11 +314,16 @@ export async function getUserById(id: string | number, companyId?: number) {
         }
     }
 
+    const roleConditions = [eq(authUserRoles.user_id, idStr)];
+    if (companyId) {
+        roleConditions.push(eq(authUserRoles.company_id, companyId));
+    }
+
     const roles = await db
         .select({ id: authRoles.id, name: authRoles.name, description: authRoles.description })
         .from(authUserRoles)
         .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-        .where(eq(authUserRoles.user_id, idStr));
+        .where(and(...roleConditions));
 
     return {
         id: user.id,
@@ -328,10 +338,15 @@ export async function getUserById(id: string | number, companyId?: number) {
 }
 
 /**
- * Get roles for a specific user
+ * Get roles for a specific user scoped to a company
  */
-export async function getUserRolesById(userId: string | number) {
+export async function getUserRolesById(userId: string | number, companyId?: number) {
     const userIdStr = String(userId);
+    const conditions = [eq(authUserRoles.user_id, userIdStr)];
+    if (companyId) {
+        conditions.push(eq(authUserRoles.company_id, companyId));
+    }
+
     const roles = await db
         .select({
             id: authRoles.id,
@@ -340,7 +355,7 @@ export async function getUserRolesById(userId: string | number) {
         })
         .from(authUserRoles)
         .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-        .where(eq(authUserRoles.user_id, userIdStr));
+        .where(and(...conditions));
 
     return roles;
 }
@@ -348,7 +363,7 @@ export async function getUserRolesById(userId: string | number) {
 /**
  * Assign roles to a user
  */
-export async function assignUserRoles(userId: string | number, roleIds: number[], currentUserId: string | number) {
+export async function assignUserRoles(userId: string | number, roleIds: number[], currentUserId: string | number, companyId?: number) {
     const userIdStr = String(userId);
     const user = await db.query.authUsers.findFirst({
         where: eq(authUsers.id, userIdStr),
@@ -358,13 +373,18 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    const oldRoles = await db.select({ id: authUserRoles.role_id }).from(authUserRoles).where(eq(authUserRoles.user_id, userIdStr));
+    const effectiveCompanyId = companyId || user.company_id!;
+
+    const oldRoles = await db
+        .select({ id: authUserRoles.role_id })
+        .from(authUserRoles)
+        .where(and(eq(authUserRoles.user_id, userIdStr), eq(authUserRoles.company_id, effectiveCompanyId)));
     const oldRoleIds = oldRoles.map(r => r.id);
 
     // Superadmin protection: exactly 1 superadmin per company (the owner)
-    const isTargetSuperadmin = await isUserSuperadmin(userIdStr, user.company_id);
+    const isTargetSuperadmin = await isUserSuperadmin(userIdStr, effectiveCompanyId);
     const superadminRole = await db.query.authRoles.findFirst({
-        where: and(eq(authRoles.company_id, user.company_id!), eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN)),
+        where: and(eq(authRoles.company_id, effectiveCompanyId), eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN)),
     });
 
     let finalRoleIds = [...roleIds];
@@ -383,12 +403,13 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
     }
 
     if (finalRoleIds.length > 0) {
-        const currentRoles = await getUserRoles(currentUserId, user.company_id);
+        const currentRoles = await getUserRoles(currentUserId, effectiveCompanyId);
         if (!currentRoles.includes(SYSTEM_ROLES.SUPERADMIN)) {
             const systemRoles = await db.select({ id: authRoles.id })
                 .from(authRoles)
                 .where(and(
                     inArray(authRoles.id, finalRoleIds),
+                    eq(authRoles.company_id, effectiveCompanyId),
                     eq(authRoles.is_system, true)
                 ));
             if (systemRoles.length > 0) {
@@ -398,22 +419,28 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
     }
 
     await db.transaction(async (tx) => {
-        await tx.delete(authUserRoles).where(eq(authUserRoles.user_id, userIdStr));
+        // Delete only the roles assigned in THIS company, preserving roles in other tenants
+        await tx.delete(authUserRoles).where(
+            and(
+                eq(authUserRoles.user_id, userIdStr),
+                eq(authUserRoles.company_id, effectiveCompanyId)
+            )
+        );
 
         if (finalRoleIds.length > 0) {
             await tx.insert(authUserRoles).values(
                 finalRoleIds.map(roleId => ({
                     user_id: userIdStr,
                     role_id: roleId,
-                    company_id: user.company_id!,
+                    company_id: effectiveCompanyId,
                 }))
             );
         }
     });
 
-    await invalidateUserRbacCache(userIdStr, user.company_id);
+    await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
     broadcast(RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr }, `user:${userIdStr}`);
-    const targetRoom = user.company_id ? getTenantRoom(user.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    const targetRoom = getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS);
     broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, targetRoom);
 
     logAudit(currentUserId, 'UPDATE', 'auth_user_roles', userIdStr, { roleIds: finalRoleIds }, { roleIds: oldRoleIds });
@@ -624,9 +651,12 @@ export async function createUser(data: { username: string; email: string; passwo
 }
 
 /**
- * Get all users with a specific role
+ * Get all users with a specific role scoped to a company
  */
-export async function getUsersByRole(roleId: number) {
+export async function getUsersByRole(roleId: number, companyId?: number) {
+    const conditions = [eq(authUserRoles.role_id, roleId)];
+    if (companyId) conditions.push(eq(authUserRoles.company_id, companyId));
+
     const usersInRole = await db
         .select({
             id: authUsers.id,
@@ -637,34 +667,40 @@ export async function getUsersByRole(roleId: number) {
         })
         .from(authUserRoles)
         .innerJoin(authUsers, eq(authUserRoles.user_id, authUsers.id))
-        .where(eq(authUserRoles.role_id, roleId));
+        .where(and(...conditions));
 
     return usersInRole.map(u => ({ ...u, username: u.username || u.name }));
 }
 
 /**
- * Remove a user from a specific role
+ * Remove a user from a specific role scoped to a company
  */
-export async function removeUserFromRole(userId: string | number, roleId: number) {
+export async function removeUserFromRole(userId: string | number, roleId: number, companyId?: number) {
     const userIdStr = String(userId);
     
     // Superadmin protection: owner cannot be removed from superadmin
-    const role = await db.query.authRoles.findFirst({ where: eq(authRoles.id, roleId) });
+    const roleWhere = companyId
+        ? and(eq(authRoles.id, roleId), eq(authRoles.company_id, companyId))
+        : eq(authRoles.id, roleId);
+    const role = await db.query.authRoles.findFirst({ where: roleWhere });
     if (role?.name === SYSTEM_ROLES.SUPERADMIN) {
         throw new DomainError('No se puede remover el rol superadmin del propietario de la empresa', 403);
     }
 
-    const deleted = await db
+    const deleteConditions = [
+        eq(authUserRoles.user_id, userIdStr),
+        eq(authUserRoles.role_id, roleId),
+    ];
+    if (companyId) deleteConditions.push(eq(authUserRoles.company_id, companyId));
+
+    await db
         .delete(authUserRoles)
-        .where(and(
-            eq(authUserRoles.user_id, userIdStr),
-            eq(authUserRoles.role_id, roleId)
-        ))
+        .where(and(...deleteConditions))
         .returning();
 
-    const user = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
-    await invalidateUserRbacCache(userIdStr, user?.company_id);
-    const targetRoom = user?.company_id ? getTenantRoom(user.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    const effectiveCompanyId = companyId || (await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) }))?.company_id;
+    await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
+    const targetRoom = effectiveCompanyId ? getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, targetRoom);
 
     return { success: true };

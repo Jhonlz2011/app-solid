@@ -108,15 +108,15 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     }, { permission: 'permissions.read' })
 
     // Role users
-    .get('/roles/:id/users', async ({ params }) => {
-        return await getUsersByRole(Number(params.id));
+    .get('/roles/:id/users', async ({ params, currentCompanyId }) => {
+        return await getUsersByRole(Number(params.id), currentCompanyId);
     }, {
         permission: 'roles.read',
         params: IdParamSchema,
     })
 
-    .delete('/roles/:id/users/:userId', async ({ params }) => {
-        return await removeUserFromRole(params.userId, Number(params.id));
+    .delete('/roles/:id/users/:userId', async ({ params, currentCompanyId }) => {
+        return await removeUserFromRole(params.userId, Number(params.id), currentCompanyId);
     }, {
         permission: 'roles.update',
         params: t.Object({ id: t.Numeric(), userId: t.String() }),
@@ -211,15 +211,15 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         response: UserReferencesResponseSchema,
     })
 
-    .get('/users/:id/roles', async ({ params }) => {
-        return await getUserRolesById(params.id);
+    .get('/users/:id/roles', async ({ params, currentCompanyId }) => {
+        return await getUserRolesById(params.id, currentCompanyId);
     }, {
         permission: 'users.read',
         params: IdStringParamSchema,
     })
 
-    .put('/users/:id/roles', async ({ params, body, currentUserId }) => {
-        return await assignUserRoles(params.id, body.roleIds, currentUserId);
+    .put('/users/:id/roles', async ({ params, body, currentUserId, currentCompanyId }) => {
+        return await assignUserRoles(params.id, body.roleIds, currentUserId, currentCompanyId);
     }, {
         permission: 'users.update',
         params: IdStringParamSchema,

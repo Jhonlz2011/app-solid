@@ -209,7 +209,7 @@ export const authUserRoles = pgTableV2("auth_user_roles", {
     role_id: integer("role_id").references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
     company_id: integer("company_id").references(() => companies.id).notNull(),
 }, (t) => [
-    primaryKey({ columns: [t.user_id, t.role_id] }),
+    primaryKey({ columns: [t.user_id, t.role_id, t.company_id] }),
     index("idx_user_roles_by_role").on(t.role_id),
     index("idx_user_roles_company").on(t.company_id),
     tenantPolicy(),

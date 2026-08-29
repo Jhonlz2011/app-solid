@@ -45,9 +45,13 @@ export async function getAllRoles(companyId: number) {
 
     const [userCounts, permCounts] = await Promise.all([
         db.select({ roleId: authUserRoles.role_id, count: count() })
-            .from(authUserRoles).groupBy(authUserRoles.role_id),
+            .from(authUserRoles)
+            .where(eq(authUserRoles.company_id, companyId))
+            .groupBy(authUserRoles.role_id),
         db.select({ roleId: authRolePermissions.role_id, count: count() })
-            .from(authRolePermissions).groupBy(authRolePermissions.role_id),
+            .from(authRolePermissions)
+            .where(eq(authRolePermissions.company_id, companyId))
+            .groupBy(authRolePermissions.role_id),
     ]);
 
     const userCountMap = new Map(userCounts.map(uc => [uc.roleId, Number(uc.count)]));
