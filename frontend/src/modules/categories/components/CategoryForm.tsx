@@ -1,13 +1,13 @@
-import { Component, createSignal, createEffect, Show, createMemo, lazy, For } from 'solid-js';
+import { Component, createSignal, createEffect, Show, createMemo } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CategoryFormSchema } from '@app/schema/frontend';
 import type { CategoryFormData } from '@app/schema/frontend';
 import TextField, { FieldLabel } from '@form/TextField';
 import { CategorySelect, SelectorBreadcrumbs, buildBreadcrumbs, useResolvedSelectorPath } from '@shared/ui/selectors';
 import { SkeletonLoader } from '@display/SkeletonLoader';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
+import { handleFormApiErrors } from '@shared/utils/form.utils';
 import { TagIcon } from '@icons/TagIcon';
 import { CloseIcon } from '@icons/CloseIcon';
 import Button from '@form/Button';
@@ -38,7 +38,6 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
 
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
 
-
     const form = createForm(() => ({
         defaultValues: {
             name: props.category?.name ?? '',
@@ -53,13 +52,16 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
                 specificOptions: a.specificOptions,
             })) ?? [],
         } as CategoryFormData,
-        validatorAdapter: valibotValidator(),
         validators: {
             onChange: CategoryFormSchema,
             onSubmit: CategoryFormSchema,
         },
         onSubmit: async ({ value }) => {
-            await props.onSubmit(value as CategoryFormData);
+            try {
+                await props.onSubmit(value as CategoryFormData);
+            } catch (err) {
+                handleFormApiErrors(form, err, 'Error al guardar la categoría', props.formId ?? 'category-form');
+            }
         },
     }));
 

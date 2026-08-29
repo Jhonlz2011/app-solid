@@ -1,11 +1,8 @@
 import { Component, createSignal } from 'solid-js';
-import { isNetworkError } from '@shared/utils/api-errors';
-import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { WarehouseFormSchema, type WarehouseFormData } from '@app/schema/frontend';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
-import { toast } from 'solid-sonner';
+import { executeFormMutation, handleFormApiErrors } from '@shared/utils/form.utils';
 import { useCreateWarehouse } from '../../data/warehouses.mutations';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
@@ -23,80 +20,103 @@ const WarehouseNewSheet: Component<WarehouseNewSheetProps> = (props) => {
 
     const form = createForm(() => ({
         defaultValues: { code: '', name: '', address: '', is_mobile: false } as WarehouseFormData,
-        validatorAdapter: valibotValidator(),
         validators: { onChange: WarehouseFormSchema, onSubmit: WarehouseFormSchema },
         onSubmit: async ({ value }) => {
-            if (isOffline()) {
-                createMut.mutate({ code: value.code.toUpperCase(), name: value.name, address: value.address || undefined, is_mobile: value.is_mobile });
-                showOfflineSavedToast();
-                navigateAway();
-                return;
-            }
-            createMut.mutate(
-                { code: value.code.toUpperCase(), name: value.name, address: value.address || undefined, is_mobile: value.is_mobile },
-                {
-                    onSuccess: () => { toast.success('Bodega creada correctamente'); navigateAway(); },
-                    onError: (err: any) => {
-                        if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
-                        toast.error(err.message || 'Error al crear bodega');
+            try {
+                await executeFormMutation({
+                    mutation: createMut,
+                    variables: {
+                        code: value.code.toUpperCase(),
+                        name: value.name,
+                        address: value.address || undefined,
+                        is_mobile: value.is_mobile,
                     },
-                },
-            );
+                    successMessage: 'Bodega creada correctamente',
+                    onComplete: navigateAway,
+                });
+            } catch (err) {
+                handleFormApiErrors(form, err, 'Error al crear la bodega', 'warehouse-new-form');
+            }
         },
     }));
 
     return (
         <Sheet
-            bindDismiss={bindDismiss} isOpen={true} onClose={navigateAway}
-            title="Nueva Bodega" description="Registra una nueva bodega o almacén" size="sm"
+            bindDismiss={bindDismiss}
+            isOpen={true}
+            onClose={navigateAway}
+            title="Nueva Bodega"
+            description="Registra una nueva bodega o almacén"
+            size="sm"
             footer={
                 <>
-                    <Button variant="outline" onClick={close} disabled={createMut.isPending}>Cancelar</Button>
-                    <Button type="submit" form="warehouse-form" loading={createMut.isPending} loadingText="Creando..." icon={<FloppyDiskIcon />}>
+                    <Button variant="outline" onClick={close} disabled={createMut.isPending}>
+                        Cancelar
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="warehouse-new-form"
+                        loading={createMut.isPending}
+                        loadingText="Creando..."
+                        icon={<FloppyDiskIcon />}
+                    >
                         Crear Bodega
                     </Button>
                 </>
             }
         >
             <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
-                <form id="warehouse-form" onSubmit={(e) => { e.preventDefault(); setHasAttemptedSubmit(true); form.handleSubmit(); }} class="space-y-5 py-2">
-                    <div class="grid grid-cols-[100px_1fr] gap-4">
-                        <form.Field name="code">
-                            {(field) => (
-                                <TextField.Root field={field()}>
-                                    <TextField.Label>Código *</TextField.Label>
-                                    <TextField.Input type="text" placeholder="BOD-01" class="uppercase font-mono" maxLength={20} />
-                                    <TextField.ErrorMessage />
-                                </TextField.Root>
-                            )}
-                        </form.Field>
-                        <form.Field name="name">
-                            {(field) => (
-                                <TextField.Root field={field()}>
-                                    <TextField.Label>Nombre *</TextField.Label>
-                                    <TextField.Input type="text" placeholder="Bodega Principal, Almacén Norte..." />
-                                    <TextField.ErrorMessage />
-                                </TextField.Root>
-                            )}
-                        </form.Field>
-                    </div>
-                    <form.Field name="address">
+                <form
+                    id="warehouse-new-form"
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setHasAttemptedSubmit(true);
+                        form.handleSubmit();
+                    }}
+                    class="space-y-5 py-2"
+                >
+                    <form.Field name="code">
                         {(field) => (
-                            <TextField.Root field={field()}>
-                                <TextField.Label>Dirección</TextField.Label>
-                                <TextField.Input type="text" placeholder="Av. Principal y Calle 10..." />
+                            <TextField.Root field={field()} disabled={createMut.isPending}>
+                                <TextField.Label>Código *</TextField.Label>
+                                <TextField.Input type="text" placeholder="BOD-01" class="uppercase" />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
                     </form.Field>
+
+                    <form.Field name="name">
+                        {(field) => (
+                            <TextField.Root field={field()} disabled={createMut.isPending}>
+                                <TextField.Label>Nombre *</TextField.Label>
+                                <TextField.Input type="text" placeholder="Bodega Principal" />
+                                <TextField.ErrorMessage />
+                            </TextField.Root>
+                        )}
+                    </form.Field>
+
+                    <form.Field name="address">
+                        {(field) => (
+                            <TextField.Root field={field()} disabled={createMut.isPending}>
+                                <TextField.Label>Dirección</TextField.Label>
+                                <TextField.Input type="text" placeholder="Av. Principal 123" />
+                                <TextField.ErrorMessage />
+                            </TextField.Root>
+                        )}
+                    </form.Field>
+
                     <form.Field name="is_mobile">
                         {(field) => (
-                            <Checkbox
-                                checked={field().state.value}
-                                onChange={(checked: boolean) => field().handleChange(checked)}
-                                label="Bodega Móvil"
-                                description="Marca si esta bodega es un vehículo o unidad de transporte."
-                            />
+                            <div class="flex items-center gap-2 pt-2">
+                                <Checkbox
+                                    name={field().name}
+                                    checked={field().state.value}
+                                    onChange={(checked) => field().handleChange(checked)}
+                                    disabled={createMut.isPending}
+                                />
+                                <span class="text-sm font-medium text-text">Es bodega móvil (vehículo)</span>
+                            </div>
                         )}
                     </form.Field>
                 </form>

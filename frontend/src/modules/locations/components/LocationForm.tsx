@@ -17,9 +17,8 @@ import {
 } from '@form/SegmentedControl';
 import { cn } from '@shared/lib/utils';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { LocationFormSchema, type LocationFormData } from '@app/schema/frontend';
-import { ApiError } from '@shared/utils/api-errors';
+import { handleFormApiErrors } from '@shared/utils/form.utils';
 
 interface LocationFormProps {
     /** Existing location data for edit mode */
@@ -65,22 +64,12 @@ const LocationForm: Component<LocationFormProps> = (props) => {
 
     const form = createForm(() => ({
         defaultValues: initialValues(),
-        validatorAdapter: valibotValidator(),
         validators: { onChange: LocationFormSchema, onSubmit: LocationFormSchema },
         onSubmit: async ({ value }) => {
             try {
                 await props.onSubmit(value);
             } catch (err) {
-                if (err instanceof ApiError && err.errors?.length) {
-                    for (const fieldErr of err.errors) {
-                        try {
-                            form.setFieldMeta(fieldErr.field as any, (prev) => ({
-                                ...prev,
-                                errorMap: { ...prev.errorMap, onSubmit: fieldErr.message },
-                            }));
-                        } catch { /* field not in form */ }
-                    }
-                }
+                handleFormApiErrors(form, err, 'Error al guardar la ubicación', props.formId);
             }
         },
     }));

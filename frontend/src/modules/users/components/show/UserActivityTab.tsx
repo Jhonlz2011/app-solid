@@ -60,7 +60,7 @@ const AuditDiffView: Component<{ entry: AuditLogEntryType }> = (props) => {
 
 // ─── Activity Tab ────────────────────────────────────────────────────────────
 
-const UserActivityTab: Component<{ userId: number }> = (props) => {
+const UserActivityTab: Component<{ userId: string }> = (props) => {
     const [page, setPage] = createSignal(1);
     const [expandedIds, setExpandedIds] = createSignal<Set<string>>(new Set());
     const auditQuery = useUserAuditLog(() => props.userId, page);

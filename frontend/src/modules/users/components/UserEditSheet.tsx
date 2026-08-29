@@ -1,8 +1,8 @@
-import { Component, Show, createMemo } from 'solid-js';
+import { Component, Show } from 'solid-js';
 import { useParams } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { toast } from 'solid-sonner';
-import type { UserFormData } from '@app/schema/frontend';
+import type { UserUpdateData } from '@app/schema/frontend';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
@@ -12,18 +12,17 @@ import {
     useUpdateUser, useAssignUserRoles,
     useSetUserEntity, useAdminResetPassword,
 } from '../data/users.mutations';
-import UserForm from './UserForm';
+import { UserEditForm } from './UserEditForm';
 
 interface UserEditSheetProps {
-    userId?: number;
+    userId?: string;
     onClose?: () => void;
-
 }
 
 const UserEditSheet: Component<UserEditSheetProps> = (props) => {
-    const params = useParams({ strict: false }) as () => any;
+    const params = useParams({ strict: false }) as () => { userId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-    const userId = () => props.userId ?? Number(params()?.userId);
+    const userId = () => props.userId ?? params()?.userId;
 
     const userQuery = useUser(userId);
     const rolesQuery = useRoles();
@@ -32,17 +31,20 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
     const setEntityMutation = useSetUserEntity();
     const resetPwMutation = useAdminResetPassword();
 
-    const handleSubmit = async (values: UserFormData & { newPassword?: string }) => {
+    const handleSubmit = async (values: UserUpdateData & { newPassword?: string }) => {
+        const targetId = userId();
+        if (!targetId) return;
+
         try {
-            const promises: Promise<any>[] = [
+            const promises: Promise<unknown>[] = [
                 updateMutation.mutateAsync({
-                    id: userId(),
+                    id: targetId,
                     username: values.username,
                     email: values.email,
                     isActive: values.isActive,
                 }),
                 assignRolesMutation.mutateAsync({
-                    userId: userId(),
+                    userId: targetId,
                     roleIds: values.roleIds,
                 }),
             ];
@@ -52,7 +54,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
             if (values.entityId !== undefined && values.entityId !== currentEntityId) {
                 promises.push(
                     setEntityMutation.mutateAsync({
-                        userId: userId(),
+                        userId: targetId,
                         entityId: values.entityId,
                     })
                 );
@@ -62,7 +64,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
             if (values.newPassword) {
                 promises.push(
                     resetPwMutation.mutateAsync({
-                        userId: userId(),
+                        userId: targetId,
                         newPassword: values.newPassword,
                     })
                 );
@@ -73,6 +75,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
             const msgs = ['Usuario actualizado correctamente'];
             if (values.newPassword) msgs.push('Contraseña restablecida — sesiones cerradas');
             toast.success(msgs.join('. '));
+            close();
         } catch (err: any) {
             toast.error(err?.message || 'Error al actualizar usuario');
         }
@@ -126,7 +129,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                     }
                 >
                     {(user) => (
-                        <UserForm
+                        <UserEditForm
                             formId="user-edit-form"
                             defaultValues={{
                                 username: user().username,
@@ -137,10 +140,6 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                             }}
                             roles={rolesQuery.data ?? []}
                             rolesLoading={rolesQuery.isPending}
-                            showPassword={false}
-                            showPasswordChange={true}
-                            showIsActive={true}
-                            showEntityPicker={true}
                             initialEntity={user().entity}
                             onSubmit={handleSubmit}
                             isSubmitting={isPending()}

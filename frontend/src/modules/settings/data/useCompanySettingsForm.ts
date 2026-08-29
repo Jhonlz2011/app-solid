@@ -1,6 +1,5 @@
 import { createSignal, createEffect, createMemo, onCleanup, untrack } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CompanySettingsFormSchema, type CompanySettingsFormData } from '@app/schema/frontend';
 import type { CropCoordinates } from '@app/schema/dto';
 import { BRANDING_DEFAULTS } from '@app/schema/utils';
@@ -69,7 +68,6 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
             rimpeType: 'GENERAL',
             sriEnvironment: '2',
         } as CompanySettingsFormData,
-        validatorAdapter: valibotValidator(),
         validators: {
             onChange: CompanySettingsFormSchema,
             onSubmit: CompanySettingsFormSchema,

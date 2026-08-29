@@ -1,7 +1,6 @@
 // Security Section - Change Password Form with TanStack Form + Valibot
 import { Component, Show } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { ChangePasswordSchema } from '@app/schema/frontend';
 import { TextField } from '@form/TextField';
 import Button from '@form/Button';
@@ -21,7 +20,6 @@ export const SecuritySection: Component<SecuritySectionProps> = (props) => {
             newPassword: '',
             confirmPassword: '',
         },
-        validatorAdapter: valibotValidator(),
         validators: {
             onSubmit: ChangePasswordSchema,
         },

@@ -1,14 +1,13 @@
-import { Component, createMemo } from 'solid-js';
+import { Component } from 'solid-js';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
-import { toast } from 'solid-sonner';
-import type { UserFormData } from '@app/schema/frontend';
+import { executeFormMutation } from '@shared/utils/form.utils';
+import type { UserCreateData } from '@app/schema/frontend';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { useRoles } from '../data/users.queries';
 import { useCreateUser, useSetUserEntity } from '../data/users.mutations';
-import { isNetworkError } from '@shared/utils/api-errors';
-import UserForm from './UserForm';
+import { UserCreateForm } from './UserCreateForm';
 
 interface UserNewSheetProps {
     onClose?: () => void;
@@ -20,35 +19,25 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
     const rolesQuery = useRoles();
     const setEntityMutation = useSetUserEntity();
 
-    const handleSubmit = async (values: UserFormData & { newPassword?: string }) => {
-        if (!values.password) return;
-        try {
-            const created = await createMutation.mutateAsync({
+    const handleSubmit = async (values: UserCreateData) => {
+        const created = await executeFormMutation({
+            mutation: createMutation,
+            variables: {
                 username: values.username,
                 email: values.email,
                 password: values.password,
                 roleIds: values.roleIds.length > 0 ? values.roleIds : undefined,
+            },
+            successMessage: `Usuario "${values.username}" creado correctamente`,
+            onComplete: close,
+        });
+
+        // Assign entity if selected
+        if (values.entityId && created?.id) {
+            await setEntityMutation.mutateAsync({
+                userId: created.id,
+                entityId: values.entityId,
             });
-
-            // Assign entity if selected
-            if (values.entityId && created?.id) {
-                await setEntityMutation.mutateAsync({
-                    userId: created.id,
-                    entityId: values.entityId,
-                });
-            }
-
-            toast.success(`Usuario "${values.username}" creado correctamente`);
-            close();
-
-
-        } catch (err: any) {
-            if (isNetworkError(err)) {
-                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
-                close();
-                return;
-            }
-            toast.error(err?.message || 'Error al crear usuario');
         }
     };
 
@@ -69,7 +58,7 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
                     </Button>
                     <Button
                         type="submit"
-                        form="user-form"
+                        form="user-create-form"
                         loading={isPending()}
                         loadingText="Creando..."
                         icon={<FloppyDiskIcon />}
@@ -79,13 +68,10 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
                 </>
             }
         >
-            <UserForm
-                formId="user-form"
+            <UserCreateForm
+                formId="user-create-form"
                 roles={rolesQuery.data ?? []}
                 rolesLoading={rolesQuery.isPending}
-                showPassword={true}
-                showIsActive={false}
-                showEntityPicker={true}
                 onSubmit={handleSubmit}
                 isSubmitting={isPending()}
             />

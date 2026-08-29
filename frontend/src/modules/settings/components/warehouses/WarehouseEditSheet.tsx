@@ -1,12 +1,9 @@
 import { Component, Show, createSignal, createEffect } from 'solid-js';
-import { isNetworkError } from '@shared/utils/api-errors';
-import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
 import { useParams } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { WarehouseFormSchema, type WarehouseFormData } from '@app/schema/frontend';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
-import { toast } from 'solid-sonner';
+import { executeFormMutation, handleFormApiErrors } from '@shared/utils/form.utils';
 import { useWarehousesList } from '../../data/warehouses.queries';
 import { useUpdateWarehouse, useDeactivateWarehouse, useRestoreWarehouse } from '../../data/warehouses.mutations';
 import type { WarehouseItem } from '../../data/warehouses.api';
@@ -36,26 +33,27 @@ const WarehouseEditSheet: Component<WarehouseEditSheetProps> = (props) => {
 
     const form = createForm(() => ({
         defaultValues: { code: '', name: '', address: '', is_mobile: false } as WarehouseFormData,
-        validatorAdapter: valibotValidator(),
         validators: { onChange: WarehouseFormSchema, onSubmit: WarehouseFormSchema },
         onSubmit: async ({ value }) => {
             if (warehouseId() === 0) return;
-            if (isOffline()) {
-                updateMut.mutate({ id: warehouseId(), data: { code: value.code.toUpperCase(), name: value.name, address: value.address || null, is_mobile: value.is_mobile } });
-                showOfflineSavedToast();
-                navigateAway();
-                return;
-            }
-            updateMut.mutate(
-                { id: warehouseId(), data: { code: value.code.toUpperCase(), name: value.name, address: value.address || null, is_mobile: value.is_mobile } },
-                {
-                    onSuccess: () => { toast.success('Bodega actualizada'); navigateAway(); },
-                    onError: (err: any) => {
-                        if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
-                        toast.error(err.message || 'Error al actualizar');
+            try {
+                await executeFormMutation({
+                    mutation: updateMut,
+                    variables: {
+                        id: warehouseId(),
+                        data: {
+                            code: value.code.toUpperCase(),
+                            name: value.name,
+                            address: value.address || null,
+                            is_mobile: value.is_mobile,
+                        },
                     },
-                },
-            );
+                    successMessage: 'Bodega actualizada',
+                    onComplete: navigateAway,
+                });
+            } catch (err) {
+                handleFormApiErrors(form, err, 'Error al actualizar la bodega', 'warehouse-edit-form');
+            }
         },
     }));
 
@@ -73,18 +71,13 @@ const WarehouseEditSheet: Component<WarehouseEditSheetProps> = (props) => {
         const w = warehouse();
         if (!w) return;
         const isActive = w.is_active ?? true;
-        if (isOffline()) {
-            (isActive ? deactivateMut : restoreMut).mutate(w.id);
-            showOfflineSavedToast();
-            navigateAway();
-            return;
-        }
-        (isActive ? deactivateMut : restoreMut).mutate(w.id, {
-            onSuccess: () => { toast.success(isActive ? 'Bodega desactivada' : 'Bodega restaurada'); navigateAway(); },
-            onError: (err: any) => {
-                if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
-                toast.error(err.message || 'Error');
-            },
+        const mut = isActive ? deactivateMut : restoreMut;
+
+        executeFormMutation({
+            mutation: mut,
+            variables: w.id,
+            successMessage: isActive ? 'Bodega desactivada' : 'Bodega restaurada',
+            onComplete: navigateAway,
         });
     };
 
@@ -92,18 +85,32 @@ const WarehouseEditSheet: Component<WarehouseEditSheetProps> = (props) => {
 
     return (
         <Sheet
-            bindDismiss={bindDismiss} isOpen={true} onClose={navigateAway}
-            title="Editar Bodega" description="Modifica los datos de la bodega" size="sm"
+            bindDismiss={bindDismiss}
+            isOpen={true}
+            onClose={navigateAway}
+            title="Editar Bodega"
+            description="Modifica los datos de la bodega"
+            size="sm"
             footer={
                 <>
                     <Show when={warehouse()}>
-                        <Button variant={(warehouse()?.is_active ?? true) ? 'danger' : 'success'} onClick={handleToggleActive} loading={deactivateMut.isPending || restoreMut.isPending}>
+                        <Button
+                            variant={(warehouse()?.is_active ?? true) ? 'danger' : 'success'}
+                            onClick={handleToggleActive}
+                            loading={deactivateMut.isPending || restoreMut.isPending}
+                        >
                             {(warehouse()?.is_active ?? true) ? 'Desactivar' : 'Restaurar'}
                         </Button>
                     </Show>
                     <div class="flex-1" />
                     <Button variant="outline" onClick={close} disabled={isSaving()}>Cancelar</Button>
-                    <Button type="submit" form="warehouse-edit-form" loading={updateMut.isPending} loadingText="Guardando..." icon={<FloppyDiskIcon />}>
+                    <Button
+                        type="submit"
+                        form="warehouse-edit-form"
+                        loading={updateMut.isPending}
+                        loadingText="Guardando..."
+                        icon={<FloppyDiskIcon />}
+                    >
                         Guardar
                     </Button>
                 </>
@@ -113,44 +120,57 @@ const WarehouseEditSheet: Component<WarehouseEditSheetProps> = (props) => {
                 <Show when={!warehousesQuery.isLoading} fallback={<SkeletonLoader type="text" count={3} />}>
                     <Show when={warehouse()} fallback={<div class="py-12 text-center text-muted">Bodega no encontrada</div>}>
                         <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
-                            <form id="warehouse-edit-form" onSubmit={(e) => { e.preventDefault(); setHasAttemptedSubmit(true); form.handleSubmit(); }} class="space-y-5 py-2">
-                                <div class="grid grid-cols-[100px_1fr] gap-4">
-                                    <form.Field name="code">
-                                        {(field) => (
-                                            <TextField.Root field={field()}>
-                                                <TextField.Label>Código *</TextField.Label>
-                                                <TextField.Input type="text" class="uppercase font-mono" maxLength={20} />
-                                                <TextField.ErrorMessage />
-                                            </TextField.Root>
-                                        )}
-                                    </form.Field>
-                                    <form.Field name="name">
-                                        {(field) => (
-                                            <TextField.Root field={field()}>
-                                                <TextField.Label>Nombre *</TextField.Label>
-                                                <TextField.Input type="text" />
-                                                <TextField.ErrorMessage />
-                                            </TextField.Root>
-                                        )}
-                                    </form.Field>
-                                </div>
+                            <form
+                                id="warehouse-edit-form"
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setHasAttemptedSubmit(true);
+                                    form.handleSubmit();
+                                }}
+                                class="space-y-5 py-2"
+                            >
+                                <form.Field name="code">
+                                    {(field) => (
+                                        <TextField.Root field={field()} disabled={isSaving()}>
+                                            <TextField.Label>Código *</TextField.Label>
+                                            <TextField.Input type="text" class="uppercase" />
+                                            <TextField.ErrorMessage />
+                                        </TextField.Root>
+                                    )}
+                                </form.Field>
+
+                                <form.Field name="name">
+                                    {(field) => (
+                                        <TextField.Root field={field()} disabled={isSaving()}>
+                                            <TextField.Label>Nombre *</TextField.Label>
+                                            <TextField.Input type="text" />
+                                            <TextField.ErrorMessage />
+                                        </TextField.Root>
+                                    )}
+                                </form.Field>
+
                                 <form.Field name="address">
                                     {(field) => (
-                                        <TextField.Root field={field()}>
+                                        <TextField.Root field={field()} disabled={isSaving()}>
                                             <TextField.Label>Dirección</TextField.Label>
                                             <TextField.Input type="text" />
                                             <TextField.ErrorMessage />
                                         </TextField.Root>
                                     )}
                                 </form.Field>
+
                                 <form.Field name="is_mobile">
                                     {(field) => (
-                                        <Checkbox
-                                            checked={field().state.value}
-                                            onChange={(checked: boolean) => field().handleChange(checked)}
-                                            label="Bodega Móvil"
-                                            description="Vehículo o unidad de transporte."
-                                        />
+                                        <div class="flex items-center gap-2 pt-2">
+                                            <Checkbox
+                                                name={field().name}
+                                                checked={field().state.value}
+                                                onChange={(checked) => field().handleChange(checked)}
+                                                disabled={isSaving()}
+                                            />
+                                            <span class="text-sm font-medium text-text">Es bodega móvil (vehículo)</span>
+                                        </div>
                                     )}
                                 </form.Field>
                             </form>

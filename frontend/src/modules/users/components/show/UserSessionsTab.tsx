@@ -12,7 +12,7 @@ import ConfirmDialog from '@overlay/ConfirmDialog';
 import { useUserSessions } from '../../data/users.queries';
 import { useRevokeUserSession } from '../../data/users.mutations';
 
-const UserSessionsTab: Component<{ userId: number }> = (props) => {
+const UserSessionsTab: Component<{ userId: string }> = (props) => {
     const queryClient = useQueryClient();
     const { subscribe, unsubscribe } = useSSE();
     const sessionsQuery = useUserSessions(() => props.userId);

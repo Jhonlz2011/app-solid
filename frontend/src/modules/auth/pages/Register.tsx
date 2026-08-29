@@ -2,7 +2,6 @@ import { Component, createSignal, Show, For, onCleanup, createEffect } from 'sol
 import { toast } from 'solid-sonner';
 import { useNavigate } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { RegisterStep1Schema, RegisterStep2Schema, type RegisterStep1Data } from '@app/schema/frontend';
 import { BUSINESS_TYPES, TAX_REGIME_TYPES } from '@app/schema/enums';
 import { isGlobalPortalHost, buildTenantUrl } from '@app/schema/utils';
@@ -120,7 +119,6 @@ const Register: Component = () => {
             phone: undefined as string | undefined,
             cedula: undefined as string | undefined,
         },
-        validatorAdapter: valibotValidator(),
         validators: { onSubmit: RegisterStep1Schema },
         onSubmit: async () => {
             setStep(1);
@@ -153,7 +151,6 @@ const Register: Component = () => {
             obligadoContabilidad: false,
             contribuyenteEspecial: undefined as string | undefined,
         },
-        validatorAdapter: valibotValidator(),
         validators: { onSubmit: RegisterStep2Schema },
         onSubmit: async () => {
             setStep(2);

@@ -8,11 +8,11 @@ import { useResolvedSelectorPath } from '@shared/ui/selectors';
 import SectionHeader from './ui/SectionHeader';
 import { PlusIcon } from '@icons/PlusIcon';
 import { EditIcon } from '@icons/EditIcon';
-
+import type { CategoryFormSchemaAttribute } from '@app/schema/dto';
 
 interface DynamicAttributeFieldsProps {
     /** Category attributes from parent query */
-    attributes: () => Array<{ key: string; label: string; type: string; required?: boolean; options?: string[] }>;
+    attributes: () => CategoryFormSchemaAttribute[];
     /** Name template from category */
     nameTemplate: () => string | null;
     /** JSONB object: { material: "Acero", norma: "ASTM A36" } */
@@ -100,12 +100,12 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <For each={attributes()}>
-                        {(attr: any) => {
+                        {(attr) => {
                             const isSelect = () => attr.type === 'SELECT';
                             const isNumber = () => attr.type === 'NUMBER';
                             const isBoolean = () => attr.type === 'BOOLEAN';
                             const options = createMemo((): SelectOption[] =>
-                                ((attr.options ?? []) as string[]).map(o => ({ value: o, label: o }))
+                                (attr.options ?? []).map(o => ({ value: o, label: o }))
                             );
 
                             // Label with pencil icon for editing this attribute definition

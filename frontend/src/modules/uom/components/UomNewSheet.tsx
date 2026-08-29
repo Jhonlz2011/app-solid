@@ -1,68 +1,63 @@
-import { Component, createSignal } from 'solid-js';
-import { isNetworkError } from '@shared/utils/api-errors';
-import { isOffline, showOfflineSavedToast } from '@shared/utils/offline-submit';
-import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
-import { UomFormSchema, type UomFormData } from '@app/schema/frontend';
+import { Component } from 'solid-js';
+import type { UomFormData } from '@app/schema/frontend';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
-import { toast } from 'solid-sonner';
+import { executeFormMutation } from '@shared/utils/form.utils';
 import { useCreateUom } from '../data/uom.mutations';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
-import UomForm from './UomForm';
+import { UomForm } from './UomForm';
 
-interface UomNewSheetProps { onClose?: () => void; }
+interface UomNewSheetProps {
+    onClose?: () => void;
+}
 
 const UomNewSheet: Component<UomNewSheetProps> = (props) => {
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
     const createMut = useCreateUom();
-    const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
 
-    const form = createForm(() => ({
-        defaultValues: { code: '', name: '', uom_group: 'CANTIDAD', base_factor: '1' } as UomFormData,
-        validatorAdapter: valibotValidator(),
-        validators: { onChange: UomFormSchema, onSubmit: UomFormSchema },
-        onSubmit: async ({ value }) => {
-            if (isOffline()) {
-                createMut.mutate({ code: value.code.toUpperCase(), name: value.name, uom_group: value.uom_group, base_factor: value.base_factor ? String(value.base_factor).replace(',', '.') : undefined });
-                showOfflineSavedToast();
-                navigateAway();
-                return;
-            }
-            createMut.mutate(
-                { code: value.code.toUpperCase(), name: value.name, uom_group: value.uom_group, base_factor: value.base_factor ? String(value.base_factor).replace(',', '.') : undefined },
-                {
-                    onSuccess: () => { toast.success('Unidad creada correctamente'); navigateAway(); },
-                    onError: (err: any) => {
-                        if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
-                        toast.error(err.message || 'Error al crear unidad');
-                    },
-                },
-            );
-        },
-    }));
-
-    const handleSubmit = () => { setHasAttemptedSubmit(true); form.handleSubmit(); };
+    const handleSubmit = (values: UomFormData) =>
+        executeFormMutation({
+            mutation: createMut,
+            variables: {
+                code: values.code.toUpperCase(),
+                name: values.name,
+                uom_group: values.uom_group,
+                base_factor: values.base_factor ? String(values.base_factor).replace(',', '.') : undefined,
+            },
+            successMessage: 'Unidad creada correctamente',
+            onComplete: navigateAway,
+        });
 
     return (
         <Sheet
-            bindDismiss={bindDismiss} isOpen={true} onClose={navigateAway}
-            title="Nueva Unidad de Medida" description="Registra una nueva unidad estandarizada" size="md"
+            bindDismiss={bindDismiss}
+            isOpen={true}
+            onClose={navigateAway}
+            title="Nueva Unidad de Medida"
+            description="Registra una nueva unidad estandarizada"
+            size="md"
             footer={
                 <>
-                    <Button variant="outline" onClick={close} disabled={createMut.isPending}>Cancelar</Button>
-                    <Button type="submit" form="uom-form" loading={createMut.isPending} loadingText="Creando..." icon={<FloppyDiskIcon />} onClick={handleSubmit}>
+                    <Button variant="outline" onClick={close} disabled={createMut.isPending}>
+                        Cancelar
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="uom-new-form"
+                        loading={createMut.isPending}
+                        loadingText="Creando..."
+                        icon={<FloppyDiskIcon />}
+                    >
                         Crear Unidad
                     </Button>
                 </>
             }
         >
             <UomForm
-                form={form}
-                formId="uom-form"
-                hasAttemptedSubmit={hasAttemptedSubmit}
-                codePlaceholder="UND, KG, M..."
+                formId="uom-new-form"
+                onSubmit={handleSubmit}
+                isSubmitting={createMut.isPending}
             />
         </Sheet>
     );

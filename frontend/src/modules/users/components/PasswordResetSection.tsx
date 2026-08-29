@@ -9,7 +9,7 @@ import { CopyIcon } from '@icons/CopyIcon';
 import { useAdminResetPassword } from '../data/users.mutations';
 
 interface PasswordResetSectionProps {
-    userId: number;
+    userId: string;
     username: string;
 }
 

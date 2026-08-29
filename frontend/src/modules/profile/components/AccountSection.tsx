@@ -1,7 +1,6 @@
 // Account Section - Username/Email Form with TanStack Form + Valibot
 import { Component, Show, createMemo } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import type { ProfileType } from '@app/schema/dto';
 import { UpdateProfileSchema } from '@app/schema/frontend';
 import { TextField } from '@form/TextField';
@@ -25,7 +24,6 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
             username: profileUsername(),
             email: profileEmail(),
         },
-        validatorAdapter: valibotValidator(),
         validators: {
             onBlur: UpdateProfileSchema,
             onSubmit: UpdateProfileSchema,

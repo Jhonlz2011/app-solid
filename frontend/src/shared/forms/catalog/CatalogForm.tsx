@@ -4,11 +4,10 @@
  */
 import { Component, Show, createSignal, createEffect, createMemo, onCleanup, untrack } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { ProductFormSchema } from '@app/schema/frontend';
 import type { ProductFormData, ProductVariantFormData } from '@app/schema/frontend';
-import { ApiError } from '@shared/utils/api-errors';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
+import { handleFormApiErrors } from '@shared/utils/form.utils';
 import type { ProductComponentFormData } from '@app/schema/frontend';
 
 // Shared UI
@@ -43,6 +42,7 @@ export interface CatalogFormProps {
     product?: Product;
     onSubmit: (data: ProductFormData) => Promise<void>;
     isSubmitting: boolean;
+    formId: string;
 }
 
 const defaultVariant = (): ProductVariantFormData => ({
@@ -65,46 +65,48 @@ const defaultVariant = (): ProductVariantFormData => ({
 
 function buildDefaultValues(mode: CatalogModeConfig, product?: Product): ProductFormData {
     if (product) {
-        // Cast to our payload interface + potential relations
-        const p = product as unknown as Partial<ProductFormData> & { product_components?: ProductComponentFormData[], id?: number };
-        const variants = p.variants ?? [];
+        const variants = product.variants ?? [];
         return {
-            product_type: p.product_type,
-            product_subtype: p.product_subtype ?? null,
-            category_id: p.category_id,
-            brand_id: p.brand_id ?? null,
-            slug: p.slug,
-            name: p.name,
-            description: p.description ?? null,
-            shared_attributes: p.shared_attributes ?? {},
+            product_type: product.product_type ?? mode.type,
+            product_subtype: product.product_subtype ?? null,
+            category_id: product.category_id ?? 0,
+            brand_id: product.brand_id ?? null,
+            slug: product.slug ?? '',
+            name: product.name ?? '',
+            description: product.description ?? null,
+            shared_attributes: (product.shared_attributes as Record<string, unknown>) ?? {},
 
-            image_urls: p.image_urls ?? [],
-            components: (p.components ?? p.product_components ?? []).map((c) => ({
+            image_urls: product.image_urls ?? [],
+            components: (product.components ?? []).map((c) => ({
                 id: c.id ?? null,
                 component_product_id: c.component_product_id,
                 quantity_per_parent: Number(c.quantity_per_parent),
                 is_reversible: c.is_reversible ?? true,
                 notes: c.notes ?? null,
             })),
-            uom_inventory_id: p.uom_inventory_id ?? 0,
+            uom_inventory_id: product.uom_inventory_id ?? 0,
 
-            has_dimensional_tracking: p.has_dimensional_tracking ?? false,
-            min_stock_alert: Number(p.min_stock_alert) || null,
-            default_base_price: Number(p.default_base_price) || 0,
-            iva_rate_code: p.iva_rate_code ?? 4,
-            is_active: p.is_active ?? true,
+            has_dimensional_tracking: product.has_dimensional_tracking ?? false,
+            min_stock_alert: Number(product.min_stock_alert) || null,
+            default_base_price: Number(product.default_base_price) || 0,
+            iva_rate_code: product.iva_rate_code ?? 4,
+            is_active: product.is_active ?? true,
             variants: variants.length > 0
                 ? variants.map((v) => ({
-                    id: v.id ?? null, sku: v.sku ?? '', variant_name: v.variant_name ?? null,
-                    variant_attributes: v.variant_attributes ?? {},
+                    id: v.id ?? null,
+                    sku: v.sku ?? '',
+                    variant_name: v.variant_name ?? null,
+                    variant_attributes: (v.variant_attributes as Record<string, unknown>) ?? {},
                     content_quantity: Number(v.content_quantity) || 1,
                     sale_uom_id: v.sale_uom_id ?? null,
                     base_price: v.base_price ? Number(v.base_price) : null,
                     last_cost: v.last_cost ? Number(v.last_cost) : null,
-                    barcode: v.barcode ?? null, image_urls: v.image_urls ?? null,
+                    barcode: v.barcode ?? null,
+                    image_urls: v.image_urls ?? null,
                     std_length_cm: v.std_length_cm ? Number(v.std_length_cm) : null,
                     std_width_cm: v.std_width_cm ? Number(v.std_width_cm) : null,
-                    is_default: v.is_default, is_active: v.is_active,
+                    is_default: v.is_default ?? false,
+                    is_active: v.is_active ?? true,
                     sort_order: v.sort_order ?? 0,
                 }))
                 : [defaultVariant()],
@@ -142,7 +144,6 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
     // ── TanStack Form ─────────────────────────────────────────────────
     const form = createForm(() => ({
         defaultValues: buildDefaultValues(props.mode, props.product),
-        validatorAdapter: valibotValidator(),
         validators: { onChange: ProductFormSchema, onSubmit: ProductFormSchema },
         onSubmit: async ({ value }) => {
             let uploadedUrls: string[] = [];
@@ -187,15 +188,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                         uploadedUrls.map(url => productsApi.deleteImage?.(url))
                     ).catch(() => {/* silent */ });
                 }
-                if (err instanceof ApiError && err.errors?.length) {
-                    for (const fe of err.errors) {
-                        try {
-                            // @ts-expect-error - Dynamic field strings from backend cannot be statically typed
-                            form.setFieldMeta(fe.field, (p) => ({ ...p, errorMap: { ...p.errorMap, onSubmit: fe.message } }));
-                        }
-                        catch { /* field not in form */ }
-                    }
-                }
+                handleFormApiErrors(form, err, 'Error al guardar el producto', props.formId ?? 'product-form');
             }
         },
     }));
@@ -213,12 +206,8 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
     // Centralized category schema query — single subscription shared via props
     const categorySchemaQuery = useCategoryFormSchema(() => categoryId() > 0 ? categoryId() : null);
 
-    // Create a strict type cast for the response data
-    type CategorySchemaResponse = { attributes?: unknown[], category?: { nameTemplate?: string, name?: string } };
-    const catData = () => (categorySchemaQuery.data as CategorySchemaResponse | undefined);
-
-    const categoryAttributes = createMemo(() => catData()?.attributes ?? []);
-    const nameTemplate = createMemo(() => catData()?.category?.nameTemplate ?? null);
+    const categoryAttributes = createMemo(() => categorySchemaQuery.data?.attributes ?? []);
+    const nameTemplate = createMemo(() => categorySchemaQuery.data?.category?.nameTemplate ?? null);
     const hasTemplate = createMemo(() => !!nameTemplate());
 
 

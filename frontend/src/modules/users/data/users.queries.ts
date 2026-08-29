@@ -59,7 +59,7 @@ export function useUsers(filters: () => UsersFilters, enabled?: () => boolean) {
     }));
 }
 
-export function useUser(id: () => string | number | null | undefined) {
+export function useUser(id: () => string | null | undefined) {
     return createQuery(() => ({
         queryKey: rbacKeys.user(id() ?? ''),
         queryFn: () => usersApi.getUser(id()!),
@@ -133,7 +133,7 @@ export function useRoleUsers(roleId: () => number | null | undefined) {
 // User Detail Queries (Sessions, References, Audit)
 // =============================================================================
 
-export function useUserSessions(userId: () => string | number | null | undefined) {
+export function useUserSessions(userId: () => string | null | undefined) {
     return createQuery(() => ({
         queryKey: rbacKeys.userSessions(userId() ?? ''),
         queryFn: () => usersApi.getUserSessions(userId()!),
@@ -143,7 +143,7 @@ export function useUserSessions(userId: () => string | number | null | undefined
     }));
 }
 
-export function useCheckUserReferences(id: () => string | number | null | undefined, enabled: () => boolean) {
+export function useCheckUserReferences(id: () => string | null | undefined, enabled: () => boolean) {
     return createQuery(() => ({
         queryKey: rbacKeys.canDelete(id() ?? ''),
         queryFn: async (): Promise<UserReferencesType> => {
@@ -156,7 +156,7 @@ export function useCheckUserReferences(id: () => string | number | null | undefi
     }));
 }
 
-export function useUserAuditLog(userId: () => string | number | null | undefined, page: () => number) {
+export function useUserAuditLog(userId: () => string | null | undefined, page: () => number) {
     return createQuery(() => ({
         queryKey: rbacKeys.userAuditLog(userId() ?? '', page()),
         queryFn: () => usersApi.getUserAuditLog(userId()!, page()),

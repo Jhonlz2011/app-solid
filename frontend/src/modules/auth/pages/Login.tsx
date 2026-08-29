@@ -2,7 +2,6 @@ import { Component, onMount, Show, createSignal, For, type JSX } from 'solid-js'
 import { toast } from 'solid-sonner';
 import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { AuthLoginSchema, type AuthLoginFormData } from '@app/schema/frontend';
 import type { DiscoverTenantItemType } from '@app/schema/dto';
 import { actions } from '@modules/auth/store/auth.store';
@@ -140,7 +139,6 @@ const Login: Component = () => {
       email: '',
       password: '',
     } as AuthLoginFormData,
-    validatorAdapter: valibotValidator(),
     validators: { onSubmit: AuthLoginSchema },
     onSubmit: async ({ value }) => {
       try {

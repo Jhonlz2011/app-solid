@@ -1,5 +1,4 @@
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { ProductFormSchema, type ProductFormData, type ProductVariantFormData } from '@app/schema/frontend';
 import type { Accessor } from 'solid-js';
 
@@ -10,7 +9,6 @@ import type { Accessor } from 'solid-js';
  */
 const __dummyForm = createForm(() => ({
     defaultValues: {} as ProductFormData,
-    validatorAdapter: valibotValidator(),
     validators: {
         onChange: ProductFormSchema,
         onSubmit: ProductFormSchema,

@@ -1,8 +1,8 @@
 import { Component, createSignal } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { CarrierVehicleFormSchema, type CarrierVehicleFormData } from '@app/schema/frontend';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
+import { executeFormMutation, handleFormApiErrors } from '@shared/utils/form.utils';
 import { useCreateVehicle } from '../../data/vehicles.mutations';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { TruckIcon } from '@icons/TruckIcon';
@@ -28,22 +28,25 @@ const VehicleNewSheet: Component<VehicleNewSheetProps> = (props) => {
             description: '',
             isActive: true,
         } as CarrierVehicleFormData,
-        validatorAdapter: valibotValidator(),
         validators: {
             onChange: CarrierVehicleFormSchema,
             onSubmit: CarrierVehicleFormSchema,
         },
         onSubmit: async ({ value }) => {
-            createMut.mutate(
-                {
-                    licensePlate: value.licensePlate.toUpperCase().trim(),
-                    description: value.description || undefined,
-                    isActive: value.isActive ?? true,
-                },
-                {
-                    onSuccess: () => navigateAway(),
-                }
-            );
+            try {
+                await executeFormMutation({
+                    mutation: createMut,
+                    variables: {
+                        licensePlate: value.licensePlate.toUpperCase().trim(),
+                        description: value.description || undefined,
+                        isActive: value.isActive ?? true,
+                    },
+                    successMessage: 'Vehículo registrado correctamente',
+                    onComplete: navigateAway,
+                });
+            } catch (err) {
+                handleFormApiErrors(form, err, 'Error al registrar el vehículo', 'vehicle-new-form');
+            }
         },
     }));
 
@@ -62,7 +65,7 @@ const VehicleNewSheet: Component<VehicleNewSheetProps> = (props) => {
                     </Button>
                     <Button
                         type="submit"
-                        form="vehicle-form"
+                        form="vehicle-new-form"
                         loading={createMut.isPending}
                         loadingText="Guardando..."
                         icon={<FloppyDiskIcon />}
@@ -74,35 +77,32 @@ const VehicleNewSheet: Component<VehicleNewSheetProps> = (props) => {
         >
             <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
                 <form
-                    id="vehicle-form"
+                    id="vehicle-new-form"
                     onSubmit={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         setHasAttemptedSubmit(true);
                         form.handleSubmit();
                     }}
-                    class="space-y-5 p-1"
+                    class="space-y-4 py-2"
                 >
-                    <div class="flex items-center gap-3 p-3 bg-primary/5 border border-primary/15 rounded-xl text-xs text-muted leading-relaxed">
-                        <TruckIcon class="size-5 text-primary shrink-0" />
-                        <span>Este vehículo estará disponible para despachos y Guías de Remisión de la empresa.</span>
+                    {/* Header icon callout */}
+                    <div class="flex items-center gap-3 p-3 bg-surface/60 rounded-xl border border-border/50 text-xs text-muted">
+                        <div class="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <TruckIcon class="size-4 text-primary" />
+                        </div>
+                        <span>Los vehículos registrados estarán disponibles para asociar a guías de remisión y despachos internos.</span>
                     </div>
 
                     <form.Field name="licensePlate">
                         {(field) => (
-                            <TextField.Root field={field()}>
-                                <TextField.Label>Placa del Vehículo</TextField.Label>
+                            <TextField.Root field={field()} disabled={createMut.isPending}>
+                                <TextField.Label>Placa del Vehículo *</TextField.Label>
                                 <TextField.Input
                                     type="text"
-                                    placeholder="Ej: PBX-1234"
-                                    class="uppercase font-mono font-semibold"
-                                    onInput={(e) => {
-                                        const val = e.currentTarget.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-                                        e.currentTarget.value = val;
-                                        field().handleChange(val);
-                                    }}
+                                    placeholder="ej. ABC-1234"
+                                    class="uppercase font-mono font-medium tracking-wider"
                                 />
-                                <TextField.Description>Placa vehicular según matrícula o RTV.</TextField.Description>
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
@@ -110,14 +110,12 @@ const VehicleNewSheet: Component<VehicleNewSheetProps> = (props) => {
 
                     <form.Field name="description">
                         {(field) => (
-                            <TextField.Root field={field()}>
+                            <TextField.Root field={field()} disabled={createMut.isPending}>
                                 <TextField.Label>Descripción / Modelo</TextField.Label>
                                 <TextField.Input
                                     type="text"
-                                    placeholder="Ej: Camión Hino 500 Blanco (Furgón)"
-                                    onInput={(e) => field().handleChange(e.currentTarget.value)}
+                                    placeholder="ej. Camión Hino blanco 5T"
                                 />
-                                <TextField.Description>Marca, modelo o color para identificar el vehículo fácilmente.</TextField.Description>
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
@@ -125,9 +123,15 @@ const VehicleNewSheet: Component<VehicleNewSheetProps> = (props) => {
 
                     <form.Field name="isActive">
                         {(field) => (
-                            <Checkbox field={field()} class="font-medium pt-2">
-                                Vehículo Activo (disponible para despachos)
-                            </Checkbox>
+                            <div class="flex items-center gap-2 pt-1">
+                                <Checkbox
+                                    name={field().name}
+                                    checked={field().state.value}
+                                    onChange={(checked) => field().handleChange(checked)}
+                                    disabled={createMut.isPending}
+                                />
+                                <span class="text-sm font-medium text-text">Vehículo activo y disponible</span>
+                            </div>
                         )}
                     </form.Field>
                 </form>

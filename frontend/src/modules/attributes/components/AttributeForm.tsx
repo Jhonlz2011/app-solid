@@ -20,11 +20,12 @@ declare module 'solid-js' {
 import { Component, createSignal, For, Show, createMemo, createEffect } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { AttributeFormSchema } from '@app/schema/frontend';
-import type { AttributeFormData, AttributeDataType } from '@app/schema/frontend';
+import type { AttributeFormData } from '@app/schema/frontend';
+import type { AttributeDataType } from '@app/schema/enums';
 import TextField from '@form/TextField';
 import Button from '@form/Button';
+import { handleFormApiErrors } from '@shared/utils/form.utils';
 import { PlusIcon } from '@icons/PlusIcon';
 import { KeyIcon } from '@icons/KeyIcon';
 import { GripVerticalIcon } from '@icons/GripVerticalIcon';
@@ -47,6 +48,8 @@ export interface AttributeFormProps {
     attribute?: AttributeDetail | null;
     onSubmit: (data: AttributeFormData) => Promise<void>;
     isSubmitting: boolean;
+    formId: string;
+    disabled?: boolean;
 }
 
 // ── Type Picker Card ─────────────────────────────────────────────────
@@ -202,20 +205,23 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
             defaultOptions: props.attribute?.default_options ?? [],
             renamedOptions: [] as Array<{ from: string; to: string }>,
         } as AttributeFormData,
-        validatorAdapter: valibotValidator(),
         validators: {
             onChange: AttributeFormSchema,
             onSubmit: AttributeFormSchema,
         },
         onSubmit: async ({ value }) => {
-            // Attach accumulated renames to the submission
-            const renameEntries = Array.from(renames().entries())
-                .map(([from, to]) => ({ from, to }))
-                .filter(r => r.from !== r.to);
-            await props.onSubmit({
-                ...value,
-                renamedOptions: renameEntries.length > 0 ? renameEntries : undefined,
-            } as AttributeFormData);
+            try {
+                // Attach accumulated renames to the submission
+                const renameEntries = Array.from(renames().entries())
+                    .map(([from, to]) => ({ from, to }))
+                    .filter(r => r.from !== r.to);
+                await props.onSubmit({
+                    ...value,
+                    renamedOptions: renameEntries.length > 0 ? renameEntries : undefined,
+                } as AttributeFormData);
+            } catch (err) {
+                handleFormApiErrors(form, err, 'Error al guardar el atributo', props.formId);
+            }
         },
     }));
 
@@ -421,7 +427,7 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
                                 </div>
 
                                 {/* DnD options list */}
-                                <div class="min-h-[60px] py-2">
+                                <div class="min-h-15 py-2">
                                     <DragDropProvider
                                         onDragEnd={onDragEnd}
                                         collisionDetector={closestCenter}
@@ -433,7 +439,7 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
                                                 <div class="flex flex-col items-center justify-center py-5 text-center border-2 border-dashed border-border/50 rounded-xl bg-surface/30 transition-colors">
                                                     <div class="text-2xl mb-2 opacity-40">📋</div>
                                                     <p class="text-sm text-text font-medium">Sin opciones agregadas</p>
-                                                    <p class="text-[11px] text-muted mt-1 max-w-[220px]">
+                                                    <p class="text-[11px] text-muted mt-1 max-w-55">
                                                         {isSelectType() 
                                                             ? 'Debes agregar al menos una opción obligatoria para este tipo.' 
                                                             : 'Agrega valores sugeridos para autocompletar rápidamente.'}

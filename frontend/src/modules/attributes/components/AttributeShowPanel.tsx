@@ -3,7 +3,7 @@ import { useParams, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useAttributeDetail } from '../data/attributes.queries';
 import { ATTRIBUTE_TYPE_LABELS, ATTRIBUTE_TYPE_BADGE_CLASSES } from '../data/attributes.constants';
-import type { AttributeDataType } from '@app/schema/frontend';
+import type { AttributeDataType } from '@app/schema/enums';
 import { EditIcon } from '@icons/EditIcon';
 import { InfoIcon } from '@icons/InfoIcon';
 import { SkeletonLoader } from '@display/SkeletonLoader';

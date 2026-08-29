@@ -26,8 +26,6 @@ export interface ColumnFilterConfig {
 }
 
 export interface UserColumnHandlers {
-    // onView: (user: UserListItemType) => void;
-    // onEdit: (user: UserListItemType) => void;
     onDelete: (user: UserListItemType) => void;
     onRestore: (user: UserListItemType) => void;
     onRoleBadgeClick?: (role: { id: number; name: string }) => void;

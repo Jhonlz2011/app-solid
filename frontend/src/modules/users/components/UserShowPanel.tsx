@@ -24,14 +24,14 @@ import UserActivityTab from './show/UserActivityTab';
 import PasswordResetSection from './PasswordResetSection';
 
 interface UserShowPanelProps {
-    userId?: number;
+    userId?: string;
     onClose?: () => void;
 }
 
 const UserShowPanel: Component<UserShowPanelProps> = (props) => {
-    const params = useParams({ strict: false }) as () => any;
+    const params = useParams({ strict: false }) as () => { userId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-    const userId = () => props.userId ?? Number(params()?.userId);
+    const userId = () => props.userId ?? params()?.userId;
 
     const auth = useAuth();
     const userQuery = useUser(userId);

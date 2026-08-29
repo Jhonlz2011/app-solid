@@ -18,7 +18,7 @@ import type {
 // Shared Mutation Helpers
 // =============================================================================
 
-/** Standardized onSettled for all user mutations — invalidates lists, facets, roles */
+/** Standardized onSettled for user lifecycle mutations — invalidates lists, facets, roles */
 function userOnSettled(queryClient: ReturnType<typeof useQueryClient>) {
     return () => {
         queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
@@ -30,13 +30,13 @@ function userOnSettled(queryClient: ReturnType<typeof useQueryClient>) {
 /** Apply is_active change to all cached user lists (optimistic) */
 function applyIsActiveToCache(
     queryClient: ReturnType<typeof useQueryClient>,
-    ids: (string | number)[],
+    ids: string[],
     isActive: boolean
 ) {
     queryClient.setQueriesData<CacheShape<UserListItemType>>({ queryKey: rbacKeys.lists() }, (old) => {
         if (!old) return old;
         return ids.reduce<CacheShape<UserListItemType>>(
-            (acc, id) => updateCacheItem(acc, { id: String(id), isActive } as unknown as UserListItemType) ?? acc,
+            (acc, id) => updateCacheItem(acc, { id, isActive } as unknown as UserListItemType) ?? acc,
             old
         );
     });
@@ -135,7 +135,7 @@ export function useAssignUserRoles() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ userId, roleIds }: { userId: string | number; roleIds: number[] }) =>
+        mutationFn: ({ userId, roleIds }: { userId: string; roleIds: number[] }) =>
             usersApi.assignUserRoles(userId, roleIds),
         onMutate: async ({ userId, roleIds }) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.lists() });
@@ -143,7 +143,7 @@ export function useAssignUserRoles() {
 
             queryClient.setQueriesData<CacheShape<UserListItemType>>({ queryKey: rbacKeys.lists() }, (old) => {
                 if (!old) return old;
-                return updateCacheItem(old, { id: String(userId), roleIds } as unknown as UserListItemType);
+                return updateCacheItem(old, { id: userId, roleIds } as unknown as UserListItemType);
             });
 
             return { previousLists };
@@ -155,9 +155,11 @@ export function useAssignUserRoles() {
                 }
             }
         },
-        onSettled: () => {
+        onSettled: (_data, _err, { userId }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.user(userId) });
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
+            queryClient.invalidateQueries({ queryKey: [...rbacKeys.all, 'role-users'], exact: false });
         },
     }));
 }
@@ -166,13 +168,13 @@ export function useRemoveUserFromRole() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ roleId, userId }: { roleId: number; userId: string | number }) =>
+        mutationFn: ({ roleId, userId }: { roleId: number; userId: string }) =>
             usersApi.removeUserFromRole(roleId, userId),
         onMutate: async ({ roleId, userId }) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.roleUsers(roleId) });
             const previous = queryClient.getQueryData<RoleUserType[]>(rbacKeys.roleUsers(roleId));
             queryClient.setQueryData<RoleUserType[]>(rbacKeys.roleUsers(roleId), (old) =>
-                old?.filter(u => String(u.id) !== String(userId)) ?? []
+                old?.filter(u => u.id !== userId) ?? []
             );
             return { previous, roleId };
         },
@@ -181,9 +183,10 @@ export function useRemoveUserFromRole() {
                 queryClient.setQueryData(rbacKeys.roleUsers(context.roleId), context.previous);
             }
         },
-        onSettled: (_data, _err, { roleId }) => {
+        onSettled: (_data, _err, { roleId, userId }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.roleUsers(roleId) });
             queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.user(userId) });
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
         },
     }));
@@ -223,6 +226,7 @@ export function useCreateUser() {
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: [...rbacKeys.all, 'facets'], exact: false });
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
         },
     }));
@@ -232,7 +236,7 @@ export function useUpdateUser() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ id, ...data }: { id: string | number; username?: string; email?: string; isActive?: boolean }) =>
+        mutationFn: ({ id, ...data }: { id: string; username?: string; email?: string; isActive?: boolean }) =>
             usersApi.updateUser(id, data),
         onMutate: async ({ id, ...updates }) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.user(id) });
@@ -247,7 +251,7 @@ export function useUpdateUser() {
 
             queryClient.setQueriesData<CacheShape<UserListItemType>>({ queryKey: rbacKeys.lists() }, (old) => {
                 if (!old) return old;
-                return updateCacheItem(old, { id: String(id), ...updates } as unknown as UserListItemType);
+                return updateCacheItem(old, { id, ...updates } as unknown as UserListItemType);
             });
 
             return { previousUser };
@@ -258,6 +262,7 @@ export function useUpdateUser() {
         onSettled: (_data, _err, { id }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
             queryClient.invalidateQueries({ queryKey: rbacKeys.user(id) });
+            queryClient.invalidateQueries({ queryKey: [...rbacKeys.all, 'facets'], exact: false });
         },
     }));
 }
@@ -270,7 +275,7 @@ export function useDeactivateUser() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: async (id: string | number) => {
+        mutationFn: async (id: string) => {
             await usersApi.deactivateUser(id);
             return id;
         },
@@ -283,7 +288,10 @@ export function useDeactivateUser() {
         onError: (_err, _id, context) => {
             context?.previousLists?.forEach(([key, data]) => queryClient.setQueryData(key, data));
         },
-        onSettled: userOnSettled(queryClient),
+        onSettled: (_data, _err, id) => {
+            userOnSettled(queryClient)();
+            queryClient.invalidateQueries({ queryKey: rbacKeys.user(id) });
+        },
     }));
 }
 
@@ -291,7 +299,7 @@ export function useRestoreUser() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: async (id: string | number) => {
+        mutationFn: async (id: string) => {
             await usersApi.restoreUser(id);
             return id;
         },
@@ -304,7 +312,10 @@ export function useRestoreUser() {
         onError: (_err, _id, context) => {
             context?.previousLists?.forEach(([key, data]) => queryClient.setQueryData(key, data));
         },
-        onSettled: userOnSettled(queryClient),
+        onSettled: (_data, _err, id) => {
+            userOnSettled(queryClient)();
+            queryClient.invalidateQueries({ queryKey: rbacKeys.user(id) });
+        },
     }));
 }
 
@@ -312,7 +323,7 @@ export function useHardDeleteUser() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: async (id: string | number) => {
+        mutationFn: async (id: string) => {
             await usersApi.hardDeleteUser(id);
             return id;
         },
@@ -322,7 +333,7 @@ export function useHardDeleteUser() {
 
             queryClient.setQueriesData<CacheShape<UserListItemType>>({ queryKey: rbacKeys.lists() }, (old) => {
                 if (!old) return old;
-                return removeCacheItems(old, [id as any]);
+                return removeCacheItems(old, [id]);
             });
 
             return { previousLists };
@@ -330,7 +341,10 @@ export function useHardDeleteUser() {
         onError: (_err, _id, context) => {
             context?.previousLists?.forEach(([key, data]) => queryClient.setQueryData(key, data));
         },
-        onSettled: userOnSettled(queryClient),
+        onSettled: (_data, _err, id) => {
+            userOnSettled(queryClient)();
+            queryClient.invalidateQueries({ queryKey: rbacKeys.user(id) });
+        },
     }));
 }
 
@@ -342,7 +356,7 @@ export function useBulkDeactivateUsers() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: async (ids: (string | number)[]) => {
+        mutationFn: async (ids: string[]) => {
             return await usersApi.bulkDeactivateUsers(ids);
         },
         onMutate: async (ids) => {
@@ -362,7 +376,7 @@ export function useBulkRestoreUsers() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: async (ids: (string | number)[]) => {
+        mutationFn: async (ids: string[]) => {
             return await usersApi.bulkRestoreUsers(ids);
         },
         onMutate: async (ids) => {
@@ -386,7 +400,7 @@ export function useRevokeUserSession() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ userId, sessionId }: { userId: string | number; sessionId: string }) =>
+        mutationFn: ({ userId, sessionId }: { userId: string; sessionId: string }) =>
             usersApi.revokeUserSession(userId, sessionId),
         onSuccess: (_data, { userId }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.userSessions(userId) });
@@ -395,9 +409,15 @@ export function useRevokeUserSession() {
 }
 
 export function useAdminResetPassword() {
+    const queryClient = useQueryClient();
+
     return createMutation(() => ({
-        mutationFn: ({ userId, newPassword }: { userId: string | number; newPassword: string }) =>
+        mutationFn: ({ userId, newPassword }: { userId: string; newPassword: string }) =>
             usersApi.adminResetPassword(userId, newPassword),
+        onSuccess: (_data, { userId }) => {
+            queryClient.invalidateQueries({ queryKey: rbacKeys.userSessions(userId) });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.user(userId) });
+        },
     }));
 }
 
@@ -405,7 +425,7 @@ export function useSetUserEntity() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ userId, entityId }: { userId: string | number; entityId: string | null }) =>
+        mutationFn: ({ userId, entityId }: { userId: string; entityId: string | null }) =>
             usersApi.setUserEntity(userId, entityId),
         onSuccess: (_data, { userId }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.user(userId) });

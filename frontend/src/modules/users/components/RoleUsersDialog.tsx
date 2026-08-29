@@ -48,7 +48,7 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
     const [showAddPanel, setShowAddPanel] = createSignal(false);
     const [addSearch, setAddSearch] = createSignal('');
     const [debouncedAddSearch, setDebouncedAddSearch] = createSignal('');
-    const [confirmRemove, setConfirmRemove] = createSignal<{ userId: number; username: string } | null>(null);
+    const [confirmRemove, setConfirmRemove] = createSignal<{ userId: string; username: string } | null>(null);
 
     // Reset state when dialog closes/opens
     createEffect(on(() => props.isOpen, (open) => {
@@ -113,7 +113,7 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
         );
     };
 
-    const handleAssign = (userId: number, username: string) => {
+    const handleAssign = (userId: string, username: string) => {
         if (!props.roleId) return;
         const allUsers = allUsersQuery.data?.data ?? [];
         const user = allUsers.find(u => u.id === userId);

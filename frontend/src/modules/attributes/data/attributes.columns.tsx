@@ -2,7 +2,7 @@ import { Show, For } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { AttributeItem } from './attributes.api';
-import type { AttributeDataType } from '@app/schema/frontend';
+import type { AttributeDataType } from '@app/schema/enums';
 import { ATTRIBUTE_TYPE_LABELS, ATTRIBUTE_TYPE_COLORS } from './attributes.constants';
 import type { ColumnFilterConfig } from '@shared/ui/DataTable';
 import Checkbox from '@form/Checkbox';

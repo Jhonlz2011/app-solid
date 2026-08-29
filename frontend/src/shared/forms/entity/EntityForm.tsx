@@ -1,9 +1,8 @@
 import { Component, createSignal, Show } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { EntityFormSchema, EntityFormData } from '@app/schema/frontend';
-import { ApiError } from '@shared/utils/api-errors';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
+import { handleFormApiErrors } from '@shared/utils/form.utils';
 import { useTabErrors } from '@shared/forms/useTabErrors';
 
 import { createDefaultEntityFormValues, mapEntityDetailToFormData } from './entity-form.utils';
@@ -45,7 +44,6 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
 
     const form = createForm(() => ({
         defaultValues: initialValues(),
-        validatorAdapter: valibotValidator(),
         validators: {
             onChange: EntityFormSchema,
             onSubmit: EntityFormSchema,
@@ -54,17 +52,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
             try {
                 await props.onSubmit(value as EntityFormData);
             } catch (err) {
-                if (err instanceof ApiError && err.errors?.length) {
-                    for (const fieldErr of err.errors) {
-                        try {
-                            // @ts-expect-error - Dynamic field strings from backend cannot be statically typed
-                            form.setFieldMeta(fieldErr.field, (prev) => ({
-                                ...prev,
-                                errorMap: { ...prev.errorMap, onSubmit: fieldErr.message },
-                            }));
-                        } catch { /* ignore */ }
-                    }
-                }
+                handleFormApiErrors(form, err, 'Error al guardar la entidad', 'entity-form');
             }
         },
     }));

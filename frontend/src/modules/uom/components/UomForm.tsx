@@ -1,54 +1,78 @@
 /**
- * UomForm — Shared form fields for UOM create/edit.
+ * UomForm.tsx — Self-contained, decoupled form for Units of Measure (UOM)
  * 
- * Eliminates form duplication between UomNewSheet, UomEditSheet,
- * and their settings counterparts.
- * 
- * Uses Kobalte Select with icons for the group selector.
+ * Uses TanStack Form v1 with native Standard Schema (Valibot v1).
  */
-import { Component, createMemo, Show, createSignal, createEffect } from 'solid-js';
+import { Component, createMemo, Show, createSignal } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { createForm } from '@tanstack/solid-form';
+import { UomFormSchema, type UomFormData } from '@app/schema/frontend';
 import type { UomGroup } from '@app/schema/enums';
 import { groupOptions, UOM_GROUP_META } from '../data/uom.constants';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
+import { handleFormApiErrors } from '@shared/utils/form.utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
 import { FieldLabel } from '@form/TextField';
 import TextField from '@form/TextField';
 import { useUomList } from '../data/uom.queries';
 import { AlertTriangleIcon } from '@icons/AlertTriangleIcon';
+import type { UomItem } from '../data/uom.api';
 
 type GroupOption = { value: string; label: string; icon: Component<any> };
 
-interface UomFormProps {
-    /** The form instance from createForm(). Typed as `any` to avoid TanStack Form v1 generic explosion. */
-    form: any;
+export interface UomFormProps {
+    uom?: UomItem | null;
+    onSubmit: (data: UomFormData) => Promise<void>;
+    isSubmitting: boolean;
     formId: string;
-    hasAttemptedSubmit: () => boolean;
     disabled?: boolean;
     disableCode?: boolean;
     codePlaceholder?: string;
 }
 
-const UomForm: Component<UomFormProps> = (props) => {
+export const UomForm: Component<UomFormProps> = (props) => {
     const isDisabled = () => props.disabled ?? false;
     const uomsQuery = useUomList();
+    const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const [invertMode, setInvertMode] = createSignal(false);
 
-    // Sanity check y baseUnit movidos al bloque form.Subscribe para garantizar reactividad.
+    const initialValues = (): UomFormData => ({
+        code: props.uom?.code ?? '',
+        name: props.uom?.name ?? '',
+        uom_group: (props.uom?.uom_group as UomGroup) ?? 'CANTIDAD',
+        base_factor: props.uom?.base_factor ? String(props.uom.base_factor) : '1',
+    });
+
+    const form = createForm(() => ({
+        defaultValues: initialValues(),
+        validators: {
+            onChange: UomFormSchema,
+            onSubmit: UomFormSchema,
+        },
+        onSubmit: async ({ value }) => {
+            try {
+                await props.onSubmit(value);
+            } catch (err) {
+                handleFormApiErrors(form, err, 'Error al guardar la unidad de medida', props.formId);
+            }
+        },
+    }));
 
     return (
-        <FormSubmissionContext.Provider value={props.hasAttemptedSubmit}>
+        <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
             <form
                 id={props.formId}
                 onSubmit={(e) => {
                     e.preventDefault();
-                    props.form.handleSubmit();
+                    e.stopPropagation();
+                    setHasAttemptedSubmit(true);
+                    form.handleSubmit();
                 }}
                 class="space-y-4 py-2"
             >
                 {/* 1. Group Select */}
-                <props.form.Field name="uom_group">
-                    {(field: any) => (
+                <form.Field name="uom_group">
+                    {(field) => (
                         <div class="space-y-1.5">
                             <FieldLabel>Grupo de Magnitud *</FieldLabel>
                             <Select
@@ -57,8 +81,8 @@ const UomForm: Component<UomFormProps> = (props) => {
                                     if (opt) {
                                         field().handleChange(opt.value);
                                         // Smart default si selecciona CANTIDAD y está vacío
-                                        if (opt.value === 'CANTIDAD' && !props.form.state.values.code && !props.form.state.values.base_factor) {
-                                            props.form.setFieldValue('base_factor', '1');
+                                        if (opt.value === 'CANTIDAD' && !form.state.values.code && !form.state.values.base_factor) {
+                                            form.setFieldValue('base_factor', '1');
                                         }
                                     }
                                 }}
@@ -66,7 +90,7 @@ const UomForm: Component<UomFormProps> = (props) => {
                                 optionValue="value"
                                 optionTextValue="label"
                                 placeholder="Seleccionar grupo..."
-                                disabled={isDisabled()}
+                                disabled={isDisabled() || props.isSubmitting}
                                 itemComponent={(itemProps: any) => (
                                     <SelectItem item={itemProps.item}>
                                         <GroupOptionLabel
@@ -89,13 +113,13 @@ const UomForm: Component<UomFormProps> = (props) => {
                             </Select>
                         </div>
                     )}
-                </props.form.Field>
+                </form.Field>
 
                 {/* 2. Code + Name row */}
                 <div class="grid grid-cols-[8rem_1fr] gap-4">
-                    <props.form.Field name="code">
-                        {(field: any) => (
-                            <TextField.Root field={field()} disabled={isDisabled() || props.disableCode}>
+                    <form.Field name="code">
+                        {(field) => (
+                            <TextField.Root field={field()} disabled={isDisabled() || props.disableCode || props.isSubmitting}>
                                 <TextField.Label>Código {props.disableCode ? '' : '*'}</TextField.Label>
                                 <TextField.Input
                                     type="text"
@@ -106,31 +130,31 @@ const UomForm: Component<UomFormProps> = (props) => {
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
-                    </props.form.Field>
-                    <props.form.Field name="name">
-                        {(field: any) => (
-                            <TextField.Root field={field()} disabled={isDisabled()}>
+                    </form.Field>
+                    <form.Field name="name">
+                        {(field) => (
+                            <TextField.Root field={field()} disabled={isDisabled() || props.isSubmitting}>
                                 <TextField.Label>Nombre *</TextField.Label>
                                 <TextField.Input type="text" placeholder="Unidad, Kilogramo, Metro..." />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
-                    </props.form.Field>
+                    </form.Field>
                 </div>
 
                 {/* 3. Base Factor (Equivalencia) */}
-                <props.form.Subscribe selector={(state: any) => ({
+                <form.Subscribe selector={(state) => ({
                     group: state.values.uom_group,
                     code: state.values.code,
                     name: state.values.name,
                     factorStr: state.values.base_factor
                 })}>
-                    {(values: any) => {
+                    {(values) => {
                         const baseUnit = createMemo(() => {
                             const vals = values();
                             return (uomsQuery.data ?? []).find((u: any) => u.uom_group === vals.group && u.is_system === true && Number(u.base_factor) === 1) || null;
                         });
-                        
+
                         const currentCode = createMemo(() => (values().code || '???').toUpperCase());
                         const currentName = createMemo(() => values().name || 'Nueva Unidad');
                         const baseCode = createMemo(() => baseUnit()?.code || 'BASE');
@@ -149,7 +173,6 @@ const UomForm: Component<UomFormProps> = (props) => {
 
                                 {/* Conversor Interactivo */}
                                 <div class="relative bg-surface border border-border shadow-sm rounded-xl p-2 flex flex-col sm:flex-row items-stretch gap-1">
-                                    
                                     {/* Lado Izquierdo (Fijo en 1) */}
                                     <div class="flex-1 flex items-center gap-3 bg-card-alt rounded-lg p-2 border border-border-strong/50 min-w-0">
                                         <div class="flex items-center justify-center bg-surface border border-border shadow-sm h-11 w-11 rounded-lg font-mono text-xl font-bold text-primary shrink-0">
@@ -185,8 +208,8 @@ const UomForm: Component<UomFormProps> = (props) => {
 
                                     {/* Lado Derecho (Input) */}
                                     <div class="flex-1 flex items-center gap-2 bg-surface rounded-lg p-2 border border-border-strong shadow-sm focus-within:ring-2 focus-within:ring-primary-soft focus-within:border-primary min-w-0">
-                                        <props.form.Field name="base_factor">
-                                            {(field: any) => {
+                                        <form.Field name="base_factor">
+                                            {(field) => {
                                                 const displayValue = createMemo(() => {
                                                     const formValue = field().state.value;
                                                     if (!formValue) return "";
@@ -230,7 +253,7 @@ const UomForm: Component<UomFormProps> = (props) => {
                                                             value={displayValue()}
                                                             onChange={handleChange}
                                                             validationState={field().state.meta.errors.length > 0 ? 'invalid' : 'valid'}
-                                                            disabled={isDisabled()}
+                                                            disabled={isDisabled() || props.isSubmitting}
                                                         >
                                                             <TextField.NumericInput 
                                                                 allowNegative={false}
@@ -241,7 +264,7 @@ const UomForm: Component<UomFormProps> = (props) => {
                                                     </div>
                                                 );
                                             }}
-                                        </props.form.Field>
+                                        </form.Field>
 
                                         <div class="flex flex-col px-2 border-l border-border min-w-0 shrink max-w-40">
                                             <span class="text-sm font-semibold text-text truncate w-full block" title={invertMode() ? currentName() : baseName()}>
@@ -255,8 +278,8 @@ const UomForm: Component<UomFormProps> = (props) => {
                                 </div>
 
                                 {/* Error de validación */}
-                                <props.form.Field name="base_factor">
-                                    {(field: any) => (
+                                <form.Field name="base_factor">
+                                    {(field) => (
                                         <Show when={field().state.meta.errors.length > 0}>
                                             <div class="mt-2 text-[13px] text-danger font-medium flex items-center gap-1.5">
                                                 <AlertTriangleIcon class="size-4" />
@@ -264,11 +287,11 @@ const UomForm: Component<UomFormProps> = (props) => {
                                             </div>
                                         </Show>
                                     )}
-                                </props.form.Field>
+                                </form.Field>
                             </div>
                         );
                     }}
-                </props.form.Subscribe>
+                </form.Subscribe>
             </form>
         </FormSubmissionContext.Provider>
     );
@@ -290,5 +313,3 @@ const GroupOptionLabel: Component<{ value?: string; label?: string }> = (props) 
         </span>
     );
 };
-
-export default UomForm;

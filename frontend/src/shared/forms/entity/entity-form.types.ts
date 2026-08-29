@@ -1,5 +1,4 @@
 import { createForm } from '@tanstack/solid-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import { EntityFormSchema, type EntityFormData } from '@app/schema/frontend';
 
 /**
@@ -9,7 +8,6 @@ import { EntityFormSchema, type EntityFormData } from '@app/schema/frontend';
  */
 const __dummyForm = createForm(() => ({
     defaultValues: {} as EntityFormData,
-    validatorAdapter: valibotValidator(),
     validators: {
         onChange: EntityFormSchema,
         onSubmit: EntityFormSchema,
