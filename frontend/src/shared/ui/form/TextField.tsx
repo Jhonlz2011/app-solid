@@ -1,10 +1,10 @@
-import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect } from 'solid-js';
+import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext } from 'solid-js';
+import { cn } from '@shared/lib/utils';
 import type { FieldLike } from '@form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
 import { EyeIcon } from '@icons/EyeIcon';
 import { EyeOffIcon } from '@icons/EyeOffIcon';
 import { InfoIcon } from '@icons/InfoIcon';
-
 import Tooltip from '@overlay/Tooltip';
 
 // ============================================================================
@@ -16,9 +16,9 @@ export interface TextFieldRootProps<TValue extends string | number | undefined |
     /** TanStack Form field - 100% type-safe generic binding */
     field?: FieldLike<TValue>;
     /** Current value (controlled) - ignored if field is provided */
-    value?: string;
+    value?: string | number | null;
     /** Default value (uncontrolled) */
-    defaultValue?: string;
+    defaultValue?: string | number | null;
     /** Change handler - ignored if field is provided */
     onChange?: (value: string) => void;
     /** Validation state for styling - auto-detected from field if provided */
@@ -35,6 +35,7 @@ export interface TextFieldRootProps<TValue extends string | number | undefined |
 
 export interface TextFieldLabelProps {
     class?: string;
+    labelClass?: string;
     children: JSX.Element;
     tooltip?: string | JSX.Element;
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
@@ -42,6 +43,7 @@ export interface TextFieldLabelProps {
 
 export interface FieldLabelProps {
     class?: string;
+    labelClass?: string;
     children: JSX.Element;
     tooltip?: string | JSX.Element;
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
@@ -49,7 +51,6 @@ export interface FieldLabelProps {
 
 interface TextFieldInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
     class?: string;
-    
 }
 
 interface TextFieldTextAreaProps extends Omit<JSX.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange' | 'value'> {
@@ -81,8 +82,6 @@ interface TextFieldDescriptionProps {
 // ============================================================================
 // CONTEXT
 // ============================================================================
-import { createContext, useContext } from 'solid-js';
-
 interface TextFieldContextValue {
     id: string;
     value: () => string;
@@ -139,7 +138,9 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
     ]);
 
     const id = createUniqueId();
-    let internalValue = local.defaultValue ?? '';
+    const [uncontrolledValue, setUncontrolledValue] = createSignal(
+        local.defaultValue != null ? String(local.defaultValue) : ''
+    );
     
     // Track form submission state explicitly
     const isFormSubmitted = useContext(FormSubmissionContext);
@@ -147,13 +148,15 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
     // Determine if controlled by TanStack Form field
     const hasField = () => !!local.field;
 
-    // Reactive value: from field or props — coerce to string for display
+    // Reactive value: from field, controlled prop, or internal uncontrolled signal
     const value = createMemo(() => {
         if (hasField()) {
             const v = local.field!.state.value;
             return v == null ? '' : String(v);
         }
-        return local.value ?? internalValue;
+        return local.value !== undefined 
+            ? (local.value == null ? '' : String(local.value)) 
+            : uncontrolledValue();
     });
 
     // Validation state: from field or props
@@ -171,11 +174,11 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
     const contextValue: TextFieldContextValue = {
         id,
         value,
-        onChange: (newValue: string) => {
+        onChange: (newValue: any) => {
             if (hasField()) {
                 local.field!.handleChange(newValue as any);
             } else {
-                internalValue = newValue;
+                setUncontrolledValue(newValue == null ? '' : String(newValue));
                 local.onChange?.(newValue);
             }
         },
@@ -194,9 +197,10 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
     return (
         <TextFieldContext.Provider value={contextValue}>
             <div
-                class={`relative flex flex-col gap-1 ${local.class ?? ''}`}
-                data-valid={validationState() !== 'invalid'}
-                data-invalid={validationState() === 'invalid'}
+                class={cn("relative flex flex-col gap-1", local.class)}
+                data-valid={!contextValue.isInvalid()}
+                data-invalid={contextValue.isInvalid()}
+                {...others}
             >
                 {local.children}
             </div>
@@ -207,13 +211,13 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
 /** Label for the field */
 const Label = (props: TextFieldLabelProps) => {
     const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'children', 'tooltip', 'tooltipPlacement']);
+    const [local, others] = splitProps(props, ['class', 'labelClass', 'children', 'tooltip', 'tooltipPlacement']);
 
     return (
-        <div class="flex items-center gap-1.5 ml-1 mb-0.5 w-fit">
+        <div class={cn("flex items-center gap-1.5 ml-1 mb-0.5 w-fit", local.class)}>
             <label
                 for={context.id}
-                class={`text-sm font-medium text-muted block ${local.class ?? ''}`}
+                class={cn("text-sm font-medium text-muted block", local.labelClass)}
                 {...others}
             >
                 {local.children}
@@ -233,11 +237,11 @@ const Label = (props: TextFieldLabelProps) => {
 
 /** Standalone label for non-TextField contexts (Select, SegmentedControl, etc.) */
 export const FieldLabel = (props: FieldLabelProps) => {
-    const [local, others] = splitProps(props, ['class', 'children', 'tooltip', 'tooltipPlacement']);
+    const [local, others] = splitProps(props, ['class', 'labelClass', 'children', 'tooltip', 'tooltipPlacement']);
     return (
-        <div class="flex items-center gap-1.5 ml-1 mb-0.5 w-fit">
+        <div class={cn("flex items-center gap-1.5 ml-1 mb-0.5 w-fit", local.class)}>
             <label
-                class={`text-sm font-medium text-muted block ${local.class ?? ''}`}
+                class={cn("text-sm font-medium text-muted block", local.labelClass)}
                 {...others}
             >
                 {local.children}
@@ -284,8 +288,8 @@ const Input = (props: TextFieldInputProps) => {
             onBlur={() => context.onBlur()}
             disabled={context.disabled()}
             readOnly={context.readOnly()}
-            data-invalid={context.validationState() === 'invalid'}
-            class={`${inputBaseStyles} ${local.class ?? ''}`}
+            data-invalid={context.isInvalid()}
+            class={cn(inputBaseStyles, local.class)}
             {...others}
         />
     );
@@ -307,8 +311,8 @@ const PasswordInput = (props: TextFieldPasswordInputProps) => {
                 onBlur={() => context.onBlur()}
                 disabled={context.disabled()}
                 readOnly={context.readOnly()}
-                data-invalid={context.validationState() === 'invalid'}
-                class={`${inputBaseStyles} pr-12 ${local.class ?? ''}`}
+                data-invalid={context.isInvalid()}
+                class={cn(inputBaseStyles, "pr-12", local.class)}
                 {...others}
             />
             <button
@@ -431,8 +435,8 @@ const NumericInput = (props: TextFieldNumericInputProps) => {
             }}
             disabled={context.disabled()}
             readOnly={context.readOnly()}
-            data-invalid={context.validationState() === 'invalid'}
-            class={`${inputBaseStyles} font-mono ${local.class ?? ''}`}
+            data-invalid={context.isInvalid()}
+            class={cn(inputBaseStyles, "font-mono", local.class)}
             {...others}
         />
     );
@@ -451,8 +455,8 @@ const TextArea = (props: TextFieldTextAreaProps) => {
             onBlur={() => context.onBlur()}
             disabled={context.disabled()}
             readOnly={context.readOnly()}
-            data-invalid={context.validationState() === 'invalid'}
-            class={`${inputBaseStyles} resize-y py-3 ${local.class ?? ''}`}
+            data-invalid={context.isInvalid()}
+            class={cn(inputBaseStyles, "resize-y py-3", local.class)}
             {...others}
         />
     );
@@ -467,9 +471,12 @@ const ErrorMessage = (props: TextFieldErrorMessageProps) => {
     const message = () => context.errorMessage() || local.children;
 
     return (
-        <Show when={context.validationState() === 'invalid' && message()}>
+        <Show when={context.isInvalid() && message()}>
             <small
-                class={`absolute -bottom-3.5 left-1 text-xs leading-none text-danger font-medium animate-in fade-in slide-in-from-top-1 ${local.class ?? ''}`}
+                class={cn(
+                    "absolute -bottom-3.5 left-1 text-xs leading-none text-danger font-medium animate-in fade-in slide-in-from-top-1",
+                    local.class
+                )}
                 role="alert"
                 {...others}
             >
@@ -485,7 +492,7 @@ const Description = (props: TextFieldDescriptionProps) => {
 
     return (
         <span
-            class={`text-xs text-muted mt-0.5 ${local.class ?? ''}`}
+            class={cn("text-xs text-muted mt-0.5", local.class)}
             {...others}
         >
             {local.children}

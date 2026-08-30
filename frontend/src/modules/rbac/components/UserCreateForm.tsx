@@ -77,7 +77,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                     if (isAlreadyMember()) return;
                     form.handleSubmit();
                 }}
-                class="flex flex-col gap-6 py-4"
+                class="flex flex-col gap-4 py-4"
             >
                 {/* ═══ 1. User Identity & Live Detection ═══ */}
                 <div class="space-y-4">
@@ -137,7 +137,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                     {/* ── Mode selector for brand new users ── */}
                     <Show when={!isExistingUser() && !isAlreadyMember()}>
                         <div class="space-y-2 pt-1">
-                            <FieldLabel tooltip="Selecciona cómo accederá el nuevo usuario a tu organización">
+                            <FieldLabel class="mb-1.5" tooltip="Selecciona cómo accederá el nuevo usuario a tu organización">
                                 Método de Incorporación
                             </FieldLabel>
 

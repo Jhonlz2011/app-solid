@@ -153,7 +153,17 @@
       0 0 0 1px var(--color-bg), 
       0 0 0 3px var(--primary); /* Usa el canal alfa del color primary */
   }
+
+  .simplebar-content-wrapper,
+  .simplebar-content-wrapper:focus,
+  [tabindex="-1"]:focus {
+    outline: none !important;
+  }
 }
+
+
+
+
 
 html, body, #root {
   @apply bg-bg text-text overflow-x-hidden;

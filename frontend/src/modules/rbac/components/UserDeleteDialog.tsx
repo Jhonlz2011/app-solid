@@ -64,14 +64,14 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
             onClose={props.onClose}
             onConfirm={handleConfirm}
             onModeChange={setMode}
-            title="Gestionar acceso del usuario"
+            title="Eliminar usuario"
             description={props.user?.username}
             allowHardDelete={canDestroy()}
             isLoading={isLoading()}
-            softDeleteTitle="Desactivar acceso"
-            softDeleteDesc="El usuario quedará inactivo en esta empresa. Sus roles y asignaciones se conservarán para cuando se reactive."
-            hardDeleteTitle="Remover de la empresa"
-            hardDeleteDesc="El usuario será desvinculado de esta empresa y se revocarán sus roles."
+            softDeleteTitle="Desactivar"
+            softDeleteDesc="El usuario quedará inactivo y podrá restaurarse en cualquier momento. Sus roles se conservarán."
+            hardDeleteTitle="Remover permanentemente"
+            hardDeleteDesc="Se eliminará de forma definitiva junto con sus roles y sesiones, sin posibilidad de recuperación."
             
             softLoadingText="Desactivando..."
             hardLoadingText="Removiendo..."

@@ -49,7 +49,7 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            title="Incorporar Usuario"
+            title="Crear usuario"
             description="Invita o añade un colaborador a tu espacio de trabajo"
             size="lg"
             footer={

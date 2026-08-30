@@ -13,7 +13,7 @@ import { MapPinIcon } from '@icons/MapPinIcon';
 import { UsersIcon } from '@icons/UsersIcon';
 import { TruckIcon } from '@icons/TruckIcon';
 import { BriefcaseIcon } from '@icons/BriefcaseIcon';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/form/Tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@shared/ui/form/Tabs';
 
 // Subcomponents
 import { EntityGeneralTab } from './sections/EntityGeneralTab';

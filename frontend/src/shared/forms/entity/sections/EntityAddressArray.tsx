@@ -3,6 +3,7 @@ import TextField from '@form/TextField';
 import { TrashIcon } from '@icons/TrashIcon';
 import { PlusIcon } from '@icons/PlusIcon';
 import Button from '@form/Button';
+import { FormSectionHeader } from '@form/FormSectionHeader';
 import type { EntityFormApi } from '../entity-form.types';
 import { CitySelect } from '@shared/ui/selectors';
 
@@ -92,27 +93,28 @@ export const EntityAddressArray: Component<EntityAddressArrayProps> = (props) =>
         <props.form.Field name="addresses" mode="array">
             {(field) => (
                 <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
-                    <div class="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-border/50">
-                        <div class="flex items-center gap-2">
-                            <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                            <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Direcciones &amp; Sucursales</h3>
-                        </div>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            class="gap-1.5"
-                            onClick={() => field().pushValue({ 
-                                addressLine: '', 
-                                city: '', 
-                                country: 'Ecuador', 
-                                countryCode: 'EC', 
-                                postalCode: '', 
-                                isMain: field().state.value.length === 0 
-                            })}
-                        >
-                            <PlusIcon class="size-4" /> Añadir Dirección
-                        </Button>
-                    </div>
+                    <FormSectionHeader
+                        title="Direcciones & Sucursales"
+                        color="primary"
+                        class="mb-4 pb-3 border-b border-border/50"
+                        action={
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                class="gap-1.5"
+                                onClick={() => field().pushValue({ 
+                                    addressLine: '', 
+                                    city: '', 
+                                    country: 'Ecuador', 
+                                    countryCode: 'EC', 
+                                    postalCode: '', 
+                                    isMain: field().state.value.length === 0 
+                                })}
+                            >
+                                <PlusIcon class="size-4" /> Añadir Dirección
+                            </Button>
+                        }
+                    />
                     <div class="space-y-4">
                         <Show when={field().state.value.length === 0}>
                             <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">

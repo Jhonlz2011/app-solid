@@ -3,6 +3,7 @@ import TextField from '@form/TextField';
 import { TrashIcon } from '@icons/TrashIcon';
 import { PlusIcon } from '@icons/PlusIcon';
 import Button from '@form/Button';
+import { FormSectionHeader } from '@form/FormSectionHeader';
 import type { EntityFormApi } from '../entity-form.types';
 
 interface ContactRowProps {
@@ -81,20 +82,23 @@ export const EntityContactsArray: Component<EntityContactsArrayProps> = (props) 
         <props.form.Field name="contacts" mode="array">
             {(field) => (
                 <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
-                    <div class="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-border/50">
-                        <div class="flex items-center gap-2">
-                            <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                            <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Lista de Contactos (Opcional)</h3>
-                        </div>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            class="gap-1.5"
-                            onClick={() => field().pushValue({ name: '', position: '', email: '', phone: '', isPrimary: false })}
-                        >
-                            <PlusIcon class="size-4" /> Añadir Contacto
-                        </Button>
-                    </div>
+                    <FormSectionHeader
+                        title="Lista de Contactos"
+                        badge="Opcional"
+                        badgeVariant="secondary"
+                        color="primary"
+                        class="mb-4 pb-3 border-b border-border/50"
+                        action={
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                class="gap-1.5"
+                                onClick={() => field().pushValue({ name: '', position: '', email: '', phone: '', isPrimary: false })}
+                            >
+                                <PlusIcon class="size-4" /> Añadir Contacto
+                            </Button>
+                        }
+                    />
                     <div class="space-y-4">
                         <Show when={field().state.value.length === 0}>
                             <div class="text-center py-6 text-muted bg-surface/50 rounded-lg border border-dashed border-border/60">

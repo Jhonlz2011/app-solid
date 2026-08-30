@@ -4,10 +4,11 @@ import Checkbox from '@form/Checkbox';
 import Switch from '@form/Switch';
 import { FieldLabel } from '@form/TextField';
 import { SelectField } from '@form/Select';
+import { FormSectionHeader } from '@form/FormSectionHeader';
 import { EntitySelect } from '@shared/ui/selectors';
 import { PlusIcon } from '@icons/PlusIcon';
-import { BriefcaseIcon } from '@icons/BriefcaseIcon';
 import { BuildingIcon } from '@icons/BuildingIcon';
+import { BriefcaseIcon } from '@icons/BriefcaseIcon';
 import { UsersIcon } from '@icons/UsersIcon';
 import { IdCardIcon } from '@icons/IdCardIcon';
 import { FileTextIcon } from '@icons/FileTextIcon';
@@ -68,13 +69,12 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
             {/* 1. ESTRUCTURA ORGANIZACIONAL Y CONTRATACIÓN                      */}
             {/* ================================================================= */}
             <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
-                        <BuildingIcon class="size-4 text-primary" />
-                        Estructura Organizacional y Contrato
-                    </h3>
-                </div>
+                <FormSectionHeader
+                    title="Estructura Organizacional y Contrato"
+                    icon={<BuildingIcon class="size-4" />}
+                    color="primary"
+                    class="mb-1"
+                />
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* Departamento */}
@@ -190,18 +190,17 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
             {/* 2. COMPENSACIÓN Y COSTEO LABORAL                                 */}
             {/* ================================================================= */}
             <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
-                <div class="flex items-center justify-between mb-1">
-                    <div class="flex items-center gap-2">
-                        <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                        <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
-                            <BriefcaseIcon class="size-4 text-primary" />
-                            Compensación y Costeo Laboral
-                        </h3>
-                    </div>
-                    <span class="text-xs text-muted font-normal hidden sm:inline">
-                        Base cálculo: 240h/mes (30 días × 8h)
-                    </span>
-                </div>
+                <FormSectionHeader
+                    title="Compensación y Costeo Laboral"
+                    icon={<BriefcaseIcon class="size-4" />}
+                    color="primary"
+                    class="mb-1"
+                    action={
+                        <span class="text-xs text-muted font-normal hidden sm:inline">
+                            Base cálculo: 240h/mes (30 días × 8h)
+                        </span>
+                    }
+                />
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Salario Base con Switch SBU */}
@@ -292,13 +291,12 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
             {/* 3. PARÁMETROS DE LEY, IESS Y SRI (ECUADOR)                       */}
             {/* ================================================================= */}
             <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
-                        <UsersIcon class="size-4 text-primary" />
-                        Nómina, Beneficios de Ley y Parámetros IESS / SRI (Ecuador)
-                    </h3>
-                </div>
+                <FormSectionHeader
+                    title="Nómina, Beneficios de Ley y Parámetros IESS / SRI (Ecuador)"
+                    icon={<UsersIcon class="size-4" />}
+                    color="primary"
+                    class="mb-1"
+                />
 
                 {/* Acumulaciones de Beneficios */}
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-surface/50 rounded-xl border border-border/50">
@@ -354,13 +352,12 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
             {/* 4. DATOS BANCARIOS (CASH MANAGEMENT / TRANSFERENCIAS)             */}
             {/* ================================================================= */}
             <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
-                        <IdCardIcon class="size-4 text-primary" />
-                        Datos Bancarios (Cash Management / Transferencias)
-                    </h3>
-                </div>
+                <FormSectionHeader
+                    title="Datos Bancarios (Cash Management / Transferencias)"
+                    icon={<IdCardIcon class="size-4" />}
+                    color="primary"
+                    class="mb-1"
+                />
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <props.form.Field name="employeeDetails.bankName">
@@ -400,13 +397,12 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
             {/* 5. OBSERVACIONES Y NOTAS LABORALES                               */}
             {/* ================================================================= */}
             <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
-                        <FileTextIcon class="size-4 text-primary" />
-                        Observaciones
-                    </h3>
-                </div>
+                <FormSectionHeader
+                    title="Observaciones"
+                    icon={<FileTextIcon class="size-4" />}
+                    color="primary"
+                    class="mb-1"
+                />
 
                 <props.form.Field name="employeeDetails.notes">
                     {(field) => (

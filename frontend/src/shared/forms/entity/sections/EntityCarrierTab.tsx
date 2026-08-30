@@ -6,6 +6,7 @@ import { PlusIcon } from '@icons/PlusIcon';
 import { UserIcon } from '@icons/UserIcon';
 import { TruckIcon } from '@icons/TruckIcon';
 import Button from '@form/Button';
+import { FormSectionHeader } from '@form/FormSectionHeader';
 import type { EntityFormApi } from '../entity-form.types';
 
 export interface EntityCarrierTabProps {
@@ -47,24 +48,23 @@ export const EntityCarrierTab: Component<EntityCarrierTabProps> = (props) => {
             <props.form.Field name="vehicles" mode="array">
                 {(field) => (
                     <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
-                        <div class="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-border/50">
-                            <div class="flex items-center gap-2">
-                                <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                                <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
-                                    <TruckIcon class="size-4 text-primary" />
-                                    Vehículos de Transporte / Flota
-                                </h3>
-                            </div>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                class="gap-1.5"
-                                type="button"
-                                onClick={() => field().pushValue({ licensePlate: '', description: '', isActive: true })}
-                            >
-                                <PlusIcon class="size-4" /> Añadir Vehículo
-                            </Button>
-                        </div>
+                        <FormSectionHeader
+                            title="Vehículos de Transporte / Flota"
+                            icon={<TruckIcon class="size-4" />}
+                            color="primary"
+                            class="mb-4 pb-3 border-b border-border/50"
+                            action={
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    class="gap-1.5"
+                                    type="button"
+                                    onClick={() => field().pushValue({ licensePlate: '', description: '', isActive: true })}
+                                >
+                                    <PlusIcon class="size-4" /> Añadir Vehículo
+                                </Button>
+                            }
+                        />
 
                         <div class="space-y-4">
                             <Show when={field().state.value.length === 0}>
@@ -144,38 +144,37 @@ export const EntityCarrierTab: Component<EntityCarrierTabProps> = (props) => {
             <props.form.Field name="drivers" mode="array">
                 {(field) => (
                     <div class="bg-surface/30 p-4 rounded-2xl border border-border/40">
-                        <div class="flex items-center justify-between flex-wrap gap-3 mb-4 pb-3 border-b border-border/50">
-                            <div class="flex items-center gap-2">
-                                <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                                <h3 class="font-semibold text-text uppercase tracking-wide text-sm flex items-center gap-2">
-                                    <UserIcon class="size-4 text-primary" />
-                                    Conductores Asignados (Choferes)
-                                </h3>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <Show when={props.form.state.values.taxId && props.form.state.values.businessName}>
+                        <FormSectionHeader
+                            title="Conductores Asignados (Choferes)"
+                            icon={<UserIcon class="size-4" />}
+                            color="primary"
+                            class="mb-4 pb-3 border-b border-border/50"
+                            action={
+                                <div class="flex items-center gap-2">
+                                    <Show when={props.form.state.values.taxId && props.form.state.values.businessName}>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            class="gap-1.5 text-xs text-muted hover:text-text"
+                                            type="button"
+                                            onClick={handleImportTitularAsDriver}
+                                            title="Copiar los datos de la pestaña General como conductor"
+                                        >
+                                            <UserIcon class="size-3.5" /> Usar Titular como Chofer
+                                        </Button>
+                                    </Show>
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        class="gap-1.5 text-xs text-muted hover:text-text"
+                                        class="gap-1.5"
                                         type="button"
-                                        onClick={handleImportTitularAsDriver}
-                                        title="Copiar los datos de la pestaña General como conductor"
+                                        onClick={() => field().pushValue({ identificationNumber: '', fullName: '', phone: '', isActive: true })}
                                     >
-                                        <UserIcon class="size-3.5" /> Usar Titular como Chofer
+                                        <PlusIcon class="size-4" /> Añadir Conductor
                                     </Button>
-                                </Show>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    class="gap-1.5"
-                                    type="button"
-                                    onClick={() => field().pushValue({ identificationNumber: '', fullName: '', phone: '', isActive: true })}
-                                >
-                                    <PlusIcon class="size-4" /> Añadir Conductor
-                                </Button>
-                            </div>
-                        </div>
+                                </div>
+                            }
+                        />
 
                         <div class="space-y-4">
                             <Show when={field().state.value.length === 0}>

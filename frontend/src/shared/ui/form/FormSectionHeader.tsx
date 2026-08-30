@@ -8,6 +8,7 @@ export interface FormSectionHeaderProps {
     title: string | JSX.Element;
     color?: SectionHeaderColor;
     indicatorColor?: string;
+    icon?: JSX.Element;
     badge?: string | JSX.Element;
     badgeVariant?: BadgeVariant;
     description?: string | JSX.Element;
@@ -25,6 +26,15 @@ const COLOR_MAP: Record<SectionHeaderColor, string> = {
     accent: 'bg-purple-500',
 };
 
+const TEXT_COLOR_MAP: Record<SectionHeaderColor, string> = {
+    primary: 'text-primary',
+    success: 'text-success',
+    warning: 'text-warning',
+    info: 'text-info',
+    danger: 'text-danger',
+    accent: 'text-purple-500',
+};
+
 export const FormSectionHeader: Component<FormSectionHeaderProps> = (rawProps) => {
     const props = mergeProps(
         {
@@ -35,12 +45,19 @@ export const FormSectionHeader: Component<FormSectionHeaderProps> = (rawProps) =
     );
 
     const barColorClass = () => props.indicatorColor ?? COLOR_MAP[props.color] ?? 'bg-primary';
+    const iconColorClass = () => TEXT_COLOR_MAP[props.color] ?? 'text-primary';
 
     return (
         <div class={cn('space-y-1 w-full', props.class)}>
             <div class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2 min-w-0">
                     <div class={cn('w-1.5 h-4 rounded-full shrink-0', barColorClass())} />
+
+                    <Show when={props.icon}>
+                        <div class={cn('shrink-0 flex items-center justify-center', iconColorClass())}>
+                            {props.icon}
+                        </div>
+                    </Show>
 
                     <h3 class="font-semibold text-text uppercase tracking-wide text-sm truncate">
                         {props.title}

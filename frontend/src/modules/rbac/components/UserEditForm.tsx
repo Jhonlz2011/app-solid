@@ -62,7 +62,7 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                     setHasAttemptedSubmit(true);
                     form.handleSubmit();
                 }}
-                class="flex flex-col gap-6 py-4"
+                class="flex flex-col gap-4 py-4"
             >
                 {/* ═══ User Identity (Global Read-Only in Tenant RBAC) ═══ */}
                 <div class="space-y-3">
@@ -115,7 +115,7 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                         <EntitySelect
                             value={field().state.value}
                             onChange={(id) => field().handleChange(id)}
-                            label="Persona vinculada (Empleado)"
+                            label="Persona vinculada"
                             placeholder="Buscar empleado por nombre o identificación..."
                             isEmployee={true}
                             disabled={props.isSubmitting}

@@ -150,7 +150,7 @@ export function EntitySelect<TValue extends string | null | undefined = string |
     return (
         <div class="space-y-1.5 w-full">
             <Show when={props.label !== undefined}>
-                <FieldLabel tooltip={props.tooltip}>
+                <FieldLabel class="mb-1.5" tooltip={props.tooltip}>
                     {props.label}
                 </FieldLabel>
             </Show>
