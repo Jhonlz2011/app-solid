@@ -4,6 +4,8 @@ import { toast } from 'solid-sonner';
 import { authClient } from '@shared/lib/auth-client';
 import { actions, useAuth } from '../store/auth.store';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
+import { RealtimeEvents } from '@app/schema/realtime-events';
+import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 import Button from '@form/Button';
 import { MailIcon } from '@icons/MailIcon';
 import { CheckIcon } from '@icons/CheckIcon';
@@ -37,13 +39,9 @@ const VerifyEmail: Component = () => {
 
   const token = () => (search() as { token?: string })?.token;
 
-  // ── Timers cleanup ─────────────────────────────────────────────────────
+  // ── Timers & Listeners cleanup ─────────────────────────────────────────
   let redirectTimer: ReturnType<typeof setTimeout> | undefined;
   let countdownInterval: ReturnType<typeof setInterval> | undefined;
-  onCleanup(() => {
-    clearTimeout(redirectTimer);
-    clearInterval(countdownInterval);
-  });
 
   // ── Countdown logic ────────────────────────────────────────────────────
   const startCountdown = (seconds: number) => {
@@ -100,6 +98,10 @@ const VerifyEmail: Component = () => {
         const res = await authClient.verifyEmail({ query: { token: currentToken } });
         if (res.error) throw new Error(res.error.message || 'Error verificando el correo');
 
+        // Cross-Tab notification: notify any other waiting tabs in this browser
+        broadcast.emit(BroadcastEvents.EMAIL_VERIFIED, { verified: true }, { remoteOnly: true });
+        broadcast.emit(BroadcastEvents.AUTH_LOGIN, { verified: true }, { remoteOnly: true });
+
         setStatus('verified');
         toast.success('¡Correo electrónico verificado con éxito!');
         await redirectAfterSuccess();
@@ -109,6 +111,55 @@ const VerifyEmail: Component = () => {
       }
       return;
     }
+
+    // ── 1. SSE Realtime Event (Cross-Device: Mobile -> Desktop) ─────────────
+    const handleSseVerified = () => {
+      if (status() === 'waiting' || status() === 'error') {
+        setStatus('verified');
+        toast.success('¡Correo electrónico verificado con éxito!');
+        redirectAfterSuccess();
+      }
+    };
+    window.addEventListener(RealtimeEvents.USER.EMAIL_VERIFIED, handleSseVerified);
+
+    // ── 2. BroadcastChannel Event (Cross-Tab: Tab B -> Tab A) ──────────────
+    const unbindEmailVerified = broadcast.on(BroadcastEvents.EMAIL_VERIFIED, () => {
+      if (status() === 'waiting' || status() === 'error') {
+        setStatus('verified');
+        toast.success('¡Correo verificado en otra pestaña!');
+        redirectAfterSuccess();
+      }
+    });
+
+    const unbindAuthLogin = broadcast.on(BroadcastEvents.AUTH_LOGIN, () => {
+      if (status() === 'waiting' || status() === 'error') {
+        setStatus('verified');
+        redirectAfterSuccess();
+      }
+    });
+
+    // ── 3. Tab Visibility Sync (Focus Recovery) ───────────────────────────
+    const handleVisibilityChange = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && (status() === 'waiting' || status() === 'error')) {
+        const hasSession = await actions.initSession().catch(() => false);
+        const u = auth.user();
+        if (hasSession && (u?.emailVerifiedAt || (u as any)?.emailVerified)) {
+          setStatus('verified');
+          toast.success('¡Cuenta verificada exitosamente!');
+          redirectAfterSuccess();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    onCleanup(() => {
+      clearTimeout(redirectTimer);
+      clearInterval(countdownInterval);
+      window.removeEventListener(RealtimeEvents.USER.EMAIL_VERIFIED, handleSseVerified);
+      unbindEmailVerified();
+      unbindAuthLogin();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    });
 
     // Sin token: revisar cooldown existente en sessionStorage
     const until = sessionStorage.getItem(COOLDOWN_STORAGE_KEY);
@@ -139,7 +190,7 @@ const VerifyEmail: Component = () => {
     }
   });
 
-  // ── SSE: cross-device verification listener ────────────────────────────
+  // ── Reactive state listener for auth user ──────────────────────────────
   createEffect(() => {
     const user = auth.user();
     const s = status();

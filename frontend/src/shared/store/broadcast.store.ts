@@ -103,4 +103,5 @@ export const BroadcastEvents = {
     // P0-4: Auth events consolidated from separate auth_sync channel
     AUTH_LOGIN: 'auth:login',
     AUTH_LOGOUT: 'auth:logout',
+    EMAIL_VERIFIED: 'auth:email_verified',
 } as const;
