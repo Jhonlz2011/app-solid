@@ -5,13 +5,15 @@
  * - Anti-CLS (Zero Layout Shift): Selected card mask matches input dimensions.
  * - Multi-Role Filtering: Supports isEmployee, isClient, isSupplier, isCarrier, or type.
  * - TanStack Form & Controlled support with full E2E type safety.
+ * - Standard FieldLabel integration with tooltip support.
  */
-import { Component, Show, createMemo, createSignal, createEffect, onCleanup, useContext } from 'solid-js';
+import { JSX, Show, createMemo, createSignal, createEffect, onCleanup, useContext } from 'solid-js';
 import { useEntityPicker } from '@modules/entities/data/entities.queries';
 import type { EntityPickerType } from '@app/schema/dto';
 import type { EntityType } from '@app/schema/enums';
 import type { FieldLike } from '@shared/ui/form/form.types';
 import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
+import { FieldLabel } from '@form/TextField';
 import { Autocomplete } from '@form/Autocomplete';
 import { CloseIcon } from '@icons/CloseIcon';
 import { UserIcon } from '@icons/UserIcon';
@@ -21,6 +23,7 @@ export interface EntitySelectProps<TValue extends string | null | undefined = st
     value?: TValue;
     onChange?: (id: string | null, entity: EntityPickerType | null) => void;
     label?: string;
+    tooltip?: string | JSX.Element;
     placeholder?: string;
     field?: FieldLike<TValue>;
     disabled?: boolean;
@@ -108,6 +111,9 @@ export function EntitySelect<TValue extends string | null | undefined = string |
         if (val === '') {
             clearTimeout(debounceTimer);
             setDebouncedQuery('');
+            if (activeValue()) {
+                handleSelect(null);
+            }
         }
     };
 
@@ -118,14 +124,16 @@ export function EntitySelect<TValue extends string | null | undefined = string |
         }, 250);
     };
 
-    const handleSelect = (item: EntityPickerType | null) => {
-        clearTimeout(debounceTimer);
-        if (item) {
-            setSelectedEntityCache(item);
-            setLocalQuery(item.businessName);
-            setDebouncedQuery('');
-            props.onChange?.(item.id, item);
-            props.field?.handleChange(item.id as unknown as TValue);
+    const handleSelect = (entity: EntityPickerType | null) => {
+        if (entity) {
+            setSelectedEntityCache({
+                id: entity.id,
+                businessName: entity.businessName,
+                taxId: entity.taxId,
+            });
+            setLocalQuery(entity.businessName);
+            props.onChange?.(entity.id, entity);
+            props.field?.handleChange(entity.id as unknown as TValue);
         } else {
             setSelectedEntityCache(null);
             setLocalQuery('');
@@ -142,13 +150,14 @@ export function EntitySelect<TValue extends string | null | undefined = string |
     return (
         <div class="space-y-1.5 w-full">
             <Show when={props.label !== undefined}>
-                <label class="text-sm font-medium text-muted ml-1 w-fit block">
+                <FieldLabel tooltip={props.tooltip}>
                     {props.label}
-                </label>
+                </FieldLabel>
             </Show>
 
             <Show
                 when={selectedEntity()}
+                keyed
                 fallback={
                     <Autocomplete.Root field={props.field}>
                         <Autocomplete.Input<EntityPickerType>
@@ -173,16 +182,16 @@ export function EntitySelect<TValue extends string | null | undefined = string |
                     <div class="flex items-center gap-3 px-3 py-1.5 rounded-xl bg-primary/5 border border-primary/20 hover:border-primary/35 transition-all duration-200 shadow-sm min-h-10">
                         {/* Avatar initials */}
                         <div class="size-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-xs">
-                            {entity().businessName.charAt(0).toUpperCase() || <UserIcon class="size-3.5" />}
+                            {entity.businessName.charAt(0).toUpperCase() || <UserIcon class="size-3.5" />}
                         </div>
 
                         {/* Info */}
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-semibold text-text truncate leading-tight">
-                                {entity().businessName}
+                                {entity.businessName}
                             </p>
                             <p class="text-xs text-muted font-mono leading-none mt-0.5">
-                                {entity().taxId}
+                                {entity.taxId}
                             </p>
                         </div>
 

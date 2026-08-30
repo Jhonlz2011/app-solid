@@ -1,4 +1,4 @@
-import { useNavigate, useParentMatches } from '@tanstack/solid-router';
+import { useNavigate, useRouter } from '@tanstack/solid-router';
 
 export interface SheetNavigationProps {
     onClose?: () => void;
@@ -15,11 +15,11 @@ export interface SheetNavigationProps {
  * Features:
  *   - Automatic exit animation coordination via bindDismiss.
  *   - Unsaved changes protection via isDirty guard.
- *   - Safe route tree parent navigation fallback.
+ *   - Safe route tree parent navigation fallback without stale reactive subscriptions.
  */
 export function useSheetNavigation(props: SheetNavigationProps) {
     const navigate = useNavigate();
-    const parentMatches = useParentMatches(); // signal: () => RouteMatch[]
+    const router = useRouter();
     let dismissFn: (() => void) | undefined;
 
     /** Called by <Sheet bindDismiss={...}> to expose the animated dismiss fn */
@@ -45,14 +45,19 @@ export function useSheetNavigation(props: SheetNavigationProps) {
 
         if (props.onClose) return props.onClose();
 
-        // Fallback genérico: sube al padre en el ÁRBOL DE RUTAS
-        const matches = parentMatches();
-        const immediateParent = matches[matches.length - 1];
-
-        if (immediateParent) {
-            navigate({ to: immediateParent.pathname, search: true });
-        } else {
-            navigate({ to: '/', search: true });
+        // Safe imperative fallback: navigate to parent in route tree without subscribing to dying matches
+        try {
+            const matches = router.state.matches;
+            if (matches.length >= 2) {
+                const parentMatch = matches[matches.length - 2];
+                if (parentMatch?.pathname) {
+                    navigate({ to: parentMatch.pathname, search: true });
+                    return;
+                }
+            }
+            navigate({ to: '..', search: true });
+        } catch {
+            navigate({ to: '..', search: true });
         }
     };
 

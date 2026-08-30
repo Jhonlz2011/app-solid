@@ -2,7 +2,7 @@ import { Component, createSignal, Show, createMemo } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { UserCreateSchema, type UserCreateData } from '@app/schema/frontend';
 import type { RoleType } from '@app/schema/dto';
-import { TextField } from '@form/TextField';
+import { TextField, FieldLabel } from '@form/TextField';
 import { CardOption } from '@form/CardOption';
 import { FormSectionHeader } from '@form/FormSectionHeader';
 import { EntitySelect } from '@shared/ui/selectors';
@@ -136,10 +136,10 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
 
                     {/* ── Mode selector for brand new users ── */}
                     <Show when={!isExistingUser() && !isAlreadyMember()}>
-                        <div class="space-y-3 pt-1">
-                            <div class="text-[11px] font-semibold text-muted tracking-wider">
+                        <div class="space-y-2 pt-1">
+                            <FieldLabel tooltip="Selecciona cómo accederá el nuevo usuario a tu organización">
                                 Método de Incorporación
-                            </div>
+                            </FieldLabel>
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                 <CardOption
@@ -199,6 +199,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                             value={field().state.value}
                             onChange={(id) => field().handleChange(id)}
                             label="Persona vinculada"
+                            tooltip="Asocia la cuenta de usuario a una ficha de empleado existente"
                             placeholder="Buscar empleado por nombre o identificación..."
                             isEmployee={true}
                             disabled={props.isSubmitting || isAlreadyMember()}
