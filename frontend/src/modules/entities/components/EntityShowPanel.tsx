@@ -10,6 +10,7 @@ import { InfoIcon } from '@icons/InfoIcon';
 import { MapPinIcon } from '@icons/MapPinIcon';
 import { TruckIcon } from '@icons/TruckIcon';
 import { BriefcaseIcon } from '@icons/BriefcaseIcon';
+import { SearchIcon } from '@icons/SearchIcon';
 
 import { SkeletonLoader } from '@display/SkeletonLoader';
 import Button from '@form/Button';
@@ -23,8 +24,10 @@ import { formatCurrency, formatDate } from '@shared/utils/formatters';
 import { useClient } from '@modules/clients/data/clients.queries';
 import { useSupplier } from '@modules/suppliers/data/suppliers.queries';
 import { useEmployee } from '@modules/employees/data/employees.queries';
-import type { EntityModuleType } from './EntityNewSheet';
-import { getPersonTypeLabel, getTaxIdTypeLabel, getTaxRegimeTypeLabel } from '../models/entity.types';
+import { useCarrier } from '@modules/carriers/data/carriers.queries';
+import { getTaxIdTypeLabel, getPersonTypeLabel, getTaxRegimeTypeLabel } from '../entity-form.utils';
+
+export type EntityModuleType = 'client' | 'supplier' | 'employee' | 'carrier';
 
 export interface EntityShowPanelProps {
     id?: string | number;
@@ -50,7 +53,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
         return 'client';
     };
 
-    const entityId = () => {
+    const initialEntityId = () => {
         if (props.id) return String(props.id);
         if (props.clientId) return String(props.clientId);
         if (props.supplierId) return String(props.supplierId);
@@ -60,18 +63,25 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
         return raw ? String(raw) : '';
     };
 
+    const entityId = () => initialEntityId();
+
     const clientQuery = useClient(entityId, () => resolvedType() === 'client');
     const supplierQuery = useSupplier(entityId, () => resolvedType() === 'supplier');
-    const employeeQuery = useEmployee(entityId, () => resolvedType() === 'employee' || resolvedType() === 'carrier');
+    const employeeQuery = useEmployee(entityId, () => resolvedType() === 'employee');
+    const carrierQuery = useCarrier(entityId, () => resolvedType() === 'carrier');
 
-    const activeQuery = () => {
+    const query = () => {
         const t = resolvedType();
-        if (t === 'supplier') return supplierQuery;
-        if (t === 'employee' || t === 'carrier') return employeeQuery;
-        return clientQuery;
+        switch (t) {
+            case 'supplier': return supplierQuery;
+            case 'employee': return employeeQuery;
+            case 'carrier': return carrierQuery;
+            case 'client':
+            default:
+                return clientQuery;
+        }
     };
 
-    const query = () => activeQuery();
     const entity = () => query().data;
 
     const typeConfig = () => {
@@ -125,8 +135,8 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                 when={Boolean(entityId())}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center h-full">
-                        <div class="text-4xl mb-4 opacity-50">🔍</div>
-                        <p class="text-muted font-medium">ID de registro inválido</p>
+                        <SearchIcon class="size-10 text-muted/30 mb-3" />
+                        <p class="text-muted font-medium text-sm">ID de registro inválido</p>
                     </div>
                 }
             >
@@ -150,10 +160,11 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                 >
                     <Show
                         when={entity()}
+                        keyed
                         fallback={
                             <div class="flex flex-col items-center justify-center py-12 text-center h-full">
-                                <div class="text-4xl mb-4 opacity-50">📭</div>
-                                <p class="text-muted font-medium">No se encontró el registro</p>
+                                <InfoIcon class="size-10 text-muted/30 mb-3" />
+                                <p class="text-muted font-medium text-sm">No se encontró el registro</p>
                             </div>
                         }
                     >
@@ -164,24 +175,24 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                         <div class="flex items-start gap-4">
                                             <div class="size-14 rounded-2xl bg-linear-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 flex items-center justify-center text-primary font-bold text-xl shrink-0 shadow-inner">
-                                                {e().business_name?.substring(0, 2).toUpperCase() || 'EN'}
+                                                {e.business_name?.substring(0, 2).toUpperCase() || 'EN'}
                                             </div>
                                             <div>
                                                 <div class="flex items-center gap-2.5 flex-wrap">
                                                     <h3 class="font-bold text-text text-lg leading-tight">
-                                                        {e().business_name}
+                                                        {e.business_name}
                                                     </h3>
-                                                    <StatusBadge isActive={e().is_active ?? true} />
+                                                    <StatusBadge isActive={e.is_active ?? true} />
                                                 </div>
-                                                <Show when={e().trade_name}>
-                                                    <p class="text-sm text-muted font-medium mt-0.5">{e().trade_name}</p>
+                                                <Show when={e.trade_name}>
+                                                    <p class="text-sm text-muted font-medium mt-0.5">{e.trade_name}</p>
                                                 </Show>
                                                 <div class="flex items-center gap-3 mt-2 text-xs text-muted flex-wrap">
                                                     <span class="font-mono bg-surface px-2 py-0.5 rounded-md border border-border">
-                                                        {getTaxIdTypeLabel(e().tax_id_type)}: {e().tax_id}
+                                                        {getTaxIdTypeLabel(e.tax_id_type)}: {e.tax_id}
                                                     </span>
                                                     <span>•</span>
-                                                    <span>{getPersonTypeLabel(e().person_type)}</span>
+                                                    <span>{getPersonTypeLabel(e.person_type)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -212,24 +223,24 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                         <TabsTrigger value="contacts" class="gap-2">
                                             <UserIcon class="size-4" />
                                             <span>Contactos</span>
-                                            <CounterBadge count={e().contacts?.length ?? 0} />
+                                            <CounterBadge count={e.contacts?.length ?? 0} />
                                         </TabsTrigger>
                                         <TabsTrigger value="addresses" class="gap-2">
                                             <MapPinIcon class="size-4" />
                                             <span>Direcciones</span>
-                                            <CounterBadge count={e().addresses?.length ?? 0} />
+                                            <CounterBadge count={e.addresses?.length ?? 0} />
                                         </TabsTrigger>
-                                        <Show when={e().is_employee || resolvedType() === 'employee'}>
+                                        <Show when={e.is_employee || resolvedType() === 'employee'}>
                                             <TabsTrigger value="employee" class="gap-2">
                                                 <BriefcaseIcon class="size-4" />
                                                 <span>Empleado</span>
                                             </TabsTrigger>
                                         </Show>
-                                        <Show when={e().is_carrier || resolvedType() === 'carrier'}>
+                                        <Show when={e.is_carrier || resolvedType() === 'carrier'}>
                                             <TabsTrigger value="carrier" class="gap-2">
                                                 <TruckIcon class="size-4" />
                                                 <span>Transportista</span>
-                                                <CounterBadge count={(e().vehicles?.length ?? 0) + (e().drivers?.length ?? 0)} />
+                                                <CounterBadge count={(e.vehicles?.length ?? 0) + (e.drivers?.length ?? 0)} />
                                             </TabsTrigger>
                                         </Show>
                                     </TabsList>
@@ -241,25 +252,25 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                 <h4 class="text-xs font-bold text-muted uppercase tracking-wider">
                                                     Datos Fiscales y Contables
                                                 </h4>
-                                                <InfoRow label="Régimen Tributario" value={getTaxRegimeTypeLabel(e().tax_regime_type)} />
-                                                <InfoRow label="Obligado a Contabilidad" value={e().obligado_contabilidad ? 'Sí' : 'No'} />
-                                                <InfoRow label="Agente de Retención" value={e().is_retention_agent ? 'Sí' : 'No'} />
-                                                <InfoRow label="Contribuyente Especial" value={e().is_special_contributor ? 'Sí' : 'No'} />
+                                                <InfoRow label="Régimen Tributario" value={getTaxRegimeTypeLabel(e.tax_regime_type)} />
+                                                <InfoRow label="Obligado a Contabilidad" value={e.obligado_contabilidad ? 'Sí' : 'No'} />
+                                                <InfoRow label="Agente de Retención" value={e.is_retention_agent ? 'Sí' : 'No'} />
+                                                <InfoRow label="Contribuyente Especial" value={e.is_special_contributor ? 'Sí' : 'No'} />
                                             </div>
 
                                             <div class="bg-card border border-border rounded-2xl p-4 space-y-3">
                                                 <h4 class="text-xs font-bold text-muted uppercase tracking-wider">
                                                     Contacto Principal
                                                 </h4>
-                                                <InfoRow label="Email de Facturación" value={e().email_billing || 'No registrado'} />
-                                                <InfoRow label="Teléfono" value={e().phone || 'No registrado'} />
+                                                <InfoRow label="Email de Facturación" value={e.email_billing || 'No registrado'} />
+                                                <InfoRow label="Teléfono" value={e.phone || 'No registrado'} />
                                                 <InfoRow label="Roles en el Sistema">
                                                     <div class="flex gap-1.5 flex-wrap">
-                                                        <Show when={e().is_client}><Badge variant="success">Cliente</Badge></Show>
-                                                        <Show when={e().is_supplier}><Badge variant="warning">Proveedor</Badge></Show>
-                                                        <Show when={e().is_employee}><Badge variant="info">Empleado</Badge></Show>
-                                                        <Show when={e().is_carrier}><Badge variant="primary">Transportista</Badge></Show>
-                                                        <Show when={!e().is_client && !e().is_supplier && !e().is_employee && !e().is_carrier}>
+                                                        <Show when={e.is_client}><Badge variant="success">Cliente</Badge></Show>
+                                                        <Show when={e.is_supplier}><Badge variant="warning">Proveedor</Badge></Show>
+                                                        <Show when={e.is_employee}><Badge variant="info">Empleado</Badge></Show>
+                                                        <Show when={e.is_carrier}><Badge variant="primary">Transportista</Badge></Show>
+                                                        <Show when={!e.is_client && !e.is_supplier && !e.is_employee && !e.is_carrier}>
                                                             <span class="text-sm text-text font-medium">—</span>
                                                         </Show>
                                                     </div>
@@ -271,7 +282,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                     {/* Contacts Tab */}
                                     <TabsContent value="contacts">
                                         <Show
-                                            when={(e().contacts?.length ?? 0) > 0}
+                                            when={(e.contacts?.length ?? 0) > 0}
                                             fallback={
                                                 <div class="text-center py-10 border border-dashed border-border rounded-2xl text-muted text-sm">
                                                     No hay contactos registrados
@@ -279,7 +290,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                             }
                                         >
                                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                <For each={e().contacts}>
+                                                <For each={e.contacts}>
                                                     {(c) => (
                                                         <div class="bg-card border border-border rounded-2xl p-4 space-y-2 relative">
                                                             <div class="flex items-center justify-between">
@@ -292,8 +303,8 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                                 <p class="text-xs text-muted">{c.position}</p>
                                                             </Show>
                                                             <div class="text-xs space-y-1 text-muted pt-1 border-t border-border/50">
-                                                                <Show when={c.email}><div>✉️ {c.email}</div></Show>
-                                                                <Show when={c.phone}><div>📞 {c.phone}</div></Show>
+                                                                <Show when={c.email}><p>Email: {c.email}</p></Show>
+                                                                <Show when={c.phone}><p>Teléfono: {c.phone}</p></Show>
                                                             </div>
                                                         </div>
                                                     )}
@@ -305,7 +316,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                     {/* Addresses Tab */}
                                     <TabsContent value="addresses">
                                         <Show
-                                            when={(e().addresses?.length ?? 0) > 0}
+                                            when={(e.addresses?.length ?? 0) > 0}
                                             fallback={
                                                 <div class="text-center py-10 border border-dashed border-border rounded-2xl text-muted text-sm">
                                                     No hay direcciones registradas
@@ -313,7 +324,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                             }
                                         >
                                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                <For each={e().addresses}>
+                                                <For each={e.addresses}>
                                                     {(a) => (
                                                         <div class="bg-card border border-border rounded-2xl p-4 space-y-2">
                                                             <div class="flex items-center justify-between">
@@ -333,31 +344,31 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                     </TabsContent>
 
                                     {/* Employee Details Tab */}
-                                    <Show when={e().is_employee || resolvedType() === 'employee'}>
+                                    <Show when={e.is_employee || resolvedType() === 'employee'}>
                                         <TabsContent value="employee" class="space-y-4">
                                             <div class="bg-card border border-border rounded-2xl p-4 space-y-3">
                                                 <h4 class="text-xs font-bold text-muted uppercase tracking-wider">
                                                     Información Laboral
                                                 </h4>
-                                                <InfoRow label="Departamento" value={e().employeeDetails?.department_name || 'No especificado'} />
-                                                <InfoRow label="Cargo / Puesto" value={e().employeeDetails?.job_title_name || 'No especificado'} />
-                                                <InfoRow label="Salario Base" value={e().employeeDetails?.salary_base ? formatCurrency(Number(e().employeeDetails?.salary_base)) : 'No registrado'} />
-                                                <InfoRow label="Fecha de Contratación" value={e().employeeDetails?.hire_date ? formatDate(e().employeeDetails?.hire_date) : 'No registrada'} />
-                                                <InfoRow label="Costo por Hora" value={e().employeeDetails?.cost_per_hour ? formatCurrency(Number(e().employeeDetails?.cost_per_hour)) : 'No registrado'} />
+                                                <InfoRow label="Departamento" value={e.employeeDetails?.department_name || 'No especificado'} />
+                                                <InfoRow label="Cargo / Puesto" value={e.employeeDetails?.job_title_name || 'No especificado'} />
+                                                <InfoRow label="Salario Base" value={e.employeeDetails?.salary_base ? formatCurrency(Number(e.employeeDetails?.salary_base)) : 'No registrado'} />
+                                                <InfoRow label="Fecha de Contratación" value={e.employeeDetails?.hire_date ? formatDate(e.employeeDetails?.hire_date) : 'No registrada'} />
+                                                <InfoRow label="Costo por Hora" value={e.employeeDetails?.cost_per_hour ? formatCurrency(Number(e.employeeDetails?.cost_per_hour)) : 'No registrado'} />
                                             </div>
                                         </TabsContent>
                                     </Show>
 
                                     {/* Carrier Details Tab */}
-                                    <Show when={e().is_carrier || resolvedType() === 'carrier'}>
+                                    <Show when={e.is_carrier || resolvedType() === 'carrier'}>
                                         <TabsContent value="carrier" class="space-y-6">
                                             {/* Vehicles */}
                                             <div class="space-y-3">
                                                 <h4 class="text-xs font-bold text-muted uppercase tracking-wider">
-                                                    Vehículos Asignados ({(e().vehicles?.length ?? 0)})
+                                                    Vehículos Asignados ({(e.vehicles?.length ?? 0)})
                                                 </h4>
                                                 <Show
-                                                    when={(e().vehicles?.length ?? 0) > 0}
+                                                    when={(e.vehicles?.length ?? 0) > 0}
                                                     fallback={
                                                         <div class="text-center py-6 border border-dashed border-border rounded-xl text-muted text-xs">
                                                             No hay vehículos registrados
@@ -365,7 +376,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                     }
                                                 >
                                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                        <For each={e().vehicles}>
+                                                        <For each={e.vehicles}>
                                                             {(v) => (
                                                                 <div class="bg-card border border-border rounded-xl p-3 flex items-center justify-between">
                                                                     <div>
@@ -385,10 +396,10 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                             {/* Drivers */}
                                             <div class="space-y-3">
                                                 <h4 class="text-xs font-bold text-muted uppercase tracking-wider">
-                                                    Conductores Registrados ({(e().drivers?.length ?? 0)})
+                                                    Conductores Registrados ({(e.drivers?.length ?? 0)})
                                                 </h4>
                                                 <Show
-                                                    when={(e().drivers?.length ?? 0) > 0}
+                                                    when={(e.drivers?.length ?? 0) > 0}
                                                     fallback={
                                                         <div class="text-center py-6 border border-dashed border-border rounded-xl text-muted text-xs">
                                                             No hay conductores registrados
@@ -396,14 +407,14 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                     }
                                                 >
                                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                        <For each={e().drivers}>
+                                                        <For each={e.drivers}>
                                                             {(d) => (
                                                                 <div class="bg-card border border-border rounded-xl p-3 flex items-center justify-between">
                                                                     <div>
                                                                         <span class="font-bold text-sm text-text">{d.full_name}</span>
                                                                         <p class="text-xs text-muted font-mono">{d.identification_number}</p>
                                                                         <Show when={d.phone}>
-                                                                            <p class="text-xs text-muted">📞 {d.phone}</p>
+                                                                            <p class="text-xs text-muted">Tel: {d.phone}</p>
                                                                         </Show>
                                                                     </div>
                                                                     <StatusBadge isActive={d.is_active} />

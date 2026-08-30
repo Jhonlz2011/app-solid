@@ -1,11 +1,14 @@
+import type { Component } from 'solid-js';
 import type { ProductType } from '@app/schema/enums';
+import { BoxIcon } from '@icons/BoxIcon';
+import { WrenchIcon } from '@icons/WrenchIcon';
 
 // Mode configuration for product vs service catalog forms
 export interface CatalogModeConfig {
     type: ProductType;
     label: string;               // 'Producto' | 'Servicio'
     labelPlural: string;         // 'Productos' | 'Servicios'
-    icon: string;                // emoji
+    icon: Component<any>;
     rbacModule: string;          // 'products' | 'services'
     routePrefix: string;         // '/products' | '/services'
     formId: string;              // 'product-form' | 'service-form' (for form submission)
@@ -22,7 +25,7 @@ export const CATALOG_MODES: Record<ProductType, CatalogModeConfig> = {
         type: 'PRODUCTO',
         label: 'Producto',
         labelPlural: 'Productos',
-        icon: '📦',
+        icon: BoxIcon,
         rbacModule: 'products',
         routePrefix: '/products',
         formId: 'product-form',
@@ -37,7 +40,7 @@ export const CATALOG_MODES: Record<ProductType, CatalogModeConfig> = {
         type: 'SERVICIO',
         label: 'Servicio',
         labelPlural: 'Servicios',
-        icon: '🔧',
+        icon: WrenchIcon,
         rbacModule: 'services',
         routePrefix: '/services',
         formId: 'service-form',

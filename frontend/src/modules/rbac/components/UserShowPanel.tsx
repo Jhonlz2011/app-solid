@@ -31,7 +31,8 @@ interface UserShowPanelProps {
 const UserShowPanel: Component<UserShowPanelProps> = (props) => {
     const params = useParams({ strict: false }) as () => { userId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-    const userId = () => props.userId ?? params()?.userId;
+    const initialUserId = props.userId ?? params()?.userId;
+    const userId = () => props.userId ?? params()?.userId ?? initialUserId;
 
     const auth = useAuth();
     const userQuery = useUser(userId);
@@ -67,10 +68,11 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
             >
                 <Show
                     when={userQuery.data}
+                    keyed
                     fallback={
                         <div class="flex flex-col items-center justify-center py-16 text-center">
-                            <div class="text-4xl mb-4 opacity-30">📭</div>
-                            <p class="text-muted">No se encontró el usuario</p>
+                            <InfoIcon class="size-10 text-muted/30 mb-3" />
+                            <p class="text-muted text-sm">No se encontró el usuario</p>
                         </div>
                     }
                 >
@@ -80,12 +82,12 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                 {/* Header */}
                                 <div class="flex items-start justify-between shrink-0">
                                     <div class="flex items-center gap-4">
-                                        <Avatar name={user().username} size="lg" />
+                                        <Avatar name={user.username} size="lg" />
                                         <div class="flex flex-col gap-1">
-                                            <h3 class="text-xl font-bold text-text leading-tight">{user().username}</h3>
-                                            <p class="text-sm text-muted font-medium">{user().email}</p>
+                                            <h3 class="text-xl font-bold text-text leading-tight">{user.username}</h3>
+                                            <p class="text-sm text-muted font-medium">{user.email}</p>
                                             <div class="mt-1.5 flex items-center gap-2">
-                                                <StatusBadge isActive={user().isActive ?? true} />
+                                                <StatusBadge isActive={user.isActive ?? true} />
                                             </div>
                                         </div>
                                     </div>
@@ -126,14 +128,14 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                             Datos de la cuenta
                                         </div>
                                         <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                            <InfoRow label="Usuario" value={user().username} />
-                                            <InfoRow label="Correo electrónico" value={user().email} />
-                                            <InfoRow label="Estado" value={user().isActive ? 'Activo' : 'Inactivo'} />
+                                            <InfoRow label="Usuario" value={user.username} />
+                                            <InfoRow label="Correo electrónico" value={user.email} />
+                                            <InfoRow label="Estado" value={user.isActive ? 'Activo' : 'Inactivo'} />
                                             <InfoRow
                                                 label="Último acceso"
                                                 value={
-                                                    user().lastLogin
-                                                        ? new Date(user().lastLogin!).toLocaleString('es-EC')
+                                                    user.lastLogin
+                                                        ? new Date(user.lastLogin).toLocaleString('es-EC')
                                                         : 'Nunca'
                                                 }
                                             />
@@ -141,7 +143,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                     </div>
 
                                     {/* Entity Link */}
-                                    <Show when={user().entity}>
+                                    <Show when={user.entity} keyed>
                                         {(entity) => (
                                             <div class="bg-surface/30 rounded-2xl border border-border/40 overflow-hidden">
                                                 <div class="bg-surface/50 px-4 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
@@ -154,16 +156,16 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                                             <InfoIcon class="size-5 text-info" />
                                                         </div>
                                                         <div class="min-w-0 flex-1">
-                                                            <p class="font-semibold text-text truncate">{entity().businessName}</p>
-                                                            <p class="text-xs text-muted">{entity().taxId}</p>
+                                                            <p class="font-semibold text-text truncate">{entity.businessName}</p>
+                                                            <p class="text-xs text-muted">{entity.taxId}</p>
                                                             <div class="flex gap-1.5 mt-1">
-                                                                <Show when={entity().isEmployee}>
+                                                                <Show when={entity.isEmployee}>
                                                                     <EntityTypeBadge type="employee" />
                                                                 </Show>
-                                                                <Show when={entity().isClient}>
+                                                                <Show when={entity.isClient}>
                                                                     <EntityTypeBadge type="client" />
                                                                 </Show>
-                                                                <Show when={entity().isSupplier}>
+                                                                <Show when={entity.isSupplier}>
                                                                     <EntityTypeBadge type="supplier" />
                                                                 </Show>
                                                             </div>
@@ -179,14 +181,14 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                         <div class="bg-surface/50 px-4 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
                                             <div class="size-1.5 rounded-full bg-violet-500" />
                                             Roles asignados
-                                            <Show when={(user().roles?.length ?? 0) > 0}>
+                                            <Show when={(user.roles?.length ?? 0) > 0}>
                                                 <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 font-bold">
-                                                    {user().roles?.length}
+                                                    {user.roles?.length}
                                                 </span>
                                             </Show>
                                         </div>
                                         <Show
-                                            when={(user().roles?.length ?? 0) > 0}
+                                            when={(user.roles?.length ?? 0) > 0}
                                             fallback={
                                                 <div class="flex flex-col items-center justify-center py-8 text-center">
                                                     <KeyIcon class="size-7 opacity-20 mb-2" />
@@ -195,7 +197,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                             }
                                         >
                                             <div class="p-3 space-y-2">
-                                                <For each={user().roles}>
+                                                <For each={user.roles}>
                                                     {(role) => (
                                                         <div class="flex items-center gap-3 p-3 bg-card rounded-xl border border-border/40 hover:bg-surface/40 transition-colors">
                                                             <div class="size-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -216,17 +218,17 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
 
                                     {/* Security — Password Reset */}
                                     <Show when={canUpdate()}>
-                                        <UserPasswordResetSection userId={user().id} username={user().username} />
+                                        <UserPasswordResetSection userId={user.id} username={user.username} />
                                     </Show>
                                 </TabsContent>
 
                                 {/* ═══ Sessions Tab ═══ */}
                                 <TabsContent value="sessions">
-                                    <UserSessionsTab userId={user().id} />
+                                    <UserSessionsTab userId={user.id} />
                                 </TabsContent>
 
                                 <TabsContent value="activity">
-                                    <UserActivityTab userId={user().id} />
+                                    <UserActivityTab userId={user.id} />
                                 </TabsContent>
                             </div>
                         </Tabs>

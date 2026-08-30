@@ -1,4 +1,4 @@
-import { Component, JSX, Show, createEffect, mergeProps } from 'solid-js';
+import { Component, JSX, Show, createSignal, createEffect, onCleanup, mergeProps } from 'solid-js';
 import { Dialog } from '@kobalte/core';
 import { CloseIcon } from '@icons/CloseIcon';
 import { InfoIcon } from '@icons/InfoIcon';
@@ -35,17 +35,42 @@ const sizeClasses: Record<NonNullable<SheetProps['size']>, string> = {
 export const Sheet: Component<SheetProps> = (rawProps) => {
     const props = mergeProps({ side: 'right' as const, size: 'md' as const }, rawProps);
 
+    const [isOpen, setIsOpen] = createSignal(props.isOpen ?? true);
+    let closeTimeout: number | undefined;
+
+    createEffect(() => {
+        setIsOpen(props.isOpen ?? true);
+    });
+
+    onCleanup(() => {
+        if (closeTimeout) clearTimeout(closeTimeout);
+    });
+
+    /**
+     * Graceful dismissal: Triggers Kobalte exit animation first,
+     * then calls onClose once unmounting is complete to avoid stale reads on dying routes.
+     */
+    const handleDismiss = () => {
+        setIsOpen(false);
+        if (closeTimeout) clearTimeout(closeTimeout);
+        closeTimeout = window.setTimeout(() => {
+            props.onClose();
+        }, 220);
+    };
+
     // Wire up dismiss function for useSheetNavigation and parent consumers
     createEffect(() => {
-        props.bindDismiss?.(props.onClose);
+        props.bindDismiss?.(handleDismiss);
     });
 
     const isLeft = () => props.side === 'left';
 
     return (
         <Dialog.Root
-            open={props.isOpen}
-            onOpenChange={(open) => !open && props.onClose()}
+            open={isOpen()}
+            onOpenChange={(open) => {
+                if (!open) handleDismiss();
+            }}
         >
             <Dialog.Portal>
                 {/* Backdrop Overlay */}

@@ -16,18 +16,23 @@ import { SkeletonLoader } from '@display/SkeletonLoader';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { SearchIcon } from '@icons/SearchIcon';
+import { InfoIcon } from '@icons/InfoIcon';
 
 interface ServiceEditSheetProps {
     serviceId?: number;
     onClose?: () => void;
-
 }
 
 const ServiceEditSheet: Component<ServiceEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => any;
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-
-    const serviceId = () => props.serviceId ?? Number(params()?.serviceId);
+    const initialServiceId = () => {
+        if (props.serviceId) return props.serviceId;
+        const parsed = Number(params()?.serviceId);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const serviceId = () => initialServiceId();
 
     const productQuery = useProduct(serviceId);
     const updateMutation = useUpdateProduct();
@@ -47,7 +52,7 @@ const ServiceEditSheet: Component<ServiceEditSheetProps> = (props) => {
             close();
         } catch (error: any) {
             if (isNetworkError(error)) {
-                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.' });
                 close();
                 return;
             }
@@ -88,9 +93,9 @@ const ServiceEditSheet: Component<ServiceEditSheetProps> = (props) => {
                 when={serviceId() > 0}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center">
-                        <div class="text-4xl mb-4">🔍</div>
-                        <p class="text-muted">ID de servicio inválido</p>
-                        <p class="text-sm text-muted/70 mt-1">Verifica la URL e intenta de nuevo</p>
+                        <SearchIcon class="size-10 text-muted/30 mb-3" />
+                        <p class="text-muted text-sm font-medium">ID de servicio inválido</p>
+                        <p class="text-xs text-muted/70 mt-1">Verifica la URL e intenta de nuevo</p>
                     </div>
                 }
             >
@@ -106,18 +111,21 @@ const ServiceEditSheet: Component<ServiceEditSheetProps> = (props) => {
                 >
                     <Show
                         when={productQuery.data}
+                        keyed
                         fallback={
                             <div class="flex flex-col items-center justify-center py-12 text-center">
-                                <div class="text-4xl mb-4">📭</div>
-                                <p class="text-muted">No se encontró el servicio</p>
+                                <InfoIcon class="size-10 text-muted/30 mb-3" />
+                                <p class="text-muted text-sm">No se encontró el servicio</p>
                             </div>
                         }
                     >
-                        <CatalogForm mode={CATALOG_MODES.SERVICIO}
-                            product={productQuery.data}
-                            onSubmit={handleSubmit}
-                            isSubmitting={updateMutation.isPending}
-                        />
+                        {(serviceData) => (
+                            <CatalogForm mode={CATALOG_MODES.SERVICIO}
+                                product={serviceData}
+                                onSubmit={handleSubmit}
+                                isSubmitting={updateMutation.isPending}
+                            />
+                        )}
                     </Show>
                 </Show>
             </Show>

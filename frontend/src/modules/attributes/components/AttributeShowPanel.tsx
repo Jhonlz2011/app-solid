@@ -6,6 +6,7 @@ import { ATTRIBUTE_TYPE_LABELS, ATTRIBUTE_TYPE_BADGE_CLASSES } from '../data/att
 import type { AttributeDataType } from '@app/schema/enums';
 import { EditIcon } from '@icons/EditIcon';
 import { InfoIcon } from '@icons/InfoIcon';
+import { SearchIcon } from '@icons/SearchIcon';
 import { SkeletonLoader } from '@display/SkeletonLoader';
 import Button from '@form/Button';
 import Sheet from '@overlay/Sheet';
@@ -24,11 +25,12 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
     const auth = useAuth();
     const params = useParams({ strict: false }) as () => { attributeId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-    const attributeId = () => {
+    const initialAttributeId = () => {
         if (props.attributeId) return props.attributeId;
         const parsed = Number(params()?.attributeId);
         return Number.isFinite(parsed) ? parsed : 0;
     };
+    const attributeId = () => initialAttributeId();
 
     const attributeQuery = useAttributeDetail(attributeId);
 
@@ -50,8 +52,8 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                 when={attributeId() > 0}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center h-full">
-                        <div class="text-4xl mb-4 opacity-50">🔍</div>
-                        <p class="text-muted font-medium">ID de atributo inválido</p>
+                        <SearchIcon class="size-10 text-muted/30 mb-3" />
+                        <p class="text-muted font-medium text-sm">ID de atributo inválido</p>
                     </div>
                 }
             >
@@ -75,10 +77,11 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                 >
                     <Show
                         when={attributeQuery.data}
+                        keyed
                         fallback={
                             <div class="flex flex-col items-center justify-center py-12 text-center h-full">
-                                <div class="text-4xl mb-4 opacity-50">📭</div>
-                                <p class="text-muted font-medium">No se encontró el atributo</p>
+                                <InfoIcon class="size-10 text-muted/30 mb-3" />
+                                <p class="text-muted font-medium text-sm">No se encontró el atributo</p>
                             </div>
                         }
                     >
@@ -88,15 +91,15 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                                     <div class="flex items-start justify-between shrink-0">
                                         <div class="flex gap-4 items-center">
                                             <div class="size-14 rounded-2xl bg-info/10 flex items-center justify-center text-info font-bold text-2xl shadow-inner border border-info/20">
-                                                {attribute().label.substring(0, 1).toUpperCase()}
+                                                {attribute.label.substring(0, 1).toUpperCase()}
                                             </div>
                                             <div class="flex flex-col gap-1">
-                                                <h3 class="text-xl font-bold text-text leading-tight">{attribute().label}</h3>
-                                                <p class="text-sm font-mono text-muted/80">{attribute().key}</p>
+                                                <h3 class="text-xl font-bold text-text leading-tight">{attribute.label}</h3>
+                                                <p class="text-sm font-mono text-muted/80">{attribute.key}</p>
                                                 <div class="flex gap-2 items-center mt-1">
-                                                    <StatusBadge isActive={attribute().is_active} />
-                                                    <span class={`text-[10px] font-bold uppercase py-0.5 px-2 rounded-sm tracking-wider border ${ATTRIBUTE_TYPE_BADGE_CLASSES[attribute().type as AttributeDataType] ?? 'text-info bg-info/10 border-info/20'}`}>
-                                                        {ATTRIBUTE_TYPE_LABELS[attribute().type as AttributeDataType] ?? attribute().type}
+                                                    <StatusBadge isActive={attribute.is_active} />
+                                                    <span class={`text-[10px] font-bold uppercase py-0.5 px-2 rounded-sm tracking-wider border ${ATTRIBUTE_TYPE_BADGE_CLASSES[attribute.type as AttributeDataType] ?? 'text-info bg-info/10 border-info/20'}`}>
+                                                        {ATTRIBUTE_TYPE_LABELS[attribute.type as AttributeDataType] ?? attribute.type}
                                                     </span>
                                                 </div>
                                             </div>
@@ -119,7 +122,7 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                                     <div>
                                         <TabsList class="flex md:w-max overflow-x-auto shadow-sm rounded-xl mb-2">
                                             <TabsTrigger value="general"><InfoIcon /> Configuración</TabsTrigger>
-                                            <TabsTrigger value="categories" count={attribute().usedInCategories?.length || 0}> Uso en Categorías</TabsTrigger>
+                                            <TabsTrigger value="categories" count={attribute.usedInCategories?.length || 0}> Uso en Categorías</TabsTrigger>
                                         </TabsList>
                                     </div>
                                 </div>
@@ -132,13 +135,13 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                                                 Información Estructural
                                             </div>
                                             <div class="p-5 grid grid-cols-1 gap-6">
-                                                <InfoRow label="Key" value={attribute().key} />
-                                                <InfoRow label="Etiqueta Pública" value={attribute().label} />
-                                                <InfoRow label="Tipo de Control" value={ATTRIBUTE_TYPE_LABELS[attribute().type as AttributeDataType] ?? attribute().type} />
+                                                <InfoRow label="Key" value={attribute.key} />
+                                                <InfoRow label="Etiqueta Pública" value={attribute.label} />
+                                                <InfoRow label="Tipo de Control" value={ATTRIBUTE_TYPE_LABELS[attribute.type as AttributeDataType] ?? attribute.type} />
                                             </div>
                                         </div>
 
-                                        <Show when={attribute().default_options && attribute().default_options!.length > 0}>
+                                        <Show when={attribute.default_options && attribute.default_options!.length > 0}>
                                             <div class="bg-surface/30 rounded-2xl border border-border/40 overflow-hidden shadow-sm">
                                                 <div class="bg-surface/50 px-5 py-3 border-b border-border/40 font-semibold text-sm text-text flex items-center gap-2">
                                                     <div class="size-1.5 rounded-full bg-info"></div>
@@ -146,7 +149,7 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                                                 </div>
                                                 <div class="p-5">
                                                     <div class="flex flex-wrap gap-2">
-                                                        <For each={attribute().default_options}>
+                                                        <For each={attribute.default_options}>
                                                             {(opt) => (
                                                                 <span class="inline-flex items-center px-2.5 py-1 bg-surface border border-border rounded-lg text-sm text-text font-medium shadow-sm">
                                                                     {opt}
@@ -160,13 +163,13 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                                     </TabsContent>
 
                                     <TabsContent value="categories" class="fill-mode-both">
-                                        <Show when={(attribute().usedInCategories?.length ?? 0) > 0} fallback={
+                                        <Show when={(attribute.usedInCategories?.length ?? 0) > 0} fallback={
                                             <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-50">
                                                 Este atributo no está asignado a ninguna categoría aún.
                                             </div>
                                         }>
                                             <div class="space-y-4">
-                                                <For each={attribute().usedInCategories}>
+                                                <For each={attribute.usedInCategories}>
                                                     {(cat) => (
                                                         <div class="bg-card rounded-xl p-4 border border-border/40 shadow-sm flex items-center justify-between gap-4">
                                                             <div class="flex flex-col min-w-0">

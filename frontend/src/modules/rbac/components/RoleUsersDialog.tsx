@@ -10,6 +10,7 @@ import ConfirmDialog from '@overlay/ConfirmDialog';
 import { UserMinusIcon } from '@icons/UserMinusIcon';
 import { PlusIcon } from '@icons/PlusIcon';
 import { UsersIcon } from '@icons/UsersIcon';
+import { ShieldIcon } from '@icons/ShieldIcon';
 
 import { rbacKeys } from '../data/users.keys';
 import {
@@ -150,7 +151,8 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
                 <div class="space-y-4 py-4">
                     <Show when={props.roleName === 'superadmin'}>
                         <div class="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs text-primary font-medium flex items-center gap-2">
-                            <span>🛡️ El rol Superadmin pertenece exclusivamente al propietario de la organización y es inmutable.</span>
+                            <ShieldIcon class="size-4 shrink-0" />
+                            <span>El rol Superadmin pertenece exclusivamente al propietario de la organización y es inmutable.</span>
                         </div>
                     </Show>
 

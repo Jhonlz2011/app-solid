@@ -36,7 +36,7 @@ const ServiceNewSheet: Component<ServiceNewSheetProps> = (props) => {
             close();
         } catch (error: any) {
             if (isNetworkError(error)) {
-                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.' });
                 close();
                 return;
             }

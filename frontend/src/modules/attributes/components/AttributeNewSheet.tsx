@@ -28,11 +28,11 @@ const AttributeNewSheet: Component<AttributeNewSheetProps> = (props) => {
         try {
             await createMutation.mutateAsync(data);
             toast.success('Atributo creado correctamente');
-            navigateAway();
+            close();
         } catch (error: any) {
             if (isNetworkError(error)) {
-                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
-                navigateAway();
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.' });
+                close();
                 return;
             }
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;

@@ -6,6 +6,7 @@ import { EditIcon } from '@icons/EditIcon';
 import { InfoIcon } from '@icons/InfoIcon';
 import { TagIcon } from '@icons/TagIcon';
 import { ChevronRightIcon } from '@icons/ChevronRightIcon';
+import { SearchIcon } from '@icons/SearchIcon';
 import { SkeletonLoader } from '@display/SkeletonLoader';
 import Button from '@form/Button';
 import LinkButton from '@form/LinkButton';
@@ -18,18 +19,18 @@ import { useAuth } from '@modules/auth/store/auth.store';
 interface CategoryShowPanelProps {
     categoryId?: number;
     onClose?: () => void;
-
 }
 
 const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
     const auth = useAuth();
     const params = useParams({ strict: false }) as () => { categoryId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-    const categoryId = () => {
+    const initialCategoryId = () => {
         if (props.categoryId) return props.categoryId;
         const parsed = Number(params()?.categoryId);
         return Number.isFinite(parsed) ? parsed : 0;
     };
+    const categoryId = () => initialCategoryId();
 
     const categoryQuery = useCategoryDetail(categoryId);
     const flatQuery = useCategoriesFlat();
@@ -57,8 +58,8 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                 when={categoryId() > 0}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center h-full">
-                        <div class="text-4xl mb-4 opacity-50">🔍</div>
-                        <p class="text-muted font-medium">ID de categoría inválido</p>
+                        <SearchIcon class="size-10 text-muted/30 mb-3" />
+                        <p class="text-muted font-medium text-sm">ID de categoría inválido</p>
                     </div>
                 }
             >
@@ -82,10 +83,11 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                 >
                     <Show
                         when={categoryQuery.data}
+                        keyed
                         fallback={
                             <div class="flex flex-col items-center justify-center py-12 text-center h-full">
-                                <div class="text-4xl mb-4 opacity-50">📭</div>
-                                <p class="text-muted font-medium">No se encontró la categoría</p>
+                                <InfoIcon class="size-10 text-muted/30 mb-3" />
+                                <p class="text-muted font-medium text-sm">No se encontró la categoría</p>
                             </div>
                         }
                     >
@@ -95,15 +97,15 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                                     <div class="flex items-start justify-between shrink-0">
                                         <div class="flex gap-4 items-center">
                                             <div class="size-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl shadow-inner border border-primary/20">
-                                                {category().icon ?? '📁'}
+                                                {category.icon ?? <TagIcon class="size-6 text-primary" />}
                                             </div>
                                             <div class="flex flex-col gap-1">
-                                                <h3 class="text-xl font-bold text-text leading-tight">{category().name}</h3>
-                                                <Show when={category().path}>
-                                                    <p class="text-sm font-mono text-muted/80">{category().path!.replace(/\./g, ' > ')}</p>
+                                                <h3 class="text-xl font-bold text-text leading-tight">{category.name}</h3>
+                                                <Show when={category.path}>
+                                                    <p class="text-sm font-mono text-muted/80">{category.path!.replace(/\./g, ' > ')}</p>
                                                 </Show>
                                                 <div class="flex gap-2 items-center mt-1">
-                                                    <StatusBadge isActive={category().is_active} />
+                                                    <StatusBadge isActive={category.is_active} />
                                                 </div>
                                             </div>
                                         </div>
@@ -126,7 +128,7 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                                         <TabsList class="flex md:w-max overflow-x-auto shadow-sm rounded-xl mb-2">
                                             <TabsTrigger value="general"><InfoIcon /> Detalles</TabsTrigger>
                                             <TabsTrigger value="subcategories" count={subCategories().length}> Sub-categorías</TabsTrigger>
-                                            <TabsTrigger value="attributes" count={category().attributes?.length || 0}>Atributos</TabsTrigger>
+                                            <TabsTrigger value="attributes" count={category.attributes?.length || 0}>Atributos</TabsTrigger>
                                         </TabsList>
                                     </div>
                                 </div>
@@ -140,15 +142,15 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                                             </div>
                                             <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-6">
                                                 <div class="sm:col-span-2">
-                                                    <InfoRow label="Descripción" value={category().description} />
+                                                    <InfoRow label="Descripción" value={category.description} />
                                                 </div>
-                                                <InfoRow label="Ruta Completa" value={category().path!.replace(/\./g, ' / ')} />
+                                                <InfoRow label="Ruta Completa" value={category.path!.replace(/\./g, ' / ')} />
                                                 <div class="flex flex-col gap-1">
                                                     <span class="text-xs font-medium text-muted uppercase tracking-wider">Plantilla de Nombre (SKU)</span>
                                                     <div class="pt-1">
-                                                        <Show when={category().name_template} fallback={<span class="text-sm font-mono text-muted/60">No definida</span>}>
+                                                        <Show when={category.name_template} fallback={<span class="text-sm font-mono text-muted/60">No definida</span>}>
                                                             <Badge variant="default" class="text-xs font-mono px-2 py-1 rounded border border-border">
-                                                                {category().name_template}
+                                                                {category.name_template}
                                                             </Badge>
                                                         </Show>
                                                     </div>
@@ -171,7 +173,9 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                                                             preload="intent"
                                                             class="bg-card hover:bg-surface/40 hover:border-primary/30 transition-all duration-200 rounded-2xl p-5 border border-border/40 shadow-sm flex items-center gap-3 group cursor-pointer"
                                                         >
-                                                            <div class="text-2xl shrink-0">{sub.icon ?? '📁'}</div>
+                                                            <div class="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-sm font-bold shrink-0">
+                                                                <TagIcon class="size-4 text-primary" />
+                                                            </div>
                                                             <div class="flex flex-col overflow-hidden flex-1 min-w-0">
                                                                 <div class="font-bold text-text truncate group-hover:text-primary transition-colors">{sub.name}</div>
                                                                 <div class="flex items-center gap-2 mt-1">
@@ -188,14 +192,14 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                                     </TabsContent>
 
                                     <TabsContent value="attributes" class="fill-mode-both">
-                                        <Show when={(category().attributes?.length ?? 0) > 0} fallback={
+                                        <Show when={(category.attributes?.length ?? 0) > 0} fallback={
                                             <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
                                                 <TagIcon class="size-8 opacity-20 mb-3" />
                                                 No hay atributos heredados o asociados.
                                             </div>
                                         }>
                                             <div class="space-y-4">
-                                                <For each={category().attributes}>
+                                                <For each={category.attributes}>
                                                     {(attr) => (
                                                         <div class="bg-card rounded-xl p-4 border border-border/40 shadow-sm flex items-center justify-between gap-4">
                                                             <div class="flex flex-col min-w-0">

@@ -4,9 +4,10 @@ import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useLocation } from '../data/locations.queries';
 import { LOCATION_TYPE_META } from '../data/locations.constants';
 import type { LocationType } from '@app/schema/enums';
-import type { LocationItem } from '../data/locations.api';
 import { EditIcon } from '@icons/EditIcon';
 import { MapPinIcon } from '@icons/MapPinIcon';
+import { SearchIcon } from '@icons/SearchIcon';
+import { InfoIcon } from '@icons/InfoIcon';
 
 import { SkeletonLoader } from '@display/SkeletonLoader';
 import Button from '@form/Button';
@@ -16,22 +17,21 @@ import { StatusBadge } from '@display/Badge';
 import { InfoRow } from '@/shared/ui/display/InfoRow';
 import { useAuth } from '@modules/auth/store/auth.store';
 
-
 interface LocationShowPanelProps {
     locationId?: number;
     onClose?: () => void;
-
 }
 
 const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
     const auth = useAuth();
     const params = useParams({ strict: false }) as () => { locationId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-    const locationId = () => {
+    const initialLocationId = () => {
         if (props.locationId) return props.locationId;
         const parsed = Number(params()?.locationId);
         return Number.isFinite(parsed) ? parsed : 0;
     };
+    const locationId = () => initialLocationId();
 
     const locationQuery = useLocation(locationId);
     const locationItem = () => locationQuery.data ?? null;
@@ -54,8 +54,8 @@ const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
                 when={locationId() > 0}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center h-full">
-                        <div class="text-4xl mb-4 opacity-50">🔍</div>
-                        <p class="text-muted font-medium">ID de ubicación inválido</p>
+                        <SearchIcon class="size-10 text-muted/30 mb-3" />
+                        <p class="text-muted font-medium text-sm">ID de ubicación inválido</p>
                     </div>
                 }
             >
@@ -78,15 +78,16 @@ const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
                 >
                     <Show
                         when={locationItem()}
+                        keyed
                         fallback={
                             <div class="flex flex-col items-center justify-center py-12 text-center h-full">
-                                <div class="text-4xl mb-4 opacity-50">📭</div>
-                                <p class="text-muted font-medium">No se encontró la ubicación</p>
+                                <InfoIcon class="size-10 text-muted/30 mb-3" />
+                                <p class="text-muted font-medium text-sm">No se encontró la ubicación</p>
                             </div>
                         }
                     >
                         {(location) => {
-                            const typeMeta = () => LOCATION_TYPE_META[location().type as LocationType];
+                            const typeMeta = () => LOCATION_TYPE_META[location.type as LocationType];
                             const TypeIcon = () => {
                                 const meta = typeMeta();
                                 return meta ? <meta.icon class="size-5" /> : null;
@@ -101,10 +102,10 @@ const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
                                                 <MapPinIcon class="size-6" />
                                             </div>
                                             <div class="flex flex-col gap-1">
-                                                <h3 class="text-xl font-bold text-text leading-tight">{location().name}</h3>
-                                                <p class="text-sm font-mono text-muted/80">{location().path}</p>
+                                                <h3 class="text-xl font-bold text-text leading-tight">{location.name}</h3>
+                                                <p class="text-sm font-mono text-muted/80">{location.path}</p>
                                                 <div class="flex gap-2 items-center mt-1">
-                                                    <StatusBadge isActive={location().is_active ?? true} />
+                                                    <StatusBadge isActive={location.is_active ?? true} />
                                                     <Show when={typeMeta()}>
                                                         <span class={`inline-flex items-center gap-1 text-[10px] font-bold uppercase py-0.5 px-2 rounded-sm tracking-wider ${typeMeta()!.color}`}>
                                                             <TypeIcon />
@@ -135,12 +136,11 @@ const LocationShowPanel: Component<LocationShowPanelProps> = (props) => {
                                             Información de la Ubicación
                                         </div>
                                         <div class="p-5 grid grid-cols-1 gap-6">
-                                            <InfoRow label="Nombre" value={location().name} />
-                                            <InfoRow label="Ruta (ltree)" value={location().path} />
-                                            <InfoRow label="Tipo" value={typeMeta()?.label ?? location().type} />
-                                            <InfoRow label="Profundidad" value={String(location().depth)} />
-
-                                            <InfoRow label="Bodega ID" value={location().warehouse_id ? String(location().warehouse_id) : 'Virtual (sin bodega)'} />
+                                            <InfoRow label="Nombre" value={location.name} />
+                                            <InfoRow label="Ruta (ltree)" value={location.path} />
+                                            <InfoRow label="Tipo" value={typeMeta()?.label ?? location.type} />
+                                            <InfoRow label="Profundidad" value={String(location.depth)} />
+                                            <InfoRow label="Bodega ID" value={location.warehouse_id ? String(location.warehouse_id) : 'Virtual (sin bodega)'} />
                                         </div>
                                     </div>
                                 </div>

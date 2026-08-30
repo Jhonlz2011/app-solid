@@ -1,5 +1,5 @@
 import { Component, Show, For, createMemo } from 'solid-js';
-import { useParams, useNavigate } from '@tanstack/solid-router';
+import { useParams } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useProduct } from '@/modules/products/data/products.queries';
 import { productTypeLabels, productSubtypeLabels } from '@/modules/products/data/products.api';
@@ -19,10 +19,10 @@ interface ServiceShowPanelProps {
 
 const ServiceShowPanel: Component<ServiceShowPanelProps> = (props) => {
     const auth = useAuth();
-    const navigate = useNavigate();
     const params = useParams({ strict: false }) as () => any;
-    const { bindDismiss } = useSheetNavigation(props);
-    const serviceId = () => props.serviceId ?? Number(params()?.serviceId);
+    const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
+    const initialServiceId = props.serviceId ?? Number(params()?.serviceId);
+    const serviceId = () => props.serviceId ?? Number(params()?.serviceId) ?? initialServiceId;
 
     const query = useProduct(serviceId);
 
@@ -34,21 +34,17 @@ const ServiceShowPanel: Component<ServiceShowPanelProps> = (props) => {
         return `$${Number(val).toFixed(2)}`;
     };
 
-    const handleClose = () => {
-        navigate({ to: '../../services/' });
-    };
-
     return (
         <Sheet
             bindDismiss={bindDismiss}
             isOpen={true}
-            onClose={handleClose}
+            onClose={navigateAway}
             title={service()?.name ?? 'Servicio'}
             description={`Slug: ${(service() as any)?.slug ?? ''}`}
             size="xxxl"
             footer={
                 <div class="flex items-center gap-2 w-full justify-end">
-                    <Button variant="outline" onClick={handleClose}>Cerrar</Button>
+                    <Button variant="outline" onClick={close}>Cerrar</Button>
                     <Show when={auth.canEdit('products')}>
                         <LinkButton to={`./edit`} preload="intent">
                             Editar
@@ -58,7 +54,7 @@ const ServiceShowPanel: Component<ServiceShowPanelProps> = (props) => {
             }
         >
             <Show when={!query.isPending} fallback={<SkeletonLoader type="text" count={6} />}>
-                <Show when={service()}>
+                <Show when={service()} keyed>
                     {(p) => (
                         <Tabs defaultValue="general" class="w-full">
                             <TabsList>
@@ -71,31 +67,31 @@ const ServiceShowPanel: Component<ServiceShowPanelProps> = (props) => {
                                 <div class="space-y-6 py-4">
                                     {/* Status + Type */}
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <StatusBadge isActive={p().is_active ?? true} />
-                                        <Badge variant={p().product_type === 'SERVICIO' ? 'primary' : 'info'}>
-                                            {productTypeLabels[p().product_type as keyof typeof productTypeLabels] ?? p().product_type}
+                                        <StatusBadge isActive={p.is_active ?? true} />
+                                        <Badge variant={p.product_type === 'SERVICIO' ? 'primary' : 'info'}>
+                                            {productTypeLabels[p.product_type as keyof typeof productTypeLabels] ?? p.product_type}
                                         </Badge>
-                                        <Show when={p().product_subtype}>
+                                        <Show when={p.product_subtype}>
                                             <Badge variant="primary">
-                                                {productSubtypeLabels[p().product_subtype as keyof typeof productSubtypeLabels] ?? p().product_subtype}
+                                                {productSubtypeLabels[p.product_subtype as keyof typeof productSubtypeLabels] ?? p.product_subtype}
                                             </Badge>
                                         </Show>
                                     </div>
 
                                     {/* Info Grid */}
                                     <div class="bg-surface/30 rounded-xl border border-border divide-y divide-border">
-                                        <InfoRow label="Slug" value={(p() as any).slug} />
-                                        <InfoRow label="Nombre" value={p().name} />
-                                        <InfoRow label="Descripción" value={p().description || '—'} />
-                                        <InfoRow label="Categoría" value={(p() as any).category?.name || '—'} />
+                                        <InfoRow label="Slug" value={(p as any).slug} />
+                                        <InfoRow label="Nombre" value={p.name} />
+                                        <InfoRow label="Descripción" value={p.description || '—'} />
+                                        <InfoRow label="Categoría" value={(p as any).category?.name || '—'} />
                                     </div>
 
                                     {/* Shared Attributes (JSONB) */}
-                                    <Show when={Object.keys((p() as any).shared_attributes ?? {}).length > 0}>
+                                    <Show when={Object.keys((p as any).shared_attributes ?? {}).length > 0}>
                                         <div class="bg-surface/30 rounded-xl border border-border p-4 space-y-3">
                                             <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">Atributos</h4>
                                             <div class="grid grid-cols-2 gap-3">
-                                                <For each={Object.entries((p() as any).shared_attributes ?? {})}>
+                                                <For each={Object.entries((p as any).shared_attributes ?? {})}>
                                                     {([key, val]) => (
                                                         <div class="flex items-center justify-between bg-card rounded-lg px-3 py-2 border border-border/50">
                                                             <span class="text-xs text-muted font-medium">{key}</span>
@@ -113,16 +109,16 @@ const ServiceShowPanel: Component<ServiceShowPanelProps> = (props) => {
                                         <div class="grid grid-cols-3 gap-4">
                                             <div>
                                                 <span class="text-xs text-muted block">Precio Base por Defecto</span>
-                                                <span class="text-lg font-bold font-mono">{formatPrice((p() as any).default_base_price)}</span>
+                                                <span class="text-lg font-bold font-mono">{formatPrice((p as any).default_base_price)}</span>
                                             </div>
                                             <div>
                                                 <span class="text-xs text-muted block">Último Costo</span>
-                                                <span class="text-lg font-mono">{formatPrice((p() as any).last_cost ?? 0)}</span>
+                                                <span class="text-lg font-mono">{formatPrice((p as any).last_cost ?? 0)}</span>
                                             </div>
                                             <div>
                                                 <span class="text-xs text-muted block">IVA</span>
                                                 <span class="text-lg font-mono">
-                                                    {p().iva_rate_code === 0 ? '0%' : p().iva_rate_code === 2 ? '12%' : p().iva_rate_code === 4 ? '15%' : `Cod ${p().iva_rate_code}`}
+                                                    {p.iva_rate_code === 0 ? '0%' : p.iva_rate_code === 2 ? '12%' : p.iva_rate_code === 4 ? '15%' : `Cod ${p.iva_rate_code}`}
                                                 </span>
                                             </div>
                                         </div>

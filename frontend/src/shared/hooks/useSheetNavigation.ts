@@ -16,11 +16,13 @@ export interface SheetNavigationProps {
  *   - Automatic exit animation coordination via bindDismiss.
  *   - Unsaved changes protection via isDirty guard.
  *   - Safe route tree parent navigation fallback without stale reactive subscriptions.
+ *   - Idempotent close guard to prevent double-navigation during exit transitions.
  */
 export function useSheetNavigation(props: SheetNavigationProps) {
     const navigate = useNavigate();
     const router = useRouter();
     let dismissFn: (() => void) | undefined;
+    let isClosing = false;
 
     /** Called by <Sheet bindDismiss={...}> to expose the animated dismiss fn */
     const bindDismiss = (fn: () => void) => {
@@ -37,13 +39,18 @@ export function useSheetNavigation(props: SheetNavigationProps) {
     };
 
     /**
-     * Navigates "away" without animation — used as the Sheet's onClose prop
-     * so overlay-click and X-button also call the right handler.
+     * Navigates away to parent route — called after exit animation completes
+     * or as fallback when no animation is available.
      */
     const navigateAway = () => {
         if (!canProceed()) return;
+        if (isClosing) return;
+        isClosing = true;
 
-        if (props.onClose) return props.onClose();
+        if (props.onClose) {
+            props.onClose();
+            return;
+        }
 
         // Safe imperative fallback: navigate to parent in route tree without subscribing to dying matches
         try {
@@ -64,13 +71,16 @@ export function useSheetNavigation(props: SheetNavigationProps) {
     /**
      * Primary close entry-point — runs the exit animation first,
      * then delegates to navigateAway once the animation completes.
-     * Use this for Cancel buttons and programmatic closes.
+     * Use this for Cancel buttons, Close buttons and programmatic closes.
      */
     const close = () => {
         if (!canProceed()) return;
 
-        if (dismissFn) dismissFn();
-        else navigateAway();
+        if (dismissFn) {
+            dismissFn();
+        } else {
+            navigateAway();
+        }
     };
 
     return { bindDismiss, close, navigateAway };

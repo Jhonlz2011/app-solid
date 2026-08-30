@@ -31,6 +31,7 @@ import { PlusIcon } from '@icons/PlusIcon';
 import { KeyIcon } from '@icons/KeyIcon';
 import { GripVerticalIcon } from '@icons/GripVerticalIcon';
 import { TrashIcon } from '@icons/TrashIcon';
+import { TagIcon } from '@icons/TagIcon';
 import {
     DragDropProvider,
     DragDropSensors,
@@ -43,7 +44,7 @@ import {
 } from '@thisbeyond/solid-dnd';
 import { FormSubmissionContext, hasFieldError, getFieldError } from '@form/form.types';
 import { type AttributeDetail } from '../data/attributes.api';
-import { ATTRIBUTE_TYPE_OPTIONS, type AttributeTypeOption } from '../data/attributes.constants';
+import { ATTRIBUTE_TYPE_OPTIONS } from '../data/attributes.constants';
 
 export interface AttributeFormProps {
     attribute?: AttributeDetail | null;
@@ -387,7 +388,7 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
                                             when={optionsCount() > 0}
                                             fallback={
                                                 <div class="flex flex-col items-center justify-center py-5 text-center border-2 border-dashed border-border/50 rounded-xl bg-surface/30 transition-colors">
-                                                    <div class="text-2xl mb-2 opacity-40">📋</div>
+                                                    <TagIcon class="size-6 text-muted/40 mb-2" />
                                                     <p class="text-sm text-text font-medium">Sin opciones agregadas</p>
                                                     <p class="text-[11px] text-muted mt-1 max-w-55">
                                                         {isSelectType() 

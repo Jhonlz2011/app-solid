@@ -13,6 +13,8 @@ import { SkeletonLoader } from '@display/SkeletonLoader';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { SearchIcon } from '@icons/SearchIcon';
+import { InfoIcon } from '@icons/InfoIcon';
 import { useClient } from '@modules/clients/data/clients.queries';
 import { useSupplier } from '@modules/suppliers/data/suppliers.queries';
 import { useEmployee } from '@modules/employees/data/employees.queries';
@@ -145,7 +147,6 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
             if (isNetworkError(error)) {
                 toast.info('Guardado localmente', {
                     description: 'Se sincronizará automáticamente al recuperar la conexión.',
-                    icon: '☁️',
                 });
                 nav.close();
                 return;
@@ -188,9 +189,9 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
                 when={Boolean(entityId())}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center">
-                        <div class="text-4xl mb-4">🔍</div>
-                        <p class="text-muted">ID de registro inválido</p>
-                        <p class="text-sm text-muted/70 mt-1">Verifica la URL e intenta de nuevo</p>
+                        <SearchIcon class="size-10 text-muted/30 mb-3" />
+                        <p class="text-muted text-sm font-medium">ID de registro inválido</p>
+                        <p class="text-xs text-muted/70 mt-1">Verifica la URL e intenta de nuevo</p>
                     </div>
                 }
             >
@@ -206,19 +207,22 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
                 >
                     <Show
                         when={query().data}
+                        keyed
                         fallback={
                             <div class="flex flex-col items-center justify-center py-12 text-center">
-                                <div class="text-4xl mb-4">📭</div>
-                                <p class="text-muted">{typeConfig().notFoundMsg}</p>
+                                <InfoIcon class="size-10 text-muted/30 mb-3" />
+                                <p class="text-muted text-sm">{typeConfig().notFoundMsg}</p>
                             </div>
                         }
                     >
-                        <EntityForm
-                            entity={query().data}
-                            onSubmit={handleSubmit}
-                            isSubmitting={isPending()}
-                            lockedRoles={typeConfig().lockedRoles}
-                        />
+                        {(entityData) => (
+                            <EntityForm
+                                entity={entityData}
+                                onSubmit={handleSubmit}
+                                isSubmitting={isPending()}
+                                lockedRoles={typeConfig().lockedRoles}
+                            />
+                        )}
                     </Show>
                 </Show>
             </Show>

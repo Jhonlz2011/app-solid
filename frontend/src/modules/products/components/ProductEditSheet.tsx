@@ -17,18 +17,23 @@ import { SkeletonLoader } from '@display/SkeletonLoader';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { SearchIcon } from '@icons/SearchIcon';
+import { InfoIcon } from '@icons/InfoIcon';
 
 interface ProductEditSheetProps {
     productId?: number;
     onClose?: () => void;
-
 }
 
 const ProductEditSheet: Component<ProductEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => any;
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-
-    const productId = () => props.productId ?? Number(params()?.productId);
+    const initialProductId = () => {
+        if (props.productId) return props.productId;
+        const parsed = Number(params()?.productId);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const productId = () => initialProductId();
 
     const productQuery = useProduct(productId);
     const updateMutation = useUpdateProduct();
@@ -48,7 +53,7 @@ const ProductEditSheet: Component<ProductEditSheetProps> = (props) => {
             close();
         } catch (error: any) {
             if (isNetworkError(error)) {
-                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.' });
                 close();
                 return;
             }
@@ -89,9 +94,9 @@ const ProductEditSheet: Component<ProductEditSheetProps> = (props) => {
                 when={productId() > 0}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center">
-                        <div class="text-4xl mb-4">🔍</div>
-                        <p class="text-muted">ID de producto inválido</p>
-                        <p class="text-sm text-muted/70 mt-1">Verifica la URL e intenta de nuevo</p>
+                        <SearchIcon class="size-10 text-muted/30 mb-3" />
+                        <p class="text-muted text-sm font-medium">ID de producto inválido</p>
+                        <p class="text-xs text-muted/70 mt-1">Verifica la URL e intenta de nuevo</p>
                     </div>
                 }
             >
@@ -107,18 +112,21 @@ const ProductEditSheet: Component<ProductEditSheetProps> = (props) => {
                 >
                     <Show
                         when={productQuery.data}
+                        keyed
                         fallback={
                             <div class="flex flex-col items-center justify-center py-12 text-center">
-                                <div class="text-4xl mb-4">📭</div>
-                                <p class="text-muted">No se encontró el producto</p>
+                                <InfoIcon class="size-10 text-muted/30 mb-3" />
+                                <p class="text-muted text-sm">No se encontró el producto</p>
                             </div>
                         }
                     >
-                        <CatalogForm mode={CATALOG_MODES.PRODUCTO}
-                            product={productQuery.data}
-                            onSubmit={handleSubmit}
-                            isSubmitting={updateMutation.isPending}
-                        />
+                        {(productData) => (
+                            <CatalogForm mode={CATALOG_MODES.PRODUCTO}
+                                product={productData}
+                                onSubmit={handleSubmit}
+                                isSubmitting={updateMutation.isPending}
+                            />
+                        )}
                     </Show>
                 </Show>
             </Show>

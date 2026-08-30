@@ -109,7 +109,6 @@ export const EntityNewSheet: Component<EntityNewSheetProps> = (props) => {
             if (isNetworkError(error)) {
                 toast.info('Guardado localmente', {
                     description: 'Se sincronizará automáticamente al recuperar la conexión.',
-                    icon: '☁️',
                 });
                 nav.close();
                 return;

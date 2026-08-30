@@ -20,8 +20,9 @@ interface ProductShowPanelProps {
 const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
     const auth = useAuth();
     const params = useParams({ strict: false }) as () => any;
-    const { bindDismiss, navigateAway } = useSheetNavigation(props);
-    const productId = () => props.productId ?? Number(params()?.productId);
+    const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
+    const initialProductId = props.productId ?? Number(params()?.productId);
+    const productId = () => props.productId ?? Number(params()?.productId) ?? initialProductId;
 
     const query = useProduct(productId);
 
@@ -43,7 +44,7 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
             size="xxxl"
             footer={
                 <div class="flex items-center gap-2 w-full justify-end">
-                    <Button variant="outline" onClick={navigateAway}>Cerrar</Button>
+                    <Button variant="outline" onClick={close}>Cerrar</Button>
                     <Show when={auth.canEdit('products')}>
                         <LinkButton to={`/products/${productId()}/show/edit`} preload="intent">
                             Editar
@@ -53,7 +54,7 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
             }
         >
             <Show when={!query.isPending} fallback={<SkeletonLoader type="text" count={6} />}>
-                <Show when={product()}>
+                <Show when={product()} keyed>
                     {(p) => (
                         <Tabs defaultValue="general" class="w-full">
                             <TabsList>
@@ -67,33 +68,33 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
                                 <div class="space-y-6 py-4">
                                     {/* Status + Type */}
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <StatusBadge isActive={p().is_active ?? true} />
-                                        <Badge variant={p().product_type === 'PRODUCTO' ? 'primary' : 'info'}>
-                                            {productTypeLabels[p().product_type as keyof typeof productTypeLabels] ?? p().product_type}
+                                        <StatusBadge isActive={p.is_active ?? true} />
+                                        <Badge variant={p.product_type === 'PRODUCTO' ? 'primary' : 'info'}>
+                                            {productTypeLabels[p.product_type as keyof typeof productTypeLabels] ?? p.product_type}
                                         </Badge>
-                                        <Show when={p().product_subtype}>
+                                        <Show when={p.product_subtype}>
                                             <Badge variant="primary">
-                                                {productSubtypeLabels[p().product_subtype as keyof typeof productSubtypeLabels] ?? p().product_subtype}
+                                                {productSubtypeLabels[p.product_subtype as keyof typeof productSubtypeLabels] ?? p.product_subtype}
                                             </Badge>
                                         </Show>
                                     </div>
 
                                     {/* Info Grid */}
                                     <div class="bg-surface/30 rounded-xl border border-border divide-y divide-border">
-                                        <InfoRow label="Slug" value={(p() as any).slug} />
-                                        <InfoRow label="Nombre" value={p().name} />
-                                        <InfoRow label="Descripción" value={p().description || '—'} />
-                                        <InfoRow label="Categoría" value={(p() as any).category?.name || '—'} />
-                                        <InfoRow label="Marca" value={(p() as any).brand?.name || '—'} />
-                                        <InfoRow label="UOM" value={(p() as any).uom_code || (p() as any).uom_name || ((p() as any).uom_inventory_id ? `#${(p() as any).uom_inventory_id}` : '—')} />
+                                        <InfoRow label="Slug" value={(p as any).slug} />
+                                        <InfoRow label="Nombre" value={p.name} />
+                                        <InfoRow label="Descripción" value={p.description || '—'} />
+                                        <InfoRow label="Categoría" value={(p as any).category?.name || '—'} />
+                                        <InfoRow label="Marca" value={(p as any).brand?.name || '—'} />
+                                        <InfoRow label="UOM" value={(p as any).uom_code || (p as any).uom_name || ((p as any).uom_inventory_id ? `#${(p as any).uom_inventory_id}` : '—')} />
                                     </div>
 
                                     {/* Shared Attributes (JSONB) */}
-                                    <Show when={Object.keys((p() as any).shared_attributes ?? {}).length > 0}>
+                                    <Show when={Object.keys((p as any).shared_attributes ?? {}).length > 0}>
                                         <div class="bg-surface/30 rounded-xl border border-border p-4 space-y-3">
                                             <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">Atributos</h4>
                                             <div class="grid grid-cols-2 gap-3">
-                                                <For each={Object.entries((p() as any).shared_attributes ?? {})}>
+                                                <For each={Object.entries((p as any).shared_attributes ?? {})}>
                                                     {([key, val]) => (
                                                         <div class="flex items-center justify-between bg-card rounded-lg px-3 py-2 border border-border/50">
                                                             <span class="text-xs text-muted font-medium">{key}</span>
@@ -111,16 +112,16 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
                                         <div class="grid grid-cols-3 gap-4">
                                             <div>
                                                 <span class="text-xs text-muted block">Precio Base por Defecto</span>
-                                                <span class="text-lg font-bold font-mono">{formatPrice((p() as any).default_base_price)}</span>
+                                                <span class="text-lg font-bold font-mono">{formatPrice((p as any).default_base_price)}</span>
                                             </div>
                                             <div>
                                                 <span class="text-xs text-muted block">Último Costo</span>
-                                                <span class="text-lg font-mono">{formatPrice((p() as any).last_cost ?? 0)}</span>
+                                                <span class="text-lg font-mono">{formatPrice((p as any).last_cost ?? 0)}</span>
                                             </div>
                                             <div>
                                                 <span class="text-xs text-muted block">IVA</span>
                                                 <span class="text-lg font-mono">
-                                                    {p().iva_rate_code === 0 ? '0%' : p().iva_rate_code === 2 ? '12%' : p().iva_rate_code === 4 ? '15%' : `Cod ${p().iva_rate_code}`}
+                                                    {p.iva_rate_code === 0 ? '0%' : p.iva_rate_code === 2 ? '12%' : p.iva_rate_code === 4 ? '15%' : `Cod ${p.iva_rate_code}`}
                                                 </span>
                                             </div>
                                         </div>
@@ -128,12 +129,12 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
 
                                     {/* Settings */}
                                     <div class="flex flex-wrap gap-3 text-xs">
-                                        <Show when={p().has_dimensional_tracking}>
+                                        <Show when={p.has_dimensional_tracking}>
                                             <span class="bg-info/10 text-info border border-info/20 px-2 py-1 rounded-lg font-medium">Rastreo Dimensional</span>
                                         </Show>
-                                        <Show when={Number(p().min_stock_alert) > 0}>
+                                        <Show when={Number(p.min_stock_alert) > 0}>
                                             <span class="bg-warning/10 text-warning border border-warning/20 px-2 py-1 rounded-lg font-medium">
-                                                Min Stock: {p().min_stock_alert}
+                                                Min Stock: {p.min_stock_alert}
                                             </span>
                                         </Show>
                                     </div>

@@ -81,7 +81,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
             >
                 {/* ═══ 1. User Identity & Live Detection ═══ */}
                 <div class="space-y-4">
-                    <FormSectionHeader title="Identidad y Acceso" indicatorColor="bg-primary" />
+                    <FormSectionHeader title="Información de acceso" indicatorColor="bg-primary" />
 
                     <form.Field name="email">
                         {(field) => (

@@ -12,22 +12,24 @@ import { SkeletonLoader } from '@display/SkeletonLoader';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { SearchIcon } from '@icons/SearchIcon';
+import { InfoIcon } from '@icons/InfoIcon';
 
 interface AttributeEditSheetProps {
     attributeId?: number;
     onClose?: () => void;
-
 }
 
 const AttributeEditSheet: Component<AttributeEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => { attributeId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
     
-    const attributeId = () => {
+    const initialAttributeId = () => {
         if (props.attributeId) return props.attributeId;
         const parsed = Number(params()?.attributeId);
         return Number.isFinite(parsed) ? parsed : 0;
     };
+    const attributeId = () => initialAttributeId();
 
     const attributeQuery = useAttributeDetail(attributeId);
     const updateMutation = useUpdateAttribute();
@@ -38,17 +40,17 @@ const AttributeEditSheet: Component<AttributeEditSheetProps> = (props) => {
         if (isOffline()) {
             updateMutation.mutate({ id: attributeId(), data });
             showOfflineSavedToast();
-            navigateAway();
+            close();
             return;
         }
         try {
             await updateMutation.mutateAsync({ id: attributeId(), data });
             toast.success('Atributo actualizado correctamente');
-            navigateAway();
+            close();
         } catch (error: any) {
             if (isNetworkError(error)) {
-                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
-                navigateAway();
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.' });
+                close();
                 return;
             }
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
@@ -89,9 +91,9 @@ const AttributeEditSheet: Component<AttributeEditSheetProps> = (props) => {
                 when={attributeId() > 0}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center">
-                        <div class="text-4xl mb-4">🔍</div>
-                        <p class="text-muted">ID de atributo inválido</p>
-                        <p class="text-sm text-muted/70 mt-1">Verifica la URL e intenta de nuevo</p>
+                        <SearchIcon class="size-10 text-muted/30 mb-3" />
+                        <p class="text-muted text-sm font-medium">ID de atributo inválido</p>
+                        <p class="text-xs text-muted/70 mt-1">Verifica la URL e intenta de nuevo</p>
                     </div>
                 }
             >
@@ -106,18 +108,21 @@ const AttributeEditSheet: Component<AttributeEditSheetProps> = (props) => {
                 >
                     <Show
                         when={attributeQuery.data}
+                        keyed
                         fallback={
                             <div class="flex flex-col items-center justify-center py-12 text-center">
-                                <div class="text-4xl mb-4">📭</div>
-                                <p class="text-muted">No se encontró el atributo</p>
+                                <InfoIcon class="size-10 text-muted/30 mb-3" />
+                                <p class="text-muted text-sm">No se encontró el atributo</p>
                             </div>
                         }
                     >
-                        <AttributeForm
-                            attribute={attributeQuery.data}
-                            onSubmit={handleSubmit}
-                            isSubmitting={updateMutation.isPending}
-                        />
+                        {(attr) => (
+                            <AttributeForm
+                                attribute={attr}
+                                onSubmit={handleSubmit}
+                                isSubmitting={updateMutation.isPending}
+                            />
+                        )}
                     </Show>
                 </Show>
             </Show>

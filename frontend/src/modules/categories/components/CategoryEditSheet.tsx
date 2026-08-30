@@ -12,22 +12,24 @@ import { SkeletonLoader } from '@display/SkeletonLoader';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { SearchIcon } from '@icons/SearchIcon';
+import { InfoIcon } from '@icons/InfoIcon';
 
 interface CategoryEditSheetProps {
     categoryId?: number;
     onClose?: () => void;
-
 }
 
 const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => { categoryId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
     
-    const categoryId = () => {
+    const initialCategoryId = () => {
         if (props.categoryId) return props.categoryId;
         const parsed = Number(params()?.categoryId);
         return Number.isFinite(parsed) ? parsed : 0;
     };
+    const categoryId = () => initialCategoryId();
 
     const categoryQuery = useCategoryDetail(categoryId);
     const updateMutation = useUpdateCategory();
@@ -40,17 +42,17 @@ const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
         if (isOffline()) {
             updateMutation.mutate({ id: categoryId(), data });
             showOfflineSavedToast();
-            navigateAway();
+            close();
             return;
         }
         try {
             await updateMutation.mutateAsync({ id: categoryId(), data });
             toast.success('Categoría actualizada correctamente');
-            navigateAway();
+            close();
         } catch (error: any) {
             if (isNetworkError(error)) {
-                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
-                navigateAway();
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.' });
+                close();
                 return;
             }
             const hasFieldErrors = error instanceof ApiError && (error.errors?.length ?? 0) > 0;
@@ -69,23 +71,23 @@ const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
         if (isOffline()) {
             (isActive ? deactivateMut : restoreMut).mutate(id);
             showOfflineSavedToast();
-            navigateAway();
+            close();
             return;
         }
 
         if (isActive) {
             deactivateMut.mutate(id, {
-                onSuccess: () => { toast.success('Categoría desactivada'); navigateAway(); },
+                onSuccess: () => { toast.success('Categoría desactivada'); close(); },
                 onError: (err: any) => {
-                    if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
+                    if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.' }); close(); return; }
                     toast.error(err.message || 'Error');
                 },
             });
         } else {
             restoreMut.mutate(id, {
-                onSuccess: () => { toast.success('Categoría restaurada'); navigateAway(); },
+                onSuccess: () => { toast.success('Categoría restaurada'); close(); },
                 onError: (err: any) => {
-                    if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' }); navigateAway(); return; }
+                    if (isNetworkError(err)) { toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.' }); close(); return; }
                     toast.error(err.message || 'Error');
                 },
             });
@@ -101,10 +103,10 @@ const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
             onClose={navigateAway}
             title="Editar Categoría"
             description="Modifica los datos de la categoría"
-            size="xxl"
+            size="xl"
             footer={
                 <>
-                    <Show when={categoryId() > 0 && categoryQuery.data}>
+                    <Show when={categoryQuery.data}>
                         <Button
                             variant={categoryQuery.data?.is_active ? 'danger' : 'success'}
                             onClick={handleToggleActive}
@@ -133,9 +135,9 @@ const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
                 when={categoryId() > 0}
                 fallback={
                     <div class="flex flex-col items-center justify-center py-12 text-center">
-                        <div class="text-4xl mb-4">🔍</div>
-                        <p class="text-muted">ID de categoría inválido</p>
-                        <p class="text-sm text-muted/70 mt-1">Verifica la URL e intenta de nuevo</p>
+                        <SearchIcon class="size-10 text-muted/30 mb-3" />
+                        <p class="text-muted text-sm font-medium">ID de categoría inválido</p>
+                        <p class="text-xs text-muted/70 mt-1">Verifica la URL e intenta de nuevo</p>
                     </div>
                 }
             >
@@ -151,23 +153,26 @@ const CategoryEditSheet: Component<CategoryEditSheetProps> = (props) => {
                 >
                     <Show
                         when={categoryQuery.data}
+                        keyed
                         fallback={
                             <div class="flex flex-col items-center justify-center py-12 text-center">
-                                <div class="text-4xl mb-4">📭</div>
-                                <p class="text-muted">No se encontró la categoría</p>
+                                <InfoIcon class="size-10 text-muted/30 mb-3" />
+                                <p class="text-muted text-sm">No se encontró la categoría</p>
                             </div>
                         }
                     >
-                        <CategoryForm
-                            category={categoryQuery.data}
-                            onSubmit={handleSubmit}
-                            isSubmitting={updateMutation.isPending}
-                            formId="category-edit-form"
-                        />
+                        {(category) => (
+                            <CategoryForm
+                                category={category}
+                                onSubmit={handleSubmit}
+                                isSubmitting={updateMutation.isPending}
+                                formId="category-edit-form"
+                            />
+                        )}
                     </Show>
                 </Show>
             </Show>
-            {/* Nested sheets (e.g. attribute creation) render here */}
+            {/* Deep Nested Routes */}
             <Outlet />
         </Sheet>
     );

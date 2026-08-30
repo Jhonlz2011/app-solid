@@ -56,11 +56,11 @@ const LocationEditSheet: Component<LocationEditSheetProps> = (props) => {
                 },
             });
             toast.success('Ubicación actualizada');
-            navigateAway();
+            close();
         } catch (err: any) {
             if (isNetworkError(err)) {
-                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.', icon: '☁️' });
-                navigateAway();
+                toast.info('Guardado localmente', { description: 'Se sincronizará automáticamente al recuperar la conexión.' });
+                close();
                 return;
             }
             toast.error(err.message || 'Error al actualizar');

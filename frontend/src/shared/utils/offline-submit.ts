@@ -16,6 +16,5 @@ export function isOffline(): boolean {
 export function showOfflineSavedToast() {
   toast.info('Guardado localmente', {
     description: 'Se sincronizará automáticamente al recuperar la conexión.',
-    icon: '☁️',
   });
 }

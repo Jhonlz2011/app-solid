@@ -6,6 +6,7 @@ import type { UserUpdateData } from '@app/schema/frontend';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { InfoIcon } from '@icons/InfoIcon';
 import { SkeletonLoader } from '@display/SkeletonLoader';
 import { useUser, useRoles } from '../data/users.queries';
 import {
@@ -22,7 +23,8 @@ interface UserEditSheetProps {
 const UserEditSheet: Component<UserEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => { userId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
-    const userId = () => props.userId ?? params()?.userId;
+    const initialUserId = props.userId ?? params()?.userId;
+    const userId = () => props.userId ?? params()?.userId ?? initialUserId;
 
     const userQuery = useUser(userId);
     const rolesQuery = useRoles();
@@ -121,10 +123,11 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
             >
                 <Show
                     when={userQuery.data}
+                    keyed
                     fallback={
                         <div class="flex flex-col items-center justify-center py-12 text-center">
-                            <div class="text-4xl mb-4 opacity-50">📭</div>
-                            <p class="text-muted">No se encontró el usuario</p>
+                            <InfoIcon class="size-10 text-muted/30 mb-3" />
+                            <p class="text-muted text-sm">No se encontró el usuario</p>
                         </div>
                     }
                 >
@@ -132,15 +135,15 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                         <UserEditForm
                             formId="user-edit-form"
                             defaultValues={{
-                                username: user().username,
-                                email: user().email,
-                                isActive: user().isActive ?? true,
-                                roleIds: user().roles?.map((r: { id: number }) => r.id) ?? [],
-                                entityId: user().entityId ?? null,
+                                username: user.username,
+                                email: user.email,
+                                isActive: user.isActive ?? true,
+                                roleIds: user.roles?.map((r: { id: number }) => r.id) ?? [],
+                                entityId: user.entityId ?? null,
                             }}
                             roles={rolesQuery.data ?? []}
                             rolesLoading={rolesQuery.isPending}
-                            initialEntity={user().entity}
+                            initialEntity={user.entity}
                             onSubmit={handleSubmit}
                             isSubmitting={isPending()}
                         />
