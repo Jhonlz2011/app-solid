@@ -143,9 +143,10 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                 <CardOption
+                                    size="sm"
                                     isSelected={onboardingMode() === 'invite'}
                                     onSelect={() => setOnboardingMode('invite')}
-                                    icon={<MailIcon class="size-4.5" />}
+                                    icon={<MailIcon class="size-4" />}
                                     title="Invitación por Correo"
                                     description="Acceso 1-Click con Google / Microsoft o clave personal."
                                     badge="Recomendado"
@@ -154,9 +155,10 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                 />
 
                                 <CardOption
+                                    size="sm"
                                     isSelected={onboardingMode() === 'direct'}
                                     onSelect={() => setOnboardingMode('direct')}
-                                    icon={<KeyIcon class="size-4.5" />}
+                                    icon={<KeyIcon class="size-4" />}
                                     title="Credenciales Directas"
                                     description="Asigna usuario y contraseña inicial manualmente."
                                     variant="primary"

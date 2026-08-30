@@ -1,7 +1,7 @@
 import { Component, JSX, splitProps, Show } from 'solid-js';
 import { cn } from '../../lib/utils';
 
-export type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'default' | 'primary' | 'secondary' | 'purple' | 'pink' | 'orange' | 'teal' | 'cyan' | 'indigo';
+export type BadgeVariant = 'success' | 'warning' | 'danger' | 'destructive' | 'info' | 'default' | 'primary' | 'secondary' | 'purple' | 'pink' | 'orange' | 'teal' | 'cyan' | 'indigo';
 
 // 1. OPTIMIZACIÓN: Extender atributos HTML nativos para mayor flexibilidad
 interface BadgeProps extends JSX.HTMLAttributes<HTMLSpanElement> {
@@ -14,6 +14,7 @@ const variantStyles: Record<BadgeVariant, string> = {
     success: 'bg-success/15 text-success border-success/30',
     warning: 'bg-warning/15 text-warning border-warning/30',
     danger: 'bg-danger/15 text-danger border-danger/30',
+    destructive: 'bg-destructive/15 text-destructive border-destructive/30',
     info: 'bg-info/15 text-info border-info/30',
     primary: 'bg-primary/15 text-primary border-primary/30',
     secondary: 'bg-secondary/15 text-secondary border-secondary/30',

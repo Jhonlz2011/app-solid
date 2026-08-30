@@ -77,7 +77,7 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
         <Dialog.Root open={props.isOpen} onOpenChange={handleOpenChange}>
             <Dialog.Portal>
                 <Dialog.Overlay
-                    class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:duration-150"
+                    class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150 data-closed:animate-out data-closed:fade-out-0 data-closed:duration-150"
                 />
                 <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
                     <Dialog.Content
@@ -86,7 +86,7 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
                             'rounded-t-2xl sm:rounded-2xl shadow-2xl',
                             'w-full sm:max-w-md',
                             'animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 fade-in duration-150',
-                            'data-[closed]:animate-out data-[closed]:slide-out-to-bottom sm:data-[closed]:slide-out-to-bottom-0 data-[closed]:zoom-out-95 data-[closed]:fade-out-0 data-[closed]:duration-150',
+                            'data-closed:animate-out data-closed:slide-out-to-bottom sm:data-closed:slide-out-to-bottom-0 data-closed:zoom-out-95 data-closed:fade-out-0 data-closed:duration-150',
                             'overflow-hidden outline-none'
                         )}
                     >
@@ -128,8 +128,7 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
                                         onSelect={() => setMode('soft')}
                                         indicator="radio"
                                         variant="danger"
-                                        layout="horizontal"
-                                        icon={<EyeOffIcon class="size-4 text-muted" />}
+                                        icon={<EyeOffIcon class="size-4 text-danger" />}
                                         title={props.softDeleteTitle}
                                         description={props.softDeleteDesc}
                                         badge="recomendado"
@@ -141,64 +140,61 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
                                         isSelected={mode() === 'hard'}
                                         onSelect={() => setMode('hard')}
                                         indicator="radio"
-                                        variant="danger"
-                                        layout="horizontal"
+                                        variant="destructive"
                                         icon={<TrashIcon class="size-4 text-destructive" />}
-                                        title={
-                                            <div class="flex items-center gap-2">
-                                                <span>{props.hardDeleteTitle}</span>
-                                                <span class="relative size-5 shrink-0 flex items-center justify-center">
-                                                    <span class={cn(
-                                                        'absolute inset-0 flex items-center justify-center transition-opacity duration-150',
-                                                        mode() === 'hard' && props.isCheckingDependencies ? 'opacity-100' : 'opacity-0'
-                                                    )}>
-                                                        <span class="size-3.5 border-2 border-muted/30 border-t-muted rounded-full animate-spin" />
-                                                    </span>
-
-                                                    <span class={cn(
-                                                        'absolute inset-0 flex items-center justify-center transition-opacity duration-150',
-                                                        mode() === 'hard' && !props.isCheckingDependencies && props.hasDependencies
-                                                            ? 'opacity-100'
-                                                            : 'opacity-0 pointer-events-none'
-                                                    )}>
-                                                        <Popover placement="top-end" gutter={6}>
-                                                            <Popover.Trigger
-                                                                onClick={(e: MouseEvent) => e.stopPropagation()}
-                                                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-warning/15 text-warning border border-warning/25 hover:bg-warning/25 transition-colors cursor-pointer"
-                                                            >
-                                                                <AlertTriangleIcon class="size-3.5" />
-                                                            </Popover.Trigger>
-
-                                                            <Popover.Content class="w-60 sm:w-72 p-3.5 space-y-2">
-                                                                <div class="flex items-center gap-2 text-warning text-xs font-semibold">
-                                                                    <AlertTriangleIcon class="size-3.5 shrink-0" />
-                                                                    {props.preventHardDeleteText}
-                                                                </div>
-                                                                <p class="text-xs text-muted">
-                                                                    {props.preventHardDeleteReason}
-                                                                </p>
-                                                                <ul class="space-y-1">
-                                                                    <For each={props.dependencyWarnings}>
-                                                                        {(line) => (
-                                                                            <li class="text-xs text-text flex items-center gap-2">
-                                                                                <span class="size-1.5 rounded-full bg-warning/70 shrink-0" />
-                                                                                {line}
-                                                                            </li>
-                                                                        )}
-                                                                    </For>
-                                                                </ul>
-                                                                <p class="text-xs text-muted/70 pt-1 border-t border-border">
-                                                                    {props.preventHardDeleteSuggestion || (
-                                                                        <>Usa <strong class="text-muted font-semibold">Eliminar</strong> para ocultar el registro.</>
-                                                                    )}
-                                                                </p>
-                                                            </Popover.Content>
-                                                        </Popover>
-                                                    </span>
-                                                </span>
-                                            </div>
-                                        }
+                                        title={props.hardDeleteTitle}
                                         description={props.hardDeleteDesc}
+                                        action={
+                                            <span class="relative size-5 shrink-0 flex items-center justify-center">
+                                                <span class={cn(
+                                                    'absolute inset-0 flex items-center justify-center transition-opacity duration-150',
+                                                    mode() === 'hard' && props.isCheckingDependencies ? 'opacity-100' : 'opacity-0'
+                                                )}>
+                                                    <span class="size-3.5 border-2 border-muted/30 border-t-muted rounded-full animate-spin" />
+                                                </span>
+
+                                                <span class={cn(
+                                                    'absolute inset-0 flex items-center justify-center transition-opacity duration-150',
+                                                    mode() === 'hard' && !props.isCheckingDependencies && props.hasDependencies
+                                                        ? 'opacity-100'
+                                                        : 'opacity-0 pointer-events-none'
+                                                )}>
+                                                    <Popover placement="top-end" gutter={6}>
+                                                        <Popover.Trigger
+                                                            onClick={(e: MouseEvent) => e.stopPropagation()}
+                                                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-warning/15 text-warning border border-warning/25 hover:bg-warning/25 transition-colors cursor-pointer"
+                                                        >
+                                                            <AlertTriangleIcon class="size-3.5" />
+                                                        </Popover.Trigger>
+
+                                                        <Popover.Content class="w-60 sm:w-72 p-3.5 space-y-2">
+                                                            <div class="flex items-center gap-2 text-warning text-xs font-semibold">
+                                                                <AlertTriangleIcon class="size-3.5 shrink-0" />
+                                                                {props.preventHardDeleteText}
+                                                            </div>
+                                                            <p class="text-xs text-muted">
+                                                                {props.preventHardDeleteReason}
+                                                            </p>
+                                                            <ul class="space-y-1">
+                                                                <For each={props.dependencyWarnings}>
+                                                                    {(line) => (
+                                                                        <li class="text-xs text-text flex items-center gap-2">
+                                                                            <span class="size-1.5 rounded-full bg-warning/70 shrink-0" />
+                                                                            {line}
+                                                                        </li>
+                                                                    )}
+                                                                </For>
+                                                            </ul>
+                                                            <p class="text-xs text-muted/70 pt-1 border-t border-border">
+                                                                {props.preventHardDeleteSuggestion || (
+                                                                    <>Usa <strong class="text-muted font-semibold">Eliminar</strong> para ocultar el registro.</>
+                                                                )}
+                                                            </p>
+                                                        </Popover.Content>
+                                                    </Popover>
+                                                </span>
+                                            </span>
+                                        }
                                     />
                                 </div>
                             </Show>

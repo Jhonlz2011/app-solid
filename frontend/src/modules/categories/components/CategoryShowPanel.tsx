@@ -161,7 +161,7 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
 
                                     <TabsContent value="subcategories" class="fill-mode-both">
                                         <Show when={subCategories().length > 0} fallback={
-                                            <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
+                                            <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-50">
                                                 Esta categoría no tiene hijos.
                                             </div>
                                         }>
