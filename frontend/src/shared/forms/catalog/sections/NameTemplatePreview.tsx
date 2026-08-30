@@ -59,7 +59,7 @@ const NameTemplatePreview: Component<NameTemplatePreviewProps> = (props) => {
             <div class="bg-surface/30 rounded-2xl border border-border/40 p-4 space-y-2">
                 <div class="flex items-center gap-2">
                     <div class="w-1 h-4 rounded-full bg-amber-500" />
-                    <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                    <span class="text-[10px] font-semibold text-amber-600 uppercase tracking-wider">
                         Nombre Generado
                     </span>
                 </div>
@@ -69,7 +69,7 @@ const NameTemplatePreview: Component<NameTemplatePreviewProps> = (props) => {
                             <>
                                 {part.type === 'text' && <span>{part.content}</span>}
                                 {part.type === 'filled' && (
-                                    <span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold text-xs">
+                                    <span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-semibold text-xs">
                                         {part.content}
                                     </span>
                                 )}

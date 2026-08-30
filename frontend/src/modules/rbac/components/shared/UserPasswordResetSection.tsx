@@ -2,6 +2,7 @@ import { Component, Show, createSignal } from 'solid-js';
 import { TextField } from '@form/TextField';
 import Button from '@form/Button';
 import ConfirmDialog from '@overlay/ConfirmDialog';
+import { FormSectionHeader } from '@form/FormSectionHeader';
 import { CopyIcon } from '@icons/CopyIcon';
 import { KeyIcon } from '@icons/KeyIcon';
 import { copyToClipboard } from '@shared/utils/clipboard';
@@ -72,10 +73,12 @@ export const UserPasswordResetSection: Component<UserPasswordResetSectionProps> 
 
     return (
         <div class="space-y-3">
-            <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                <div class="size-1.5 h-4 rounded-full bg-amber-500" />
-                Seguridad de la cuenta
-            </div>
+            <FormSectionHeader
+                title="Seguridad de la cuenta"
+                icon={<KeyIcon class="size-4" />}
+                color="warning"
+                class="mb-2"
+            />
 
             <Show
                 when={isOpen()}

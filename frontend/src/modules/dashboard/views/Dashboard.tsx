@@ -61,7 +61,7 @@ const Dashboard: Component = () => {
             <div class="space-y-3">
               <div class="flex items-center justify-between p-3 bg-surface border border-border rounded-lg">
                 <span class="text-muted">Estado</span>
-                <span class="text-green-600 dark:text-green-400 font-semibold">
+                <span class="text-green-600 font-semibold">
                   {auth.isAuthenticated() ? 'Autenticado' : 'No autenticado'}
                 </span>
               </div>

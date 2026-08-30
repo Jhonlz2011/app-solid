@@ -12,7 +12,6 @@ import { MailIcon } from '@icons/MailIcon';
 import { KeyIcon } from '@icons/KeyIcon';
 import { SparklesIcon } from '@icons/SparklesIcon';
 import { AlertTriangleIcon } from '@icons/AlertTriangleIcon';
-import { SpinnerIcon } from '@icons/SpinnerIcon';
 import { UserRolePicker } from './shared/UserRolePicker';
 import { useCheckUserEmail } from '../data/users.queries';
 
@@ -31,9 +30,9 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
 
     const form = createForm(() => ({
         defaultValues: {
-            username: '',
+            username: undefined as string | undefined,
             email: '',
-            password: '',
+            password: undefined as string | undefined,
             roleIds: [] as number[],
             entityId: null as string | null,
         } as UserCreateData,
@@ -45,10 +44,11 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
             try {
                 // If invite mode or existing user, clean up direct password so backend handles it cleanly
                 const isExisting = isExistingUser();
+                const isDirect = !isExisting && onboardingMode() === 'direct';
                 const payload: UserCreateData = {
                     ...value,
-                    password: (!isExisting && onboardingMode() === 'direct') ? value.password : undefined,
-                    username: (!isExisting && onboardingMode() === 'direct') ? value.username : undefined,
+                    password: isDirect && value.password?.trim() ? value.password.trim() : undefined,
+                    username: isDirect && value.username?.trim() ? value.username.trim() : undefined,
                 };
                 await props.onSubmit(payload);
             } catch (err) {
@@ -81,58 +81,40 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
             >
                 {/* ═══ 1. User Identity & Live Detection ═══ */}
                 <div class="space-y-4">
-                    <FormSectionHeader title="Información de acceso" indicatorColor="bg-primary" />
+                    <FormSectionHeader title="Información de acceso" color="primary" />
 
                     <form.Field name="email">
                         {(field) => (
                             <TextField.Root field={field()} disabled={props.isSubmitting}>
-                                <TextField.Label>Correo electrónico *</TextField.Label>
-                                <TextField.Input type="email" placeholder="ej. colaborador@empresa.com" autocomplete="email" />
+                                <div class="flex items-center justify-between gap-2">
+                                    <TextField.Label>Correo electrónico *</TextField.Label>
+
+                                    {/* Non-intrusive live user detection */}
+                                    <Show when={!checkQuery.isFetching && isExistingUser()}>
+                                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 animate-in fade-in">
+                                            <SparklesIcon class="size-3" />
+                                            Usuario Zelys (@{checkQuery.data?.username})
+                                        </span>
+                                    </Show>
+
+                                    <Show when={!checkQuery.isFetching && isAlreadyMember()}>
+                                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 animate-in fade-in">
+                                            <AlertTriangleIcon class="size-3" />
+                                            Ya es miembro en esta empresa
+                                        </span>
+                                    </Show>
+                                </div>
+
+                                <TextField.Input
+                                    type="email"
+                                    placeholder="ej. colaborador@empresa.com"
+                                    autocomplete="email"
+                                    loading={checkQuery.isFetching}
+                                />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
                     </form.Field>
-
-                    {/* ── Live Feedback Banners ── */}
-                    <Show when={checkQuery.isFetching}>
-                        <div class="p-3 bg-surface/60 rounded-xl border border-border/40 flex items-center gap-2.5 text-xs text-muted animate-pulse">
-                            <SpinnerIcon class="size-3.5 text-primary animate-spin" />
-                            <span>Verificando correo en Zelys...</span>
-                        </div>
-                    </Show>
-
-                    <Show when={!checkQuery.isFetching && isAlreadyMember()}>
-                        <div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3">
-                            <div class="size-8 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400">
-                                <AlertTriangleIcon class="size-4.5" />
-                            </div>
-                            <div class="space-y-0.5">
-                                <p class="text-xs font-semibold text-amber-600 dark:text-amber-400">Usuario ya registrado en esta empresa</p>
-                                <p class="text-xs text-muted">
-                                    Este correo ya es miembro de tu equipo. Si deseas modificar sus roles o ficha, hazlo desde la edición de usuarios.
-                                </p>
-                            </div>
-                        </div>
-                    </Show>
-
-                    <Show when={!checkQuery.isFetching && isExistingUser()}>
-                        <div class="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-start gap-3">
-                            <div class="size-8 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400">
-                                <SparklesIcon class="size-4.5" />
-                            </div>
-                            <div class="space-y-0.5">
-                                <div class="flex items-center gap-2">
-                                    <p class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Usuario de Zelys detectado</p>
-                                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 font-mono font-bold">
-                                        @{checkQuery.data?.username}
-                                    </span>
-                                </div>
-                                <p class="text-xs text-muted">
-                                    Este usuario ya tiene cuenta en la plataforma. Se le otorgará acceso a esta empresa con los roles seleccionados y se le enviará una invitación por correo.
-                                </p>
-                            </div>
-                        </div>
-                    </Show>
 
                     {/* ── Mode selector for brand new users ── */}
                     <Show when={!isExistingUser() && !isAlreadyMember()}>
@@ -149,7 +131,6 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                     icon={<MailIcon class="size-4" />}
                                     title="Invitación por Correo"
                                     description="Acceso 1-Click con Google / Microsoft o clave personal."
-                                    badge="Recomendado"
                                     variant="primary"
                                     disabled={props.isSubmitting}
                                 />

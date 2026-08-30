@@ -5,6 +5,7 @@ import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.
 import { EyeIcon } from '@icons/EyeIcon';
 import { EyeOffIcon } from '@icons/EyeOffIcon';
 import { InfoIcon } from '@icons/InfoIcon';
+import { SpinnerIcon } from '@icons/SpinnerIcon';
 import Tooltip from '@overlay/Tooltip';
 
 // ============================================================================
@@ -49,8 +50,11 @@ export interface FieldLabelProps {
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
-interface TextFieldInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
+export interface TextFieldInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
     class?: string;
+    loading?: boolean;
+    rightIcon?: JSX.Element;
+    leftIcon?: JSX.Element;
 }
 
 interface TextFieldTextAreaProps extends Omit<JSX.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange' | 'value'> {
@@ -262,7 +266,7 @@ export const FieldLabel = (props: FieldLabelProps) => {
 /** Text input — coerces to number when type="number" for TanStack Form compatibility */
 const Input = (props: TextFieldInputProps) => {
     const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'type']);
+    const [local, others] = splitProps(props, ['class', 'type', 'loading', 'rightIcon', 'leftIcon']);
 
     const handleInput = (e: InputEvent & { currentTarget: HTMLInputElement }) => {
         const raw = e.currentTarget.value;
@@ -279,19 +283,47 @@ const Input = (props: TextFieldInputProps) => {
         }
     };
 
+    const hasRightAdornment = () => Boolean(local.loading || local.rightIcon);
+    const hasLeftAdornment = () => Boolean(local.leftIcon);
+
     return (
-        <input
-            id={context.id}
-            type={local.type}
-            value={context.value()}
-            onInput={handleInput}
-            onBlur={() => context.onBlur()}
-            disabled={context.disabled()}
-            readOnly={context.readOnly()}
-            data-invalid={context.isInvalid()}
-            class={cn(inputBaseStyles, local.class)}
-            {...others}
-        />
+        <div class="relative w-full">
+            <Show when={local.leftIcon}>
+                <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+                    {local.leftIcon}
+                </div>
+            </Show>
+
+            <input
+                id={context.id}
+                type={local.type}
+                value={context.value()}
+                onInput={handleInput}
+                onBlur={() => context.onBlur()}
+                disabled={context.disabled()}
+                readOnly={context.readOnly()}
+                data-invalid={context.isInvalid()}
+                class={cn(
+                    inputBaseStyles,
+                    hasLeftAdornment() && 'pl-9',
+                    hasRightAdornment() && 'pr-9',
+                    local.class
+                )}
+                {...others}
+            />
+
+            <Show when={local.loading}>
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+                    <SpinnerIcon class="size-4 animate-spin text-primary" />
+                </div>
+            </Show>
+
+            <Show when={!local.loading && local.rightIcon}>
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+                    {local.rightIcon}
+                </div>
+            </Show>
+        </div>
     );
 };
 

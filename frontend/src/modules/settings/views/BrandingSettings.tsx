@@ -23,10 +23,10 @@ const PRIMARY_COLOR_PRESETS = [
 ];
 
 const INTERFACE_THEME_OPTIONS = [
-    { name: 'Pizarra / Slate', hex: '#64748b', desc: 'Gris neutro clásico (Recomendado)', bgPreview: 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800' },
-    { name: 'Tecnológico / Cool Blue', hex: '#3b82f6', desc: 'Fondo con matiz azul suave', bgPreview: 'bg-blue-50 dark:bg-slate-950 border-blue-100 dark:border-slate-900' },
-    { name: 'Orgánico / Eco Green', hex: '#10b981', desc: 'Fondo con matiz verde natural', bgPreview: 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-100/50 dark:border-emerald-950/40' },
-    { name: 'Cálido / Warm Sand', hex: '#f59e0b', desc: 'Fondo arena de tono acogedor', bgPreview: 'bg-amber-50/50 dark:bg-amber-950/10 border-amber-100/50 dark:border-amber-950/30' },
+    { name: 'Pizarra / Slate', hex: '#64748b', desc: 'Gris neutro clásico (Recomendado)', bgPreview: 'bg-slate-100 border-slate-200' },
+    { name: 'Tecnológico / Cool Blue', hex: '#3b82f6', desc: 'Fondo con matiz azul suave', bgPreview: 'bg-blue-50 border-blue-100 ' },
+    { name: 'Orgánico / Eco Green', hex: '#10b981', desc: 'Fondo con matiz verde natural', bgPreview: 'bg-emerald-50/50 border-emerald-100/50' },
+    { name: 'Cálido / Warm Sand', hex: '#f59e0b', desc: 'Fondo arena de tono acogedor', bgPreview: 'bg-amber-50/50 border-amber-100/50' },
 ];
 
 const BrandingSettings: Component = () => {
