@@ -73,7 +73,7 @@ export const UserPasswordResetSection: Component<UserPasswordResetSectionProps> 
     return (
         <div class="space-y-3">
             <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                <div class="size-1.5 rounded-full bg-amber-500" />
+                <div class="size-1.5 h-4 rounded-full bg-amber-500" />
                 Seguridad de la cuenta
             </div>
 

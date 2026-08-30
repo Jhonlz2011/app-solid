@@ -69,7 +69,6 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                     <FormSectionHeader
                         title="Identidad de Acceso"
                         indicatorColor="bg-primary"
-                        badge="Cuenta Global"
                     />
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">

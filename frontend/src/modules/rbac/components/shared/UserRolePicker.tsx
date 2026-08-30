@@ -73,7 +73,7 @@ export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
                                                 <RoleBadge name={role.name} />
                                                 <Show when={isLocked()}>
                                                     <span class="text-[11px] text-primary font-semibold bg-primary/10 px-2 py-0.5 rounded-md">
-                                                        Propietario (Inmutable)
+                                                        Propietario 
                                                     </span>
                                                 </Show>
                                             </div>
