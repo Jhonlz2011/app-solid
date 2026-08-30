@@ -290,11 +290,11 @@ export interface CategoryAttributeDetail {
     attributeDefId: number;
     required: boolean;
     order: number;
-    specificOptions: string[] | null | unknown;
+    specificOptions: string[] | null;
     key: string;
     label: string;
     type: AttributeDataType;
-    defaultOptions: string[] | null | unknown;
+    defaultOptions: string[] | null;
 }
 
 export interface CategoryDetail extends Omit<CategoryNode, 'children' | 'attributeCount' | 'subRows'> {

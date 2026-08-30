@@ -118,6 +118,7 @@ const AttributeEditSheet: Component<AttributeEditSheetProps> = (props) => {
                     >
                         {(attr) => (
                             <AttributeForm
+                                formId="attribute-form"
                                 attribute={attr}
                                 onSubmit={handleSubmit}
                                 isSubmitting={updateMutation.isPending}

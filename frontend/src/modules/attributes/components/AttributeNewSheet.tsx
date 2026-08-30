@@ -67,6 +67,7 @@ const AttributeNewSheet: Component<AttributeNewSheetProps> = (props) => {
             }
         >
             <AttributeForm
+                formId="attribute-form"
                 onSubmit={handleSubmit}
                 isSubmitting={createMutation.isPending}
             />

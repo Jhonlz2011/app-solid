@@ -193,7 +193,7 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
 
                                     <TabsContent value="attributes" class="fill-mode-both">
                                         <Show when={(category.attributes?.length ?? 0) > 0} fallback={
-                                            <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
+                                            <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-50">
                                                 <TagIcon class="size-8 opacity-20 mb-3" />
                                                 No hay atributos heredados o asociados.
                                             </div>
@@ -213,7 +213,7 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                                                             </div>
                                                             <div class="flex flex-col items-end">
                                                                 <span class="text-xs font-semibold text-muted uppercase tracking-wider">{attr.type}</span>
-                                                                <Show when={attr.specificOptions && attr.specificOptions.length > 0}>
+                                                                <Show when={Array.isArray(attr.specificOptions) && attr.specificOptions.length > 0}>
                                                                     <span class="text-[10px] text-muted italic mt-1">Opciones limitadas específicas</span>
                                                                 </Show>
                                                             </div>

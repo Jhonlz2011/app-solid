@@ -50,7 +50,7 @@ export interface AttributeFormProps {
     attribute?: AttributeDetail | null;
     onSubmit: (data: AttributeFormData) => Promise<void>;
     isSubmitting: boolean;
-    formId: string;
+    formId?: string;
     disabled?: boolean;
 }
 
@@ -195,21 +195,20 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
         optionInputRef?.focus();
     };
 
-    const handleRemoveOption = (opt: string) => {
+    const handleRemoveOption = (optToRemove: string) => {
         const currentOpts = form.getFieldValue('defaultOptions') ?? [];
-        form.setFieldValue('defaultOptions', (currentOpts as string[]).filter((o) => o !== opt));
+        form.setFieldValue('defaultOptions', currentOpts.filter(o => o !== optToRemove));
     };
 
     const handleEditOption = (oldVal: string, newVal: string) => {
-        const currentOpts = [...(form.getFieldValue('defaultOptions') ?? [])];
-        const index = currentOpts.indexOf(oldVal);
-        if (index !== -1) {
-            // Check for duplicates
-            if (currentOpts.includes(newVal) && newVal !== oldVal) return;
-            currentOpts[index] = newVal;
-            form.setFieldValue('defaultOptions', currentOpts);
+        const currentOpts = form.getFieldValue('defaultOptions') ?? [];
+        const idx = currentOpts.indexOf(oldVal);
+        if (idx !== -1) {
+            const nextOpts = [...currentOpts];
+            nextOpts[idx] = newVal;
+            form.setFieldValue('defaultOptions', nextOpts);
 
-            // Track rename for cascade (only when editing existing attributes)
+            // In edit mode: track rename for backend propagation
             if (isEditing()) {
                 setRenames(prev => {
                     const next = new Map(prev);
@@ -250,7 +249,7 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
     return (
         <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
             <form
-                id="attribute-form"
+                id={props.formId}
                 onSubmit={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
