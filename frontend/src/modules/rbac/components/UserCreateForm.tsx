@@ -1,4 +1,4 @@
-import { Component, createSignal, Show, createMemo } from 'solid-js';
+import { Component, createSignal, Show, createMemo, createEffect } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { UserCreateSchema, type UserCreateData } from '@app/schema/frontend';
 import type { RoleType } from '@app/schema/dto';
@@ -15,6 +15,15 @@ import { AlertTriangleIcon } from '@icons/AlertTriangleIcon';
 import { UserRolePicker } from './shared/UserRolePicker';
 import { useCheckUserEmail } from '../data/users.queries';
 
+export type UserOnboardingMode = 'invite' | 'direct';
+
+export interface UserCreateFormState {
+    mode: UserOnboardingMode;
+    isExistingUser: boolean;
+    isAlreadyMember: boolean;
+    canSubmit: boolean;
+}
+
 export interface UserCreateFormProps {
     formId?: string;
     roles: RoleType[];
@@ -22,11 +31,12 @@ export interface UserCreateFormProps {
     initialEntity?: { id: string; businessName: string; taxId: string } | null;
     onSubmit: (values: UserCreateData) => void | Promise<void>;
     isSubmitting?: boolean;
+    onStateChange?: (state: UserCreateFormState) => void;
 }
 
 export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
-    const [onboardingMode, setOnboardingMode] = createSignal<'invite' | 'direct'>('invite');
+    const [onboardingMode, setOnboardingMode] = createSignal<UserOnboardingMode>('invite');
 
     const form = createForm(() => ({
         defaultValues: {
@@ -65,6 +75,15 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
 
     const isAlreadyMember = createMemo(() => Boolean(checkQuery.data?.isAlreadyMember));
     const isExistingUser = createMemo(() => Boolean(checkQuery.data?.exists && !checkQuery.data?.isAlreadyMember));
+
+    createEffect(() => {
+        props.onStateChange?.({
+            mode: onboardingMode(),
+            isExistingUser: isExistingUser(),
+            isAlreadyMember: isAlreadyMember(),
+            canSubmit: !isAlreadyMember(),
+        });
+    });
 
     return (
         <FormSubmissionContext.Provider value={hasAttemptedSubmit}>

@@ -1,13 +1,14 @@
-import { Component } from 'solid-js';
+import { Component, createSignal } from 'solid-js';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { executeFormMutation } from '@shared/utils/form.utils';
 import type { UserCreateData } from '@app/schema/frontend';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { MailIcon } from '@icons/MailIcon';
 import { useRoles } from '../data/users.queries';
 import { useCreateUser, useSetUserEntity } from '../data/users.mutations';
-import { UserCreateForm } from './UserCreateForm';
+import { UserCreateForm, type UserCreateFormState } from './UserCreateForm';
 
 interface UserNewSheetProps {
     onClose?: () => void;
@@ -19,7 +20,20 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
     const rolesQuery = useRoles();
     const setEntityMutation = useSetUserEntity();
 
+    const [formState, setFormState] = createSignal<UserCreateFormState>({
+        mode: 'invite',
+        isExistingUser: false,
+        isAlreadyMember: false,
+        canSubmit: true,
+    });
+
+    const isInviteFlow = () => formState().isExistingUser || formState().mode === 'invite';
+    const submitButtonLabel = () => (isInviteFlow() ? 'Invitar' : 'Guardar');
+    const submitButtonIcon = () => (isInviteFlow() ? <MailIcon class="size-4" /> : <FloppyDiskIcon class="size-4" />);
+    const submitLoadingText = () => (isInviteFlow() ? 'Invitando...' : 'Guardando...');
+
     const handleSubmit = async (values: UserCreateData) => {
+        const isInvite = isInviteFlow();
         const created = await executeFormMutation({
             mutation: createMutation,
             variables: {
@@ -29,7 +43,9 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
                 roleIds: values.roleIds.length > 0 ? values.roleIds : undefined,
                 entityId: values.entityId || undefined,
             },
-            successMessage: `Usuario "${values.username || values.email}" configurado correctamente`,
+            successMessage: isInvite
+                ? `Invitación enviada a "${values.email}" correctamente`
+                : `Usuario "${values.username || values.email}" creado correctamente`,
             onComplete: close,
         });
 
@@ -61,10 +77,11 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
                         type="submit"
                         form="user-create-form"
                         loading={isPending()}
-                        loadingText="Guardando..."
-                        icon={<FloppyDiskIcon />}
+                        loadingText={submitLoadingText()}
+                        icon={submitButtonIcon()}
+                        disabled={isPending() || formState().isAlreadyMember}
                     >
-                        Guardar / Invitar
+                        {submitButtonLabel()}
                     </Button>
                 </>
             }
@@ -75,6 +92,7 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
                 rolesLoading={rolesQuery.isPending}
                 onSubmit={handleSubmit}
                 isSubmitting={isPending()}
+                onStateChange={setFormState}
             />
         </Sheet>
     );

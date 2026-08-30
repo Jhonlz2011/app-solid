@@ -223,8 +223,6 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
                     </div>
                 </Show>
 
-
-
                 {/* Name + Description — hidden in permissions-only mode */}
                 <Show when={!isPermissionsOnly()}>
                     <TextField.Root

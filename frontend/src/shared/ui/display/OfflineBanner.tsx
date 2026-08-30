@@ -23,7 +23,7 @@ export const OfflineBanner: Component = () => {
   return (
     <div 
       id="pwa-offline-banner"
-      class="w-full bg-amber-500/10 border-b border-amber-500/20 text-amber-700px-4 py-2.5 flex items-center justify-between text-sm transition-all duration-300 animate-in fade-in slide-in-from-top-4"
+      class="w-full bg-amber-500/10 border-b border-amber-500/20 text-amber-700 px-4 py-2.5 flex items-center justify-between text-sm transition-all duration-300 animate-in fade-in slide-in-from-top-4"
     >
       <div class="flex items-center gap-2.5">
         <div class="flex items-center justify-center size-5 bg-amber-500/20 text-amber-600 rounded-full shrink-0">

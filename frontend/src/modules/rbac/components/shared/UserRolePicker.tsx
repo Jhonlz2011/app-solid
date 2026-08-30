@@ -1,9 +1,10 @@
-import { Component, For, Show, createMemo } from 'solid-js';
+import { Component, For, Show, createMemo, createSignal } from 'solid-js';
 import type { RoleType } from '@app/schema/dto';
 import Checkbox from '@form/Checkbox';
 import { RoleBadge } from '@display/Badge';
 import { SkeletonLoader } from '@display/SkeletonLoader';
 import { FormSectionHeader } from '@form/FormSectionHeader';
+import { SearchInput } from '@form/SearchInput';
 
 export interface UserRolePickerProps {
     roles: RoleType[];
@@ -11,30 +12,56 @@ export interface UserRolePickerProps {
     selectedRoleIds: number[];
     onChange: (roleIds: number[]) => void;
     disabled?: boolean;
+    showSearch?: boolean;
 }
 
 export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
+    const [searchQuery, setSearchQuery] = createSignal('');
+
     const isUserSuperadmin = createMemo(() => {
-        const superRole = props.roles?.find(r => r.name === 'superadmin');
+        const superRole = props.roles?.find((r) => r.name === 'superadmin');
         return superRole ? (props.selectedRoleIds?.includes(superRole.id) ?? false) : false;
     });
 
+    const baseRoles = createMemo(() => {
+        return (props.roles ?? []).filter((r) => r.name !== 'superadmin' || isUserSuperadmin());
+    });
+
     const visibleRoles = createMemo(() => {
-        return (props.roles ?? []).filter(r => r.name !== 'superadmin' || isUserSuperadmin());
+        const query = searchQuery().trim().toLowerCase();
+        if (!query) return baseRoles();
+        return baseRoles().filter(
+            (r) =>
+                r.name.toLowerCase().includes(query) ||
+                (r.description && r.description.toLowerCase().includes(query))
+        );
     });
 
     const toggleRole = (roleId: number) => {
         const current = props.selectedRoleIds ?? [];
         if (current.includes(roleId)) {
-            props.onChange(current.filter(id => id !== roleId));
+            props.onChange(current.filter((id) => id !== roleId));
         } else {
             props.onChange([...current, roleId]);
         }
     };
 
+    const selectedCount = () => props.selectedRoleIds?.length ?? 0;
+
     return (
         <div class="space-y-3">
-            <FormSectionHeader title="Roles" indicatorColor="bg-info" />
+            <FormSectionHeader
+                title="Roles"
+                color="info"
+                action={
+                    <Show when={selectedCount() > 0}>
+                        <span class="text-xs text-muted font-normal">
+                            {selectedCount()} seleccionado{selectedCount() === 1 ? '' : 's'}
+                        </span>
+                    </Show>
+                }
+            />
+
             <Show
                 when={!props.rolesLoading}
                 fallback={
@@ -43,9 +70,27 @@ export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
                     </div>
                 }
             >
+                <Show when={(props.showSearch !== false && baseRoles().length > 3) || searchQuery()}>
+                    <SearchInput
+                        value={searchQuery()}
+                        onSearch={setSearchQuery}
+                        placeholder="Buscar roles por nombre o descripción..."
+                        class="w-full"
+                    />
+                </Show>
+
                 <Show
                     when={visibleRoles().length > 0}
-                    fallback={<p class="text-sm text-muted">No hay roles disponibles</p>}
+                    fallback={
+                        <Show
+                            when={searchQuery()}
+                            fallback={<p class="text-sm text-muted">No hay roles disponibles</p>}
+                        >
+                            <div class="text-center py-6 text-muted bg-surface/30 rounded-xl border border-dashed border-border/50 text-xs">
+                                No se encontraron roles coincidentes con "{searchQuery()}"
+                            </div>
+                        </Show>
+                    }
                 >
                     <div class="space-y-2">
                         <For each={visibleRoles()}>
@@ -73,7 +118,7 @@ export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
                                                 <RoleBadge name={role.name} />
                                                 <Show when={isLocked()}>
                                                     <span class="text-[11px] text-primary font-semibold bg-primary/10 px-2 py-0.5 rounded-md">
-                                                        Propietario 
+                                                        Propietario
                                                     </span>
                                                 </Show>
                                             </div>
@@ -91,3 +136,5 @@ export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
         </div>
     );
 };
+
+export default UserRolePicker;
