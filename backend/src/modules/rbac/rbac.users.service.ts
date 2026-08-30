@@ -463,10 +463,11 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
 /**
  * Create a new user (admin function with Better-Auth credential account creation & organization member sync)
  */
-export async function createUser(data: { username: string; email: string; password: string; roleIds?: number[] }, currentUserId?: string | number, companyId?: number) {
+export async function createUser(data: { email: string; roleIds?: number[]; entityId?: string | null; username?: string; password?: string }, currentUserId?: string | number, companyId?: number) {
     const normalizedEmail = data.email.trim().toLowerCase();
-    const normalizedUsername = data.username.trim().toLowerCase();
-    const displayName = data.username.trim();
+    const baseUsername = normalizedEmail.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+    const normalizedUsername = (data.username?.trim() || baseUsername).toLowerCase();
+    const displayName = data.username?.trim() || data.email.split('@')[0];
 
     // 1. Validar que el username sea único globalmente (only if no existing user with this email)
     const existingGlobalUser = await adminDb.query.authUsers.findFirst({
@@ -509,16 +510,7 @@ export async function createUser(data: { username: string; email: string; passwo
         }
     }
 
-    // 3. Comprobar si el email ya fue verificado globalmente en cualquier otra cuenta previa
-    const globallyVerifiedUser = await adminDb.query.authUsers.findFirst({
-        where: and(
-            eq(authUsers.email, normalizedEmail),
-            eq(authUsers.emailVerified, true)
-        ),
-    });
-    const isAlreadyVerified = Boolean(globallyVerifiedUser);
-
-    // Superadmin protection: prevent creating a second superadmin
+    // 3. Superadmin protection: prevent creating a second superadmin
     if (data.roleIds && data.roleIds.length > 0 && companyId) {
         const superadminRole = await db.query.authRoles.findFirst({
             where: and(eq(authRoles.company_id, companyId), eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN)),
@@ -528,14 +520,13 @@ export async function createUser(data: { username: string; email: string; passwo
         }
     }
 
-    const password_hash = await hashPassword(data.password);
+    const rawPassword = data.password?.trim() || (Math.random().toString(36).slice(-10) + 'A1!');
+    const password_hash = await hashPassword(rawPassword);
 
     const newUser = await db.transaction(async (tx) => {
         // ──────────────────────────────────────────────────────────────────
         // CHECK: Does a user with this email already exist globally?
-        // (e.g. registered via OAuth in another tenant, or via another tenant's admin)
-        // If so, reuse that user record — just add org membership + roles.
-        // This prevents duplicate user records and enables cross-tenant OAuth.
+        // If so, reuse that user record — add org membership + roles.
         // ──────────────────────────────────────────────────────────────────
         const existingUser = await tx.query.authUsers.findFirst({
             where: eq(authUsers.email, normalizedEmail),
@@ -559,11 +550,12 @@ export async function createUser(data: { username: string; email: string; passwo
                         organizationId: company.organization_id,
                         userId: existingUser.id,
                         role: 'member',
+                        entityId: data.entityId || null,
                     }).onConflictDoNothing();
                 }
             }
 
-            // Ensure the existing user has a credential account for this tenant's password login
+            // Ensure the existing user has a credential account for password login
             const existingCredential = await tx.query.account.findFirst({
                 where: and(
                     eq(account.userId, existingUser.id),
@@ -595,7 +587,7 @@ export async function createUser(data: { username: string; email: string; passwo
         }
 
         // ──────────────────────────────────────────────────────────────────
-        // No existing user — create a brand new user + account + membership
+        // No existing user — create brand new user + account + membership
         // ──────────────────────────────────────────────────────────────────
         const userId = uuidv7();
         const accountId = uuidv7();
@@ -611,7 +603,7 @@ export async function createUser(data: { username: string; email: string; passwo
                 email: normalizedEmail,
                 company_id: companyId!,
                 is_active: true,
-                emailVerified: isAlreadyVerified,
+                emailVerified: true, // Pre-verified by tenant admin
             })
             .returning({ id: authUsers.id, username: authUsers.username, email: authUsers.email });
 
@@ -637,6 +629,7 @@ export async function createUser(data: { username: string; email: string; passwo
                     organizationId: company.organization_id,
                     userId: user.id,
                     role: 'member',
+                    entityId: data.entityId || null,
                 }).onConflictDoNothing();
             }
         }
@@ -657,7 +650,7 @@ export async function createUser(data: { username: string; email: string; passwo
     const targetRoom = companyId ? getTenantRoom(companyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.CREATED, { id: newUser.id }, targetRoom);
 
-    if (currentUserId) logAudit(currentUserId, 'INSERT', 'user', newUser.id, { username: displayName, email: normalizedEmail, roleIds: data.roleIds });
+    if (currentUserId) logAudit(currentUserId, 'INSERT', 'user', newUser.id, { username: displayName, email: normalizedEmail, roleIds: data.roleIds, entityId: data.entityId });
 
     return newUser;
 }
@@ -719,84 +712,87 @@ export async function removeUserFromRole(userId: string | number, roleId: number
 }
 
 /**
- * Update user details
+ * Update user details (scoped to company context: roles, entity link, and status)
  */
-export async function updateUser(userId: string | number, data: { username?: string; email?: string; isActive?: boolean }, currentUserId?: string | number, companyId?: number) {
+export async function updateUser(
+    userId: string | number,
+    data: { roleIds?: number[]; entityId?: string | null; isActive?: boolean; username?: string; email?: string },
+    currentUserId?: string | number,
+    companyId?: number
+) {
     const userIdStr = String(userId);
-    const updateData: Partial<{ username: string; name: string; email: string; is_active: boolean; emailVerified: boolean }> = {};
 
-    if (data.username !== undefined) {
-        const normalizedUsername = data.username.trim().toLowerCase();
-        // Validar unicidad global del username
-        const existingUsername = await adminDb.query.authUsers.findFirst({
-            where: and(
-                eq(authUsers.username, normalizedUsername),
-                ne(authUsers.id, userIdStr)
-            ),
-        });
-
-        if (existingUsername) {
-            throw new DomainError('Ya existe un usuario con ese nombre de usuario', 409);
-        }
-
-        updateData.username = normalizedUsername;
-        updateData.name = data.username.trim();
-    }
-
-    if (data.email !== undefined) {
-        const normalizedEmail = data.email.trim().toLowerCase();
-        const existingEmail = await adminDb.query.authUsers.findFirst({
-            where: and(
-                eq(authUsers.email, normalizedEmail),
-                ne(authUsers.id, userIdStr)
-            ),
-        });
-
-        if (existingEmail) {
-            throw new DomainError('Ya existe un usuario con ese email', 409);
-        }
-
-        // Comprobar si el nuevo email ya fue verificado globalmente
-        const globallyVerifiedUser = await adminDb.query.authUsers.findFirst({
-            where: and(
-                eq(authUsers.email, normalizedEmail),
-                eq(authUsers.emailVerified, true)
-            ),
-        });
-
-        updateData.email = normalizedEmail;
-        updateData.emailVerified = Boolean(globallyVerifiedUser);
-    }
-
-    if (data.isActive !== undefined) updateData.is_active = data.isActive;
-
-    const oldUser = currentUserId ? await db.query.authUsers.findFirst({
+    const user = await db.query.authUsers.findFirst({
         where: eq(authUsers.id, userIdStr),
-        columns: { username: true, email: true, is_active: true, company_id: true },
-    }) : undefined;
+        columns: { id: true, username: true, email: true, is_active: true, company_id: true },
+    });
 
-    const [updated] = await db
-        .update(authUsers)
-        .set(updateData)
-        .where(eq(authUsers.id, userIdStr))
-        .returning({ id: authUsers.id, username: authUsers.username, email: authUsers.email, isActive: authUsers.is_active, company_id: authUsers.company_id });
-
-    if (!updated) {
+    if (!user) {
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    const targetRoom = updated?.company_id ? getTenantRoom(updated.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    const effectiveCompanyId = companyId || user.company_id!;
+
+    // Resolve company organization ID
+    let companyOrgId: string | null = null;
+    if (effectiveCompanyId) {
+        const [companyRow] = await adminDb
+            .select({ orgId: companies.organization_id })
+            .from(companies)
+            .where(eq(companies.id, effectiveCompanyId))
+            .limit(1);
+        companyOrgId = companyRow?.orgId ?? null;
+    }
+
+    await db.transaction(async (tx) => {
+        // 1. Update entity link in member table (scoped to this tenant)
+        if (data.entityId !== undefined && companyOrgId) {
+            await tx.update(member)
+                .set({ entityId: data.entityId || null })
+                .where(and(
+                    eq(member.userId, userIdStr),
+                    eq(member.organizationId, companyOrgId)
+                ));
+        }
+
+        // 2. Update roles in auth_user_roles (scoped to this company)
+        if (data.roleIds !== undefined && effectiveCompanyId) {
+            await assignUserRoles(userIdStr, data.roleIds, currentUserId || userIdStr, effectiveCompanyId);
+        }
+
+        // 3. Update status
+        if (data.isActive !== undefined) {
+            await tx.update(authUsers)
+                .set({ is_active: data.isActive })
+                .where(eq(authUsers.id, userIdStr));
+        }
+    });
+
+    await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
+    const targetRoom = effectiveCompanyId ? getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
 
-    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'user', userIdStr, updateData, oldUser ? { username: oldUser.username, email: oldUser.email, is_active: oldUser.is_active } : undefined);
+    if (currentUserId) {
+        logAudit(currentUserId, 'UPDATE', 'user', userIdStr, data, {
+            username: user.username,
+            email: user.email,
+            is_active: user.is_active,
+        });
+    }
 
-    return updated;
+    return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        isActive: data.isActive !== undefined ? data.isActive : user.is_active,
+        company_id: effectiveCompanyId,
+    };
 }
 
 /**
- * Deactivate a user (soft-delete)
+ * Deactivate a user (soft-delete scoped to tenant context)
  */
-export async function deactivateUser(userId: string | number, currentUserId: string | number) {
+export async function deactivateUser(userId: string | number, currentUserId: string | number, companyId?: number) {
     const userIdStr = String(userId);
     const currentUserIdStr = String(currentUserId);
     if (userIdStr === currentUserIdStr) {
@@ -808,7 +804,8 @@ export async function deactivateUser(userId: string | number, currentUserId: str
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    await assertNotSuperadmin(userIdStr, targetUser.company_id, 'desactivar');
+    const effectiveCompanyId = companyId || targetUser.company_id!;
+    await assertNotSuperadmin(userIdStr, effectiveCompanyId, 'desactivar');
 
     const [updated] = await db
         .update(authUsers)
@@ -816,9 +813,9 @@ export async function deactivateUser(userId: string | number, currentUserId: str
         .where(eq(authUsers.id, userIdStr))
         .returning();
 
-    await invalidateUserRbacCache(userIdStr, targetUser.company_id);
+    await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
     broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId: userIdStr }, `user:${userIdStr}`);
-    const targetRoom = updated?.company_id ? getTenantRoom(updated.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    const targetRoom = effectiveCompanyId ? getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
 
     logAudit(currentUserId, 'UPDATE', 'user', userIdStr, { is_active: false }, { is_active: true });
@@ -829,12 +826,19 @@ export async function deactivateUser(userId: string | number, currentUserId: str
 /**
  * Restore a deactivated user
  */
-export async function restoreUser(userId: string | number, currentUserId: string | number) {
+export async function restoreUser(userId: string | number, currentUserId: string | number, companyId?: number) {
     const userIdStr = String(userId);
     const currentUserIdStr = String(currentUserId);
     if (userIdStr === currentUserIdStr) {
         throw new DomainError('No puedes restaurar tu propia cuenta', 403);
     }
+
+    const targetUser = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
+    if (!targetUser) {
+        throw new DomainError('Usuario no encontrado', 404);
+    }
+
+    const effectiveCompanyId = companyId || targetUser.company_id!;
 
     const [updated] = await db
         .update(authUsers)
@@ -846,8 +850,8 @@ export async function restoreUser(userId: string | number, currentUserId: string
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    await invalidateUserRbacCache(userIdStr, updated?.company_id);
-    const targetRoom = updated?.company_id ? getTenantRoom(updated.company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
+    const targetRoom = effectiveCompanyId ? getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
 
     logAudit(currentUserId, 'UPDATE', 'user', userIdStr, { is_active: true }, { is_active: false });
@@ -856,13 +860,13 @@ export async function restoreUser(userId: string | number, currentUserId: string
 }
 
 /**
- * Hard delete a user permanently
+ * Remove a user from the company (removes tenant membership and roles; only purges global account if 0 other memberships remain)
  */
-export async function hardDeleteUser(userId: string | number, currentUserId: string | number) {
+export async function hardDeleteUser(userId: string | number, currentUserId: string | number, companyId?: number) {
     const userIdStr = String(userId);
     const currentUserIdStr = String(currentUserId);
     if (userIdStr === currentUserIdStr) {
-        throw new DomainError('No puedes destruir tu propia cuenta', 403);
+        throw new DomainError('No puedes remover tu propia cuenta', 403);
     }
 
     const targetUser = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
@@ -870,23 +874,56 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    await assertNotSuperadmin(userIdStr, targetUser.company_id, 'eliminar');
+    const effectiveCompanyId = companyId || targetUser.company_id!;
+    await assertNotSuperadmin(userIdStr, effectiveCompanyId, 'remover');
 
-    await db.delete(authUserRoles).where(eq(authUserRoles.user_id, userIdStr));
-    await revokeAllUserSessions(userIdStr);
-
-    const deleted = await db.delete(authUsers).where(eq(authUsers.id, userIdStr)).returning({
-        id: authUsers.id, username: authUsers.username, email: authUsers.email, company_id: authUsers.company_id,
-    });
-    if (deleted.length === 0) {
-        throw new DomainError('Usuario no encontrado', 404);
+    // Resolve company organization ID
+    let companyOrgId: string | null = null;
+    if (effectiveCompanyId) {
+        const [companyRow] = await adminDb
+            .select({ orgId: companies.organization_id })
+            .from(companies)
+            .where(eq(companies.id, effectiveCompanyId))
+            .limit(1);
+        companyOrgId = companyRow?.orgId ?? null;
     }
 
-    await invalidateUserRbacCache(userIdStr, targetUser.company_id);
-    const targetRoom = deleted[0]?.company_id ? getTenantRoom(deleted[0].company_id, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
+    await db.transaction(async (tx) => {
+        // 1. Remove roles assigned in THIS company
+        await tx.delete(authUserRoles).where(
+            and(
+                eq(authUserRoles.user_id, userIdStr),
+                eq(authUserRoles.company_id, effectiveCompanyId)
+            )
+        );
+
+        // 2. Remove membership in THIS company's organization
+        if (companyOrgId) {
+            await tx.delete(member).where(
+                and(
+                    eq(member.userId, userIdStr),
+                    eq(member.organizationId, companyOrgId)
+                )
+            );
+        }
+
+        // 3. Check if user belongs to ANY other organizations
+        const otherMemberships = await tx.select({ id: member.id })
+            .from(member)
+            .where(eq(member.userId, userIdStr));
+
+        // If user has NO other organizations anywhere, purge global record
+        if (otherMemberships.length === 0) {
+            await revokeAllUserSessions(userIdStr);
+            await tx.delete(authUsers).where(eq(authUsers.id, userIdStr));
+        }
+    });
+
+    await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
+    const targetRoom = effectiveCompanyId ? getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
     broadcast(RealtimeEvents.USER.DELETED, { userId: userIdStr }, targetRoom);
 
-    logAudit(currentUserId, 'DELETE', 'user', userIdStr, undefined, { username: deleted[0].username, email: deleted[0].email });
+    logAudit(currentUserId, 'DELETE', 'user', userIdStr, undefined, { username: targetUser.username, email: targetUser.email });
 
     return { success: true };
 }

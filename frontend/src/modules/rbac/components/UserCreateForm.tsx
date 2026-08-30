@@ -59,18 +59,8 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                 <div class="space-y-4">
                     <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                         <div class="size-1.5 rounded-full bg-primary" />
-                        Información de acceso
+                        Identidad del Usuario
                     </div>
-
-                    <form.Field name="username">
-                        {(field) => (
-                            <TextField.Root field={field()} disabled={props.isSubmitting}>
-                                <TextField.Label>Nombre de usuario *</TextField.Label>
-                                <TextField.Input placeholder="ej. juan.perez" autocomplete="username" />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                        )}
-                    </form.Field>
 
                     <form.Field name="email">
                         {(field) => (
@@ -82,11 +72,21 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                         )}
                     </form.Field>
 
+                    <form.Field name="username">
+                        {(field) => (
+                            <TextField.Root field={field()} disabled={props.isSubmitting}>
+                                <TextField.Label>Nombre de usuario (Opcional)</TextField.Label>
+                                <TextField.Input placeholder="Se generará del correo si se deja vacío" autocomplete="username" />
+                                <TextField.ErrorMessage />
+                            </TextField.Root>
+                        )}
+                    </form.Field>
+
                     <form.Field name="password">
                         {(field) => (
                             <TextField.Root field={field()} disabled={props.isSubmitting}>
-                                <TextField.Label>Contraseña *</TextField.Label>
-                                <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+                                <TextField.Label>Contraseña inicial (Opcional)</TextField.Label>
+                                <TextField.PasswordInput placeholder="Mínimo 8 caracteres (para usuarios nuevos)" autocomplete="new-password" />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )}

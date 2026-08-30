@@ -200,7 +200,7 @@ export function useCreateUser() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: (data: { username: string; email: string; password: string; roleIds?: number[] }) =>
+        mutationFn: (data: { email: string; username?: string; password?: string; roleIds?: number[]; entityId?: string | null }) =>
             usersApi.createUser(data),
         onMutate: async (newUser) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.lists() });
@@ -210,7 +210,7 @@ export function useCreateUser() {
                 if (!old) return old;
                 const optimistic = {
                     id: String(-Date.now()),
-                    username: newUser.username,
+                    username: newUser.username || newUser.email.split('@')[0],
                     email: newUser.email,
                     isActive: true,
                     lastLogin: null,
@@ -236,7 +236,7 @@ export function useUpdateUser() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ id, ...data }: { id: string; username?: string; email?: string; isActive?: boolean }) =>
+        mutationFn: ({ id, ...data }: { id: string; username?: string; email?: string; isActive?: boolean; roleIds?: number[]; entityId?: string | null }) =>
             usersApi.updateUser(id, data),
         onMutate: async ({ id, ...updates }) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.user(id) });

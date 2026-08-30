@@ -1,24 +1,24 @@
 import { pipe, string, minLength, email, object, boolean, array, number, optional, nullable, type InferInput } from 'valibot';
 
 // --- USER CREATE SCHEMA (Admin creation) ---
-/** Strict schema for user creation — password required (min 8 chars) */
+/** Strict schema for user creation — email and roles required, username/password optional for existing users */
 export const UserCreateSchema = object({
-    username: pipe(string(), minLength(3, 'El usuario debe tener al menos 3 caracteres')),
     email: pipe(string(), email('Correo electrónico inválido')),
-    password: pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres')),
     roleIds: array(number()),
-    entityId: nullable(string()),
+    entityId: optional(nullable(string())),
+    username: optional(pipe(string(), minLength(3, 'El usuario debe tener al menos 3 caracteres'))),
+    password: optional(pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres'))),
 });
 export type UserCreateData = InferInput<typeof UserCreateSchema>;
 
 // --- USER UPDATE SCHEMA (Admin edit) ---
-/** Strict schema for user editing — isActive toggle, no password in general update */
+/** Strict schema for user editing — isActive toggle, roleIds, entityId scoped to tenant */
 export const UserUpdateSchema = object({
-    username: pipe(string(), minLength(3, 'El usuario debe tener al menos 3 caracteres')),
-    email: pipe(string(), email('Correo electrónico inválido')),
     isActive: boolean(),
     roleIds: array(number()),
-    entityId: nullable(string()),
+    entityId: optional(nullable(string())),
+    username: optional(string()),
+    email: optional(string()),
 });
 export type UserUpdateData = InferInput<typeof UserUpdateSchema>;
 

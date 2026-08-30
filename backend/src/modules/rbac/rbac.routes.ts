@@ -176,17 +176,17 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     })
 
     // Soft-delete (deactivate) — preserves roles
-    .patch('/users/:id/deactivate', async ({ params, currentUserId }) => {
-        return await deactivateUser(params.id, currentUserId);
+    .patch('/users/:id/deactivate', async ({ params, currentUserId, currentCompanyId }) => {
+        return await deactivateUser(params.id, currentUserId, currentCompanyId);
     }, {
         permission: 'users.delete',
         params: IdStringParamSchema,
         response: t.Object({ success: t.Boolean() }),
     })
 
-    // Hard-delete (destroy) — permanently removes user
-    .delete('/users/:id', async ({ params, currentUserId }) => {
-        return await hardDeleteUser(params.id, currentUserId);
+    // Hard-delete (destroy) — removes user from tenant
+    .delete('/users/:id', async ({ params, currentUserId, currentCompanyId }) => {
+        return await hardDeleteUser(params.id, currentUserId, currentCompanyId);
     }, {
         permission: 'users.destroy',
         params: IdStringParamSchema,
@@ -194,8 +194,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     })
 
     // Restore a deactivated user
-    .patch('/users/:id/restore', async ({ params, currentUserId }) => {
-        return await restoreUser(params.id, currentUserId);
+    .patch('/users/:id/restore', async ({ params, currentUserId, currentCompanyId }) => {
+        return await restoreUser(params.id, currentUserId, currentCompanyId);
     }, {
         permission: 'users.restore',
         params: IdStringParamSchema,

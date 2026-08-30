@@ -68,32 +68,29 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                 }}
                 class="flex flex-col gap-6 py-4"
             >
-                {/* ═══ Basic info ═══ */}
-                <div class="space-y-4">
-                    <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                        <div class="size-1.5 rounded-full bg-primary" />
-                        Información de acceso
+                {/* ═══ User Identity (Global Read-Only in Tenant RBAC) ═══ */}
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
+                            <div class="size-1.5 rounded-full bg-primary" />
+                            Identidad de Acceso
+                        </div>
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                            Cuenta Global
+                        </span>
                     </div>
 
-                    <form.Field name="username">
-                        {(field) => (
-                            <TextField.Root field={field()} disabled={props.isSubmitting}>
-                                <TextField.Label>Nombre de usuario *</TextField.Label>
-                                <TextField.Input placeholder="ej. juan.perez" autocomplete="username" />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                        )}
-                    </form.Field>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="p-3 bg-surface/50 rounded-xl border border-border/60">
+                            <p class="text-[10px] font-semibold uppercase tracking-wider text-muted">Nombre de usuario</p>
+                            <p class="text-sm font-semibold text-heading truncate mt-0.5">{props.defaultValues.username}</p>
+                        </div>
 
-                    <form.Field name="email">
-                        {(field) => (
-                            <TextField.Root field={field()} disabled={props.isSubmitting}>
-                                <TextField.Label>Correo electrónico *</TextField.Label>
-                                <TextField.Input type="email" placeholder="ej. juan@empresa.com" autocomplete="email" />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                        )}
-                    </form.Field>
+                        <div class="p-3 bg-surface/50 rounded-xl border border-border/60">
+                            <p class="text-[10px] font-semibold uppercase tracking-wider text-muted">Correo electrónico</p>
+                            <p class="text-sm font-semibold text-heading truncate mt-0.5">{props.defaultValues.email}</p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* ═══ Account status toggle ═══ */}

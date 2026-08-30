@@ -23,12 +23,13 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
         const created = await executeFormMutation({
             mutation: createMutation,
             variables: {
-                username: values.username,
                 email: values.email,
-                password: values.password,
+                username: values.username || undefined,
+                password: values.password || undefined,
                 roleIds: values.roleIds.length > 0 ? values.roleIds : undefined,
+                entityId: values.entityId || undefined,
             },
-            successMessage: `Usuario "${values.username}" creado correctamente`,
+            successMessage: `Usuario "${values.username || values.email}" configurado correctamente`,
             onComplete: close,
         });
 

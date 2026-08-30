@@ -64,24 +64,24 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
             onClose={props.onClose}
             onConfirm={handleConfirm}
             onModeChange={setMode}
-            title="Eliminar usuario"
+            title="Gestionar acceso del usuario"
             description={props.user?.username}
             allowHardDelete={canDestroy()}
             isLoading={isLoading()}
-            softDeleteTitle="Desactivar"
-            softDeleteDesc="El usuario quedará inactivo y podrá restaurarse en cualquier momento. Sus roles se conservarán."
-            hardDeleteTitle="Destruir permanentemente"
-            hardDeleteDesc="Se eliminará de forma definitiva junto con sus roles y sesiones, sin posibilidad de recuperación."
+            softDeleteTitle="Desactivar acceso"
+            softDeleteDesc="El usuario quedará inactivo en esta empresa. Sus roles y asignaciones se conservarán para cuando se reactive."
+            hardDeleteTitle="Remover de la empresa"
+            hardDeleteDesc="El usuario será desvinculado de esta empresa y se revocarán sus roles. Su cuenta personal y acceso a otras organizaciones permanecerán intactos."
             
             softLoadingText="Desactivando..."
-            hardLoadingText="Destruyendo..."
+            hardLoadingText="Removiendo..."
 
             isCheckingDependencies={refsQuery.isFetching}
             hasDependencies={hasReferences()}
             dependencyWarnings={referenceLines()}
-            preventHardDeleteText="No se puede destruir"
+            preventHardDeleteText="No se puede remover"
             preventHardDeleteReason="Registros vinculados que lo impiden:"
-            preventHardDeleteSuggestion={<>Usa <strong class="text-muted font-semibold">Desactivar</strong> para inhabilitar el usuario conservando el historial.</>}
+            preventHardDeleteSuggestion={<>Usa <strong class="text-muted font-semibold">Desactivar acceso</strong> para inhabilitar al usuario en esta empresa conservando el historial.</>}
         />
     );
 };

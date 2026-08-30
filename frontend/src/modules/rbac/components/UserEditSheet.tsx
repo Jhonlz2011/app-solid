@@ -39,9 +39,9 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
             const promises: Promise<unknown>[] = [
                 updateMutation.mutateAsync({
                     id: targetId,
-                    username: values.username,
-                    email: values.email,
                     isActive: values.isActive,
+                    roleIds: values.roleIds,
+                    entityId: values.entityId,
                 }),
                 assignRolesMutation.mutateAsync({
                     userId: targetId,
@@ -49,7 +49,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                 }),
             ];
 
-            // Entity change
+            // Entity change fallback if needed
             const currentEntityId = userQuery.data?.entityId ?? null;
             if (values.entityId !== undefined && values.entityId !== currentEntityId) {
                 promises.push(

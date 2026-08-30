@@ -89,7 +89,7 @@ export const usersApi = {
         return data!;
     },
 
-    updateUser: async (id: string, body: { username?: string; email?: string; isActive?: boolean }) => {
+    updateUser: async (id: string, body: { username?: string; email?: string; isActive?: boolean; roleIds?: number[]; entityId?: string | null }) => {
         const { data, error } = await api.rbac.users({ id }).put(body);
         if (error) throwApiError(error);
         return data!;
