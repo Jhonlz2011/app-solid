@@ -13,6 +13,7 @@ import {
 } from '../entity-form.utils';
 
 import TextField, { FieldLabel } from '@form/TextField';
+import { FormSectionHeader } from '@form/FormSectionHeader';
 import Checkbox from '@form/Checkbox';
 import { SelectField } from '@form/Select';
 import { SriBusinessNameSelect } from '@shared/ui/selectors';
@@ -143,10 +144,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
 
             {/* --- Roles Section --- */}
             <fieldset class="bg-surface/30 p-4 rounded-2xl border border-border/40">
-                <div class="flex items-center gap-2 mb-2">
-                    <div class="w-1.5 h-4 bg-warning rounded-full"></div>
-                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Tipo de Entidad</h3>
-                </div>
+                <FormSectionHeader color="warning" title="Tipo de Entidad" class="mb-2" />
                 <div class="flex flex-wrap gap-x-6 gap-y-3">
                     {(Object.entries(roleLabels) as [keyof typeof roleLabels, string][]).map(([key, label]) => (
                         <props.form.Field name={key}>
@@ -186,12 +184,11 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
 
             {/* --- Unified Identification & Main Data Section --- */}
             <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
-                <div class="flex items-center gap-2 mb-2">
-                    <div class="w-1.5 h-4 bg-primary rounded-full"></div>
-                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">
-                        {isPureEmployee() ? 'Identificación y Datos Personales' : 'Identificación y Titular'}
-                    </h3>
-                </div>
+                <FormSectionHeader
+                    color="primary"
+                    title={isPureEmployee() ? 'Identificación y Datos Personales' : 'Identificación y Titular'}
+                    class="mb-2"
+                />
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <props.form.Field name="taxIdType">
@@ -338,10 +335,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
 
             {/* --- Contact Section (email, phone) --- */}
             <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
-                <div class="flex items-center gap-2 mb-2">
-                    <div class="w-1.5 h-4 bg-info rounded-full"></div>
-                    <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Contacto Predeterminado</h3>
-                </div>
+                <FormSectionHeader color="info" title="Contacto Predeterminado" class="mb-2" />
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <props.form.Field name="emailBilling">
                         {(field) => (
@@ -366,10 +360,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
             {/* --- Tax Section (conditionally visible) --- */}
             <Show when={showTaxSection()}>
                 <fieldset class="space-y-4 bg-surface/30 p-4 rounded-2xl border border-border/40">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div class="w-1.5 h-4 bg-blue-800 rounded-full"></div>
-                        <h3 class="font-semibold text-text uppercase tracking-wide text-sm">Clasificación SRI</h3>
-                    </div>
+                    <FormSectionHeader indicatorColor="bg-blue-800" title="Clasificación SRI" class="mb-2" />
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-0 sm:gap-4 place-items-start">
                         <props.form.Field name="taxRegimeType">
                             {(field) => (

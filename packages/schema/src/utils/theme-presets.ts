@@ -25,7 +25,7 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
         cardLight: '#fff',
         cardDark: '#0f172a',      // ← antes #111827
         cardAltLight: '#eef2ff',
-        cardAltDark: '#0f141e',
+        cardAltDark: '#070a0e',
         borderLight: '#e7eff8',
         borderDark: '#1f2533',
     },
@@ -61,7 +61,7 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
         cardLight: '#fff',
         cardDark: '#111827',      // ← antes #111827
         cardAltLight: '#eef2ff',
-        cardAltDark: '#0f141e',
+        cardAltDark: '#070a0e',
         borderLight: '#e7eff8',
         borderDark: '#1f2533',
     },
