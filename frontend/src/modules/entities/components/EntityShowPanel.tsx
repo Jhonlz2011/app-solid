@@ -24,10 +24,8 @@ import { formatCurrency, formatDate } from '@shared/utils/formatters';
 import { useClient } from '@modules/clients/data/clients.queries';
 import { useSupplier } from '@modules/suppliers/data/suppliers.queries';
 import { useEmployee } from '@modules/employees/data/employees.queries';
-import { useCarrier } from '@modules/carriers/data/carriers.queries';
-import { getTaxIdTypeLabel, getPersonTypeLabel, getTaxRegimeTypeLabel } from '../entity-form.utils';
-
-export type EntityModuleType = 'client' | 'supplier' | 'employee' | 'carrier';
+import type { EntityModuleType } from './EntityNewSheet';
+import { getPersonTypeLabel, getTaxIdTypeLabel, getTaxRegimeTypeLabel } from '../models/entity.types';
 
 export interface EntityShowPanelProps {
     id?: string | number;
@@ -67,19 +65,13 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
 
     const clientQuery = useClient(entityId, () => resolvedType() === 'client');
     const supplierQuery = useSupplier(entityId, () => resolvedType() === 'supplier');
-    const employeeQuery = useEmployee(entityId, () => resolvedType() === 'employee');
-    const carrierQuery = useCarrier(entityId, () => resolvedType() === 'carrier');
+    const employeeQuery = useEmployee(entityId, () => resolvedType() === 'employee' || resolvedType() === 'carrier');
 
     const query = () => {
         const t = resolvedType();
-        switch (t) {
-            case 'supplier': return supplierQuery;
-            case 'employee': return employeeQuery;
-            case 'carrier': return carrierQuery;
-            case 'client':
-            default:
-                return clientQuery;
-        }
+        if (t === 'supplier') return supplierQuery;
+        if (t === 'employee' || t === 'carrier') return employeeQuery;
+        return clientQuery;
     };
 
     const entity = () => query().data;
