@@ -1,10 +1,11 @@
-import { Component, createSignal, createMemo } from 'solid-js';
+import { Component, createSignal } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { UserUpdateSchema, type UserUpdateData } from '@app/schema/frontend';
 import type { RoleType } from '@app/schema/dto';
-import { TextField } from '@form/TextField';
+import { SYSTEM_ROLES } from '@app/schema/enums';
+import { FormSectionHeader } from '@form/FormSectionHeader';
+import { Switch } from '@form/Switch';
 import { EntitySelect } from '@shared/ui/selectors';
-import Switch from '@/shared/ui/form/Switch';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { handleFormApiErrors } from '@shared/utils/form.utils';
 import { UserRolePicker } from './shared/UserRolePicker';
@@ -16,7 +17,7 @@ export interface UserEditFormProps {
     roles: RoleType[];
     rolesLoading?: boolean;
     initialEntity?: { id: string; businessName: string; taxId: string } | null;
-    onSubmit: (values: UserUpdateData & { newPassword?: string }) => void | Promise<void>;
+    onSubmit: (values: UserUpdateData) => void | Promise<void>;
     isSubmitting?: boolean;
 }
 
@@ -24,10 +25,13 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const [newPassword, setNewPassword] = createSignal('');
 
+    const isUserSuperadmin = () => {
+        const superadminRole = props.roles.find(r => r.name === SYSTEM_ROLES.SUPERADMIN);
+        return Boolean(superadminRole && props.defaultValues.roleIds.includes(superadminRole.id));
+    };
+
     const form = createForm(() => ({
         defaultValues: {
-            username: props.defaultValues.username,
-            email: props.defaultValues.email,
             isActive: props.defaultValues.isActive ?? true,
             roleIds: props.defaultValues.roleIds ?? [],
             entityId: props.defaultValues.entityId ?? null,
@@ -38,10 +42,7 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
         },
         onSubmit: async ({ value }) => {
             try {
-                await props.onSubmit({
-                    ...value,
-                    newPassword: newPassword().length >= 8 ? newPassword() : undefined,
-                });
+                await props.onSubmit(value);
             } catch (err) {
                 handleFormApiErrors(form, err, 'Error al actualizar el usuario', props.formId ?? 'user-edit-form');
             }
@@ -50,11 +51,6 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
 
     const isActive = form.useStore((s) => s.values.isActive);
     const selectedRoleIds = form.useStore((s) => s.values.roleIds);
-
-    const isUserSuperadmin = createMemo(() => {
-        const superRole = props.roles?.find(r => r.name === 'superadmin');
-        return superRole ? (selectedRoleIds()?.includes(superRole.id) ?? false) : false;
-    });
 
     return (
         <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
@@ -70,15 +66,11 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
             >
                 {/* ═══ User Identity (Global Read-Only in Tenant RBAC) ═══ */}
                 <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                            <div class="size-1.5 rounded-full bg-primary" />
-                            Identidad de Acceso
-                        </div>
-                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                            Cuenta Global
-                        </span>
-                    </div>
+                    <FormSectionHeader
+                        title="Identidad de Acceso"
+                        indicatorColor="bg-primary"
+                        badge="Cuenta Global"
+                    />
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div class="p-3 bg-surface/50 rounded-xl border border-border/60">

@@ -3,13 +3,13 @@
  * Eliminates ~5 lines of duplication per section.
  */
 import { Component, Show, JSX } from 'solid-js';
-import { Badge } from '@display/Badge';
+import { Badge, type BadgeVariant } from '@display/Badge';
 
 interface SectionHeaderProps {
     color: 'primary' | 'success' | 'warning' | 'info' | 'danger' | 'accent';
     title: string;
     badge?: string;
-    badgeVariant?: 'primary' | 'info' | 'success' | 'warning';
+    badgeVariant?: BadgeVariant;
     description?: string;
     children?: JSX.Element;
 }

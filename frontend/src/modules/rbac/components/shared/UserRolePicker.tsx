@@ -3,6 +3,7 @@ import type { RoleType } from '@app/schema/dto';
 import Checkbox from '@form/Checkbox';
 import { RoleBadge } from '@display/Badge';
 import { SkeletonLoader } from '@display/SkeletonLoader';
+import { FormSectionHeader } from '@form/FormSectionHeader';
 
 export interface UserRolePickerProps {
     roles: RoleType[];
@@ -33,10 +34,7 @@ export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
 
     return (
         <div class="space-y-3">
-            <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                <div class="size-1.5 rounded-full bg-info" />
-                Roles asignados
-            </div>
+            <FormSectionHeader title="Roles" indicatorColor="bg-info" />
             <Show
                 when={!props.rolesLoading}
                 fallback={

@@ -1,6 +1,7 @@
 import { Component, Show, For, createSignal, JSX, createEffect, mergeProps } from 'solid-js';
 import { Dialog } from '@kobalte/core';
 import Button from '@form/Button';
+import { CardOption } from '@form/CardOption';
 import Popover from '@display/Popover';
 import { CloseIcon } from '@icons/CloseIcon';
 import { AlertTriangleIcon } from '@icons/AlertTriangleIcon';
@@ -121,67 +122,31 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
                             {/* ── Dual-mode selector (admins only) ── */}
                             <Show when={props.allowHardDelete}>
                                 <div class="space-y-2">
-
                                     {/* Soft delete */}
-                                    <button
-                                        type="button"
-                                        onClick={() => setMode('soft')}
-                                        class={cn(
-                                            'w-full flex items-start gap-3 p-3.5 sm:p-4 rounded-xl border text-left cursor-pointer transition-colors',
-                                            mode() === 'soft'
-                                                ? 'border-danger/50 bg-danger/5'
-                                                : 'border-border hover:border-border-strong'
-                                        )}
-                                    >
-                                        <div class={cn(
-                                            'mt-0.5 size-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors duration-150',
-                                            mode() === 'soft' ? 'border-danger' : 'border-muted/60'
-                                        )}>
-                                            <div class={cn(
-                                                'size-2 rounded-full bg-danger',
-                                                mode() === 'soft' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
-                                            )} />
-                                        </div>
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-center gap-2 text-sm font-medium text-text flex-wrap">
-                                                <EyeOffIcon class="size-4 text-muted shrink-0" />
-                                                {props.softDeleteTitle}
-                                                <span class="text-xs font-normal text-danger bg-danger/10 px-1.5 py-0.5 rounded-md">
-                                                    recomendado
-                                                </span>
-                                            </div>
-                                            <p class="text-xs text-muted mt-1 leading-relaxed">
-                                                {props.softDeleteDesc}
-                                            </p>
-                                        </div>
-                                    </button>
+                                    <CardOption
+                                        isSelected={mode() === 'soft'}
+                                        onSelect={() => setMode('soft')}
+                                        indicator="radio"
+                                        variant="danger"
+                                        layout="horizontal"
+                                        icon={<EyeOffIcon class="size-4 text-muted" />}
+                                        title={props.softDeleteTitle}
+                                        description={props.softDeleteDesc}
+                                        badge="recomendado"
+                                        badgeVariant="danger"
+                                    />
 
                                     {/* Hard delete */}
-                                    <button
-                                        type="button"
-                                        onClick={() => setMode('hard')}
-                                        class={cn(
-                                            'w-full flex items-start gap-3 p-3.5 sm:p-4 rounded-xl border text-left cursor-pointer transition-colors',
-                                            mode() === 'hard'
-                                                ? 'border-destructive bg-destructive/5'
-                                                : 'border-border hover:border-destructive/30 hover:bg-destructive/5'
-                                        )}
-                                    >
-                                        <div class={cn(
-                                            'mt-0.5 size-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors duration-150',
-                                            mode() === 'hard' ? 'border-destructive' : 'border-muted/60'
-                                        )}>
-                                            <div class={cn(
-                                                'size-2 rounded-full bg-destructive',
-                                                mode() === 'hard' ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
-                                            )} />
-                                        </div>
-
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-center gap-2 text-sm font-medium text-text">
-                                                <TrashIcon class="size-4 text-destructive shrink-0" />
-                                                <span class="flex-1">{props.hardDeleteTitle}</span>
-
+                                    <CardOption
+                                        isSelected={mode() === 'hard'}
+                                        onSelect={() => setMode('hard')}
+                                        indicator="radio"
+                                        variant="danger"
+                                        layout="horizontal"
+                                        icon={<TrashIcon class="size-4 text-destructive" />}
+                                        title={
+                                            <div class="flex items-center gap-2">
+                                                <span>{props.hardDeleteTitle}</span>
                                                 <span class="relative size-5 shrink-0 flex items-center justify-center">
                                                     <span class={cn(
                                                         'absolute inset-0 flex items-center justify-center transition-opacity duration-150',
@@ -199,7 +164,7 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
                                                         <Popover placement="top-end" gutter={6}>
                                                             <Popover.Trigger
                                                                 onClick={(e: MouseEvent) => e.stopPropagation()}
-                                                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-warning/15 text-warning border border-warning/25 hover:bg-warning/25 transition-colors"
+                                                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-warning/15 text-warning border border-warning/25 hover:bg-warning/25 transition-colors cursor-pointer"
                                                             >
                                                                 <AlertTriangleIcon class="size-3.5" />
                                                             </Popover.Trigger>
@@ -232,13 +197,9 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
                                                     </span>
                                                 </span>
                                             </div>
-
-                                            <p class="text-xs text-muted mt-1 leading-relaxed">
-                                                {props.hardDeleteDesc}
-                                            </p>
-                                        </div>
-                                    </button>
-
+                                        }
+                                        description={props.hardDeleteDesc}
+                                    />
                                 </div>
                             </Show>
 

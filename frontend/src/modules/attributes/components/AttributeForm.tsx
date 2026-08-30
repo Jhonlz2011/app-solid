@@ -25,6 +25,7 @@ import type { AttributeFormData } from '@app/schema/frontend';
 import type { AttributeDataType } from '@app/schema/enums';
 import TextField from '@form/TextField';
 import Button from '@form/Button';
+import { CardOption } from '@form/CardOption';
 import { handleFormApiErrors } from '@shared/utils/form.utils';
 import { PlusIcon } from '@icons/PlusIcon';
 import { KeyIcon } from '@icons/KeyIcon';
@@ -51,62 +52,6 @@ export interface AttributeFormProps {
     formId: string;
     disabled?: boolean;
 }
-
-// ── Type Picker Card ─────────────────────────────────────────────────
-const TypeCard: Component<{
-    option: AttributeTypeOption;
-    isSelected: boolean;
-    disabled: boolean;
-    onSelect: () => void;
-}> = (props) => {
-    const colorMap: Record<string, { ring: string; bg: string; icon: string; text: string }> = {
-        primary: { ring: 'ring-primary/60', bg: 'bg-primary/8', icon: 'text-primary', text: 'text-primary' },
-        info:    { ring: 'ring-info/60',    bg: 'bg-info/8',    icon: 'text-info',    text: 'text-info' },
-        warning: { ring: 'ring-warning/60', bg: 'bg-warning/8', icon: 'text-warning', text: 'text-warning' },
-        success: { ring: 'ring-success/60', bg: 'bg-success/8', icon: 'text-success', text: 'text-success' },
-    };
-    const colors = () => colorMap[props.option.color] ?? colorMap.primary;
-
-    return (
-        <button
-            type="button"
-            onClick={() => !props.disabled && props.onSelect()}
-            disabled={props.disabled}
-            class={`
-                relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50
-                ${props.disabled ? 'opacity-50 cursor-not-allowed' : ''}
-                ${props.isSelected
-                    ? `${colors().bg} ${colors().ring} ring-2 border-transparent shadow-sm`
-                    : 'border-border/60 bg-card hover:border-border-strong hover:bg-surface/50'
-                }
-            `}
-        >
-            {/* Icon */}
-            <div class={`
-                size-10 rounded-lg flex items-center justify-center transition-colors duration-200
-                ${props.isSelected ? `${colors().bg} ${colors().icon}` : 'bg-surface text-muted'}
-            `}>
-                <Dynamic component={props.option.icon} class="size-5" />
-            </div>
-
-            {/* Label */}
-            <span class={`text-sm font-semibold transition-colors ${props.isSelected ? colors().text : 'text-text'}`}>
-                {props.option.label}
-            </span>
-
-            {/* Description */}
-            <span class="text-xs text-muted leading-tight text-center">
-                {props.option.description}
-            </span>
-
-            {/* Selected indicator */}
-            <Show when={props.isSelected}>
-                <div class={`absolute top-2 right-2 size-2 rounded-full ${colors().icon.replace('text-', 'bg-')} animate-in fade-in zoom-in`} />
-            </Show>
-        </button>
-    );
-};
 
 // ── Sortable Option Row (Metronic-style editable input row) ─────────
 const SortableOption: Component<{
@@ -332,7 +277,7 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
                     <form.Field name="label">
                         {(field) => (
                             <TextField.Root field={field()} class='gap-2'>
-                                <TextField.Label class='text-text text-sm font-semibold' >Etiqueta *</TextField.Label>
+                                <TextField.Label class='text-sm font-semibold' >Etiqueta *</TextField.Label>
                                 <TextField.Input type="text" placeholder="Ej: Voltaje de Entrada, Color, Talla..." />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
@@ -343,7 +288,7 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
                 {/* ─── Section 2: Type Picker ─── */}
                 <section class="space-y-3">
                     <div class="flex items-center gap-2">
-                        <h3 class="ml-1 text-sm font-semibold text-text tracking-wide">Tipo de Datos</h3>
+                        <h3 class="ml-1 text-sm font-semibold text-muted tracking-wide">Tipo de Datos</h3>
                         <Show when={isEditing()}>
                             <span class="text-[10px] bg-surface border border-border px-2 py-0.5 rounded-full text-muted font-medium ml-auto">
                                 No modificable
@@ -357,8 +302,13 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
                                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     <For each={ATTRIBUTE_TYPE_OPTIONS}>
                                         {(opt) => (
-                                            <TypeCard
-                                                option={opt}
+                                            <CardOption
+                                                layout="vertical"
+                                                variant={opt.color as any}
+                                                indicator="dot"
+                                                icon={<Dynamic component={opt.icon} class="size-5" />}
+                                                title={opt.label}
+                                                description={opt.description}
                                                 isSelected={field().state.value === opt.value}
                                                 disabled={isEditing()}
                                                 onSelect={() => field().handleChange(opt.value)}

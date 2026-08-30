@@ -3,9 +3,16 @@ import { createForm } from '@tanstack/solid-form';
 import { UserCreateSchema, type UserCreateData } from '@app/schema/frontend';
 import type { RoleType } from '@app/schema/dto';
 import { TextField } from '@form/TextField';
+import { CardOption } from '@form/CardOption';
+import { FormSectionHeader } from '@form/FormSectionHeader';
 import { EntitySelect } from '@shared/ui/selectors';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { handleFormApiErrors } from '@shared/utils/form.utils';
+import { MailIcon } from '@icons/MailIcon';
+import { KeyIcon } from '@icons/KeyIcon';
+import { SparklesIcon } from '@icons/SparklesIcon';
+import { AlertTriangleIcon } from '@icons/AlertTriangleIcon';
+import { SpinnerIcon } from '@icons/SpinnerIcon';
 import { UserRolePicker } from './shared/UserRolePicker';
 import { useCheckUserEmail } from '../data/users.queries';
 
@@ -74,10 +81,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
             >
                 {/* ═══ 1. User Identity & Live Detection ═══ */}
                 <div class="space-y-4">
-                    <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                        <div class="size-1.5 rounded-full bg-primary" />
-                        Identidad y Acceso
-                    </div>
+                    <FormSectionHeader title="Identidad y Acceso" indicatorColor="bg-primary" />
 
                     <form.Field name="email">
                         {(field) => (
@@ -92,14 +96,16 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                     {/* ── Live Feedback Banners ── */}
                     <Show when={checkQuery.isFetching}>
                         <div class="p-3 bg-surface/60 rounded-xl border border-border/40 flex items-center gap-2.5 text-xs text-muted animate-pulse">
-                            <div class="size-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <SpinnerIcon class="size-3.5 text-primary animate-spin" />
                             <span>Verificando correo en Zelys...</span>
                         </div>
                     </Show>
 
                     <Show when={!checkQuery.isFetching && isAlreadyMember()}>
                         <div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3">
-                            <span class="text-base shrink-0">⚠️</span>
+                            <div class="size-8 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400">
+                                <AlertTriangleIcon class="size-4.5" />
+                            </div>
                             <div class="space-y-0.5">
                                 <p class="text-xs font-semibold text-amber-600 dark:text-amber-400">Usuario ya registrado en esta empresa</p>
                                 <p class="text-xs text-muted">
@@ -111,7 +117,9 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
 
                     <Show when={!checkQuery.isFetching && isExistingUser()}>
                         <div class="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-start gap-3">
-                            <span class="text-base shrink-0">✨</span>
+                            <div class="size-8 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400">
+                                <SparklesIcon class="size-4.5" />
+                            </div>
                             <div class="space-y-0.5">
                                 <div class="flex items-center gap-2">
                                     <p class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Usuario de Zelys detectado</p>
@@ -129,51 +137,31 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                     {/* ── Mode selector for brand new users ── */}
                     <Show when={!isExistingUser() && !isAlreadyMember()}>
                         <div class="space-y-3 pt-1">
-                            <div class="text-[11px] font-semibold text-muted uppercase tracking-wider">
+                            <div class="text-[11px] font-semibold text-muted tracking-wider">
                                 Método de Incorporación
                             </div>
 
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setOnboardingMode('invite')}
-                                    class={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
-                                        onboardingMode() === 'invite'
-                                            ? 'bg-primary/10 border-primary shadow-xs'
-                                            : 'bg-surface/50 border-border/60 hover:bg-surface'
-                                    }`}
-                                >
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-base">✉️</span>
-                                            <span class="text-xs font-semibold text-heading">Invitación por Correo</span>
-                                        </div>
-                                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary">
-                                            Recomendado
-                                        </span>
-                                    </div>
-                                    <p class="text-[11px] text-muted">
-                                        Acceso 1-Click con Google / Microsoft o configuración de clave por el usuario.
-                                    </p>
-                                </button>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <CardOption
+                                    isSelected={onboardingMode() === 'invite'}
+                                    onSelect={() => setOnboardingMode('invite')}
+                                    icon={<MailIcon class="size-4.5" />}
+                                    title="Invitación por Correo"
+                                    description="Acceso 1-Click con Google / Microsoft o clave personal."
+                                    badge="Recomendado"
+                                    variant="primary"
+                                    disabled={props.isSubmitting}
+                                />
 
-                                <button
-                                    type="button"
-                                    onClick={() => setOnboardingMode('direct')}
-                                    class={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
-                                        onboardingMode() === 'direct'
-                                            ? 'bg-primary/10 border-primary shadow-xs'
-                                            : 'bg-surface/50 border-border/60 hover:bg-surface'
-                                    }`}
-                                >
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-base">🔑</span>
-                                        <span class="text-xs font-semibold text-heading">Credenciales Directas</span>
-                                    </div>
-                                    <p class="text-[11px] text-muted">
-                                        Asigna usuario y contraseña inicial manualmente (para personal de Caja / POS).
-                                    </p>
-                                </button>
+                                <CardOption
+                                    isSelected={onboardingMode() === 'direct'}
+                                    onSelect={() => setOnboardingMode('direct')}
+                                    icon={<KeyIcon class="size-4.5" />}
+                                    title="Credenciales Directas"
+                                    description="Asigna usuario y contraseña inicial manualmente."
+                                    variant="primary"
+                                    disabled={props.isSubmitting}
+                                />
                             </div>
 
                             {/* ── Direct credential fields (only when direct mode selected) ── */}
@@ -192,7 +180,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                     <form.Field name="password">
                                         {(field) => (
                                             <TextField.Root field={field()} disabled={props.isSubmitting}>
-                                                <TextField.Label>Contraseña inicial *</TextField.Label>
+                                                <TextField.Label>Contraseña *</TextField.Label>
                                                 <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
                                                 <TextField.ErrorMessage />
                                             </TextField.Root>
@@ -210,7 +198,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                         <EntitySelect
                             value={field().state.value}
                             onChange={(id) => field().handleChange(id)}
-                            label="Persona vinculada (Empleado)"
+                            label="Persona vinculada"
                             placeholder="Buscar empleado por nombre o identificación..."
                             isEmployee={true}
                             disabled={props.isSubmitting || isAlreadyMember()}

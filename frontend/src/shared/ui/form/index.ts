@@ -21,3 +21,10 @@ export {
     SelectField,
 } from './Select';
 export type { SelectOption, SelectFieldProps } from './Select';
+
+// Card Option & Section Headers
+export { CardOption } from './CardOption';
+export type { CardOptionProps } from './CardOption';
+export { FormSectionHeader } from './FormSectionHeader';
+export type { FormSectionHeaderProps } from './FormSectionHeader';
+
