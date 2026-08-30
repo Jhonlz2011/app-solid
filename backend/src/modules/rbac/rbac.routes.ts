@@ -44,7 +44,7 @@ import {
     CheckUserEmailQuerySchema,
     CheckUserEmailResponseSchema,
     BatchResultItemSchema,
-    UserAuditLogQuerySchema,
+    PaginationQuerySchema,
     UserFacetsQuerySchema,
     UserListQuerySchema,
     AuditLogResponseSchema,
@@ -270,7 +270,7 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     }, {
         permission: 'users.read',
         params: IdStringParamSchema,
-        query: UserAuditLogQuerySchema,
+        query: PaginationQuerySchema,
         response: AuditLogResponseSchema,
     })
 
