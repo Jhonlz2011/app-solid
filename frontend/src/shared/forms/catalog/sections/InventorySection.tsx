@@ -10,7 +10,7 @@ import Switch from '@/shared/ui/form/Switch';
 import { UomSelect } from '@shared/ui/selectors';
 import { RulerIcon } from '@icons/RulerIcon';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
-import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
+import FormSectionHeader from '@form/FormSectionHeader';
 
 interface InventorySectionProps {
     form: CatalogFormApi;
@@ -25,7 +25,7 @@ const InventorySection: Component<InventorySectionProps> = (props) => {
         <div class="flex flex-col gap-4 sm:gap-5">
             {/* ── Core inventory config ── */}
             <fieldset class="space-y-4 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
-                <SectionHeader
+                <FormSectionHeader
                     color="info"
                     title="Configuración de Inventario"
                     description="Unidad de medida, alertas de stock y seguimiento"
@@ -83,7 +83,7 @@ const InventorySection: Component<InventorySectionProps> = (props) => {
             {/* ── Conditional dimensional fields from variant[0] ── */}
             <Show when={hasDimensional()}>
                 <fieldset class="space-y-4 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-info/30 animate-in fade-in slide-in-from-top-1">
-                    <SectionHeader
+                    <FormSectionHeader
                         color="accent"
                         title="Dimensiones Estándar"
                         description="Medidas de referencia para la variante principal"

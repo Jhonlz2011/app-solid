@@ -4,7 +4,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { UomSelect } from '@shared/ui/selectors';
 import type { ProductVariantFormData } from '@app/schema/frontend';
 import type { CatalogFormApi } from '../catalog-form.types';
-import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
+import FormSectionHeader from '@form/FormSectionHeader';
 
 const IVA_OPTIONS = [
     { value: 0, label: '0% – Exento' },
@@ -28,7 +28,7 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
         <div class="flex flex-col gap-4 sm:gap-5">
             {/* ── Pricing defaults ── */}
             <fieldset class="space-y-4 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
-                <SectionHeader color="success" title="Precios de Venta" />
+                <FormSectionHeader color="success" title="Precios de Venta" />
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {/* Precio Base */}
@@ -96,7 +96,7 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
             {/* ── Variant price overrides ── */}
             <Show when={additionalVariants().length > 0}>
                 <fieldset class="space-y-3 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
-                    <SectionHeader
+                    <FormSectionHeader
                         color="success"
                         title="Precios por Variante"
                         description="Deja vacío para heredar el precio base del producto"

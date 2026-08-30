@@ -5,7 +5,7 @@ import TextField, { FieldLabel } from '@form/TextField';
 import Checkbox from '@form/Checkbox';
 import { Autocomplete } from '@form/Autocomplete';
 import { useResolvedSelectorPath } from '@shared/ui/selectors';
-import SectionHeader from './ui/SectionHeader';
+import FormSectionHeader from '@form/FormSectionHeader';
 import { PlusIcon } from '@icons/PlusIcon';
 import { EditIcon } from '@icons/EditIcon';
 import type { CategoryFormSchemaAttribute } from '@app/schema/dto';
@@ -87,7 +87,7 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
         <Show when={attributes().length > 0}>
             <fieldset class="space-y-4 bg-surface/30 p-5 rounded-2xl border border-border/40">
                 <div class="flex items-center justify-between">
-                    <SectionHeader color="accent" title="Atributos de Categoría" />
+                    <FormSectionHeader color="accent" title="Atributos de Categoría" />
                     <Link
                         to={`${resolvedCategoryPath()}/${props.categoryId()}/edit/attributes/new`}
                         preload="intent"

@@ -13,7 +13,7 @@ import { ProductSelect } from '@shared/ui/selectors';
 import { PlusIcon } from '@icons/PlusIcon';
 import { TrashIcon } from '@icons/TrashIcon';
 import { BeakerIcon } from '@icons/BeakerIcon';
-import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
+import FormSectionHeader from '@form/FormSectionHeader';
 
 interface BomSectionProps {
     form: CatalogFormApi;
@@ -83,7 +83,7 @@ export const BomSection: Component<BomSectionProps> = (props) => {
 
     return (
         <fieldset class="space-y-4 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
-            <SectionHeader
+            <FormSectionHeader
                 color="accent"
                 title="Lista de Materiales / Componentes (BOM)"
                 description="Especifica los productos que componen este ítem (Kit, Combo o Fórmula)"

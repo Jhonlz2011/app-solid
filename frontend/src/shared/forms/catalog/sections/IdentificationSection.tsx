@@ -9,7 +9,7 @@ import TextField from '@form/TextField';
 import { Badge } from '@display/Badge';
 import { EditIcon } from '@icons/EditIcon';
 import { RotateCcwIcon } from '@icons/RotateCcwIcon';
-import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
+import FormSectionHeader from '@form/FormSectionHeader';
 
 interface IdentificationSectionProps {
     form: CatalogFormApi;
@@ -21,7 +21,7 @@ interface IdentificationSectionProps {
 const IdentificationSection: Component<IdentificationSectionProps> = (props) => {
     return (
         <fieldset class="space-y-5 bg-surface/30 p-5 rounded-2xl border border-border/40">
-            <SectionHeader color="success" title="Identificación" />
+            <FormSectionHeader color="success" title="Identificación" />
 
             {/* Name */}
             <props.form.Field name="name">

@@ -23,7 +23,7 @@ import type { CatalogModeConfig } from '@shared/forms/catalog';
 import type { ProductSubtype } from '@app/schema/enums';
 import { useCategoriesFlat } from '@/modules/categories/data/categories.queries';
 import { useBrandsList } from '@/modules/brands/data/brands.queries';
-import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
+import FormSectionHeader from '@form/FormSectionHeader';
 
 import type { JSX } from 'solid-js';
 
@@ -105,7 +105,7 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
 
     return (
         <fieldset class="space-y-4 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
-            <SectionHeader 
+            <FormSectionHeader 
                 color="primary" 
                 title="Tipo y Clasificación" 
             />

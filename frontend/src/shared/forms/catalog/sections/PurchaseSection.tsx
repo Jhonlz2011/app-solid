@@ -2,7 +2,7 @@ import { Component, Show, For, createMemo } from 'solid-js';
 import TextField from '@form/TextField';
 import type { ProductVariantFormData } from '@app/schema/frontend';
 import type { CatalogFormApi } from '../catalog-form.types';
-import SectionHeader from '../../../../modules/products/components/ui/SectionHeader';
+import FormSectionHeader from '@form/FormSectionHeader';
 
 interface PurchaseSectionProps {
     form: CatalogFormApi;
@@ -31,7 +31,7 @@ const PurchaseSection: Component<PurchaseSectionProps> = (props) => {
         <div class="flex flex-col gap-4 sm:gap-5">
             {/* ── Default variant cost ── */}
             <fieldset class="space-y-4 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
-                <SectionHeader
+                <FormSectionHeader
                     color="warning"
                     title="Costos de Compra"
                     description="Último costo de adquisición registrado"
@@ -86,7 +86,7 @@ const PurchaseSection: Component<PurchaseSectionProps> = (props) => {
             {/* ── Variant cost overrides ── */}
             <Show when={additionalVariants().length > 0}>
                 <fieldset class="space-y-3 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
-                    <SectionHeader
+                    <FormSectionHeader
                         color="warning"
                         title="Costos por Variante"
                         description="Cada variante puede tener su propio costo de adquisición"
