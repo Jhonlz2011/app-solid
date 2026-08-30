@@ -28,6 +28,7 @@ import {
     getUserAuditLog,
     adminResetPassword,
     setUserEntity,
+    checkUserEmail,
 } from './rbac.service';
 import { getActiveSessions, revokeSession } from '../auth/session.service';
 import {
@@ -40,6 +41,8 @@ import {
     UserRolesAssignBodySchema,
     UserSessionResponseSchema,
     UserReferencesResponseSchema,
+    CheckUserEmailQuerySchema,
+    CheckUserEmailResponseSchema,
     BatchResultItemSchema,
     UserAuditLogQuerySchema,
     UserFacetsQuerySchema,
@@ -150,6 +153,15 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     }, {
         permission: 'users.read',
         query: UserListQuerySchema,
+    })
+
+    // Check if email already exists or belongs to current company
+    .get('/users/check-email', async ({ query, currentCompanyId }) => {
+        return await checkUserEmail(query.email, currentCompanyId);
+    }, {
+        permission: 'users.read',
+        query: CheckUserEmailQuerySchema,
+        response: CheckUserEmailResponseSchema,
     })
 
     // Single user by ID

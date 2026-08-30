@@ -151,7 +151,17 @@ export const BatchResultItemSchema = Type.Object({
     error: Type.Optional(Type.String()),
 });
 
-export const UserAuditLogQuerySchema = PaginationQuerySchema;
+export const CheckUserEmailQuerySchema = Type.Object({
+    email: Type.String({ format: 'email' }),
+});
+
+export const CheckUserEmailResponseSchema = Type.Object({
+    exists: Type.Boolean(),
+    username: Type.Optional(Type.String()),
+    displayUsername: Type.Optional(Type.String()),
+    name: Type.Optional(Type.String()),
+    isAlreadyMember: Type.Boolean(),
+});
 
 export const UserFacetsQuerySchema = Type.Object({
     search: Type.Optional(Type.String()),
@@ -214,6 +224,8 @@ export type UserRolesAssignType = Static<typeof UserRolesAssignBodySchema>;
 export type { UserSessionType };
 
 export type UserReferencesType = Static<typeof UserReferencesResponseSchema>;
+
+export type CheckUserEmailResponseType = Static<typeof CheckUserEmailResponseSchema>;
 
 export type BatchResultItemType = Static<typeof BatchResultItemSchema>;
 

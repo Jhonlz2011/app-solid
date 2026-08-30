@@ -223,3 +223,19 @@ export function useUserAuditLog(userId: () => string | null | undefined, page: (
         placeholderData: keepPreviousData,
     }));
 }
+
+export function useCheckUserEmail(email: () => string | undefined, enabled: () => boolean = () => true) {
+    return createQuery(() => {
+        const rawEmail = email()?.trim().toLowerCase() ?? '';
+        const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail);
+
+        return {
+            queryKey: ['rbac', 'users', 'check-email', rawEmail],
+            queryFn: () => usersApi.checkEmail(rawEmail),
+            enabled: enabled() && isValidEmail,
+            staleTime: 30_000,
+            gcTime: 60_000,
+            retry: false,
+        };
+    });
+}

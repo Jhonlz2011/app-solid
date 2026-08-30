@@ -71,7 +71,7 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
             softDeleteTitle="Desactivar acceso"
             softDeleteDesc="El usuario quedará inactivo en esta empresa. Sus roles y asignaciones se conservarán para cuando se reactive."
             hardDeleteTitle="Remover de la empresa"
-            hardDeleteDesc="El usuario será desvinculado de esta empresa y se revocarán sus roles. Su cuenta personal y acceso a otras organizaciones permanecerán intactos."
+            hardDeleteDesc="El usuario será desvinculado de esta empresa y se revocarán sus roles."
             
             softLoadingText="Desactivando..."
             hardLoadingText="Removiendo..."

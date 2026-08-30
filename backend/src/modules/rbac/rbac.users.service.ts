@@ -7,6 +7,8 @@ import { DomainError } from '../../core/errors';
 import { broadcast } from '../../core/sse/events';
 import { RealtimeEvents, getTenantRoom } from '@app/schema/realtime-events';
 import { SYSTEM_ROLES } from '@app/schema/enums';
+import { emailService } from '../../core/email';
+import { resolveTenantUrl } from '../../config/better-auth';
 import {
     invalidateUserRbacCache,
     revokeAllUserSessions,
@@ -25,6 +27,50 @@ export interface UsersListFilters {
     sortOrder?: 'asc' | 'desc';
     isActive?: string[];
     roles?: string[];
+}
+
+/**
+ * Light check to see if an email is already registered in Zelys or a member of the current company
+ */
+export async function checkUserEmail(email: string, companyId?: number) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await adminDb.query.authUsers.findFirst({
+        where: eq(authUsers.email, normalizedEmail),
+        columns: { id: true, username: true, displayUsername: true, name: true },
+    });
+
+    if (!existingUser) {
+        return { exists: false, isAlreadyMember: false };
+    }
+
+    let isAlreadyMember = false;
+    if (companyId) {
+        const [companyOrg] = await adminDb
+            .select({ organization_id: companies.organization_id })
+            .from(companies)
+            .where(eq(companies.id, companyId))
+            .limit(1);
+
+        if (companyOrg?.organization_id) {
+            const memberRow = await adminDb
+                .select({ id: member.id })
+                .from(member)
+                .where(and(
+                    eq(member.userId, existingUser.id),
+                    eq(member.organizationId, companyOrg.organization_id)
+                ))
+                .limit(1);
+            isAlreadyMember = memberRow.length > 0;
+        }
+    }
+
+    return {
+        exists: true,
+        username: existingUser.username,
+        displayUsername: existingUser.displayUsername || undefined,
+        name: existingUser.name || undefined,
+        isAlreadyMember,
+    };
 }
 
 // Allowed columns for sorting (whitelist prevents SQL injection)
@@ -651,6 +697,59 @@ export async function createUser(data: { email: string; roleIds?: number[]; enti
     broadcast(RealtimeEvents.USER.CREATED, { id: newUser.id }, targetRoom);
 
     if (currentUserId) logAudit(currentUserId, 'INSERT', 'user', newUser.id, { username: displayName, email: normalizedEmail, roleIds: data.roleIds, entityId: data.entityId });
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Send Organization Invitation Email (Asynchronous - Non Blocking)
+    // ──────────────────────────────────────────────────────────────────────────
+    if (companyId) {
+        (async () => {
+            try {
+                const [comp] = await adminDb
+                    .select({
+                        business_name: companies.business_name,
+                        trade_name: companies.trade_name,
+                        slug: companies.slug,
+                    })
+                    .from(companies)
+                    .where(eq(companies.id, companyId))
+                    .limit(1);
+
+                if (comp) {
+                    const companyName = comp.trade_name || comp.business_name;
+                    const loginUrl = `${resolveTenantUrl(comp.slug)}/login?email=${encodeURIComponent(normalizedEmail)}`;
+
+                    let roleNames: string[] = [];
+                    if (data.roleIds && data.roleIds.length > 0) {
+                        const assignedRoles = await adminDb
+                            .select({ name: authRoles.name })
+                            .from(authRoles)
+                            .where(inArray(authRoles.id, data.roleIds));
+                        roleNames = assignedRoles.map(r => r.name);
+                    }
+
+                    let inviterName: string | undefined;
+                    if (currentUserId) {
+                        const inviter = await adminDb.query.authUsers.findFirst({
+                            where: eq(authUsers.id, String(currentUserId)),
+                            columns: { name: true, displayUsername: true, username: true },
+                        });
+                        inviterName = inviter?.name || inviter?.displayUsername || inviter?.username;
+                    }
+
+                    await emailService.sendOrganizationInvitationEmail(normalizedEmail, {
+                        companyName,
+                        loginUrl,
+                        roleNames,
+                        userName: displayName,
+                        inviterName,
+                        isNewUser: !existingGlobalUser,
+                    });
+                }
+            } catch (err) {
+                console.error('[RBAC] Error sending organization invitation email:', err);
+            }
+        })();
+    }
 
     return newUser;
 }

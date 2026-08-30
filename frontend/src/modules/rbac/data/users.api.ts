@@ -83,6 +83,14 @@ export const usersApi = {
         return data!;
     },
 
+    checkEmail: async (email: string) => {
+        const { data, error } = await api.rbac.users['check-email'].get({
+            query: { email },
+        });
+        if (error) throwApiError(error);
+        return data!;
+    },
+
     createUser: async (body: Parameters<typeof api.rbac.users.post>[0]) => {
         const { data, error } = await api.rbac.users.post(body);
         if (error) throwApiError(error);

@@ -49,8 +49,8 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            title="Nuevo Usuario"
-            description="Crea una cuenta de acceso para un nuevo colaborador"
+            title="Incorporar Usuario"
+            description="Invita o añade un colaborador a tu espacio de trabajo"
             size="lg"
             footer={
                 <>
@@ -61,10 +61,10 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
                         type="submit"
                         form="user-create-form"
                         loading={isPending()}
-                        loadingText="Creando..."
+                        loadingText="Guardando..."
                         icon={<FloppyDiskIcon />}
                     >
-                        Crear Usuario
+                        Guardar / Invitar
                     </Button>
                 </>
             }
