@@ -156,11 +156,11 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
         },
 
         // -------------------------------------------------------------------
-        // Persona vinculada
+        // Persona asociada (Entity)
         // -------------------------------------------------------------------
         {
             id: 'entity',
-            accessorFn: (row) => row.entityName,
+            accessorFn: (row) => row.entity?.businessName,
             enableSorting: false,
             meta: { title: 'Persona' },
             header: ({ column }) => (
@@ -171,41 +171,48 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
             ),
             cell: (info) => {
                 const user = info.row.original;
-                const name = user.entityName;
-                if (!name) {
+                const entity = user.entity;
+                const name = entity?.businessName;
+                if (!entity || !name) {
                     return <span class="text-muted text-sm italic">Sin persona</span>;
                 }
-                const isSupplier = user.entityIsSupplier;
-                // Currently deeply nested modaling is only fully implemented for Suppliers.
-                // Clients and Employees will link here once their respective route factories exist.
-                const hasModal = isSupplier && user.entityId;
+
+                const entityPath = () => {
+                    if (!user.entityId) return null;
+                    if (entity.isEmployee) return `/users/employee/${user.entityId}/show`;
+                    if (entity.isClient) return `/users/client/${user.entityId}/show`;
+                    if (entity.isSupplier) return `/users/supplier/${user.entityId}/show`;
+                    return null;
+                };
 
                 return (
                     <div class="flex flex-col gap-0.5 min-w-0">
-                        <Show when={hasModal}
+                        <Show when={entityPath()}
                             fallback={<span class="text-sm text-text truncate font-medium" title={name}>{name}</span>}
                         >
-                            <Link
-                                to={`/users/supplier/${user.entityId}/show`}
-                                preload="intent"
-                                class="text-sm text-text hover:text-primary hover:underline truncate font-medium"
-                                title={`Ver detalles de ${name}`}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {name}
-                            </Link>
+                            {(path) => (
+                                <Link
+                                    to={path()}
+                                    preload="intent"
+                                    class="text-sm text-text hover:text-primary hover:underline truncate font-medium"
+                                    title={`Ver detalles de ${name}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {name}
+                                </Link>
+                            )}
                         </Show>
-                        <Show when={user.entityTaxId}>
-                            <span class="text-[11px] text-muted/70 font-mono truncate">{user.entityTaxId}</span>
+                        <Show when={entity.taxId}>
+                            <span class="text-[11px] text-muted/70 font-mono truncate">{entity.taxId}</span>
                         </Show>
                         <div class="flex gap-1 mt-0.5">
-                            <Show when={user.entityIsClient}>
+                            <Show when={entity.isClient}>
                                 <EntityTypeBadge type="client" />
                             </Show>
-                            <Show when={user.entityIsSupplier}>
+                            <Show when={entity.isSupplier}>
                                 <EntityTypeBadge type="supplier" />
                             </Show>
-                            <Show when={user.entityIsEmployee}>
+                            <Show when={entity.isEmployee}>
                                 <EntityTypeBadge type="employee" />
                             </Show>
                         </div>

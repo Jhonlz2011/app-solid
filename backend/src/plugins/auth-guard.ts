@@ -6,7 +6,7 @@ import { companies, member } from '@app/schema/tables';
 import { eq, and } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
 import { getIpAndUserAgent } from './ip';
-import { getUserRoles, getUserPermissions } from '../modules/users/rbac.permission.service';
+import { getUserRoles, getUserPermissions } from '../modules/rbac/rbac.permission.service';
 
 // ============================================================================
 // Type for Better Auth user with application-level denormalized fields

@@ -79,6 +79,15 @@ export const UserRoleReferenceSchema = Type.Object({
     description: Type.Optional(Type.Union([Type.String(), Type.Null()])),
 });
 
+export const UserEntityReferenceSchema = Type.Object({
+    id: Type.String(),
+    businessName: Type.String(),
+    taxId: Type.String(),
+    isClient: Type.Boolean(),
+    isSupplier: Type.Boolean(),
+    isEmployee: Type.Boolean(),
+});
+
 export const UserListItemResponseSchema = Type.Object({
     id: Type.String(),
     username: Type.String(),
@@ -86,15 +95,8 @@ export const UserListItemResponseSchema = Type.Object({
     isActive: Type.Union([Type.Boolean(), Type.Null()]),
     lastLogin: Type.Union([Type.Date(), Type.Null()]),
     entityId: Type.Union([Type.String(), Type.Null()]),
-    entityName: Type.Union([Type.String(), Type.Null()]),
-    entityTaxId: Type.Union([Type.String(), Type.Null()]),
-    entityIsClient: Type.Union([Type.Boolean(), Type.Null()]),
-    entityIsSupplier: Type.Union([Type.Boolean(), Type.Null()]),
-    entityIsEmployee: Type.Union([Type.Boolean(), Type.Null()]),
-    roles: Type.Array(Type.Object({
-        id: Type.Number(),
-        name: Type.String(),
-    })),
+    entity: Type.Union([UserEntityReferenceSchema, Type.Null()]),
+    roles: Type.Array(UserRoleReferenceSchema),
 });
 
 export const UserDetailResponseSchema = Type.Object({
@@ -104,17 +106,7 @@ export const UserDetailResponseSchema = Type.Object({
     isActive: Type.Union([Type.Boolean(), Type.Null()]),
     lastLogin: Type.Union([Type.Date(), Type.Null()]),
     entityId: Type.Union([Type.String(), Type.Null()]),
-    entity: Type.Union([
-        Type.Object({
-            id: Type.String(),
-            businessName: Type.String(),
-            taxId: Type.String(),
-            isClient: Type.Boolean(),
-            isSupplier: Type.Boolean(),
-            isEmployee: Type.Boolean(),
-        }),
-        Type.Null(),
-    ]),
+    entity: Type.Union([UserEntityReferenceSchema, Type.Null()]),
     roles: Type.Array(UserRoleReferenceSchema),
 });
 
@@ -208,6 +200,7 @@ export type RolePermissionsUpdateType = Static<typeof RolePermissionsUpdateBodyS
 
 export type UserListItemType = Static<typeof UserListItemResponseSchema>;
 export type UserDetailType = Static<typeof UserDetailResponseSchema>;
+export type UserEntityReferenceType = Static<typeof UserEntityReferenceSchema>;
 
 export type RbacUserCreateType = Static<typeof RbacUserCreateBodySchema>;
 export type RbacUserUpdateType = Static<typeof RbacUserUpdateBodySchema>;

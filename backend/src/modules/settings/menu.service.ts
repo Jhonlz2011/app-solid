@@ -2,7 +2,7 @@ import { db, adminDb } from '../../core/db';
 import { authMenuItems } from '@app/schema/tables';
 import { eq, asc, sql } from '@app/schema';
 import type { MenuItemStatus } from '@app/schema/enums';
-import { getUserPermissions, getUserRoles } from '../users/rbac.permission.service';
+import { getUserPermissions, getUserRoles } from '../rbac/rbac.permission.service';
 import { cacheService } from '../../core/cache';
 
 // Keep backward-compatible interface

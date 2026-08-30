@@ -154,8 +154,20 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
 
     return {
         data: users.map(user => ({
-            ...user,
+            id: user.id,
             username: user.username || user.name,
+            email: user.email,
+            isActive: user.isActive,
+            lastLogin: user.lastLogin,
+            entityId: user.entityId,
+            entity: user.entityId ? {
+                id: user.entityId,
+                businessName: user.entityName || '',
+                taxId: user.entityTaxId || '',
+                isClient: user.entityIsClient ?? false,
+                isSupplier: user.entityIsSupplier ?? false,
+                isEmployee: user.entityIsEmployee ?? false,
+            } : null,
             roles: roleMap.get(user.id) ?? [],
         })),
         meta: {

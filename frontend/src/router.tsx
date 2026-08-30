@@ -6,7 +6,7 @@ import { createAuthRoutes } from './modules/auth/auth.routes';
 import { createSuppliersRoutes } from './modules/suppliers/suppliers.routes';
 import { createEmployeesRoutes } from './modules/employees/employees.routes';
 import { createClientsRoutes } from './modules/clients/clients.routes';
-import { createUsersRoutes } from './modules/users/users.routes';
+import { createUsersRoutes } from './modules/rbac/users.routes';
 import { createProductsRoutes } from './modules/products/products.routes';
 import { createServicesRoutes } from './modules/services/services.routes';
 import { createCategoriesRoutes } from './modules/categories/categories.routes';

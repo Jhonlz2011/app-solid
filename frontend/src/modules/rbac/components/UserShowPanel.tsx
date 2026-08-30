@@ -21,7 +21,7 @@ import { useUser } from '../data/users.queries';
 // ── Extracted Sub-Components ──
 import UserSessionsTab from './show/UserSessionsTab';
 import UserActivityTab from './show/UserActivityTab';
-import PasswordResetSection from './PasswordResetSection';
+import { UserPasswordResetSection } from './shared/UserPasswordResetSection';
 
 interface UserShowPanelProps {
     userId?: string;
@@ -216,17 +216,17 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
 
                                     {/* Security — Password Reset */}
                                     <Show when={canUpdate()}>
-                                        <PasswordResetSection userId={userId()} username={user().username} />
+                                        <UserPasswordResetSection userId={user().id} username={user().username} />
                                     </Show>
                                 </TabsContent>
 
                                 {/* ═══ Sessions Tab ═══ */}
                                 <TabsContent value="sessions">
-                                    <UserSessionsTab userId={userId()} />
+                                    <UserSessionsTab userId={user().id} />
                                 </TabsContent>
 
                                 <TabsContent value="activity">
-                                    <UserActivityTab userId={userId()} />
+                                    <UserActivityTab userId={user().id} />
                                 </TabsContent>
                             </div>
                         </Tabs>

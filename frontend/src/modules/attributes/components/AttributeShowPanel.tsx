@@ -161,7 +161,7 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
 
                                     <TabsContent value="categories" class="fill-mode-both">
                                         <Show when={(attribute().usedInCategories?.length ?? 0) > 0} fallback={
-                                            <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-[200px]">
+                                            <div class="flex flex-col items-center justify-center text-center py-12 px-4 shadow-sm text-muted bg-surface/30 rounded-2xl border border-dashed border-border/60 min-h-50">
                                                 Este atributo no está asignado a ninguna categoría aún.
                                             </div>
                                         }>

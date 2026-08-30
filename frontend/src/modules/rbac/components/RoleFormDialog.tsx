@@ -4,13 +4,14 @@ import { FormDialog } from '@/shared/ui/overlay/FormDialog';
 import { TextField } from '@form/TextField';
 import { PermissionMatrix } from './PermissionMatrix';
 import { RoleBadge } from '@display/Badge';
+import { safeParse } from 'valibot';
+import { RoleCreateSchema } from '@app/schema/frontend';
 import {
     useRole, useRolePermissions, usePermissions,
 } from '../data/users.queries';
 import {
     useCreateRole, useUpdateRole, useUpdateRolePermissions,
 } from '../data/users.mutations';
-import type { RoleType } from '@app/schema/dto';
 import { ShieldIcon } from '@/shared/ui/icons';
 
 // =============================================================================
@@ -56,9 +57,8 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
         ([open, _id, data]) => {
             if (!open) return;
             if (isEdit() && data) {
-                const rd = data as RoleType;
-                setRoleName(rd.name ?? '');
-                setRoleDescription(rd.description ?? '');
+                setRoleName(data.name ?? '');
+                setRoleDescription(data.description ?? '');
             } else if (!isEdit()) {
                 setRoleName('');
                 setRoleDescription('');
@@ -90,7 +90,7 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
 
     // ── Derived ──────────────────────────────────────────────────────────────
     const selectedSet = createMemo(() => new Set(selectedPermIds()));
-    const roleData = () => roleQuery.data as RoleType | undefined;
+    const roleData = () => roleQuery.data;
     const isSystem = () => isEdit() && (roleData()?.is_system ?? false);
     const isPending = () =>
         createMutation.isPending || updateRoleMutation.isPending || updatePermsMutation.isPending;
@@ -139,7 +139,14 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
         const name = roleName().trim();
         const description = roleDescription().trim() || undefined;
 
-        if (!isPermissionsOnly() && !name) return;
+        if (!isPermissionsOnly()) {
+            const parsed = safeParse(RoleCreateSchema, { name, description: description ?? null });
+            if (!parsed.success) {
+                const firstIssue = parsed.issues[0]?.message || 'Nombre de rol inválido';
+                toast.error(firstIssue);
+                return;
+            }
+        }
 
         try {
             if (isPermissionsOnly() && props.roleId) {

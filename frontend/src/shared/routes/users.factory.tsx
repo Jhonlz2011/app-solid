@@ -1,12 +1,12 @@
 import { lazyRouteComponent } from '@tanstack/solid-router';
 import { createEntityModals } from '@shared/routes/modals.factory';
 import { queryClient } from '@shared/lib/queryClient';
-import { rbacKeys } from '@modules/users/data/users.keys';
-import { usersApi } from '@modules/users/data/users.api';
+import { rbacKeys } from '@/modules/rbac/data/users.keys';
+import { usersApi } from '@/modules/rbac/data/users.api';
 
-const LazyUserShowRoute = lazyRouteComponent(() => import('@modules/users/components/UserShowPanel'));
-const LazyUserEditRoute = lazyRouteComponent(() => import('@modules/users/components/UserEditSheet'));
-const LazyUserNewRoute = lazyRouteComponent(() => import('@modules/users/components/UserNewSheet'));
+const LazyUserShowRoute = lazyRouteComponent(() => import('@/modules/rbac/components/UserShowPanel'));
+const LazyUserEditRoute = lazyRouteComponent(() => import('@/modules/rbac/components/UserEditSheet'));
+const LazyUserNewRoute = lazyRouteComponent(() => import('@/modules/rbac/components/UserNewSheet'));
 
 export const createUserModals = (parentRoute: any, basePath = '') =>
     createEntityModals(parentRoute, basePath, {

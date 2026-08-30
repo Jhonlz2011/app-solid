@@ -17,7 +17,7 @@ import {
 import { brandRoutes, uomRoutes, categoryRoutes, attributeRoutes } from './modules/catalog';
 import { modulesRoutes } from './modules/settings';
 import { sriRoutes, geonamesRoutes } from './modules/references';
-import { rbacRoutes } from './modules/users';
+import { rbacRoutes } from './modules/rbac';
 import { locationsRoutes } from './modules/inventory';
 import { companyRoutes } from './modules/settings';
 import { vehiclesRoutes } from './modules/settings';

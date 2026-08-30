@@ -20,6 +20,7 @@ import {
     useRemoveUserFromRole,
     useAssignUserRoles,
 } from '../data/users.mutations';
+import type { RoleUserType } from '@app/schema/dto';
 
 // =============================================================================
 // Types
@@ -75,12 +76,12 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
 
     // ── Derived ──────────────────────────────────────────────────────────
     const roleUsers = () => roleUsersQuery.data ?? [];
-    const assignedUserIds = createMemo(() => new Set(roleUsers().map((u: any) => u.id)));
+    const assignedUserIds = createMemo(() => new Set(roleUsers().map((u: RoleUserType) => u.id)));
 
     const filteredRoleUsers = createMemo(() => {
         const term = search().toLowerCase();
         if (!term) return roleUsers();
-        return roleUsers().filter((u: any) =>
+        return roleUsers().filter((u: RoleUserType) =>
             u.username?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term)
         );
     });

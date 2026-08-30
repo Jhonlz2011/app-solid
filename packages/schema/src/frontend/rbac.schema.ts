@@ -37,3 +37,23 @@ export const UserAssignEntitySchema = object({
     entityId: optional(nullable(string())),
 });
 export type UserAssignEntityData = InferInput<typeof UserAssignEntitySchema>;
+
+// --- ROLE SCHEMAS ---
+export const RoleCreateSchema = object({
+    name: pipe(string(), minLength(2, 'El nombre del rol debe tener al menos 2 caracteres')),
+    description: optional(nullable(string())),
+});
+
+export type RoleCreateData = InferInput<typeof RoleCreateSchema>;
+
+export const RoleUpdateSchema = object({
+    name: pipe(string(), minLength(2, 'El nombre del rol debe tener al menos 2 caracteres')),
+    description: optional(nullable(string())),
+});
+export type RoleUpdateData = InferInput<typeof RoleUpdateSchema>;
+
+export const RolePermissionsUpdateSchema = object({
+    permissionIds: array(number()),
+});
+export type RolePermissionsUpdateData = InferInput<typeof RolePermissionsUpdateSchema>;
+

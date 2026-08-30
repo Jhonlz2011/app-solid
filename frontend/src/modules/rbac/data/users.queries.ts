@@ -4,7 +4,7 @@
  * Only `useQuery` / `createQuery` hooks live here.
  * All mutations are in `users.mutations.ts`.
  */
-import { createQuery, keepPreviousData } from '@tanstack/solid-query';
+import { createQuery, keepPreviousData, useQueryClient } from '@tanstack/solid-query';
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
 import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
@@ -14,6 +14,8 @@ import type {
     UsersFilters,
     UserReferencesType,
     FacetData,
+    UserListItemType,
+    RoleType,
 } from '@app/schema/dto';
 
 // =============================================================================
@@ -60,13 +62,47 @@ export function useUsers(filters: () => UsersFilters, enabled?: () => boolean) {
 }
 
 export function useUser(id: () => string | null | undefined) {
+    const queryClient = useQueryClient();
+
     return createQuery(() => ({
         queryKey: rbacKeys.user(id() ?? ''),
         queryFn: () => usersApi.getUser(id()!),
         enabled: Boolean(id()),
         staleTime: STALE_TIME.MEDIUM,
         gcTime: GC_TIME.DEFAULT,
-        placeholderData: keepPreviousData,
+        placeholderData: (previousData) => {
+            if (previousData) return previousData;
+            const targetId = id();
+            if (!targetId) return undefined;
+
+            const listQueries = queryClient.getQueriesData<{ data?: UserListItemType[]; meta?: unknown }>({
+                queryKey: rbacKeys.lists(),
+            });
+
+            for (const [, listData] of listQueries) {
+                const items = listData?.data;
+                if (!Array.isArray(items)) continue;
+
+                const found = items.find(u => u.id === targetId);
+                if (found) {
+                    return {
+                        id: found.id,
+                        username: found.username,
+                        email: found.email,
+                        isActive: found.isActive,
+                        lastLogin: found.lastLogin,
+                        entityId: found.entityId,
+                        entity: found.entity,
+                        roles: found.roles.map(r => ({
+                            id: r.id,
+                            name: r.name,
+                            description: (r.description ?? null) as string | null,
+                        })),
+                    };
+                }
+            }
+            return undefined;
+        },
     }));
 }
 
@@ -85,13 +121,34 @@ export function useRoles() {
 }
 
 export function useRole(id: () => number | null | undefined) {
+    const queryClient = useQueryClient();
+
     return createQuery(() => ({
         queryKey: rbacKeys.role(id() ?? 0),
         queryFn: () => usersApi.getRole(id()!),
         enabled: Boolean(id() && id()! > 0),
         staleTime: STALE_TIME.MEDIUM,
         gcTime: GC_TIME.DEFAULT,
-        placeholderData: keepPreviousData,
+        placeholderData: (previousData) => {
+            if (previousData) return previousData;
+            const roleId = id();
+            if (!roleId) return undefined;
+
+            const rolesList = queryClient.getQueryData<RoleType[]>(rbacKeys.roles());
+            const found = rolesList?.find(r => r.id === roleId);
+            if (found) {
+                return {
+                    id: found.id,
+                    name: found.name,
+                    description: found.description,
+                    is_system: found.is_system,
+                    priority: 0,
+                    createdAt: new Date(),
+                    company_id: 0,
+                };
+            }
+            return undefined;
+        },
     }));
 }
 
