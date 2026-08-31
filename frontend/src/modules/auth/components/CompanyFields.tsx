@@ -5,6 +5,7 @@ import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem, Segm
 import { businessTypeSelectOptions, taxRegimeSelectOptions, type SelectOption } from '@shared/constants/entity-labels';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import { authApi } from '@modules/auth/api/auth.api';
+import { Badge } from '@shared/ui/display/Badge';
 
 export interface CompanyFieldsStatus {
     slugAvailable: Accessor<boolean | null>;
@@ -142,15 +143,22 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                         <TextField.ErrorMessage />
                     </TextField.Root>
                     <Show when={f().state.value.length >= 3}>
-                        <div class="text-xs ml-1 mt-1 font-medium">
+                        <div class="mt-1.5 flex items-center">
                             <Show when={slugChecking()}>
-                                <span class="text-muted">Verificando disponibilidad…</span>
+                                <Badge variant="info" class="text-[11px] px-2 py-0.5">
+                                    <span class="size-1.5 rounded-full bg-info animate-pulse" />
+                                    Verificando disponibilidad…
+                                </Badge>
                             </Show>
                             <Show when={!slugChecking() && slugAvailable() === true}>
-                                <span class="text-success">✓ Disponible ({f().state.value}.zelys.app)</span>
+                                <Badge variant="success" class="text-[11px] px-2 py-0.5">
+                                    ✓ Disponible ({f().state.value}.zelys.app)
+                                </Badge>
                             </Show>
                             <Show when={!slugChecking() && slugAvailable() === false}>
-                                <span class="text-danger">✗ Este identificador ya está en uso</span>
+                                <Badge variant="danger" class="text-[11px] px-2 py-0.5">
+                                    ✗ Este identificador ya está en uso
+                                </Badge>
                             </Show>
                         </div>
                     </Show>
@@ -207,15 +215,22 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                             <TextField.ErrorMessage />
                         </TextField.Root>
                         <Show when={f().state.value.length === 13}>
-                            <div class="text-xs ml-1 mt-1 font-medium">
+                            <div class="mt-1.5 flex items-center">
                                 <Show when={rucChecking()}>
-                                    <span class="text-muted">Verificando RUC…</span>
+                                    <Badge variant="info" class="text-[11px] px-2 py-0.5">
+                                        <span class="size-1.5 rounded-full bg-info animate-pulse" />
+                                        Verificando RUC…
+                                    </Badge>
                                 </Show>
                                 <Show when={!rucChecking() && rucAvailable() === true}>
-                                    <span class="text-success">✓ RUC disponible</span>
+                                    <Badge variant="success" class="text-[11px] px-2 py-0.5">
+                                        ✓ RUC disponible
+                                    </Badge>
                                 </Show>
                                 <Show when={!rucChecking() && rucAvailable() === false}>
-                                    <span class="text-danger">✗ RUC ya registrado</span>
+                                    <Badge variant="danger" class="text-[11px] px-2 py-0.5">
+                                        ✗ RUC ya registrado
+                                    </Badge>
                                 </Show>
                             </div>
                         </Show>

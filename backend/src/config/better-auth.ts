@@ -321,6 +321,18 @@ export const auth = betterAuth({
                         },
                     };
                 },
+                after: async (sess) => {
+                    if (sess.userId) {
+                        try {
+                            await adminDb
+                                .update(schema.user)
+                                .set({ last_login: new Date() })
+                                .where(eq(schema.user.id, sess.userId));
+                        } catch (err) {
+                            console.error('[BetterAuth] Error actualizando last_login en session.create:', err);
+                        }
+                    }
+                },
             },
         },
     },
@@ -366,6 +378,12 @@ export const auth = betterAuth({
                 required: false,
                 defaultValue: true,
                 fieldName: 'is_active',
+                input: false,
+            },
+            lastLogin: {
+                type: 'date',
+                required: false,
+                fieldName: 'last_login',
                 input: false,
             },
         },

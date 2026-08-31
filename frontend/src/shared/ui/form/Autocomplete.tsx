@@ -264,7 +264,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                     ref={inputRef}
                     id={props.inputId || ctx.id}
                     placeholder={props.placeholder}
-                    class={cn("flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text font-medium min-w-0", matchedOption() ? 'cursor-default' : '', props.inputClass)}
+                    class={cn("flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text min-w-0", matchedOption() ? 'cursor-default' : '', props.inputClass)}
                     onPointerDown={(e) => e.stopPropagation()}
                     onFocus={(e) => e.currentTarget.select()}
                     onInput={(e) => {

@@ -1,6 +1,7 @@
 import { Component, Show } from 'solid-js';
 import { businessTypeLabels, taxRegimeTypeLabels } from '@shared/constants/entity-labels';
 import type { BusinessType, TaxRegimeType } from '@app/schema/enums';
+import { Badge } from '@shared/ui/display/Badge';
 
 export interface CompanySummaryData {
     slug: string;
@@ -39,15 +40,23 @@ export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) =>
                 </svg>
                 Datos de la Empresa
             </h3>
-            <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm pt-1">
+            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm pt-1 items-center">
                 <span class="text-muted">Subdominio / Slug:</span>
-                <span class="text-text font-semibold">{props.data.slug}.zelys.app</span>
+                <div>
+                    <Badge variant="primary" class="font-mono text-[11px] px-2 py-0.5">
+                        {props.data.slug}.zelys.app
+                    </Badge>
+                </div>
 
                 <span class="text-muted">RUC:</span>
-                <span class="text-text font-medium">{props.data.ruc}</span>
+                <div>
+                    <Badge variant="default" class="font-mono text-[11px] px-2 py-0.5 text-text">
+                        {props.data.ruc}
+                    </Badge>
+                </div>
 
                 <span class="text-muted">Razón Social:</span>
-                <span class="text-text font-medium">{props.data.businessName}</span>
+                <span class="text-text font-semibold">{props.data.businessName}</span>
 
                 <Show when={props.data.tradeName}>
                     <span class="text-muted">Nombre Comercial:</span>
@@ -56,7 +65,11 @@ export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) =>
 
                 <Show when={businessTypeLabel()}>
                     <span class="text-muted">Tipo de Negocio:</span>
-                    <span class="text-text">{businessTypeLabel()}</span>
+                    <div>
+                        <Badge variant="purple" class="text-[11px]">
+                            {businessTypeLabel()}
+                        </Badge>
+                    </div>
                 </Show>
 
                 <Show when={props.data.mainAddress}>
@@ -66,15 +79,27 @@ export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) =>
 
                 <Show when={taxRegimeLabel()}>
                     <span class="text-muted">Régimen Tributario:</span>
-                    <span class="text-text">{taxRegimeLabel()}</span>
+                    <div>
+                        <Badge variant="teal" class="text-[11px]">
+                            {taxRegimeLabel()}
+                        </Badge>
+                    </div>
                 </Show>
 
                 <span class="text-muted">¿Lleva contabilidad?</span>
-                <span class="text-text">{props.data.obligadoContabilidad ? 'Sí' : 'No'}</span>
+                <div>
+                    <Badge variant={props.data.obligadoContabilidad ? 'success' : 'default'} class="text-[11px]">
+                        {props.data.obligadoContabilidad ? 'Sí' : 'No'}
+                    </Badge>
+                </div>
 
                 <Show when={props.data.contribuyenteEspecial}>
                     <span class="text-muted">Contribuyente Especial:</span>
-                    <span class="text-text">{props.data.contribuyenteEspecial}</span>
+                    <div>
+                        <Badge variant="warning" class="text-[11px]">
+                            {props.data.contribuyenteEspecial}
+                        </Badge>
+                    </div>
                 </Show>
             </div>
         </div>

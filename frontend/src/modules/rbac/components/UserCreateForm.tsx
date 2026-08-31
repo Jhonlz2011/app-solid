@@ -118,7 +118,6 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                             <TextField.Root field={field()} disabled={props.isSubmitting}>
                                 <div class="flex items-center justify-between gap-2">
                                     <TextField.Label>Correo electrónico *</TextField.Label>
-
                                     {/* Non-intrusive live user detection */}
                                     <Show when={!checkQuery.isFetching && isExistingUser()}>
                                         <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0 rounded-full border border-emerald-500/20 animate-in fade-in">
@@ -149,8 +148,8 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
 
                  {/* ── Mode selector for brand new users ── */}
                     <Show when={!isExistingUser() && !isAlreadyMember()}>
-                        <div class="space-y-2">
-                            <FieldLabel tooltip="Selecciona cómo accederá el nuevo usuario a tu organización">
+                        <div class="space-y-1">
+                            <FieldLabel class='ml-1' tooltip="Selecciona cómo accederá el nuevo usuario a tu organización">
                                 Método de Incorporación
                             </FieldLabel>
 
