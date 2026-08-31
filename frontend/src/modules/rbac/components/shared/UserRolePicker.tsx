@@ -3,8 +3,11 @@ import type { RoleType } from '@app/schema/dto';
 import Checkbox from '@form/Checkbox';
 import { RoleBadge } from '@display/Badge';
 import { SkeletonLoader } from '@display/SkeletonLoader';
-import { FormSectionHeader } from '@form/FormSectionHeader';
+import { FieldLabel } from '@form/TextField';
 import { SearchInput } from '@form/SearchInput';
+import Button from '@form/Button';
+import { PlusIcon } from '@icons/PlusIcon';
+import RoleFormDialog from '../RoleFormDialog';
 
 export interface UserRolePickerProps {
     roles: RoleType[];
@@ -17,6 +20,7 @@ export interface UserRolePickerProps {
 
 export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
     const [searchQuery, setSearchQuery] = createSignal('');
+    const [isCreateRoleOpen, setIsCreateRoleOpen] = createSignal(false);
 
     const isUserSuperadmin = createMemo(() => {
         const superRole = props.roles?.find((r) => r.name === 'superadmin');
@@ -50,17 +54,26 @@ export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
 
     return (
         <div class="space-y-3">
-            <FormSectionHeader
-                title="Roles"
-                color="info"
-                action={
+            <div class="flex items-center justify-between gap-2">
+                <FieldLabel>Roles asignados *</FieldLabel>
+                <div class="flex items-center gap-2">
                     <Show when={selectedCount() > 0}>
                         <span class="text-xs text-muted font-normal">
                             {selectedCount()} seleccionado{selectedCount() === 1 ? '' : 's'}
                         </span>
                     </Show>
-                }
-            />
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        class="h-7 px-2 text-xs text-primary hover:bg-primary/10 gap-1 font-medium"
+                        icon={<PlusIcon class="size-3.5" />}
+                        onClick={() => setIsCreateRoleOpen(true)}
+                    >
+                        Nuevo
+                    </Button>
+                </div>
+            </div>
 
             <Show
                 when={!props.rolesLoading}
@@ -133,6 +146,12 @@ export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
                     </div>
                 </Show>
             </Show>
+            {/* Quick role creation dialog */}
+            <RoleFormDialog
+                isOpen={isCreateRoleOpen()}
+                mode="create"
+                onClose={() => setIsCreateRoleOpen(false)}
+            />
         </div>
     );
 };

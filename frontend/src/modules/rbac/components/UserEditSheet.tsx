@@ -1,6 +1,7 @@
 import { Component, Show } from 'solid-js';
 import { useParams } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
+import { executeFormMutation } from '@shared/utils/form.utils';
 import { toast } from 'solid-sonner';
 import type { UserUpdateData } from '@app/schema/frontend';
 import Sheet from '@overlay/Sheet';
@@ -12,6 +13,7 @@ import { useUser, useRoles } from '../data/users.queries';
 import {
     useUpdateUser, useAssignUserRoles,
     useSetUserEntity, useAdminResetPassword,
+    useDeactivateUser, useRestoreUser,
 } from '../data/users.mutations';
 import { UserEditForm } from './UserEditForm';
 
@@ -32,6 +34,8 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
     const assignRolesMutation = useAssignUserRoles();
     const setEntityMutation = useSetUserEntity();
     const resetPwMutation = useAdminResetPassword();
+    const deactivateMut = useDeactivateUser();
+    const restoreMut = useRestoreUser();
 
     const handleSubmit = async (values: UserUpdateData & { newPassword?: string }) => {
         const targetId = userId();
@@ -83,9 +87,24 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
         }
     };
 
+    const handleToggleActive = () => {
+        const u = userQuery.data;
+        if (!u) return;
+        const isActive = u.isActive ?? true;
+        const mut = isActive ? deactivateMut : restoreMut;
+
+        executeFormMutation({
+            mutation: mut,
+            variables: u.id,
+            successMessage: isActive ? 'Usuario desactivado' : 'Usuario restaurado',
+            onComplete: close,
+        });
+    };
+
     const isPending = () =>
         updateMutation.isPending || assignRolesMutation.isPending ||
-        setEntityMutation.isPending || resetPwMutation.isPending;
+        setEntityMutation.isPending || resetPwMutation.isPending ||
+        deactivateMut.isPending || restoreMut.isPending;
 
     return (
         <Sheet
@@ -97,15 +116,27 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
             size="lg"
             footer={
                 <>
+                    <Show when={userQuery.data}>
+                        <Button
+                            variant={(userQuery.data?.isActive ?? true) ? 'danger' : 'success'}
+                            onClick={handleToggleActive}
+                            loading={deactivateMut.isPending || restoreMut.isPending}
+                            disabled={isPending()}
+                        >
+                            {(userQuery.data?.isActive ?? true) ? 'Desactivar' : 'Restaurar'}
+                        </Button>
+                    </Show>
+                    <div class="flex-1" />
                     <Button variant="outline" onClick={close} disabled={isPending()}>
                         Cancelar
                     </Button>
                     <Button
                         type="submit"
                         form="user-edit-form"
-                        loading={isPending()}
+                        loading={updateMutation.isPending}
                         loadingText="Guardando..."
                         icon={<FloppyDiskIcon />}
+                        disabled={isPending()}
                     >
                         Guardar Cambios
                     </Button>
@@ -125,7 +156,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                     when={userQuery.data}
                     keyed
                     fallback={
-                        <div class="flex flex-col items-center justify-center py-12 text-center">
+                        <div class="flex-col items-center justify-center py-12 text-center">
                             <InfoIcon class="size-10 text-muted/30 mb-3" />
                             <p class="text-muted text-sm">No se encontró el usuario</p>
                         </div>
@@ -144,6 +175,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                             roles={rolesQuery.data ?? []}
                             rolesLoading={rolesQuery.isPending}
                             initialEntity={user.entity}
+                            isGlobalUser={user.isGlobalUser}
                             onSubmit={handleSubmit}
                             isSubmitting={isPending()}
                         />

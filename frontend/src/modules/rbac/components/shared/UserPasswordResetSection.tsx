@@ -1,8 +1,7 @@
 import { Component, Show, createSignal } from 'solid-js';
-import { TextField } from '@form/TextField';
+import { TextField, FieldLabel } from '@form/TextField';
 import Button from '@form/Button';
 import ConfirmDialog from '@overlay/ConfirmDialog';
-import { FormSectionHeader } from '@form/FormSectionHeader';
 import { CopyIcon } from '@icons/CopyIcon';
 import { KeyIcon } from '@icons/KeyIcon';
 import { copyToClipboard } from '@shared/utils/clipboard';
@@ -72,13 +71,7 @@ export const UserPasswordResetSection: Component<UserPasswordResetSectionProps> 
     const isValid = () => currentPassword().length >= 8;
 
     return (
-        <div class="space-y-3">
-            <FormSectionHeader
-                title="Seguridad de la cuenta"
-                color="warning"
-                class="mb-2"
-            />
-
+        <div class="space-y-2">
             <Show
                 when={isOpen()}
                 fallback={

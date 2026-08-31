@@ -108,6 +108,7 @@ export const UserDetailResponseSchema = Type.Object({
     entityId: Type.Union([Type.String(), Type.Null()]),
     entity: Type.Union([UserEntityReferenceSchema, Type.Null()]),
     roles: Type.Array(UserRoleReferenceSchema),
+    isGlobalUser: Type.Optional(Type.Boolean()),
 });
 
 export const RbacUserCreateBodySchema = Type.Object({

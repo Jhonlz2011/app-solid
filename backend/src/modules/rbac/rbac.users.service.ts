@@ -383,6 +383,13 @@ export async function getUserById(id: string | number, companyId?: number) {
         .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
         .where(and(...roleConditions));
 
+    // Check if user belongs to more than 1 organization (multi-tenant global user)
+    const [membershipCountRow] = await adminDb
+        .select({ count: count() })
+        .from(member)
+        .where(eq(member.userId, idStr));
+    const isGlobalUser = (membershipCountRow?.count ?? 0) > 1;
+
     return {
         id: user.id,
         username: user.username || user.name,
@@ -392,6 +399,7 @@ export async function getUserById(id: string | number, companyId?: number) {
         entityId,
         entity: entityData,
         roles,
+        isGlobalUser,
     };
 }
 

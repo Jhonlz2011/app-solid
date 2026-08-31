@@ -1,9 +1,9 @@
-import { Component, createSignal } from 'solid-js';
+import { Component, createSignal, Show } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { UserUpdateSchema, type UserUpdateData } from '@app/schema/frontend';
 import type { RoleType } from '@app/schema/dto';
 import { SYSTEM_ROLES } from '@app/schema/enums';
-import { FormSectionHeader } from '@form/FormSectionHeader';
+import { FieldLabel } from '@form/TextField';
 import { Switch } from '@form/Switch';
 import { EntitySelect } from '@shared/ui/selectors';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
@@ -17,6 +17,7 @@ export interface UserEditFormProps {
     roles: RoleType[];
     rolesLoading?: boolean;
     initialEntity?: { id: string; businessName: string; taxId: string } | null;
+    isGlobalUser?: boolean;
     onSubmit: (values: UserUpdateData) => void | Promise<void>;
     isSubmitting?: boolean;
 }
@@ -65,12 +66,10 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                 class="flex flex-col gap-4 py-4"
             >
                 {/* ═══ User Identity (Global Read-Only in Tenant RBAC) ═══ */}
-                <div class="space-y-3">
-                    <FormSectionHeader
-                        title="Identidad de Acceso"
-                        indicatorColor="bg-primary"
-                    />
-
+                <div class="space-y-2">
+                    <FieldLabel tooltip="Identidad de acceso única del colaborador">
+                        Identidad de la cuenta
+                    </FieldLabel>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div class="p-3 bg-surface/50 rounded-xl border border-border/60">
                             <p class="text-[10px] font-semibold uppercase tracking-wider text-muted">Nombre de usuario</p>
@@ -117,12 +116,14 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                     )}
                 </form.Field>
 
-                 {/* ═══ Password change section ═══ */}
-                <UserPasswordResetSection
-                    newPassword={newPassword}
-                    onPasswordChange={setNewPassword}
-                    disabled={props.isSubmitting}
-                />
+                {/* ═══ Password change section (Only for company-local users) ═══ */}
+                <Show when={!props.isGlobalUser}>
+                    <UserPasswordResetSection
+                        newPassword={newPassword}
+                        onPasswordChange={setNewPassword}
+                        disabled={props.isSubmitting}
+                    />
+                </Show>
 
                 {/* ═══ Role selection ═══ */}
                 <UserRolePicker

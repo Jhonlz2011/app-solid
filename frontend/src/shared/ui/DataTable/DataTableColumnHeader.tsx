@@ -53,10 +53,10 @@ export function DataTableColumnHeader<TData, TValue>(
                 >
                     <span>{props.title}</span>
                     <Show when={isSorted() === 'asc'}>
-                        <ArrowUpIcon class="size-3.5 text-primary" />
+                        <ArrowUpIcon strokeWidth={3} class="size-3.5 text-primary" />
                     </Show>
                     <Show when={isSorted() === 'desc'}>
-                        <ArrowDownIcon class="size-3.5 text-primary" />
+                        <ArrowDownIcon strokeWidth={3} class="size-3.5 text-primary" />
                     </Show>
                     <Show when={!isSorted() && canSort()}>
                         <ChevronsUpDownIcon class="size-3.5 text-muted opacity-50" />

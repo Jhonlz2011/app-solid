@@ -1,10 +1,10 @@
 import { Component, createSignal, Show, createMemo, createEffect } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
+import { safeParse } from 'valibot';
 import { UserCreateSchema, type UserCreateData } from '@app/schema/frontend';
 import type { RoleType } from '@app/schema/dto';
 import { TextField, FieldLabel } from '@form/TextField';
 import { CardOption } from '@form/CardOption';
-import { FormSectionHeader } from '@form/FormSectionHeader';
 import { EntitySelect } from '@shared/ui/selectors';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { handleFormApiErrors } from '@shared/utils/form.utils';
@@ -48,7 +48,18 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
         } as UserCreateData,
         validators: {
             onChange: UserCreateSchema,
-            onSubmit: UserCreateSchema,
+            onSubmit: ({ value }) => {
+                const parseRes = safeParse(UserCreateSchema, value);
+                if (!parseRes.success) {
+                    return parseRes.issues[0]?.message || 'Datos del formulario inválidos';
+                }
+                if (onboardingMode() === 'direct' && !isExistingUser()) {
+                    if (!value.password || value.password.trim().length < 8) {
+                        return 'La contraseña es obligatoria (mínimo 8 caracteres) en credenciales directas';
+                    }
+                }
+                return undefined;
+            },
         },
         onSubmit: async ({ value }) => {
             try {
@@ -100,8 +111,6 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
             >
                 {/* ═══ 1. User Identity & Live Detection ═══ */}
                 <div class="space-y-4">
-                    <FormSectionHeader title="Información de acceso" color="primary" />
-
                     <form.Field name="email">
                         {(field) => (
                             <TextField.Root field={field()} disabled={props.isSubmitting}>
@@ -179,7 +188,19 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                         )}
                                     </form.Field>
 
-                                    <form.Field name="password">
+                                    <form.Field
+                                        name="password"
+                                        validators={{
+                                            onChange: ({ value }) => {
+                                                if (onboardingMode() === 'direct' && !isExistingUser()) {
+                                                    if (!value || value.trim().length < 8) {
+                                                        return 'La contraseña es requerida y debe tener al menos 8 caracteres';
+                                                    }
+                                                }
+                                                return undefined;
+                                            },
+                                        }}
+                                    >
                                         {(field) => (
                                             <TextField.Root field={field()} disabled={props.isSubmitting}>
                                                 <TextField.Label>Contraseña *</TextField.Label>
