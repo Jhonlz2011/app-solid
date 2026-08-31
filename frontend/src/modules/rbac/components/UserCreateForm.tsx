@@ -243,8 +243,6 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                 <form.Field
                     name="roleIds"
                     validators={{
-                        onChange: ({ value }) => (!value || value.length === 0) ? 'Debes asignar al menos un rol al usuario' : undefined,
-                        onBlur: ({ value }) => (!value || value.length === 0) ? 'Debes asignar al menos un rol al usuario' : undefined,
                         onSubmit: ({ value }) => (!value || value.length === 0) ? 'Debes asignar al menos un rol al usuario' : undefined,
                     }}
                 >
