@@ -130,6 +130,16 @@ const Register: Component = () => {
         }
     });
 
+    const handleCancelOAuth = async () => {
+        try {
+            await actions.logout();
+            toast.info('Registro cancelado. Sesión cerrada.');
+            navigate({ to: '/login', search: { redirect: undefined }, replace: true });
+        } catch (err) {
+            toast.error('Error al cerrar la sesión');
+        }
+    };
+
     // ─── STEP 2 FORM ───
     const step2Form = createForm(() => ({
         defaultValues: {
@@ -356,9 +366,18 @@ const Register: Component = () => {
             {/* ─── STEP 2: Company ─── */}
             <Show when={step() === 1}>
                 <Show when={isOAuthUser()}>
-                    <div class="flex items-center gap-3 p-3 mb-4 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium">
-                        <div class="size-2 rounded-full bg-primary animate-pulse" />
-                        <span>Autenticado como <strong>{auth.user()?.email}</strong>. Configura los datos de tu empresa:</span>
+                    <div class="flex items-center justify-between gap-3 p-3 mb-4 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div class="size-2 rounded-full bg-primary animate-pulse shrink-0" />
+                            <span class="truncate">Autenticado como <strong>{auth.user()?.email}</strong></span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleCancelOAuth}
+                            class="text-primary hover:text-primary-strong hover:underline font-semibold shrink-0 cursor-pointer text-xs"
+                        >
+                            Cambiar cuenta / Salir
+                        </button>
                     </div>
                 </Show>
                 <h2 class="text-2xl font-bold mb-1 text-dark">Datos de empresa</h2>
@@ -372,7 +391,18 @@ const Register: Component = () => {
                         />
 
                         <div class="flex gap-3 mt-1">
-                            <Button variant="outline" type="button" onClick={() => setStep(0)}>Atrás</Button>
+                            <Show
+                                when={!isOAuthUser()}
+                                fallback={
+                                    <Button variant="outline" type="button" onClick={handleCancelOAuth}>
+                                        Cancelar registro
+                                    </Button>
+                                }
+                            >
+                                <Button variant="outline" type="button" onClick={() => setStep(0)}>
+                                    Atrás
+                                </Button>
+                            </Show>
                             <step2Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting })}
                                 children={(s) => (
                                     <Button type="submit" fullWidth
