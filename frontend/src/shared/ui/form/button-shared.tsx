@@ -2,20 +2,7 @@ import { JSX, Show } from 'solid-js';
 import { cn } from '../../lib/utils';
 import { SpinnerIcon } from '@icons/SpinnerIcon';
 
-export const BUTTON_VARIANTS = {
-  none: "",
-  primary: "bg-primary text-on-primary border-b-primary-edge shadow-sm shadow-primary/20",
-  secondary: "bg-secondary text-on-secondary border-b-secondary-edge shadow-sm shadow-secondary/20",
-  outline: "bg-card text-text border border-border border-b-outline-edge shadow-xs hover:bg-surface",
-  ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 active:scale-[0.98]",
-  link: "bg-transparent text-primary hover:text-primary-strong hover:underline p-0 h-auto",
-  danger: "bg-danger text-white border-b-danger-edge shadow-sm shadow-danger/20",
-  destructive: "bg-destructive text-white border-b-destructive-edge shadow-sm shadow-destructive/30",
-  warning: "bg-warning text-white border-b-warning-edge shadow-sm shadow-warning/20",
-  success: "bg-success text-white border-b-success-edge shadow-sm shadow-success/20",
-};
-
-const TACTILE_3D_VARIANTS: Set<string> = new Set([
+export const TACTILE_3D_VARIANTS: Set<string> = new Set([
   'primary',
   'secondary',
   'outline',
@@ -25,10 +12,36 @@ const TACTILE_3D_VARIANTS: Set<string> = new Set([
   'success',
 ]);
 
-const TACTILE_3D_BASE =
-  "border-b-[4px] hover:-translate-y-[1.5px] hover:brightness-105 active:translate-y-[2px] active:border-b-[2px] active:brightness-95 transition-all duration-150 ease-out disabled:border-b-[3px] disabled:brightness-100 disabled:shadow-none";
+/** Base pedestal colors (outer container) */
+export const BUTTON_BASE_VARIANTS: Record<string, string> = {
+  none: "",
+  primary: "bg-primary-edge",
+  secondary: "bg-secondary-edge",
+  outline: "bg-outline-edge",
+  danger: "bg-danger-edge",
+  destructive: "bg-destructive-edge",
+  warning: "bg-warning-edge",
+  success: "bg-success-edge",
+  ghost: "bg-transparent",
+  link: "bg-transparent",
+};
 
-const FLAT_BASE = "transition-colors duration-150 ease-out";
+/** Surface face colors (inner floating layer) */
+export const BUTTON_SURFACE_VARIANTS: Record<string, string> = {
+  none: "",
+  primary: "bg-primary text-on-primary shadow-sm shadow-primary/20",
+  secondary: "bg-secondary text-on-secondary shadow-sm shadow-secondary/20",
+  outline: "bg-card text-text border border-border hover:bg-surface",
+  danger: "bg-danger text-white shadow-sm shadow-danger/20",
+  destructive: "bg-destructive text-white shadow-sm shadow-destructive/30",
+  warning: "bg-warning text-white shadow-sm shadow-warning/20",
+  success: "bg-success text-white shadow-sm shadow-success/20",
+  ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 transition-colors active:scale-[0.98]",
+  link: "bg-transparent text-primary hover:text-primary-strong hover:underline transition-colors p-0 h-auto",
+};
+
+// Backward compatibility map
+export const BUTTON_VARIANTS = BUTTON_SURFACE_VARIANTS;
 
 export const BUTTON_SIZES = {
   sm: "h-8 px-3 text-xs",
@@ -48,7 +61,7 @@ export const BUTTON_RADII = {
   none: ""
 };
 
-export type ButtonVariant = keyof typeof BUTTON_VARIANTS;
+export type ButtonVariant = keyof typeof BUTTON_SURFACE_VARIANTS;
 export type ButtonSize = keyof typeof BUTTON_SIZES;
 export type ButtonRadius = keyof typeof BUTTON_RADII;
 
@@ -73,7 +86,27 @@ export interface SharedButtonProps {
   icon?: JSX.Element;
 }
 
-export function buttonVariants(options?: ButtonVariantOptions): string {
+/** Outer button base class (Static 3D pedestal) */
+export function buttonBaseClasses(options?: ButtonVariantOptions): string {
+  const variant = options?.variant ?? 'primary';
+  const radius = options?.radius ?? 'lg';
+  const fullWidth = options?.fullWidth;
+  const is3D = TACTILE_3D_VARIANTS.has(variant);
+
+  return cn(
+    "relative inline-flex items-center justify-center p-0 border-0 cursor-pointer select-none group font-semibold",
+    "outline-hidden focus-visible:outline-none",
+    "disabled:opacity-50 disabled:cursor-not-allowed",
+    is3D ? BUTTON_BASE_VARIANTS[variant] : "bg-transparent",
+    BUTTON_RADII[radius],
+    fullWidth && 'w-full',
+    options?.className,
+    options?.class
+  );
+}
+
+/** Inner button surface class (Pushable surface face) */
+export function buttonSurfaceClasses(options?: ButtonVariantOptions): string {
   const variant = options?.variant ?? 'primary';
   const size = options?.size ?? 'md';
   const radius = options?.radius ?? 'lg';
@@ -83,17 +116,48 @@ export function buttonVariants(options?: ButtonVariantOptions): string {
   const is3D = TACTILE_3D_VARIANTS.has(variant);
 
   return cn(
-    "inline-flex items-center justify-center gap-2 font-semibold cursor-pointer select-none",
-    "outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
-    "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
-    is3D ? TACTILE_3D_BASE : FLAT_BASE,
-    BUTTON_VARIANTS[variant],
-    BUTTON_SIZES[size],
+    "w-full h-full inline-flex items-center justify-center gap-2 font-semibold select-none",
+    "focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
     BUTTON_RADII[radius],
+    BUTTON_SIZES[size],
+    BUTTON_SURFACE_VARIANTS[variant],
+    is3D && [
+      "-translate-y-[3px] transition-transform duration-100 ease-out",
+      "group-hover:-translate-y-[4.5px]",
+      "group-active:translate-y-0",
+      "group-disabled:translate-y-0",
+    ],
     fullWidth && 'w-full',
-    (loading && !hasLoadingText) && 'relative text-transparent! transition-none hover:text-transparent!',
-    options?.className,
-    options?.class
+    (loading && !hasLoadingText) && 'relative text-transparent! transition-none hover:text-transparent!'
+  );
+}
+
+/** Legacy / Single-Element helper (e.g. for Dropdown triggers or flat variants) */
+export function buttonVariants(options?: ButtonVariantOptions): string {
+  const variant = options?.variant ?? 'primary';
+  const is3D = TACTILE_3D_VARIANTS.has(variant);
+
+  if (!is3D) {
+    const size = options?.size ?? 'md';
+    const radius = options?.radius ?? 'lg';
+    const fullWidth = options?.fullWidth;
+
+    return cn(
+      "inline-flex items-center justify-center gap-2 font-semibold cursor-pointer select-none",
+      "outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
+      "disabled:opacity-50 disabled:cursor-not-allowed",
+      BUTTON_SURFACE_VARIANTS[variant],
+      BUTTON_SIZES[size],
+      BUTTON_RADII[radius],
+      fullWidth && 'w-full',
+      options?.className,
+      options?.class
+    );
+  }
+
+  return cn(
+    buttonBaseClasses(options),
+    buttonSurfaceClasses(options)
   );
 }
 

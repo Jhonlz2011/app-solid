@@ -1,7 +1,8 @@
 import { JSX, splitProps, mergeProps } from 'solid-js';
 import { Link, type LinkProps } from '@tanstack/solid-router';
 import { 
-  buttonVariants, 
+  buttonBaseClasses,
+  buttonSurfaceClasses,
   ButtonContent,
   type ButtonVariant,
   type ButtonSize,
@@ -9,7 +10,11 @@ import {
   type SharedButtonProps 
 } from '@form/button-shared';
 
-export interface LinkButtonProps extends LinkProps, SharedButtonProps, JSX.AnchorHTMLAttributes<HTMLAnchorElement> {}
+export interface LinkButtonProps extends LinkProps, SharedButtonProps {
+  class?: string;
+  className?: string;
+  children?: JSX.Element;
+}
 
 export default function LinkButton(props: LinkButtonProps) {
   const merged = mergeProps({ 
@@ -32,32 +37,39 @@ export default function LinkButton(props: LinkButtonProps) {
     'children'
   ]);
 
-  const buttonClasses = () => buttonVariants({
+  const baseClasses = () => buttonBaseClasses({
+    variant: local.variant,
+    radius: local.radius,
+    fullWidth: local.fullWidth,
+    class: local.class
+  });
+
+  const surfaceClasses = () => buttonSurfaceClasses({
     variant: local.variant,
     size: local.size,
     radius: local.radius,
     fullWidth: local.fullWidth,
     loading: local.loading,
     hasLoadingText: Boolean(local.loadingText),
-    class: local.class
   });
 
   return (
     <Link
       {...(linkProps as any)}
       disabled={local.disabled || local.loading}
-      class={buttonClasses()}
+      class={baseClasses()}
       aria-busy={local.loading}
       aria-disabled={local.disabled || local.loading}
     >
-      <ButtonContent
-        loading={local.loading}
-        loadingText={local.loadingText}
-        icon={local.icon}
-      >
-        {local.children}
-      </ButtonContent>
+      <span class={surfaceClasses()}>
+        <ButtonContent
+          loading={local.loading}
+          loadingText={local.loadingText}
+          icon={local.icon}
+        >
+          {local.children}
+        </ButtonContent>
+      </span>
     </Link>
   );
 }
-

@@ -68,7 +68,7 @@ const RoleCard: Component<RoleCardProps> = (props) => {
 
     return (
         <div
-            class="group relative bg-card border border-border/60 rounded-2xl shadow-card-soft overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+            class="group relative bg-card border border-border/60 rounded-2xl shadow-card-soft overflow-hidden hover:shadow-lg hover:-translate-y-0.5"
             onMouseEnter={props.onMouseEnter}
         >
             {/* Accent top bar — matches badge color */}
