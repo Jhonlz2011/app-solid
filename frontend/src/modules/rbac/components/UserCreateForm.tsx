@@ -70,6 +70,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                 const isDirect = !isExisting && onboardingMode() === 'direct';
                 const payload: UserCreateData = {
                     ...value,
+                    mode: isExisting ? 'invite' : onboardingMode(),
                     password: isDirect && value.password?.trim() ? value.password.trim() : undefined,
                     username: isDirect && value.username?.trim() ? value.username.trim() : undefined,
                 };

@@ -1,6 +1,6 @@
 import { db, adminDb } from '../../core/db';
 import { v7 as uuidv7 } from 'uuid';
-import { authUsers, authUserRoles, authRoles, entities, auditLogs, sessions, account, member, companies } from '@app/schema/tables';
+import { authUsers, authUserRoles, authRoles, entities, auditLogs, sessions, account, member, companies, verification } from '@app/schema/tables';
 import { eq, ne,sql, count, and, inArray, ilike, or, asc, desc, type SQL } from '@app/schema';
 import { cacheService } from '../../core/cache';
 import { DomainError } from '../../core/errors';
@@ -517,16 +517,29 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
 /**
  * Create a new user (admin function with Better-Auth credential account creation & organization member sync)
  */
-export async function createUser(data: { email: string; roleIds?: number[]; entityId?: string | null; username?: string; password?: string }, currentUserId?: string | number, companyId?: number) {
+export async function createUser(
+    data: {
+        email: string;
+        roleIds?: number[];
+        entityId?: string | null;
+        username?: string;
+        password?: string;
+        mode?: 'invite' | 'direct';
+        sendEmail?: boolean;
+    },
+    currentUserId?: string | number,
+    companyId?: number
+) {
     const normalizedEmail = data.email.trim().toLowerCase();
     const baseUsername = normalizedEmail.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
     const normalizedUsername = (data.username?.trim() || baseUsername).toLowerCase();
     const displayName = data.username?.trim() || data.email.split('@')[0];
+    const isDirect = data.mode === 'direct' && Boolean(data.password?.trim());
 
     // 1. Validar que el username sea único globalmente (only if no existing user with this email)
     const existingGlobalUser = await adminDb.query.authUsers.findFirst({
         where: eq(authUsers.email, normalizedEmail),
-        columns: { id: true },
+        columns: { id: true, username: true, email: true },
     });
 
     if (!existingGlobalUser) {
@@ -574,7 +587,7 @@ export async function createUser(data: { email: string; roleIds?: number[]; enti
         }
     }
 
-    const rawPassword = data.password?.trim() || (Math.random().toString(36).slice(-10) + 'A1!');
+    const rawPassword = isDirect ? data.password!.trim() : (Math.random().toString(36).slice(-10) + 'A1!');
     const password_hash = await hashPassword(rawPassword);
 
     const newUser = await db.transaction(async (tx) => {
@@ -582,12 +595,7 @@ export async function createUser(data: { email: string; roleIds?: number[]; enti
         // CHECK: Does a user with this email already exist globally?
         // If so, reuse that user record — add org membership + roles.
         // ──────────────────────────────────────────────────────────────────
-        const existingUser = await tx.query.authUsers.findFirst({
-            where: eq(authUsers.email, normalizedEmail),
-            columns: { id: true, username: true, email: true, company_id: true },
-        });
-
-        if (existingUser) {
+        if (existingGlobalUser) {
             const memberId = uuidv7();
 
             // Add org membership for the existing user in THIS tenant
@@ -602,7 +610,7 @@ export async function createUser(data: { email: string; roleIds?: number[]; enti
                     await tx.insert(member).values({
                         id: memberId,
                         organizationId: company.organization_id,
-                        userId: existingUser.id,
+                        userId: existingGlobalUser.id,
                         role: 'member',
                         entityId: data.entityId || null,
                     }).onConflictDoNothing();
@@ -612,16 +620,16 @@ export async function createUser(data: { email: string; roleIds?: number[]; enti
             // Ensure the existing user has a credential account for password login
             const existingCredential = await tx.query.account.findFirst({
                 where: and(
-                    eq(account.userId, existingUser.id),
+                    eq(account.userId, existingGlobalUser.id),
                     eq(account.providerId, 'credential'),
                 ),
             });
             if (!existingCredential) {
                 await tx.insert(account).values({
                     id: uuidv7(),
-                    accountId: existingUser.id,
+                    accountId: existingGlobalUser.id,
                     providerId: 'credential',
-                    userId: existingUser.id,
+                    userId: existingGlobalUser.id,
                     password: password_hash,
                 });
             }
@@ -630,14 +638,14 @@ export async function createUser(data: { email: string; roleIds?: number[]; enti
             if (data.roleIds && data.roleIds.length > 0) {
                 await tx.insert(authUserRoles).values(
                     data.roleIds.map(roleId => ({
-                        user_id: existingUser.id,
+                        user_id: existingGlobalUser.id,
                         role_id: roleId,
                         company_id: companyId!,
                     }))
                 );
             }
 
-            return { id: existingUser.id, username: existingUser.username, email: existingUser.email };
+            return { id: existingGlobalUser.id, username: existingGlobalUser.username, email: existingGlobalUser.email };
         }
 
         // ──────────────────────────────────────────────────────────────────
@@ -657,7 +665,7 @@ export async function createUser(data: { email: string; roleIds?: number[]; enti
                 email: normalizedEmail,
                 company_id: companyId!,
                 is_active: true,
-                emailVerified: true, // Pre-verified by tenant admin
+                emailVerified: isDirect, // Direct mode = preverified; Invite mode = verified upon activation
             })
             .returning({ id: authUsers.id, username: authUsers.username, email: authUsers.email });
 
@@ -707,9 +715,9 @@ export async function createUser(data: { email: string; roleIds?: number[]; enti
     if (currentUserId) logAudit(currentUserId, 'INSERT', 'user', newUser.id, { username: displayName, email: normalizedEmail, roleIds: data.roleIds, entityId: data.entityId });
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Send Organization Invitation Email (Asynchronous - Non Blocking)
+    // Send Context-Aware Email Notification (Asynchronous - Non Blocking)
     // ──────────────────────────────────────────────────────────────────────────
-    if (companyId) {
+    if (companyId && data.sendEmail !== false) {
         (async () => {
             try {
                 const [comp] = await adminDb
@@ -744,22 +752,122 @@ export async function createUser(data: { email: string; roleIds?: number[]; enti
                         inviterName = inviter?.name || inviter?.displayUsername || inviter?.username;
                     }
 
-                    await emailService.sendOrganizationInvitationEmail(normalizedEmail, {
-                        companyName,
-                        loginUrl,
-                        roleNames,
-                        userName: displayName,
-                        inviterName,
-                        isNewUser: !existingGlobalUser,
-                    });
+                    if (isDirect) {
+                        // Flujo 1: Credenciales Directas
+                        await emailService.sendDirectCredentialsEmail(normalizedEmail, {
+                            companyName,
+                            loginUrl,
+                            username: normalizedUsername,
+                            roleNames,
+                            userName: displayName,
+                            inviterName,
+                        });
+                    } else if (existingGlobalUser) {
+                        // Flujo 2: Invitación a Usuario Existente en Zelys
+                        await emailService.sendOrganizationMemberAddedEmail(normalizedEmail, {
+                            companyName,
+                            loginUrl,
+                            roleNames,
+                            userName: displayName,
+                            inviterName,
+                        });
+                    } else {
+                        // Flujo 3: Invitación a Usuario Nuevo (generar token seguro de 72h)
+                        const activationToken = uuidv7().replace(/-/g, '') + uuidv7().replace(/-/g, '');
+                        const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+
+                        await adminDb.insert(verification).values({
+                            id: uuidv7(),
+                            identifier: `invitation:${normalizedEmail}`,
+                            value: activationToken,
+                            expiresAt,
+                        });
+
+                        const inviteUrl = `${resolveTenantUrl(comp.slug)}/accept-invitation?token=${activationToken}&email=${encodeURIComponent(normalizedEmail)}`;
+
+                        await emailService.sendOrganizationInvitationEmail(normalizedEmail, {
+                            companyName,
+                            inviteUrl,
+                            roleNames,
+                            userName: displayName,
+                            inviterName,
+                        });
+                    }
                 }
             } catch (err) {
-                console.error('[RBAC] Error sending organization invitation email:', err);
+                console.error('[RBAC] Error sending organization user onboarding email:', err);
             }
         })();
     }
 
     return newUser;
+}
+
+/**
+ * Accept user invitation: verifies secure activation token and sets initial password
+ */
+export async function acceptUserInvitation(data: { token: string; email: string; password: string }) {
+    const normalizedEmail = data.email.trim().toLowerCase();
+    const tokenRecord = await adminDb.query.verification.findFirst({
+        where: and(
+            eq(verification.identifier, `invitation:${normalizedEmail}`),
+            eq(verification.value, data.token),
+        ),
+    });
+
+    if (!tokenRecord) {
+        throw new DomainError('El enlace de invitación es inválido o ya fue utilizado', 400);
+    }
+
+    if (new Date() > new Date(tokenRecord.expiresAt)) {
+        await adminDb.delete(verification).where(eq(verification.id, tokenRecord.id));
+        throw new DomainError('El enlace de invitación ha expirado. Solicita una nueva invitación.', 400);
+    }
+
+    const targetUser = await adminDb.query.authUsers.findFirst({
+        where: eq(authUsers.email, normalizedEmail),
+        columns: { id: true, is_active: true },
+    });
+
+    if (!targetUser) {
+        throw new DomainError('Usuario no encontrado', 404);
+    }
+
+    const newPasswordHash = await hashPassword(data.password.trim());
+
+    await adminDb.transaction(async (tx) => {
+        // Update or insert credential account
+        const existingCredential = await tx.query.account.findFirst({
+            where: and(
+                eq(account.userId, targetUser.id),
+                eq(account.providerId, 'credential'),
+            ),
+        });
+
+        if (existingCredential) {
+            await tx.update(account)
+                .set({ password: newPasswordHash, updatedAt: new Date() })
+                .where(eq(account.id, existingCredential.id));
+        } else {
+            await tx.insert(account).values({
+                id: uuidv7(),
+                accountId: targetUser.id,
+                providerId: 'credential',
+                userId: targetUser.id,
+                password: newPasswordHash,
+            });
+        }
+
+        // Mark email as verified and user active
+        await tx.update(authUsers)
+            .set({ emailVerified: true, is_active: true, updatedAt: new Date() })
+            .where(eq(authUsers.id, targetUser.id));
+
+        // Delete used verification token
+        await tx.delete(verification).where(eq(verification.id, tokenRecord.id));
+    });
+
+    return { success: true, email: normalizedEmail };
 }
 
 /**

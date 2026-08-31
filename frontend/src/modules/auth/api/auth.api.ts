@@ -5,7 +5,7 @@
  */
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { TenantRegisterType, TenantOnboardType } from '@app/schema/dto';
+import type { TenantRegisterType, TenantOnboardType, RbacAcceptInvitationType } from '@app/schema/dto';
 
 export const authApi = {
     register: async (payload: TenantRegisterType, signal?: AbortSignal) => {
@@ -15,6 +15,11 @@ export const authApi = {
     },
     onboard: async (payload: TenantOnboardType, signal?: AbortSignal) => {
         const { data, error } = await api.tenants.onboard.post(payload, { fetch: { signal } });
+        if (error) throwApiError(error);
+        return data!;
+    },
+    acceptInvitation: async (payload: RbacAcceptInvitationType, signal?: AbortSignal) => {
+        const { data, error } = await api.tenants['accept-invitation'].post(payload, { fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },

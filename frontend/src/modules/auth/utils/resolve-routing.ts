@@ -5,7 +5,7 @@ import type { DiscoverTenantItemType } from '@app/schema/dto';
 // Organization → Tenant Mapper (M-01: single typed implementation)
 // ============================================================================
 
-interface BetterAuthOrg {
+export interface BetterAuthOrg {
     id: string;
     name: string;
     slug: string | null;

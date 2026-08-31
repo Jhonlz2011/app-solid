@@ -10,14 +10,8 @@ import { DropdownMenu } from '@display/DropdownMenu';
 import { actions, useAuth } from '@modules/auth/store/auth.store';
 import { useBranding } from '@modules/auth/store/branding.store';
 import { buildTenantUrl } from '@app/schema/utils';
-import { fetchUserOrganizations, invalidateOrgCache } from '@modules/auth/utils/resolve-routing';
-
-interface OrganizationItem {
-    id: string;
-    name: string;
-    slug: string;
-    logo?: string | null;
-}
+import { invalidateOrgCache } from '@modules/auth/utils/resolve-routing';
+import { useUserOrganizations, type UserOrganizationItem } from '@modules/auth/data/organizations.queries';
 
 interface SidebarHeaderProps {
     toggleCollapse: () => void;
@@ -27,12 +21,12 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
     const { collapsed, setIsMobileOpen } = useSidebar();
     const auth = useAuth();
     const branding = useBranding();
+    const orgsQuery = useUserOrganizations();
 
-    const [organizations, setOrganizations] = createSignal<OrganizationItem[]>([]);
-    const [loading, setLoading] = createSignal(false);
     const [switchingId, setSwitchingId] = createSignal<string | null>(null);
 
     // Derived reactive getters
+    const organizations = () => orgsQuery.data ?? [];
     const currentSlug = () => branding.tenant()?.slug || auth.user()?.companySlug || null;
     const currentTradeName = () =>
         branding.tenant()?.tradeName ||
@@ -48,22 +42,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
     const currentLogo = () => branding.tenant()?.logoUrl;
     const initialLetter = createMemo(() => currentTradeName().substring(0, 1).toUpperCase());
 
-    const loadOrganizations = async (forceRefresh = false) => {
-        try {
-            setLoading(true);
-            const orgs = await fetchUserOrganizations(forceRefresh);
-            setOrganizations(orgs as OrganizationItem[]);
-        } catch (error) {
-            console.error('[SidebarHeader] Failed to load organizations:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Load organizations using cache (populated by routing guards during login)
-    // No onMount needed — the cache is warm by the time SidebarHeader mounts
-
-    const handleSwitch = async (org: OrganizationItem) => {
+    const handleSwitch = async (org: UserOrganizationItem) => {
         if (org.slug === currentSlug() || switchingId()) return;
 
         setSwitchingId(org.id);
@@ -72,7 +51,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
             // Invalidate cached org list so next load reflects new active org
             invalidateOrgCache();
             toast.success(`Cambiando a ${org.name}...`);
-            // O-01: Use shared buildTenantUrl instead of manual host/port/IP parsing
+            // Use shared buildTenantUrl instead of manual host/port/IP parsing
             window.location.href = buildTenantUrl(org.slug, '/dashboard', {
                 queryParams: { session: 'true' },
             });
@@ -150,7 +129,6 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                             variant="none"
                             class="flex items-center gap-3 w-full text-left rounded-xl p-1 -ml-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer group"
                             aria-label="Cambiar de empresa"
-                            onClick={() => loadOrganizations()}
                         >
                             {/* Spacer matching stationary logo underneath */}
                             <div class="size-10 shrink-0 opacity-0 pointer-events-none" />
@@ -229,9 +207,16 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                                     }}
                                 </For>
 
-                                <Show when={organizations().length === 0 && !loading()}>
+                                <Show when={organizations().length === 0 && !orgsQuery.isLoading}>
                                     <div class="px-3 py-2 text-xs text-muted text-center">
                                         No perteneces a otras empresas
+                                    </div>
+                                </Show>
+
+                                <Show when={orgsQuery.isLoading && organizations().length === 0}>
+                                    <div class="flex items-center justify-center py-4 text-xs text-muted">
+                                        <div class="size-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                                        Cargando empresas...
                                     </div>
                                 </Show>
                             </div>
@@ -275,3 +260,5 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
         </header>
     );
 };
+
+export default SidebarHeader;

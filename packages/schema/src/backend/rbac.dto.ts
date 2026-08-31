@@ -117,6 +117,14 @@ export const RbacUserCreateBodySchema = Type.Object({
     password: Type.Optional(Type.String({ minLength: 8 })),
     roleIds: Type.Array(Type.Number(), { minItems: 1 }),
     entityId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    mode: Type.Optional(Type.Union([Type.Literal('invite'), Type.Literal('direct')])),
+    sendEmail: Type.Optional(Type.Boolean()),
+});
+
+export const RbacAcceptInvitationBodySchema = Type.Object({
+    token: Type.String({ minLength: 10 }),
+    email: Type.String({ format: 'email' }),
+    password: Type.String({ minLength: 8 }),
 });
 
 export const RbacUserUpdateBodySchema = Type.Object({
@@ -217,6 +225,7 @@ export type UserDetailType = Static<typeof UserDetailResponseSchema>;
 export type UserEntityReferenceType = Static<typeof UserEntityReferenceSchema>;
 
 export type RbacUserCreateType = Static<typeof RbacUserCreateBodySchema>;
+export type RbacAcceptInvitationType = Static<typeof RbacAcceptInvitationBodySchema>;
 export type RbacUserUpdateType = Static<typeof RbacUserUpdateBodySchema>;
 export type RbacUserResetPasswordType = Static<typeof RbacUserResetPasswordBodySchema>;
 export type RbacUserAssignEntityType = Static<typeof RbacUserAssignEntityBodySchema>;

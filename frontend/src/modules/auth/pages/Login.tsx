@@ -134,9 +134,15 @@ const Login: Component = () => {
       : rawPath;
   };
 
+  const initialEmail = () => {
+    const searchParams = typeof search === 'function' ? search() : search;
+    return (searchParams as any)?.email
+      || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('email') || '' : '');
+  };
+
   const form = createForm(() => ({
     defaultValues: {
-      email: '',
+      email: initialEmail(),
       password: '',
     } as AuthLoginFormData,
     validators: { onSubmit: AuthLoginSchema },

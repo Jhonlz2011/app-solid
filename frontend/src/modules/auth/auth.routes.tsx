@@ -81,6 +81,7 @@ export const createAuthRoutes = (rootRoute: any) => {
         validateSearch: (search: Record<string, unknown>) => {
             return {
                 redirect: (search.redirect as string) || undefined,
+                email: (search.email as string) || undefined,
                 showSelector: search.showSelector === 'true' || search.showSelector === true || undefined,
             };
         },
@@ -93,5 +94,17 @@ export const createAuthRoutes = (rootRoute: any) => {
         component: lazyRouteComponent(() => import('./pages/Register')),
     });
 
-    return authRoute.addChildren([loginRoute, registerRoute]);
+    const acceptInvitationRoute = createRoute({
+        getParentRoute: () => authRoute,
+        path: 'accept-invitation',
+        validateSearch: (search: Record<string, unknown>) => {
+            return {
+                token: (search.token as string) || undefined,
+                email: (search.email as string) || undefined,
+            };
+        },
+        component: lazyRouteComponent(() => import('./pages/AcceptInvitation')),
+    });
+
+    return authRoute.addChildren([loginRoute, registerRoute, acceptInvitationRoute]);
 };

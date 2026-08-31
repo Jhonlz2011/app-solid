@@ -1,10 +1,12 @@
 import { Elysia, t } from 'elysia';
 import { register, onboardTenant } from '../auth/auth.service';
+import { acceptUserInvitation } from '../rbac/rbac.users.service';
 import {
   TenantRegisterBodySchema,
   TenantOnboardBodySchema,
   TenantRegisterResponseSchema,
   TenantBrandingResponseSchema,
+  RbacAcceptInvitationBodySchema,
 } from '@app/schema/backend';
 import { registerRateLimit } from '../../plugins/register-rate-limit';
 import { ipPlugin, getIpAndUserAgent } from '../../plugins/ip';
@@ -18,6 +20,27 @@ import { UnauthorizedError, DomainError } from '../../core/errors';
 
 export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   .use(ipPlugin)
+
+  // =========================================================================
+  // POST /accept-invitation — Accept organization invitation & set password
+  // =========================================================================
+  .post(
+    '/accept-invitation',
+    async ({ body, set }) => {
+      const result = await acceptUserInvitation(body);
+      set.status = 200;
+      return result;
+    },
+    {
+      body: RbacAcceptInvitationBodySchema,
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          email: t.String(),
+        }),
+      },
+    }
+  )
 
   // =========================================================================
   // POST /register — New user + new tenant (email/password)
