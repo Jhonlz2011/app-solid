@@ -122,6 +122,7 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
     }
 
     const taxRegime = props.form.useStore((s: any) => s.values.taxRegime);
+    const isObligado = props.form.useStore((s: any) => s.values.obligadoContabilidad);
 
     return (
         <div class="flex flex-col gap-4">
@@ -133,12 +134,12 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                         <div class="flex items-center justify-between gap-2">
                             <TextField.Label>Subdominio (slug) *</TextField.Label>
                             <Show when={!slugChecking() && f().state.value.length >= 3 && slugAvailable() === true}>
-                                <Badge variant="success" class="text-[10px] px-1.5 py-0 animate-in fade-in">
+                                <Badge variant="success" class="text-[11px] px-1.5 py-0 animate-in fade-in">
                                     ✓ Disponible
                                 </Badge>
                             </Show>
                             <Show when={!slugChecking() && f().state.value.length >= 3 && slugAvailable() === false}>
-                                <Badge variant="danger" class="text-[10px] px-1.5 py-0 animate-in fade-in">
+                                <Badge variant="danger" class="text-[11px] px-1.5 py-0 animate-in fade-in">
                                     ✗ En uso
                                 </Badge>
                             </Show>
@@ -226,7 +227,7 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                 {/* Nombre Comercial */}
                 <props.form.Field name="tradeName" children={(f: any) => (
                     <TextField.Root field={f()}>
-                        <TextField.Label>Nombre Comercial (opcional)</TextField.Label>
+                        <TextField.Label optional>Nombre Comercial</TextField.Label>
                         <TextField.Input type="text" placeholder="Nombre visible al público" />
                     </TextField.Root>
                 )} />
@@ -244,7 +245,7 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
             {/* ─── FILA 4: Dirección Matriz (Columna Completa) ─── */}
             <props.form.Field name="mainAddress" children={(f: any) => (
                 <TextField.Root field={f()}>
-                    <TextField.Label>Dirección Matriz (opcional)</TextField.Label>
+                    <TextField.Label optional>Dirección Matriz</TextField.Label>
                     <TextField.Input type="text" placeholder="Av. Principal y Calle Secundaria, Edificio / Local" />
                 </TextField.Root>
             )} />
@@ -291,7 +292,13 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                         <FieldLabel>¿Obligado a llevar contabilidad?</FieldLabel>
                         <SegmentedControl
                             value={f().state.value ? 'true' : 'false'}
-                            onChange={(val) => f().handleChange(val === 'true')}
+                            onChange={(val) => {
+                                const isTrue = val === 'true';
+                                f().handleChange(isTrue);
+                                if (!isTrue) {
+                                    props.form.setFieldValue('contribuyenteEspecial', '');
+                                }
+                            }}
                             disabled={taxRegime() === 'RIMPE_NEGOCIO_POPULAR'}
                         >
                             <SegmentedControlIndicator />
@@ -311,16 +318,22 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                 )} />
             </div>
 
-            {/* ─── FILA 6: Contribuyente Especial (Columna Completa) ─── */}
-            <props.form.Field name="contribuyenteEspecial" children={(f: any) => (
-                <TextField.Root 
-                    field={f()}
-                    disabled={taxRegime() === 'RIMPE_NEGOCIO_POPULAR' || taxRegime() === 'RIMPE_EMPRENDEDOR'}
-                >
-                    <TextField.Label>Contribuyente Especial (opcional)</TextField.Label>
-                    <TextField.Input type="text" placeholder="Nro. Resolución SRI (si aplica)" />
-                </TextField.Root>
-            )} />
+            {/* ─── FILA 6: Contribuyente Especial (Solo visible si Régimen General Y Obligado a Contabilidad = Sí) ─── */}
+            <Show when={taxRegime() === 'GENERAL' && isObligado() === true}>
+                <div class="animate-in fade-in duration-200">
+                    <props.form.Field name="contribuyenteEspecial" children={(f: any) => (
+                        <TextField.Root field={f()}>
+                            <TextField.Label
+                                optional
+                                tooltip="Número de resolución emitido por el SRI si tu empresa ha sido designada como Contribuyente Especial"
+                            >
+                                Contribuyente Especial
+                            </TextField.Label>
+                            <TextField.Input type="text" placeholder="Ej: NAC-DNCRASC20-00000001" />
+                        </TextField.Root>
+                    )} />
+                </div>
+            </Show>
         </div>
     );
 };

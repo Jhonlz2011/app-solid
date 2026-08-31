@@ -7,6 +7,7 @@ import { EyeOffIcon } from '@icons/EyeOffIcon';
 import { InfoIcon } from '@icons/InfoIcon';
 import { SpinnerIcon } from '@icons/SpinnerIcon';
 import Tooltip from '@overlay/Tooltip';
+import { Badge } from '@shared/ui/display/Badge';
 
 // ============================================================================
 // TYPES
@@ -40,6 +41,8 @@ export interface TextFieldLabelProps {
     children: JSX.Element;
     tooltip?: string | JSX.Element;
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
+    optional?: boolean;
+    badge?: JSX.Element;
 }
 
 export interface FieldLabelProps {
@@ -48,6 +51,8 @@ export interface FieldLabelProps {
     children: JSX.Element;
     tooltip?: string | JSX.Element;
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
+    optional?: boolean;
+    badge?: JSX.Element;
 }
 
 export interface TextFieldInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
@@ -215,7 +220,7 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
 /** Label for the field */
 const Label = (props: TextFieldLabelProps) => {
     const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'labelClass', 'children', 'tooltip', 'tooltipPlacement']);
+    const [local, others] = splitProps(props, ['class', 'labelClass', 'children', 'tooltip', 'tooltipPlacement', 'optional', 'badge']);
 
     return (
         <div class={cn("flex items-center gap-1.5 ml-1 w-fit", local.class)}>
@@ -226,6 +231,14 @@ const Label = (props: TextFieldLabelProps) => {
             >
                 {local.children}
             </label>
+            <Show when={local.optional}>
+                <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
+                    Opcional
+                </Badge>
+            </Show>
+            <Show when={local.badge}>
+                {local.badge}
+            </Show>
             <Show when={local.tooltip}>
                 <Tooltip
                     content={local.tooltip!}
@@ -241,7 +254,7 @@ const Label = (props: TextFieldLabelProps) => {
 
 /** Standalone label for non-TextField contexts (Select, SegmentedControl, etc.) */
 export const FieldLabel = (props: FieldLabelProps) => {
-    const [local, others] = splitProps(props, ['class', 'labelClass', 'children', 'tooltip', 'tooltipPlacement']);
+    const [local, others] = splitProps(props, ['class', 'labelClass', 'children', 'tooltip', 'tooltipPlacement', 'optional', 'badge']);
     return (
         <div class={cn("flex items-center gap-1.5 ml-1 w-fit", local.class)}>
             <label
@@ -250,6 +263,14 @@ export const FieldLabel = (props: FieldLabelProps) => {
             >
                 {local.children}
             </label>
+            <Show when={local.optional}>
+                <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
+                    Opcional
+                </Badge>
+            </Show>
+            <Show when={local.badge}>
+                {local.badge}
+            </Show>
             <Show when={local.tooltip}>
                 <Tooltip
                     content={local.tooltip!}
