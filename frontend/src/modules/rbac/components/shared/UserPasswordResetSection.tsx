@@ -80,8 +80,8 @@ export const UserPasswordResetSection: Component<UserPasswordResetSectionProps> 
                         onClick={() => setIsOpen(true)}
                         class="flex items-center gap-3 w-full p-3.5 rounded-xl bg-surface/40 border border-border/40 hover:bg-surface/60 hover:border-border transition-all text-left cursor-pointer group"
                     >
-                        <div class="size-9 rounded-lg bg-warning/10 flex items-center justify-center group-hover:bg-warning/15 transition-colors shrink-0">
-                            <KeyIcon class="size-4.5 text-warning" />
+                        <div class="size-9 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/15 transition-colors shrink-0">
+                            <KeyIcon class="size-4.5 text-amber-500" />
                         </div>
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-medium text-text">Restablecer contraseña</p>

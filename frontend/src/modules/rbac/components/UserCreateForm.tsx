@@ -110,7 +110,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                 class="flex flex-col gap-4 py-4"
             >
                 {/* ═══ 1. User Identity & Live Detection ═══ */}
-                <div class="space-y-4">
+                <div class="space-y-1.5">
                     <form.Field name="email">
                         {(field) => (
                             <TextField.Root field={field()} disabled={props.isSubmitting}>
@@ -233,13 +233,28 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                 </form.Field>
 
                 {/* ═══ 3. Role selection ═══ */}
-                <UserRolePicker
-                    roles={props.roles}
-                    rolesLoading={props.rolesLoading}
-                    selectedRoleIds={selectedRoleIds() ?? []}
-                    onChange={(ids) => form.setFieldValue('roleIds', ids)}
-                    disabled={props.isSubmitting || isAlreadyMember()}
-                />
+                <form.Field name="roleIds">
+                    {(field) => {
+                        const hasError = () => (field().state.meta.isTouched || hasAttemptedSubmit()) && field().state.meta.errors.length > 0;
+                        const errorMsg = () => field().state.meta.errors[0];
+                        return (
+                            <div class="space-y-1">
+                                <UserRolePicker
+                                    roles={props.roles}
+                                    rolesLoading={props.rolesLoading}
+                                    selectedRoleIds={field().state.value ?? []}
+                                    onChange={(ids) => field().handleChange(ids)}
+                                    disabled={props.isSubmitting || isAlreadyMember()}
+                                />
+                                <Show when={hasError()}>
+                                    <p class="text-xs text-danger font-medium mt-1" role="alert">
+                                        {String(errorMsg())}
+                                    </p>
+                                </Show>
+                            </div>
+                        );
+                    }}
+                </form.Field>
             </form>
         </FormSubmissionContext.Provider>
     );

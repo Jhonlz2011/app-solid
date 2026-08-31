@@ -98,6 +98,7 @@ export function useUser(id: () => string | null | undefined) {
                             name: r.name,
                             description: (r.description ?? null) as string | null,
                         })),
+                        isGlobalUser: (found as any).isGlobalUser ?? false,
                     };
                 }
             }

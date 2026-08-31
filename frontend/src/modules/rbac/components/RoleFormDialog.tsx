@@ -1,7 +1,7 @@
 import { Component, Show, createSignal, createEffect, createMemo, on } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { FormDialog } from '@/shared/ui/overlay/FormDialog';
-import { TextField } from '@form/TextField';
+import { TextField, FieldLabel } from '@form/TextField';
 import { PermissionMatrix } from './PermissionMatrix';
 import { RoleBadge } from '@display/Badge';
 import { safeParse } from 'valibot';
@@ -246,10 +246,7 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
                 {/* Permissions */}
                 <div class="space-y-2">
                     <Show when={!isPermissionsOnly()}>
-                        <div class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2 pt-2">
-                            <div class="size-1.5 rounded-full bg-info" />
-                            {isEdit() ? 'Permisos asignados' : 'Permisos iniciales'}
-                        </div>
+                        <FieldLabel>Permisos</FieldLabel>
                     </Show>
                     <PermissionMatrix
                         allPermissions={allPermsQuery.data?.all ?? []}

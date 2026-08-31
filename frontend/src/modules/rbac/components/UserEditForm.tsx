@@ -2,9 +2,7 @@ import { Component, createSignal, Show } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import { UserUpdateSchema, type UserUpdateData } from '@app/schema/frontend';
 import type { RoleType } from '@app/schema/dto';
-import { SYSTEM_ROLES } from '@app/schema/enums';
 import { FieldLabel } from '@form/TextField';
-import { Switch } from '@form/Switch';
 import { EntitySelect } from '@shared/ui/selectors';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { handleFormApiErrors } from '@shared/utils/form.utils';
@@ -18,18 +16,13 @@ export interface UserEditFormProps {
     rolesLoading?: boolean;
     initialEntity?: { id: string; businessName: string; taxId: string } | null;
     isGlobalUser?: boolean;
-    onSubmit: (values: UserUpdateData) => void | Promise<void>;
+    onSubmit: (values: UserUpdateData & { newPassword?: string }) => void | Promise<void>;
     isSubmitting?: boolean;
 }
 
 export const UserEditForm: Component<UserEditFormProps> = (props) => {
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const [newPassword, setNewPassword] = createSignal('');
-
-    const isUserSuperadmin = () => {
-        const superadminRole = props.roles.find(r => r.name === SYSTEM_ROLES.SUPERADMIN);
-        return Boolean(superadminRole && props.defaultValues.roleIds.includes(superadminRole.id));
-    };
 
     const form = createForm(() => ({
         defaultValues: {
@@ -43,15 +36,15 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
         },
         onSubmit: async ({ value }) => {
             try {
-                await props.onSubmit(value);
+                await props.onSubmit({
+                    ...value,
+                    newPassword: newPassword().trim() || undefined,
+                });
             } catch (err) {
                 handleFormApiErrors(form, err, 'Error al actualizar el usuario', props.formId ?? 'user-edit-form');
             }
         },
     }));
-
-    const isActive = form.useStore((s) => s.values.isActive);
-    const selectedRoleIds = form.useStore((s) => s.values.roleIds);
 
     return (
         <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
@@ -83,23 +76,6 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                     </div>
                 </div>
 
-                {/* ═══ Account status toggle ═══ */}
-                <div class="flex items-center justify-between p-4 bg-surface/40 rounded-xl border border-border/40">
-                    <div class="space-y-0.5">
-                        <p class="text-sm font-medium text-text">Estado de la cuenta</p>
-                        <p class="text-xs text-muted">
-                            {isUserSuperadmin()
-                                ? 'El propietario de la empresa no puede ser desactivado'
-                                : 'Un usuario inactivo no puede iniciar sesión'}
-                        </p>
-                    </div>
-                    <Switch
-                        checked={isUserSuperadmin() ? true : (isActive() ?? true)}
-                        onChange={(val) => !isUserSuperadmin() && form.setFieldValue('isActive', val)}
-                        disabled={props.isSubmitting || isUserSuperadmin()}
-                    />
-                </div>
-
                 {/* ═══ Entity picker (Employee link) ═══ */}
                 <form.Field name="entityId">
                     {(field) => (
@@ -117,7 +93,7 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                 </form.Field>
 
                 {/* ═══ Password change section (Only for company-local users) ═══ */}
-                <Show when={!props.isGlobalUser}>
+                <Show when={props.isGlobalUser === false}>
                     <UserPasswordResetSection
                         newPassword={newPassword}
                         onPasswordChange={setNewPassword}
@@ -126,13 +102,28 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                 </Show>
 
                 {/* ═══ Role selection ═══ */}
-                <UserRolePicker
-                    roles={props.roles}
-                    rolesLoading={props.rolesLoading}
-                    selectedRoleIds={selectedRoleIds() ?? []}
-                    onChange={(ids) => form.setFieldValue('roleIds', ids)}
-                    disabled={props.isSubmitting}
-                />
+                <form.Field name="roleIds">
+                    {(field) => {
+                        const hasError = () => (field().state.meta.isTouched || hasAttemptedSubmit()) && field().state.meta.errors.length > 0;
+                        const errorMsg = () => field().state.meta.errors[0];
+                        return (
+                            <div class="space-y-1">
+                                <UserRolePicker
+                                    roles={props.roles}
+                                    rolesLoading={props.rolesLoading}
+                                    selectedRoleIds={field().state.value ?? []}
+                                    onChange={(ids) => field().handleChange(ids)}
+                                    disabled={props.isSubmitting}
+                                />
+                                <Show when={hasError()}>
+                                    <p class="text-xs text-danger font-medium mt-1" role="alert">
+                                        {String(errorMsg())}
+                                    </p>
+                                </Show>
+                            </div>
+                        );
+                    }}
+                </form.Field>
             </form>
         </FormSubmissionContext.Provider>
     );

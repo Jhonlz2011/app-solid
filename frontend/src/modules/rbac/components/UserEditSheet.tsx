@@ -121,6 +121,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                             variant={(userQuery.data?.isActive ?? true) ? 'danger' : 'success'}
                             onClick={handleToggleActive}
                             loading={deactivateMut.isPending || restoreMut.isPending}
+                            loadingText={(userQuery.data?.isActive ?? true) ? 'Desactivando...' : 'Restaurando...'}
                             disabled={isPending()}
                         >
                             {(userQuery.data?.isActive ?? true) ? 'Desactivar' : 'Restaurar'}
@@ -138,7 +139,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                         icon={<FloppyDiskIcon />}
                         disabled={isPending()}
                     >
-                        Guardar Cambios
+                        Guardar
                     </Button>
                 </>
             }
