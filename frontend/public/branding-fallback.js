@@ -52,7 +52,7 @@
             cardLight: "#fff",
             cardDark: "#0f172a",
             cardAltLight: "#eef2ff",
-            cardAltDark: "#1e293b",
+            cardAltDark: "#070a0e",
             borderLight: "#e7eff8",
             borderDark: "#1f2533"
       },
@@ -71,7 +71,7 @@
       "#f59e0b": {
             bgLight: "#faf8f5",
             bgDark: "#1c1917",
-            surfaceLight: "#ffffff",
+            surfaceLight: "#fff",
             surfaceDark: "#292524",
             cardLight: "#fff",
             cardDark: "#292524",
@@ -88,7 +88,7 @@
             cardLight: "#fff",
             cardDark: "#111827",
             cardAltLight: "#eef2ff",
-            cardAltDark: "#1f2937",
+            cardAltDark: "#070a0e",
             borderLight: "#e7eff8",
             borderDark: "#1f2533"
       }

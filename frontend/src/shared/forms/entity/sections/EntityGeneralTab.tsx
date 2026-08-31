@@ -1,17 +1,16 @@
 import { Component, Show, Index, createMemo } from 'solid-js';
-import type { PersonType, TaxRegimeType } from '@app/schema/enums';
+import type { PersonType } from '@app/schema/enums';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 
 import {
     taxIdTypeOptions,
     personTypeOptions,
     taxRegimeTypeOptions,
-    roleLabels,
     getTaxIdTypeDisabledKeys,
     getTaxIdConfig,
     isPersonalTaxId,
 } from '../entity-form.utils';
-
+import { roleLabels } from '@shared/constants/entity-labels';
 import TextField, { FieldLabel } from '@form/TextField';
 import { FormSectionHeader } from '@form/FormSectionHeader';
 import Checkbox from '@form/Checkbox';
