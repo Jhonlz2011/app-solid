@@ -1,8 +1,9 @@
-import { Component, createSignal, Show } from 'solid-js';
+import { Component, createSignal } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { authClient } from '@shared/lib/auth-client';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import { isGlobalPortalHost } from '@app/schema/utils';
+import Button from '@form/Button';
 
 interface OAuthButtonsProps {
   redirectPath?: string;
@@ -92,50 +93,40 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
   };
 
   return (
-    <div class={`flex flex-row gap-2.5 w-full ${props.class || ''}`}>
+    <div class={`flex flex-col sm:flex-row gap-2.5 w-full ${props.class || ''}`}>
       {/* Botón Google */}
-      <button
-        type="button"
+      <Button
+        variant="outline"
+        size="md"
+        radius="xl"
+        fullWidth
         disabled={loadingProvider() !== null}
+        loading={loadingProvider() === 'google'}
+        loadingText="Conectando..."
+        icon={<GoogleIcon class="size-4.5 shrink-0" />}
         onClick={() => handleOAuthSignIn('google')}
-        class="relative flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl border border-border bg-card hover:bg-card-alt text-heading text-sm font-semibold transition-all duration-200 shadow-xs hover:shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group active:scale-[0.99]"
       >
-        <Show
-          when={loadingProvider() === 'google'}
-          fallback={<GoogleIcon class="size-4.5 shrink-0 group-hover:scale-105 transition-transform" />}
-        >
-          <div class="size-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin shrink-0" />
-        </Show>
         <span class="truncate">
-          {loadingProvider() === 'google'
-            ? 'Conectando con Google…'
-            : props.mode === 'register'
-              ? 'Registrarse con Google'
-              : 'Continuar con Google'}
+          {props.mode === 'register' ? 'Google' : 'Continuar con Google'}
         </span>
-      </button>
+      </Button>
 
       {/* Botón Microsoft Entra ID */}
-      <button
-        type="button"
+      <Button
+        variant="outline"
+        size="md"
+        radius="xl"
+        fullWidth
         disabled={loadingProvider() !== null}
+        loading={loadingProvider() === 'microsoft'}
+        loadingText="Conectando..."
+        icon={<MicrosoftIcon class="size-4.5 shrink-0" />}
         onClick={() => handleOAuthSignIn('microsoft')}
-        class="relative flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl border border-border bg-card hover:bg-card-alt text-heading text-sm font-semibold transition-all duration-200 shadow-xs hover:shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group active:scale-[0.99]"
       >
-        <Show
-          when={loadingProvider() === 'microsoft'}
-          fallback={<MicrosoftIcon class="size-4.5 shrink-0 group-hover:scale-105 transition-transform" />}
-        >
-          <div class="size-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin shrink-0" />
-        </Show>
         <span class="truncate">
-          {loadingProvider() === 'microsoft'
-            ? 'Conectando con Microsoft…'
-            : props.mode === 'register'
-              ? 'Registrarse con Microsoft'
-              : 'Continuar con Microsoft'}
+          {props.mode === 'register' ? 'Microsoft' : 'Continuar con Microsoft'}
         </span>
-      </button>
+      </Button>
     </div>
   );
 };

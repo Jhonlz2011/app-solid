@@ -110,14 +110,14 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
 
                                     {/* Non-intrusive live user detection */}
                                     <Show when={!checkQuery.isFetching && isExistingUser()}>
-                                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 animate-in fade-in">
+                                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0 rounded-full border border-emerald-500/20 animate-in fade-in">
                                             <SparklesIcon class="size-3" />
-                                            Usuario Zelys (@{checkQuery.data?.username})
+                                            Usuario (@{checkQuery.data?.username})
                                         </span>
                                     </Show>
 
                                     <Show when={!checkQuery.isFetching && isAlreadyMember()}>
-                                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 animate-in fade-in">
+                                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-500/10 px-2 py-0 rounded-full border border-amber-500/20 animate-in fade-in">
                                             <AlertTriangleIcon class="size-3" />
                                             Ya es miembro en esta empresa
                                         </span>

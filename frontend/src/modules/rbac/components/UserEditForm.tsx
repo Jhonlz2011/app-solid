@@ -101,13 +101,6 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                     />
                 </div>
 
-                {/* ═══ Password change section ═══ */}
-                <UserPasswordResetSection
-                    newPassword={newPassword}
-                    onPasswordChange={setNewPassword}
-                    disabled={props.isSubmitting}
-                />
-
                 {/* ═══ Entity picker (Employee link) ═══ */}
                 <form.Field name="entityId">
                     {(field) => (
@@ -123,6 +116,13 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                         />
                     )}
                 </form.Field>
+
+                 {/* ═══ Password change section ═══ */}
+                <UserPasswordResetSection
+                    newPassword={newPassword}
+                    onPasswordChange={setNewPassword}
+                    disabled={props.isSubmitting}
+                />
 
                 {/* ═══ Role selection ═══ */}
                 <UserRolePicker

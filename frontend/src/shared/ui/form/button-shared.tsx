@@ -6,14 +6,29 @@ export const BUTTON_VARIANTS = {
   none: "",
   primary: "bg-primary text-on-primary border-b-primary-edge shadow-sm shadow-primary/20",
   secondary: "bg-secondary text-on-secondary border-b-secondary-edge shadow-sm shadow-secondary/20",
-  outline: "bg-card text-text border border-border border-b-[4px] border-b-outline-edge shadow-xs hover:bg-surface",
-  ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 border-transparent border-b-0 transition-colors active:scale-[0.98] hover:translate-y-0 active:translate-y-0 hover:border-b-0 active:border-b-0",
-  link: "bg-transparent text-primary hover:text-primary-strong hover:underline transition-colors p-0 h-auto border-b-0 hover:translate-y-0 active:translate-y-0 hover:border-b-0 active:border-b-0",
+  outline: "bg-card text-text border border-border border-b-outline-edge shadow-xs hover:bg-surface",
+  ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 active:scale-[0.98]",
+  link: "bg-transparent text-primary hover:text-primary-strong hover:underline p-0 h-auto",
   danger: "bg-danger text-white border-b-danger-edge shadow-sm shadow-danger/20",
   destructive: "bg-destructive text-white border-b-destructive-edge shadow-sm shadow-destructive/30",
   warning: "bg-warning text-white border-b-warning-edge shadow-sm shadow-warning/20",
   success: "bg-success text-white border-b-success-edge shadow-sm shadow-success/20",
 };
+
+const TACTILE_3D_VARIANTS: Set<string> = new Set([
+  'primary',
+  'secondary',
+  'outline',
+  'danger',
+  'destructive',
+  'warning',
+  'success',
+]);
+
+const TACTILE_3D_BASE =
+  "border-b-[4px] hover:-translate-y-[1.5px] hover:brightness-105 active:translate-y-[2px] active:border-b-[2px] active:brightness-95 transition-all duration-150 ease-out disabled:border-b-[3px] disabled:brightness-100 disabled:shadow-none";
+
+const FLAT_BASE = "transition-colors duration-150 ease-out";
 
 export const BUTTON_SIZES = {
   sm: "h-8 px-3 text-xs",
@@ -65,12 +80,13 @@ export function buttonVariants(options?: ButtonVariantOptions): string {
   const fullWidth = options?.fullWidth;
   const loading = options?.loading;
   const hasLoadingText = options?.hasLoadingText;
+  const is3D = TACTILE_3D_VARIANTS.has(variant);
 
   return cn(
-    "inline-flex items-center justify-center gap-2 font-semibold cursor-pointer select-none transition-all duration-150 ease-out",
-    "border-b-[4px] hover:-translate-y-[1.5px] hover:border-b-[5.5px] hover:brightness-105 active:translate-y-[2.5px] active:border-b-[1.5px] active:brightness-95",
+    "inline-flex items-center justify-center gap-2 font-semibold cursor-pointer select-none",
     "outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
-    "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:border-b-[3px] disabled:brightness-100 disabled:shadow-none",
+    "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
+    is3D ? TACTILE_3D_BASE : FLAT_BASE,
     BUTTON_VARIANTS[variant],
     BUTTON_SIZES[size],
     BUTTON_RADII[radius],
