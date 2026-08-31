@@ -114,6 +114,11 @@ export async function resolvePostAuthRouting(
     currentSlug: string | null,
     targetPath = '/dashboard',
 ): Promise<RoutingDecision> {
+    // Special path: creating a new company is allowed for any authenticated user
+    if (targetPath === '/create-company' || targetPath.startsWith('/create-company')) {
+        return { action: 'stay' };
+    }
+
     const orgs = await fetchUserOrganizations();
 
     // Case 0: No organizations → onboarding required

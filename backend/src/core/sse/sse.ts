@@ -1,5 +1,9 @@
 import { Elysia, t } from 'elysia';
 import { auth, resolveCompanyIdFromOrg } from '../../config/better-auth';
+import { adminDb } from '../db';
+import { companies, member } from '@app/schema/tables';
+import { eq, and } from '@app/schema';
+import { resolveSlugFromHost } from '@app/schema/utils';
 import {
     clients,
     addToRoomIndex,
@@ -61,6 +65,32 @@ export const ssePlugin = (app: Elysia) =>
             if (activeOrgId) {
                 companyId = await resolveCompanyIdFromOrg(activeOrgId);
             }
+
+            // Align with host subdomain if present
+            const host = request.headers.get('host') || request.headers.get('origin') || '';
+            const slug = resolveSlugFromHost(host);
+            if (slug) {
+                const [hostCompany] = await adminDb
+                    .select({ id: companies.id, organization_id: companies.organization_id })
+                    .from(companies)
+                    .where(eq(companies.slug, slug))
+                    .limit(1);
+
+                if (hostCompany?.organization_id) {
+                    const [memberRow] = await adminDb
+                        .select({ id: member.id })
+                        .from(member)
+                        .where(and(
+                            eq(member.userId, userId),
+                            eq(member.organizationId, hostCompany.organization_id)
+                        ))
+                        .limit(1);
+                    if (memberRow) {
+                        companyId = hostCompany.id;
+                    }
+                }
+            }
+
             if (!companyId) {
                 const rawUser = sessionData.user as typeof sessionData.user & { companyId?: number; company_id?: number };
                 companyId = rawUser.companyId || rawUser.company_id || null;

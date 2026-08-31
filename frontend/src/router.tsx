@@ -28,6 +28,7 @@ const Dashboard = lazyRouteComponent(() => import('./modules/dashboard/views/Das
 const NotFound = lazyRouteComponent(() => import('./shared/pages/NotFound'));
 const ProfilePage = lazyRouteComponent(() => import('./modules/profile/views/ProfilePage'));
 const VerifyEmailPage = lazyRouteComponent(() => import('./modules/auth/pages/VerifyEmail'));
+const CreateCompany = lazyRouteComponent(() => import('./modules/auth/pages/CreateCompany'));
 
 // --- ROOT ---
 const rootRoute = createRootRoute({
@@ -89,7 +90,7 @@ const layoutRoute = createRoute({
 
     const getSafeRedirect = () => {
       const p = location.pathname;
-      if (!p || p === '/' || p === '/dashboard' || p.startsWith('/login') || p.startsWith('/register') || p === '/verify-email') {
+      if (!p || p === '/' || p === '/dashboard' || p.startsWith('/login') || p.startsWith('/register') || p === '/verify-email' || p === '/create-company') {
         return undefined;
       }
       return p;
@@ -225,6 +226,12 @@ const profileRoute = createRoute({
   component: ProfilePage,
 });
 
+const createCompanyRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: '/create-company',
+  component: () => <CreateCompany />,
+});
+
 // Suppliers routes are now managed in suppliers.routes.tsx
 
 // --- ROUTE TREE ---
@@ -234,6 +241,7 @@ const routeTree = rootRoute.addChildren([
   verifyEmailRoute,
   layoutRoute.addChildren([
     dashboardRoute,
+    createCompanyRoute,
     createUsersRoutes(layoutRoute),
     createSettingsRoutes(layoutRoute),
     profileRoute,

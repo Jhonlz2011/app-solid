@@ -388,7 +388,7 @@ export async function getUserById(id: string | number, companyId?: number) {
         .select({ count: count() })
         .from(member)
         .where(eq(member.userId, idStr));
-    const isGlobalUser = (membershipCountRow?.count ?? 0) > 1;
+    const isGlobalUser = Number(membershipCountRow?.count ?? 0) > 1;
 
     return {
         id: user.id,
@@ -1116,17 +1116,33 @@ export async function adminResetPassword(
         throw new DomainError('Usa el cambio de contraseña personal para tu propia cuenta', 400);
     }
 
-    const user = await db.query.authUsers.findFirst({
+    const user = await adminDb.query.authUsers.findFirst({
         where: eq(authUsers.id, targetUserIdStr),
     });
     if (!user) throw new DomainError('Usuario no encontrado', 404);
 
     const newHash = await hashPassword(newPassword);
     
-    // Update Better-Auth account table
-    await db.update(account)
-        .set({ password: newHash })
-        .where(and(eq(account.userId, targetUserIdStr), eq(account.providerId, 'credential')));
+    // Better-Auth account table UPSERT
+    const existingAccount = await adminDb.query.account.findFirst({
+        where: and(eq(account.userId, targetUserIdStr), eq(account.providerId, 'credential')),
+    });
+
+    if (existingAccount) {
+        await adminDb.update(account)
+            .set({ password: newHash, updatedAt: new Date() })
+            .where(eq(account.id, existingAccount.id));
+    } else {
+        await adminDb.insert(account).values({
+            id: uuidv7(),
+            userId: targetUserIdStr,
+            accountId: targetUserIdStr,
+            providerId: 'credential',
+            password: newHash,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        });
+    }
 
     await revokeAllUserSessions(targetUserIdStr);
 

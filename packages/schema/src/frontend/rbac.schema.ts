@@ -4,7 +4,7 @@ import { pipe, string, minLength, email, object, boolean, array, number, optiona
 /** Strict schema for user creation — email and roles required, username/password optional for existing users */
 export const UserCreateSchema = object({
     email: pipe(string(), email('Correo electrónico inválido')),
-    roleIds: array(number()),
+    roleIds: pipe(array(number()), minLength(1, 'Debes asignar al menos un rol al usuario')),
     entityId: optional(nullable(string())),
     username: optional(union([pipe(string(), minLength(3, 'El usuario debe tener al menos 3 caracteres')), literal('')])),
     password: optional(union([pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres')), literal('')])),
@@ -15,7 +15,7 @@ export type UserCreateData = InferInput<typeof UserCreateSchema>;
 /** Strict schema for user editing — isActive toggle, roleIds, entityId scoped to tenant */
 export const UserUpdateSchema = object({
     isActive: boolean(),
-    roleIds: array(number()),
+    roleIds: pipe(array(number()), minLength(1, 'El usuario debe tener al menos un rol asignado')),
     entityId: optional(nullable(string())),
     username: optional(string()),
     email: optional(string()),

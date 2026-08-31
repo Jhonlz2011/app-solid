@@ -16,6 +16,13 @@ export const createAuthRoutes = (rootRoute: any) => {
             const currentSlug = resolveSlugFromHost(window.location.hostname);
 
             const handleRouting = async (user: any) => {
+                // If an authenticated user with an existing company visits /register, route to /create-company
+                if (location.pathname.includes('/register')) {
+                    if (user?.companySlug || (user?.companyId && user.companyId !== 0)) {
+                        throw redirect({ to: '/create-company' });
+                    }
+                }
+
                 const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, location.pathname);
 
                 switch (decision.action) {
@@ -38,6 +45,9 @@ export const createAuthRoutes = (rootRoute: any) => {
                         // Auto-switch to the matching org if provided (subdomain match)
                         if (decision.organizationId) {
                             await actions.switchOrganization(decision.organizationId);
+                        }
+                        if (location.pathname.includes('/register') && (!user?.companySlug && (!user?.companyId || user.companyId === 0))) {
+                            return;
                         }
                         throw redirect({ to: '/dashboard' });
                 }

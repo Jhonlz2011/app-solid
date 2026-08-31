@@ -47,8 +47,10 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
             entityId: null as string | null,
         } as UserCreateData,
         validators: {
-            onChange: UserCreateSchema,
             onSubmit: ({ value }) => {
+                if (!value.roleIds || value.roleIds.length === 0) {
+                    return 'Debes asignar al menos un rol al usuario';
+                }
                 const parseRes = safeParse(UserCreateSchema, value);
                 if (!parseRes.success) {
                     return parseRes.issues[0]?.message || 'Datos del formulario inválidos';
@@ -233,21 +235,30 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                 </form.Field>
 
                 {/* ═══ 3. Role selection ═══ */}
-                <form.Field name="roleIds">
+                <form.Field
+                    name="roleIds"
+                    validators={{
+                        onChange: ({ value }) => (!value || value.length === 0) ? 'Debes asignar al menos un rol al usuario' : undefined,
+                        onBlur: ({ value }) => (!value || value.length === 0) ? 'Debes asignar al menos un rol al usuario' : undefined,
+                    }}
+                >
                     {(field) => {
-                        const hasError = () => (field().state.meta.isTouched || hasAttemptedSubmit()) && field().state.meta.errors.length > 0;
-                        const errorMsg = () => field().state.meta.errors[0];
+                        const hasError = () => (field().state.meta.isTouched || hasAttemptedSubmit()) && (!field().state.value || field().state.value.length === 0);
+                        const errorMsg = () => field().state.meta.errors[0] || 'Debes asignar al menos un rol al usuario';
                         return (
                             <div class="space-y-1">
                                 <UserRolePicker
                                     roles={props.roles}
                                     rolesLoading={props.rolesLoading}
                                     selectedRoleIds={field().state.value ?? []}
-                                    onChange={(ids) => field().handleChange(ids)}
+                                    onChange={(ids) => {
+                                        field().handleChange(ids);
+                                        field().handleBlur();
+                                    }}
                                     disabled={props.isSubmitting || isAlreadyMember()}
                                 />
                                 <Show when={hasError()}>
-                                    <p class="text-xs text-danger font-medium mt-1" role="alert">
+                                    <p class="text-xs text-danger font-medium mt-1 animate-in fade-in duration-150" role="alert">
                                         {String(errorMsg())}
                                     </p>
                                 </Show>

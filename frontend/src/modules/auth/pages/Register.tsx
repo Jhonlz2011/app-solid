@@ -1,36 +1,21 @@
-import { Component, createSignal, Show, For, onCleanup, createEffect } from 'solid-js';
+import { Component, createSignal, Show, For, createEffect } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useNavigate } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
-import { RegisterStep1Schema, RegisterStep2Schema, type RegisterStep1Data } from '@app/schema/frontend';
-import { BUSINESS_TYPES, TAX_REGIME_TYPES } from '@app/schema/enums';
+import { RegisterStep1Schema, RegisterStep2Schema } from '@app/schema/frontend';
 import { isGlobalPortalHost, buildTenantUrl } from '@app/schema/utils';
 import { authApi } from '@modules/auth/api/auth.api';
 import { authClient } from '@shared/lib/auth-client';
 import { fetchUserOrganizations, invalidateOrgCache } from '../utils/resolve-routing';
 import { actions, useAuth } from '@modules/auth/store/auth.store';
 import TextField from '@form/TextField';
-import { FieldLabel } from '@form/TextField';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
-import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem, SegmentedControlItemInput, SegmentedControlItemLabel } from '@form/SegmentedControl';
 import Button from '@form/Button';
 import OAuthButtons from '../components/OAuthButtons';
-import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
+import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import Turnstile from '@shared/ui/Turnstile';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
-
-// ─── Option types for Select ───
-interface SelectOption { value: string; label: string }
-
-const businessTypeOptions: SelectOption[] = [...BUSINESS_TYPES].map(bt => ({
-    value: bt, label: bt.charAt(0) + bt.slice(1).toLowerCase(),
-}));
-
-const taxRegimeOptions: SelectOption[] = [
-    { value: 'GENERAL', label: 'Régimen General' },
-    { value: 'RIMPE_NEGOCIO_POPULAR', label: 'RIMPE - Negocio Popular' },
-    { value: 'RIMPE_EMPRENDEDOR', label: 'RIMPE - Emprendedor' },
-];
+import CompanyFields, { type CompanyFieldsStatus } from '../components/CompanyFields';
+import CompanySummaryCard from '../components/CompanySummaryCard';
 
 // ─── Step Indicator ───
 const Stepper: Component<{ current: number; isOAuth?: boolean }> = (props) => {
@@ -45,7 +30,9 @@ const Stepper: Component<{ current: number; isOAuth?: boolean }> = (props) => {
                         'bg-card-alt text-muted border border-border'
                     }`}>
                         <Show when={i() < props.current} fallback={i() + 1}>
-                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                            </svg>
                         </Show>
                     </div>
                     <span class={`text-xs font-medium hidden sm:inline ${i() <= props.current ? 'text-text' : 'text-muted'}`}>{label}</span>
@@ -100,14 +87,10 @@ const Register: Component = () => {
     const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
     let turnstileActions: { reset: () => void } | undefined;
 
-    // Slug availability
-    const [slugAvailable, setSlugAvailable] = createSignal<boolean | null>(null);
-    const [slugChecking, setSlugChecking] = createSignal(false);
-    // RUC availability
-    const [rucAvailable, setRucAvailable] = createSignal<boolean | null>(null);
-    const [rucChecking, setRucChecking] = createSignal(false);
-
     const [submitting, setSubmitting] = createSignal(false);
+
+    // Status from CompanyFields
+    let step2FieldsStatus: CompanyFieldsStatus | undefined;
 
     // ─── STEP 1 FORM ───
     const step1Form = createForm(() => ({
@@ -124,6 +107,13 @@ const Register: Component = () => {
             setStep(1);
         },
     }));
+
+    // Auto-redirect authenticated users with existing companies to /create-company
+    createEffect(() => {
+        if (auth.isAuthenticated() && (auth.user()?.companySlug || (auth.user()?.companyId && auth.user()?.companyId !== 0))) {
+            navigate({ to: '/create-company', replace: true });
+        }
+    });
 
     // Auto-onboarding for OAuth user reactively when user session becomes available
     createEffect(() => {
@@ -143,11 +133,13 @@ const Register: Component = () => {
     // ─── STEP 2 FORM ───
     const step2Form = createForm(() => ({
         defaultValues: {
-            slug: '', ruc: '', businessName: '',
+            slug: '',
+            ruc: '',
+            businessName: '',
             tradeName: undefined as string | undefined,
             businessType: '',
             mainAddress: undefined as string | undefined,
-            taxRegime: 'GENERAL' as typeof TAX_REGIME_TYPES[number] | undefined,
+            taxRegime: 'GENERAL' as const,
             obligadoContabilidad: false,
             contribuyenteEspecial: undefined as string | undefined,
         },
@@ -156,42 +148,6 @@ const Register: Component = () => {
             setStep(2);
         },
     }));
-
-    const taxRegime = step2Form.useStore((s) => s.values.taxRegime);
-
-    // ─── Slug debounce ───
-    let slugTimer: ReturnType<typeof setTimeout>;
-    onCleanup(() => clearTimeout(slugTimer));
-    const checkSlug = (slug: string) => {
-        clearTimeout(slugTimer);
-        setSlugAvailable(null);
-        if (slug.length < 3) return;
-        setSlugChecking(true);
-        slugTimer = setTimeout(async () => {
-            try {
-                const res = await authApi.checkSlug(slug);
-                setSlugAvailable(res.available);
-            } catch { setSlugAvailable(null); }
-            finally { setSlugChecking(false); }
-        }, 500);
-    };
-
-    // ─── RUC debounce ───
-    let rucTimer: ReturnType<typeof setTimeout>;
-    onCleanup(() => clearTimeout(rucTimer));
-    const checkRuc = (ruc: string) => {
-        clearTimeout(rucTimer);
-        setRucAvailable(null);
-        if (ruc.length !== 13) return;
-        setRucChecking(true);
-        rucTimer = setTimeout(async () => {
-            try {
-                const res = await authApi.checkRuc(ruc);
-                setRucAvailable(res.available);
-            } catch { setRucAvailable(null); }
-            finally { setRucChecking(false); }
-        }, 500);
-    };
 
     // ─── Final Submit ───
     const handleFinalSubmit = async () => {
@@ -238,10 +194,17 @@ const Register: Component = () => {
 
             // Caso Registro Estándar (Email + Password)
             await authApi.register({
-                fullName: s1.fullName, username: s1.username, email: s1.email, password: s1.password,
-                phone: s1.phone || undefined, cedula: s1.cedula || undefined,
-                slug: s2.slug, ruc: s2.ruc, businessName: s2.businessName,
-                tradeName: s2.tradeName || undefined, businessType: s2.businessType || undefined,
+                fullName: s1.fullName,
+                username: s1.username,
+                email: s1.email,
+                password: s1.password,
+                phone: s1.phone || undefined,
+                cedula: s1.cedula || undefined,
+                slug: s2.slug,
+                ruc: s2.ruc,
+                businessName: s2.businessName,
+                tradeName: s2.tradeName || undefined,
+                businessType: s2.businessType || undefined,
                 mainAddress: s2.mainAddress || undefined,
                 obligadoContabilidad: s2.obligadoContabilidad || undefined,
                 contribuyenteEspecial: s2.contribuyenteEspecial || undefined,
@@ -282,11 +245,17 @@ const Register: Component = () => {
                 navigate({ to: '/dashboard', replace: true });
             }
         } catch (err: any) {
-            // Reset token on failure — widget will auto-refresh
             setTurnstileToken(null);
             turnstileActions?.reset();
             toast.error(getFriendlyErrorMessage(err, 'Error al registrar la empresa'));
-        } finally { setSubmitting(false); }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const isStep2NextDisabled = () => {
+        if (!step2FieldsStatus) return false;
+        return !step2FieldsStatus.isValidForSubmit();
     };
 
     return (
@@ -298,89 +267,89 @@ const Register: Component = () => {
                 <h2 class="text-2xl font-bold mb-1 text-dark">Crear cuenta</h2>
                 <p class="text-muted text-sm mb-5">Ingresa tus datos personales</p>
                 <FormSubmissionContext.Provider value={step1Submitted}>
-                <form onSubmit={(e) => { e.preventDefault(); setStep1Submitted(true); step1Form.handleSubmit(); }} class="flex flex-col gap-4" novalidate>
-                    <step1Form.Field name="fullName" children={(f) => (
-                        <TextField.Root field={f()}>
-                            <TextField.Label>Nombre completo</TextField.Label>
-                            <TextField.Input type="text" placeholder="Ej: Juan Pérez" autocomplete="name" />
-                            <TextField.ErrorMessage />
-                        </TextField.Root>
-                    )} />
-                    <step1Form.Field name="username" children={(f) => (
-                        <TextField.Root field={f()}>
-                            <TextField.Label>Nombre de usuario</TextField.Label>
-                            <TextField.Input type="text" placeholder="ej: juan.perez" autocomplete="username"
-                                onInput={(e) => {
-                                    const v = e.currentTarget.value.toLowerCase().replace(/[^a-z0-9._-]/g, '');
-                                    e.currentTarget.value = v;
-                                    f().handleChange(v);
-                                }} />
-                            <TextField.ErrorMessage />
-                        </TextField.Root>
-                    )} />
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <step1Form.Field name="phone" children={(f) => (
+                    <form onSubmit={(e) => { e.preventDefault(); setStep1Submitted(true); step1Form.handleSubmit(); }} class="flex flex-col gap-4" novalidate>
+                        <step1Form.Field name="fullName" children={(f) => (
                             <TextField.Root field={f()}>
-                                <TextField.Label>Teléfono</TextField.Label>
-                                <TextField.Input type="tel" placeholder="0999999999" />
+                                <TextField.Label>Nombre completo</TextField.Label>
+                                <TextField.Input type="text" placeholder="Ej: Juan Pérez" autocomplete="name" />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )} />
-                        <step1Form.Field name="cedula" children={(f) => (
+                        <step1Form.Field name="username" children={(f) => (
                             <TextField.Root field={f()}>
-                                <TextField.Label>Cédula</TextField.Label>
-                                <TextField.Input type="text" placeholder="0912345678" />
+                                <TextField.Label>Nombre de usuario</TextField.Label>
+                                <TextField.Input type="text" placeholder="ej: juan.perez" autocomplete="username"
+                                    onInput={(e) => {
+                                        const v = e.currentTarget.value.toLowerCase().replace(/[^a-z0-9._-]/g, '');
+                                        e.currentTarget.value = v;
+                                        f().handleChange(v);
+                                    }} />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )} />
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-                        <step1Form.Field name="email" children={(f) => (
-                            <TextField.Root field={f()}>
-                                <TextField.Label>Correo electrónico</TextField.Label>
-                                <TextField.Input type="email" placeholder="correo@ejemplo.com" autocomplete="email" disabled={isOAuthUser()} />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                        )} />
-                        <Show when={!isOAuthUser()}>
-                            <step1Form.Field name="password" children={(f) => (
-                                <div class="flex flex-col gap-1">
-                                    <TextField.Root field={f()}>
-                                        <TextField.Label>Contraseña</TextField.Label>
-                                        <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
-                                        <TextField.ErrorMessage />
-                                    </TextField.Root>
-                                    <PasswordStrength password={f().state.value} />
-                                </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <step1Form.Field name="phone" children={(f) => (
+                                <TextField.Root field={f()}>
+                                    <TextField.Label>Teléfono</TextField.Label>
+                                    <TextField.Input type="tel" placeholder="0999999999" />
+                                    <TextField.ErrorMessage />
+                                </TextField.Root>
                             )} />
-                        </Show>
-                    </div>
-                    <step1Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting, isDirty: s.isDirty })}
-                        children={(s) => (
-                            <Button class="mt-1" type="submit" fullWidth disabled={(!isOAuthUser() && !s().isDirty) || s().isSubmitting}
-                                loading={s().isSubmitting} loadingText="Validando…">
-                                Siguiente
-                            </Button>
-                        )} />
-
-                    {/* ── OAuth Social Providers ── */}
-                    <Show when={!isOAuthUser()}>
-                        <div class="relative flex items-center justify-center my-2">
-                            <div class="grow border-t border-border" />
-                            <span class="px-3 text-xs text-muted font-medium uppercase tracking-wider bg-card">o regístrate con</span>
-                            <div class="grow border-t border-border" />
+                            <step1Form.Field name="cedula" children={(f) => (
+                                <TextField.Root field={f()}>
+                                    <TextField.Label>Cédula</TextField.Label>
+                                    <TextField.Input type="text" placeholder="0912345678" />
+                                    <TextField.ErrorMessage />
+                                </TextField.Root>
+                            )} />
                         </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                            <step1Form.Field name="email" children={(f) => (
+                                <TextField.Root field={f()}>
+                                    <TextField.Label>Correo electrónico</TextField.Label>
+                                    <TextField.Input type="email" placeholder="correo@ejemplo.com" autocomplete="email" disabled={isOAuthUser()} />
+                                    <TextField.ErrorMessage />
+                                </TextField.Root>
+                            )} />
+                            <Show when={!isOAuthUser()}>
+                                <step1Form.Field name="password" children={(f) => (
+                                    <div class="flex flex-col gap-1">
+                                        <TextField.Root field={f()}>
+                                            <TextField.Label>Contraseña</TextField.Label>
+                                            <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+                                            <TextField.ErrorMessage />
+                                        </TextField.Root>
+                                        <PasswordStrength password={f().state.value} />
+                                    </div>
+                                )} />
+                            </Show>
+                        </div>
+                        <step1Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting, isDirty: s.isDirty })}
+                            children={(s) => (
+                                <Button class="mt-1" type="submit" fullWidth disabled={(!isOAuthUser() && !s().isDirty) || s().isSubmitting}
+                                    loading={s().isSubmitting} loadingText="Validando…">
+                                    Siguiente
+                                </Button>
+                            )} />
 
-                        <OAuthButtons mode="register" />
-                    </Show>
+                        {/* ── OAuth Social Providers ── */}
+                        <Show when={!isOAuthUser()}>
+                            <div class="relative flex items-center justify-center my-2">
+                                <div class="grow border-t border-border" />
+                                <span class="px-3 text-xs text-muted font-medium uppercase tracking-wider bg-card">o regístrate con</span>
+                                <div class="grow border-t border-border" />
+                            </div>
 
-                    <div class="text-sm text-muted mt-2 text-center">
-                        ¿Ya tienes cuenta?{' '}
-                        <a href="/login" class="text-primary hover:underline font-medium" onClick={(e) => { e.preventDefault(); navigate({ to: '/login', search: { redirect: undefined } }); }}>
-                            Inicia sesión
-                        </a>
-                    </div>
-                </form>
+                            <OAuthButtons mode="register" />
+                        </Show>
+
+                        <div class="text-sm text-muted mt-2 text-center">
+                            ¿Ya tienes cuenta?{' '}
+                            <a href="/login" class="text-primary hover:underline font-medium" onClick={(e) => { e.preventDefault(); navigate({ to: '/login', search: { redirect: undefined } }); }}>
+                                Inicia sesión
+                            </a>
+                        </div>
+                    </form>
                 </FormSubmissionContext.Provider>
             </Show>
 
@@ -395,206 +364,25 @@ const Register: Component = () => {
                 <h2 class="text-2xl font-bold mb-1 text-dark">Datos de empresa</h2>
                 <p class="text-muted text-sm mb-5">Configuración de tu negocio</p>
                 <FormSubmissionContext.Provider value={step2Submitted}>
-                <form onSubmit={(e) => { e.preventDefault(); setStep2Submitted(true); step2Form.handleSubmit(); }} class="flex flex-col gap-4" novalidate>
-                    {/* Slug */}
-                    <step2Form.Field name="slug" children={(f) => (
-                        <div>
-                            <TextField.Root field={f()}>
-                                <TextField.Label>Identificador único (slug)</TextField.Label>
-                                <TextField.Input type="text" placeholder="mi-empresa"
-                                    onInput={(e) => {
-                                        const v = e.currentTarget.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-                                        e.currentTarget.value = v;
-                                        f().handleChange(v);
-                                        checkSlug(v);
-                                    }} />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                            <Show when={f().state.value.length >= 3}>
-                                <div class="text-xs ml-1 mt-1">
-                                    <Show when={slugChecking()}>
-                                        <span class="text-muted">Verificando…</span>
-                                    </Show>
-                                    <Show when={!slugChecking() && slugAvailable() === true}>
-                                        <span class="text-success">✓ Disponible</span>
-                                    </Show>
-                                    <Show when={!slugChecking() && slugAvailable() === false}>
-                                        <span class="text-danger">✗ No disponible</span>
-                                    </Show>
-                                </div>
-                            </Show>
+                    <form onSubmit={(e) => { e.preventDefault(); setStep2Submitted(true); step2Form.handleSubmit(); }} class="flex flex-col gap-4" novalidate>
+                        <CompanyFields
+                            form={step2Form}
+                            stepSubmitted={step2Submitted}
+                            onStatusChange={(s) => { step2FieldsStatus = s; }}
+                        />
+
+                        <div class="flex gap-3 mt-1">
+                            <Button variant="outline" type="button" onClick={() => setStep(0)}>Atrás</Button>
+                            <step2Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting })}
+                                children={(s) => (
+                                    <Button type="submit" fullWidth
+                                        disabled={isStep2NextDisabled() || s().isSubmitting}
+                                        loading={s().isSubmitting} loadingText="Validando…">
+                                        Siguiente
+                                    </Button>
+                                )} />
                         </div>
-                    )} />
-
-                    {/* Business Type — Kobalte Select */}
-                    <step2Form.Field name="businessType" children={(f) => (
-                        <div class="flex flex-col gap-1.5">
-                            <FieldLabel>Tipo de negocio</FieldLabel>
-                            <Select
-                                value={businessTypeOptions.find(o => o.value === f().state.value)}
-                                onChange={(opt) => opt && f().handleChange(opt.value)}
-                                options={businessTypeOptions}
-                                optionValue="value"
-                                optionTextValue="label"
-                                placeholder="Seleccione..."
-                                itemComponent={(itemProps) => (
-                                    <SelectItem item={itemProps.item}>
-                                        {itemProps.item.rawValue.label}
-                                    </SelectItem>
-                                )}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue<SelectOption>>
-                                        {(state) => state.selectedOption()?.label}
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent />
-                            </Select>
-                            <Show when={step2Submitted() && hasFieldError(f())}>
-                                <small class="text-xs text-danger font-medium ml-1">{getFieldError(f())}</small>
-                            </Show>
-                        </div>
-                    )} />
-
-                    {/* RUC + Business Name */}
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <step2Form.Field name="ruc" children={(f) => (
-                            <div>
-                                <TextField.Root field={f()}>
-                                    <TextField.Label>RUC</TextField.Label>
-                                    <TextField.Input type="text" placeholder="0990123456001" maxLength={13}
-                                        onInput={(e) => {
-                                            const v = e.currentTarget.value.replace(/\D/g, '');
-                                            e.currentTarget.value = v;
-                                            f().handleChange(v);
-                                            checkRuc(v);
-                                        }} />
-                                    <TextField.ErrorMessage />
-                                </TextField.Root>
-                                <Show when={f().state.value.length === 13}>
-                                    <div class="text-xs ml-1 mt-1">
-                                        <Show when={rucChecking()}>
-                                            <span class="text-muted">Verificando…</span>
-                                        </Show>
-                                        <Show when={!rucChecking() && rucAvailable() === true}>
-                                            <span class="text-success">✓ RUC disponible</span>
-                                        </Show>
-                                        <Show when={!rucChecking() && rucAvailable() === false}>
-                                            <span class="text-danger">✗ RUC ya registrado</span>
-                                        </Show>
-                                    </div>
-                                </Show>
-                            </div>
-                        )} />
-                        <step2Form.Field name="businessName" children={(f) => (
-                            <TextField.Root field={f()}>
-                                <TextField.Label>Razón Social</TextField.Label>
-                                <TextField.Input type="text" placeholder="Empresa S.A." />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                        )} />
-                    </div>
-
-                    {/* Trade Name */}
-                    <step2Form.Field name="tradeName" children={(f) => (
-                        <TextField.Root field={f()}>
-                            <TextField.Label>Nombre Comercial (opcional)</TextField.Label>
-                            <TextField.Input type="text" placeholder="Nombre visible al público" />
-                        </TextField.Root>
-                    )} />
-
-                    {/* Address */}
-                    <step2Form.Field name="mainAddress" children={(f) => (
-                        <TextField.Root field={f()}>
-                            <TextField.Label>Dirección Matriz (opcional)</TextField.Label>
-                            <TextField.Input type="text" placeholder="Av. Principal y Calle Secundaria" />
-                        </TextField.Root>
-                    )} />
-
-                    {/* Tax Regime + Contabilidad */}
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <step2Form.Field name="taxRegime" children={(f) => (
-                            <div class="flex flex-col gap-1.5">
-                                <FieldLabel>Régimen Tributario (opcional)</FieldLabel>
-                                <Select
-                                    value={taxRegimeOptions.find(o => o.value === f().state.value)}
-                                    onChange={(opt) => {
-                                        const val = opt?.value;
-                                        f().handleChange(val as any);
-                                        if (val === 'RIMPE_NEGOCIO_POPULAR') {
-                                            step2Form.setFieldValue('obligadoContabilidad', false);
-                                            step2Form.setFieldValue('contribuyenteEspecial', '');
-                                        } else if (val === 'RIMPE_EMPRENDEDOR') {
-                                            step2Form.setFieldValue('contribuyenteEspecial', '');
-                                        }
-                                    }}
-                                    options={taxRegimeOptions}
-                                    optionValue="value"
-                                    optionTextValue="label"
-                                    placeholder="Seleccione..."
-                                    itemComponent={(itemProps) => (
-                                        <SelectItem item={itemProps.item}>
-                                            {itemProps.item.rawValue.label}
-                                        </SelectItem>
-                                    )}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue<SelectOption>>
-                                            {(state) => state.selectedOption()?.label}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent />
-                                </Select>
-                            </div>
-                        )} />
-                        <step2Form.Field name="obligadoContabilidad" children={(f) => (
-                            <div class="flex flex-col gap-1.5">
-                                <FieldLabel>¿Lleva contabilidad?</FieldLabel>
-                                <SegmentedControl
-                                    value={f().state.value ? 'true' : 'false'}
-                                    onChange={(val) => f().handleChange(val === 'true')}
-                                    disabled={taxRegime() === 'RIMPE_NEGOCIO_POPULAR'}
-                                >
-                                    <SegmentedControlIndicator />
-                                    <SegmentedControlItem value="false">
-                                        <SegmentedControlItemInput />
-                                        <SegmentedControlItemLabel>No</SegmentedControlItemLabel>
-                                    </SegmentedControlItem>
-                                    <SegmentedControlItem value="true">
-                                        <SegmentedControlItemInput />
-                                        <SegmentedControlItemLabel>Sí</SegmentedControlItemLabel>
-                                    </SegmentedControlItem>
-                                </SegmentedControl>
-                                <Show when={step2Submitted() && hasFieldError(f())}>
-                                    <small class="text-xs text-danger font-medium ml-1">{getFieldError(f())}</small>
-                                </Show>
-                            </div>
-                        )} />
-                    </div>
-
-                    {/* Contribuyente Especial */}
-                    <step2Form.Field name="contribuyenteEspecial" children={(f) => (
-                        <TextField.Root 
-                            field={f()}
-                            disabled={taxRegime() === 'RIMPE_NEGOCIO_POPULAR' || taxRegime() === 'RIMPE_EMPRENDEDOR'}
-                        >
-                            <TextField.Label>Contribuyente Especial (opcional)</TextField.Label>
-                            <TextField.Input type="text" placeholder="Nro. Resolución" />
-                        </TextField.Root>
-                    )} />
-
-                    <div class="flex gap-3 mt-1">
-                        <Button variant="outline" type="button" onClick={() => setStep(0)}>Atrás</Button>
-                        <step2Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting })}
-                            children={(s) => (
-                                <Button type="submit" fullWidth
-                                    disabled={slugAvailable() === false || rucAvailable() === false || s().isSubmitting}
-                                    loading={s().isSubmitting} loadingText="Validando…">
-                                    Siguiente
-                                </Button>
-                            )} />
-                    </div>
-                </form>
+                    </form>
                 </FormSubmissionContext.Provider>
             </Show>
 
@@ -617,27 +405,12 @@ const Register: Component = () => {
                             <Show when={step1Form.state.values.cedula}><span class="text-muted">Cédula:</span><span class="text-text">{step1Form.state.values.cedula}</span></Show>
                         </div>
                     </div>
-                    {/* Company Summary */}
-                    <div class="bg-card-alt border border-border rounded-xl p-4 space-y-2 mb-3">
-                        <h3 class="text-sm font-semibold text-primary flex items-center gap-2">
-                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd" /></svg>
-                            Datos de la Empresa
-                        </h3>
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                            <span class="text-muted">Slug:</span><span class="text-text font-medium">{step2Form.state.values.slug}</span>
-                            <span class="text-muted">RUC:</span><span class="text-text font-medium">{step2Form.state.values.ruc}</span>
-                            <span class="text-muted">Razón Social:</span><span class="text-text font-medium">{step2Form.state.values.businessName}</span>
-                            <Show when={step2Form.state.values.tradeName}><span class="text-muted">Nombre Comercial:</span><span class="text-text">{step2Form.state.values.tradeName}</span></Show>
-                            <Show when={step2Form.state.values.businessType}><span class="text-muted">Tipo:</span><span class="text-text">{step2Form.state.values.businessType}</span></Show>
-                            <Show when={step2Form.state.values.taxRegime}>
-                                <span class="text-muted">Régimen:</span>
-                                <span class="text-text">{taxRegimeOptions.find(o => o.value === step2Form.state.values.taxRegime)?.label ?? step2Form.state.values.taxRegime}</span>
-                            </Show>
-                            <span class="text-muted">Contabilidad:</span><span class="text-text">{step2Form.state.values.obligadoContabilidad ? 'Sí' : 'No'}</span>
-                        </div>
-                    </div>
+
+                    {/* Company Summary (DRY component) */}
+                    <CompanySummaryCard data={step2Form.state.values} />
                 </div>
-                {/* Cloudflare Turnstile — rendered just before final submit */}
+
+                {/* Cloudflare Turnstile */}
                 <Turnstile
                     action="register"
                     ref={(act) => { turnstileActions = act; }}
@@ -645,7 +418,8 @@ const Register: Component = () => {
                     onExpire={() => setTurnstileToken(null)}
                     onError={() => setTurnstileToken(null)}
                 />
-                <div class="flex gap-3">
+
+                <div class="flex gap-3 pt-2">
                     <Button variant="outline" type="button" onClick={() => setStep(1)} disabled={submitting()}>Atrás</Button>
                     <Button
                         fullWidth

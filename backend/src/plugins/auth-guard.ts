@@ -48,14 +48,11 @@ export const authGuard = (app: Elysia) => app
           .limit(1);
 
         if (hostCompany) {
-          // If user's active org doesn't match the subdomain, deny access
-          if (resolvedCompanyId && hostCompany.id !== resolvedCompanyId) {
-            set.status = 403;
-            throw new UnauthorizedError('Acceso denegado a este inquilino');
-          }
-
-          // If no active org set, verify user actually belongs to this host company
-          if (!resolvedCompanyId) {
+          // If active org already matches host company, keep it
+          if (resolvedCompanyId && hostCompany.id === resolvedCompanyId) {
+            // active organization matches host
+          } else {
+            // Verify if user is an authorized member of this host company
             let isAuthorizedMember = false;
 
             if (hostCompany.organization_id) {
@@ -82,6 +79,7 @@ export const authGuard = (app: Elysia) => app
               throw new UnauthorizedError('Acceso denegado a este inquilino');
             }
 
+            // User is a valid member: activate this company context for the request
             resolvedCompanyId = hostCompany.id;
           }
         }

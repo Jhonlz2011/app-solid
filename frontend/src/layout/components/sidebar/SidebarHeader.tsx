@@ -239,7 +239,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                             <DropdownMenu.Separator />
 
                             <DropdownMenu.Item
-                                to="/register"
+                                to="/create-company"
                                 class="flex items-center gap-2 px-2 py-2 text-xs font-medium text-primary hover:bg-primary/10 rounded-xl"
                             >
                                 <PlusIcon class="size-3.5" />
