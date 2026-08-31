@@ -94,7 +94,6 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                         size="icon"
                         onClick={handleLogout}
                         disabled={isLoggingOut()}
-                        loading={isLoggingOut()}
                         class="text-danger hover:text-danger hover:bg-danger/10 focus-visible:ring-danger/55 focus-visible:ring-2 focus-visible:ring-offset-transparent h-8 w-8"
                         title="Cerrar Sesión"
                         aria-label="Cerrar Sesión"

@@ -80,7 +80,7 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
                                             </div>
                                             {/* Lock Icon for development items */}
                                             <Show when={isDevelopment()}>
-                                                <div class="flex items-center justify-center size-5 bg-card/50 rounded border border-border/50 shrink-0 shadow-xs group-hover:bg-card group-hover:border-border/80 transition-colors">
+                                                <div class="flex items-center justify-center size-5 bg-card/50 rounded border border-border/50 shrink-0 shadow-xs group-hover:bg-card group-hover:border-border/80">
                                                     <LockIcon class="size-3 text-muted/60" />
                                                 </div>
                                             </Show>
