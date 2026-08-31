@@ -7,7 +7,7 @@ import { supplierKeys } from '../data/suppliers.keys';
 import { supplierQueries } from '../data/suppliers.queries';
 import { supplierMutations } from '../data/suppliers.mutations';
 import { createSupplierColumns } from '../data/supplier.columns';
-import { taxIdTypeLabels, personTypeLabels } from '@modules/entities/models/entity.types';
+import { taxIdTypeDisplayLabels, personTypeLabels } from '@shared/constants/entity-labels';
 
 const SuppliersPage: Component = () => {
     const state = useEntityState({
@@ -19,7 +19,7 @@ const SuppliersPage: Component = () => {
         sseRoom: 'suppliers',
         permissionKey: 'suppliers',
         entityNamePlural: 'proveedores',
-        taxIdTypeLabels,
+        taxIdTypeDisplayLabels,
         personTypeLabels,
     });
 

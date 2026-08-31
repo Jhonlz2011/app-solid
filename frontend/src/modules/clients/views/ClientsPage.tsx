@@ -7,7 +7,7 @@ import { clientKeys } from '../data/clients.keys';
 import { clientQueries } from '../data/clients.queries';
 import { clientMutations } from '../data/clients.mutations';
 import { createClientColumns } from '../data/client.columns';
-import { taxIdTypeLabels, personTypeLabels } from '@modules/entities/models/entity.types';
+import { taxIdTypeDisplayLabels, personTypeLabels } from '@shared/constants/entity-labels';
 
 const ClientsPage: Component = () => {
     const state = useEntityState({
@@ -19,7 +19,7 @@ const ClientsPage: Component = () => {
         sseRoom: 'clients',
         permissionKey: 'clients',
         entityNamePlural: 'clientes',
-        taxIdTypeLabels,
+        taxIdTypeDisplayLabels,
         personTypeLabels,
     });
 

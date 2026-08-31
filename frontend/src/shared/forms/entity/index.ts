@@ -2,10 +2,6 @@ export { EntityForm, type EntityFormProps } from './EntityForm';
 export {
     createDefaultEntityFormValues,
     mapEntityDetailToFormData,
-    taxIdTypeLabels,
-    personTypeLabels,
-    taxRegimeTypeLabels,
-    roleLabels,
     EMPTY_EMPLOYEE_DETAILS,
     EMPTY_CARRIER_VEHICLE,
     EMPTY_CARRIER_DRIVER,

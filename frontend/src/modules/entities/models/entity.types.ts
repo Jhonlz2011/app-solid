@@ -9,20 +9,8 @@ import {
     getLabelOrFallback,
 } from '@shared/constants/entity-labels';
 
-export type {
-    EntityFilters,
-    EntityReferencesType,
-    EntityPickerType,
-    EntityDetailType,
-    EntityType,
-} from '@app/schema/dto';
-
-export const taxIdTypeLabels = taxIdTypeDisplayLabels;
-export { personTypeLabels };
-export const taxRegimeTypeLabels = taxRegimeTypeDisplayLabels;
-
 export const getTaxIdTypeLabel = (type: string | null | undefined): string => {
-    return getLabelOrFallback(taxIdTypeLabels, type, 'RUC');
+    return getLabelOrFallback(taxIdTypeDisplayLabels, type, 'RUC');
 };
 
 export const getPersonTypeLabel = (type: string | null | undefined): string => {
@@ -30,6 +18,6 @@ export const getPersonTypeLabel = (type: string | null | undefined): string => {
 };
 
 export const getTaxRegimeTypeLabel = (type: string | null | undefined): string => {
-    return getLabelOrFallback(taxRegimeTypeLabels, type, 'No especificado');
+    return getLabelOrFallback(taxRegimeTypeDisplayLabels, type, 'No especificado');
 };
 

@@ -9,20 +9,13 @@ import type { TaxIdTypeForm, PersonType, TaxRegimeType, SalaryType, ContractType
 import { TAX_ID_TYPES_FORM, CONTRACT_TYPES, BANK_ACCOUNT_TYPES, DEFAULT_SBU, MONTHLY_WORK_HOURS } from '@app/schema/enums';
 import type { EntityDetailType } from '@app/schema/dto';
 import {
-    taxIdTypeFormLabels,
+    taxIdTypeDisplayLabels,
     personTypeLabels,
     taxRegimeTypeLabels,
     contractTypeLabels,
     bankAccountTypeLabels,
     roleLabels,
 } from '@shared/constants/entity-labels';
-
-// =============================================================================
-// Re-export Centralized Labels & Maps
-// =============================================================================
-
-export { personTypeLabels, taxRegimeTypeLabels, contractTypeLabels, bankAccountTypeLabels, roleLabels };
-export const taxIdTypeLabels = taxIdTypeFormLabels;
 
 // =============================================================================
 // Select Option Types
@@ -35,7 +28,7 @@ export interface SelectOption<T extends string> {
 }
 
 export const taxIdTypeOptions: SelectOption<TaxIdTypeForm>[] = TAX_ID_TYPES_FORM.map(
-    (value) => ({ value, label: taxIdTypeLabels[value] })
+    (value) => ({ value, label: taxIdTypeDisplayLabels[value] })
 );
 
 export const personTypeOptions: SelectOption<PersonType>[] = [

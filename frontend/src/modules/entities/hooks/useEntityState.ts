@@ -30,7 +30,7 @@ interface UseEntityStateConfig {
     createColumns: (props: any) => any;
     sseRoom: string;
     permissionKey: string;
-    taxIdTypeLabels?: Record<string, string>;
+    taxIdTypeDisplayLabels?: Record<string, string>;
     personTypeLabels?: Record<string, string>;
     entityNamePlural?: string; // e.g., 'proveedores'
     entityNameSingular?: string; // e.g., 'proveedor'
@@ -173,7 +173,7 @@ export function useEntityState(config: UseEntityStateConfig) {
 
     // ─── Filter Options ──────────────────────────────────────────
     const businessNameFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'business_name'));
-    const taxIdTypeFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'tax_id_type', config.taxIdTypeLabels));
+    const taxIdTypeFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'tax_id_type', config.taxIdTypeDisplayLabels));
     const personTypeFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'person_type', config.personTypeLabels));
     const isActiveFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'is_active', isActiveLabels));
 
