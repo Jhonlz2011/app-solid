@@ -1,7 +1,11 @@
 import { pipe, string, minLength, email, object, boolean, array, number, optional, nullable, union, literal, type InferInput } from 'valibot';
 
 export const UserCreateSchema = object({
-    email: pipe(string(), email('Correo electrónico inválido')),
+    email: pipe(
+        string('El correo electrónico es requerido'),
+        minLength(1, 'El correo electrónico es requerido'),
+        email('Ingresa un correo electrónico válido')
+    ),
     roleIds: pipe(array(number()), minLength(1, 'Debes asignar al menos un rol al usuario')),
     entityId: optional(nullable(string())),
     username: optional(union([pipe(string(), minLength(3, 'El usuario debe tener al menos 3 caracteres')), literal('')])),

@@ -1,11 +1,10 @@
 import { Component, createSignal, Show } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
-import { safeParse } from 'valibot';
 import { UserUpdateSchema, type UserUpdateData } from '@app/schema/frontend';
 import type { RoleType } from '@app/schema/dto';
 import { FieldLabel } from '@form/TextField';
 import { EntitySelect } from '@shared/ui/selectors';
-import { FormSubmissionContext } from '@shared/ui/form/form.types';
+import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import { handleFormApiErrors } from '@shared/utils/form.utils';
 import { UserRolePicker } from './shared/UserRolePicker';
 import { UserPasswordResetSection } from './shared/UserPasswordResetSection';
@@ -32,16 +31,7 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
             entityId: props.defaultValues.entityId ?? null,
         } as UserUpdateData,
         validators: {
-            onSubmit: ({ value }) => {
-                if (!value.roleIds || value.roleIds.length === 0) {
-                    return 'El usuario debe tener al menos un rol asignado';
-                }
-                const parseRes = safeParse(UserUpdateSchema, value);
-                if (!parseRes.success) {
-                    return parseRes.issues[0]?.message || 'Datos del formulario inválidos';
-                }
-                return undefined;
-            },
+            onSubmit: UserUpdateSchema,
         },
         onSubmit: async ({ value }) => {
             try {
@@ -116,11 +106,12 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                     validators={{
                         onChange: ({ value }) => (!value || value.length === 0) ? 'El usuario debe tener al menos un rol asignado' : undefined,
                         onBlur: ({ value }) => (!value || value.length === 0) ? 'El usuario debe tener al menos un rol asignado' : undefined,
+                        onSubmit: ({ value }) => (!value || value.length === 0) ? 'El usuario debe tener al menos un rol asignado' : undefined,
                     }}
                 >
                     {(field) => {
-                        const hasError = () => (field().state.meta.isTouched || hasAttemptedSubmit()) && (!field().state.value || field().state.value.length === 0);
-                        const errorMsg = () => field().state.meta.errors[0] || 'El usuario debe tener al menos un rol asignado';
+                        const hasError = () => hasFieldError(field(), hasAttemptedSubmit());
+                        const errorMsg = () => getFieldError(field()) || 'El usuario debe tener al menos un rol asignado';
                         return (
                             <div class="space-y-1">
                                 <UserRolePicker

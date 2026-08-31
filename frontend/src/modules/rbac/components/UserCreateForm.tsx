@@ -1,12 +1,11 @@
 import { Component, createSignal, Show, createMemo, createEffect } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
-import { safeParse } from 'valibot';
 import { UserCreateSchema, type UserCreateData } from '@app/schema/frontend';
 import type { RoleType } from '@app/schema/dto';
 import { TextField, FieldLabel } from '@form/TextField';
 import { CardOption } from '@form/CardOption';
 import { EntitySelect } from '@shared/ui/selectors';
-import { FormSubmissionContext } from '@shared/ui/form/form.types';
+import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import { handleFormApiErrors } from '@shared/utils/form.utils';
 import { MailIcon } from '@icons/MailIcon';
 import { KeyIcon } from '@icons/KeyIcon';
@@ -45,29 +44,27 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
             password: undefined as string | undefined,
             roleIds: [] as number[],
             entityId: null as string | null,
+            mode: onboardingMode(),
         } as UserCreateData,
         validators: {
-            onSubmit: ({ value }) => {
-                if (!value.roleIds || value.roleIds.length === 0) {
-                    return 'Debes asignar al menos un rol al usuario';
-                }
-                const parseRes = safeParse(UserCreateSchema, value);
-                if (!parseRes.success) {
-                    return parseRes.issues[0]?.message || 'Datos del formulario inválidos';
-                }
-                if (onboardingMode() === 'direct' && !isExistingUser()) {
-                    if (!value.password || value.password.trim().length < 8) {
-                        return 'La contraseña es obligatoria (mínimo 8 caracteres) en credenciales directas';
-                    }
-                }
-                return undefined;
-            },
+            onSubmit: UserCreateSchema,
         },
         onSubmit: async ({ value }) => {
             try {
-                // If invite mode or existing user, clean up direct password so backend handles it cleanly
                 const isExisting = isExistingUser();
                 const isDirect = !isExisting && onboardingMode() === 'direct';
+
+                if (isDirect && (!value.password || value.password.trim().length < 8)) {
+                    form.setFieldMeta('password', (prev: any) => ({
+                        ...prev,
+                        errorMap: {
+                            ...prev?.errorMap,
+                            onSubmit: 'La contraseña es obligatoria (mínimo 8 caracteres)',
+                        },
+                    }));
+                    return;
+                }
+
                 const payload: UserCreateData = {
                     ...value,
                     mode: isExisting ? 'invite' : onboardingMode(),
@@ -197,7 +194,15 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                             onChange: ({ value }) => {
                                                 if (onboardingMode() === 'direct' && !isExistingUser()) {
                                                     if (!value || value.trim().length < 8) {
-                                                        return 'La contraseña es requerida y debe tener al menos 8 caracteres';
+                                                        return 'La contraseña es obligatoria (mínimo 8 caracteres)';
+                                                    }
+                                                }
+                                                return undefined;
+                                            },
+                                            onSubmit: ({ value }) => {
+                                                if (onboardingMode() === 'direct' && !isExistingUser()) {
+                                                    if (!value || value.trim().length < 8) {
+                                                        return 'La contraseña es obligatoria (mínimo 8 caracteres)';
                                                     }
                                                 }
                                                 return undefined;
@@ -240,11 +245,12 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                     validators={{
                         onChange: ({ value }) => (!value || value.length === 0) ? 'Debes asignar al menos un rol al usuario' : undefined,
                         onBlur: ({ value }) => (!value || value.length === 0) ? 'Debes asignar al menos un rol al usuario' : undefined,
+                        onSubmit: ({ value }) => (!value || value.length === 0) ? 'Debes asignar al menos un rol al usuario' : undefined,
                     }}
                 >
                     {(field) => {
-                        const hasError = () => (field().state.meta.isTouched || hasAttemptedSubmit()) && (!field().state.value || field().state.value.length === 0);
-                        const errorMsg = () => field().state.meta.errors[0] || 'Debes asignar al menos un rol al usuario';
+                        const hasError = () => hasFieldError(field(), hasAttemptedSubmit());
+                        const errorMsg = () => getFieldError(field()) || 'Debes asignar al menos un rol al usuario';
                         return (
                             <div class="space-y-1">
                                 <UserRolePicker
