@@ -110,7 +110,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                 class="flex flex-col gap-4 py-4"
             >
                 {/* ═══ 1. User Identity & Live Detection ═══ */}
-                <div class="space-y-1.5">
+                <div class="space-y-4">
                     <form.Field name="email">
                         {(field) => (
                             <TextField.Root field={field()} disabled={props.isSubmitting}>
@@ -143,11 +143,12 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                             </TextField.Root>
                         )}
                     </form.Field>
+                </div>
 
-                    {/* ── Mode selector for brand new users ── */}
+                 {/* ── Mode selector for brand new users ── */}
                     <Show when={!isExistingUser() && !isAlreadyMember()}>
-                        <div class="space-y-2 pt-1">
-                            <FieldLabel class="mb-1.5" tooltip="Selecciona cómo accederá el nuevo usuario a tu organización">
+                        <div class="space-y-2">
+                            <FieldLabel tooltip="Selecciona cómo accederá el nuevo usuario a tu organización">
                                 Método de Incorporación
                             </FieldLabel>
 
@@ -213,7 +214,6 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                             </Show>
                         </div>
                     </Show>
-                </div>
 
                 {/* ═══ 2. Entity picker (Employee link) ═══ */}
                 <form.Field name="entityId">
