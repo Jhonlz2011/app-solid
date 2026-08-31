@@ -125,14 +125,28 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
 
     return (
         <div class="flex flex-col gap-4">
-            {/* Slug */}
-            <props.form.Field name="slug" children={(f: any) => (
-                <div>
+            {/* ─── FILA 1: Slug (Media columna) + Tipo de Negocio (Media columna) ─── */}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Slug */}
+                <props.form.Field name="slug" children={(f: any) => (
                     <TextField.Root field={f()}>
-                        <TextField.Label>Identificador único del subdominio (slug)</TextField.Label>
+                        <div class="flex items-center justify-between gap-2">
+                            <TextField.Label>Subdominio (slug) *</TextField.Label>
+                            <Show when={!slugChecking() && f().state.value.length >= 3 && slugAvailable() === true}>
+                                <Badge variant="success" class="text-[10px] px-1.5 py-0 animate-in fade-in">
+                                    ✓ Disponible
+                                </Badge>
+                            </Show>
+                            <Show when={!slugChecking() && f().state.value.length >= 3 && slugAvailable() === false}>
+                                <Badge variant="danger" class="text-[10px] px-1.5 py-0 animate-in fade-in">
+                                    ✗ En uso
+                                </Badge>
+                            </Show>
+                        </div>
                         <TextField.Input
                             type="text"
                             placeholder="mi-empresa"
+                            loading={slugChecking()}
                             onInput={(e: any) => {
                                 const v = e.currentTarget.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
                                 e.currentTarget.value = v;
@@ -142,131 +156,104 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                         />
                         <TextField.ErrorMessage />
                     </TextField.Root>
-                    <Show when={f().state.value.length >= 3}>
-                        <div class="mt-1.5 flex items-center">
-                            <Show when={slugChecking()}>
-                                <Badge variant="info" class="text-[11px] px-2 py-0.5">
-                                    <span class="size-1.5 rounded-full bg-info animate-pulse" />
-                                    Verificando disponibilidad…
-                                </Badge>
-                            </Show>
-                            <Show when={!slugChecking() && slugAvailable() === true}>
-                                <Badge variant="success" class="text-[11px] px-2 py-0.5">
-                                    ✓ Disponible ({f().state.value}.zelys.app)
-                                </Badge>
-                            </Show>
-                            <Show when={!slugChecking() && slugAvailable() === false}>
-                                <Badge variant="danger" class="text-[11px] px-2 py-0.5">
-                                    ✗ Este identificador ya está en uso
-                                </Badge>
-                            </Show>
-                        </div>
-                    </Show>
-                </div>
-            )} />
+                )} />
 
-            {/* Business Type */}
-            <props.form.Field name="businessType" children={(f: any) => (
-                <div class="flex flex-col gap-1.5">
-                    <FieldLabel>Tipo de negocio</FieldLabel>
-                    <Select
-                        value={businessTypeSelectOptions.find(o => o.value === f().state.value)}
-                        onChange={(opt) => opt && f().handleChange(opt.value)}
-                        options={businessTypeSelectOptions}
-                        optionValue="value"
-                        optionTextValue="label"
-                        placeholder="Seleccione el giro comercial..."
-                        itemComponent={(itemProps) => (
-                            <SelectItem item={itemProps.item}>
-                                {itemProps.item.rawValue.label}
-                            </SelectItem>
-                        )}
-                    >
-                        <SelectTrigger>
-                            <SelectValue<SelectOption>>
-                                {(state) => state.selectedOption()?.label}
-                            </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent />
-                    </Select>
-                    <Show when={props.stepSubmitted() && hasFieldError(f())}>
-                        <small class="text-xs text-danger font-medium ml-1">{getFieldError(f())}</small>
-                    </Show>
-                </div>
-            )} />
-
-            {/* RUC + Business Name */}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <props.form.Field name="ruc" children={(f: any) => (
-                    <div>
-                        <TextField.Root field={f()}>
-                            <TextField.Label>RUC</TextField.Label>
-                            <TextField.Input
-                                type="text"
-                                placeholder="0990123456001"
-                                maxLength={13}
-                                onInput={(e: any) => {
-                                    const v = e.currentTarget.value.replace(/\D/g, '');
-                                    e.currentTarget.value = v;
-                                    f().handleChange(v);
-                                    checkRuc(v);
-                                }}
-                            />
-                            <TextField.ErrorMessage />
-                        </TextField.Root>
-                        <Show when={f().state.value.length === 13}>
-                            <div class="mt-1.5 flex items-center">
-                                <Show when={rucChecking()}>
-                                    <Badge variant="info" class="text-[11px] px-2 py-0.5">
-                                        <span class="size-1.5 rounded-full bg-info animate-pulse" />
-                                        Verificando RUC…
-                                    </Badge>
-                                </Show>
-                                <Show when={!rucChecking() && rucAvailable() === true}>
-                                    <Badge variant="success" class="text-[11px] px-2 py-0.5">
-                                        ✓ RUC disponible
-                                    </Badge>
-                                </Show>
-                                <Show when={!rucChecking() && rucAvailable() === false}>
-                                    <Badge variant="danger" class="text-[11px] px-2 py-0.5">
-                                        ✗ RUC ya registrado
-                                    </Badge>
-                                </Show>
-                            </div>
+                {/* Tipo de Negocio */}
+                <props.form.Field name="businessType" children={(f: any) => (
+                    <div class="flex flex-col gap-1">
+                        <FieldLabel>Tipo de negocio</FieldLabel>
+                        <Select
+                            value={businessTypeSelectOptions.find(o => o.value === f().state.value)}
+                            onChange={(opt) => opt && f().handleChange(opt.value)}
+                            options={businessTypeSelectOptions}
+                            optionValue="value"
+                            optionTextValue="label"
+                            placeholder="Seleccione giro..."
+                            itemComponent={(itemProps) => (
+                                <SelectItem item={itemProps.item}>
+                                    {itemProps.item.rawValue.label}
+                                </SelectItem>
+                            )}
+                        >
+                            <SelectTrigger>
+                                <SelectValue<SelectOption>>
+                                    {(state) => state.selectedOption()?.label}
+                                </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent />
+                        </Select>
+                        <Show when={props.stepSubmitted() && hasFieldError(f())}>
+                            <small class="text-xs text-danger font-medium ml-1">{getFieldError(f())}</small>
                         </Show>
                     </div>
                 )} />
+            </div>
 
-                <props.form.Field name="businessName" children={(f: any) => (
+            {/* ─── FILA 2: RUC (Media columna) + Nombre Comercial (Media columna) ─── */}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* RUC */}
+                <props.form.Field name="ruc" children={(f: any) => (
                     <TextField.Root field={f()}>
-                        <TextField.Label>Razón Social</TextField.Label>
-                        <TextField.Input type="text" placeholder="Empresa S.A." />
+                        <div class="flex items-center justify-between gap-2">
+                            <TextField.Label>RUC *</TextField.Label>
+                            <Show when={!rucChecking() && f().state.value.length === 13 && rucAvailable() === true}>
+                                <Badge variant="success" class="text-[10px] px-1.5 py-0 animate-in fade-in">
+                                    ✓ Válido
+                                </Badge>
+                            </Show>
+                            <Show when={!rucChecking() && f().state.value.length === 13 && rucAvailable() === false}>
+                                <Badge variant="danger" class="text-[10px] px-1.5 py-0 animate-in fade-in">
+                                    ✗ Registrado
+                                </Badge>
+                            </Show>
+                        </div>
+                        <TextField.Input
+                            type="text"
+                            placeholder="0990123456001"
+                            maxLength={13}
+                            loading={rucChecking()}
+                            onInput={(e: any) => {
+                                const v = e.currentTarget.value.replace(/\D/g, '');
+                                e.currentTarget.value = v;
+                                f().handleChange(v);
+                                checkRuc(v);
+                            }}
+                        />
                         <TextField.ErrorMessage />
+                    </TextField.Root>
+                )} />
+
+                {/* Nombre Comercial */}
+                <props.form.Field name="tradeName" children={(f: any) => (
+                    <TextField.Root field={f()}>
+                        <TextField.Label>Nombre Comercial (opcional)</TextField.Label>
+                        <TextField.Input type="text" placeholder="Nombre visible al público" />
                     </TextField.Root>
                 )} />
             </div>
 
-            {/* Trade Name */}
-            <props.form.Field name="tradeName" children={(f: any) => (
+            {/* ─── FILA 3: Razón Social (Columna Completa) ─── */}
+            <props.form.Field name="businessName" children={(f: any) => (
                 <TextField.Root field={f()}>
-                    <TextField.Label>Nombre Comercial (opcional)</TextField.Label>
-                    <TextField.Input type="text" placeholder="Nombre visible al público" />
+                    <TextField.Label>Razón Social *</TextField.Label>
+                    <TextField.Input type="text" placeholder="Ej: CORPORACION EJEMPLO CIA. LTDA." />
+                    <TextField.ErrorMessage />
                 </TextField.Root>
             )} />
 
-            {/* Address */}
+            {/* ─── FILA 4: Dirección Matriz (Columna Completa) ─── */}
             <props.form.Field name="mainAddress" children={(f: any) => (
                 <TextField.Root field={f()}>
                     <TextField.Label>Dirección Matriz (opcional)</TextField.Label>
-                    <TextField.Input type="text" placeholder="Av. Principal y Calle Secundaria" />
+                    <TextField.Input type="text" placeholder="Av. Principal y Calle Secundaria, Edificio / Local" />
                 </TextField.Root>
             )} />
 
-            {/* Tax Regime + Contabilidad */}
+            {/* ─── FILA 5: Régimen Tributario (Media) + Contabilidad (Media) ─── */}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <props.form.Field name="taxRegime" children={(f: any) => (
-                    <div class="flex flex-col gap-1.5">
-                        <FieldLabel>Régimen Tributario (opcional)</FieldLabel>
+                    <div class="flex flex-col gap-1">
+                        <FieldLabel>Régimen Tributario</FieldLabel>
                         <Select
                             value={taxRegimeSelectOptions.find(o => o.value === f().state.value)}
                             onChange={(opt) => {
@@ -300,7 +287,7 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                 )} />
 
                 <props.form.Field name="obligadoContabilidad" children={(f: any) => (
-                    <div class="flex flex-col gap-1.5">
+                    <div class="flex flex-col gap-1">
                         <FieldLabel>¿Obligado a llevar contabilidad?</FieldLabel>
                         <SegmentedControl
                             value={f().state.value ? 'true' : 'false'}
@@ -324,14 +311,14 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                 )} />
             </div>
 
-            {/* Contribuyente Especial */}
+            {/* ─── FILA 6: Contribuyente Especial (Columna Completa) ─── */}
             <props.form.Field name="contribuyenteEspecial" children={(f: any) => (
                 <TextField.Root 
                     field={f()}
                     disabled={taxRegime() === 'RIMPE_NEGOCIO_POPULAR' || taxRegime() === 'RIMPE_EMPRENDEDOR'}
                 >
                     <TextField.Label>Contribuyente Especial (opcional)</TextField.Label>
-                    <TextField.Input type="text" placeholder="Nro. Resolución SRI" />
+                    <TextField.Input type="text" placeholder="Nro. Resolución SRI (si aplica)" />
                 </TextField.Root>
             )} />
         </div>

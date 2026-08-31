@@ -16,34 +16,8 @@ import Turnstile from '@shared/ui/Turnstile';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import CompanyFields, { type CompanyFieldsStatus } from '../components/CompanyFields';
 import CompanySummaryCard from '../components/CompanySummaryCard';
-
-// ─── Step Indicator ───
-const Stepper: Component<{ current: number; isOAuth?: boolean }> = (props) => {
-    const steps = () => props.isOAuth ? ['Usuario', 'Empresa', 'Confirmar'] : ['Usuario', 'Empresa', 'Confirmar'];
-    return (
-        <div class="flex items-center justify-center gap-2 mb-6">
-            <For each={steps()}>{(label, i) => (
-                <div class="flex items-center gap-2">
-                    <div class={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
-                        i() < props.current ? 'bg-primary text-on-primary' :
-                        i() === props.current ? 'bg-primary/20 text-primary border-2 border-primary' :
-                        'bg-card-alt text-muted border border-border'
-                    }`}>
-                        <Show when={i() < props.current} fallback={i() + 1}>
-                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                            </svg>
-                        </Show>
-                    </div>
-                    <span class={`text-xs font-medium hidden sm:inline ${i() <= props.current ? 'text-text' : 'text-muted'}`}>{label}</span>
-                    <Show when={i() < steps().length - 1}>
-                        <div class={`w-8 h-0.5 ${i() < props.current ? 'bg-primary' : 'bg-border'} transition-colors duration-300`} />
-                    </Show>
-                </div>
-            )}</For>
-        </div>
-    );
-};
+import AuthStepper from '../components/AuthStepper';
+import { Badge } from '@shared/ui/display/Badge';
 
 // ─── Password Strength Meter ───
 const PasswordStrength: Component<{ password: string }> = (props) => {
@@ -63,11 +37,11 @@ const PasswordStrength: Component<{ password: string }> = (props) => {
         <Show when={props.password}>
             <div class="flex items-center gap-2 mt-1 px-1">
                 <div class="flex-1 flex gap-1">
-                    <For each={[0,1,2,3]}>{(i) => (
+                    <For each={[0, 1, 2, 3]}>{(i) => (
                         <div class={`h-1 flex-1 rounded-full transition-colors duration-300 ${i < strength() ? color() : 'bg-border'}`} />
                     )}</For>
                 </div>
-                <span class="text-xs text-muted">{label()}</span>
+                <span class="text-xs text-muted font-medium">{label()}</span>
             </div>
         </Show>
     );
@@ -268,26 +242,31 @@ const Register: Component = () => {
         return !step2FieldsStatus.isValidForSubmit();
     };
 
+    const stepperSteps = () => isOAuthUser() ? ['Usuario', 'Empresa', 'Confirmar'] : ['Usuario', 'Empresa', 'Confirmar'];
+
     return (
-        <div class="w-full p-8 bg-card border border-border rounded-2xl shadow-lg">
-            <Stepper current={step()} />
+        <div class="w-full p-6 sm:p-8 bg-card border border-border rounded-2xl shadow-xl">
+            <AuthStepper steps={stepperSteps()} current={step()} />
 
             {/* ─── STEP 1: User ─── */}
             <Show when={step() === 0}>
-                <h2 class="text-2xl font-bold mb-1 text-dark">Crear cuenta</h2>
-                <p class="text-muted text-sm mb-5">Ingresa tus datos personales</p>
+                <div class="mb-4">
+                    <h2 class="text-2xl font-bold text-heading">Crear cuenta</h2>
+                    <p class="text-muted text-sm mt-1">Ingresa tus datos personales para registrarte</p>
+                </div>
+
                 <FormSubmissionContext.Provider value={step1Submitted}>
                     <form onSubmit={(e) => { e.preventDefault(); setStep1Submitted(true); step1Form.handleSubmit(); }} class="flex flex-col gap-4" novalidate>
                         <step1Form.Field name="fullName" children={(f) => (
                             <TextField.Root field={f()}>
-                                <TextField.Label>Nombre completo</TextField.Label>
+                                <TextField.Label>Nombre completo *</TextField.Label>
                                 <TextField.Input type="text" placeholder="Ej: Juan Pérez" autocomplete="name" />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )} />
                         <step1Form.Field name="username" children={(f) => (
                             <TextField.Root field={f()}>
-                                <TextField.Label>Nombre de usuario</TextField.Label>
+                                <TextField.Label>Nombre de usuario *</TextField.Label>
                                 <TextField.Input type="text" placeholder="ej: juan.perez" autocomplete="username"
                                     onInput={(e) => {
                                         const v = e.currentTarget.value.toLowerCase().replace(/[^a-z0-9._-]/g, '');
@@ -300,14 +279,14 @@ const Register: Component = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <step1Form.Field name="phone" children={(f) => (
                                 <TextField.Root field={f()}>
-                                    <TextField.Label>Teléfono</TextField.Label>
+                                    <TextField.Label>Teléfono (opcional)</TextField.Label>
                                     <TextField.Input type="tel" placeholder="0999999999" />
                                     <TextField.ErrorMessage />
                                 </TextField.Root>
                             )} />
                             <step1Form.Field name="cedula" children={(f) => (
                                 <TextField.Root field={f()}>
-                                    <TextField.Label>Cédula</TextField.Label>
+                                    <TextField.Label>Cédula (opcional)</TextField.Label>
                                     <TextField.Input type="text" placeholder="0912345678" />
                                     <TextField.ErrorMessage />
                                 </TextField.Root>
@@ -316,7 +295,7 @@ const Register: Component = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                             <step1Form.Field name="email" children={(f) => (
                                 <TextField.Root field={f()}>
-                                    <TextField.Label>Correo electrónico</TextField.Label>
+                                    <TextField.Label>Correo electrónico *</TextField.Label>
                                     <TextField.Input type="email" placeholder="correo@ejemplo.com" autocomplete="email" disabled={isOAuthUser()} />
                                     <TextField.ErrorMessage />
                                 </TextField.Root>
@@ -325,7 +304,7 @@ const Register: Component = () => {
                                 <step1Form.Field name="password" children={(f) => (
                                     <div class="flex flex-col gap-1">
                                         <TextField.Root field={f()}>
-                                            <TextField.Label>Contraseña</TextField.Label>
+                                            <TextField.Label>Contraseña *</TextField.Label>
                                             <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
                                             <TextField.ErrorMessage />
                                         </TextField.Root>
@@ -336,7 +315,7 @@ const Register: Component = () => {
                         </div>
                         <step1Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting, isDirty: s.isDirty })}
                             children={(s) => (
-                                <Button class="mt-1" type="submit" fullWidth disabled={(!isOAuthUser() && !s().isDirty) || s().isSubmitting}
+                                <Button class="mt-2" type="submit" fullWidth disabled={(!isOAuthUser() && !s().isDirty) || s().isSubmitting}
                                     loading={s().isSubmitting} loadingText="Validando…">
                                     Siguiente
                                 </Button>
@@ -368,20 +347,20 @@ const Register: Component = () => {
                 <Show when={isOAuthUser()}>
                     <div class="flex items-center justify-between gap-3 p-3 mb-4 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium">
                         <div class="flex items-center gap-2 min-w-0">
-                            <div class="size-2 rounded-full bg-primary animate-pulse shrink-0" />
+                            <span class="size-2 rounded-full bg-primary animate-pulse shrink-0" />
                             <span class="truncate">Autenticado como <strong>{auth.user()?.email}</strong></span>
                         </div>
-                        <button
-                            type="button"
-                            onClick={handleCancelOAuth}
-                            class="text-primary hover:text-primary-strong hover:underline font-semibold shrink-0 cursor-pointer text-xs"
-                        >
+                        <Badge variant="primary" onClick={handleCancelOAuth} class="cursor-pointer hover:bg-primary/20 transition-colors text-[11px]">
                             Cambiar cuenta / Salir
-                        </button>
+                        </Badge>
                     </div>
                 </Show>
-                <h2 class="text-2xl font-bold mb-1 text-dark">Datos de empresa</h2>
-                <p class="text-muted text-sm mb-5">Configuración de tu negocio</p>
+
+                <div class="mb-4">
+                    <h2 class="text-2xl font-bold text-heading">Datos de empresa</h2>
+                    <p class="text-muted text-sm mt-1">Configura la información fiscal y comercial de tu negocio</p>
+                </div>
+
                 <FormSubmissionContext.Provider value={step2Submitted}>
                     <form onSubmit={(e) => { e.preventDefault(); setStep2Submitted(true); step2Form.handleSubmit(); }} class="flex flex-col gap-4" novalidate>
                         <CompanyFields
@@ -390,12 +369,12 @@ const Register: Component = () => {
                             onStatusChange={(s) => { step2FieldsStatus = s; }}
                         />
 
-                        <div class="flex gap-3 mt-1">
+                        <div class="flex items-center gap-3 mt-4 pt-4 border-t border-border">
                             <Show
                                 when={!isOAuthUser()}
                                 fallback={
                                     <Button variant="outline" type="button" onClick={handleCancelOAuth}>
-                                        Cancelar registro
+                                        Cancelar
                                     </Button>
                                 }
                             >
@@ -418,8 +397,11 @@ const Register: Component = () => {
 
             {/* ─── STEP 3: Confirmation ─── */}
             <Show when={step() === 2}>
-                <h2 class="text-2xl font-bold mb-1 text-dark">Confirmar registro</h2>
-                <p class="text-muted text-sm mb-5">Revisa los datos antes de crear tu cuenta</p>
+                <div class="mb-4">
+                    <h2 class="text-2xl font-bold text-heading">Confirmar registro</h2>
+                    <p class="text-muted text-sm mt-1">Revisa los datos antes de crear y activar tu cuenta</p>
+                </div>
+
                 <div class="space-y-4">
                     {/* User Summary */}
                     <div class="bg-card-alt border border-border rounded-xl p-4 space-y-2">
@@ -427,7 +409,7 @@ const Register: Component = () => {
                             <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
                             Datos del Usuario
                         </h3>
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm pt-1">
                             <span class="text-muted">Nombre:</span><span class="text-text font-medium">{step1Form.state.values.fullName}</span>
                             <span class="text-muted">Usuario:</span><span class="text-text font-medium">{step1Form.state.values.username}</span>
                             <span class="text-muted">Email:</span><span class="text-text font-medium">{step1Form.state.values.email}</span>
@@ -449,7 +431,7 @@ const Register: Component = () => {
                     onError={() => setTurnstileToken(null)}
                 />
 
-                <div class="flex gap-3 pt-2">
+                <div class="flex items-center gap-3 pt-4 border-t border-border mt-4">
                     <Button variant="outline" type="button" onClick={() => setStep(1)} disabled={submitting()}>Atrás</Button>
                     <Button
                         fullWidth

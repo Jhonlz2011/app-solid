@@ -1,4 +1,4 @@
-import { Component, createSignal, Show, For } from 'solid-js';
+import { Component, createSignal, Show } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useNavigate } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
@@ -14,37 +14,9 @@ import Turnstile from '@shared/ui/Turnstile';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import CompanyFields, { type CompanyFieldsStatus } from '../components/CompanyFields';
 import CompanySummaryCard from '../components/CompanySummaryCard';
+import AuthStepper from '../components/AuthStepper';
 import { ScrollArea } from '@/layout/components/ScrollArea';
 import { Badge } from '@shared/ui/display/Badge';
-
-const CreateCompanyStepper: Component<{ current: number }> = (props) => {
-    const steps = ['Datos de Empresa', 'Confirmar y Crear'];
-    return (
-        <div class="flex items-center justify-center gap-2 mb-6">
-            <For each={steps}>{(label, i) => (
-                <div class="flex items-center gap-2">
-                    <div class={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
-                        i() < props.current ? 'bg-primary text-on-primary' :
-                        i() === props.current ? 'bg-primary/20 text-primary border-2 border-primary' :
-                        'bg-card-alt text-muted border border-border'
-                    }`}>
-                        <Show when={i() < props.current} fallback={i() + 1}>
-                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                            </svg>
-                        </Show>
-                    </div>
-                    <span class={`text-xs font-medium hidden sm:inline ${i() <= props.current ? 'text-text' : 'text-muted'}`}>
-                        {label}
-                    </span>
-                    <Show when={i() < steps.length - 1}>
-                        <div class={`w-12 h-0.5 ${i() < props.current ? 'bg-primary' : 'bg-border'} transition-colors duration-300`} />
-                    </Show>
-                </div>
-            )}</For>
-        </div>
-    );
-};
 
 export const CreateCompany: Component = () => {
     const navigate = useNavigate();
@@ -150,7 +122,7 @@ export const CreateCompany: Component = () => {
                         </div>
                     </div>
 
-                    <CreateCompanyStepper current={step()} />
+                    <AuthStepper steps={['Datos de Empresa', 'Confirmar y Crear']} current={step()} />
 
                     {/* ─── STEP 0: Company Info ─── */}
                     <Show when={step() === 0}>
@@ -210,7 +182,7 @@ export const CreateCompany: Component = () => {
                                 onError={() => setTurnstileToken(null)}
                             />
 
-                            <div class="flex items-center justify-between gap-3 pt-4 border-t border-border">
+                            <div class="flex items-center justify-between gap-3 pt-4 border-t border-border mt-4">
                                 <Button
                                     variant="outline"
                                     type="button"
