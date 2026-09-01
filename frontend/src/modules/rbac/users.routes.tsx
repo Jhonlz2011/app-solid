@@ -4,6 +4,7 @@ import GlobalPageLoader from '@/shared/ui/display/GlobalPageLoader';
 import { rbacKeys } from './data/users.keys';
 import { usersApi } from './data/users.api';
 import { createUserModals } from '@shared/routes/users.factory';
+import { createRoleModals } from '@shared/routes/roles.factory';
 import { createEmployeeModals } from '@shared/routes/employees.factory';
 import { createClientsModals } from '@shared/routes/clients.factory';
 import { createSupplierModals } from '@shared/routes/suppliers.factory';
@@ -45,6 +46,7 @@ export const createUsersRoutes = (layoutRoute: any) => {
     // Inject deep nested modals
     usersRoute.addChildren([
         ...createUserModals(usersRoute),
+        ...createRoleModals(usersRoute, 'role'),
         ...createEmployeeModals(usersRoute, 'employee'),
         ...createClientsModals(usersRoute, 'client'),
         ...createSupplierModals(usersRoute, 'supplier'),

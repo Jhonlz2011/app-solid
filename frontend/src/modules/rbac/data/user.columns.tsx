@@ -7,15 +7,15 @@
 import { Show, For } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
-export type { UserListItemType } from '@app/schema/dto';
+export type { UserListItemType } from '@app/schema/backend';
 import { useAuth } from '@modules/auth/store/auth.store';
-import { Avatar } from '@/shared/ui/display/Avatar';
+import { Avatar } from '@shared/ui/display/Avatar';
 import { RoleBadge, StatusBadge, EntityTypeBadge } from '@display/Badge';
 import { formatSessionDate } from '@shared/utils/session.utils';
 import Checkbox from '@form/Checkbox';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
-import ActionMenu from '@/shared/ui/overlay/ActionMenu';
+import ActionMenu from '@shared/ui/overlay/ActionMenu';
 
 /** Filter configuration for a single column - uses accessors for SolidJS reactivity */
 export interface ColumnFilterConfig {
@@ -137,17 +137,15 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
                     >
                         <For each={info.row.original.roles}>
                             {(role) => (
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handlers.onRoleBadgeClick?.(role);
-                                    }}
-                                    class="cursor-pointer rounded-md hover:opacity focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                <Link
+                                    to={`/users/role/${role.id}/permissions`}
+                                    preload="intent"
+                                    class="cursor-pointer rounded-md hover:opacity-85 focus:outline-none focus:ring-2 focus:ring-primary/40 inline-block"
                                     title={`Ver permisos de ${role.name}`}
+                                    onClick={(e) => e.stopPropagation()}
                                 >
                                     <RoleBadge name={role.name} />
-                                </button>
+                                </Link>
                             )}
                         </For>
                     </Show>

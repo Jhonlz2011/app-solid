@@ -1,4 +1,5 @@
 import { Component, JSX, Show } from 'solid-js';
+import { Link } from '@tanstack/solid-router';
 import type { RoleType } from '@app/schema/dto';
 import { RoleBadge } from '@display/Badge';
 import { EditIcon } from '@icons/EditIcon';
@@ -8,17 +9,16 @@ import { UsersIcon } from '@icons/UsersIcon';
 import { MoreVerticalIcon } from '@icons/MoreVerticalIcon';
 import { ShieldIcon } from '@icons/ShieldIcon';
 import { EyeIcon } from '@icons/EyeIcon';
-import Button from '@form/Button';
 import { Tooltip } from '@/shared/ui/overlay/Tooltip';
 import { DropdownMenu } from '@display/DropdownMenu';
 
-// ── Reusable stat display (interactive or static) ──
-const StatButton = (p: { icon: JSX.Element; count: number; label: string; onClick?: () => void; tooltip?: string }) => {
+// ── Reusable stat display (interactive with Link or static) ──
+const StatLink = (p: { icon: JSX.Element; count: number; label: string; to?: string; tooltip?: string }) => {
     const text = () => `${p.label}${p.count !== 1 ? 's' : ''}`;
 
     return (
         <Show
-            when={p.onClick}
+            when={p.to}
             fallback={
                 <span class="flex items-center gap-1.5 text-xs text-muted">
                     {p.icon}
@@ -28,17 +28,16 @@ const StatButton = (p: { icon: JSX.Element; count: number; label: string; onClic
             }
         >
             <Tooltip content={p.tooltip!}>
-                <Button
-                    variant="ghost"
-                    size="none"
-                    radius="lg"
-                    class="flex items-center gap-1.5 text-xs text-muted px-2 py-1 hover:bg-info/10 hover:text-info"
-                    onClick={(e) => { e.stopPropagation(); p.onClick!(); }}
+                <Link
+                    to={p.to!}
+                    preload="intent"
+                    class="flex items-center gap-1.5 text-xs text-muted px-2 py-1 rounded-lg hover:bg-info/10 hover:text-info transition-colors"
+                    onClick={(e) => e.stopPropagation()}
                 >
                     {p.icon}
                     <span class="tabular-nums font-medium">{p.count}</span>
                     <span>{text()}</span>
-                </Button>
+                </Link>
             </Tooltip>
         </Show>
     );
@@ -51,26 +50,19 @@ const ROLE_ACCENT_COLORS: Record<string, string> = {
 };
 const DEFAULT_ACCENT = 'from-info/70 via-info/30';
 
-interface RoleCardProps {
+export interface RoleCardProps {
     role: RoleType;
-    onEdit: () => void;
-    onDelete: () => void;
-    onUsersClick: () => void;
-    onPermissionsClick: () => void;
-    onMouseEnter?: () => void;
+    onDelete?: () => void;
 }
 
-const RoleCard: Component<RoleCardProps> = (props) => {
+export const RoleCard: Component<RoleCardProps> = (props) => {
     const isSystem = () => props.role.is_system ?? false;
     const userCount = () => props.role.userCount ?? 0;
     const permCount = () => props.role.permissionCount ?? 0;
     const accentColor = () => ROLE_ACCENT_COLORS[props.role.name] ?? DEFAULT_ACCENT;
 
     return (
-        <div
-            class="group relative bg-card border border-border/60 rounded-2xl shadow-card-soft overflow-hidden hover:shadow-lg hover:-translate-y-0.5"
-            onMouseEnter={props.onMouseEnter}
-        >
+        <div class="group relative bg-card border border-border/60 rounded-2xl shadow-card-soft overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
             {/* Accent top bar — matches badge color */}
             <div class={`h-1 w-full bg-linear-to-r ${accentColor()} to-transparent`} />
 
@@ -98,32 +90,37 @@ const RoleCard: Component<RoleCardProps> = (props) => {
                                 <MoreVerticalIcon class="size-4" />
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content class="min-w-40">
-                                <DropdownMenu.Item onSelect={props.onEdit}>
+                                <DropdownMenu.Item as={Link} to={`/users/role/${props.role.id}/edit`} preload="intent">
                                     <EditIcon class="size-4 mr-2" />
                                     Editar rol
                                 </DropdownMenu.Item>
-                                <DropdownMenu.Item onSelect={props.onPermissionsClick}>
+                                <DropdownMenu.Item as={Link} to={`/users/role/${props.role.id}/permissions`} preload="intent">
                                     <KeyIcon class="size-4 mr-2" />
                                     Permisos
                                 </DropdownMenu.Item>
-                                <DropdownMenu.Separator />
-                                <DropdownMenu.Item onSelect={props.onDelete} destructive>
-                                    <TrashIcon class="size-4 mr-2" />
-                                    Eliminar
+                                <DropdownMenu.Item as={Link} to={`/users/role/${props.role.id}/users`} preload="intent">
+                                    <UsersIcon class="size-4 mr-2" />
+                                    Usuarios
                                 </DropdownMenu.Item>
+                                <Show when={props.onDelete}>
+                                    <DropdownMenu.Separator />
+                                    <DropdownMenu.Item onSelect={props.onDelete} destructive>
+                                        <TrashIcon class="size-4 mr-2" />
+                                        Eliminar
+                                    </DropdownMenu.Item>
+                                </Show>
                             </DropdownMenu.Content>
                         </DropdownMenu>
                     </Show>
                     <Show when={isSystem()}>
                         <Tooltip content="Ver permisos del rol">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                class="h-7 w-7 p-0 text-muted hover:text-text shrink-0"
-                                onClick={(e) => { e.stopPropagation(); props.onPermissionsClick(); }}
+                            <Link
+                                to={`/users/role/${props.role.id}/permissions`}
+                                preload="intent"
+                                class="flex items-center justify-center h-7 w-7 rounded-lg text-muted hover:text-text hover:bg-surface/50 transition-colors"
                             >
                                 <EyeIcon class="size-4" />
-                            </Button>
+                            </Link>
                         </Tooltip>
                     </Show>
                 </div>
@@ -135,19 +132,19 @@ const RoleCard: Component<RoleCardProps> = (props) => {
 
                 {/* Stats footer — justify-between */}
                 <div class="flex items-center justify-between pt-2.5 border-t border-border/40">
-                    <StatButton
+                    <StatLink
                         icon={<UsersIcon class="size-3.5" />}
                         count={userCount()}
                         label="usuario"
-                        onClick={!isSystem() ? props.onUsersClick : undefined}
-                        tooltip={!isSystem() ? 'Ver usuarios del rol' : undefined}
+                        to={`/users/role/${props.role.id}/users`}
+                        tooltip="Ver usuarios del rol"
                     />
-                    <StatButton
+                    <StatLink
                         icon={<KeyIcon class="size-3.5" />}
                         count={permCount()}
                         label="permiso"
-                        onClick={!isSystem() ? props.onPermissionsClick : undefined}
-                        tooltip={!isSystem() ? 'Editar permisos' : undefined}
+                        to={`/users/role/${props.role.id}/permissions`}
+                        tooltip={isSystem() ? 'Ver permisos' : 'Editar permisos'}
                     />
                 </div>
             </div>

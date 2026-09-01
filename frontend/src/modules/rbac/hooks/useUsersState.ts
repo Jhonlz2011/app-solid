@@ -1,10 +1,9 @@
 /**
  * useUsersState — All state, queries, mutations, and handlers for UsersRolesPage.
  *
- * Extracts ~300 lines of logic from the God Component so the page only renders.
+ * Extracts logic from the God Component so the page only renders.
  */
 import { createSignal, createMemo, batch } from 'solid-js';
-import type { Updater, SortingState } from '@tanstack/solid-table';
 import { useQueryClient } from '@tanstack/solid-query';
 import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
@@ -26,16 +25,11 @@ import {
 } from '../data/users.mutations';
 import { rbacKeys } from '../data/users.keys';
 import { usersApi } from '../data/users.api';
-import type { RoleType, UserListItemType, UsersFilters } from '@app/schema/dto'
+import type { RoleType, UserListItemType, UsersFilters } from '@app/schema/dto';
 import { createUserColumns } from '../data/user.columns';
 
 // ─── Types ──────────────────────────────────────────────────────
 export type TabKey = 'users' | 'roles';
-
-export interface RoleDialogState {
-    mode: 'create' | 'edit' | 'permissions';
-    roleId?: number;
-}
 
 export function useUsersState() {
     const navigate = useNavigate();
@@ -70,8 +64,6 @@ export function useUsersState() {
     const [rolesSearch, setRolesSearch] = createSignal(
         ((search() as any)?.rolesSearch as string) ?? ''
     );
-    const [roleDialog, setRoleDialog] = createSignal<RoleDialogState | null>(null);
-    const [usersDialog, setUsersDialog] = createSignal<{ roleId: number; roleName: string } | null>(null);
 
     // ─── Confirm dialogs ────────────────────────────────────────
     const [deleteTarget, setDeleteTarget] = createSignal<UserListItemType | null>(null);
@@ -152,11 +144,6 @@ export function useUsersState() {
         });
     };
 
-    // ─── Role handlers ──────────────────────────────────────────
-    const handleNewRole = () => setRoleDialog({ mode: 'create' });
-    const handleEditRole = (r: RoleType) => setRoleDialog({ mode: 'edit', roleId: r.id });
-    const handleCloseRoleDialog = () => setRoleDialog(null);
-
     const handlePrefetchRole = (r: RoleType) => {
         queryClient.prefetchQuery({ queryKey: rbacKeys.role(r.id), queryFn: () => usersApi.getRole(r.id), staleTime: 1000 * 60 * 5 });
         queryClient.prefetchQuery({ queryKey: rbacKeys.rolePermissions(r.id), queryFn: () => usersApi.getRolePermissions(r.id), staleTime: 1000 * 60 * 5 });
@@ -193,7 +180,7 @@ export function useUsersState() {
         if (ids.length === 0) return;
         bulkRestoreMutation.mutate(ids, {
             onSuccess: () => { toast.success(`${ids.length} usuarios restaurados`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },
-            onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
+            onError: (err.message || 'Error al restaurar'),
         });
     };
 
@@ -227,11 +214,8 @@ export function useUsersState() {
     // ─── Column definitions ─────────────────────────────────────
     const columns = createMemo(() =>
         createUserColumns({
-            // onView: handleViewUser,
-            // onEdit: handleEditUser,
             onDelete: handleDeleteUser,
             onRestore: handleRestore,
-            onRoleBadgeClick: (role) => setRoleDialog({ mode: 'permissions', roleId: role.id }),
             auth,
             filters: {
                 isActive: { options: isActiveOptions, selected: isActiveFilter, onChange: handleFilterChange(setIsActiveFilter), isLoading: () => facetsQuery.isPending },
@@ -247,32 +231,24 @@ export function useUsersState() {
     };
 
     return {
-        // ...Spread all base table state/handlers (provides sorting, pagination, selection, search, etc.)
+        // Spread base table state/handlers
         ...tableState,
-        // Match existing expected property name for the UI bindings
         userSearch: tableState.search,
-        handleSortChange: tableState.handleSortingChange, // UI expects handleSortChange instead of handleSortingChange in this older version
+        handleSortChange: tableState.handleSortingChange,
 
         // Tab
         activeTab, handleTabChange, auth,
-
-        // Panel (searchParams-driven sheets)
 
         // Users data
         usersQuery, users, usersMeta, totalUsers, selectedActiveCount, selectedInactiveCount,
 
         // Users handlers
-        // handleNewUser, handleViewUser, handleEditUser,
         handlePrefetchUser, handleDeleteUser, handleRestore, handleCopySelection,
         handleBulkDelete, confirmBulkDelete, confirmBulkRestore, 
 
         // Roles state & data
         rolesSearch, handleRolesSearch, rolesQuery, roles, filteredRoles,
-        roleDialog, setRoleDialog, usersDialog, setUsersDialog,
-
-        // Roles handlers
-        handleNewRole, handleEditRole, handleCloseRoleDialog, handlePrefetchRole,
-        handleDeleteRole, confirmDeleteRoleAction,
+        handlePrefetchRole, handleDeleteRole, confirmDeleteRoleAction,
 
         // Dialog state
         deleteTarget, setDeleteTarget, confirmDeleteRole, setConfirmDeleteRole,

@@ -21,12 +21,9 @@ import { DataTableColumnVisibility } from '@shared/ui/DataTable/DataTableColumnV
 import Button from '@form/Button';
 import LinkButton from '@form/LinkButton';
 import ConfirmDialog from '@overlay/ConfirmDialog';
-import UserDeleteDialog from '../components/UserDeleteDialog';
-
 // Feature components
 import RoleCard from '../components/RoleCard';
-import RoleFormDialog from '../components/RoleFormDialog';
-import RoleUsersDialog from '../components/RoleUsersDialog';
+import UserDeleteDialog from '../components/UserDeleteDialog';
 
 // Icons
 import { UsersIcon } from '@icons/UsersIcon';
@@ -46,16 +43,8 @@ const UsersRolesPage: Component = () => {
 
     return (
         <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
-            {/* Native Deep-Nested Routes for User Modals */}
+            {/* Native Deep-Nested Routes for User and Role Modals */}
             <Outlet />
-
-            {/* Role FormDialog */}
-            <RoleFormDialog
-                mode={state.roleDialog()?.mode ?? 'create'}
-                roleId={state.roleDialog()?.roleId}
-                isOpen={state.roleDialog() !== null}
-                onClose={state.handleCloseRoleDialog}
-            />
 
             {/* Header */}
             <div class="shrink-0 p-3 sm:p-4 space-y-4">
@@ -86,9 +75,9 @@ const UsersRolesPage: Component = () => {
                                 </LinkButton>
                             </Show>
                             <Show when={state.activeTab() === 'roles' && state.auth.canAdd('roles')}>
-                                <Button onClick={state.handleNewRole} icon={<PlusIcon />}>
+                                <LinkButton to="/users/role/new" preload="intent" icon={<PlusIcon />}>
                                     <span class="hidden @md:inline">Nuevo </span>
-                                </Button>
+                                </LinkButton>
                             </Show>
                         </div>
                     }
@@ -163,14 +152,13 @@ const UsersRolesPage: Component = () => {
                     </div>
                 </Show>
 
-                {/* Roles tab — Card Grid */}
                 <Show when={state.activeTab() === 'roles'}>
                     <Show
                         when={!state.rolesQuery.isPending}
                         fallback={
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                 <For each={Array(6)}>
-                                    {() => <div class="bg-card border border-border rounded-2xl p-5 h-36 animate-pulse" />}
+                                    {() => <div class="h-44 bg-surface rounded-2xl animate-pulse" />}
                                 </For>
                             </div>
                         }
@@ -191,11 +179,7 @@ const UsersRolesPage: Component = () => {
                                     {(role) => (
                                         <RoleCard
                                             role={role}
-                                            onEdit={() => state.handleEditRole(role)}
                                             onDelete={() => state.handleDeleteRole(role)}
-                                            onUsersClick={() => state.setUsersDialog({ roleId: role.id, roleName: role.name })}
-                                            onPermissionsClick={() => state.setRoleDialog({ mode: 'permissions', roleId: role.id })}
-                                            onMouseEnter={() => state.handlePrefetchRole(role)}
                                         />
                                     )}
                                 </For>
@@ -278,14 +262,6 @@ const UsersRolesPage: Component = () => {
                 title="Eliminar rol"
                 description={`¿Eliminar "${state.confirmDeleteRole()?.name}"? Esta acción no se puede deshacer.`}
                 variant="danger"
-            />
-
-            {/* Role Users Dialog */}
-            <RoleUsersDialog
-                roleId={state.usersDialog()?.roleId ?? null}
-                roleName={state.usersDialog()?.roleName ?? ''}
-                isOpen={state.usersDialog() !== null}
-                onClose={() => state.setUsersDialog(null)}
             />
         </div>
     );

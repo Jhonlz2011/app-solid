@@ -97,7 +97,7 @@ const MainLayout: Component = () => {
                 });
             } else {
                 toast.error('Sin conexión a internet', {
-                    description: 'Zelys ha cambiado a modo local. Puedes seguir usando la app sin problemas.',
+                    description: 'Se ha cambiado modo local. Puedes seguir usando la app.',
                     duration: 5000,
                 });
             }

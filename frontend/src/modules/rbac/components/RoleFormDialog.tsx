@@ -1,6 +1,8 @@
 import { Component, Show, createSignal, createEffect, createMemo, on } from 'solid-js';
+import { useParams } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { FormDialog } from '@/shared/ui/overlay/FormDialog';
+import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { TextField, FieldLabel } from '@form/TextField';
 import { PermissionMatrix } from './PermissionMatrix';
 import { RoleBadge } from '@display/Badge';
@@ -18,25 +20,31 @@ import { ShieldIcon } from '@/shared/ui/icons';
 // Types
 // =============================================================================
 
-interface RoleFormDialogProps {
+export interface RoleFormDialogProps {
     /** 'create' | 'edit' | 'permissions' */
-    mode: 'create' | 'edit' | 'permissions';
+    mode?: 'create' | 'edit' | 'permissions';
     /** Required when mode='edit' or 'permissions' */
     roleId?: number;
-    isOpen: boolean;
-    onClose: () => void;
+    isOpen?: boolean;
+    onClose?: () => void;
 }
 
 // =============================================================================
 // Component
 // =============================================================================
 
-const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
+export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
+    const params = useParams({ strict: false }) as () => { roleId?: string };
+    const { close, navigateAway } = useSheetNavigation(props);
+
+    const resolvedRoleId = () => props.roleId ?? (params()?.roleId ? Number(params().roleId) : undefined);
+    const resolvedMode = () => props.mode ?? (params()?.roleId ? 'edit' : 'create');
+
     // ── Queries (conditional) ────────────────────────────────────────────────
-    const isEdit = () => props.mode === 'edit' || props.mode === 'permissions';
-    const isPermissionsOnly = () => props.mode === 'permissions';
-    const roleQuery = useRole(() => (isEdit() ? props.roleId ?? null : null));
-    const rolePermsQuery = useRolePermissions(() => (isEdit() ? props.roleId ?? null : null));
+    const isEdit = () => resolvedMode() === 'edit' || resolvedMode() === 'permissions';
+    const isPermissionsOnly = () => resolvedMode() === 'permissions';
+    const roleQuery = useRole(() => (isEdit() ? resolvedRoleId() ?? null : null));
+    const rolePermsQuery = useRolePermissions(() => (isEdit() ? resolvedRoleId() ?? null : null));
     const allPermsQuery = usePermissions();
 
     // ── Mutations ────────────────────────────────────────────────────────────
@@ -53,7 +61,7 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
 
     // Sync form fields from server when editing — keyed to roleId to prevent stale data
     createEffect(on(
-        () => [props.isOpen, props.roleId, roleQuery.data] as const,
+        () => [props.isOpen ?? true, resolvedRoleId(), roleQuery.data] as const,
         ([open, _id, data]) => {
             if (!open) return;
             if (isEdit() && data) {
@@ -96,7 +104,7 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
         createMutation.isPending || updateRoleMutation.isPending || updatePermsMutation.isPending;
 
     const title = () => {
-        if (props.mode === 'create') return 'Nuevo Rol';
+        if (resolvedMode() === 'create') return 'Nuevo Rol';
         if (isPermissionsOnly()) return 'Permisos';
         return 'Editar Rol';
     };
@@ -107,13 +115,13 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
     };
 
     const submitLabel = () => {
-        if (props.mode === 'create') return 'Crear Rol';
+        if (resolvedMode() === 'create') return 'Crear Rol';
         if (isPermissionsOnly()) return 'Guardar Permisos';
         return 'Guardar Cambios';
     };
 
-    // Gate: don't show form until data has actually arrived in edit mode
-    const isReady = () => !isEdit() || !!roleQuery.data;
+    // Gate: don't show form until role data AND permissions have arrived in edit mode (eliminates pop-in flicker)
+    const isReady = () => !isEdit() || (Boolean(roleQuery.data) && !rolePermsQuery.isPending && !allPermsQuery.isPending);
 
     // ── Handlers ─────────────────────────────────────────────────────────────
     const handleToggle = (id: number) => {
@@ -138,6 +146,7 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
         e.preventDefault();
         const name = roleName().trim();
         const description = roleDescription().trim() || undefined;
+        const targetRoleId = resolvedRoleId();
 
         if (!isPermissionsOnly()) {
             const parsed = safeParse(RoleCreateSchema, { name, description: description ?? null });
@@ -149,18 +158,18 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
         }
 
         try {
-            if (isPermissionsOnly() && props.roleId) {
+            if (isPermissionsOnly() && targetRoleId) {
                 // Permissions-only mode: only update permissions
                 await updatePermsMutation.mutateAsync({
-                    roleId: props.roleId,
+                    roleId: targetRoleId,
                     permissionIds: selectedPermIds(),
                 });
                 toast.success('Permisos actualizados correctamente');
-            } else if (isEdit() && props.roleId) {
+            } else if (isEdit() && targetRoleId) {
                 // Full edit: update role info + permissions in parallel
                 await Promise.all([
-                    updateRoleMutation.mutateAsync({ id: props.roleId, name, description }),
-                    updatePermsMutation.mutateAsync({ roleId: props.roleId, permissionIds: selectedPermIds() }),
+                    updateRoleMutation.mutateAsync({ id: targetRoleId, name, description }),
+                    updatePermsMutation.mutateAsync({ roleId: targetRoleId, permissionIds: selectedPermIds() }),
                 ]);
                 toast.success('Rol actualizado correctamente');
             } else {
@@ -174,7 +183,7 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
                 }
                 toast.success(`Rol "${name}" creado correctamente`);
             }
-            props.onClose();
+            close();
         } catch (err: any) {
             toast.error(err?.message || 'Error al guardar');
         }
@@ -183,8 +192,8 @@ const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <FormDialog
-            isOpen={props.isOpen}
-            onClose={props.onClose}
+            isOpen={props.isOpen ?? true}
+            onClose={close}
             title={title()}
             subtitle={subtitle()}
             titleExtra={

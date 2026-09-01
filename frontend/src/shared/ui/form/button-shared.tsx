@@ -65,25 +65,31 @@ export type ButtonVariant = keyof typeof BUTTON_SURFACE_VARIANTS;
 export type ButtonSize = keyof typeof BUTTON_SIZES;
 export type ButtonRadius = keyof typeof BUTTON_RADII;
 
-export interface ButtonVariantOptions {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  radius?: ButtonRadius;
-  fullWidth?: boolean;
-  loading?: boolean;
-  hasLoadingText?: boolean;
-  className?: string;
-  class?: string;
-}
-
 export interface SharedButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   radius?: ButtonRadius;
+  /** Explicitly enables or disables 3D tactile mode with pedestal and extrusion */
+  tactile?: boolean;
+  /** Syntactic sugar for `tactile={false}` (renders as clean single-layer flat button) */
+  flat?: boolean;
   fullWidth?: boolean;
   loading?: boolean;
   loadingText?: JSX.Element | string;
   icon?: JSX.Element;
+}
+
+export interface ButtonVariantOptions extends SharedButtonProps {
+  className?: string;
+  class?: string;
+  hasLoadingText?: boolean;
+}
+
+/** Determines whether a button should render in 3D tactile mode */
+export function isButton3D(options?: { variant?: ButtonVariant; tactile?: boolean; flat?: boolean }): boolean {
+  if (options?.flat === true || options?.tactile === false) return false;
+  if (options?.tactile === true) return true;
+  return TACTILE_3D_VARIANTS.has(options?.variant ?? 'primary');
 }
 
 /** Outer button base class (Static 3D pedestal) */
@@ -91,7 +97,7 @@ export function buttonBaseClasses(options?: ButtonVariantOptions): string {
   const variant = options?.variant ?? 'primary';
   const radius = options?.radius ?? 'lg';
   const fullWidth = options?.fullWidth;
-  const is3D = TACTILE_3D_VARIANTS.has(variant);
+  const is3D = isButton3D(options);
 
   return cn(
     "relative inline-flex items-center justify-center p-0 border-0 cursor-pointer select-none group font-semibold",
@@ -113,7 +119,7 @@ export function buttonSurfaceClasses(options?: ButtonVariantOptions): string {
   const fullWidth = options?.fullWidth;
   const loading = options?.loading;
   const hasLoadingText = options?.hasLoadingText;
-  const is3D = TACTILE_3D_VARIANTS.has(variant);
+  const is3D = isButton3D(options);
 
   return cn(
     "w-full h-full inline-flex items-center justify-center gap-2 font-semibold select-none",
@@ -135,7 +141,7 @@ export function buttonSurfaceClasses(options?: ButtonVariantOptions): string {
 /** Legacy / Single-Element helper (e.g. for Dropdown triggers or flat variants) */
 export function buttonVariants(options?: ButtonVariantOptions): string {
   const variant = options?.variant ?? 'primary';
-  const is3D = TACTILE_3D_VARIANTS.has(variant);
+  const is3D = isButton3D(options);
 
   if (!is3D) {
     const size = options?.size ?? 'md';
@@ -143,7 +149,7 @@ export function buttonVariants(options?: ButtonVariantOptions): string {
     const fullWidth = options?.fullWidth;
 
     return cn(
-      "inline-flex items-center justify-center gap-2 font-semibold cursor-pointer select-none",
+      "inline-flex items-center justify-center gap-2 font-semibold cursor-pointer select-none active:scale-[0.98]",
       "outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
       "disabled:opacity-50 disabled:cursor-not-allowed",
       BUTTON_SURFACE_VARIANTS[variant],
@@ -161,26 +167,8 @@ export function buttonVariants(options?: ButtonVariantOptions): string {
   );
 }
 
-export function getButtonClasses(params: {
-  variant: ButtonVariant;
-  size: ButtonSize;
-  radius: ButtonRadius;
-  fullWidth?: boolean;
-  loading?: boolean;
-  loadingText?: JSX.Element | string;
-  className?: string;
-  class?: string;
-}) {
-  return buttonVariants({
-    variant: params.variant,
-    size: params.size,
-    radius: params.radius,
-    fullWidth: params.fullWidth,
-    loading: params.loading,
-    hasLoadingText: Boolean(params.loadingText),
-    className: params.className,
-    class: params.class,
-  });
+export function getButtonClasses(params: ButtonVariantOptions) {
+  return buttonVariants(params);
 }
 
 export interface ButtonContentProps {

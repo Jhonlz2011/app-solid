@@ -116,6 +116,7 @@ export const DataTableColumnVisibility: Component<DataTableColumnVisibilityProps
                     <div class="flex gap-2">
                         <Button
                             variant="outline"
+                            flat
                             size="sm"
                             class="flex-1 text-xs h-8 px-2"
                             onClick={() => props.table?.getAllLeafColumns().forEach(col => col.getCanHide() && col.toggleVisibility(true))}
@@ -125,6 +126,7 @@ export const DataTableColumnVisibility: Component<DataTableColumnVisibilityProps
                         </Button>
                         <Button
                             variant="outline"
+                            flat
                             size="sm"
                             class="flex-1 text-xs h-8 px-2"
                             onClick={() => props.table?.getAllLeafColumns().forEach(col => col.getCanHide() && col.toggleVisibility(false))}

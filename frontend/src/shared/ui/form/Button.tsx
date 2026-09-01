@@ -3,7 +3,7 @@ import {
   buttonBaseClasses,
   buttonSurfaceClasses,
   buttonVariants,
-  TACTILE_3D_VARIANTS,
+  isButton3D,
   ButtonContent,
   type ButtonVariant, 
   type ButtonSize, 
@@ -25,6 +25,8 @@ export default function Button(props: ButtonProps) {
     'variant', 
     'size', 
     'radius', 
+    'tactile',
+    'flat',
     'fullWidth', 
     'loading', 
     'loadingText', 
@@ -34,12 +36,24 @@ export default function Button(props: ButtonProps) {
     'disabled'
   ]);
 
-  const is3D = () => TACTILE_3D_VARIANTS.has(local.variant);
+  const is3D = () => isButton3D({ variant: local.variant, tactile: local.tactile, flat: local.flat });
+
+  const flatClasses = () => buttonVariants({
+    variant: local.variant,
+    size: local.size,
+    radius: local.radius,
+    fullWidth: local.fullWidth,
+    loading: local.loading,
+    hasLoadingText: Boolean(local.loadingText),
+    class: local.class,
+    tactile: false,
+  });
 
   const baseClasses = () => buttonBaseClasses({
     variant: local.variant,
     radius: local.radius,
     fullWidth: local.fullWidth,
+    tactile: true,
     class: local.class
   });
 
@@ -50,16 +64,7 @@ export default function Button(props: ButtonProps) {
     fullWidth: local.fullWidth,
     loading: local.loading,
     hasLoadingText: Boolean(local.loadingText),
-  });
-
-  const flatClasses = () => buttonVariants({
-    variant: local.variant,
-    size: local.size,
-    radius: local.radius,
-    fullWidth: local.fullWidth,
-    loading: local.loading,
-    hasLoadingText: Boolean(local.loadingText),
-    class: local.class
+    tactile: true,
   });
 
   return (
@@ -103,3 +108,4 @@ export default function Button(props: ButtonProps) {
     </Show>
   );
 }
+

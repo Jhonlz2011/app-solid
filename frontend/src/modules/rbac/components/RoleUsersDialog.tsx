@@ -1,7 +1,9 @@
 import { Component, For, Show, createSignal, createMemo, createEffect, on, onCleanup } from 'solid-js';
+import { useParams } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { useQueryClient } from '@tanstack/solid-query';
 import { FormDialog } from '@/shared/ui/overlay/FormDialog';
+import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { Avatar } from '@/shared/ui/display/Avatar';
 import { RoleBadge } from '@display/Badge';
 import { SearchInput } from '@form/SearchInput';
@@ -16,6 +18,7 @@ import { rbacKeys } from '../data/users.keys';
 import {
     useRoleUsers,
     useUsers,
+    useRole,
 } from '../data/users.queries';
 import {
     useRemoveUserFromRole,
@@ -27,21 +30,28 @@ import type { RoleUserType } from '@app/schema/dto';
 // Types
 // =============================================================================
 
-interface RoleUsersDialogProps {
-    roleId: number | null;
-    roleName: string;
-    isOpen: boolean;
-    onClose: () => void;
+export interface RoleUsersDialogProps {
+    roleId?: number | null;
+    roleName?: string;
+    isOpen?: boolean;
+    onClose?: () => void;
 }
 
 // =============================================================================
 // Component
 // =============================================================================
 
-const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
+export const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
+    const params = useParams({ strict: false }) as () => { roleId?: string };
+    const { close, navigateAway } = useSheetNavigation(props);
+
+    const resolvedRoleId = () => props.roleId ?? (params()?.roleId ? Number(params().roleId) : null);
+    const roleQuery = useRole(resolvedRoleId);
+    const resolvedRoleName = () => props.roleName || roleQuery.data?.name || 'Rol';
+
     // ── Queries ───────────────────────────────────────────────────────────
     const queryClient = useQueryClient();
-    const roleUsersQuery = useRoleUsers(() => props.roleId);
+    const roleUsersQuery = useRoleUsers(resolvedRoleId);
     const removeMutation = useRemoveUserFromRole();
     const assignMutation = useAssignUserRoles();
 
@@ -102,9 +112,10 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
     // ── Handlers ─────────────────────────────────────────────────────────
     const handleRemove = () => {
         const target = confirmRemove();
-        if (!target || !props.roleId) return;
+        const targetRoleId = resolvedRoleId();
+        if (!target || !targetRoleId) return;
         removeMutation.mutate(
-            { roleId: props.roleId, userId: target.userId },
+            { roleId: targetRoleId, userId: target.userId },
             {
                 onSuccess: () => {
                     toast.success(`${target.username} removido del rol`);
@@ -116,11 +127,12 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
     };
 
     const handleAssign = (userId: string, username: string) => {
-        if (!props.roleId) return;
+        const targetRoleId = resolvedRoleId();
+        if (!targetRoleId) return;
         const allUsers = allUsersQuery.data?.data ?? [];
         const user = allUsers.find(u => u.id === userId);
         const currentUserRoleIds = user?.roles?.map((r: any) => r.id) ?? [];
-        const newRoleIds = [...currentUserRoleIds, props.roleId];
+        const newRoleIds = [...currentUserRoleIds, targetRoleId];
 
         assignMutation.mutate(
             { userId, roleIds: newRoleIds },
@@ -128,11 +140,10 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
                 onSuccess: () => {
                     toast.success(`${username} agregado al rol`);
                     // Immediately invalidate to refresh the users list reactively
-                    if (props.roleId) {
-                        queryClient.invalidateQueries({ queryKey: rbacKeys.roleUsers(props.roleId) });
-                    }
+                    queryClient.invalidateQueries({ queryKey: rbacKeys.roleUsers(targetRoleId) });
+                    queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
                 },
-                onError: (err: any) => toast.error(err?.message || 'Error al asignar usuario'),
+                onError: (err: any) => toast.error(err?.message || 'Error al agregar usuario'),
             }
         );
     };
@@ -140,60 +151,59 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
     return (
         <>
             <FormDialog
-                isOpen={props.isOpen}
-                onClose={props.onClose}
-                title="Usuarios del rol"
-                titleExtra={<RoleBadge name={props.roleName} />}
+                isOpen={props.isOpen ?? true}
+                onClose={close}
+                title={`Usuarios — ${resolvedRoleName()}`}
+                subtitle={`Administra qué usuarios pertenecen al rol "${resolvedRoleName()}"`}
+                titleExtra={<RoleBadge name={resolvedRoleName()} />}
+                onSubmit={(e) => { e.preventDefault(); close(); }}
+                submitLabel="Listo"
+                hideFooter={false}
                 maxWidth="lg"
-                hideFooter
-                onSubmit={(e) => e.preventDefault()}
             >
-                <div class="space-y-4 py-4">
-                    <Show when={props.roleName === 'superadmin'}>
-                        <div class="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs text-primary font-medium flex items-center gap-2">
-                            <ShieldIcon class="size-4 shrink-0" />
-                            <span>El rol Superadmin pertenece exclusivamente al propietario de la organización y es inmutable.</span>
-                        </div>
-                    </Show>
-
-                    {/* Search + Add button */}
+                <div class="space-y-4">
+                    {/* Header bar: search + add user toggle */}
                     <div class="flex items-center gap-2">
                         <SearchInput
                             value={search()}
                             onSearch={setSearch}
-                            placeholder="Buscar usuarios..."
+                            placeholder="Buscar usuarios asignados..."
                             class="flex-1"
                         />
-                        <Show when={props.roleName !== 'superadmin'}>
+                        <Show when={resolvedRoleName() !== 'superadmin'}>
                             <Button
-                                variant={showAddPanel() ? 'outline' : 'primary'}
+                                variant={showAddPanel() ? 'secondary' : 'default'}
                                 size="sm"
-                                icon={<PlusIcon />}
-                                onClick={() => setShowAddPanel(!showAddPanel())}
+                                class="gap-1.5 shrink-0"
+                                onClick={() => setShowAddPanel(prev => !prev)}
                             >
-                                <span class="hidden sm:inline">{showAddPanel() ? 'Cerrar' : 'Agregar'}</span>
+                                <PlusIcon class={`size-4 transition-transform ${showAddPanel() ? 'rotate-45' : ''}`} />
+                                {showAddPanel() ? 'Cerrar' : 'Agregar'}
                             </Button>
                         </Show>
                     </div>
 
-                    {/* Add user panel */}
-                    <Show when={showAddPanel() && props.roleName !== 'superadmin'}>
-                        <div class="border border-primary/20 bg-primary/5 rounded-xl p-4 space-y-3">
-                            <div class="text-xs font-semibold text-primary uppercase tracking-wider">
-                                Agregar usuario al rol
+                    {/* Add user panel (expandable) */}
+                    <Show when={showAddPanel()}>
+                        <div class="p-3 bg-surface/40 border border-border rounded-xl space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-semibold text-text">Agregar usuarios a este rol</span>
+                                <span class="text-xs text-muted">{availableUsers().length} disponible{availableUsers().length !== 1 ? 's' : ''}</span>
                             </div>
+
                             <SearchInput
                                 value={addSearch()}
                                 onSearch={setAddSearch}
-                                placeholder="Buscar usuario para agregar..."
+                                placeholder="Filtrar por nombre o email..."
                                 class="w-full"
                             />
-                            <div class="max-h-48 overflow-y-auto space-y-1">
+
+                            <div class="max-h-48 overflow-y-auto space-y-1 pr-1">
                                 <Show
                                     when={availableUsers().length > 0}
                                     fallback={
-                                        <p class="text-xs text-muted text-center py-3">
-                                            {addSearch() ? 'Sin resultados' : 'Todos los usuarios ya están asignados'}
+                                        <p class="text-xs text-muted text-center py-4">
+                                            {addSearch() ? 'No se encontraron usuarios disponibles' : 'Todos los usuarios ya tienen este rol asignado'}
                                         </p>
                                     }
                                 >
@@ -251,7 +261,7 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
                                                 <div class="text-sm font-medium text-text truncate">{user.username}</div>
                                                 <div class="text-xs text-muted truncate">{user.email}</div>
                                             </div>
-                                            <Show when={props.roleName !== 'superadmin'}>
+                                            <Show when={resolvedRoleName() !== 'superadmin'}>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon_md"
@@ -281,7 +291,7 @@ const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
                 onClose={() => setConfirmRemove(null)}
                 onConfirm={handleRemove}
                 title="Quitar usuario del rol"
-                description={`¿Quitar a "${confirmRemove()?.username}" del rol "${props.roleName}"?`}
+                description={`¿Quitar a "${confirmRemove()?.username}" del rol "${resolvedRoleName()}"?`}
                 confirmLabel="Quitar"
                 loadingText="Quitando..."
                 variant="danger"
