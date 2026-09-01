@@ -60,14 +60,16 @@ const ContactRow: Component<ContactRowProps> = (props) => {
                 </props.form.Field>
             </div>
             <div class="col-span-12 md:col-span-1 flex items-center justify-end md:justify-center pt-5">
-                <button
+                <Button
+                    variant="ghost-danger"
+                    size="icon_sm"
+                    radius="lg"
                     type="button"
                     onClick={props.onRemove}
-                    class="p-2 text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
                     title="Eliminar Contacto"
-                >
-                    <TrashIcon class="size-4" />
-                </button>
+                    aria-label="Eliminar Contacto"
+                    icon={<TrashIcon class="size-4" />}
+                />
             </div>
         </div>
     );

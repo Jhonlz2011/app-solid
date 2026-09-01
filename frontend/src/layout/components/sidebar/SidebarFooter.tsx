@@ -90,18 +90,16 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                     <ThemeToggle collapsed={collapsed()} />
 
                     <Button
-                        variant="ghost"
-                        size="icon"
+                        variant="ghost-danger"
+                        size="icon_sm"
+                        radius="xl"
                         onClick={handleLogout}
                         disabled={isLoggingOut()}
-                        class="text-danger hover:text-danger hover:bg-danger/10 focus-visible:ring-danger/55 focus-visible:ring-2 focus-visible:ring-offset-transparent h-8 w-8"
+                        loading={isLoggingOut()}
                         title="Cerrar Sesión"
                         aria-label="Cerrar Sesión"
-                    >
-                        <Show when={!isLoggingOut()}>
-                            <LogoutIcon class="size-5" />
-                        </Show>
-                    </Button>
+                        icon={<LogoutIcon class="size-5" />}
+                    />
                 </div>
             </Show>
         </footer>

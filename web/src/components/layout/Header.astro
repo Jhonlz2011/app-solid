@@ -1,15 +1,13 @@
 ---
-/* Header sticky con blur — Zelys ERP */
+/* Header sticky con Glassmorphism y Theme Toggle — Zelys ERP */
+import Logo from './Logo.astro';
 ---
 
 <header class="site-header" id="site-header">
   <div class="header-inner">
-    <!-- Logo -->
-    <a href="/" class="logo-link">
-      <div class="logo-icon">
-        <span>Z</span>
-      </div>
-      <span class="logo-text">Zelys<span class="logo-dot">.</span></span>
+    <!-- Logo Oficial Vectorial -->
+    <a href="/" class="logo-link" aria-label="Zelys ERP Inicio">
+      <Logo size={32} showText={true} textClass="logo-text" />
     </a>
 
     <!-- Nav desktop -->
@@ -18,13 +16,48 @@
       <a href="/#pricing">Precios</a>
       <a href="/#faq">FAQ</a>
       <a href="https://in.zelys.app" class="nav-login">Ingresar</a>
+
+      <!-- Botón Modo Oscuro / Claro Desktop -->
+      <button
+        type="button"
+        class="theme-toggle-btn"
+        id="theme-toggle-desktop"
+        aria-label="Alternar tema claro y oscuro"
+        title="Alternar tema claro y oscuro"
+      >
+        <!-- Icono Sol (se muestra en modo oscuro) -->
+        <svg class="theme-icon sun-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        <!-- Icono Luna (se muestra en modo claro) -->
+        <svg class="theme-icon moon-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        </svg>
+      </button>
+
       <a href="https://in.zelys.app/register" class="btn-primary">Registrar empresa</a>
     </nav>
 
-    <!-- Hamburger mobile -->
-    <button class="hamburger" id="hamburger" aria-label="Menú de navegación" aria-expanded="false">
-      <span></span><span></span><span></span>
-    </button>
+    <!-- Controles mobile: Toggle + Hamburger -->
+    <div class="mobile-actions">
+      <button
+        type="button"
+        class="theme-toggle-btn"
+        id="theme-toggle-mobile"
+        aria-label="Alternar tema claro y oscuro"
+      >
+        <svg class="theme-icon sun-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        <svg class="theme-icon moon-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        </svg>
+      </button>
+
+      <button class="hamburger" id="hamburger" aria-label="Menú de navegación" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
   </div>
 
   <!-- Drawer mobile -->
@@ -45,14 +78,16 @@
     top: 0;
     z-index: 100;
     padding: 0 2rem;
-    transition: background-color 0.3s ease, backdrop-filter 0.3s ease;
+    background-color: transparent;
+    transition: background-color 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
 
   .site-header.scrolled {
-    background-color: rgba(12, 23, 40, 0.88);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-bottom: 1px solid var(--border-subtle);
+    background-color: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.08);
   }
 
   .header-inner {
@@ -68,27 +103,7 @@
   .logo-link {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-  }
-  .logo-link:hover { color: var(--text-primary); }
-
-  .logo-icon {
-    width: 32px;
-    height: 32px;
-    background: linear-gradient(135deg, var(--accent-deep) 0%, var(--accent-primary) 100%);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 14px rgba(0, 192, 232, 0.2);
-  }
-
-  .logo-icon span {
-    color: #fff;
-    font-family: var(--font-display);
-    font-weight: 900;
-    font-size: 1.1rem;
-    line-height: 1;
+    text-decoration: none;
   }
 
   .logo-text {
@@ -96,16 +111,13 @@
     font-weight: 800;
     font-size: 1.35rem;
     letter-spacing: -0.03em;
-    color: var(--text-primary);
   }
-
-  .logo-dot { color: var(--accent-primary); }
 
   /* Nav desktop */
   .nav-desktop {
     display: flex;
     align-items: center;
-    gap: 2rem;
+    gap: 1.8rem;
   }
 
   .nav-desktop a {
@@ -121,20 +133,79 @@
     font-weight: 600 !important;
   }
 
+  /* Theme Toggle Button */
+  .theme-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+    box-shadow: var(--shadow-card);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .theme-toggle-btn:hover {
+    transform: scale(1.06);
+    border-color: var(--accent-primary);
+    background-color: var(--bg-elevated);
+  }
+
+  .theme-icon {
+    width: 18px;
+    height: 18px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  }
+
+  /* Icono Sol para modo oscuro (amarillo amigable) */
+  :global(.dark) .theme-toggle-btn .sun-icon {
+    display: block;
+    color: #fbbf24;
+  }
+  :global(.dark) .theme-toggle-btn .moon-icon {
+    display: none;
+  }
+
+  /* Icono Luna para modo claro (azul índigo) */
+  :global(:not(.dark)) .theme-toggle-btn .sun-icon {
+    display: none;
+  }
+  :global(:not(.dark)) .theme-toggle-btn .moon-icon {
+    display: block;
+    color: #4338ca;
+  }
+
+  .mobile-actions {
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
   /* Hamburger */
   .hamburger {
-    display: none;
+    display: flex;
     flex-direction: column;
     gap: 5px;
-    background: none;
-    border: none;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
     cursor: pointer;
-    padding: 4px;
+    padding: 8px;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
   }
 
   .hamburger span {
     display: block;
-    width: 22px;
+    width: 18px;
     height: 2px;
     background-color: var(--text-primary);
     border-radius: 2px;
@@ -152,14 +223,16 @@
     top: var(--header-h);
     left: 0;
     right: 0;
-    background: rgba(12, 23, 40, 0.96);
-    backdrop-filter: blur(16px);
+    background: var(--glass-drawer);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border-subtle);
     padding: 1.5rem 2rem;
     transform: translateY(-10px);
     opacity: 0;
     pointer-events: none;
     transition: transform 0.25s ease, opacity 0.25s ease;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   }
 
   .mobile-drawer.open {
@@ -184,13 +257,13 @@
 
   @media (max-width: 768px) {
     .nav-desktop { display: none; }
-    .hamburger { display: flex; }
+    .mobile-actions { display: flex; }
     .mobile-drawer { display: block; }
   }
 </style>
 
 <script>
-  /* Scroll detection for header blur */
+  // ─── Control de Scroll Header ──────────────────────────────────────────
   const header = document.getElementById('site-header');
   if (header) {
     const onScroll = () => {
@@ -200,7 +273,23 @@
     onScroll();
   }
 
-  /* Hamburger toggle */
+  // ─── Theme Toggle Logic ───────────────────────────────────────────────
+  function setupThemeToggle(btnId: string) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+
+    btn.addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      const newTheme = isDark ? 'dark' : 'light';
+      localStorage.setItem('zelys_theme', newTheme);
+      window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: newTheme } }));
+    });
+  }
+
+  setupThemeToggle('theme-toggle-desktop');
+  setupThemeToggle('theme-toggle-mobile');
+
+  // ─── Hamburger Toggle Logic ───────────────────────────────────────────
   const hamburger = document.getElementById('hamburger');
   const drawer = document.getElementById('mobile-drawer');
   if (hamburger && drawer) {
@@ -209,7 +298,7 @@
       drawer.classList.toggle('open', isOpen);
       hamburger.setAttribute('aria-expanded', String(isOpen));
     });
-    /* Cerrar al hacer click en un link del drawer */
+
     drawer.querySelectorAll('a').forEach(link => {
       link.addEventListener('click', () => {
         hamburger.classList.remove('open');

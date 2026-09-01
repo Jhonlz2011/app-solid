@@ -23,20 +23,22 @@ export const BUTTON_BASE_VARIANTS: Record<string, string> = {
   warning: "bg-warning-edge",
   success: "bg-success-edge",
   ghost: "bg-transparent",
+  'ghost-danger': "bg-transparent",
   link: "bg-transparent",
 };
 
 /** Surface face colors (inner floating layer) */
 export const BUTTON_SURFACE_VARIANTS: Record<string, string> = {
   none: "",
-  primary: "bg-primary text-on-primary shadow-sm shadow-primary/20",
-  secondary: "bg-secondary text-on-secondary shadow-sm shadow-secondary/20",
-  outline: "bg-card text-text border border-border hover:bg-surface",
-  danger: "bg-danger text-white shadow-sm shadow-danger/20",
-  destructive: "bg-destructive text-white shadow-sm shadow-destructive/30",
-  warning: "bg-warning text-white shadow-sm shadow-warning/20",
-  success: "bg-success text-white shadow-sm shadow-success/20",
+  primary: "bg-primary text-on-primary shadow-sm shadow-primary/20 hover:bg-primary-strong",
+  secondary: "bg-secondary text-on-secondary shadow-sm shadow-secondary/20 hover:bg-secondary-strong",
+  outline: "bg-card text-text border border-border hover:bg-surface hover:border-border-strong active:bg-surface-3",
+  danger: "bg-danger text-white shadow-sm shadow-danger/20 hover:bg-danger/90",
+  destructive: "bg-destructive text-white shadow-sm shadow-destructive/30 hover:bg-destructive/90",
+  warning: "bg-warning text-white shadow-sm shadow-warning/20 hover:bg-warning/90",
+  success: "bg-success text-white shadow-sm shadow-success/20 hover:bg-success/90",
   ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 transition-colors active:scale-[0.98]",
+  'ghost-danger': "bg-transparent text-muted hover:text-danger hover:bg-danger/10 focus-visible:ring-danger/50 active:bg-danger/20 transition-colors active:scale-[0.98]",
   link: "bg-transparent text-primary hover:text-primary-strong hover:underline transition-colors p-0 h-auto",
 };
 
@@ -47,8 +49,10 @@ export const BUTTON_SIZES = {
   sm: "h-8 px-3 text-xs",
   md: "h-9.5 px-4 text-sm",
   lg: "h-12 px-5 text-base",
+  icon_xs: "h-7 w-7 p-0",
+  icon_sm: "h-8 w-8 p-0",
+  icon_md: "h-9 w-9 p-0",
   icon: "h-10 w-10 p-0",
-  icon_md: "h-8 w-8 p-0",
   none: ""  
 };
 
@@ -149,7 +153,7 @@ export function buttonVariants(options?: ButtonVariantOptions): string {
     const fullWidth = options?.fullWidth;
 
     return cn(
-      "inline-flex items-center justify-center gap-2 font-semibold cursor-pointer select-none active:scale-[0.98]",
+      "relative inline-flex items-center justify-center gap-2 font-semibold cursor-pointer select-none active:scale-[0.98]",
       "outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
       "disabled:opacity-50 disabled:cursor-not-allowed",
       BUTTON_SURFACE_VARIANTS[variant],

@@ -1,67 +1,116 @@
 /* ═══════════════════════════════════════════════════════════
-   Zelys ERP — Design Tokens
-   Derivados del logotipo Z (navy → cyan → mint)
+   Zelys ERP — Design Tokens (Light & Dark System 2026)
+   Derivados de la identidad Zelys (Navy #11315D → Blue #1E72D4 → Cyan #00C0E8 → Mint #00E8CC)
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  /* ─── FONDOS — extraídos del bg del logo ─────────────────── */
-  --bg-base:      #0C1728;
-  --bg-surface:   #0F1E38;
-  --bg-elevated:  #172848;
+  color-scheme: light dark;
 
-  /* ─── ACENTO PRIMARIO — cyan de la punta de la Z ─────────── */
+  /* ─── FONDOS & SUPERFICIES (Modo Claro por defecto en :root) ─ */
+  --bg-base:      #f8fafc;
+  --bg-surface:   #ffffff;
+  --bg-elevated:  #f1f5f9;
+
+  /* ─── TEXTO (Modo Claro) ──────────────────────────────────── */
+  --text-primary:   #0f172a;
+  --text-secondary: #475569;
+  --text-muted:     #94a3b8;
+
+  /* ─── BORDES (Modo Claro) ─────────────────────────────────── */
+  --border-subtle:  #e2e8f0;
+  --border-default: #cbd5e1;
+  --border-active:  rgba(0, 192, 232, 0.45);
+  --border-brand:   rgba(30, 114, 212, 0.25);
+
+  /* ─── CRISTAL Y VIDRIO (Glassmorphism Modo Claro) ──────────── */
+  --glass-bg:         rgba(255, 255, 255, 0.75);
+  --glass-border:     rgba(255, 255, 255, 0.85);
+  --glass-elevated:   rgba(241, 245, 249, 0.85);
+  --glass-drawer:     rgba(255, 255, 255, 0.95);
+
+  /* ─── ACENTOS DE MARCA (Constantes en ambos temas) ───────── */
   --accent-primary:     #00C0E8;
-  --accent-primary-dim: rgba(0, 192, 232, 0.07);
-  --accent-primary-mid: rgba(0, 192, 232, 0.19);
+  --accent-primary-dim: rgba(0, 192, 232, 0.10);
+  --accent-primary-mid: rgba(0, 192, 232, 0.22);
 
-  /* ─── ACENTO SECUNDARIO — azul del cuerpo de la Z ────────── */
   --accent-secondary:   #1E72D4;
-  --accent-deep:        #1A3870;
+  --accent-deep:        #11315D;
 
-  /* ─── GRADIENTE DE MARCA ──────────────────────────────────── */
+  --accent-mint:        #00E8CC;
+  --accent-mint-dim:    rgba(0, 232, 204, 0.12);
+
+  /* ─── GRADIENTES DE MARCA ─────────────────────────────────── */
   --gradient-brand: linear-gradient(135deg,
-    #1A3870 0%,
+    #11315D 0%,
     #1E72D4 45%,
     #00C0E8 75%,
     #00E8CC 100%
   );
 
-  /* ─── ACENTO MINT — punta más clara de la Z ──────────────── */
-  --accent-mint:     #00E8CC;
-  --accent-mint-dim: rgba(0, 232, 204, 0.07);
+  --gradient-card: linear-gradient(180deg,
+    var(--bg-surface) 0%,
+    var(--bg-elevated) 100%
+  );
 
-  /* ─── TEXTO ───────────────────────────────────────────────── */
-  --text-primary:   #EEF4FF;
-  --text-secondary: #7AA8D4;
-  --text-muted:     #374D6B;
-
-  /* ─── BORDES ──────────────────────────────────────────────── */
-  --border-subtle:  #172848;
-  --border-default: #1F3860;
-  --border-active:  rgba(0, 192, 232, 0.19);
-  --border-brand:   rgba(26, 56, 112, 0.25);
-
-  /* ─── SEMÁNTICOS ─────────────────────────────────────────── */
-  --success: #00E8CC;
-  --warning: #F0A020;
-  --error:   #EF4444;
+  /* ─── ESTADOS SEMÁNTICOS ──────────────────────────────────── */
+  --success: #059669;
+  --warning: #d97706;
+  --error:   #dc2626;
   --info:    #1E72D4;
 
-  /* ─── RADIOS ──────────────────────────────────────────────── */
+  /* ─── RADIOS & LAYOUT ─────────────────────────────────────── */
   --radius-sm:  4px;
   --radius-md:  8px;
-  --radius-lg:  12px;
+  --radius-lg:  14px;
   --radius-xl:  20px;
   --radius-2xl: 32px;
 
-  /* ─── SOMBRAS ─────────────────────────────────────────────── */
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px var(--border-subtle);
-  --shadow-glow: 0 0 40px rgba(0, 200, 150, 0.12);
-  --shadow-glow-cyan: 0 0 60px rgba(0, 192, 232, 0.08);
-
-  /* ─── LAYOUT ──────────────────────────────────────────────── */
   --max-w:        1200px;
   --max-w-narrow: 800px;
   --max-w-wide:   1280px;
-  --header-h:     64px;
+  --header-h:     68px;
+
+  /* ─── SOMBRAS (Modo Claro) ─────────────────────────────────── */
+  --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.08), 0 0 0 1px var(--border-subtle);
+  --shadow-glow: 0 0 40px rgba(0, 192, 232, 0.15);
+  --shadow-glow-cyan: 0 10px 30px -5px rgba(0, 192, 232, 0.18);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODO OSCURO (DARK THEME)
+   ═══════════════════════════════════════════════════════════ */
+:root.dark,
+html.dark {
+  /* ─── FONDOS & SUPERFICIES (Modo Oscuro) ─────────────────── */
+  --bg-base:      #020617;
+  --bg-surface:   #0a0e1a;
+  --bg-elevated:  #0f172a;
+
+  /* ─── TEXTO (Modo Oscuro) ─────────────────────────────────── */
+  --text-primary:   #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+
+  /* ─── BORDES (Modo Oscuro) ────────────────────────────────── */
+  --border-subtle:  rgba(255, 255, 255, 0.08);
+  --border-default: rgba(255, 255, 255, 0.14);
+  --border-active:  rgba(0, 192, 232, 0.35);
+  --border-brand:   rgba(0, 192, 232, 0.20);
+
+  /* ─── CRISTAL Y VIDRIO (Glassmorphism Modo Oscuro) ────────── */
+  --glass-bg:         rgba(10, 14, 26, 0.75);
+  --glass-border:     rgba(255, 255, 255, 0.08);
+  --glass-elevated:   rgba(15, 23, 42, 0.75);
+  --glass-drawer:     rgba(7, 11, 22, 0.95);
+
+  /* ─── ESTADOS SEMÁNTICOS (Modo Oscuro) ────────────────────── */
+  --success: #00E8CC;
+  --warning: #F0A020;
+  --error:   #EF4444;
+  --info:    #38bdf8;
+
+  /* ─── SOMBRAS (Modo Oscuro) ───────────────────────────────── */
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-subtle);
+  --shadow-glow: 0 0 40px rgba(0, 232, 204, 0.12);
+  --shadow-glow-cyan: 0 0 60px rgba(0, 192, 232, 0.12);
 }

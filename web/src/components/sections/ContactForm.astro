@@ -2,12 +2,10 @@
 /**
  * ContactForm.astro — Enterprise contact form with Cloudflare Turnstile
  *
- * Renders as a static HTML form. Client-side JS (inline <script>) handles:
- *  1. Loading the CF Turnstile widget
+ * Renders as a static HTML form. Client-side JS handles:
+ *  1. Loading the CF Turnstile widget (adaptable to Light & Dark)
  *  2. Sending the form to POST /api/contact on api.zelys.app
  *  3. Showing success/error states
- *
- * No Astro SSR required — pure static + progressive enhancement.
  */
 ---
 
@@ -75,116 +73,119 @@
   const errorEl   = document.getElementById('cf-error') as HTMLElement | null;
   const successEl = document.getElementById('contact-success') as HTMLElement | null;
 
-  if (!form || !submitBtn) throw new Error('[ContactForm] Elements not found');
+  if (form && submitBtn) {
+    let turnstileToken: string | null = null;
+    let widgetId: string | null = null;
 
-  let turnstileToken: string | null = null;
-
-  // ─── Load Turnstile script ───────────────────────────────────────────────
-  function loadTurnstile() {
-    if ((window as any).turnstile) { renderWidget(); return; }
-    const script = document.createElement('script');
-    script.src   = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-    script.async = true;
-    script.defer = true;
-    script.onload = renderWidget;
-    document.head.appendChild(script);
-  }
-
-  function renderWidget() {
-    const container = document.getElementById('cf-turnstile');
-    if (!container || !(window as any).turnstile) return;
-    (window as any).turnstile.render(container, {
-      sitekey: SITE_KEY,
-      theme: 'dark',
-      language: 'es',
-      callback: (token: string) => {
-        turnstileToken = token;
-        if (submitBtn) submitBtn.disabled = false;
-      },
-      'expired-callback': () => {
-        turnstileToken = null;
-        if (submitBtn) submitBtn.disabled = true;
-      },
-      'error-callback': () => {
-        turnstileToken = null;
-        if (submitBtn) submitBtn.disabled = true;
-      },
-    });
-  }
-
-  // ─── Form submit ─────────────────────────────────────────────────────────
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!turnstileToken) {
-      showError('Por favor, completa la verificación de seguridad.');
-      return;
+    // ─── Load Turnstile script ───────────────────────────────────────────────
+    function loadTurnstile() {
+      if ((window as any).turnstile) { renderWidget(); return; }
+      const script = document.createElement('script');
+      script.src   = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.async = true;
+      script.defer = true;
+      script.onload = renderWidget;
+      document.head.appendChild(script);
     }
 
-    const data = new FormData(form);
-    const name    = (data.get('name')    as string).trim();
-    const company = (data.get('company') as string).trim();
-    const email   = (data.get('email')   as string).trim();
-    const phone   = (data.get('phone')   as string).trim();
-    const message = (data.get('message') as string).trim();
-
-    if (!name || !company || !email || !message) {
-      showError('Por favor, completa todos los campos requeridos.');
-      return;
-    }
-
-    setLoading(true);
-    hideError();
-
-    try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, company, email, phone, message, turnstileToken }),
+    function renderWidget() {
+      const container = document.getElementById('cf-turnstile');
+      if (!container || !(window as any).turnstile) return;
+      
+      const isDark = document.documentElement.classList.contains('dark');
+      widgetId = (window as any).turnstile.render(container, {
+        sitekey: SITE_KEY,
+        theme: isDark ? 'dark' : 'light',
+        language: 'es',
+        callback: (token: string) => {
+          turnstileToken = token;
+          if (submitBtn) submitBtn.disabled = false;
+        },
+        'expired-callback': () => {
+          turnstileToken = null;
+          if (submitBtn) submitBtn.disabled = true;
+        },
+        'error-callback': () => {
+          turnstileToken = null;
+          if (submitBtn) submitBtn.disabled = true;
+        },
       });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error((body as any)?.message || `Error ${res.status}`);
-      }
-
-      // Show success
-      form.style.display = 'none';
-      if (successEl) successEl.style.display = 'flex';
-    } catch (err: any) {
-      showError(err?.message || 'Error al enviar. Intenta de nuevo o escríbenos a soporte@zelys.app');
-      // Reset Turnstile widget
-      if ((window as any).turnstile) {
-        (window as any).turnstile.reset(document.getElementById('cf-turnstile'));
-      }
-      turnstileToken = null;
-      if (submitBtn) submitBtn.disabled = true;
-    } finally {
-      setLoading(false);
     }
-  });
 
-  function setLoading(loading: boolean) {
-    if (!submitBtn || !submitTxt || !submitSpn) return;
-    submitBtn.disabled = loading;
-    submitTxt.style.display = loading ? 'none' : 'inline';
-    submitSpn.style.display = loading ? 'inline' : 'none';
-  }
+    // ─── Form submit ─────────────────────────────────────────────────────────
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!turnstileToken) {
+        showError('Por favor, completa la verificación de seguridad.');
+        return;
+      }
 
-  function showError(msg: string) {
-    if (!errorEl) return;
-    errorEl.textContent = msg;
-    errorEl.style.display = 'block';
-  }
-  function hideError() {
-    if (!errorEl) return;
-    errorEl.style.display = 'none';
-  }
+      const data = new FormData(form);
+      const name    = (data.get('name')    as string).trim();
+      const company = (data.get('company') as string).trim();
+      const email   = (data.get('email')   as string).trim();
+      const phone   = (data.get('phone')   as string).trim();
+      const message = (data.get('message') as string).trim();
 
-  // Init on DOMContentLoaded
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadTurnstile);
-  } else {
-    loadTurnstile();
+      if (!name || !company || !email || !message) {
+        showError('Por favor, completa todos los campos requeridos.');
+        return;
+      }
+
+      setLoading(true);
+      hideError();
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, company, email, phone, message, turnstileToken }),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error((body as any)?.message || `Error ${res.status}`);
+        }
+
+        // Show success
+        form.style.display = 'none';
+        if (successEl) successEl.style.display = 'flex';
+      } catch (err: any) {
+        showError(err?.message || 'Error al enviar. Intenta de nuevo o escríbenos a soporte@zelys.app');
+        // Reset Turnstile widget
+        if ((window as any).turnstile && widgetId) {
+          (window as any).turnstile.reset(widgetId);
+        }
+        turnstileToken = null;
+        if (submitBtn) submitBtn.disabled = true;
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    function setLoading(loading: boolean) {
+      if (!submitBtn || !submitTxt || !submitSpn) return;
+      submitBtn.disabled = loading;
+      submitTxt.style.display = loading ? 'none' : 'inline';
+      submitSpn.style.display = loading ? 'inline' : 'none';
+    }
+
+    function showError(msg: string) {
+      if (!errorEl) return;
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+    function hideError() {
+      if (!errorEl) return;
+      errorEl.style.display = 'none';
+    }
+
+    // Init on DOMContentLoaded
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', loadTurnstile);
+    } else {
+      loadTurnstile();
+    }
   }
 </script>
 
@@ -220,10 +221,10 @@
 
   .cf-field input,
   .cf-field textarea {
-    background: var(--bg-base);
+    background: var(--bg-surface);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
-    padding: 0.65rem 0.9rem;
+    padding: 0.7rem 0.95rem;
     font-size: 0.9rem;
     color: var(--text-primary);
     font-family: inherit;
@@ -231,6 +232,7 @@
     resize: vertical;
     width: 100%;
     box-sizing: border-box;
+    box-shadow: var(--shadow-card);
   }
 
   .cf-field input::placeholder,
@@ -242,7 +244,7 @@
   .cf-field textarea:focus {
     outline: none;
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px rgba(0, 192, 232, 0.12);
+    box-shadow: 0 0 0 3px rgba(0, 192, 232, 0.15);
   }
 
   .cf-turnstile-wrap {
@@ -255,8 +257,8 @@
   .cf-error {
     font-size: 0.82rem;
     color: var(--error);
-    background: rgba(239, 68, 68, 0.08);
-    border: 1px solid rgba(239, 68, 68, 0.2);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.25);
     border-radius: var(--radius-md);
     padding: 0.65rem 0.9rem;
     margin: 0;
@@ -302,8 +304,8 @@
   .cf-success-icon {
     width: 52px;
     height: 52px;
-    background: rgba(0, 232, 204, 0.12);
-    border: 1px solid rgba(0, 232, 204, 0.3);
+    background: rgba(0, 232, 204, 0.15);
+    border: 1px solid rgba(0, 232, 204, 0.35);
     border-radius: 50%;
     display: flex;
     align-items: center;

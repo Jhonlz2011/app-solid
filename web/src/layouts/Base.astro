@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import Header from '../components/layout/Header.astro';
 import Footer from '../components/layout/Footer.astro';
+import AmbientBackground from '../components/layout/AmbientBackground.astro';
 
 interface Props {
   title?: string;
@@ -19,7 +20,26 @@ const {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/logo-blank-192x192.png" />
+    
+    <!-- Script Anti-FOUT: Inicialización inmediata del tema antes del primer render -->
+    <script is:inline>
+      (function() {
+        const storedTheme = localStorage.getItem('zelys_theme');
+        const userPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (storedTheme === 'dark' || (!storedTheme && userPrefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else if (storedTheme === 'light') {
+          document.documentElement.classList.remove('dark');
+        } else {
+          // Por defecto en ambiente tecnológico: Dark mode
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+
+    <!-- Favicon Oficial Vectorial & Fallback -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" href="/favicon.ico" />
     <meta name="generator" content={Astro.generator} />
 
     <!-- Meta primarios -->
@@ -31,17 +51,27 @@ const {
     <meta property="og:url" content="https://zelys.app" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
+    <meta property="og:image" content="/favicon.svg" />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:title" content={title} />
     <meta property="twitter:description" content={description} />
+    <meta property="twitter:image" content="/favicon.svg" />
   </head>
   <body>
+    <!-- Motor de Fondo Ambiental Aurora FX -->
+    <AmbientBackground />
+
+    <!-- Navegación Superior -->
     <Header />
-    <main style="flex: 1; position: relative; z-index: 1;">
+
+    <!-- Contenido Principal -->
+    <main style="flex: 1; position: relative; z-index: 10;">
       <slot />
     </main>
+
+    <!-- Pie de Página -->
     <Footer />
   </body>
 </html>
