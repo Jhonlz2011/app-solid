@@ -43,8 +43,14 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trigger Coolify Backend Deploy
-        if: success() && secrets.COOLIFY_BACKEND_WEBHOOK != ''
-        run: curl -s -X GET "${{ secrets.COOLIFY_BACKEND_WEBHOOK }}"
+        env:
+          WEBHOOK_URL: ${{ secrets.COOLIFY_BACKEND_WEBHOOK }}
+        run: |
+          if [ -n "$WEBHOOK_URL" ]; then
+            curl -s -X GET "$WEBHOOK_URL"
+          else
+            echo "COOLIFY_BACKEND_WEBHOOK no está configurado. Despliegue omitido."
+          fi
 
   # -------------------------------------------------------------
   # 2. FRONTEND (SolidJS App)
@@ -79,8 +85,14 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trigger Coolify Frontend Deploy
-        if: success() && secrets.COOLIFY_FRONTEND_WEBHOOK != ''
-        run: curl -s -X GET "${{ secrets.COOLIFY_FRONTEND_WEBHOOK }}"
+        env:
+          WEBHOOK_URL: ${{ secrets.COOLIFY_FRONTEND_WEBHOOK }}
+        run: |
+          if [ -n "$WEBHOOK_URL" ]; then
+            curl -s -X GET "$WEBHOOK_URL"
+          else
+            echo "COOLIFY_FRONTEND_WEBHOOK no está configurado. Despliegue omitido."
+          fi
 
   # -------------------------------------------------------------
   # 3. WEB (Landing Astro)
@@ -115,5 +127,11 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trigger Coolify Web Deploy
-        if: success() && secrets.COOLIFY_WEB_WEBHOOK != ''
-        run: curl -s -X GET "${{ secrets.COOLIFY_WEB_WEBHOOK }}"
+        env:
+          WEBHOOK_URL: ${{ secrets.COOLIFY_WEB_WEBHOOK }}
+        run: |
+          if [ -n "$WEBHOOK_URL" ]; then
+            curl -s -X GET "$WEBHOOK_URL"
+          else
+            echo "COOLIFY_WEB_WEBHOOK no está configurado. Despliegue omitido."
+          fi
