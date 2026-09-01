@@ -6,7 +6,7 @@
  */
 import { Show } from 'solid-js';
 import type { ColumnDef } from '@tanstack/solid-table';
-import type { BrandItem } from './brands.api';
+import type { BrandItem } from '@app/schema/dto';
 import Checkbox from '@form/Checkbox';
 import { StatusBadge } from '@display/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';

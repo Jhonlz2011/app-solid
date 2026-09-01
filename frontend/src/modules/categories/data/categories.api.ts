@@ -6,19 +6,7 @@ import type {
     CategoryDetail,
     CategoryFormSchemaData,
     CategoryReferences,
-    CategoryPayload,
-    CategoryUpdatePayload,
 } from '@app/schema/dto';
-
-// Re-export shared contracts for local module consumers
-export type {
-    CategoryNode,
-    CategoryDetail,
-    CategoryFormSchemaData,
-    CategoryReferences,
-    CategoryPayload,
-    CategoryUpdatePayload,
-};
 
 // =============================================================================
 // API Client — Categories (/api/categories)

@@ -97,7 +97,7 @@ export const usersApi = {
         return data!;
     },
 
-    updateUser: async (id: string, body: { username?: string; email?: string; isActive?: boolean; roleIds?: number[]; entityId?: string | null }) => {
+    updateUser: async (id: string, body: Parameters<ReturnType<typeof api.rbac.users>['put']>[0]) => {
         const { data, error } = await api.rbac.users({ id }).put(body);
         if (error) throwApiError(error);
         return data!;

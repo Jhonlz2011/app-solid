@@ -17,7 +17,7 @@ import {
     useCategoriesFlat,
 } from '../data/categories.queries';
 import { useAttributeList } from '@modules/attributes/data/attributes.queries';
-import type { CategoryDetail, CategoryNode } from '../data/categories.api';
+import type { CategoryDetail, CategoryNode } from '@app/schema/dto';
 import type { AttributeItem } from '@modules/attributes/data/attributes.api';
 
 export interface CategoryFormProps {

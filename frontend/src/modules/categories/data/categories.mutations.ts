@@ -5,7 +5,8 @@
  * Uses categorieKeys.categoriesFlat() for granular cache targeting.
  */
 import { createMutation, useQueryClient } from '@tanstack/solid-query';
-import { categoriesApi, type CategoryNode } from './categories.api';
+import { type CategoryNode } from '@app/schema/dto';
+import { categoriesApi } from './categories.api';
 import { categorieKeys } from './categories.keys';
 import type { CategoryFormData, CategoryUpdateData } from '@app/schema/frontend';
 

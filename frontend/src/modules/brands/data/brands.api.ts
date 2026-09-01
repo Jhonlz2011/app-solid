@@ -9,9 +9,6 @@ import type {
     PaginatedResult,
 } from '@app/schema/dto';
 
-// Re-export shared contracts for local module consumers
-export type { BrandItem, BrandBodyType, BrandUpdateType, BrandFilters, BrandReferencesType, PaginatedResult };
-
 // =============================================================================
 // API Wrappers — Brands (/api/brands)
 // =============================================================================

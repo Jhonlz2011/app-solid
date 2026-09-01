@@ -1,5 +1,6 @@
 import { createMutation, useQueryClient } from '@tanstack/solid-query';
-import { brandsApi, type BrandItem } from './brands.api';
+import { brandsApi } from './brands.api';
+import type { BrandItem } from '@app/schema/dto'
 import { brandKeys } from './brands.keys';
 import { updateCacheItem, type CacheShape } from '@shared/utils/query.utils';
 

@@ -18,6 +18,7 @@ import {
 } from './rbac.permission.service';
 import { logAudit } from './rbac.roles.service';
 import { hashPassword } from '../../core/security';
+import type { RbacUserCreateType } from '@app/schema/backend';
 
 export interface UsersListFilters {
     search?: string;
@@ -518,15 +519,7 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
  * Create a new user (admin function with Better-Auth credential account creation & organization member sync)
  */
 export async function createUser(
-    data: {
-        email: string;
-        roleIds?: number[];
-        entityId?: string | null;
-        username?: string;
-        password?: string;
-        mode?: 'invite' | 'direct';
-        sendEmail?: boolean;
-    },
+    data: RbacUserCreateType,
     currentUserId?: string | number,
     companyId?: number
 ) {
@@ -534,7 +527,7 @@ export async function createUser(
     const baseUsername = normalizedEmail.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
     const normalizedUsername = (data.username?.trim() || baseUsername).toLowerCase();
     const displayName = data.username?.trim() || data.email.split('@')[0];
-    const isDirect = data.mode === 'direct' && Boolean(data.password?.trim());
+    const isDirect = data.mode === 'direct' || (data.mode !== 'invite' && Boolean(data.password?.trim()));
 
     // 1. Validar que el username sea único globalmente (only if no existing user with this email)
     const existingGlobalUser = await adminDb.query.authUsers.findFirst({

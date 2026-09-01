@@ -7,7 +7,7 @@ import { broadcast } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
 import type {
-    CategoryPayload,
+    CategoryBodyType,
     CategoryNode,
     CategoryDetail,
     CategoryFormSchemaData,
@@ -244,7 +244,7 @@ export async function getCategoryFormSchema(id: number, companyId: number): Prom
     return { category, attributes };
 }
 
-export async function createCategoryEnhanced(data: CategoryPayload, clientId?: string): Promise<CategoryNode> {
+export async function createCategoryEnhanced(data: CategoryBodyType, clientId?: string): Promise<CategoryNode> {
     const { path, depth } = await computePathAndDepth(data.parentId ?? null, data.name);
 
     const created = await db.transaction(async (tx) => {
@@ -286,7 +286,7 @@ export async function createCategoryEnhanced(data: CategoryPayload, clientId?: s
     };
 }
 
-export async function updateCategoryEnhanced(id: number, data: Partial<CategoryPayload>, companyId: number, clientId?: string): Promise<CategoryNode> {
+export async function updateCategoryEnhanced(id: number, data: Partial<CategoryBodyType>, companyId: number, clientId?: string): Promise<CategoryNode> {
     const updated = await db.transaction(async (tx) => {
         // Verify ownership
         const [existing] = await tx.select().from(categories)

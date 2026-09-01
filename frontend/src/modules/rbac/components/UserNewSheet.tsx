@@ -36,13 +36,7 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
         const isInvite = isInviteFlow();
         const created = await executeFormMutation({
             mutation: createMutation,
-            variables: {
-                email: values.email,
-                username: values.username || undefined,
-                password: values.password || undefined,
-                roleIds: values.roleIds.length > 0 ? values.roleIds : undefined,
-                entityId: values.entityId || undefined,
-            },
+            variables: values,
             successMessage: isInvite
                 ? `Invitación enviada a "${values.email}" correctamente`
                 : `Usuario "${values.username || values.email}" creado correctamente`,

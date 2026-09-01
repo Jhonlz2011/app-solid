@@ -16,7 +16,7 @@ import {
     bulkDeactivateCategories,
     bulkRestoreCategories,
 } from './categories.service';
-import type { CategoryPayload } from '@app/schema/dto';
+import type { CategoryBodyType } from '@app/schema/dto';
 import {
     CategoryBodySchema,
     CategoryUpdateSchema,
@@ -115,7 +115,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
         '/',
         async ({ body, set, headers, currentCompanyId }) => {
             const category = await createCategoryEnhanced(
-                { ...body, companyId: currentCompanyId } as CategoryPayload,
+                { ...body, companyId: currentCompanyId } as CategoryBodyType,
                 headers['x-client-id']
             );
             set.status = 201;
@@ -131,7 +131,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
         ({ params, body, headers, currentCompanyId }) =>
             updateCategoryEnhanced(
                 params.id,
-                body as Partial<CategoryPayload>,
+                body as Partial<CategoryBodyType>,
                 currentCompanyId,
                 headers['x-client-id']
             ),

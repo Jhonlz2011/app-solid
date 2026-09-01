@@ -20,7 +20,7 @@ import {
     useBulkDeactivateCategories,
     useBulkRestoreCategories,
 } from '../data/categories.mutations';
-import type { CategoryNode } from '../data/categories.api';
+import type { CategoryNode } from '@app/schema/dto';
 import { toast } from 'solid-sonner';
 import { copyToClipboard } from '@shared/utils/clipboard';
 

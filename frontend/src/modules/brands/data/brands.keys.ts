@@ -1,4 +1,4 @@
-import type { BrandFilters } from './brands.api';
+import type { BrandFilters } from '@app/schema/dto';
 
 export const brandKeys = {
     all: ['brands'] as const,

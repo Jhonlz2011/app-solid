@@ -2,7 +2,7 @@ import { Component, createSignal } from 'solid-js';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { useCheckCategoryReferences } from '../data/categories.queries';
 import { useDeactivateCategory, useHardDeleteCategory } from '../data/categories.mutations';
-import { CategoryNode } from '../data/categories.api';
+import { CategoryNode } from '@app/schema/dto';
 import DeleteDialog from '@overlay/DeleteDialog';
 import { toast } from 'solid-sonner';
 

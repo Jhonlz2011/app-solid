@@ -13,7 +13,7 @@ import { useAuth } from '@modules/auth/store/auth.store';
 import { useBrands } from '../data/brands.queries';
 import { useDeactivateBrand, useRestoreBrand, useBulkDeactivateBrand, useBulkRestoreBrand } from '../data/brands.mutations';
 import { brandKeys } from '../data/brands.keys';
-import { type BrandItem, type BrandFilters } from '../data/brands.api';
+import type { BrandItem, BrandFilters } from '@app/schema/dto';
 import { createBrandColumns } from '../data/brands.columns';
 
 export function useBrandsState() {

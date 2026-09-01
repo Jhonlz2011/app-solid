@@ -1,7 +1,8 @@
 import { createQuery, keepPreviousData, useQueryClient } from '@tanstack/solid-query';
 import { createEffect } from 'solid-js';
 import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
-import { brandsApi, type BrandFilters } from './brands.api';
+import { brandsApi } from './brands.api';
+import type { BrandFilters } from '@app/schema/dto'
 import { brandKeys } from './brands.keys';
 
 /**

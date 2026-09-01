@@ -113,7 +113,7 @@ export const UserDetailResponseSchema = Type.Object({
 
 export const RbacUserCreateBodySchema = Type.Object({
     email: Type.String({ format: 'email' }),
-    username: Type.Optional(Type.String({ minLength: 2 })),
+    username: Type.Optional(Type.String({ minLength: 3 })),
     password: Type.Optional(Type.String({ minLength: 8 })),
     roleIds: Type.Array(Type.Number(), { minItems: 1 }),
     entityId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
@@ -131,7 +131,7 @@ export const RbacUserUpdateBodySchema = Type.Object({
     roleIds: Type.Optional(Type.Array(Type.Number(), { minItems: 1 })),
     entityId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     isActive: Type.Optional(Type.Boolean()),
-    username: Type.Optional(Type.String({ minLength: 2 })),
+    username: Type.Optional(Type.String({ minLength: 3 })),
     email: Type.Optional(Type.String({ format: 'email' })),
 });
 

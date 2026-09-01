@@ -8,7 +8,7 @@ import { createForm } from '@tanstack/solid-form';
 import { BrandFormSchema, type BrandFormData } from '@app/schema/frontend';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { handleFormApiErrors } from '@shared/utils/form.utils';
-import type { BrandItem } from '../data/brands.api';
+import type { BrandItem } from '@app/schema/dto';
 import TextField from '@form/TextField';
 
 export interface BrandFormProps {

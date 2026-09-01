@@ -1,7 +1,7 @@
 import { Component, JSX, Show } from 'solid-js';
 import { TreeSelect } from '@/shared/ui/form/TreeSelect';
 import { useCategoriesFlat } from '@modules/categories/data/categories.queries';
-import type { CategoryNode } from '@modules/categories/data/categories.api';
+import type { CategoryNode } from '@app/schema/dto';
 import type { FieldLike } from '@shared/ui/form/form.types';
 
 export interface CategorySelectProps {

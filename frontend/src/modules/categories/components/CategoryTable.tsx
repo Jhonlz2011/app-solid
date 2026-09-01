@@ -53,7 +53,7 @@ import { TagIcon } from '@icons/TagIcon';
 import { cn } from '@shared/lib/utils';
 import { useTreeDnD, buildSubRows } from '@shared/hooks/useTreeDnD';
 import { getHeaderPinningStyles, getCellPinningStyles } from '@shared/utils/column-pinning';
-import type { CategoryNode } from '../data/categories.api';
+import type { CategoryNode } from '@app/schema/dto';
 import { createCategoryColumns, type CategoryColumnHandlers } from '../data/categories.columns';
 import { useReparentCategory } from '../data/categories.mutations';
 

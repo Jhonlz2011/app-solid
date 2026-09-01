@@ -22,7 +22,7 @@ import { PlusIcon } from '@icons/PlusIcon';
 import { FolderIcon } from '@icons/FolderIcon';
 import { FolderOpenIcon } from '@icons/FolderOpenIcon';
 import { cn } from '@shared/lib/utils';
-import type { CategoryNode } from './categories.api';
+import type { CategoryNode } from '@app/schema/dto';
 
 export interface ColumnFilterConfig {
     options: () => FilterOption[];
