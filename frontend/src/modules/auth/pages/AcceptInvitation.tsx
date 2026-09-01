@@ -137,9 +137,6 @@ export const AcceptInvitation: Component = () => {
             >
                 {/* 1-Click OAuth Fast Pass */}
                 <div class="space-y-3 mb-6">
-                    <div class="p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-medium leading-relaxed">
-                        ⚡ <strong>Acceso 1-Click:</strong> Si utilizas Google o Microsoft con esta dirección, puedes acceder directamente sin definir contraseña.
-                    </div>
                     <OAuthButtons mode="login" />
                 </div>
 
