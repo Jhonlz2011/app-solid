@@ -5,9 +5,8 @@ import { RoleBadge } from '@display/Badge';
 import { SkeletonLoader } from '@display/SkeletonLoader';
 import { FieldLabel } from '@form/TextField';
 import { SearchInput } from '@form/SearchInput';
-import Button from '@form/Button';
+import LinkButton from '@form/LinkButton';
 import { PlusIcon } from '@icons/PlusIcon';
-import RoleFormDialog from '../RoleFormDialog';
 
 export interface UserRolePickerProps {
     roles: RoleType[];
@@ -20,7 +19,6 @@ export interface UserRolePickerProps {
 
 export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
     const [searchQuery, setSearchQuery] = createSignal('');
-    const [isCreateRoleOpen, setIsCreateRoleOpen] = createSignal(false);
 
     const isUserSuperadmin = createMemo(() => {
         const superRole = props.roles?.find((r) => r.name === 'superadmin');
@@ -62,16 +60,16 @@ export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
                             {selectedCount()} seleccionado{selectedCount() === 1 ? '' : 's'}
                         </span>
                     </Show>
-                    <Button
-                        type="button"
+                    <LinkButton
+                        to="role/new"
+                        preload="intent"
                         variant="ghost"
                         size="sm"
                         class="h-7 px-2 text-xs text-primary hover:bg-primary/10 gap-1 font-medium"
                         icon={<PlusIcon class="size-3.5" />}
-                        onClick={() => setIsCreateRoleOpen(true)}
                     >
                         Nuevo
-                    </Button>
+                    </LinkButton>
                 </div>
             </div>
 
@@ -146,12 +144,6 @@ export const UserRolePicker: Component<UserRolePickerProps> = (props) => {
                     </div>
                 </Show>
             </Show>
-            {/* Quick role creation dialog */}
-            <RoleFormDialog
-                isOpen={isCreateRoleOpen()}
-                mode="create"
-                onClose={() => setIsCreateRoleOpen(false)}
-            />
         </div>
     );
 };

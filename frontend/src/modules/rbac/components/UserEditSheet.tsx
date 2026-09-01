@@ -1,5 +1,5 @@
 import { Component, Show } from 'solid-js';
-import { useParams } from '@tanstack/solid-router';
+import { useParams, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { executeFormMutation } from '@shared/utils/form.utils';
 import { toast } from 'solid-sonner';
@@ -183,6 +183,8 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                     )}
                 </Show>
             </Show>
+            {/* Nested role creation dialogs render here */}
+            <Outlet />
         </Sheet>
     );
 };

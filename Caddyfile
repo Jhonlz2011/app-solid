@@ -1,18 +1,18 @@
 {
-    # Admin API desactivada para producción
+    # Admin API off for production security
     admin off
 
-    # Traefik / Cloudflare gestionan los certificados SSL
+    # Global options - Desactiva HTTPS automático porque el Proxy de Coolify maneja los certificados
     auto_https off
 }
-
 :80 {
+    # Set root directory
     root * /usr/share/caddy
 
-    # Compresión Zstandard y Gzip
+    # Enable Zstandard (zstd) and Gzip compression
     encode zstd gzip
 
-    # 1. Petición interna del Backend para obtener el index.html crudo
+    # 1. Internal request from backend fetching raw index.html template
     @raw_request {
         header X-Raw-Request "true"
     }
@@ -21,15 +21,9 @@
         file_server
     }
 
-    # 2. Service Worker y Manifest (NUNCA cachear como inmutable)
-    @pwa_lifecycle path /sw.js /manifest.webmanifest /branding-fallback.js
-    handle @pwa_lifecycle {
-        header Cache-Control "no-cache, no-store, must-revalidate"
-        file_server
-    }
-
-    # 3. Archivos estáticos inmutables (Vite hash, iconos, assets)
-    @static_paths path /assets/* /icons/* /favicon.ico *.js *.css *.jpg *.jpeg *.png *.gif *.ico *.svg *.woff *.woff2 *.webp *.avif
+    # 2. RUTAS ESTÁTICAS EXPLICITAS
+    # Forzar que /assets/*, iconos, manifest y favicon NUNCA pasen al backend
+    @static_paths path /assets/* /icons/* /favicon.ico /manifest.webmanifest /sw.js /branding-fallback.js
     handle @static_paths {
         header Cache-Control "public, max-age=31536000, immutable"
         file_server {
@@ -37,7 +31,7 @@
         }
     }
 
-    # 4. Cualquier otro archivo estático físico existente
+    # 3. Cualquier otro archivo que exista físicamente en la raíz
     @static_assets {
         file
     }
@@ -47,7 +41,7 @@
         }
     }
 
-    # 5. Redirigir navegación SPA al Backend para branding dinámico
+    # 4. Proxy SPA navigation routes to backend for dynamic tenant branding
     handle {
         reverse_proxy {$BACKEND_URL:https://api.zelys.app} {
             header_up Host {$BACKEND_HOST:api.zelys.app}
@@ -56,19 +50,37 @@
         }
     }
 
-    # 6. Fallback de emergencia: servir index.html local si el backend no responde
+    # 5. Fallback: serve local static index.html if backend is offline/error
     handle_errors {
         rewrite * /index.html
         file_server
     }
 
-    # Cabeceras de Seguridad y CSP
+    # Cache Control for Static Assets (Vite hashed files)
+    @static {
+        file
+        path *.js *.css *.jpg *.jpeg *.png *.gif *.ico *.svg *.woff *.woff2
+    }
+
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
+    # Robust Security Headers (Blindaje contra XSS, Clickjacking y Spoofing)
     header {
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
         Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # 1. HSTS (Fuerza HTTPS por 2 años, incluyendo subdominios)
         Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        
+        # 2. Permissions Policy (Apaga hardware del cliente innecesario)
         Permissions-Policy "microphone=(), usb=(), camera=(self), geolocation=(self), payment=(self), display-capture=(self)"
+        
+        # 3. Content Security Policy (Asegura tus orígenes legítimos y llamadas a tu API)
+        #    - worker-src: permite el Service Worker (sw.js)
+        #    - font-src: Google Fonts (gstatic)
+        #    - connect-src: API + CDN de R2 (*.zelys.app cubre api.zelys.app y cdn.zelys.app) + Cloudflare R2 endpoints (*.r2.cloudflarestorage.com)
+        #    - frame-src: Cloudflare Turnstile challenge iframe
         Content-Security-Policy "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self'; img-src 'self' data: blob: https://flagcdn.com https://*.zelys.app https://zelys.app https:; connect-src 'self' https://zelys.app https://*.zelys.app https://*.r2.cloudflarestorage.com https://challenges.cloudflare.com https://secure.geonames.org https://flagcdn.com http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*; frame-src https://challenges.cloudflare.com; manifest-src 'self' https://zelys.app https://*.zelys.app https://api.zelys.app;"
     }
 }

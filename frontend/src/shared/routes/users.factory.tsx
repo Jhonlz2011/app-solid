@@ -1,5 +1,6 @@
 import { lazyRouteComponent } from '@tanstack/solid-router';
 import { createEntityModals } from '@shared/routes/modals.factory';
+import { createRoleModals } from '@shared/routes/roles.factory';
 import { queryClient } from '@shared/lib/queryClient';
 import { rbacKeys } from '@/modules/rbac/data/users.keys';
 import { usersApi } from '@/modules/rbac/data/users.api';
@@ -14,6 +15,8 @@ export const createUserModals = (parentRoute: any, basePath = '') =>
         idParam: 'userId',
         components: { New: LazyUserNewRoute, Show: LazyUserShowRoute, Edit: LazyUserEditRoute },
         detail: { queryKey: rbacKeys.user, queryFn: usersApi.getUser, staleTime: 1000 * 60 * 5 },
+        nestInNew: (newRoute) => createRoleModals(newRoute, 'role'),
+        nestInEdit: (editRoute) => createRoleModals(editRoute, 'role'),
         editPreload: async () => {
             await queryClient.prefetchQuery({ 
                 queryKey: rbacKeys.roles(), 

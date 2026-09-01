@@ -139,6 +139,7 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
                             {(role) => (
                                 <Link
                                     to={`/users/role/${role.id}/permissions`}
+                                    search={(prev: any) => ({ ...prev, tab: 'users' })}
                                     preload="intent"
                                     class="cursor-pointer rounded-md hover:opacity-85 focus:outline-none focus:ring-2 focus:ring-primary/40 inline-block"
                                     title={`Ver permisos de ${role.name}`}

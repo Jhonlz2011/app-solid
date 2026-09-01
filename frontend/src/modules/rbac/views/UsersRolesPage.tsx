@@ -70,12 +70,12 @@ const UsersRolesPage: Component = () => {
                             </Tabs>
 
                             <Show when={state.activeTab() === 'users' && state.auth.canAdd('users')}>
-                                <LinkButton to="/users/new" preload="intent" icon={<PlusIcon />}>
+                                <LinkButton to="/users/new" search={(prev: any) => ({ ...prev, tab: 'users' })} preload="intent" icon={<PlusIcon />}>
                                     <span class="hidden @md:inline">Nuevo</span>
                                 </LinkButton>
                             </Show>
                             <Show when={state.activeTab() === 'roles' && state.auth.canAdd('roles')}>
-                                <LinkButton to="/users/role/new" preload="intent" icon={<PlusIcon />}>
+                                <LinkButton to="/users/role/new" search={(prev: any) => ({ ...prev, tab: 'roles' })} preload="intent" icon={<PlusIcon />}>
                                     <span class="hidden @md:inline">Nuevo </span>
                                 </LinkButton>
                             </Show>

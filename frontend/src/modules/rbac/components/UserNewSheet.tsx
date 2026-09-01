@@ -1,4 +1,5 @@
 import { Component, createSignal } from 'solid-js';
+import { Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { executeFormMutation } from '@shared/utils/form.utils';
 import type { UserCreateData } from '@app/schema/frontend';
@@ -88,6 +89,8 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
                 isSubmitting={isPending()}
                 onStateChange={setFormState}
             />
+            {/* Nested role creation dialogs render here */}
+            <Outlet />
         </Sheet>
     );
 };

@@ -30,6 +30,7 @@ const StatLink = (p: { icon: JSX.Element; count: number; label: string; to?: str
             <Tooltip content={p.tooltip!}>
                 <Link
                     to={p.to!}
+                    search={(prev: any) => ({ ...prev, tab: 'roles' })}
                     preload="intent"
                     class="flex items-center gap-1.5 text-xs text-muted px-2 py-1 rounded-lg hover:bg-info/10 hover:text-info transition-colors"
                     onClick={(e) => e.stopPropagation()}
@@ -90,15 +91,30 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                                 <MoreVerticalIcon class="size-4" />
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content class="min-w-40">
-                                <DropdownMenu.Item as={Link} to={`/users/role/${props.role.id}/edit`} preload="intent">
+                                <DropdownMenu.Item
+                                    as={Link}
+                                    to={`/users/role/${props.role.id}/edit`}
+                                    search={(prev: any) => ({ ...prev, tab: 'roles' })}
+                                    preload="intent"
+                                >
                                     <EditIcon class="size-4 mr-2" />
                                     Editar rol
                                 </DropdownMenu.Item>
-                                <DropdownMenu.Item as={Link} to={`/users/role/${props.role.id}/permissions`} preload="intent">
+                                <DropdownMenu.Item
+                                    as={Link}
+                                    to={`/users/role/${props.role.id}/permissions`}
+                                    search={(prev: any) => ({ ...prev, tab: 'roles' })}
+                                    preload="intent"
+                                >
                                     <KeyIcon class="size-4 mr-2" />
                                     Permisos
                                 </DropdownMenu.Item>
-                                <DropdownMenu.Item as={Link} to={`/users/role/${props.role.id}/users`} preload="intent">
+                                <DropdownMenu.Item
+                                    as={Link}
+                                    to={`/users/role/${props.role.id}/users`}
+                                    search={(prev: any) => ({ ...prev, tab: 'roles' })}
+                                    preload="intent"
+                                >
                                     <UsersIcon class="size-4 mr-2" />
                                     Usuarios
                                 </DropdownMenu.Item>
@@ -116,6 +132,7 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                         <Tooltip content="Ver permisos del rol">
                             <Link
                                 to={`/users/role/${props.role.id}/permissions`}
+                                search={(prev: any) => ({ ...prev, tab: 'roles' })}
                                 preload="intent"
                                 class="flex items-center justify-center h-7 w-7 rounded-lg text-muted hover:text-text hover:bg-surface/50 transition-colors"
                             >
