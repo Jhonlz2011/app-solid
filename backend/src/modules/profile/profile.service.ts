@@ -4,7 +4,7 @@ import { eq, and } from '@app/schema';
 import type { ProfileEntityType } from '@app/schema/dto';
 import { getUserRoles, getUserPermissions } from '../rbac/rbac.permission.service';
 import { getMenuForUser } from '../settings/menu.service';
-import { broadcast } from '../../core/sse';
+import { broadcastToUser } from '../../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { AuthError } from '../auth/session.service';
 
@@ -144,7 +144,7 @@ export async function updateProfile(
 
   if (!updated) throw new AuthError('Usuario no encontrado');
 
-  broadcast(RealtimeEvents.USER.PROFILE_UPDATED, { id: userIdStr, ...updateData }, `user:${userIdStr}`);
+  broadcastToUser(userIdStr, RealtimeEvents.USER.PROFILE_UPDATED, { id: userIdStr, ...updateData });
 
   return { success: true, user: updated } as const;
 }

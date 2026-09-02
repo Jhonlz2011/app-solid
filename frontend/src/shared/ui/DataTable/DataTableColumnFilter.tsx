@@ -283,8 +283,8 @@ const VirtualizedOptionsList: Component<VirtualizedOptionsListProps> = (props) =
     const selectedSet = createMemo(() => new Set(props.selected));
 
     const virtualizer = createVirtualizer({
-        get count() { return filteredOptions().length; },
-        getScrollElement: () => scrollContainerRef,
+        get count() { return props.options.length; },
+        getScrollElement: () => props.scrollContainerRef ?? null,
         estimateSize: () => 36, // 36px height per item
         overscan: 5,
     });

@@ -76,6 +76,8 @@ export const TenantBrandingResponseSchema = Type.Object({
     primaryColor: Type.String(),
     themeColor: Type.String(),
     loginBgUrl: Type.Union([Type.String(), Type.Null()]),
+    apiUrl: Type.Optional(Type.String()),
+    sseUrl: Type.Optional(Type.String()),
 });
 
 export const DiscoverTenantItemResponseSchema = Type.Object({

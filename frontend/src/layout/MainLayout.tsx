@@ -1,4 +1,4 @@
-import { Component, For, Show, createEffect, onMount, onCleanup } from 'solid-js';
+import { Component, Show, createEffect } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
 import { Sidebar } from '@layout/components/sidebar/Sidebar';
 import MobileHeader from './components/MobileHeader';
@@ -6,9 +6,7 @@ import { Skeleton } from '@display/Skeleton';
 import { useOnlineStatus } from '@shared/hooks/useOnlineStatus';
 import { OfflineBanner } from '@/shared/ui/display/OfflineBanner';
 import { toast } from 'solid-sonner';
-import { useQueryClient } from '@tanstack/solid-query';
 import { connect as connectSSE, disconnect as disconnectSSE } from '@shared/store/sse.store';
-import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 import { GlobalSearchPalette } from './components/search/GlobalSearchPalette';
 
 export const LayoutSkeleton: Component = () => {
@@ -73,7 +71,6 @@ export const LayoutSkeleton: Component = () => {
 
 const MainLayout: Component = () => {
     const isOnline = useOnlineStatus();
-    const queryClient = useQueryClient();
 
     // Sincronizar el EventSource de Server-Sent Events con el estado de conexión
     createEffect(() => {
@@ -104,29 +101,6 @@ const MainLayout: Component = () => {
         }
         return current;
     }, isOnline());
-
-    // P0-2: Use centralized broadcast store instead of duplicate BroadcastChannel
-    // P0-1: Filter invalidateQueries by entity instead of invalidating entire cache
-    onMount(() => {
-        const cleanupSynced = broadcast.on(BroadcastEvents.OFFLINE_SYNCED, (data) => {
-            const entity = data?.entity;
-            console.log(`✅ Sync completado para: ${entity}`);
-            queryClient.invalidateQueries(
-                entity ? { queryKey: [entity], refetchType: 'active' } : { refetchType: 'active' }
-            );
-            toast.success(`Datos sincronizados: ${entity}`);
-        });
-        const cleanupFailed = broadcast.on(BroadcastEvents.OFFLINE_SYNC_FAILED, (data) => {
-            const count = data?.count ?? 0;
-            toast.error(`${count} operación(es) no pudieron sincronizarse. Verifica los datos e intenta de nuevo.`, {
-                duration: 8000,
-            });
-        });
-        onCleanup(() => {
-            cleanupSynced();
-            cleanupFailed();
-        });
-    });
 
     return (
         <div class="flex h-dvh bg-background overflow-hidden relative">

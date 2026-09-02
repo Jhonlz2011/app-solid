@@ -37,8 +37,8 @@ export const authGuard = (app: Elysia) => app
       }
 
       // 3. Validate subdomain matches active organization & verify user membership
-      const host = request.headers.get('host') || '';
-      const slug = resolveSlugFromHost(host);
+      const host = request.headers.get('x-original-host') || request.headers.get('origin') || request.headers.get('host') || '';
+      const slug = request.headers.get('x-tenant-slug') || resolveSlugFromHost(host);
 
       if (slug) {
         const [hostCompany] = await adminDb

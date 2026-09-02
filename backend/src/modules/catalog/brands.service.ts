@@ -4,7 +4,7 @@ import { brands, products } from '@app/schema/tables';
 import type { BrandBodyType, BrandUpdateType, BrandItem, BrandFilters, BrandReferencesType } from '@app/schema/dto';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse/events';
+import { broadcastToTenant } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { CursorPaginator, type PaginatedResult } from '../../core/db/paginator';
 
@@ -101,7 +101,8 @@ export const brandsService = {
             }).returning();
 
             await cacheService.invalidate(`brands:c${companyId}:*`);
-            broadcast(
+            broadcastToTenant(
+                companyId,
                 RealtimeEvents.ENTITY.CREATED,
                 { type: 'brand', id: created.id, entity: created, clientId },
                 RealtimeEvents.ROOMS.BRANDS
@@ -119,7 +120,8 @@ export const brandsService = {
 
             if (!updated) throw new DomainError('Marca no encontrada', 404);
             await cacheService.invalidate(`brands:c${companyId}:*`);
-            broadcast(
+            broadcastToTenant(
+                companyId,
                 RealtimeEvents.ENTITY.UPDATED,
                 { type: 'brand', id: updated.id, entity: updated, clientId },
                 RealtimeEvents.ROOMS.BRANDS
@@ -137,7 +139,8 @@ export const brandsService = {
 
             if (!updated) throw new DomainError('Marca no encontrada', 404);
             await cacheService.invalidate(`brands:c${companyId}:*`);
-            broadcast(
+            broadcastToTenant(
+                companyId,
                 RealtimeEvents.ENTITY.UPDATED,
                 { type: 'brand', id: updated.id, entity: updated, clientId },
                 RealtimeEvents.ROOMS.BRANDS
@@ -155,7 +158,8 @@ export const brandsService = {
 
             if (!updated) throw new DomainError('Marca no encontrada', 404);
             await cacheService.invalidate(`brands:c${companyId}:*`);
-            broadcast(
+            broadcastToTenant(
+                companyId,
                 RealtimeEvents.ENTITY.UPDATED,
                 { type: 'brand', id: updated.id, entity: updated, clientId },
                 RealtimeEvents.ROOMS.BRANDS
@@ -191,7 +195,8 @@ export const brandsService = {
 
         await db.delete(brands).where(and(eq(brands.id, id), eq(brands.company_id, companyId)));
         await cacheService.invalidate(`brands:c${companyId}:*`);
-        broadcast(
+        broadcastToTenant(
+            companyId,
             RealtimeEvents.ENTITY.DELETED,
             { type: 'brand', id, clientId },
             RealtimeEvents.ROOMS.BRANDS
@@ -209,7 +214,8 @@ export const brandsService = {
 
             await cacheService.invalidate(`brands:c${companyId}:*`);
             for (const b of updated) {
-                broadcast(
+                broadcastToTenant(
+                    companyId,
                     RealtimeEvents.ENTITY.UPDATED,
                     { type: 'brand', id: b.id, entity: b, clientId },
                     RealtimeEvents.ROOMS.BRANDS
@@ -229,7 +235,8 @@ export const brandsService = {
 
             await cacheService.invalidate(`brands:c${companyId}:*`);
             for (const b of updated) {
-                broadcast(
+                broadcastToTenant(
+                    companyId,
                     RealtimeEvents.ENTITY.UPDATED,
                     { type: 'brand', id: b.id, entity: b, clientId },
                     RealtimeEvents.ROOMS.BRANDS

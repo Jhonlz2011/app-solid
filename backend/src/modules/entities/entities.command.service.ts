@@ -3,7 +3,7 @@ import { db } from '../../core/db';
 import { entities, entityAddresses, employeeDetails, entityContacts, carrierVehicles, carrierDrivers, supplierProducts, workOrders, electronicDocuments, departments, jobTitles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse/events';
+import { broadcastToTenant } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
 import type { EntityBodyType, EntityContactType, EntityAddressType, EntityReferencesType, DepartmentType, JobTitleType } from '@app/schema/dto';
@@ -244,7 +244,7 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
             await cacheService.invalidate(`entity:c${companyId}:${existing.id}`);
             await cacheService.invalidate(`${type}s:c${companyId}:*`);
             await cacheService.invalidate(`entities:c${companyId}:*`);
-            broadcast(RealtimeEvents.ENTITY.CREATED, { type, entity: promoted, clientId: audit?.clientId }, `${type}s`);
+            broadcastToTenant(companyId, RealtimeEvents.ENTITY.CREATED, { type, entity: promoted, clientId: audit?.clientId }, `${type}s`);
 
             return promoted;
         }
@@ -337,7 +337,7 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
 
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
         await cacheService.invalidate(`entities:c${companyId}:*`);
-        broadcast(RealtimeEvents.ENTITY.CREATED, { type, entity: created, clientId: audit?.clientId }, `${type}s`);
+        broadcastToTenant(companyId, RealtimeEvents.ENTITY.CREATED, { type, entity: created, clientId: audit?.clientId }, `${type}s`);
 
         return created;
     });
@@ -466,7 +466,7 @@ export async function updateEntity(id: string, type: EntityType, payload: Partia
         await cacheService.invalidate(`entity:c${companyId}:${id}`);
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
         await cacheService.invalidate(`entities:c${companyId}:*`);
-        broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
+        broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
 
         return updated;
     });
@@ -530,7 +530,7 @@ export async function deactivateEntity(
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
         await cacheService.invalidate(`entities:c${companyId}:*`);
         
-        broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
+        broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
 
         return { success: true };
     });
@@ -560,7 +560,7 @@ export async function restoreEntity(
         await cacheService.invalidate(`entity:c${companyId}:${id}`);
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
         await cacheService.invalidate(`entities:c${companyId}:*`);
-        broadcast(RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
+        broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type, entity: updated, clientId: audit?.clientId }, `${type}s`);
 
         return { success: true };
     });
@@ -622,7 +622,7 @@ export async function hardDeleteEntity(
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
         await cacheService.invalidate(`entities:c${companyId}:*`);
         
-        broadcast(RealtimeEvents.ENTITY.DELETED, { type, id, clientId: audit?.clientId }, `${type}s`);
+        broadcastToTenant(companyId, RealtimeEvents.ENTITY.DELETED, { type, id, clientId: audit?.clientId }, `${type}s`);
         return { success: true };
     });
 }
@@ -799,7 +799,7 @@ export async function bulkDeactivateEntities(
         await Promise.all(existingIds.map(id => cacheService.invalidate(`entity:c${companyId}:${id}`)));
 
         for (const entity of updatedEntities) {
-            broadcast(RealtimeEvents.ENTITY.UPDATED, {
+            broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, {
                 type,
                 entity,
                 clientId: audit?.clientId,
@@ -849,7 +849,7 @@ export async function bulkRestoreEntities(
         await Promise.all(existingIds.map(id => cacheService.invalidate(`entity:c${companyId}:${id}`)));
 
         for (const entity of updatedEntities) {
-            broadcast(RealtimeEvents.ENTITY.UPDATED, {
+            broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, {
                 type,
                 entity,
                 clientId: audit?.clientId,

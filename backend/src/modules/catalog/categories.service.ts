@@ -3,7 +3,7 @@ import { db } from '../../core/db';
 import { categories, categoryAttributes, attributeDefinitions, products } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse/events';
+import { broadcastToTenant } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
 import type {
@@ -278,7 +278,7 @@ export async function createCategoryEnhanced(data: CategoryBodyType, clientId?: 
     });
 
     await cacheService.invalidate(`categories:c${data.companyId}:*`);
-    broadcast(RealtimeEvents.ENTITY.CREATED, { type: 'category', id: created.id, entity: created, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
+    broadcastToTenant(data.companyId!, RealtimeEvents.ENTITY.CREATED, { type: 'category', id: created.id, entity: created, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
     return {
         ...created,
         attributeCount: data.attributes?.length ?? 0,
@@ -341,7 +341,7 @@ export async function updateCategoryEnhanced(id: number, data: Partial<CategoryB
     });
 
     await cacheService.invalidate(`categories:c${companyId}:*`);
-    broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'category', id: updated.id, entity: updated, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'category', id: updated.id, entity: updated, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
     return {
         ...updated,
         attributeCount: data.attributes?.length ?? 0,
@@ -368,7 +368,7 @@ export async function deactivateCategory(id: number, companyId: number, clientId
             .where(and(eq(categories.id, id), eq(categories.company_id, companyId)));
 
         await cacheService.invalidate(`categories:c${companyId}:*`);
-        broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'category', id: updated.id, entity: updated, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
+        broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'category', id: updated.id, entity: updated, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
         return {
             ...updated,
             attributeCount: 0,
@@ -387,7 +387,7 @@ export async function restoreCategory(id: number, companyId: number, clientId?: 
             .where(and(eq(categories.id, id), eq(categories.company_id, companyId))).returning();
 
         await cacheService.invalidate(`categories:c${companyId}:*`);
-        broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'category', id: updated.id, entity: updated, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
+        broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'category', id: updated.id, entity: updated, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
         return {
             ...updated,
             attributeCount: 0,
@@ -412,7 +412,7 @@ export async function reorderCategories(items: CategoryReorderItem[], companyId:
     });
 
     await cacheService.invalidate(`categories:c${companyId}:*`);
-    broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'category', clientId }, RealtimeEvents.ROOMS.CATEGORIES);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'category', clientId }, RealtimeEvents.ROOMS.CATEGORIES);
     return { updated: items.length };
 }
 
@@ -472,7 +472,7 @@ export async function reparentCategory(id: number, newParentId: number | null, c
     `);
 
     await cacheService.invalidate(`categories:c${companyId}:*`);
-    broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'category', id: updated.id, entity: updated, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'category', id: updated.id, entity: updated, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
     return {
         ...updated,
         attributeCount: 0,
@@ -534,7 +534,7 @@ export async function hardDeleteCategory(id: number, companyId: number, clientId
     ));
 
     await cacheService.invalidate(`categories:c${companyId}:*`);
-    broadcast(RealtimeEvents.ENTITY.DELETED, { type: 'category', id, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.DELETED, { type: 'category', id, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
     return { success: true };
 }
 
@@ -573,7 +573,8 @@ export async function bulkDeactivateCategories(ids: number[], companyId: number,
 
         // Broadcast for each item so frontend cache updates correctly
         for (const cat of existing) {
-            broadcast(
+            broadcastToTenant(
+                companyId,
                 RealtimeEvents.ENTITY.UPDATED,
                 { type: 'category', id: cat.id, entity: { is_active: false }, clientId: audit?.clientId },
                 RealtimeEvents.ROOMS.CATEGORIES
@@ -615,7 +616,8 @@ export async function bulkRestoreCategories(ids: number[], companyId: number, au
 
         await cacheService.invalidate(`categories:c${companyId}:*`);
         for (const cat of existing) {
-            broadcast(
+            broadcastToTenant(
+                companyId,
                 RealtimeEvents.ENTITY.UPDATED,
                 { type: 'category', id: cat.id, entity: { is_active: true }, clientId: audit?.clientId },
                 RealtimeEvents.ROOMS.CATEGORIES

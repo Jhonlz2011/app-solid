@@ -1,7 +1,6 @@
 import { Component, For, Show, createSignal, onMount, onCleanup } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useQueryClient } from '@tanstack/solid-query';
-import { useSSE } from '@shared/store/sse.store';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { rbacKeys } from '../../data/users.keys';
 import { SessionItem } from '@/shared/ui/overlay/SessionItem';
@@ -14,7 +13,6 @@ import { useRevokeUserSession } from '../../data/users.mutations';
 
 const UserSessionsTab: Component<{ userId: string }> = (props) => {
     const queryClient = useQueryClient();
-    const { subscribe, unsubscribe } = useSSE();
     const sessionsQuery = useUserSessions(() => props.userId);
     const revokeMutation = useRevokeUserSession();
     const [revoking, setRevoking] = createSignal<string | null>(null);
@@ -25,9 +23,6 @@ const UserSessionsTab: Component<{ userId: string }> = (props) => {
 
     // ── SSE: Real-time session updates ──
     onMount(() => {
-        const room = `user:${props.userId}`;
-        subscribe(room);
-
         const handleSessionChange = () => {
             queryClient.invalidateQueries({
                 queryKey: rbacKeys.userSessions(props.userId),
@@ -38,7 +33,6 @@ const UserSessionsTab: Component<{ userId: string }> = (props) => {
         window.addEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionChange);
 
         onCleanup(() => {
-            unsubscribe(room);
             window.removeEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionChange);
             window.removeEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionChange);
         });

@@ -32,14 +32,38 @@ export const redisSub = new Redis(env.REDIS_URL, {
     lazyConnect: false, // Connect immediately for subscriptions
 });
 
-// --- CENTRALIZED MESSAGE HANDLER (Fixes memory leak) ---
-const channelHandlers = new Map<string, (message: string) => void>();
+// --- CENTRALIZED MESSAGE HANDLER (Supports multiple handlers and patterns) ---
+type ChannelCallback = (message: string) => void;
+type PatternCallback = (pattern: string, channel: string, message: string) => void;
 
-// Single global listener - prevents memory leak from multiple listeners
+const channelHandlers = new Map<string, Set<ChannelCallback>>();
+const patternHandlers = new Map<string, Set<PatternCallback>>();
+
+// Global listener for exact channel messages
 redisSub.on('message', (channel: string, message: string) => {
-    const handler = channelHandlers.get(channel);
-    if (handler) {
-        handler(message);
+    const handlers = channelHandlers.get(channel);
+    if (handlers) {
+        handlers.forEach(handler => {
+            try {
+                handler(message);
+            } catch (e) {
+                console.error(`Error in Redis handler for ${channel}:`, e);
+            }
+        });
+    }
+});
+
+// Global listener for pattern messages (psubscribe)
+redisSub.on('pmessage', (pattern: string, channel: string, message: string) => {
+    const handlers = patternHandlers.get(pattern);
+    if (handlers) {
+        handlers.forEach(handler => {
+            try {
+                handler(pattern, channel, message);
+            } catch (e) {
+                console.error(`Error in Redis pattern handler for ${pattern}:`, e);
+            }
+        });
     }
 });
 
@@ -53,27 +77,32 @@ redisSub.on('connect', () => console.log('✅ Redis Subscriber: Conectado'));
 redisSub.on('error', (err) => console.error('❌ Redis Subscriber Error:', err.message));
 redisSub.on('close', () => console.log('⚠️ Redis Subscriber: Desconectado'));
 
-// --- SUBSCRIPTION HELPER ---
+// --- SUBSCRIPTION HELPERS ---
 
 /**
  * Subscribe to a Redis channel with a callback handler.
- * Uses centralized message handling to prevent memory leaks.
+ * Supports multiple subscribers per channel safely.
  */
 export async function subscribeToChannel(
     channel: string,
-    callback: (message: string) => void
+    callback: ChannelCallback
 ): Promise<void> {
     try {
-        // Register handler BEFORE subscribing
-        channelHandlers.set(channel, callback);
+        let handlers = channelHandlers.get(channel);
+        const isNewChannel = !handlers || handlers.size === 0;
 
-        // Subscribe to channel
-        await redisSub.subscribe(channel);
+        if (!handlers) {
+            handlers = new Set();
+            channelHandlers.set(channel, handlers);
+        }
+        handlers.add(callback);
 
-        console.log(`📡 Suscrito al canal: ${channel}`);
+        if (isNewChannel) {
+            await redisSub.subscribe(channel);
+            console.log(`📡 Suscrito al canal: ${channel}`);
+        }
     } catch (error) {
-        // Clean up handler on failure
-        channelHandlers.delete(channel);
+        channelHandlers.get(channel)?.delete(callback);
         console.error(`❌ Error al suscribirse a ${channel}:`, error);
         throw error;
     }
@@ -82,13 +111,82 @@ export async function subscribeToChannel(
 /**
  * Unsubscribe from a Redis channel
  */
-export async function unsubscribeFromChannel(channel: string): Promise<void> {
+export async function unsubscribeFromChannel(
+    channel: string,
+    callback?: ChannelCallback
+): Promise<void> {
     try {
-        await redisSub.unsubscribe(channel);
-        channelHandlers.delete(channel);
-        console.log(`📡 Desuscrito del canal: ${channel}`);
+        const handlers = channelHandlers.get(channel);
+        if (handlers) {
+            if (callback) {
+                handlers.delete(callback);
+            } else {
+                handlers.clear();
+            }
+
+            if (handlers.size === 0) {
+                channelHandlers.delete(channel);
+                await redisSub.unsubscribe(channel);
+                console.log(`📡 Desuscrito del canal: ${channel}`);
+            }
+        }
     } catch (error) {
         console.error(`❌ Error al desuscribirse de ${channel}:`, error);
+    }
+}
+
+/**
+ * Subscribe to a Redis channel pattern (e.g. sse:c:*) with a callback handler.
+ */
+export async function subscribeToPattern(
+    pattern: string,
+    callback: PatternCallback
+): Promise<void> {
+    try {
+        let handlers = patternHandlers.get(pattern);
+        const isNewPattern = !handlers || handlers.size === 0;
+
+        if (!handlers) {
+            handlers = new Set();
+            patternHandlers.set(pattern, handlers);
+        }
+        handlers.add(callback);
+
+        if (isNewPattern) {
+            await redisSub.psubscribe(pattern);
+            console.log(`📡 Suscrito al patrón: ${pattern}`);
+        }
+    } catch (error) {
+        patternHandlers.get(pattern)?.delete(callback);
+        console.error(`❌ Error al suscribirse al patrón ${pattern}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Unsubscribe from a Redis pattern
+ */
+export async function unsubscribeFromPattern(
+    pattern: string,
+    callback?: PatternCallback
+): Promise<void> {
+    try {
+        const handlers = patternHandlers.get(pattern);
+        if (handlers) {
+            if (callback) {
+                handlers.delete(callback);
+            } else {
+                handlers.clear();
+            }
+
+            if (handlers.size === 0) {
+                patternHandlers.delete(pattern);
+                await redisSub.punsubscribe(pattern);
+                console.log(`📡 Desuscrito del patrón: ${pattern}`);
+            }
+        }
+    } catch (error) {
+        console.error(`❌ Error al desuscribirse del patrón ${pattern}:`, error);
     }
 }
 

@@ -1,119 +1,97 @@
 /**
- * Isomorphic slug resolution from hostname — shared between frontend and backend.
+ * Production-Only Tenant Slug and Routing Resolution (*.zelys.app)
+ * Shared between frontend and backend.
  * Pure function with no browser/Node API dependencies.
+ */
+
+const RESERVED_SUBDOMAINS = new Set(['api', 'in', 'www', 'cdn', 'admin', 'static']);
+
+/**
+ * Normalizes any host or URL string to a clean lowercase domain name without protocol, path, or port.
+ * e.g. "https://acme.zelys.app:443/api" -> "acme.zelys.app"
+ *      "in.zelys.app"                   -> "in.zelys.app"
+ */
+export function normalizeHost(host: string): string {
+    if (!host) return '';
+    let clean = host.trim().toLowerCase();
+    if (clean.includes('://')) {
+        clean = clean.split('://')[1];
+    }
+    return clean.split('/')[0].split('?')[0].split(':')[0];
+}
+
+/**
+ * Resolves the tenant slug for production domain (*.zelys.app).
+ * e.g. "acme.zelys.app" -> "acme"
+ *      "in.zelys.app"   -> null (portal)
+ *      "api.zelys.app"  -> null (api)
+ *      "zelys.app"      -> null
  *
- * @param host - Hostname (may include port, e.g. "acme.zelys.app:3000")
- * @param querySlug - Optional slug override from URL query params (dev/IP fallback)
+ * @param host - Hostname or Origin URL (e.g. "acme.zelys.app" or "https://acme.zelys.app")
+ * @param querySlug - Optional explicit slug override
  * @returns The resolved tenant slug, or null if no tenant identified
  */
 export function resolveSlugFromHost(host: string, querySlug?: string | null): string | null {
-    const hostWithoutPort = host.split(':')[0];
-    const ipRegex = /^[0-9.]+$/;
-    const isIpOrLocal = ipRegex.test(hostWithoutPort) ||
-                        hostWithoutPort === 'localhost' ||
-                        hostWithoutPort === '127.0.0.1';
+    if (querySlug) return querySlug;
+    if (!host) return null;
 
-    if (isIpOrLocal) {
-        return querySlug || null;
-    }
+    const cleanHost = normalizeHost(host);
 
-    const parts = hostWithoutPort.split('.');
-
-    if (hostWithoutPort.includes('zelys.app')) {
-        if (parts.length > 2 && parts[0] !== 'api' && parts[0] !== 'in' && parts[0] !== 'www') {
-            return parts[0];
+    if (cleanHost.endsWith('zelys.app')) {
+        const parts = cleanHost.split('.');
+        // acme.zelys.app -> parts = ['acme', 'zelys', 'app']
+        if (parts.length > 2) {
+            const sub = parts[0];
+            if (!RESERVED_SUBDOMAINS.has(sub)) {
+                return sub;
+            }
         }
-        return null;
-    }
-
-    if (parts.length > 1 && parts[parts.length - 1] === 'localhost') {
-        return parts[0];
-    }
-
-    if (parts.length > 2) {
-        return parts[0];
     }
 
     return null;
 }
 
 /**
- * Checks if the given hostname is the global portal/entry domain (e.g. in.zelys.app, zelys.app, in.localhost, localhost)
+ * Checks if the given hostname is the global portal/entry domain (in.zelys.app, zelys.app, www.zelys.app).
  */
 export function isGlobalPortalHost(host: string): boolean {
-    const hostWithoutPort = host.split(':')[0];
-    const ipRegex = /^[0-9.]+$/;
-    if (ipRegex.test(hostWithoutPort) || hostWithoutPort === 'localhost' || hostWithoutPort === '127.0.0.1') {
-        return true;
+    if (!host) return false;
+    const cleanHost = normalizeHost(host);
+
+    if (cleanHost.endsWith('zelys.app')) {
+        const parts = cleanHost.split('.');
+        return parts.length <= 2 || parts[0] === 'in' || parts[0] === 'www';
     }
 
-    const parts = hostWithoutPort.split('.');
-    if (hostWithoutPort.includes('zelys.app')) {
-        // in.zelys.app or root zelys.app or www.zelys.app
-        return parts[0] === 'in' || parts[0] === 'www' || parts.length <= 2;
-    }
-
-    if (parts[0] === 'in') {
-        return true;
-    }
-
-    return parts.length <= 2;
+    return false;
 }
 
 /**
- * Builds the canonical tenant URL across production wildcard domains and local environments.
+ * Builds canonical production tenant URL (https://{slug}.zelys.app/{path}).
  */
 export function buildTenantUrl(
     slug: string,
     path = '/dashboard',
     options?: {
-        currentHost?: string;
-        currentProtocol?: string;
-        port?: string;
         queryParams?: Record<string, string>;
+        [key: string]: any;
     }
 ): string {
-    const host = options?.currentHost || (typeof window !== 'undefined' ? window.location.hostname : 'zelys.app');
-    const protocol = options?.currentProtocol || (typeof window !== 'undefined' ? window.location.protocol : 'https:');
-    const port = options?.port || (typeof window !== 'undefined' ? window.location.port : '');
-    const portStr = port ? `:${port}` : '';
-
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    const searchParams = new URLSearchParams();
+    const baseUrl = slug ? `https://${slug}.zelys.app${cleanPath}` : `https://in.zelys.app${cleanPath}`;
 
     if (options?.queryParams) {
+        const searchParams = new URLSearchParams();
         for (const [key, val] of Object.entries(options.queryParams)) {
             if (val !== undefined && val !== null) {
                 searchParams.set(key, val);
             }
         }
-    }
-
-    const hostWithoutPort = host.split(':')[0];
-    const ipRegex = /^[0-9.]+$/;
-    const isIpOrLocal = ipRegex.test(hostWithoutPort) ||
-                        hostWithoutPort === 'localhost' ||
-                        hostWithoutPort === '127.0.0.1';
-
-    let baseUrl: string;
-
-    if (isIpOrLocal) {
-        searchParams.set('slug', slug);
-        baseUrl = `${protocol}//${hostWithoutPort}${portStr}${cleanPath}`;
-    } else if (hostWithoutPort.includes('zelys.app')) {
-        baseUrl = `${protocol}//${slug}.zelys.app${portStr}${cleanPath}`;
-    } else if (hostWithoutPort.endsWith('.localhost')) {
-        baseUrl = `${protocol}//${slug}.localhost${portStr}${cleanPath}`;
-    } else {
-        const parts = hostWithoutPort.split('.');
-        const baseDomain = parts.slice(-2).join('.');
-        baseUrl = `${protocol}//${slug}.${baseDomain}${portStr}${cleanPath}`;
-    }
-
-    const queryString = searchParams.toString();
-    if (queryString) {
-        const separator = baseUrl.includes('?') ? '&' : '?';
-        return `${baseUrl}${separator}${queryString}`;
+        const qs = searchParams.toString();
+        if (qs) {
+            const sep = baseUrl.includes('?') ? '&' : '?';
+            return `${baseUrl}${sep}${qs}`;
+        }
     }
 
     return baseUrl;

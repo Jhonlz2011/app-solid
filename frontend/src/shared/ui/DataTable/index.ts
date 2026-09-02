@@ -1,6 +1,7 @@
 export { DataTable } from './DataTable';
 export type { DataTableProps, DataTableRowProps } from './DataTable';
-export type { FilterOption } from './DataTableColumnFilter';
+import type { FilterOption } from './DataTableColumnFilter';
+export type { FilterOption };
 
 /** Shared filter configuration for column headers — DRY across all modules */
 export interface ColumnFilterConfig {

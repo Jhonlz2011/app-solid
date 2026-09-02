@@ -3,7 +3,7 @@ import { db } from '../../core/db';
 import { warehouses, warehouseLocations } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache/cache.service';
-import { broadcast } from '../../core/sse/events';
+import { broadcastToTenant } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
 import type {
@@ -137,7 +137,8 @@ export const locationsService = {
         }).returning();
 
         await invalidateAll(companyId);
-        broadcast(
+        broadcastToTenant(
+            companyId,
             RealtimeEvents.ENTITY.CREATED,
             { type: 'location', id: created.id, entity: created, clientId },
             RealtimeEvents.ROOMS.LOCATIONS
@@ -189,7 +190,8 @@ export const locationsService = {
             .where(and(eq(warehouseLocations.id, id), eq(warehouseLocations.company_id, companyId))).returning();
         
         await invalidateAll(companyId);
-        broadcast(
+        broadcastToTenant(
+            companyId,
             RealtimeEvents.ENTITY.UPDATED,
             { type: 'location', id: updated.id, entity: updated, clientId },
             RealtimeEvents.ROOMS.LOCATIONS
@@ -228,7 +230,8 @@ export const locationsService = {
         }).where(and(eq(warehouseLocations.id, id), eq(warehouseLocations.company_id, companyId))).returning();
 
         await invalidateAll(companyId);
-        broadcast(
+        broadcastToTenant(
+            companyId,
             RealtimeEvents.ENTITY.UPDATED,
             { type: 'location', id: updated.id, entity: updated, clientId },
             RealtimeEvents.ROOMS.LOCATIONS
@@ -255,7 +258,8 @@ export const locationsService = {
             `);
 
             await invalidateAll(companyId);
-            broadcast(
+            broadcastToTenant(
+                companyId,
                 RealtimeEvents.ENTITY.UPDATED,
                 { type: 'location', id: existing.id, entity: { ...existing, is_active: false }, clientId },
                 RealtimeEvents.ROOMS.LOCATIONS
@@ -277,7 +281,8 @@ export const locationsService = {
                 .where(and(eq(warehouseLocations.id, id), eq(warehouseLocations.company_id, companyId))).returning();
 
             await invalidateAll(companyId);
-            broadcast(
+            broadcastToTenant(
+                companyId,
                 RealtimeEvents.ENTITY.UPDATED,
                 { type: 'location', id: updated.id, entity: updated, clientId },
                 RealtimeEvents.ROOMS.LOCATIONS
@@ -337,7 +342,8 @@ export const locationsService = {
 
         await db.delete(warehouseLocations).where(and(eq(warehouseLocations.id, id), eq(warehouseLocations.company_id, companyId)));
         await invalidateAll(companyId);
-        broadcast(
+        broadcastToTenant(
+            companyId,
             RealtimeEvents.ENTITY.DELETED,
             { type: 'location', id, clientId },
             RealtimeEvents.ROOMS.LOCATIONS
@@ -379,7 +385,7 @@ export const locationsService = {
 
             // Broadcast for each item so frontend cache updates correctly
             for (const loc of existing) {
-                broadcast(RealtimeEvents.ENTITY.UPDATED, {
+                broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, {
                     type: 'location',
                     id: loc.id,
                     entity: { ...loc, is_active: false },
@@ -423,7 +429,7 @@ export const locationsService = {
 
             // Broadcast each
             for (const entity of updated) {
-                broadcast(RealtimeEvents.ENTITY.UPDATED, {
+                broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, {
                     type: 'location',
                     id: entity.id,
                     entity,

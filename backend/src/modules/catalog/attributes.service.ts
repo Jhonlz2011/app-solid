@@ -4,7 +4,7 @@ import { attributeDefinitions, categoryAttributes, categories } from '@app/schem
 import type { AttributeDefPayload, AttributeItem, AttributeDetail, AttributeReferences } from '@app/schema/dto';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse/events';
+import { broadcastToTenant } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 
 // =============================================================================
@@ -114,7 +114,7 @@ export async function createAttribute(data: AttributeDefPayload, companyId: numb
     }).returning();
 
     await cacheService.invalidate(`attributes:c${companyId}:*`);
-    broadcast(RealtimeEvents.ENTITY.CREATED, { type: 'attribute', id: created.id, entity: created }, RealtimeEvents.ROOMS.ATTRIBUTES);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.CREATED, { type: 'attribute', id: created.id, entity: created }, RealtimeEvents.ROOMS.ATTRIBUTES);
     return created;
 }
 
@@ -185,7 +185,7 @@ export async function updateAttribute(id: number, data: Partial<AttributeDefPayl
         if (!updated) throw new DomainError('Atributo no encontrado', 404);
         await cacheService.invalidate(`attributes:c${companyId}:*`);
         await cacheService.invalidate(`categories:c${companyId}:*`);
-        broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
+        broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
         return updated;
     }
 
@@ -197,7 +197,7 @@ export async function updateAttribute(id: number, data: Partial<AttributeDefPayl
 
     if (!updated) throw new DomainError('Atributo no encontrado', 404);
     await cacheService.invalidate(`attributes:c${companyId}:*`);
-    broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
     return updated;
 }
 
@@ -212,7 +212,7 @@ export async function deactivateAttribute(id: number, companyId: number): Promis
     if (!updated) throw new DomainError('Atributo no encontrado', 404);
 
     await cacheService.invalidate(`attributes:c${companyId}:*`);
-    broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
     return updated;
 }
 
@@ -227,7 +227,7 @@ export async function restoreAttribute(id: number, companyId: number): Promise<A
     if (!updated) throw new DomainError('Atributo no encontrado', 404);
 
     await cacheService.invalidate(`attributes:c${companyId}:*`);
-    broadcast(RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'attribute', id: updated.id, entity: updated }, RealtimeEvents.ROOMS.ATTRIBUTES);
     return updated;
 }
 
@@ -278,6 +278,6 @@ export async function hardDeleteAttribute(id: number, companyId: number): Promis
 
     await db.delete(attributeDefinitions).where(and(eq(attributeDefinitions.id, id), eq(attributeDefinitions.company_id, companyId)));
     await cacheService.invalidate(`attributes:c${companyId}:*`);
-    broadcast(RealtimeEvents.ENTITY.DELETED, { type: 'attribute', id }, RealtimeEvents.ROOMS.ATTRIBUTES);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.DELETED, { type: 'attribute', id }, RealtimeEvents.ROOMS.ATTRIBUTES);
     return { success: true };
 }

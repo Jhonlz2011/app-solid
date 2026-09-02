@@ -2,7 +2,7 @@ import { db } from '../../core/db';
 import { authRoles, authRolePermissions, authPermissions, authUserRoles, auditLogs } from '@app/schema/tables';
 import { eq, count, and } from '@app/schema';
 import { DomainError } from '../../core/errors';
-import { broadcast } from '../../core/sse';
+import { broadcastToUser } from '../../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { SYSTEM_ROLES } from '@app/schema/enums';
 import { invalidateUserRbacCache } from './rbac.permission.service';
@@ -240,7 +240,7 @@ export async function updateRolePermissions(roleId: number, permissionIds: numbe
     await Promise.all(usersWithRole.map(({ userId }) => invalidateUserRbacCache(userId, role.company_id )));
 
     for (const { userId } of usersWithRole) {
-        broadcast(RealtimeEvents.USER.RBAC_CHANGED, { userId }, `user:${userId}`);
+        broadcastToUser(userId, RealtimeEvents.USER.RBAC_CHANGED, { userId });
     }
 
     if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_role_permissions', roleId, { permissionIds }, { permissionIds: oldPermIds });

@@ -156,8 +156,8 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   // GET /tenant-info — Tenant branding for login page (public, cached)
   // =========================================================================
   .get('/tenant-info', async ({ query, request }) => {
-    const host = request.headers.get('host') || '';
-    const slug = query.slug || resolveSlugFromHost(host);
+    const host = request.headers.get('x-original-host') || request.headers.get('origin') || request.headers.get('host') || '';
+    const slug = query.slug || request.headers.get('x-tenant-slug') || resolveSlugFromHost(host);
 
     if (!slug) {
       throw new DomainError('No tenant slug resolved from query or Host header', 400);
@@ -191,8 +191,8 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   // GET /tenant-manifest — PWA manifest.json per tenant (public, cached)
   // =========================================================================
   .get('/tenant-manifest', async ({ query, request, set }) => {
-    const host = request.headers.get('host') || '';
-    const slug = query.slug || resolveSlugFromHost(host);
+    const host = request.headers.get('x-original-host') || request.headers.get('origin') || request.headers.get('host') || '';
+    const slug = query.slug || request.headers.get('x-tenant-slug') || resolveSlugFromHost(host);
 
     let companyName = 'Zelys ERP';
     let shortName = 'Zelys';

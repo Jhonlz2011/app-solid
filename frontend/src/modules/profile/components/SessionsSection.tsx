@@ -7,7 +7,6 @@
 import { Component, createSignal, createEffect, For, Show, onCleanup } from 'solid-js';
 import { useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
-import { useSSE } from '@shared/store/sse.store';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { SessionItem } from '@/shared/ui/overlay/SessionItem';
 import { DeviceIcon } from '@icons/DeviceIcon';
@@ -23,7 +22,6 @@ import ConfirmDialog from '@overlay/ConfirmDialog';
 export const SessionsSection: Component = () => {
     const queryClient = useQueryClient();
     const auth = useAuth();
-    const { subscribe, unsubscribe } = useSSE();
     const [revoking, setRevoking] = createSignal<string | null>(null);
     const [confirmRevoke, setConfirmRevoke] = createSignal<string | null>(null);
 
@@ -37,9 +35,6 @@ export const SessionsSection: Component = () => {
         const userId = auth.user()?.id;
         if (!userId) return;
 
-        const room = `user:${userId}`;
-        subscribe(room);
-
         const cleanupBroadcast = broadcast.on(BroadcastEvents.SESSIONS_REFRESH, () => {
             queryClient.invalidateQueries({ queryKey: profileKeys.sessions() });
         });
@@ -52,7 +47,6 @@ export const SessionsSection: Component = () => {
         window.addEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged);
 
         setCleanupFns([
-            () => unsubscribe(room),
             cleanupBroadcast,
             () => window.removeEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged),
             () => window.removeEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged),

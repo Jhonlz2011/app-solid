@@ -4,6 +4,7 @@ import type { TenantBrandingType } from '@app/schema/dto';
 import { getContrastColor } from '@app/schema/utils/color';
 import { THEME_PRESETS } from '@app/schema/utils';
 import { resolveSlugFromHost } from '@app/schema/utils';
+import { getApiUrl } from '@shared/config/runtime-env';
 
 // P1-8: AbortController for deduplicating concurrent branding API calls
 let activeBrandingAbort: AbortController | null = null;
@@ -17,10 +18,7 @@ interface BrandingState {
 }
 
 export const getSubdomain = (): string | null =>
-    resolveSlugFromHost(
-        window.location.hostname,
-        new URLSearchParams(window.location.search).get('slug'),
-    );
+    resolveSlugFromHost(window.location.hostname);
 
 const getInitialTenant = (): TenantBrandingType | null => {
     if (typeof window === 'undefined') return null;
@@ -97,7 +95,7 @@ export const applyBranding = (tenant: TenantBrandingType | null) => {
                 document.head.appendChild(link);
             }
             link.setAttribute('crossorigin', 'use-credentials');
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            const apiUrl = tenant.apiUrl || getApiUrl();
             link.href = `${apiUrl}/api/tenants/tenant-manifest?slug=${tenant.slug}`;
             
         } else {

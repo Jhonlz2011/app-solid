@@ -7,36 +7,10 @@ import { resolveSlugFromHost } from '@app/schema/utils';
 import {
     clients,
     addToRoomIndex,
-    removeFromRoomIndex,
     removeClientFromAllRooms,
     type SseClient,
 } from './events';
-import { getUserRoom, getCompanyRoom, getTenantRoom } from '@app/schema/realtime-events';
-
-// Helper to normalize room name into a tenant-scoped room when appropriate
-function normalizeRoomName(rawRoom: string, clientCompanyId: number | null, clientUserId: string | null): string | null {
-    // Personal user room
-    if (rawRoom.startsWith('user:')) {
-        const targetUserId = rawRoom.slice(5);
-        if (targetUserId === clientUserId) return rawRoom;
-        return null; // Deny subscribing to another user's personal room
-    }
-
-    // Already explicitly tenant-scoped room
-    if (rawRoom.startsWith('company:')) {
-        if (!clientCompanyId) return rawRoom;
-        const targetCompanyId = rawRoom.split(':')[1];
-        if (String(clientCompanyId) === targetCompanyId) return rawRoom;
-        return null; // Deny subscribing to another tenant's room
-    }
-
-    // Relative module room (e.g. 'suppliers', 'products', 'users')
-    if (clientCompanyId) {
-        return getTenantRoom(clientCompanyId, rawRoom);
-    }
-
-    return rawRoom;
-}
+import { getUserRoom, getCompanyRoom } from '@app/schema/realtime-events';
 
 // --- SSE ROUTE PLUGIN ---
 export const ssePlugin = (app: Elysia) =>
@@ -67,8 +41,8 @@ export const ssePlugin = (app: Elysia) =>
             }
 
             // Align with host subdomain if present
-            const host = request.headers.get('host') || request.headers.get('origin') || '';
-            const slug = resolveSlugFromHost(host);
+            const host = request.headers.get('x-original-host') || request.headers.get('origin') || request.headers.get('host') || '';
+            const slug = query.slug || request.headers.get('x-tenant-slug') || resolveSlugFromHost(host);
             if (slug) {
                 const [hostCompany] = await adminDb
                     .select({ id: companies.id, organization_id: companies.organization_id })
@@ -108,7 +82,7 @@ export const ssePlugin = (app: Elysia) =>
 
                     const pingInterval = setInterval(() => {
                         try {
-                            controller.enqueue(":\n\n");
+                            controller.enqueue(`event: heartbeat\ndata: ${Date.now()}\n\n`);
                         } catch (e) {
                             clearInterval(pingInterval);
                         }
@@ -157,50 +131,8 @@ export const ssePlugin = (app: Elysia) =>
         }, {
             query: t.Object({
                 clientId: t.Optional(t.String()),
-                token: t.Optional(t.String())
-            })
-        })
-        .post('/join', ({ body, set }) => {
-            const client = clients.get(body.clientId);
-            if (!client) {
-                set.status = 404;
-                return { error: 'Client not found or disconnected' };
-            }
-
-            const canonicalRoom = normalizeRoomName(body.room, client.companyId, client.userId);
-            if (!canonicalRoom) {
-                set.status = 403;
-                return { error: 'Access to this room is forbidden' };
-            }
-
-            if (!client.rooms.has(canonicalRoom)) {
-                client.rooms.add(canonicalRoom);
-                addToRoomIndex(body.clientId, canonicalRoom);
-            }
-            return { success: true, room: canonicalRoom };
-        }, {
-            body: t.Object({
-                clientId: t.String(),
-                room: t.String()
-            })
-        })
-        .post('/leave', ({ body, set }) => {
-            const client = clients.get(body.clientId);
-            if (!client) {
-                set.status = 404;
-                return { error: 'Client not found or disconnected' };
-            }
-
-            const canonicalRoom = normalizeRoomName(body.room, client.companyId, client.userId) || body.room;
-            if (client.rooms.has(canonicalRoom)) {
-                client.rooms.delete(canonicalRoom);
-                removeFromRoomIndex(body.clientId, canonicalRoom);
-            }
-            return { success: true, room: canonicalRoom };
-        }, {
-            body: t.Object({
-                clientId: t.String(),
-                room: t.String()
+                token: t.Optional(t.String()),
+                slug: t.Optional(t.String()),
             })
         })
     );

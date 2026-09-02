@@ -2,10 +2,34 @@ import { QueryClient, QueryCache, MutationCache } from '@tanstack/solid-query';
 import { get, set, del } from 'idb-keyval';
 import { actions as authActions } from '@modules/auth/store/auth.store';
 
+import { resolveSlugFromHost } from '@app/schema/utils';
+
 // Helper to check for 401s from Eden clients
 const isUnauthorizedError = (error: any) => {
   return error?.status === 401 || 
          (typeof error?.message === 'string' && error.message.includes('401'));
+};
+
+export const getTenantCacheKey = (): string => {
+  if (typeof window === 'undefined') return 'tanstack-query-cache:global';
+  const slug = resolveSlugFromHost(window.location.hostname);
+  return slug ? `tanstack-query-cache:${slug}` : 'tanstack-query-cache:global';
+};
+
+// Configurar persister con IndexedDB para usar con PersistQueryClientProvider (Aislado por tenant)
+export const persister = {
+  persistClient: async (client: any) => {
+    // Strip proxies, symbols or non-serializable objects (like Eden Treaty responses)
+    // before passing to IDB, which relies on structuredClone and throws DataCloneError otherwise.
+    const cleanClient = JSON.parse(JSON.stringify(client));
+    await set(getTenantCacheKey(), cleanClient);
+  },
+  restoreClient: async () => {
+    return await get(getTenantCacheKey());
+  },
+  removeClient: async () => {
+    await del(getTenantCacheKey());
+  },
 };
 
 // Global Error Handler for both Queries and Mutations
@@ -13,26 +37,12 @@ const handleGlobalError = (error: any) => {
   if (isUnauthorizedError(error)) {
     console.warn('[TanStack Query] Global 401 Unauthorized detected. Forcing logout...');
     if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      queryClient.clear();
+      persister.removeClient();
       authActions.logout(false);
       window.location.href = '/login';
     }
   }
-};
-
-// Configurar persister con IndexedDB para usar con PersistQueryClientProvider
-export const persister = {
-  persistClient: async (client: any) => {
-    // Strip proxies, symbols or non-serializable objects (like Eden Treaty responses)
-    // before passing to IDB, which relies on structuredClone and throws DataCloneError otherwise.
-    const cleanClient = JSON.parse(JSON.stringify(client));
-    await set('tanstack-query-cache', cleanClient);
-  },
-  restoreClient: async () => {
-    return await get('tanstack-query-cache');
-  },
-  removeClient: async () => {
-    await del('tanstack-query-cache');
-  },
 };
 
 import { brandsApi } from '@modules/brands/data/brands.api';
@@ -117,6 +127,24 @@ queryClient.setMutationDefaults(['suppliers', 'update'], {
   },
 });
 
+// Employees (misma estructura canónica que clients y suppliers)
+queryClient.setMutationDefaults(['employees', 'create'], {
+  mutationFn: async (vars: any) => {
+    const { api } = await import('@shared/lib/eden');
+    const { data, error } = await api.employees.post(vars);
+    if (error) throw error;
+    return data!;
+  },
+});
+queryClient.setMutationDefaults(['employees', 'update'], {
+  mutationFn: async (vars: any) => {
+    const { api } = await import('@shared/lib/eden');
+    const { data, error } = await api.employees({ id: vars.id }).put(vars.data);
+    if (error) throw error;
+    return data!;
+  },
+});
+
 // Products
 queryClient.setMutationDefaults(['products', 'create'], {
   mutationFn: async (vars: any) => {
@@ -137,10 +165,10 @@ queryClient.setMutationDefaults(['products', 'update'], {
 
 // Categories
 queryClient.setMutationDefaults(['catalogs', 'categories', 'create'], {
-  mutationFn: (vars: any) => categoriesApi.create(vars),
+  mutationFn: (vars: any) => categoriesApi.createCategory(vars),
 });
 queryClient.setMutationDefaults(['catalogs', 'categories', 'update'], {
-  mutationFn: (vars: any) => categoriesApi.update(vars.id, vars.data),
+  mutationFn: (vars: any) => categoriesApi.updateCategory(vars.id, vars.data),
 });
 
 // Locations

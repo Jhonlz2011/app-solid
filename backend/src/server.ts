@@ -71,7 +71,7 @@ async function handleLegacyJwtVerification(request: Request): Promise<Response |
       const { adminDb } = await import('./core/db');
       const { authUsers: users } = await import('@app/schema/tables');
       const { eq } = await import('@app/schema');
-      const { broadcast } = await import('./core/sse');
+      const { broadcastToUser } = await import('./core/sse');
       const { RealtimeEvents } = await import('@app/schema/realtime-events');
 
       const [updatedUser] = await adminDb
@@ -81,7 +81,7 @@ async function handleLegacyJwtVerification(request: Request): Promise<Response |
         .returning({ id: users.id, email: users.email });
 
       if (updatedUser) {
-        broadcast(RealtimeEvents.USER.EMAIL_VERIFIED, { userId: updatedUser.id }, `user:${updatedUser.id}`);
+        broadcastToUser(updatedUser.id, RealtimeEvents.USER.EMAIL_VERIFIED, { userId: updatedUser.id });
 
         if (request.headers.get('accept')?.includes('text/html')) {
           const { tenantSlug } = await getTenantInfoForEmail(updatedUser.email);
@@ -110,7 +110,7 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(cors({
     origin: corsOriginValidator,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'X-Requested-With', 'x-client-id', 'Authorization', 'Accept', 'Origin'],
+    allowedHeaders: ['Content-Type', 'X-Requested-With', 'x-client-id', 'x-tenant-slug', 'x-original-host', 'Authorization', 'Accept', 'Origin'],
     credentials: true,
     preflight: true,
     maxAge: 86400,

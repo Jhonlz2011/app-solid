@@ -4,7 +4,7 @@ import { organization, username, twoFactor } from 'better-auth/plugins';
 import { v7 as uuidv7 } from 'uuid';
 import { adminDb } from '../core/db';
 import { redis } from '../core/cache/redis';
-import { broadcast } from '../core/sse';
+import { broadcastToUser } from '../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { eq } from '@app/schema';
 import * as schema from '@app/schema/tables';
@@ -19,34 +19,10 @@ import { hashPassword, verifyPassword } from '../core/security';
 const BASE_DOMAIN = 'zelys.app';
 
 /**
- * Construye la URL canónica del tenant para emails y redirecciones.
- * - Producción:  https://{slug}.zelys.app  |  https://zelys.app
- * - Dev local:   http://{slug}.localhost:5173  |  http://localhost:5173
- * - LAN dev:     http://{ip}:5173 (sin subdominio)
+ * Construye la URL canónica del tenant para emails y redirecciones en producción (*.zelys.app).
  */
 export function resolveTenantUrl(slug?: string | null): string {
-    if (env.NODE_ENV === 'production') {
-        return slug ? `https://${slug}.${BASE_DOMAIN}` : `https://${BASE_DOMAIN}`;
-    }
-
-    // Desarrollo: usa FRONTEND_URL como base
-    const frontendUrl = env.FRONTEND_URL.replace(/\/$/, '');
-    try {
-        const url = new URL(frontendUrl);
-        const host = url.hostname;
-        const port = url.port ? `:${url.port}` : '';
-
-        // LAN IP — sin subdominio
-        if (/^[0-9.]+$/.test(host)) {
-            return `${url.protocol}//${host}${port}`;
-        }
-
-        // localhost o .localhost
-        if (!slug) return `${url.protocol}//${host}${port}`;
-        return `${url.protocol}//${slug}.localhost${port}`;
-    } catch {
-        return slug ? `https://${slug}.${BASE_DOMAIN}` : `https://${BASE_DOMAIN}`;
-    }
+    return slug ? `https://${slug}.${BASE_DOMAIN}` : `https://${BASE_DOMAIN}`;
 }
 
 /**
@@ -290,10 +266,10 @@ export const auth = betterAuth({
             update: {
                 after: async (user) => {
                     if (user.emailVerified) {
-                        broadcast(
+                        broadcastToUser(
+                            user.id,
                             RealtimeEvents.USER.EMAIL_VERIFIED,
-                            { userId: user.id },
-                            `user:${user.id}`
+                            { userId: user.id }
                         );
                     }
                 },

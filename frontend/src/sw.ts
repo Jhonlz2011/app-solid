@@ -1,17 +1,39 @@
 /// <reference lib="webworker" />
+import { clientsClaim } from 'workbox-core';
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { NetworkFirst, CacheFirst } from 'workbox-strategies';
-import { get, set } from 'idb-keyval';
+import { registerRoute, setCatchHandler } from 'workbox-routing';
+import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
 
 declare const self: ServiceWorkerGlobalScope;
 
+self.skipWaiting();
+clientsClaim();
+
 cleanupOutdatedCaches();
 
-// Precachear todos los assets inyectados por Vite en el build
+// 1. Precachear los assets del App Shell inyectados por Vite en el build
 precacheAndRoute(self.__WB_MANIFEST || []);
 
-// OPT-05: Use NetworkFirst for navigation routes so the backend can inject
+// 2. Runtime Caching para Chunks Lazy-Loaded de JavaScript y CSS
+// Evita el error bad-precaching-response si un chunk cambió de hash en el nuevo build de AWS/GHCR
+registerRoute(
+  ({ request, url }) =>
+    request.destination === 'script' ||
+    request.destination === 'style' ||
+    url.pathname.startsWith('/assets/'),
+  new StaleWhileRevalidate({
+    cacheName: 'app-dynamic-chunks',
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 120,
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 días
+      }),
+    ],
+  })
+);
+
+// 3. OPT-05: Use NetworkFirst for navigation routes so the backend can inject
 // dynamic tenant branding into index.html. Falls back to cache when offline.
 registerRoute(
   ({ request }) => request.mode === 'navigate' && !new URL(request.url).pathname.startsWith('/api'),
@@ -38,96 +60,24 @@ registerRoute(
   })
 );
 
+// 4. Fallback Offline para Navegación:
+// Si el usuario recarga una subruta nunca antes visitada mientras está offline,
+// se devuelve la última página/shell disponible en branded-navigation
+setCatchHandler(async ({ request }) => {
+  if (request.mode === 'navigate') {
+    const cache = await caches.open('branded-navigation');
+    const keys = await cache.keys();
+    if (keys.length > 0) {
+      const match = await cache.match(keys[0]);
+      if (match) return match;
+    }
+  }
+  return Response.error();
+});
+
 // Escuchar evento de actualización del Service Worker
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
-
-// ==========================================
-// BACKGROUND SYNC API - BANDEJA DE SALIDA
-// ==========================================
-
-self.addEventListener('sync', (event: any) => {
-  if (event.tag === 'sync-transactions') {
-    event.waitUntil(syncPendingTransactions());
-  }
-});
-
-const MAX_RETRIES = 3;
-
-async function syncPendingTransactions() {
-  console.log('🔄 SW: Iniciando sincronización en segundo plano...');
-  const outbox: any[] = (await get('zelys-offline-outbox')) || [];
-  if (outbox.length === 0) return;
-
-  const remaining: any[] = [];
-  const failed: any[] = [];
-  // P0-3: Create channel once, close at end to prevent resource leak
-  let broadcastChannel: BroadcastChannel | null = null;
-  broadcastChannel = new BroadcastChannel('app_sync');
-
-  for (const item of outbox) {
-    try {
-      console.log(`📡 SW: Sincronizando transacción: [${item.entity}]`, item.payload);
-      
-      const response = await fetch(item.url, {
-        method: item.method || 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...item.headers,
-        },
-        credentials: 'include',
-        body: JSON.stringify(item.payload),
-      });
-
-      if (!response.ok) {
-        // 4xx = error del cliente → no reintentar (validación, duplicado, etc.)
-        if (response.status >= 400 && response.status < 500) {
-          console.warn(`⛔ SW: Error ${response.status} no retentable para [${item.entity}]`);
-          failed.push(item);
-          continue;
-        }
-        // 5xx = error del servidor → reintentar
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log(`✅ SW: Sincronización exitosa para: [${item.entity}]`);
-
-      // Notificar a las pestañas activas del ERP que se sincronizó el registro
-      broadcastChannel!.postMessage({
-        type: 'offline:synced',
-        data: { entity: item.entity, result },
-      });
-
-    } catch (err) {
-      const retryCount = (item.retryCount ?? 0) + 1;
-      if (retryCount >= MAX_RETRIES) {
-        console.error(`⛔ SW: Máximo de reintentos alcanzado para [${item.entity}]`);
-        failed.push(item);
-      } else {
-        console.warn(`🔁 SW: Reintento ${retryCount}/${MAX_RETRIES} para [${item.entity}]`);
-        remaining.push({ ...item, retryCount });
-      }
-    }
-  }
-
-  // Guardar elementos pendientes de reintentar
-  await set('zelys-offline-outbox', remaining);
-
-  // Notificar sobre items que fallaron permanentemente
-  if (failed.length > 0) {
-    broadcastChannel!.postMessage({
-      type: 'offline:sync-failed',
-      data: {
-        count: failed.length,
-        items: failed.map((f: any) => ({ entity: f.entity, id: f.id })),
-      },
-    });
-  }
-
-  // P0-3: Close the BroadcastChannel to prevent resource leaks in long-lived SW
-  broadcastChannel?.close();
-}

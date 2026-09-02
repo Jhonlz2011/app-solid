@@ -14,6 +14,7 @@ import { useRegisterSW } from 'virtual:pwa-register/solid';
 
 import { actions as authActions } from './modules/auth/store/auth.store';
 import { brandingActions } from './modules/auth/store/branding.store';
+import { wasRecentlySynchronized } from './shared/hooks/useOnlineStatus';
 
 // --- REDIRECT SESSION HANDLER FOR CROSS-SUBDOMAIN LOCAL STORAGE ---
 if (typeof window !== 'undefined') {
@@ -63,13 +64,9 @@ render(
             onRegisterError(error) {
                 console.error('❌ Error al registrar el Service Worker:', error);
             },
-        });
-
-        // One-time offline ready notification
-        onMount(() => {
-            if (offlineReady()) {
+            onOfflineReady() {
                 toast.success('Zelys está listo para trabajar sin conexión.');
-            }
+            },
         });
 
         // Reactive: fires whenever SW detects a new version (even after mount)
@@ -105,9 +102,11 @@ render(
                 onSuccess={() => {
                     // P0-1: Only refetch actively mounted queries (not the entire cache)
                     // to prevent thundering herd on cache rehydration from IndexedDB.
-                    queryClient.resumePausedMutations().then(() => {
-                        queryClient.invalidateQueries({ refetchType: 'active' });
-                    });
+                    if (!wasRecentlySynchronized()) {
+                        queryClient.resumePausedMutations().then(() => {
+                            queryClient.invalidateQueries({ refetchType: 'active' });
+                        });
+                    }
                 }}
             >
                 <ThemeProvider>

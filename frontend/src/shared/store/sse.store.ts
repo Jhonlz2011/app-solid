@@ -1,37 +1,34 @@
 import { createSignal } from 'solid-js';
-import { api, clientId } from '../lib/eden';
+import { clientId } from '../lib/eden';
 import { RealtimeEvents } from '@app/schema/realtime-events';
+import { getSseUrl } from '../config/runtime-env';
+import { resolveSlugFromHost } from '@app/schema/utils';
 
 // --- CONFIGURATION ---
-const SSE_URL = import.meta.env.VITE_SSE_URL || (() => {
-    if (typeof window !== 'undefined') {
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        return `${protocol}//${hostname}:3000/api/sse`;
-    }
-    return 'http://localhost:3000/api/sse';
-})();
+const SSE_URL = getSseUrl();
 // --- GLOBAL STATE ---
 const [eventSource, setEventSource] = createSignal<EventSource | null>(null);
 const [isConnected, setIsConnected] = createSignal(false);
 
-// Private variables
-const activeSubscriptions = new Set<string>();
+// --- HEARTBEAT WATCHDOG ---
+const HEARTBEAT_TIMEOUT_MS = 45000; // 45s (servidor emite cada 25s)
+let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
 
-// --- INTERNAL LOGIC ---
-const handleRoomSubscription = async (room: string, action: 'subscribe' | 'unsubscribe') => {
-    try {
-        if (action === 'subscribe') {
-            await api.sse.join.post({ clientId, room });
-            activeSubscriptions.add(room);
-        } else {
-            await api.sse.leave.post({ clientId, room });
-            activeSubscriptions.delete(room);
-        }
-    } catch (e) {
-        console.error(`SSE ${action} failed for room ${room}:`, e);
+const resetWatchdog = () => {
+    if (watchdogTimer) clearTimeout(watchdogTimer);
+    watchdogTimer = setTimeout(() => {
+        console.warn('⏱️ SSE Watchdog: Sin respuesta del servidor en 45s. Forzando reconexión...');
+        disconnect();
+        setTimeout(() => connect(), 1500);
+    }, HEARTBEAT_TIMEOUT_MS);
+};
+
+const clearWatchdog = () => {
+    if (watchdogTimer) {
+        clearTimeout(watchdogTimer);
+        watchdogTimer = null;
     }
-}
+};
 
 // --- PUBLIC API ---
 
@@ -43,6 +40,10 @@ export const connect = (token?: string | null) => {
         const url = new URL(SSE_URL);
         url.searchParams.set('clientId', clientId);
         if (token) url.searchParams.set('token', token);
+        if (typeof window !== 'undefined') {
+            const currentSlug = resolveSlugFromHost(window.location.hostname);
+            if (currentSlug) url.searchParams.set('slug', currentSlug);
+        }
         
         const newEs = new EventSource(url.toString(), { withCredentials: true });
         setEventSource(newEs);
@@ -50,17 +51,20 @@ export const connect = (token?: string | null) => {
         newEs.onopen = () => {
             console.log('✅ SSE Connected');
             setIsConnected(true);
+            resetWatchdog();
             
             // Broadcast connection recovery
             window.dispatchEvent(new CustomEvent('sse:connected'));
         };
 
+        // Escuchar heartbeat explícito del servidor
+        newEs.addEventListener('heartbeat', () => {
+            resetWatchdog();
+        });
+
         // El evento de "conexión" del backend ("event: connected")
         newEs.addEventListener('connected', () => {
-             // Re-subscribe to all active rooms after a successful connection
-             activeSubscriptions.forEach(room => {
-                 handleRoomSubscription(room, 'subscribe');
-             });
+             resetWatchdog();
         });
         
         // Escuchar SOLO los eventos válidos de entidad y usuario. Ignorar el diccionario de constantes de ROOMS!
@@ -68,6 +72,7 @@ export const connect = (token?: string | null) => {
         for (const category of activeCategories) {
             for (const eventName of Object.values(category as Record<string, string>)) {
                 newEs.addEventListener(eventName, (event) => {
+                    resetWatchdog();
                     try {
                         const parsedData = JSON.parse((event as MessageEvent).data);
                         window.dispatchEvent(new CustomEvent(eventName, { detail: parsedData }));
@@ -82,6 +87,7 @@ export const connect = (token?: string | null) => {
         // network hiccups. Avoids premature close when navigator.onLine is stale.
         let offlineCloseTimer: ReturnType<typeof setTimeout> | null = null;
         newEs.onerror = () => {
+            clearWatchdog();
             setIsConnected(false);
             // Clear any pending close timer if we get a rapid error→recovery cycle
             if (offlineCloseTimer) clearTimeout(offlineCloseTimer);
@@ -103,36 +109,20 @@ export const connect = (token?: string | null) => {
         };
 
     } catch (error) {
+        clearWatchdog();
         console.error('Failed to create SSE connection:', error);
     }
 };
 
 export const disconnect = () => {
+    clearWatchdog();
     eventSource()?.close();
     setEventSource(null);
     setIsConnected(false);
-    activeSubscriptions.clear();
 };
 
 export const enableReconnect = () => {
     // No-op. Dejamos que el navegador decida automáticamente.
-};
-
-export const subscribe = (room: string) => {
-    // Add to active subscriptions anyway, so it subscribes on reconnect
-    activeSubscriptions.add(room);
-    
-    // If connected, issue request now
-    if (isConnected()) {
-        handleRoomSubscription(room, 'subscribe');
-    }
-};
-
-export const unsubscribe = (room: string) => {
-    activeSubscriptions.delete(room);
-    if (isConnected()) {
-        handleRoomSubscription(room, 'unsubscribe');
-    }
 };
 
 // --- API EXPORTS ---
@@ -140,8 +130,6 @@ export const useSSE = () => {
     return {
         eventSource,
         isConnected,
-        subscribe,
-        unsubscribe,
         connect,
         disconnect
     };

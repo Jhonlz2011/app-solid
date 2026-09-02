@@ -265,7 +265,7 @@ const Input = <T,>(props: AutocompleteInputProps<T>) => {
                     id={props.inputId || ctx.id}
                     placeholder={props.placeholder}
                     class={cn("flex-1 focus-visible:shadow-none bg-transparent py-1.5 outline-none placeholder:text-muted text-text min-w-0", matchedOption() ? 'cursor-default' : '', props.inputClass)}
-                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e: PointerEvent) => e.stopPropagation()}
                     onFocus={(e) => e.currentTarget.select()}
                     onInput={(e) => {
                         if (e.isTrusted && props.onSearchAction) {

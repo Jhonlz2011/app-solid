@@ -3,7 +3,7 @@ import { db } from '../../core/db';
 import { uom } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse/events';
+import { broadcastToTenant } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import type { UomItem, UomBodyType, UomUpdateType, UomReferencesResponseType } from '@app/schema/dto';
 
@@ -64,7 +64,8 @@ export const uomService = {
         }).returning();
 
         await cacheService.invalidate(`uom:c${companyId}:*`);
-        broadcast(
+        broadcastToTenant(
+            companyId,
             RealtimeEvents.ENTITY.CREATED,
             { type: 'uom', id: created.id, entity: created, clientId },
             RealtimeEvents.ROOMS.UOM
@@ -96,7 +97,8 @@ export const uomService = {
             .returning();
 
         await cacheService.invalidate(`uom:c${companyId}:*`);
-        broadcast(
+        broadcastToTenant(
+            companyId,
             RealtimeEvents.ENTITY.UPDATED,
             { type: 'uom', id: updated.id, entity: updated, clientId },
             RealtimeEvents.ROOMS.UOM
@@ -120,7 +122,8 @@ export const uomService = {
             .returning();
 
         await cacheService.invalidate(`uom:c${companyId}:*`);
-        broadcast(
+        broadcastToTenant(
+            companyId,
             RealtimeEvents.ENTITY.UPDATED,
             { type: 'uom', id: updated.id, entity: updated, clientId },
             RealtimeEvents.ROOMS.UOM
@@ -143,7 +146,8 @@ export const uomService = {
             .returning();
 
         await cacheService.invalidate(`uom:c${companyId}:*`);
-        broadcast(
+        broadcastToTenant(
+            companyId,
             RealtimeEvents.ENTITY.UPDATED,
             { type: 'uom', id: updated.id, entity: updated, clientId },
             RealtimeEvents.ROOMS.UOM
@@ -208,7 +212,8 @@ export const uomService = {
 
         await db.delete(uom).where(and(eq(uom.id, id), eq(uom.company_id, companyId)));
         await cacheService.invalidate(`uom:c${companyId}:*`);
-        broadcast(
+        broadcastToTenant(
+            companyId,
             RealtimeEvents.ENTITY.DELETED,
             { type: 'uom', id, clientId },
             RealtimeEvents.ROOMS.UOM

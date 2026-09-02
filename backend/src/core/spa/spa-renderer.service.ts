@@ -143,6 +143,10 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
 
     let html = await getRawHtml(originalHost);
 
+    // Canonical production endpoints for API and SSE
+    const apiUrl = 'https://api.zelys.app';
+    const sseUrl = 'https://api.zelys.app/api/sse';
+
     if (slug) {
         try {
             const company = await getTenantBySlug(slug);
@@ -190,6 +194,8 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                     primaryColor: primCol,
                     themeColor: secCol,
                     loginBgUrl: company.loginBgUrl,
+                    apiUrl,
+                    sseUrl,
                 };
 
                 // Escape < and > to prevent XSS script closing injections
@@ -204,19 +210,6 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
 `;
 
                 // 3. Dynamic manifest link (crossorigin API endpoint resolved dynamically)
-                const hostWithoutPort = originalHost.split(':')[0];
-                let apiDomain = 'localhost:3000';
-                let apiProtocol = 'http';
-                if (!hostWithoutPort.includes('localhost') && !/^[0-9.]+$/.test(hostWithoutPort)) {
-                    apiProtocol = 'https';
-                    const parts = hostWithoutPort.split('.');
-                    if (parts.length >= 2) {
-                        const baseDomain = parts.slice(-2).join('.');
-                        apiDomain = `api.${baseDomain}`;
-                    }
-                }
-                const apiUrl = `${apiProtocol}://${apiDomain}`;
-
                 // PWA-01: manifest link is REPLACED (not appended) to avoid duplicates — see below
 
                 // 4. Favicon and shortcut icons (html escaped to prevent attribute breakouts)
@@ -248,13 +241,24 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                 html = html.replace(/<title>.*?<\/title>/, `<title>${titleText}</title>`);
             } else {
                 // Tenant not found or inactive — index.html already has the default manifest link
+                const appConfigJson = JSON.stringify({ apiUrl, sseUrl })
+                    .replace(/</g, '\\u003c')
+                    .replace(/>/g, '\\u003e');
+                html = html.replace('</head>', `\n<script id="app-config" type="application/json">\n  ${appConfigJson}\n</script>\n</head>`);
             }
         } catch (dbError) {
             console.error('❌ Error resolving tenant from database in SPA renderer:', dbError);
-            // Fallback gracefully on DB error: serve unbranded index.html (default manifest already present)
+            const appConfigJson = JSON.stringify({ apiUrl, sseUrl })
+                .replace(/</g, '\\u003c')
+                .replace(/>/g, '\\u003e');
+            html = html.replace('</head>', `\n<script id="app-config" type="application/json">\n  ${appConfigJson}\n</script>\n</head>`);
         }
     } else {
         // No tenant resolved (landing page or default site) — index.html already has the default manifest link
+        const appConfigJson = JSON.stringify({ apiUrl, sseUrl })
+            .replace(/</g, '\\u003c')
+            .replace(/>/g, '\\u003e');
+        html = html.replace('</head>', `\n<script id="app-config" type="application/json">\n  ${appConfigJson}\n</script>\n</head>`);
     }
 
     set.headers['content-type'] = 'text/html; charset=utf-8';

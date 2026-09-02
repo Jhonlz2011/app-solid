@@ -18,15 +18,17 @@ function bounceToParent(parentRoute: any) {
 }
 
 interface DetailConfig {
-    queryKey: (id: number) => readonly unknown[];
-    queryFn: (id: number) => Promise<unknown>;
+    queryKey: (id: any) => readonly unknown[];
+    queryFn: (id: any) => Promise<unknown>;
     staleTime?: number;
 }
 
-function createDetailLoader(idParam: string, detail?: DetailConfig, extraPreload?: (id: number) => Promise<void>) {
+function createDetailLoader(idParam: string, detail?: DetailConfig, extraPreload?: (id: any) => Promise<void>) {
     return async ({ params }: { params: Record<string, string> }) => {
-        const id = Number(params[idParam]);
-        if (isNaN(id)) return;
+        const rawId = params[idParam];
+        if (!rawId) return;
+        const numId = Number(rawId);
+        const id = !isNaN(numId) && String(numId) === rawId ? numId : rawId;
 
         const promises: Promise<any>[] = [];
 

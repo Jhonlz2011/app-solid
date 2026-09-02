@@ -2,6 +2,7 @@
  * Turnstile.tsx — Cloudflare Turnstile widget for SolidJS (Invisible Mode)
  */
 import { Component, onMount, onCleanup } from 'solid-js';
+import { getTurnstileSiteKey } from '../config/runtime-env';
 
 // Extend Window with Turnstile API
 declare global {
@@ -87,7 +88,7 @@ const Turnstile: Component<TurnstileProps> = (props) => {
   let widgetId: string | undefined;
 
   const siteKey = () =>
-    props.siteKey ?? import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '';
+    props.siteKey ?? getTurnstileSiteKey();
 
   const resetWidget = () => {
     if (widgetId && window.turnstile) {

@@ -3,7 +3,8 @@ import { db, type Tx } from '../../core/db';
 import { products, productVariants, productComponents } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse/events';
+import { broadcastToTenant } from '../../core/sse/events';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 import type { ProductBodyType } from '@app/schema/backend';
 import { publicStorageService } from '../../core/storage';
 import { checkProductReferences } from './products.query.service';
@@ -147,7 +148,7 @@ export async function createProduct(payload: ProductBodyType, userId: string, co
             }
 
             cacheService.invalidate(`products:c${companyId}:*`);
-            broadcast('product:created', created, 'products');
+            broadcastToTenant(companyId, RealtimeEvents.ENTITY.CREATED, { type: 'product', id: created.id, entity: created }, 'products');
 
             return created;
         } catch (err: any) {
@@ -298,7 +299,7 @@ export async function updateProduct(productId: number, payload: Partial<ProductB
             }
 
             cacheService.invalidate(`products:c${companyId}:*`);
-            broadcast('product:updated', updated, 'products');
+            broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'product', id: updated.id, entity: updated }, 'products');
 
             if (image_urls !== undefined && oldImageUrls.length > 0) {
                 const newUrls = new Set(image_urls ?? []);
@@ -344,7 +345,7 @@ export async function deactivateProduct(productId: number, userId: string, compa
             .where(and(eq(productVariants.product_id, productId), eq(productVariants.company_id, companyId)));
 
         cacheService.invalidate(`products:c${companyId}:*`);
-        broadcast('product:updated', { id: productId, is_active: false }, 'products');
+        broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'product', id: productId, is_active: false }, 'products');
         return { success: true };
     });
 }
@@ -364,7 +365,7 @@ export async function restoreProduct(productId: number, userId: string, companyI
             .where(and(eq(productVariants.product_id, productId), eq(productVariants.company_id, companyId)));
 
         cacheService.invalidate(`products:c${companyId}:*`);
-        broadcast('product:updated', { id: productId, is_active: true }, 'products');
+        broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'product', id: productId, is_active: true }, 'products');
         return { success: true };
     });
 }
@@ -420,7 +421,7 @@ export async function hardDeleteProduct(productId: number, companyId: number) {
     }
 
     cacheService.invalidate(`products:c${companyId}:*`);
-    broadcast('product:deleted', { id: productId }, 'products');
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.DELETED, { type: 'product', id: productId }, 'products');
     return { success: true };
 }
 
@@ -442,7 +443,7 @@ export async function bulkDeactivateProducts(ids: number[], userId: string, comp
     });
 
     cacheService.invalidate(`products:c${companyId}:*`);
-    broadcast('product:updated', { ids, is_active: false }, 'products');
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'product', ids, is_active: false }, 'products');
     return { affected: ids.length };
 }
 
@@ -460,6 +461,6 @@ export async function bulkRestoreProducts(ids: number[], userId: string, company
     });
 
     cacheService.invalidate(`products:c${companyId}:*`);
-    broadcast('product:updated', { ids, is_active: true }, 'products');
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'product', ids, is_active: true }, 'products');
     return { affected: ids.length };
 }

@@ -1,10 +1,10 @@
-import { db, adminDb } from '../../core/db';
+import { db, adminDb, tenantStorage } from '../../core/db';
 import { v7 as uuidv7 } from 'uuid';
 import { authUsers, authUserRoles, authRoles, entities, auditLogs, sessions, account, member, companies, verification } from '@app/schema/tables';
 import { eq, ne,sql, count, and, inArray, ilike, or, asc, desc, type SQL } from '@app/schema';
 import { cacheService } from '../../core/cache';
 import { DomainError } from '../../core/errors';
-import { broadcast } from '../../core/sse/events';
+import { broadcastToTenant, broadcastToUser } from '../../core/sse/events';
 import { RealtimeEvents, getTenantRoom } from '@app/schema/realtime-events';
 import { SYSTEM_ROLES } from '@app/schema/enums';
 import { emailService } from '../../core/email';
@@ -506,9 +506,10 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
     });
 
     await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
-    broadcast(RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr }, `user:${userIdStr}`);
-    const targetRoom = getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS);
-    broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, targetRoom);
+    broadcastToUser(userIdStr, RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr });
+    if (effectiveCompanyId) {
+        broadcastToTenant(effectiveCompanyId, RealtimeEvents.USER.UPDATED, { id: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    }
 
     logAudit(currentUserId, 'UPDATE', 'auth_user_roles', userIdStr, { roleIds: finalRoleIds }, { roleIds: oldRoleIds });
 
@@ -702,8 +703,9 @@ export async function createUser(
         return user;
     });
 
-    const targetRoom = companyId ? getTenantRoom(companyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
-    broadcast(RealtimeEvents.USER.CREATED, { id: newUser.id }, targetRoom);
+    if (companyId) {
+        broadcastToTenant(companyId, RealtimeEvents.USER.CREATED, { id: newUser.id }, RealtimeEvents.ROOMS.USERS);
+    }
 
     if (currentUserId) logAudit(currentUserId, 'INSERT', 'user', newUser.id, { username: displayName, email: normalizedEmail, roleIds: data.roleIds, entityId: data.entityId });
 
@@ -913,8 +915,9 @@ export async function removeUserFromRole(userId: string | number, roleId: number
 
     const effectiveCompanyId = companyId || (await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) }))?.company_id;
     await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
-    const targetRoom = effectiveCompanyId ? getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
-    broadcast(RealtimeEvents.USER.UPDATED, { id: userIdStr }, targetRoom);
+    if (effectiveCompanyId) {
+        broadcastToTenant(effectiveCompanyId, RealtimeEvents.USER.UPDATED, { id: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    }
 
     return { success: true };
 }
@@ -977,8 +980,9 @@ export async function updateUser(
     });
 
     await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
-    const targetRoom = effectiveCompanyId ? getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
-    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
+    if (effectiveCompanyId) {
+        broadcastToTenant(effectiveCompanyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    }
 
     if (currentUserId) {
         logAudit(currentUserId, 'UPDATE', 'user', userIdStr, data, {
@@ -1022,9 +1026,10 @@ export async function deactivateUser(userId: string | number, currentUserId: str
         .returning();
 
     await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
-    broadcast(RealtimeEvents.USER.SESSION_REVOKED, { userId: userIdStr }, `user:${userIdStr}`);
-    const targetRoom = effectiveCompanyId ? getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
-    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
+    broadcastToUser(userIdStr, RealtimeEvents.USER.SESSION_REVOKED, { userId: userIdStr });
+    if (effectiveCompanyId) {
+        broadcastToTenant(effectiveCompanyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    }
 
     logAudit(currentUserId, 'UPDATE', 'user', userIdStr, { is_active: false }, { is_active: true });
 
@@ -1059,8 +1064,9 @@ export async function restoreUser(userId: string | number, currentUserId: string
     }
 
     await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
-    const targetRoom = effectiveCompanyId ? getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
-    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
+    if (effectiveCompanyId) {
+        broadcastToTenant(effectiveCompanyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    }
 
     logAudit(currentUserId, 'UPDATE', 'user', userIdStr, { is_active: true }, { is_active: false });
 
@@ -1128,8 +1134,9 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
     });
 
     await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
-    const targetRoom = effectiveCompanyId ? getTenantRoom(effectiveCompanyId, RealtimeEvents.ROOMS.USERS) : RealtimeEvents.ROOMS.USERS;
-    broadcast(RealtimeEvents.USER.DELETED, { userId: userIdStr }, targetRoom);
+    if (effectiveCompanyId) {
+        broadcastToTenant(effectiveCompanyId, RealtimeEvents.USER.DELETED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    }
 
     logAudit(currentUserId, 'DELETE', 'user', userIdStr, undefined, { username: targetUser.username, email: targetUser.email });
 
@@ -1305,8 +1312,9 @@ export async function setUserEntity(
     if (!updated) throw new DomainError('No se pudo actualizar la entidad', 500);
 
     if (currentUserId) logAudit(currentUserId, 'UPDATE', 'member', memberRow.id, { entity_id: entityId }, { entity_id: oldEntityId ?? null });
-    const targetRoom = getTenantRoom(companyId, RealtimeEvents.ROOMS.USERS);
-    broadcast(RealtimeEvents.USER.UPDATED, { userId: userIdStr }, targetRoom);
+    if (companyId) {
+        broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
+    }
 
     return { id: userIdStr, entityId };
 }
@@ -1339,7 +1347,10 @@ export async function batchDeleteUsers(userIds: (string)[], currentUserId: strin
             .where(inArray(authUsers.id, safeIds));
 
         await Promise.all(safeIds.map(id => invalidateUserRbacCache(id)));
-        broadcast(RealtimeEvents.USER.UPDATED, { userIds: safeIds }, RealtimeEvents.ROOMS.USERS);
+        const batchCompanyId = tenantStorage.getStore()?.companyId;
+        if (batchCompanyId) {
+            broadcastToTenant(batchCompanyId, RealtimeEvents.USER.UPDATED, { userIds: safeIds }, RealtimeEvents.ROOMS.USERS);
+        }
 
         for (const id of safeIds) logAudit(currentUserId, 'UPDATE', 'user', id, { is_active: false }, { is_active: true });
     }
@@ -1369,7 +1380,10 @@ export async function batchRestoreUsers(userIds: (string)[], currentUserId: stri
             .where(inArray(authUsers.id, safeIds));
 
         await Promise.all(safeIds.map(id => invalidateUserRbacCache(id)));
-        broadcast(RealtimeEvents.USER.UPDATED, { userIds: safeIds }, RealtimeEvents.ROOMS.USERS);
+        const batchCompanyId = tenantStorage.getStore()?.companyId;
+        if (batchCompanyId) {
+            broadcastToTenant(batchCompanyId, RealtimeEvents.USER.UPDATED, { userIds: safeIds }, RealtimeEvents.ROOMS.USERS);
+        }
 
         for (const id of safeIds) logAudit(currentUserId, 'UPDATE', 'user', id, { is_active: true }, { is_active: false });
     }

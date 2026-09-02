@@ -2,7 +2,7 @@ import { db } from '../../core/db';
 import { sessions } from '@app/schema/tables';
 import { eq, and, gt } from '@app/schema';
 import { cacheService } from '../../core/cache';
-import { broadcast } from '../../core/sse';
+import { broadcastToUser } from '../../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { DomainError } from '../../core/errors';
 import geoip from 'geoip-lite';
@@ -69,7 +69,7 @@ export async function revokeSession(sessionId: string, userId: string | number) 
 
   if (deleted.length === 0) throw new AuthError('Sesión no encontrada', 404);
 
-  broadcast(RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId }, `user:${userIdStr}`);
+  broadcastToUser(userIdStr, RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId });
   cacheService.invalidate(`session:${sessionId}`);
 
   return { success: true } as const;

@@ -18,9 +18,26 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'prompt',
+      registerType: 'autoUpdate', // Fuerza la activación inmediata del nuevo SW al desplegar
       injectRegister: 'auto',
-      includeAssets: ['favicon.ico', 'icons/*.png'],
+      includeAssets: ['favicon.ico', 'icons/*.png', 'branding-fallback.js'],
+      injectManifest: {
+        // Precachear únicamente el App Shell esencial y vendor chunks estables
+        // Evita el error bad-precaching-response en despliegues al no precachear lazy queries/chunks
+        globPatterns: [
+          '**/assets/index-*.js',
+          '**/assets/index-*.css',
+          '**/assets/vendor-*.js',
+          '**/*.{ico,png,svg,webp,woff,woff2}',
+        ],
+        globIgnores: [
+          '**/*.{gz,br}',
+          '**/index.html', // index.html se renderiza e inyecta dinámicamente en SSR por Elysia
+          '**/assets/*.queries-*.js',
+          '**/assets/chunk-*.js',
+        ],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      },
       manifest: {
         name: 'Zelys',
         short_name: 'Zelys',

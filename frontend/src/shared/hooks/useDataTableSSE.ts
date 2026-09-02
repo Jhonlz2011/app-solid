@@ -11,10 +11,10 @@
  */
 import { onMount, onCleanup } from 'solid-js';
 import { useQueryClient } from '@tanstack/solid-query';
-import { subscribe, unsubscribe } from '../store/sse.store';
 import { RealtimeEvents, type BaseEventPayload } from '@app/schema/realtime-events';
 import { clientId } from '../lib/eden';
 import { removeCacheItems, updateCacheItem, cacheContainsItem, type CacheShape } from '../utils/query.utils';
+import { wasRecentlySynchronized } from './useOnlineStatus';
 
 /** Minimal entity shape known at the SSE layer */
 type SseEntity = { id: string | number; [key: string]: unknown };
@@ -26,7 +26,7 @@ const DEFAULT_EVENTS = [
 ];
 
 interface UseDataTableSSEOptions {
-    /** SSE room to subscribe to */
+    /** SSE room / entity namespace to filter for (e.g. 'products', 'categories') */
     room: string;
     /** TanStack Query key(s) to invalidate on events */
     queryKey: readonly unknown[];
@@ -41,11 +41,11 @@ export function useDataTableSSE<TEntity extends { id: string | number } = SseEnt
     const events = options.events ?? DEFAULT_EVENTS;
     const enabled = options.enabled ?? true;
 
+    // Expected entity type normalized from room (e.g. 'products' -> 'product', 'categories' -> 'category')
+    const expectedType = options.room ? options.room.replace(/ies$/, 'y').replace(/s$/, '').toLowerCase() : null;
+
     onMount(() => {
         if (!enabled) return;
-
-        // Subscribe to SSE room
-        subscribe(options.room);
 
         const createHandler = (eventName: string) => (e: Event) => {
             const customEvent = e as CustomEvent<BaseEventPayload<TEntity>>;
@@ -53,6 +53,15 @@ export function useDataTableSSE<TEntity extends { id: string | number } = SseEnt
 
             // Skip own mutations — already handled by optimistic update + onSettled
             if (eventData?.clientId === clientId) return;
+
+            // Filter by entity type in memory — zero HTTP requests needed
+            if (eventData?.type && expectedType) {
+                const eventType = eventData.type.toLowerCase();
+                const roomType = options.room.toLowerCase();
+                if (eventType !== expectedType && eventType !== roomType) {
+                    return;
+                }
+            }
 
             if (eventName === RealtimeEvents.ENTITY.CREATED || eventName === RealtimeEvents.USER.CREATED) {
                 queryClient.invalidateQueries({
@@ -151,6 +160,9 @@ export function useDataTableSSE<TEntity extends { id: string | number } = SseEnt
                     }
                     return removeCacheItems(old as CacheShape<TEntity>, idsToRemove);
                 });
+            } else if (eventName === 'sse:connected') {
+                if (wasRecentlySynchronized()) return;
+                queryClient.invalidateQueries({ queryKey: options.queryKey });
             } else {
                 queryClient.invalidateQueries({ queryKey: options.queryKey });
             }
@@ -166,7 +178,6 @@ export function useDataTableSSE<TEntity extends { id: string | number } = SseEnt
         });
 
         onCleanup(() => {
-            unsubscribe(options.room);
             handlers.forEach((handler, event) => {
                 window.removeEventListener(event, handler);
             });

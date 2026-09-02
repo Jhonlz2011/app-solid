@@ -130,6 +130,14 @@ export const actions = {
 
             currentActiveOrgId = organizationId;
 
+            // Clear in-memory query cache when switching organizations to prevent cross-tenant data leaks
+            try {
+                const { queryClient } = await import('@shared/lib/queryClient');
+                queryClient.clear();
+            } catch (err) {
+                console.warn('[Auth] Error clearing queryClient on org switch:', err);
+            }
+
             // Refresh ERP profile with new company's RBAC, permissions, and module tree
             const profile = await profileApi.getMe();
             currentSessionId = profile.sessionId ?? null;
@@ -170,6 +178,15 @@ export const actions = {
             } catch (err) {
                 console.warn('[Auth] Error signing out from server:', err);
             }
+        }
+
+        // 1.1 Securely clear in-memory query cache & IndexedDB persisted state
+        try {
+            const { queryClient, persister } = await import('@shared/lib/queryClient');
+            queryClient.clear();
+            await persister.removeClient();
+        } catch (err) {
+            console.warn('[Auth] Error clearing queryClient on logout:', err);
         }
 
         // 2. Clear state in store and flags

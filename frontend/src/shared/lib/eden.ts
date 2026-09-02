@@ -11,14 +11,23 @@ export const clientId = (() => {
 })();
 
 import { setOnlineStatus } from '@shared/hooks/useOnlineStatus';
+import { getApiUrl } from '../config/runtime-env';
+import { resolveSlugFromHost } from '@app/schema/utils';
 
-const rawBase = import.meta.env.VITE_API_URL || 'https://api.zelys.app';
+const rawBase = getApiUrl();
 
 const client = treaty<App>(rawBase, {
     fetcher: async (url, options) => {
-        // Automatically inject client ID to all requests
+        // Automatically inject client ID and tenant context to all requests
         const headers = new Headers(options?.headers);
         headers.set('x-client-id', clientId);
+
+        if (typeof window !== 'undefined') {
+            const currentSlug = resolveSlugFromHost(window.location.hostname);
+            if (currentSlug) {
+                headers.set('x-tenant-slug', currentSlug);
+            }
+        }
 
         try {
             const response = await fetch(url, {

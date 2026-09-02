@@ -6,6 +6,7 @@
  */
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
+import { getApiUrl } from '@shared/config/runtime-env';
 import type { ProductFormData } from '@app/schema/frontend';
 import type { ProductType, ProductSubtype } from '@app/schema/enums';
 import type { ProductBodyType } from '@app/schema/dto';
@@ -97,7 +98,7 @@ export const productsApi = {
     /** Upload product images to Cloudflare R2 Public bucket with Sharp optimization. Returns public CDN URLs. */
     uploadImages: async (files: File[]): Promise<string[]> => {
         if (files.length === 0) return [];
-        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const apiBase = getApiUrl();
         const formData = new FormData();
         files.forEach(f => formData.append('files', f));
         const res = await fetch(`${apiBase}/api/products/upload-images`, {

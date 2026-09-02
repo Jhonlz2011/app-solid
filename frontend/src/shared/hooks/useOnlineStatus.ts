@@ -2,6 +2,7 @@ import { createSignal } from 'solid-js';
 import { onlineManager } from '@tanstack/solid-query';
 import { queryClient } from '@shared/lib/queryClient';
 import { toast } from 'solid-sonner';
+import { getApiUrl } from '@shared/config/runtime-env';
 
 // ─── Estado global ─────────────────────────────────────────────────────────
 const [isOnline, setIsOnline] = createSignal(
@@ -17,35 +18,42 @@ let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 const HEARTBEAT_INTERVAL = 15_000; // 15 segundos
 const HEARTBEAT_TIMEOUT = 4_000;   // timeout del fetch
 
+let isReconnecting = false;
+let lastSyncTime = 0;
+
+export function wasRecentlySynchronized(): boolean {
+  return Date.now() - lastSyncTime < 5000;
+}
+
 // ─── Funciones internas ────────────────────────────────────────────────────
 
 function getHealthUrl(): string {
-  const base = typeof import.meta !== 'undefined'
-    ? (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000'
-    : 'http://localhost:3000';
-  return `${base}/api/health`;
+  return `${getApiUrl()}/api/health`;
 }
 
-/** Realiza un check ligero de conectividad contra /api/health */
+/** Realiza un check ligero de conectividad real contra /api/health */
 async function checkConnectivity(): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), HEARTBEAT_TIMEOUT);
-    await fetch(`${getHealthUrl()}?_t=${Date.now()}`, {
-      method: 'HEAD',
-      mode: 'no-cors',
+    const response = await fetch(`${getHealthUrl()}?_t=${Date.now()}`, {
+      method: 'GET',
       cache: 'no-store',
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
-    return true;
+    return response.ok;
   } catch {
     return false;
   }
 }
 
-/** Lógica de reconexión: reanudar mutaciones pausadas + invalidar queries */
+/** Lógica de reconexión atómica: reanudar mutaciones pausadas + una sola invalidación */
 function handleReconnect() {
+  if (isReconnecting) return;
+  if (Date.now() - lastSyncTime < 5000) return; // Debounce 5s
+
+  isReconnecting = true;
   reconnectGraceUntil = Date.now() + GRACE_PERIOD_MS;
 
   const pausedCount = queryClient
@@ -53,20 +61,25 @@ function handleReconnect() {
     .getAll()
     .filter(m => m.state.isPaused).length;
 
-  // P0-1: Only refetch queries that are actively mounted on screen (not the entire cache)
-  // to prevent a thundering herd of 30-50+ parallel API calls on reconnect.
+  const completeSync = () => {
+    queryClient.invalidateQueries({ refetchType: 'active' });
+    lastSyncTime = Date.now();
+    isReconnecting = false;
+  };
+
   if (pausedCount > 0) {
     const toastId = toast.loading(
       `Sincronizando ${pausedCount} operación${pausedCount !== 1 ? 'es' : ''} pendiente${pausedCount !== 1 ? 's' : ''}...`
     );
     queryClient.resumePausedMutations().then(() => {
-      queryClient.invalidateQueries({ refetchType: 'active' });
+      completeSync();
       toast.success('Todo sincronizado correctamente', { id: toastId, duration: 3000 });
     }).catch(() => {
+      completeSync();
       toast.error('Algunas operaciones no pudieron sincronizarse', { id: toastId, duration: 5000 });
     });
   } else {
-    queryClient.invalidateQueries({ refetchType: 'active' });
+    completeSync();
   }
 }
 

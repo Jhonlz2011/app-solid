@@ -32,7 +32,7 @@ export const ProductSelect: Component<ProductSelectProps> = (props) => {
     }));
 
     const products = createMemo(() => {
-        const raw = (productsQuery.data?.items ?? []) as Product[];
+        const raw = (productsQuery.data?.data ?? []) as unknown as Product[];
         if (props.excludeProductId) {
             return raw.filter(p => p.id !== props.excludeProductId);
         }

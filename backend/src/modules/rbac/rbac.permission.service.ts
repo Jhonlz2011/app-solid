@@ -4,7 +4,7 @@ import { eq, and } from '@app/schema';
 import { redis } from '../../core/cache/redis';
 import { cacheService } from '../../core/cache';
 import { DomainError } from '../../core/errors';
-import { broadcast } from '../../core/sse/events';
+import { broadcastToUser } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { SYSTEM_ROLES } from '@app/schema/enums';
 
@@ -124,7 +124,7 @@ export async function revokeAllUserSessions(userId: string | number): Promise<vo
     await adminDb.delete(sessions).where(eq(sessions.userId, userIdStr));
     await redis.del(...activeSessions.map(s => `session:${s.id}`));
     for (const s of activeSessions) {
-        broadcast(RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId: s.id }, `user:${userIdStr}`);
+        broadcastToUser(userIdStr, RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId: s.id });
     }
 }
 

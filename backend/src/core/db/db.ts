@@ -1,8 +1,6 @@
 import { drizzlePostgres as drizzle, sql } from '@app/schema';
 import postgres from 'postgres';
 import { env } from '../../config/env';
-import { cacheService } from '../cache/cache.service';
-import { broadcast } from '../sse/events';
 import * as schema from '@app/schema';
 import { AsyncLocalStorage } from 'async_hooks';
 
@@ -29,32 +27,11 @@ const queryClientSri = postgres(env.SRI_DATABASE_URL, {
 
 export const referenceDb = drizzle(queryClientSri, { logger: env.NODE_ENV === 'development' });
 
-// Cliente dedicado para escuchar notificaciones (LISTEN)
-// Postgres requiere una conexión dedicada para LISTEN/NOTIFY
+// Dedicated connection for PostgreSQL LISTEN/NOTIFY (e.g. audit worker)
 export const listener = postgres(env.DATABASE_URL, {
   max: 1,
-  idle_timeout: 0, // Mantener conexión viva
+  idle_timeout: 0, // Keep connection alive for LISTEN
   ssl: false,
-});
-
-listener.listen('db_change', (payload: string) => {
-  try {
-    const data = JSON.parse(payload);
-    const { table, action, id } = data;
-
-    if (env.NODE_ENV === 'development') {
-      console.log(`🔔 DB Change Notification: ${table} ${action} ID:${id}`);
-    }
-
-    // 1. Invalidate Redis Cache
-    cacheService.invalidate(`${table}:*`);
-
-    // 2. Broadcast via WebSocket
-    broadcast('db_change', data);
-
-  } catch (error) {
-    console.error('Error processing DB notification:', error);
-  }
 });
 
 // =============================================================================
