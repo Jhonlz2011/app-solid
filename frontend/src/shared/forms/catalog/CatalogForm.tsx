@@ -42,7 +42,7 @@ export interface CatalogFormProps {
     product?: Product;
     onSubmit: (data: ProductFormData) => Promise<void>;
     isSubmitting: boolean;
-    formId: string;
+    formId?: string;
 }
 
 const defaultVariant = (): ProductVariantFormData => ({

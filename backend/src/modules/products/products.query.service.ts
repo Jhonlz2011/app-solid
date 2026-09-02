@@ -177,7 +177,7 @@ export async function listProducts(filters: ProductFilters, companyId: number) {
     return productPaginator.paginate(
         { cursor, direction, limit, search, sortBy, sortOrder, page, filters: columnFilters },
         companyId,
-        (ids) => fetchProductRows(ids, companyId)
+        (ids) => fetchProductRows(ids.map(Number), companyId)
     );
 }
 

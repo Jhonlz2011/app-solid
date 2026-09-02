@@ -7,7 +7,8 @@
 import { Show, For } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
-export type { UserListItemType } from '@app/schema/backend';
+import type { UserListItemType } from '@app/schema/backend';
+export type { UserListItemType };
 import { useAuth } from '@modules/auth/store/auth.store';
 import { Avatar } from '@shared/ui/display/Avatar';
 import { RoleBadge, StatusBadge, EntityTypeBadge } from '@display/Badge';
@@ -55,7 +56,7 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
                     onChange={(checked) => table.toggleAllPageRowsSelected(checked)} />
             ),
             cell: ({ row }) => {
-                const isSuperadmin = row.original.roles?.some(r => r.name === 'superadmin') ?? false;
+                const isSuperadmin = row.original.roles?.some((r: any) => r.name === 'superadmin') ?? false;
                 if (isSuperadmin) {
                     return (
                         <div
@@ -276,7 +277,7 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
             enableHiding: false,
             cell: (info) => {
                 const user = info.row.original;
-                const isSuperadmin = user.roles?.some(r => r.name === 'superadmin') ?? false;
+                const isSuperadmin = user.roles?.some((r: any) => r.name === 'superadmin') ?? false;
                 return (
                     <ActionMenu
                         module="users"

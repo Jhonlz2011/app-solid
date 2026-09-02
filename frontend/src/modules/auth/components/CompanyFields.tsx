@@ -71,7 +71,7 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
         slugTimer = setTimeout(async () => {
             slugAbortController = new AbortController();
             try {
-                const res = await authApi.checkSlug(slug);
+                const res = await authApi.checkSlug(slug, slugAbortController.signal);
                 setSlugAvailable(res.available);
             } catch (err: any) {
                 if (err?.name !== 'AbortError') {
@@ -95,7 +95,7 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
         rucTimer = setTimeout(async () => {
             rucAbortController = new AbortController();
             try {
-                const res = await authApi.checkRuc(ruc);
+                const res = await authApi.checkRuc(ruc, rucAbortController.signal);
                 setRucAvailable(res.available);
             } catch (err: any) {
                 if (err?.name !== 'AbortError') {

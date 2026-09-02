@@ -377,7 +377,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                                             <p class="text-xs text-muted">{v.description}</p>
                                                                         </Show>
                                                                     </div>
-                                                                    <StatusBadge isActive={v.is_active} />
+                                                                    <StatusBadge isActive={v.is_active ?? null} />
                                                                 </div>
                                                             )}
                                                         </For>
@@ -409,7 +409,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                                             <p class="text-xs text-muted">Tel: {d.phone}</p>
                                                                         </Show>
                                                                     </div>
-                                                                    <StatusBadge isActive={d.is_active} />
+                                                                    <StatusBadge isActive={d.is_active ?? null} />
                                                                 </div>
                                                             )}
                                                         </For>

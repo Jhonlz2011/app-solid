@@ -16,6 +16,7 @@ import { resolveSlugFromHost } from '@app/schema/utils';
 
 const rawBase = getApiUrl();
 
+// @ts-expect-error - Elysia package duplication in Bun resolution
 const client = treaty<App>(rawBase, {
     fetcher: async (url, options) => {
         // Automatically inject client ID and tenant context to all requests

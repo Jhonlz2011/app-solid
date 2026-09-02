@@ -169,7 +169,7 @@ export const uomService = {
      */
     async checkReferences(id: number, companyId?: number): Promise<UomReferencesResponseType> {
         /** Safe count — returns 0 if the table doesn't exist yet (unmigrated). */
-        const countQuery = async (query: ReturnType<typeof db.select>): Promise<number> => {
+        const countQuery = async (query: Promise<any>): Promise<number> => {
             try {
                 const result = await query;
                 return (result as any)[0]?.count ?? 0;

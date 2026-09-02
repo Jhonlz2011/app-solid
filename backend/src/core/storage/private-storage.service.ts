@@ -32,7 +32,7 @@ export const privateStorageService = {
             CacheControl: 'public, max-age=31536000, immutable',
         });
 
-        const uploadUrl = await getSignedUrl(r2PrivateClient as any, command, { expiresIn: 900 });
+        const uploadUrl = await getSignedUrl(r2PrivateClient as any, command as any, { expiresIn: 900 });
         const cdnUrl = env.NEXT_PUBLIC_CDN_URL || 'https://cdn.zelys.app';
         const publicUrl = `${cdnUrl}/${fileKey}`;
 
@@ -51,7 +51,7 @@ export const privateStorageService = {
             Key: fileKey,
         });
 
-        return await getSignedUrl(r2PrivateClient as any, command, { expiresIn: 3600 });
+        return await getSignedUrl(r2PrivateClient as any, command as any, { expiresIn: 3600 });
     },
 
     deleteObject: async (fileKeyOrUrl: string) => {

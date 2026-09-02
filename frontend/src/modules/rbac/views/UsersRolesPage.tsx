@@ -114,7 +114,7 @@ const UsersRolesPage: Component = () => {
                     <div class="bg-card border border-border rounded-2xl shadow-card-soft h-full overflow-auto relative">
                         <DataTable
                             data={state.users()}
-                            columns={state.columns()}
+                            columns={state.columns() as any}
                             isLoading={state.usersQuery.isPending}
                             isPlaceholderData={state.usersQuery.isPlaceholderData}
                             pagination={{ pageIndex: state.page() - 1, pageSize: state.pageSize() }}

@@ -190,6 +190,34 @@ export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,        // https://api.zelys.app
     basePath: '/api/auth',
     trustedOrigins: dynamicTrustedOrigins,
+    secondaryStorage: {
+        get: async (key: string) => {
+            return await redis.get(key);
+        },
+        set: async (key: string, value: string, ttl?: number) => {
+            if (ttl) {
+                await redis.set(key, value, 'EX', ttl);
+            } else {
+                await redis.set(key, value);
+            }
+        },
+        delete: async (key: string) => {
+            await redis.del(key);
+        },
+        increment: async (key: string, ttl?: number) => {
+            const count = await redis.incr(key);
+            if (count === 1 && ttl) {
+                await redis.expire(key, ttl);
+            }
+            return count;
+        },
+    },
+    rateLimit: {
+        enabled: true,
+        window: 60,
+        max: 100,
+        storage: 'secondary-storage',
+    },
     onAPIError: {
         errorURL: `${(env.NODE_ENV === 'production' ? 'https://in.zelys.app' : env.FRONTEND_URL).replace(/\/$/, '')}/login`,
         onError: (error) => {

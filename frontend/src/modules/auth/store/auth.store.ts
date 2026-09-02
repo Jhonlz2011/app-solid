@@ -306,6 +306,9 @@ export const actions = {
         if (storeInitialized) return;
         storeInitialized = true;
 
+        // Initialize centralized cross-tab broadcast channel before registering handlers
+        broadcast.init();
+
         // Storage event (other tab logged out)
         window.addEventListener('storage', (e: StorageEvent) => {
             if (e.key === SESSION_FLAG_KEY) {
@@ -387,7 +390,6 @@ export const actions = {
         });
 
         // Centralized broadcast store (profile updates from other tabs via BroadcastChannel)
-        broadcast.init();
         broadcast.on(BroadcastEvents.PROFILE_UPDATE, (data) => {
             if (data?.user && state.user) {
                 // Granular updates only — DO NOT spread/replace the whole user object

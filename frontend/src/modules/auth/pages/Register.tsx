@@ -76,7 +76,7 @@ const Register: Component = () => {
             phone: undefined as string | undefined,
             cedula: undefined as string | undefined,
         },
-        validators: { onSubmit: RegisterStep1Schema },
+        validators: { onSubmit: RegisterStep1Schema as any },
         onSubmit: async () => {
             setStep(1);
         },
@@ -97,7 +97,6 @@ const Register: Component = () => {
                 step1Form.setFieldValue('fullName', u.name || u.username || '');
                 step1Form.setFieldValue('username', u.username || '');
                 step1Form.setFieldValue('email', u.email || '');
-                step1Form.setFieldValue('password', 'OAuthPass123!');
                 setStep(1);
                 toast.info(`¡Hola ${u.name || u.username || ''}! Completa los datos de tu empresa para comenzar.`);
             }
@@ -127,7 +126,7 @@ const Register: Component = () => {
             obligadoContabilidad: false,
             contribuyenteEspecial: undefined as string | undefined,
         },
-        validators: { onSubmit: RegisterStep2Schema },
+        validators: { onSubmit: RegisterStep2Schema as any },
         onSubmit: async () => {
             setStep(2);
         },
@@ -242,11 +241,12 @@ const Register: Component = () => {
         return !step2FieldsStatus.isValidForSubmit();
     };
 
-    const stepperSteps = () => isOAuthUser() ? ['Usuario', 'Empresa', 'Confirmar'] : ['Usuario', 'Empresa', 'Confirmar'];
+    const stepperSteps = () => isOAuthUser() ? ['Empresa', 'Confirmar'] : ['Usuario', 'Empresa', 'Confirmar'];
+    const currentStepIndex = () => isOAuthUser() ? Math.max(0, step() - 1) : step();
 
     return (
         <div class="w-full p-6 sm:p-8 bg-card border border-border rounded-2xl shadow-xl">
-            <AuthStepper steps={stepperSteps()} current={step()} />
+            <AuthStepper steps={stepperSteps()} current={currentStepIndex()} />
 
             {/* ─── STEP 1: User ─── */}
             <Show when={step() === 0}>

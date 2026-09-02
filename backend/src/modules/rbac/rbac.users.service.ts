@@ -704,6 +704,7 @@ export async function createUser(
     });
 
     if (companyId) {
+        await cacheService.invalidate(`tenant:member:${companyId}:${newUser.id}`);
         broadcastToTenant(companyId, RealtimeEvents.USER.CREATED, { id: newUser.id }, RealtimeEvents.ROOMS.USERS);
     }
 
@@ -915,6 +916,7 @@ export async function removeUserFromRole(userId: string | number, roleId: number
 
     const effectiveCompanyId = companyId || (await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) }))?.company_id;
     await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
+    broadcastToUser(userIdStr, RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr });
     if (effectiveCompanyId) {
         broadcastToTenant(effectiveCompanyId, RealtimeEvents.USER.UPDATED, { id: userIdStr }, RealtimeEvents.ROOMS.USERS);
     }
@@ -1026,6 +1028,7 @@ export async function deactivateUser(userId: string | number, currentUserId: str
         .returning();
 
     await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
+    await cacheService.invalidate(`tenant:member:${effectiveCompanyId}:${userIdStr}`);
     broadcastToUser(userIdStr, RealtimeEvents.USER.SESSION_REVOKED, { userId: userIdStr });
     if (effectiveCompanyId) {
         broadcastToTenant(effectiveCompanyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
@@ -1064,6 +1067,7 @@ export async function restoreUser(userId: string | number, currentUserId: string
     }
 
     await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
+    await cacheService.invalidate(`tenant:member:${effectiveCompanyId}:${userIdStr}`);
     if (effectiveCompanyId) {
         broadcastToTenant(effectiveCompanyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
     }
@@ -1134,6 +1138,7 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
     });
 
     await invalidateUserRbacCache(userIdStr, effectiveCompanyId);
+    await cacheService.invalidate(`tenant:member:${effectiveCompanyId}:${userIdStr}`);
     if (effectiveCompanyId) {
         broadcastToTenant(effectiveCompanyId, RealtimeEvents.USER.DELETED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
     }

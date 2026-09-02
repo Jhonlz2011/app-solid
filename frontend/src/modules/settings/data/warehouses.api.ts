@@ -41,39 +41,41 @@ export interface UpdateWarehouseBody {
 // return types are explicitly annotated.
 // =============================================================================
 
+const inventoryApi = api.inventory as any;
+
 export const warehousesApi = {
     list: async (): Promise<WarehouseItem[]> => {
-        const { data, error } = await api.inventory.warehouses.get();
+        const { data, error } = await inventoryApi.warehouses.get();
         if (error) throwApiError(error);
         return data as WarehouseItem[];
     },
 
     get: async (id: number) => {
-        const { data, error } = await api.inventory.warehouses({ id }).get();
+        const { data, error } = await inventoryApi.warehouses({ id }).get();
         if (error) throwApiError(error);
         return data!;
     },
 
     create: async (body: CreateWarehouseBody) => {
-        const { data, error } = await api.inventory.warehouses.post(body as any);
+        const { data, error } = await inventoryApi.warehouses.post(body as any);
         if (error) throwApiError(error);
         return data!;
     },
 
     update: async (id: number, body: UpdateWarehouseBody) => {
-        const { data, error } = await (api.inventory.warehouses as any)({ id }).put(body);
+        const { data, error } = await inventoryApi.warehouses({ id }).put(body);
         if (error) throwApiError(error);
         return data!;
     },
 
     deactivate: async (id: number) => {
-        const { data, error } = await (api.inventory.warehouses as any)({ id }).deactivate.patch();
+        const { data, error } = await inventoryApi.warehouses({ id }).deactivate.patch();
         if (error) throwApiError(error);
         return data!;
     },
 
     restore: async (id: number) => {
-        const { data, error } = await (api.inventory.warehouses as any)({ id }).restore.patch();
+        const { data, error } = await inventoryApi.warehouses({ id }).restore.patch();
         if (error) throwApiError(error);
         return data!;
     },

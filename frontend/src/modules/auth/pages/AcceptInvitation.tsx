@@ -4,6 +4,9 @@ import { createForm } from '@tanstack/solid-form';
 import { toast } from 'solid-sonner';
 import { authApi } from '../api/auth.api';
 import { actions } from '../store/auth.store';
+import { authClient } from '@shared/lib/auth-client';
+import { fetchUserOrganizations, invalidateOrgCache } from '../utils/resolve-routing';
+import { resolveSlugFromHost } from '@app/schema/utils';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import TextField from '@form/TextField';
 import Button from '@form/Button';
@@ -85,6 +88,17 @@ export const AcceptInvitation: Component = () => {
                     email: email(),
                     password: value.password,
                 });
+
+                // 3. Resolve and activate tenant organization in Better-Auth session
+                invalidateOrgCache();
+                const orgs = await fetchUserOrganizations(true);
+                const currentSlug = resolveSlugFromHost(window.location.hostname);
+                const matchingOrg = (currentSlug ? orgs.find(o => o.slug === currentSlug) : null) || orgs[0];
+                if (matchingOrg) {
+                    await authClient.organization.setActive({ organizationId: matchingOrg.id });
+                }
+
+                await actions.initSession();
 
                 toast.success('¡Cuenta activada exitosamente!');
                 navigate({ to: '/dashboard', replace: true });

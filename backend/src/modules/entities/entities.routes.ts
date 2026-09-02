@@ -110,8 +110,8 @@ export function createEntityRoutes(config: EntityRouteConfig) {
         // List with cursor pagination
         .get(
             '/',
-            ({ query, currentCompanyId }) => {
-                return service.list({
+            async ({ query, currentCompanyId }) => {
+                const result = await service.list({
                     cursor: query.cursor,
                     direction: query.direction as any,
                     limit: query.limit !== undefined ? Number(query.limit) : undefined,
@@ -124,6 +124,7 @@ export function createEntityRoutes(config: EntityRouteConfig) {
                     isActive: parseArray(query.isActive),
                     businessName: parseArray(query.businessName),
                 }, currentCompanyId);
+                return result as any;
             },
             {
                 query: EntityListQuerySchema,

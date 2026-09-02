@@ -384,7 +384,6 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                         </props.form.Field>
 
                                                         {/* Active Status Toggle */}
-                                                        {/* @ts-expect-error - Dynamic array paths cannot be fully inferred */}
                                                         <props.form.Field name={`variants[${formIndex()}].is_active`}>
                                                             {(field) => (
                                                                 <button

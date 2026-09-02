@@ -13,7 +13,7 @@ export type { LocationItem, LocationNode, LocationBodyType, LocationUpdateType, 
 
 export const locationsApi = {
     list: async (warehouseId?: number): Promise<LocationItem[]> => {
-        const query = warehouseId !== undefined ? { warehouseId: String(warehouseId) } : {};
+        const query = warehouseId !== undefined ? { warehouseId } : undefined;
         const { data, error } = await api.locations.get({ query });
         if (error) throwApiError(error);
         return (data as unknown as LocationItem[]) || [];
@@ -67,13 +67,13 @@ export const locationsApi = {
     },
 
     bulkDeactivate: async (ids: (number | string)[]) => {
-        const { data, error } = await api.locations.bulk.delete({ ids });
+        const { data, error } = await api.locations.bulk.delete({ ids: ids.map(Number) });
         if (error) throwApiError(error);
         return data!;
     },
 
     bulkRestore: async (ids: (number | string)[]) => {
-        const { data, error } = await api.locations.bulk.restore.patch({ ids });
+        const { data, error } = await api.locations.bulk.restore.patch({ ids: ids.map(Number) });
         if (error) throwApiError(error);
         return data!;
     },

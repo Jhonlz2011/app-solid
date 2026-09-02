@@ -46,7 +46,7 @@ export function useUpdateSettingsBranding() {
             applyBranding({
                 id, slug,
                 businessName: newData.businessName,
-                tradeName: newData.tradeName,
+                tradeName: newData.tradeName ?? null,
                 logoUrl: typeof newData.logoUrl === 'string' ? newData.logoUrl : previousData?.logoUrl ?? null,
                 primaryColor: newData.primaryColor,
                 themeColor: newData.themeColor,

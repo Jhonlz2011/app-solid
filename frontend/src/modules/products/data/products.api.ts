@@ -70,13 +70,13 @@ export const productsApi = {
     },
 
     bulkDelete: async (ids: (number | string)[]) => {
-        const { data, error } = await api.products.bulk.delete.post({ ids });
+        const { data, error } = await api.products.bulk.delete({ ids: ids.map(Number) });
         if (error) throwApiError(error);
         return data!;
     },
 
     bulkRestore: async (ids: (number | string)[]) => {
-        const { data, error } = await api.products.bulk.restore.patch({ ids });
+        const { data, error } = await api.products.bulk.restore.patch({ ids: ids.map(Number) });
         if (error) throwApiError(error);
         return data!;
     },

@@ -1,5 +1,5 @@
 import { eq, and, asc, sql, inArray } from '@app/schema';
-import { db } from '../../core/db';
+import { db, tenantStorage } from '../../core/db';
 import { categories, categoryAttributes, attributeDefinitions, products } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
@@ -245,11 +245,12 @@ export async function getCategoryFormSchema(id: number, companyId: number): Prom
 }
 
 export async function createCategoryEnhanced(data: CategoryBodyType, clientId?: string): Promise<CategoryNode> {
+    const companyId = tenantStorage.getStore()?.companyId!;
     const { path, depth } = await computePathAndDepth(data.parentId ?? null, data.name);
 
     const created = await db.transaction(async (tx) => {
         const [row] = await tx.insert(categories).values({
-            company_id: data.companyId!,
+            company_id: companyId,
             name: data.name,
             parent_id: data.parentId ?? null,
             description: data.description ?? null,
@@ -264,7 +265,7 @@ export async function createCategoryEnhanced(data: CategoryBodyType, clientId?: 
         if (data.attributes?.length) {
             await tx.insert(categoryAttributes).values(
                 data.attributes.map(a => ({
-                    company_id: data.companyId!,
+                    company_id: companyId,
                     category_id: row.id,
                     attribute_def_id: a.attributeDefId,
                     required: a.required ?? false,
@@ -277,8 +278,8 @@ export async function createCategoryEnhanced(data: CategoryBodyType, clientId?: 
         return row;
     });
 
-    await cacheService.invalidate(`categories:c${data.companyId}:*`);
-    broadcastToTenant(data.companyId!, RealtimeEvents.ENTITY.CREATED, { type: 'category', id: created.id, entity: created, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
+    await cacheService.invalidate(`categories:c${companyId}:*`);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.CREATED, { type: 'category', id: created.id, entity: created, clientId }, RealtimeEvents.ROOMS.CATEGORIES);
     return {
         ...created,
         attributeCount: data.attributes?.length ?? 0,

@@ -125,7 +125,6 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
                                         </div>
 
                                         {/* Price override */}
-                                        {/* @ts-expect-error - Dynamic array paths cannot be fully inferred */}
                                         <props.form.Field name={`variants[${formIndex()}].base_price`}>
                                             {(field) => (
                                                 <input

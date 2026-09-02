@@ -1,5 +1,6 @@
 import { db } from '../../core/db';
 import { companies } from '@app/schema/tables';
+import { eq } from '@app/schema';
 import { invalidateTenantCache } from '../../core/spa';
 import type { CompanySettingsBodyType } from '@app/schema/backend';
 import { publicStorageService } from '../../core/storage';

@@ -23,14 +23,14 @@ export const authApi = {
         if (error) throwApiError(error);
         return data!;
     },
-    checkSlug: async (slug: string) => {
-        const { data, error } = await api.tenants['check-slug']({ slug }).get();
+    checkSlug: async (slug: string, signal?: AbortSignal) => {
+        const { data, error } = await api.tenants['check-slug']({ slug }).get({ fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },
 
-    checkRuc: async (ruc: string) => {
-        const { data, error } = await api.tenants['check-ruc']({ ruc }).get();
+    checkRuc: async (ruc: string, signal?: AbortSignal) => {
+        const { data, error } = await api.tenants['check-ruc']({ ruc }).get({ fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },

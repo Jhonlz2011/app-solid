@@ -2,9 +2,11 @@ import { Elysia } from 'elysia';
 import { UnauthorizedError } from '../core/errors';
 import { auth, resolveCompanyIdFromOrg } from '../config/better-auth';
 import { adminDb, tenantStorage } from '../core/db';
-import { companies, member } from '@app/schema/tables';
+import { member } from '@app/schema/tables';
 import { eq, and } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
+import { getTenantBySlug } from '../core/spa/spa-renderer.service';
+import { cacheService } from '../core/cache/cache.service';
 import { getIpAndUserAgent } from './ip';
 import { getUserRoles, getUserPermissions } from '../modules/rbac/rbac.permission.service';
 
@@ -41,38 +43,40 @@ export const authGuard = (app: Elysia) => app
       const slug = request.headers.get('x-tenant-slug') || resolveSlugFromHost(host);
 
       if (slug) {
-        const [hostCompany] = await adminDb
-          .select({ id: companies.id, organization_id: companies.organization_id })
-          .from(companies)
-          .where(eq(companies.slug, slug))
-          .limit(1);
+        const hostCompany = await getTenantBySlug(slug);
 
         if (hostCompany) {
           // If active org already matches host company, keep it
           if (resolvedCompanyId && hostCompany.id === resolvedCompanyId) {
             // active organization matches host
           } else {
-            // Verify if user is an authorized member of this host company
-            let isAuthorizedMember = false;
+            // Verify if user is an authorized member of this host company (cached in Redis)
+            const isAuthorizedMember = await cacheService.getOrSet(
+              `tenant:member:${hostCompany.id}:${user.id}`,
+              async () => {
+                if (hostCompany.organizationId) {
+                  const [memberRow] = await adminDb
+                    .select({ id: member.id })
+                    .from(member)
+                    .where(and(
+                      eq(member.userId, user.id),
+                      eq(member.organizationId, hostCompany.organizationId)
+                    ))
+                    .limit(1);
 
-            if (hostCompany.organization_id) {
-              const [memberRow] = await adminDb
-                .select({ id: member.id })
-                .from(member)
-                .where(and(
-                  eq(member.userId, user.id),
-                  eq(member.organizationId, hostCompany.organization_id)
-                ))
-                .limit(1);
+                  if (memberRow) return true;
+                }
 
-              if (memberRow) isAuthorizedMember = true;
-            }
+                // Fallback: check denormalized company_id on user record
+                const userCompanyId = rawUser.companyId ?? rawUser.company_id;
+                if (userCompanyId === hostCompany.id) {
+                  return true;
+                }
 
-            // Fallback: check denormalized company_id on user record
-            const userCompanyId = rawUser.companyId ?? rawUser.company_id;
-            if (userCompanyId === hostCompany.id) {
-              isAuthorizedMember = true;
-            }
+                return false;
+              },
+              300
+            );
 
             if (!isAuthorizedMember) {
               set.status = 403;

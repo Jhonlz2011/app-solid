@@ -155,7 +155,18 @@ export async function deleteRole(id: number, currentUserId?: string | number) {
         throw new DomainError('No se puede eliminar roles del sistema', 403);
     }
 
+    const usersWithRole = await db
+        .select({ userId: authUserRoles.user_id })
+        .from(authUserRoles)
+        .where(eq(authUserRoles.role_id, id));
+
     await db.delete(authRoles).where(eq(authRoles.id, id));
+
+    await Promise.all(usersWithRole.map(({ userId }) => invalidateUserRbacCache(userId, role.company_id)));
+
+    for (const { userId } of usersWithRole) {
+        broadcastToUser(userId, RealtimeEvents.USER.RBAC_CHANGED, { userId });
+    }
 
     if (currentUserId) logAudit(currentUserId, 'DELETE', 'auth_roles', id, undefined, { name: role.name, description: role.description });
 

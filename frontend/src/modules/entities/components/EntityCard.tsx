@@ -132,8 +132,7 @@ export const EntityCard: Component<EntityCardProps> = (props) => {
                         variant="ghost"
                         size="icon"
                         class="size-8 text-muted hover:text-info hover:bg-info/10"
-                        title="Editar"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e: MouseEvent) => e.stopPropagation()}
                     >
                         <EditIcon class="size-4" />
                     </LinkButton>

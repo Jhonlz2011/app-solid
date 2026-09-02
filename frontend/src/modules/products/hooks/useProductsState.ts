@@ -119,8 +119,8 @@ export function useProductsState(initialProps?: UseProductsStateOptions) {
         const selected = tableState.selectedItems();
         if (selected.length === 0) return;
         const text = selected.map(p => {
-            const code = p.sku || p.default_sku || `#${p.id}`;
-            const price = p.base_price != null ? Number(p.base_price) : Number(p.default_base_price) || 0;
+            const code = p.default_sku || `#${p.id}`;
+            const price = Number(p.default_base_price) || 0;
             return `${code} | ${p.name} | $${price.toFixed(2)}`;
         }).join('\n');
         const ok = await copyToClipboard(text);
@@ -167,12 +167,12 @@ export function useProductsState(initialProps?: UseProductsStateOptions) {
     const categoryFilterOptions = createMemo(() => {
         const facets = facetsQuery.data?.category_id;
         if (!facets) return [];
-        return facets.map(f => ({ value: f.value, label: f.label || f.value, count: f.count }));
+        return facets.map(f => ({ value: f.value, label: (f as any).label || f.value, count: f.count }));
     });
     const brandFilterOptions = createMemo(() => {
         const facets = facetsQuery.data?.brand_id;
         if (!facets) return [];
-        return facets.map(f => ({ value: f.value, label: f.label || f.value, count: f.count }));
+        return facets.map(f => ({ value: f.value, label: (f as any).label || f.value, count: f.count }));
     });
     const productTypeFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'product_type', productTypeLabels));
     const isActiveFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'is_active', isActiveLabels));

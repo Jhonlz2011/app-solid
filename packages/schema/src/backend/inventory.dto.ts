@@ -85,6 +85,7 @@ export type LocationReparentType = Static<typeof LocationReparentBodySchema>;
 export type LocationListQueryType = Static<typeof LocationListQuerySchema>;
 
 export type LocationReferencesResponseType = Static<typeof LocationReferencesResponseSchema>;
+export type LocationReferences = LocationReferencesResponseType;
 export type WarehouseReferencesResponseType = Static<typeof WarehouseReferencesResponseSchema>;
 
 export interface WarehouseItem {

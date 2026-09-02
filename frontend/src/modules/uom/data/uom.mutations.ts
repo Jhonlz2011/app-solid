@@ -9,14 +9,14 @@
  * UOM cache shape: UomItem[] (flat array, no pagination wrapper)
  */
 import { createMutation, useQueryClient } from '@tanstack/solid-query';
-import { uomApi, type UomItem } from './uom.api';
+import { uomApi, type UomItem, type UomBodyType, type UomUpdateType } from './uom.api';
 import { uomKeys } from './uom.keys';
 
 // =============================================================================
 // Shared Types
 // =============================================================================
 
-type CreateUomInput = { code: string; name: string; uom_group: string; base_factor?: string };
+type CreateUomInput = UomBodyType;
 
 // =============================================================================
 // Create — Optimistic insert with temporary negative ID
@@ -65,7 +65,7 @@ export function useUpdateUom() {
     const qc = useQueryClient();
     return createMutation(() => ({
         mutationKey: ['uom', 'update'],
-        mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; uom_group: string; base_factor: string; is_active: boolean }> }) =>
+        mutationFn: ({ id, data }: { id: number; data: UomUpdateType }) =>
             uomApi.update(id, data),
         onSettled: () => qc.invalidateQueries({ queryKey: uomKeys.all }),
     }));

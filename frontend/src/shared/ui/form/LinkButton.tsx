@@ -16,6 +16,7 @@ export interface LinkButtonProps extends LinkProps, SharedButtonProps {
   class?: string;
   className?: string;
   children?: JSX.Element;
+  onClick?: (e: MouseEvent) => void;
 }
 
 export default function LinkButton(props: LinkButtonProps) {

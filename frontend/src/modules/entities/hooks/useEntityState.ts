@@ -77,8 +77,8 @@ export function useEntityState(config: UseEntityStateConfig) {
         page: tableState.isSortedMode() ? tableState.page() : undefined,
         limit: tableState.pageSize(),
         search: tableState.search() || undefined,
-        personType: personTypeFilter().length > 0 ? personTypeFilter() : undefined,
-        taxIdType: taxIdTypeFilter().length > 0 ? taxIdTypeFilter() : undefined,
+        personType: personTypeFilter().length > 0 ? (personTypeFilter() as any) : undefined,
+        taxIdType: taxIdTypeFilter().length > 0 ? (taxIdTypeFilter() as any) : undefined,
         isActive: isActiveFilter().length > 0 ? isActiveFilter() : undefined,
         businessName: businessNameFilter().length > 0 ? businessNameFilter() : undefined,
     });
@@ -90,8 +90,8 @@ export function useEntityState(config: UseEntityStateConfig) {
     const facetsQuery = config.queries.useFacets(
         () => tableState.search() || undefined,
         () => ({
-            personType: personTypeFilter().length > 0 ? personTypeFilter() : undefined,
-            taxIdType: taxIdTypeFilter().length > 0 ? taxIdTypeFilter() : undefined,
+            personType: personTypeFilter().length > 0 ? (personTypeFilter() as any) : undefined,
+            taxIdType: taxIdTypeFilter().length > 0 ? (taxIdTypeFilter() as any) : undefined,
             isActive: isActiveFilter().length > 0 ? isActiveFilter() : undefined,
             businessName: businessNameFilter().length > 0 ? businessNameFilter() : undefined,
         })

@@ -14,6 +14,7 @@ const HTML_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 interface TenantBrandingRow {
     id: number;
     slug: string;
+    organizationId?: string | null;
     businessName: string;
     tradeName: string | null;
     logoUrl: string | null;
@@ -47,6 +48,7 @@ export async function getTenantBySlug(slug: string) {
         .select({
             id: companies.id,
             slug: companies.slug,
+            organizationId: companies.organization_id,
             businessName: companies.business_name,
             tradeName: companies.trade_name,
             logoUrl: companies.logo_url,

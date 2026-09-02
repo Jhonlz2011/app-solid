@@ -180,7 +180,7 @@ export function useUsersState() {
         if (ids.length === 0) return;
         bulkRestoreMutation.mutate(ids, {
             onSuccess: () => { toast.success(`${ids.length} usuarios restaurados`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },
-            onError: (err.message || 'Error al restaurar'),
+            onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
         });
     };
 

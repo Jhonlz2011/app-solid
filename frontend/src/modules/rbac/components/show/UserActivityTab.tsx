@@ -1,5 +1,6 @@
 import { Component, For, Show, createSignal } from 'solid-js';
-export type { AuditLogEntryType } from '@app/schema/dto';
+import type { AuditLogEntryType } from '@app/schema/dto';
+export type { AuditLogEntryType };
 import { formatSessionDate } from '@shared/utils/session.utils';
 import { AUDIT_ACTION_LABELS, TABLE_NAME_LABELS, computeDiff } from '@shared/utils/audit.utils';
 import Button from '@form/Button';

@@ -16,7 +16,7 @@ export const profileApi = {
     },
 
     updateProfile: async (body: { username?: string; email?: string }) => {
-        const { data, error } = await api.profile.index.put(body);
+        const { data, error } = await api.profile.put(body);
         if (error) throwApiError(error);
         return data!;
     },

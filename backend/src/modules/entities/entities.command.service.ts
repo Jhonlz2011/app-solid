@@ -59,7 +59,7 @@ function mapEmployeeDetailsUpdate(details: NonNullable<EntityBodyType['employeeD
         accumulate_fourteenth: details.accumulateFourteenth,
         accumulate_reserve_funds: details.accumulateReserveFunds,
         iess_code: details.iessCode?.trim(),
-        dependents_count: details.dependentsCount,
+        dependents_count: details.dependentsCount ?? 0,
         bank_name: details.bankName?.trim(),
         bank_account_type: details.bankAccountType,
         bank_account_number: details.bankAccountNumber?.trim(),

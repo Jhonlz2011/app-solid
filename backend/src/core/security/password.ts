@@ -8,6 +8,8 @@
  * - Administrative password reset (rbac.users.service.ts)
  */
 
+declare const Bun: any;
+
 export const ARGON2_CONFIG = {
     algorithm: 'argon2id' as const,
     memoryCost: 65536,

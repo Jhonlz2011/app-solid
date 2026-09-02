@@ -10,13 +10,13 @@ export interface EntityDeleteDialogProps {
     entity: EntityListItem | null;
     permissionKey: RbacModule;
     entityNameSingular?: string;
-    useCheckReferences: (id: () => number | null, enabled: () => boolean) => any;
+    useCheckReferences: (id: () => string | null, enabled: () => boolean) => any;
     deleteMutation: {
-        mutate: (id: number, options?: any) => void;
+        mutate: (id: string, options?: any) => void;
         isPending: boolean;
     };
     hardDeleteMutation: {
-        mutate: (id: number, options?: any) => void;
+        mutate: (id: string, options?: any) => void;
         isPending: boolean;
     };
     onClose: () => void;

@@ -35,19 +35,12 @@ const VehiclesSettings: Component = () => {
     const query = useVehiclesList();
     const navigate = useNavigate();
     const updateMut = useUpdateVehicle();
-    const deleteMut = useDeleteVehicle();
 
     const handleToggleActive = (item: CompanyVehicleItemType) => {
         updateMut.mutate({
             id: item.id,
             data: { isActive: !item.is_active },
         });
-    };
-
-    const handleDelete = (item: CompanyVehicleItemType) => {
-        if (confirm(`¿Estás seguro de eliminar el vehículo con placa ${item.license_plate}?`)) {
-            deleteMut.mutate(item.id);
-        }
     };
 
     return (
@@ -63,7 +56,6 @@ const VehiclesSettings: Component = () => {
             emptyIcon={<TruckIcon class="size-10 text-muted/25" />}
             onEdit={(item) => navigate({ to: `/settings/vehicles/${item.id}/edit` })}
             onToggleActive={handleToggleActive}
-            onDelete={handleDelete}
         />
     );
 };

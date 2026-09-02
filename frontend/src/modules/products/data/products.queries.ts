@@ -34,18 +34,18 @@ export function useProducts(filters: () => ProductFilters) {
         const currentFilters = filters();
         if (!data) return;
 
-        if (data.meta.nextCursor && data.meta.hasNextPage) {
+        if ('nextCursor' in data.meta && data.meta.nextCursor && data.meta.hasNextPage) {
             queryClient.prefetchQuery({
                 queryKey: productKeys.list({ ...currentFilters, cursor: data.meta.nextCursor, direction: 'next' }),
-                queryFn: () => productsApi.list({ ...currentFilters, cursor: data.meta.nextCursor!, direction: 'next' }),
+                queryFn: () => productsApi.list({ ...currentFilters, cursor: (data.meta as any).nextCursor!, direction: 'next' }),
                 staleTime: STALE_TIME.SHORT,
             });
         }
 
-        if (data.meta.prevCursor && data.meta.hasPrevPage) {
+        if ('prevCursor' in data.meta && data.meta.prevCursor && data.meta.hasPrevPage) {
             queryClient.prefetchQuery({
                 queryKey: productKeys.list({ ...currentFilters, cursor: data.meta.prevCursor, direction: 'prev' }),
-                queryFn: () => productsApi.list({ ...currentFilters, cursor: data.meta.prevCursor!, direction: 'prev' }),
+                queryFn: () => productsApi.list({ ...currentFilters, cursor: (data.meta as any).prevCursor!, direction: 'prev' }),
                 staleTime: STALE_TIME.SHORT,
             });
         }

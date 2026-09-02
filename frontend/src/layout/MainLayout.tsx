@@ -1,4 +1,4 @@
-import { Component, Show, createEffect } from 'solid-js';
+import { Component, Show, For, createEffect } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
 import { Sidebar } from '@layout/components/sidebar/Sidebar';
 import MobileHeader from './components/MobileHeader';

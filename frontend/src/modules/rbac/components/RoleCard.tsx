@@ -92,7 +92,6 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content class="min-w-40">
                                 <DropdownMenu.Item
-                                    as={Link}
                                     to={`/users/role/${props.role.id}/edit`}
                                     search={(prev: any) => ({ ...prev, tab: 'roles' })}
                                     preload="intent"
@@ -101,7 +100,6 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                                     Editar rol
                                 </DropdownMenu.Item>
                                 <DropdownMenu.Item
-                                    as={Link}
                                     to={`/users/role/${props.role.id}/permissions`}
                                     search={(prev: any) => ({ ...prev, tab: 'roles' })}
                                     preload="intent"
@@ -110,7 +108,6 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                                     Permisos
                                 </DropdownMenu.Item>
                                 <DropdownMenu.Item
-                                    as={Link}
                                     to={`/users/role/${props.role.id}/users`}
                                     search={(prev: any) => ({ ...prev, tab: 'roles' })}
                                     preload="intent"

@@ -23,6 +23,7 @@ import {
     seedCompanyVirtualLocations,
     seedCompanyWarehouse,
 } from '../modules/auth/provisioning.service';
+import { hashPassword } from '../core/security';
 import { UOM_DATA } from './seed-data';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -153,11 +154,7 @@ async function seed() {
             console.log('\n👥 Seeding Better-Auth users & credentials...');
 
             const defaultPassword = 'password123';
-            const hashedPassword = await Bun.password.hash(defaultPassword, {
-                algorithm: 'argon2id',
-                memoryCost: 65536,
-                timeCost: 2,
-            });
+            const hashedPassword = await hashPassword(defaultPassword);
 
             const usersToCreate = [
                 {
