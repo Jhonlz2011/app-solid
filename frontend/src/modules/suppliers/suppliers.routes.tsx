@@ -1,6 +1,5 @@
 import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
-import GlobalPageLoader from '@/shared/ui/display/GlobalPageLoader';
 import { createSupplierModals } from '@shared/routes/suppliers.factory';
 import { createUserModals } from '@shared/routes/users.factory';
 import { suppliersApi } from './data/suppliers.api';
@@ -20,15 +19,14 @@ export const createSuppliersRoutes = (layoutRoute: any) => {
                 throw redirect({ to: '/dashboard' });
             }
         },
-        loader: async () => {
+        loader: () => {
             const defaultFilters = { limit: 10, direction: 'first' as const };
-            return await queryClient.prefetchQuery({
+            queryClient.prefetchQuery({
                 queryKey: supplierKeys.list(defaultFilters),
                 queryFn: () => suppliersApi.list(defaultFilters),
                 staleTime: 60 * 1000,
             });
         },
-        pendingComponent: GlobalPageLoader,
         component: SuppliersPage,
     });
 

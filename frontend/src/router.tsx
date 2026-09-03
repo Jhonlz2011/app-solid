@@ -15,6 +15,7 @@ import { createBrandsRoutes } from './modules/brands/brands.routes';
 import { createUomRoutes } from './modules/uom/uom.routes';
 import { createAttributesRoutes } from './modules/attributes/attributes.routes';
 import { createLocationRoutes } from './modules/locations/locations.routes';
+import { createCrudLayout } from './shared/routes/crud.layout';
 
 // P1-5: Removed connectSSE import — SSE connection is managed solely by MainLayout.createEffect(isOnline())
 import { queryClient } from './shared/lib/queryClient';
@@ -235,6 +236,8 @@ const createCompanyRoute = createRoute({
 // Suppliers routes are now managed in suppliers.routes.tsx
 
 // --- ROUTE TREE ---
+const crudLayout = createCrudLayout(layoutRoute);
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
@@ -242,12 +245,9 @@ const routeTree = rootRoute.addChildren([
   layoutRoute.addChildren([
     dashboardRoute,
     createCompanyRoute,
-    createUsersRoutes(layoutRoute),
     createSettingsRoutes(layoutRoute),
     profileRoute,
-    createSuppliersRoutes(layoutRoute),
     createEmployeesRoutes(layoutRoute),
-    createClientsRoutes(layoutRoute),
     createProductsRoutes(layoutRoute),
     createServicesRoutes(layoutRoute),
     createCategoriesRoutes(layoutRoute),
@@ -255,6 +255,12 @@ const routeTree = rootRoute.addChildren([
     createUomRoutes(layoutRoute),
     createAttributesRoutes(layoutRoute),
     createLocationRoutes(layoutRoute),
+    // Pilot CRUD layout (rutas con navegación instantánea sin bloqueo de layout)
+    crudLayout.addChildren([
+      createClientsRoutes(crudLayout),
+      createSuppliersRoutes(crudLayout),
+      createUsersRoutes(crudLayout),
+    ]),
   ]),
 ]);
 
@@ -266,6 +272,8 @@ export const router = createRouter({
   defaultPreload: 'intent',
   defaultPreloadDelay: 100,
   defaultViewTransition: true,
+  defaultPendingMs: 200,
+  defaultPendingMinMs: 300,
   defaultErrorComponent: ({ error }) => {
     console.error(error);
     return (

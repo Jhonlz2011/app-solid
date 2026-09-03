@@ -1,6 +1,5 @@
 import { createRoute, redirect } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
-import GlobalPageLoader from '@/shared/ui/display/GlobalPageLoader';
 import { rbacKeys } from './data/users.keys';
 import { usersApi } from './data/users.api';
 import { createUserModals } from '@shared/routes/users.factory';
@@ -24,22 +23,19 @@ export const createUsersRoutes = (layoutRoute: any) => {
                 throw redirect({ to: '/dashboard' });
             }
         },
-        loader: async () => {
-            await Promise.all([
-                queryClient.ensureQueryData({
-                    queryKey: rbacKeys.list({ page: 1, limit: 15 }),
-                    queryFn: () => usersApi.listUsersWithRoles({ page: 1, limit: 15 }),
-                    staleTime: 1000 * 60 * 2,
-                }),
-                queryClient.ensureQueryData({
-                    queryKey: rbacKeys.roles(),
-                    queryFn: () => usersApi.listRoles(),
-                    staleTime: 1000 * 60 * 5,
-                }),
-            ]);
+        loader: () => {
+            queryClient.ensureQueryData({
+                queryKey: rbacKeys.list({ page: 1, limit: 15 }),
+                queryFn: () => usersApi.listUsersWithRoles({ page: 1, limit: 15 }),
+                staleTime: 1000 * 60 * 2,
+            });
+            queryClient.ensureQueryData({
+                queryKey: rbacKeys.roles(),
+                queryFn: () => usersApi.listRoles(),
+                staleTime: 1000 * 60 * 5,
+            });
         },
         staleTime: Infinity, // TanStack Router: don't re-run loader once loaded (TanStack Query handles freshness)
-        pendingComponent: GlobalPageLoader,
         component: UsersRolesPage,
     });
 
