@@ -21,7 +21,7 @@ const NotFound: Component = () => {
     const digitClass = "text-[9rem] sm:text-[12rem] font-black leading-[0.7] tracking-tighter bg-linear-to-br from-primary to-primary-strong bg-clip-text [-webkit-text-fill-color:transparent] select-none";
 
     return (
-        <div class="h-screen flex items-center justify-center bg-background overflow-hidden px-4">
+        <div class="h-screen flex items-center justify-center bg-bg overflow-hidden px-4">
             <div class="text-center max-w-lg space-y-8">
                 {/* 4 😞 4 — the face replaces the "0" */}
                 <div class="flex items-center justify-center gap-2 sm:gap-3">

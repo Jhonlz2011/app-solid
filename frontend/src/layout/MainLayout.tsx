@@ -64,7 +64,7 @@ export const LayoutSkeleton: Component = () => {
             </div>
             
             {/* Main Content Area */}
-            <main class="flex-1 relative min-w-0 bg-background pt-14 sm:pt-0" />
+            <main class="flex-1 relative min-w-0 bg-bg pt-14 sm:pt-0" />
         </div>
     );
 };
@@ -103,12 +103,12 @@ const MainLayout: Component = () => {
     }, isOnline());
 
     return (
-        <div class="flex h-dvh bg-background overflow-hidden relative">
+        <div class="flex h-dvh bg-bg overflow-hidden relative">
             <MobileHeader />
             <Sidebar />
             <GlobalSearchPalette />
 
-            <main class="flex-1 relative min-w-0 bg-background overflow-hidden">
+            <main class="flex-1 relative min-w-0 bg-bg overflow-hidden">
                 <div class="flex flex-col h-full pt-14 sm:pt-0 overflow-hidden relative min-h-0">
                     <Show when={!isOnline()}>
                         <OfflineBanner />

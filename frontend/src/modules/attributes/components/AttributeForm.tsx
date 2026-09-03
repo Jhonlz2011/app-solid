@@ -333,7 +333,7 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
                             rounded-xl border-2 bg-surface/10 pb-2 relative transition-colors
                            border-border/60 hover:border-border-strong
                         `}>
-                            <legend class="ml-4 px-2 text-sm font-semibold text-text flex items-center gap-2 bg-background">
+                            <legend class="ml-4 px-2 text-sm font-semibold text-text flex items-center gap-2 bg-bg">
                                 {isSelectType() ? 'Opciones Disponibles' : 'Valores Sugeridos'}
                                 <Show when={optionsCount() > 0}>
                                     <span class="text-[10px] bg-surface border border-border text-text font-bold px-1.5 py-0.5 rounded-full tabular-nums shadow-sm">

@@ -132,7 +132,7 @@ export const Sidebar: Component = () => {
             <aside
                 data-collapsed={effectiveCollapsed()}
                 data-mobile={isMobileOpen()}
-                class="fixed top-0 left-0 h-dvh z-50 flex flex-col bg-surface border-r border-border
+                class="fixed top-0 left-0 h-dvh z-50 flex flex-col bg-card border-r border-border
                        transition-[width,transform] duration-300 ease-[cubic-bezier(0.2,0,0,1)]
                        sm:static sm:z-auto
                        max-sm:pt-[env(safe-area-inset-top)] 

@@ -64,9 +64,6 @@ render(
             onRegisterError(error) {
                 console.error('❌ Error al registrar el Service Worker:', error);
             },
-            onOfflineReady() {
-                toast.success('Zelys está listo para trabajar sin conexión.');
-            },
         });
 
         // Reactive: fires whenever SW detects a new version (even after mount)
