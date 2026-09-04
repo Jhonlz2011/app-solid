@@ -19,8 +19,7 @@ import { modulesRoutes } from './modules/settings';
 import { sriRoutes, geonamesRoutes } from './modules/references';
 import { rbacRoutes } from './modules/rbac';
 import { locationsRoutes } from './modules/inventory';
-import { companyRoutes } from './modules/settings';
-import { vehiclesRoutes } from './modules/settings';
+import { companyRoutes, vehiclesRoutes, warehousesRoutes } from './modules/settings';
 import { webhooksRoutes } from './modules/webhooks';
 
 // Plugins
@@ -190,6 +189,7 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(locationsRoutes)
   .use(companyRoutes)
   .use(vehiclesRoutes)
+  .use(warehousesRoutes)
   .use(staticPlugin({ assets: 'public', prefix: '/' }));
 
 // ============================================================================

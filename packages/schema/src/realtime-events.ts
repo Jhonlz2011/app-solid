@@ -20,6 +20,21 @@ export const RealtimeEvents = {
         RBAC_CHANGED: 'user:rbac_changed',
         EMAIL_VERIFIED: 'user:email_verified',
     },
+    COMPANY: {
+        BRANDING_UPDATED: 'company:branding_updated',
+        PROFILE_UPDATED: 'company:profile_updated',
+        FISCAL_UPDATED: 'company:fiscal_updated',
+    },
+    VEHICLE: {
+        CREATED: 'vehicle:created',
+        UPDATED: 'vehicle:updated',
+        DELETED: 'vehicle:deleted',
+    },
+    WAREHOUSE: {
+        CREATED: 'warehouse:created',
+        UPDATED: 'warehouse:updated',
+        DELETED: 'warehouse:deleted',
+    },
     ROOMS: {
         SUPPLIERS: 'suppliers',
         CLIENTS: 'clients',
@@ -32,6 +47,8 @@ export const RealtimeEvents = {
         ATTRIBUTES: 'attributes',
         BRANDS: 'brands',
         UOM: 'uom',
+        VEHICLES: 'vehicles',
+        WAREHOUSES: 'warehouses',
     },
 } as const;
 
@@ -39,6 +56,9 @@ export const RealtimeEvents = {
 export type RealtimeEventType = typeof RealtimeEvents;
 export type EntityEvent = typeof RealtimeEvents.ENTITY[keyof typeof RealtimeEvents.ENTITY];
 export type UserEvent = typeof RealtimeEvents.USER[keyof typeof RealtimeEvents.USER];
+export type CompanyEvent = typeof RealtimeEvents.COMPANY[keyof typeof RealtimeEvents.COMPANY];
+export type VehicleEvent = typeof RealtimeEvents.VEHICLE[keyof typeof RealtimeEvents.VEHICLE];
+export type WarehouseEvent = typeof RealtimeEvents.WAREHOUSE[keyof typeof RealtimeEvents.WAREHOUSE];
 export type RoomName = typeof RealtimeEvents.ROOMS[keyof typeof RealtimeEvents.ROOMS];
 
 // Payload types

@@ -3,6 +3,8 @@ import { db } from '../../core/db';
 import { carrierVehicles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
+import { broadcastToTenant } from '../../core/sse/events';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 import type { CarrierVehicleType } from '@app/schema/dto';
 
 export const vehiclesService = {
@@ -48,6 +50,12 @@ export const vehiclesService = {
                 })
                 .returning();
 
+            broadcastToTenant(companyId, RealtimeEvents.VEHICLE.CREATED, {
+                id: created.id,
+                vehicle: created,
+                clientId: audit?.clientId,
+            });
+
             return created;
         });
     },
@@ -72,6 +80,13 @@ export const vehiclesService = {
                 .returning();
 
             if (!updated) throw new DomainError('Vehículo no encontrado', 404);
+
+            broadcastToTenant(companyId, RealtimeEvents.VEHICLE.UPDATED, {
+                id: updated.id,
+                vehicle: updated,
+                clientId: audit?.clientId,
+            });
+
             return updated;
         });
     },
@@ -90,6 +105,12 @@ export const vehiclesService = {
                 .returning();
 
             if (!deleted) throw new DomainError('Vehículo no encontrado', 404);
+
+            broadcastToTenant(companyId, RealtimeEvents.VEHICLE.DELETED, {
+                id,
+                clientId: audit?.clientId,
+            });
+
             return { success: true };
         });
     },

@@ -1,7 +1,7 @@
 import { Component } from 'solid-js';
 import { useNavigate } from '@tanstack/solid-router';
 import { useVehiclesList } from '../data/vehicles.queries';
-import { useUpdateVehicle, useDeleteVehicle } from '../data/vehicles.mutations';
+import { useUpdateVehicle } from '../data/vehicles.mutations';
 import type { CompanyVehicleItemType } from '@app/schema/dto';
 import { TruckIcon } from '@icons/TruckIcon';
 import SettingsTable, { type SettingsColumn } from '../components/shared/SettingsTable';
@@ -56,6 +56,7 @@ const VehiclesSettings: Component = () => {
             emptyIcon={<TruckIcon class="size-10 text-muted/25" />}
             onEdit={(item) => navigate({ to: `/settings/vehicles/${item.id}/edit` })}
             onToggleActive={handleToggleActive}
+            getIsActive={(item) => item.is_active}
         />
     );
 };

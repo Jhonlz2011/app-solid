@@ -1,4 +1,5 @@
 import { Component, For, Show, createMemo } from 'solid-js';
+import { BrandingSettingsFormSchema } from '@app/schema/frontend';
 import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
 import { FileUploadDropzone } from '@/shared/ui/overlay/FileUpload';
 import TextField from '@form/TextField';
@@ -34,7 +35,11 @@ const BrandingSettings: Component = () => {
         form, brandingQuery, updateBrandingMut,
         hasAttemptedSubmit, setHasAttemptedSubmit,
         logoPreviewUrl, loginBgPreviewUrl, setLoginBgCropDetails, isFormDirty,
-    } = useCompanySettingsForm({ onSuccessMessage: 'Apariencia guardada correctamente' });
+    } = useCompanySettingsForm({
+        onSuccessMessage: 'Apariencia guardada correctamente',
+        schema: BrandingSettingsFormSchema,
+        fieldsSubset: ['primaryColor', 'themeColor', 'loginBgUrl'],
+    });
 
     // Live preview: derive theme colors reactively for inline styles.
     //

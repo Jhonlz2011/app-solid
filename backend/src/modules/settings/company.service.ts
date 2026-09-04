@@ -4,6 +4,8 @@ import { eq } from '@app/schema';
 import { invalidateTenantCache } from '../../core/spa';
 import type { CompanySettingsBodyType } from '@app/schema/backend';
 import { publicStorageService } from '../../core/storage';
+import { broadcastToTenant } from '../../core/sse/events';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 
 
 /**
@@ -140,7 +142,7 @@ export const companyService = {
       invalidateTenantCache(updated.slug);
     }
 
-    return {
+    const result = {
       id: updated.id,
       slug: updated.slug,
       logoUrl: updated.logo_url,
@@ -160,5 +162,9 @@ export const companyService = {
       rimpeType: updated.rimpe_type,
       sriEnvironment: updated.sri_environment,
     };
+
+    broadcastToTenant(companyId, RealtimeEvents.COMPANY.BRANDING_UPDATED, result);
+
+    return result;
   },
 };

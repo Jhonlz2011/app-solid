@@ -1,5 +1,6 @@
 import { Component, Show } from 'solid-js';
 import { cn } from '@shared/lib/utils';
+import { CompanyProfileFormSchema } from '@app/schema/frontend';
 import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
 import { FileUploadDropzone } from '@/shared/ui/overlay/FileUpload';
 import TextField from '@form/TextField';
@@ -13,7 +14,11 @@ const CompanyProfileSettings: Component = () => {
         form, brandingQuery, updateBrandingMut,
         hasAttemptedSubmit, setHasAttemptedSubmit,
         logoPreviewUrl, isFormDirty,
-    } = useCompanySettingsForm({ onSuccessMessage: 'Perfil de empresa guardado correctamente' });
+    } = useCompanySettingsForm({
+        onSuccessMessage: 'Perfil de empresa guardado correctamente',
+        schema: CompanyProfileFormSchema,
+        fieldsSubset: ['businessName', 'tradeName', 'ruc', 'mainAddress', 'businessType', 'email', 'phone', 'logoUrl'],
+    });
 
     return (
         <div class="h-full flex flex-col">

@@ -67,8 +67,14 @@ export const connect = (token?: string | null) => {
              resetWatchdog();
         });
         
-        // Escuchar SOLO los eventos válidos de entidad y usuario. Ignorar el diccionario de constantes de ROOMS!
-        const activeCategories = [RealtimeEvents.ENTITY, RealtimeEvents.USER];
+        // Escuchar SOLO los eventos válidos (ignorar diccionario ROOMS)
+        const activeCategories = [
+            RealtimeEvents.ENTITY,
+            RealtimeEvents.USER,
+            RealtimeEvents.COMPANY,
+            RealtimeEvents.VEHICLE,
+            RealtimeEvents.WAREHOUSE,
+        ];
         for (const category of activeCategories) {
             for (const eventName of Object.values(category as Record<string, string>)) {
                 newEs.addEventListener(eventName, (event) => {

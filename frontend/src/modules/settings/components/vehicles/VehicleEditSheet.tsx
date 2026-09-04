@@ -63,12 +63,11 @@ const VehicleEditSheet: Component<VehicleEditSheetProps> = (props) => {
     }));
 
     createEffect(() => {
-        if (vehicleQuery.data) {
-            form.reset({
-                licensePlate: vehicleQuery.data.license_plate,
-                description: vehicleQuery.data.description ?? '',
-                isActive: vehicleQuery.data.is_active,
-            });
+        const v = vehicleQuery.data;
+        if (v) {
+            form.setFieldValue('licensePlate', v.license_plate);
+            form.setFieldValue('description', v.description ?? '');
+            form.setFieldValue('isActive', v.is_active);
         }
     });
 

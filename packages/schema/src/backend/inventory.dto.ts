@@ -21,7 +21,7 @@ export const WarehouseBodySchema = Type.Object({
     name: Type.String({ maxLength: 100 }),
     address: Type.Optional(Type.Union([Type.String({ maxLength: 255 }), Type.Null()])),
     is_mobile: Type.Optional(Type.Boolean()),
-    manager_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    manager_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
 });
 
 export const WarehouseUpdateBodySchema = Type.Partial(Type.Object({
@@ -29,9 +29,24 @@ export const WarehouseUpdateBodySchema = Type.Partial(Type.Object({
     name: Type.String({ maxLength: 100 }),
     address: Type.Union([Type.String({ maxLength: 255 }), Type.Null()]),
     is_mobile: Type.Boolean(),
-    manager_id: Type.Union([Type.Number(), Type.Null()]),
+    manager_id: Type.Union([Type.String(), Type.Null()]),
     is_active: Type.Boolean(),
 }));
+
+export const WarehouseResponseSchema = Type.Object({
+    id: Type.Number(),
+    company_id: Type.Number(),
+    code: Type.String(),
+    name: Type.String(),
+    address: Type.Union([Type.String(), Type.Null()]),
+    is_mobile: Type.Union([Type.Boolean(), Type.Null()]),
+    manager_id: Type.Union([Type.String(), Type.Null()]),
+    manager_name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    is_active: Type.Union([Type.Boolean(), Type.Null()]),
+    locationCount: Type.Number(),
+    created_at: Type.Optional(Type.Union([Type.Date(), Type.String(), Type.Null()])),
+    updated_at: Type.Optional(Type.Union([Type.Date(), Type.String(), Type.Null()])),
+});
 
 export const LocationBodySchema = Type.Object({
     warehouse_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
@@ -95,9 +110,10 @@ export interface WarehouseItem {
     name: string;
     address: string | null;
     is_mobile: boolean | null;
-    manager_id: number | null;
+    manager_id: string | null;
     manager_name?: string | null;
     is_active: boolean | null;
+    locationCount: number;
     created_at?: string | Date;
     updated_at?: string | Date;
 }

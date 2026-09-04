@@ -1,5 +1,6 @@
 import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
+import { STALE_TIME } from '@shared/constants/cache.constants';
 import GlobalPageLoader from '@/shared/ui/display/GlobalPageLoader';
 
 // Data layer imports
@@ -27,20 +28,22 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         component: SettingsPage,
         beforeLoad: async ({ location }) => {
             const { useAuth } = await import('@modules/auth/store/auth.store');
-            if (!useAuth().canRead('config')) {
+            const auth = useAuth();
+            if (!auth.canRead('config') && !auth.canRead('inventory')) {
                 throw redirect({ to: '/dashboard' });
             }
-            // Redirect bare /settings to /settings/company
+            // Redirect bare /settings to appropriate default tab
             if (location.pathname === '/settings' || location.pathname === '/settings/') {
-                throw redirect({ to: '/settings/company' });
+                const target = auth.canRead('config') ? '/settings/company' : '/settings/warehouses';
+                throw redirect({ to: target });
             }
         },
         // Prefetch branding data for ALL settings tabs — eliminates skeleton when switching
         loader: async () => {
-            await queryClient.prefetchQuery({
+            await queryClient.ensureQueryData({
                 queryKey: brandingKeys.branding,
                 queryFn: () => brandingApi.get(),
-                staleTime: 1000 * 60 * 10,
+                staleTime: STALE_TIME.LONG,
             });
         },
     });
@@ -57,10 +60,10 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         getParentRoute: () => settingsRoute,
         path: 'warehouses',
         loader: async () => {
-            await queryClient.prefetchQuery({
+            await queryClient.ensureQueryData({
                 queryKey: warehouseKeys.warehouses,
                 queryFn: () => warehousesApi.list(),
-                staleTime: 1000 * 60 * 10, // Must match useWarehousesList() staleTime
+                staleTime: STALE_TIME.LONG,
             });
         },
         component: WarehouseList,
@@ -138,10 +141,10 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         getParentRoute: () => settingsRoute,
         path: 'vehicles',
         loader: async () => {
-            await queryClient.prefetchQuery({
+            await queryClient.ensureQueryData({
                 queryKey: vehicleKeys.list(),
                 queryFn: () => vehiclesApi.list(),
-                staleTime: 1000 * 60 * 5,
+                staleTime: STALE_TIME.MEDIUM,
             });
         },
         component: lazyRouteComponent(() => import('./views/VehiclesSettings')),

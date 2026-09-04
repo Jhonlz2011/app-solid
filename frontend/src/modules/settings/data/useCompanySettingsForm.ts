@@ -1,6 +1,9 @@
 import { createSignal, createEffect, createMemo, onCleanup, untrack } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
-import { CompanySettingsFormSchema, type CompanySettingsFormData } from '@app/schema/frontend';
+import {
+    CompanySettingsFormSchema,
+    type CompanySettingsFormData,
+} from '@app/schema/frontend';
 import type { CropCoordinates } from '@app/schema/dto';
 import { BRANDING_DEFAULTS } from '@app/schema/utils';
 import { toast } from 'solid-sonner';
@@ -32,15 +35,18 @@ function snapshotFields(source: CompanySettingsFormData): string {
     });
 }
 
+export interface UseCompanySettingsFormOptions {
+    onSuccessMessage?: string;
+    schema?: any;
+    fieldsSubset?: (keyof CompanySettingsFormData)[];
+}
+
 /**
  * Shared hook for company settings forms.
- * Extracts the identical boilerplate shared by BrandingSettings, CompanyProfileSettings, and FiscalSettings:
- *   - createForm() with 17 default fields
- *   - createEffect() to sync query data → form fields
- *   - Logo and login background preview signals
- *   - Submit handler with mutation + toast
+ * Supports specialized modular schemas per view (Branding, Profile, Fiscal)
+ * and partial updates to prevent race conditions and cross-tab ghost validation errors.
  */
-export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) {
+export function useCompanySettingsForm(options?: UseCompanySettingsFormOptions) {
     const brandingQuery = useCompanyBranding();
     const updateBrandingMut = useUpdateSettingsBranding();
 
@@ -69,15 +75,25 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
             sriEnvironment: '2',
         } as CompanySettingsFormData,
         validators: {
-            onChange: CompanySettingsFormSchema,
-            onSubmit: CompanySettingsFormSchema,
+            onChange: options?.schema || CompanySettingsFormSchema,
+            onSubmit: options?.schema || CompanySettingsFormSchema,
         },
         onSubmit: async ({ value }) => {
-            updateBrandingMut.mutate({ body: value, loginBgCrop: loginBgCropDetails() }, {
-                onSuccess: () => {
-                    toast.success(options?.onSuccessMessage || 'Guardado correctamente');
-                },
-            });
+            const bodyPayload: Partial<CompanySettingsFormData> = options?.fieldsSubset
+                ? options.fieldsSubset.reduce((acc, key) => {
+                      (acc as Record<string, unknown>)[key] = value[key];
+                      return acc;
+                  }, {} as Partial<CompanySettingsFormData>)
+                : value;
+
+            updateBrandingMut.mutate(
+                { body: bodyPayload as CompanySettingsFormData, loginBgCrop: loginBgCropDetails() },
+                {
+                    onSuccess: () => {
+                        toast.success(options?.onSuccessMessage || 'Guardado correctamente');
+                    },
+                }
+            );
         },
     }));
 
@@ -111,22 +127,25 @@ export function useCompanySettingsForm(options?: { onSuccessMessage?: string }) 
         }
     });
 
-    // Manual dirty tracking: compare current form values against server baseline.
-    //
-    // Why not form.state.isDirty?
-    //   TanStack Form's isDirty is "once dirty, always dirty" — it never reverts.
-    //
-    // Why createMemo + form.useStore?
-    //   form.state.values is NOT a Solid reactive proxy. Accessing properties inside
-    //   a derived function won't create Solid tracking subscriptions. form.useStore()
-    //   returns a proper Solid accessor that re-triggers when values change.
     const formValues = form.useStore((s) => s.values);
 
     const isFormDirty = createMemo(() => {
         const baseline = serverBaseline();
         if (!baseline) return false;
         const v = formValues();
-        // If a File was selected, it's always dirty
+
+        if (options?.fieldsSubset) {
+            try {
+                const baselineParsed = JSON.parse(baseline);
+                return options.fieldsSubset.some((key) => {
+                    if (v[key] instanceof File) return true;
+                    return v[key] !== baselineParsed[key];
+                });
+            } catch {
+                return false;
+            }
+        }
+
         if (v.logoUrl instanceof File || v.loginBgUrl instanceof File) return true;
         return snapshotFields(v) !== baseline;
     });

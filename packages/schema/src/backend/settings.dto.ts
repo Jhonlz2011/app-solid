@@ -30,7 +30,7 @@ export const MenuItemReorderBodySchema = Type.Object({
 // BRANDING & COMPANY SETTINGS
 // ============================================================================
 
-export const CompanySettingsBodySchema = Type.Object({
+export const CompanySettingsBodySchema = Type.Partial(Type.Object({
     logoUrl: Type.Union([Type.String(), Type.Null()]),
     loginBgUrl: Type.Union([Type.String(), Type.Null()]),
     primaryColor: Type.String({ minLength: 4 }),
@@ -47,7 +47,7 @@ export const CompanySettingsBodySchema = Type.Object({
     agenteRetencion: Type.Union([Type.String(), Type.Null()]),
     rimpeType: Type.Union([TaxRegimeTypeSchema, Type.Null()]),
     sriEnvironment: Type.Union([Type.Literal('1'), Type.Literal('2')]),
-});
+}));
 
 export const UploadLogoBodySchema = Type.Object({
     file: Type.File({

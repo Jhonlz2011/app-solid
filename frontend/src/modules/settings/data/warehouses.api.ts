@@ -1,82 +1,64 @@
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
+import type {
+    WarehouseItem,
+    WarehouseBodyType,
+    WarehouseUpdateType,
+    WarehouseReferencesResponseType,
+} from '@app/schema/dto';
+
+export type { WarehouseItem };
+export type CreateWarehouseBody = WarehouseBodyType;
+export type UpdateWarehouseBody = WarehouseUpdateType;
 
 // =============================================================================
-// Types — TODO(M5): Move to packages/schema/src/frontend.ts when scaling
+// API Wrappers — Warehouses (100% Type-Safe E2E via Eden Treaty)
 // =============================================================================
-
-export interface WarehouseItem {
-    id: number;
-    code: string;
-    name: string;
-    address: string | null;
-    is_mobile: boolean | null;
-    manager_id: number | null;
-    is_active: boolean | null;
-    locationCount: number;
-}
-
-export interface CreateWarehouseBody {
-    code: string;
-    name: string;
-    address?: string;
-    is_mobile?: boolean;
-    manager_id?: number;
-}
-
-export interface UpdateWarehouseBody {
-    code?: string;
-    name?: string;
-    address?: string | null;
-    is_mobile?: boolean;
-    manager_id?: number | null;
-    is_active?: boolean;
-}
-
-// =============================================================================
-// API Wrappers — Warehouses
-//
-// NOTE on `as any`: Eden treaty cannot resolve parameterized route segments
-// like `({ id })` or hyphenated paths. The casts are scoped minimally and
-// return types are explicitly annotated.
-// =============================================================================
-
-const getInventoryApi = () => (api as any).inventory;
 
 export const warehousesApi = {
     list: async (): Promise<WarehouseItem[]> => {
-        const { data, error } = await getInventoryApi().warehouses.get();
+        const { data, error } = await api.settings.warehouses.get();
         if (error) throwApiError(error);
-        return data as WarehouseItem[];
+        return (data || []) as WarehouseItem[];
     },
 
-    get: async (id: number) => {
-        const { data, error } = await getInventoryApi().warehouses({ id }).get();
+    get: async (id: number): Promise<WarehouseItem> => {
+        const { data, error } = await api.settings.warehouses({ id }).get();
         if (error) throwApiError(error);
-        return data!;
+        return data as WarehouseItem;
     },
 
-    create: async (body: CreateWarehouseBody) => {
-        const { data, error } = await getInventoryApi().warehouses.post(body as any);
+    create: async (body: WarehouseBodyType): Promise<WarehouseItem> => {
+        const { data, error } = await api.settings.warehouses.post(body);
         if (error) throwApiError(error);
-        return data!;
+        return data as WarehouseItem;
     },
 
-    update: async (id: number, body: UpdateWarehouseBody) => {
-        const { data, error } = await getInventoryApi().warehouses({ id }).put(body);
+    update: async (id: number, body: WarehouseUpdateType): Promise<WarehouseItem> => {
+        const { data, error } = await api.settings.warehouses({ id }).put(body);
         if (error) throwApiError(error);
-        return data!;
+        return data as WarehouseItem;
     },
 
-    deactivate: async (id: number) => {
-        const { data, error } = await getInventoryApi().warehouses({ id }).deactivate.patch();
+    deactivate: async (id: number): Promise<void> => {
+        const { error } = await api.settings.warehouses({ id }).deactivate.patch();
         if (error) throwApiError(error);
-        return data!;
     },
 
-    restore: async (id: number) => {
-        const { data, error } = await getInventoryApi().warehouses({ id }).restore.patch();
+    restore: async (id: number): Promise<WarehouseItem> => {
+        const { data, error } = await api.settings.warehouses({ id }).restore.patch();
         if (error) throwApiError(error);
-        return data!;
+        return data as WarehouseItem;
+    },
+
+    checkReferences: async (id: number): Promise<WarehouseReferencesResponseType> => {
+        const { data, error } = await api.settings.warehouses({ id }).references.get();
+        if (error) throwApiError(error);
+        return data as WarehouseReferencesResponseType;
+    },
+
+    delete: async (id: number): Promise<void> => {
+        const { error } = await api.settings.warehouses({ id }).delete();
+        if (error) throwApiError(error);
     },
 };

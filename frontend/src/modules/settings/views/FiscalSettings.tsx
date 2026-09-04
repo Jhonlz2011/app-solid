@@ -1,5 +1,6 @@
 import { Component, Show } from 'solid-js';
 import { cn } from '@shared/lib/utils';
+import { FiscalSettingsFormSchema } from '@app/schema/frontend';
 import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
 import TextField from '@form/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
@@ -25,7 +26,11 @@ const FiscalSettings: Component = () => {
         form, brandingQuery, updateBrandingMut,
         hasAttemptedSubmit, setHasAttemptedSubmit,
         isFormDirty,
-    } = useCompanySettingsForm({ onSuccessMessage: 'Configuración fiscal guardada correctamente' });
+    } = useCompanySettingsForm({
+        onSuccessMessage: 'Configuración fiscal guardada correctamente',
+        schema: FiscalSettingsFormSchema,
+        fieldsSubset: ['obligadoContabilidad', 'contribuyenteEspecial', 'agenteRetencion', 'rimpeType', 'sriEnvironment'],
+    });
 
     return (
         <div class="h-full flex flex-col">

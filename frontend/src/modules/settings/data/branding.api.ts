@@ -37,22 +37,17 @@ export const brandingApi = {
         return (data as { url: string }).url;
     },
 
-    update: async (body: CompanySettingsFormData, loginBgCrop?: CropCoordinates): Promise<CompanySettingsFormData> => {
-        // Upload files first if present
-        let logoUrl = body.logoUrl;
-        if (body.logoUrl instanceof File) {
-            logoUrl = await brandingApi.uploadLogo(body.logoUrl);
-        }
-
-        let loginBgUrl = body.loginBgUrl;
-        if (body.loginBgUrl instanceof File) {
-            loginBgUrl = await brandingApi.uploadLoginBg(body.loginBgUrl, loginBgCrop);
-        }
+    update: async (body: Partial<CompanySettingsFormData>, loginBgCrop?: CropCoordinates): Promise<CompanySettingsFormData> => {
+        // Upload files in parallel if present
+        const [logoUrl, loginBgUrl] = await Promise.all([
+            body.logoUrl instanceof File ? brandingApi.uploadLogo(body.logoUrl) : Promise.resolve(body.logoUrl),
+            body.loginBgUrl instanceof File ? brandingApi.uploadLoginBg(body.loginBgUrl, loginBgCrop) : Promise.resolve(body.loginBgUrl),
+        ]);
 
         const finalBody = {
             ...body,
-            logoUrl,
-            loginBgUrl,
+            ...(logoUrl !== undefined ? { logoUrl } : {}),
+            ...(loginBgUrl !== undefined ? { loginBgUrl } : {}),
         };
 
         const { data, error } = await api.settings.company.patch(finalBody as any);

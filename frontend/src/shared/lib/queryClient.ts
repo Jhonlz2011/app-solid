@@ -203,3 +203,46 @@ queryClient.setMutationDefaults(['inventory', 'warehouses', 'update'], {
   mutationFn: (vars: any) => warehousesApi.update(vars.id, vars.data),
 });
 
+// Vehicles
+queryClient.setMutationDefaults(['settings', 'vehicles', 'create'], {
+  mutationFn: async (vars: any) => {
+    const { vehiclesApi } = await import('@modules/settings/data/vehicles.api');
+    return vehiclesApi.create(vars);
+  },
+});
+queryClient.setMutationDefaults(['settings', 'vehicles', 'update'], {
+  mutationFn: async (vars: any) => {
+    const { vehiclesApi } = await import('@modules/settings/data/vehicles.api');
+    return vehiclesApi.update(vars.id, vars.data);
+  },
+});
+
+// =============================================================================
+// Realtime SSE Invalidation Listeners for Settings & Inventory
+// =============================================================================
+if (typeof window !== 'undefined') {
+  window.addEventListener('company:branding_updated', async (e: Event) => {
+    queryClient.invalidateQueries({ queryKey: ['settings', 'branding'] });
+    const detail = (e as CustomEvent).detail;
+    if (detail) {
+      const { applyBranding } = await import('@modules/auth/store/branding.store');
+      applyBranding(detail);
+    }
+  });
+
+  const invalidateVehicles = () => {
+    queryClient.invalidateQueries({ queryKey: ['settings', 'vehicles'] });
+  };
+  window.addEventListener('vehicle:created', invalidateVehicles);
+  window.addEventListener('vehicle:updated', invalidateVehicles);
+  window.addEventListener('vehicle:deleted', invalidateVehicles);
+
+  const invalidateWarehouses = () => {
+    queryClient.invalidateQueries({ queryKey: ['inventory', 'warehouses'] });
+  };
+  window.addEventListener('warehouse:created', invalidateWarehouses);
+  window.addEventListener('warehouse:updated', invalidateWarehouses);
+  window.addEventListener('warehouse:deleted', invalidateWarehouses);
+}
+
+
