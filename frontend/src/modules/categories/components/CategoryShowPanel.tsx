@@ -16,6 +16,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/form/Tabs'
 import { InfoRow } from '@/shared/ui/display/InfoRow';
 import { useAuth } from '@modules/auth/store/auth.store';
 
+import { type CategoryNode } from '@app/schema/dto';
+
 interface CategoryShowPanelProps {
     categoryId?: number;
     onClose?: () => void;
@@ -36,7 +38,7 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
     const flatQuery = useCategoriesFlat();
 
     const subCategories = createMemo(() => {
-        const flat = flatQuery.data as any[] ?? [];
+        const flat = (flatQuery.data ?? []) as CategoryNode[];
         return flat.filter(c => c.parent_id === categoryId());
     });
 

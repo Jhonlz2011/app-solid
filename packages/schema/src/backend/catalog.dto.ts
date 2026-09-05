@@ -203,7 +203,7 @@ export const CategoryAttributeEntrySchema = Type.Object({
     attributeDefId: Type.Number(),
     required: Type.Boolean(),
     order: Type.Number(),
-    specificOptions: Type.Optional(Type.Any()),
+    specificOptions: Type.Optional(Type.Union([Type.Array(Type.String()), Type.Null()])),
 });
 
 export const CategoryBodySchema = Type.Object({
@@ -213,6 +213,7 @@ export const CategoryBodySchema = Type.Object({
     icon: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     nameTemplate: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     sortOrder: Type.Optional(Type.Number()),
+    requiresReturn: Type.Optional(Type.Boolean()),
     attributes: Type.Array(CategoryAttributeEntrySchema),
 });
 
@@ -223,6 +224,7 @@ export const CategoryUpdateBodySchema = Type.Partial(Type.Object({
     icon: Type.Union([Type.String(), Type.Null()]),
     nameTemplate: Type.Union([Type.String(), Type.Null()]),
     sortOrder: Type.Number(),
+    requiresReturn: Type.Boolean(),
     attributes: Type.Array(CategoryAttributeEntrySchema),
 }));
 export const CategoryUpdateSchema = CategoryUpdateBodySchema;
@@ -248,6 +250,8 @@ export const CategoryListQuerySchema = Type.Object({
 
 export const CategoryReferencesResponseSchema = Type.Object({
     products: Type.Number(),
+    bomTemplates: Type.Number(),
+    children: Type.Number(),
     total: Type.Number(),
 });
 
@@ -274,6 +278,7 @@ export interface CategoryNode {
     name_template: string | null;
     sort_order: number | null;
     is_active: boolean;
+    requires_return: boolean;
     path: string;
     depth: number;
     attributeCount: number;

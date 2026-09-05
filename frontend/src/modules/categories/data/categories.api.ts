@@ -32,13 +32,13 @@ export const categoriesApi = {
     },
 
     createCategory: async (body: CategoryFormData): Promise<CategoryNode> => {
-        const { data, error } = await api.categories.post(body as any);
+        const { data, error } = await api.categories.post(body);
         if (error) throwApiError(error);
         return data as CategoryNode;
     },
 
     updateCategory: async (id: number, body: CategoryUpdateData): Promise<CategoryNode> => {
-        const { data, error } = await api.categories({ id }).put(body as any);
+        const { data, error } = await api.categories({ id }).put(body);
         if (error) throwApiError(error);
         return data as CategoryNode;
     },

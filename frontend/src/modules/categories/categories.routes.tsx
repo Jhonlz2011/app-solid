@@ -4,6 +4,7 @@ import GlobalPageLoader from '@/shared/ui/display/GlobalPageLoader';
 import { categoriesApi } from './data/categories.api';
 import { categoryKeys } from './data/categories.keys';
 import { createCategoryModals } from '@shared/routes/categories.factory';
+import { STALE_TIME } from '@shared/constants/cache.constants';
 
 const categoriesPage = lazyRouteComponent(() => import('./views/CategoryPage'));
 
@@ -21,7 +22,7 @@ export const createCategoriesRoutes = (layoutRoute: any) => {
             return await queryClient.prefetchQuery({
                 queryKey: categoryKeys.categoriesFlat(),
                 queryFn: () => categoriesApi.listCategories(true),
-                staleTime: 60 * 1000,
+                staleTime: STALE_TIME.SHORT,
             });
         },
         pendingComponent: GlobalPageLoader,

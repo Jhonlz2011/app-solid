@@ -115,7 +115,8 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
         '/',
         async ({ body, set, headers, currentCompanyId }) => {
             const category = await createCategoryEnhanced(
-                { ...body, companyId: currentCompanyId } as CategoryBodyType,
+                body,
+                currentCompanyId,
                 headers['x-client-id']
             );
             set.status = 201;

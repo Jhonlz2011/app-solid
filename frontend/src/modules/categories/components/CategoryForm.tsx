@@ -238,7 +238,7 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
                                     const attrs = attributesValue() ?? [];
                                     const allDefs = (attrsQuery.data ?? []) as AttributeItem[];
                                     const defMap = new Map(allDefs.map(a => [a.id, a]));
-                                    return attrs.map((a: any) => {
+                                    return attrs.map((a) => {
                                         const def = defMap.get(a.attributeDefId);
                                         return def ? { key: def.key, label: def.label, type: def.type } : null;
                                     }).filter(Boolean) as Array<{ key: string; label: string; type: string }>;
@@ -247,7 +247,7 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
                                 return (
                                     <NameTemplateEditor
                                         value={field().state.value as string | null | undefined}
-                                        onChange={(v) => field().handleChange((v ?? undefined) as any)}
+                                        onChange={(v) => field().handleChange(v ?? undefined)}
                                         assignedAttributes={assignedAttributeDefs()}
                                     />
                                 );

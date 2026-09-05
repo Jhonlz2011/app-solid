@@ -2,12 +2,12 @@
  * categories.mutations.ts — TanStack Mutation Hooks for Categories module
  *
  * All `createMutation` hooks with optimistic updates.
- * Uses categorieKeys.categoriesFlat() for granular cache targeting.
+ * Uses categoryKeys.categoriesFlat() for granular cache targeting.
  */
 import { createMutation, useQueryClient } from '@tanstack/solid-query';
 import { type CategoryNode } from '@app/schema/dto';
 import { categoriesApi } from './categories.api';
-import { categorieKeys } from './categories.keys';
+import { categoryKeys } from './categories.keys';
 import type { CategoryFormData, CategoryUpdateData } from '@app/schema/frontend';
 
 // =============================================================================
@@ -20,7 +20,7 @@ export function useCreateCategory() {
         mutationKey: ['catalogs', 'categories', 'create'],
         mutationFn: (body: CategoryFormData) => categoriesApi.createCategory(body),
         onSettled: () => {
-            qc.invalidateQueries({ queryKey: categorieKeys.categories });
+            qc.invalidateQueries({ queryKey: categoryKeys.categories });
         },
     }));
 }
@@ -35,8 +35,9 @@ export function useUpdateCategory() {
         mutationKey: ['catalogs', 'categories', 'update'],
         mutationFn: ({ id, data }: { id: number; data: CategoryUpdateData }) => categoriesApi.updateCategory(id, data),
         onSettled: (_d, _e, { id }) => {
-            qc.invalidateQueries({ queryKey: categorieKeys.categories });
-            qc.invalidateQueries({ queryKey: categorieKeys.categoryDetail(id) });
+            qc.invalidateQueries({ queryKey: categoryKeys.categories });
+            qc.invalidateQueries({ queryKey: categoryKeys.categoryDetail(id) });
+            qc.invalidateQueries({ queryKey: categoryKeys.categoryFormSchema(id) });
         },
     }));
 }
@@ -50,7 +51,7 @@ export function useReparentCategory() {
     return createMutation(() => ({
         mutationFn: ({ id, parentId }: { id: number; parentId: number | null }) =>
             categoriesApi.reparent(id, parentId),
-        onSettled: () => qc.invalidateQueries({ queryKey: categorieKeys.categories }),
+        onSettled: () => qc.invalidateQueries({ queryKey: categoryKeys.categories }),
     }));
 }
 
@@ -63,17 +64,17 @@ export function useDeactivateCategory() {
     return createMutation(() => ({
         mutationFn: (id: number) => categoriesApi.deactivateCategory(id),
         onMutate: async (id: number) => {
-            await qc.cancelQueries({ queryKey: categorieKeys.categoriesFlat() });
-            const previous = qc.getQueryData<CategoryNode[]>(categorieKeys.categoriesFlat());
-            qc.setQueryData<CategoryNode[]>(categorieKeys.categoriesFlat(), (old) =>
-                (old as any)?.map((item: any) => item.id === id ? { ...item, is_active: false } : item)
+            await qc.cancelQueries({ queryKey: categoryKeys.categoriesFlat() });
+            const previous = qc.getQueryData<CategoryNode[]>(categoryKeys.categoriesFlat());
+            qc.setQueryData<CategoryNode[]>(categoryKeys.categoriesFlat(), (old) =>
+                old?.map((item) => item.id === id ? { ...item, is_active: false } : item)
             );
             return { previous };
         },
         onError: (_err: unknown, _id: number, context: { previous?: CategoryNode[] } | undefined) => {
-            if (context?.previous) qc.setQueryData(categorieKeys.categoriesFlat(), context.previous);
+            if (context?.previous) qc.setQueryData(categoryKeys.categoriesFlat(), context.previous);
         },
-        onSettled: () => qc.invalidateQueries({ queryKey: categorieKeys.categories }),
+        onSettled: () => qc.invalidateQueries({ queryKey: categoryKeys.categories }),
     }));
 }
 
@@ -86,17 +87,17 @@ export function useRestoreCategory() {
     return createMutation(() => ({
         mutationFn: (id: number) => categoriesApi.restoreCategory(id),
         onMutate: async (id: number) => {
-            await qc.cancelQueries({ queryKey: categorieKeys.categoriesFlat() });
-            const previous = qc.getQueryData<CategoryNode[]>(categorieKeys.categoriesFlat());
-            qc.setQueryData<CategoryNode[]>(categorieKeys.categoriesFlat(), (old) =>
-                (old as any)?.map((item: any) => item.id === id ? { ...item, is_active: true } : item)
+            await qc.cancelQueries({ queryKey: categoryKeys.categoriesFlat() });
+            const previous = qc.getQueryData<CategoryNode[]>(categoryKeys.categoriesFlat());
+            qc.setQueryData<CategoryNode[]>(categoryKeys.categoriesFlat(), (old) =>
+                old?.map((item) => item.id === id ? { ...item, is_active: true } : item)
             );
             return { previous };
         },
         onError: (_err: unknown, _id: number, context: { previous?: CategoryNode[] } | undefined) => {
-            if (context?.previous) qc.setQueryData(categorieKeys.categoriesFlat(), context.previous);
+            if (context?.previous) qc.setQueryData(categoryKeys.categoriesFlat(), context.previous);
         },
-        onSettled: () => qc.invalidateQueries({ queryKey: categorieKeys.categories }),
+        onSettled: () => qc.invalidateQueries({ queryKey: categoryKeys.categories }),
     }));
 }
 
@@ -109,17 +110,17 @@ export function useHardDeleteCategory() {
     return createMutation(() => ({
         mutationFn: (id: number) => categoriesApi.hardDelete(id),
         onMutate: async (id: number) => {
-            await qc.cancelQueries({ queryKey: categorieKeys.categoriesFlat() });
-            const previous = qc.getQueryData<CategoryNode[]>(categorieKeys.categoriesFlat());
-            qc.setQueryData<CategoryNode[]>(categorieKeys.categoriesFlat(), (old) =>
-                (old as any)?.filter((item: any) => item.id !== id)
+            await qc.cancelQueries({ queryKey: categoryKeys.categoriesFlat() });
+            const previous = qc.getQueryData<CategoryNode[]>(categoryKeys.categoriesFlat());
+            qc.setQueryData<CategoryNode[]>(categoryKeys.categoriesFlat(), (old) =>
+                old?.filter((item) => item.id !== id)
             );
             return { previous };
         },
         onError: (_err: unknown, _id: number, context: { previous?: CategoryNode[] } | undefined) => {
-            if (context?.previous) qc.setQueryData(categorieKeys.categoriesFlat(), context.previous);
+            if (context?.previous) qc.setQueryData(categoryKeys.categoriesFlat(), context.previous);
         },
-        onSettled: () => qc.invalidateQueries({ queryKey: categorieKeys.categories }),
+        onSettled: () => qc.invalidateQueries({ queryKey: categoryKeys.categories }),
     }));
 }
 
@@ -132,17 +133,17 @@ export function useBulkDeactivateCategories() {
     return createMutation(() => ({
         mutationFn: (ids: number[]) => categoriesApi.bulkDeactivate(ids),
         onMutate: async (ids: number[]) => {
-            await qc.cancelQueries({ queryKey: categorieKeys.categoriesFlat() });
-            const previous = qc.getQueryData<CategoryNode[]>(categorieKeys.categoriesFlat());
-            qc.setQueryData<CategoryNode[]>(categorieKeys.categoriesFlat(), (old) =>
-                (old as any)?.map((item: any) => ids.includes(item.id) ? { ...item, is_active: false } : item)
+            await qc.cancelQueries({ queryKey: categoryKeys.categoriesFlat() });
+            const previous = qc.getQueryData<CategoryNode[]>(categoryKeys.categoriesFlat());
+            qc.setQueryData<CategoryNode[]>(categoryKeys.categoriesFlat(), (old) =>
+                old?.map((item) => ids.includes(item.id) ? { ...item, is_active: false } : item)
             );
             return { previous };
         },
         onError: (_err: unknown, _ids: number[], context: { previous?: CategoryNode[] } | undefined) => {
-            if (context?.previous) qc.setQueryData(categorieKeys.categoriesFlat(), context.previous);
+            if (context?.previous) qc.setQueryData(categoryKeys.categoriesFlat(), context.previous);
         },
-        onSettled: () => qc.invalidateQueries({ queryKey: categorieKeys.categories }),
+        onSettled: () => qc.invalidateQueries({ queryKey: categoryKeys.categories }),
     }));
 }
 
@@ -155,17 +156,17 @@ export function useBulkRestoreCategories() {
     return createMutation(() => ({
         mutationFn: (ids: number[]) => categoriesApi.bulkRestore(ids),
         onMutate: async (ids: number[]) => {
-            await qc.cancelQueries({ queryKey: categorieKeys.categoriesFlat() });
-            const previous = qc.getQueryData<CategoryNode[]>(categorieKeys.categoriesFlat());
-            qc.setQueryData<CategoryNode[]>(categorieKeys.categoriesFlat(), (old) =>
-                (old as any)?.map((item: any) => ids.includes(item.id) ? { ...item, is_active: true } : item)
+            await qc.cancelQueries({ queryKey: categoryKeys.categoriesFlat() });
+            const previous = qc.getQueryData<CategoryNode[]>(categoryKeys.categoriesFlat());
+            qc.setQueryData<CategoryNode[]>(categoryKeys.categoriesFlat(), (old) =>
+                old?.map((item) => ids.includes(item.id) ? { ...item, is_active: true } : item)
             );
             return { previous };
         },
         onError: (_err: unknown, _ids: number[], context: { previous?: CategoryNode[] } | undefined) => {
-            if (context?.previous) qc.setQueryData(categorieKeys.categoriesFlat(), context.previous);
+            if (context?.previous) qc.setQueryData(categoryKeys.categoriesFlat(), context.previous);
         },
-        onSettled: () => qc.invalidateQueries({ queryKey: categorieKeys.categories }),
+        onSettled: () => qc.invalidateQueries({ queryKey: categoryKeys.categories }),
     }));
 }
 
@@ -178,7 +179,7 @@ export function useReorderCategories() {
     return createMutation(() => ({
         mutationFn: (items: Array<{ id: number; sort_order: number }>) => categoriesApi.reorderCategories(items),
         onSettled: () => {
-            qc.invalidateQueries({ queryKey: categorieKeys.categories });
+            qc.invalidateQueries({ queryKey: categoryKeys.categories });
         },
     }));
 }

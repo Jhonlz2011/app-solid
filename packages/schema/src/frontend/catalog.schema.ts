@@ -1,4 +1,4 @@
-import { pipe, string, minLength, maxLength, object, picklist, boolean, array, number, optional, nullable, union, forward, check, any, partial, trim, type InferInput } from 'valibot';
+import { pipe, string, minLength, maxLength, object, picklist, boolean, array, number, optional, nullable, union, forward, check, partial, trim, type InferInput } from 'valibot';
 import { ATTRIBUTE_DATA_TYPES, UOM_GROUPS } from '../enums';
 
 // --- ATTRIBUTE DEFINITIONS ---
@@ -35,7 +35,7 @@ export const CategoryAttributeEntrySchema = object({
     attributeDefId: number(),
     required: boolean(),
     order: number(),
-    specificOptions: optional(any()),
+    specificOptions: optional(nullable(array(string()))),
 });
 
 export const CategoryFormSchema = object({
@@ -45,6 +45,7 @@ export const CategoryFormSchema = object({
     icon: optional(nullable(string())),
     nameTemplate: optional(nullable(string())),
     sortOrder: optional(number()),
+    requiresReturn: optional(boolean()),
     attributes: array(CategoryAttributeEntrySchema),
 });
 

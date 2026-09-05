@@ -9,7 +9,7 @@
  * - Client-side filter pipeline (flat → filter → buildSubRows → render)
  */
 import { createSignal, createMemo } from 'solid-js';
-import type { RowSelectionState } from '@tanstack/solid-table';
+import type { RowSelectionState, Table } from '@tanstack/solid-table';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { categoryKeys } from '../data/categories.keys';
 import { useDataTableSSE } from '@shared/hooks/useDataTableSSE';
@@ -45,7 +45,7 @@ export function useCategoryState() {
     useDataTableSSE({ room: 'categories', queryKey: categoryKeys.categories });
 
     // ─── Table Instance ──────────────────────────────────────────
-    const [tableInstance, setTableInstance] = createSignal<any>();
+    const [tableInstance, setTableInstance] = createSignal<Table<CategoryNode> | undefined>();
 
     // ─── Filters ─────────────────────────────────────────────────
     const [search, setSearch] = createSignal('');
@@ -214,7 +214,7 @@ export function useCategoryState() {
 
     return {
         // Data
-        categoryQuery, rawList, filteredList, totalCount, filteredCount,
+        categoryQuery, rawList, rawMap, filteredList, totalCount, filteredCount,
 
         // Table Instance
         tableInstance, setTableInstance,

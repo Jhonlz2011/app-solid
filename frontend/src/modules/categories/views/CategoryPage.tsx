@@ -87,7 +87,7 @@ const CategoryPage: Component = () => {
                                     variant="ghost"
                                     size="md" 
                                     radius="xl"
-                                    onClick={() => state.tableInstance().toggleAllRowsExpanded(true)}
+                                    onClick={() => state.tableInstance()?.toggleAllRowsExpanded(true)}
                                     title="Expandir todas"
                                     class="text-muted hover:text-text focus-within:text-text"
                                     icon={<ExpandIcon />}
@@ -98,7 +98,7 @@ const CategoryPage: Component = () => {
                                     variant="ghost"
                                     size="md"
                                     radius="xl"
-                                    onClick={() => state.tableInstance().toggleAllRowsExpanded(false)}
+                                    onClick={() => state.tableInstance()?.toggleAllRowsExpanded(false)}
                                     title="Colapsar todas"
                                     class="text-muted hover:text-text focus-within:text-text"
                                     icon={<CollapseIcon />}
@@ -120,11 +120,11 @@ const CategoryPage: Component = () => {
                     onEdit={handleShowCategory}
                     onAddChild={handleNewCategory}
                     onDelete={(id) => {
-                        const item = (state.categoryQuery.data as any)?.find((c: any) => c.id === id);
+                        const item = state.rawMap().get(id);
                         if (item) state.handleDelete(item);
                     }}
                     onRestore={(id) => {
-                        const item = (state.categoryQuery.data as any)?.find((c: any) => c.id === id);
+                        const item = state.rawMap().get(id);
                         if (item) state.handleRestore(item);
                     }}
                     rowSelection={state.rowSelection()}

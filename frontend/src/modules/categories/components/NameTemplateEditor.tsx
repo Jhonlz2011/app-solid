@@ -238,6 +238,15 @@ const NameTemplateEditor: Component<NameTemplateEditorProps> = (props) => {
                         insertIndex = index + range.startOffset;
                     }
                 }
+            } else if ((document as any).caretPositionFromPoint) {
+                const pos = (document as any).caretPositionFromPoint(e.clientX, e.clientY);
+                if (pos) {
+                    const blot = Quill.find(pos.offsetNode, true) as any;
+                    if (blot) {
+                        const index = q.getIndex(blot);
+                        insertIndex = index + pos.offset;
+                    }
+                }
             }
 
             // Insert the badge embed

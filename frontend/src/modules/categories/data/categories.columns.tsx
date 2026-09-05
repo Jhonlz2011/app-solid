@@ -99,7 +99,7 @@ export function createCategoryColumns(handlers: CategoryColumnHandlers): ColumnD
                             when={hasChildren}
                             fallback={
                                 <span class="size-5 shrink-0 flex items-center justify-center">
-                                    <span class="size-1.5 rounded-full bg-muted/40group-hover/name:bg-amber-500 transition-transform duration-200 group-hover/name:scale-125" />
+                                    <span class="size-1.5 rounded-full bg-muted/40 group-hover/name:bg-amber-500 transition-transform duration-200 group-hover/name:scale-125" />
                                 </span>
                             }
                         >
