@@ -62,7 +62,6 @@ export async function listCategoriesEnhanced(companyId: number, flat = false): P
                 path: categories.path,
                 depth: categories.depth,
                 sort_order: categories.sort_order,
-                requires_return: categories.requires_return,
                 is_active: categories.is_active,
             })
             .from(categories)
@@ -100,7 +99,6 @@ export async function listCategoriesEnhanced(companyId: number, flat = false): P
             name_template: cat.name_template,
             sort_order: cat.sort_order,
             is_active: cat.is_active ?? true,
-            requires_return: cat.requires_return ?? false,
             path: cat.path,
             depth: cat.depth,
             attributeCount: attrCountMap.get(cat.id) ?? 0,
@@ -175,7 +173,6 @@ export async function getCategoryEnhanced(id: number, companyId: number): Promis
         name_template: category.name_template,
         sort_order: category.sort_order,
         is_active: category.is_active ?? true,
-        requires_return: category.requires_return ?? false,
         path: category.path,
         depth: category.depth,
         created_at: category.created_at,
@@ -261,7 +258,6 @@ export async function createCategoryEnhanced(data: CategoryBodyType, companyId: 
             icon: data.icon ?? null,
             name_template: data.nameTemplate ?? null,
             sort_order: data.sortOrder ?? 0,
-            requires_return: data.requiresReturn ?? false,
             path,
             depth,
         }).returning();
@@ -289,7 +285,6 @@ export async function createCategoryEnhanced(data: CategoryBodyType, companyId: 
         ...created,
         attributeCount: data.attributes?.length ?? 0,
         is_active: created.is_active ?? true,
-        requires_return: created.requires_return ?? false,
     };
 }
 
@@ -307,7 +302,6 @@ export async function updateCategoryEnhanced(id: number, data: Partial<CategoryB
         if (data.icon !== undefined) updateValues.icon = data.icon;
         if (data.nameTemplate !== undefined) updateValues.name_template = data.nameTemplate;
         if (data.sortOrder !== undefined) updateValues.sort_order = data.sortOrder;
-        if (data.requiresReturn !== undefined) updateValues.requires_return = data.requiresReturn;
 
         // Compute path/depth BEFORE update (single query optimization)
         if (data.name !== undefined || data.parentId !== undefined) {
@@ -354,7 +348,6 @@ export async function updateCategoryEnhanced(id: number, data: Partial<CategoryB
         ...updated,
         attributeCount: data.attributes?.length ?? 0,
         is_active: updated.is_active ?? true,
-        requires_return: updated.requires_return ?? false,
     };
 }
 
@@ -382,7 +375,6 @@ export async function deactivateCategory(id: number, companyId: number, clientId
             ...updated,
             attributeCount: 0,
             is_active: false,
-            requires_return: updated.requires_return ?? false,
         };
     });
 }
@@ -402,7 +394,6 @@ export async function restoreCategory(id: number, companyId: number, clientId?: 
             ...updated,
             attributeCount: 0,
             is_active: true,
-            requires_return: updated.requires_return ?? false,
         };
     });
 }
@@ -438,7 +429,7 @@ export async function reparentCategory(id: number, newParentId: number | null, c
 
     // Skip if same parent
     if (node.parent_id === newParentId) {
-        return { ...node, attributeCount: 0, is_active: node.is_active ?? true, requires_return: node.requires_return ?? false };
+        return { ...node, attributeCount: 0, is_active: node.is_active ?? true };
     }
 
     let newParentPath: string | null = null;
@@ -488,7 +479,6 @@ export async function reparentCategory(id: number, newParentId: number | null, c
         ...updated,
         attributeCount: 0,
         is_active: updated.is_active ?? true,
-        requires_return: updated.requires_return ?? false,
     };
 }
 

@@ -18,7 +18,7 @@ import { brandRoutes, uomRoutes, categoryRoutes, attributeRoutes } from './modul
 import { modulesRoutes } from './modules/settings';
 import { sriRoutes, geonamesRoutes } from './modules/references';
 import { rbacRoutes } from './modules/rbac';
-import { locationsRoutes } from './modules/inventory';
+import { locationsRoutes, toolLoansRoutes } from './modules/inventory';
 import { companyRoutes, vehiclesRoutes, warehousesRoutes } from './modules/settings';
 import { webhooksRoutes } from './modules/webhooks';
 
@@ -187,6 +187,7 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(sriRoutes)
   .use(geonamesRoutes)
   .use(locationsRoutes)
+  .use(toolLoansRoutes)
   .use(companyRoutes)
   .use(vehiclesRoutes)
   .use(warehousesRoutes)

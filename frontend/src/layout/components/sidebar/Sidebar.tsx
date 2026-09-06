@@ -154,6 +154,7 @@ export const Sidebar: Component = () => {
                 <SidebarFooter
                     userName={auth.user()?.username || auth.user()?.email?.split('@')[0] || 'Usuario'}
                     userRole={auth.user()?.roles?.[0] || 'Usuario'}
+                    userImage={auth.user()?.image}
                 />
             </aside>
         </SidebarProvider>

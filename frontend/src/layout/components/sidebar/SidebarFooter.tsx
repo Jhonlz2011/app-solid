@@ -12,6 +12,7 @@ import Button from '@form/Button';
 interface SidebarFooterProps {
     userName: string;
     userRole: string;
+    userImage?: string | null;
 }
 
 export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
@@ -34,11 +35,26 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
         >
             {/* Avatar — always visible, on top */}
             <div class="absolute inset-0 flex items-center px-4 sm:pl-5 pointer-events-none z-10">
-                <div
-                    class="size-10 rounded-xl flex items-center justify-center text-white font-semibold text-sm shadow-sm shrink-0"
-                    style={avatarStyle()}
-                >
-                    {initials()}
+                <div class="size-10 rounded-xl shadow-sm shrink-0 overflow-hidden">
+                    <Show
+                        when={props.userImage}
+                        fallback={
+                            <div
+                                class="w-full h-full flex items-center justify-center text-white font-semibold text-sm"
+                                style={avatarStyle()}
+                            >
+                                {initials()}
+                            </div>
+                        }
+                    >
+                        {(img) => (
+                            <img
+                                src={img()}
+                                alt={name()}
+                                class="w-full h-full object-cover"
+                            />
+                        )}
+                    </Show>
                 </div>
             </div>
 

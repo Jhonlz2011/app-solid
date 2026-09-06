@@ -55,9 +55,6 @@ export const materialRequestItems = pgTableV2("material_request_items", {
     variant_id: integer("variant_id").references(() => productVariants.id).notNull(),
 
     quantity_requested: numeric("quantity_requested", { precision: 12, scale: 4 }).notNull(),
-
-    // Se auto-hereda de categories.requires_return pero es overrideable
-    requires_return: boolean("requires_return").default(false),
 }, (t) => [
     index("idx_mri_request").on(t.request_id),
     index("idx_mri_variant").on(t.variant_id),

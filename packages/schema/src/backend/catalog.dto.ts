@@ -213,7 +213,6 @@ export const CategoryBodySchema = Type.Object({
     icon: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     nameTemplate: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     sortOrder: Type.Optional(Type.Number()),
-    requiresReturn: Type.Optional(Type.Boolean()),
     attributes: Type.Array(CategoryAttributeEntrySchema),
 });
 
@@ -224,7 +223,6 @@ export const CategoryUpdateBodySchema = Type.Partial(Type.Object({
     icon: Type.Union([Type.String(), Type.Null()]),
     nameTemplate: Type.Union([Type.String(), Type.Null()]),
     sortOrder: Type.Number(),
-    requiresReturn: Type.Boolean(),
     attributes: Type.Array(CategoryAttributeEntrySchema),
 }));
 export const CategoryUpdateSchema = CategoryUpdateBodySchema;
@@ -278,7 +276,6 @@ export interface CategoryNode {
     name_template: string | null;
     sort_order: number | null;
     is_active: boolean;
-    requires_return: boolean;
     path: string;
     depth: number;
     attributeCount: number;

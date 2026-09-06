@@ -34,7 +34,10 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
       company_id: true,
       email: true,
       username: true,
+      displayUsername: true,
       name: true,
+      image: true,
+      twoFactorEnabled: true,
       is_active: true,
       last_login: true,
       emailVerified: true,
@@ -105,6 +108,8 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     email: user.email,
     name: user.name,
     username: user.username || user.name,
+    image: user.image ?? null,
+    twoFactorEnabled: user.twoFactorEnabled ?? false,
     entityId: resolvedEntityId,
     isActive: user.is_active,
     lastLogin: user.last_login,
@@ -140,6 +145,8 @@ export async function updateProfile(
     id: users.id,
     email: users.email,
     username: users.username,
+    name: users.name,
+    image: users.image,
   });
 
   if (!updated) throw new AuthError('Usuario no encontrado');

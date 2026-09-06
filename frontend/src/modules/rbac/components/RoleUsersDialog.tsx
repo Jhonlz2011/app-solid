@@ -153,8 +153,8 @@ export const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
             <FormDialog
                 isOpen={props.isOpen ?? true}
                 onClose={close}
-                title={`Usuarios — ${resolvedRoleName()}`}
-                subtitle={`Administra qué usuarios pertenecen al rol "${resolvedRoleName()}"`}
+                title="Usuarios asignados"
+                subtitle="Gestiona los colaboradores y miembros que pertenecen a este rol."
                 titleExtra={<RoleBadge name={resolvedRoleName()} />}
                 onSubmit={(e) => { e.preventDefault(); close(); }}
                 submitLabel="Listo"

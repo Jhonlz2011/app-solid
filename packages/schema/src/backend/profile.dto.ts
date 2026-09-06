@@ -32,6 +32,8 @@ export const ProfileResponseSchema = Type.Object({
     email: Type.String({ format: 'email' }),
     name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     username: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    image: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    twoFactorEnabled: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
     entityId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     isActive: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
     lastLogin: Type.Optional(Type.Union([Type.Date(), Type.Null()])),
@@ -56,6 +58,8 @@ export const UpdateProfileResponseSchema = Type.Object({
         id: Type.String(),
         email: Type.String(),
         username: Type.String(),
+        name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        image: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     })),
 });
 

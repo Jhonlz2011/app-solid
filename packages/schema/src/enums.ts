@@ -100,6 +100,11 @@ export const MENU_ITEM_STATUSES = ['active', 'development', 'deprecated'] as con
 // SaaS plans
 export const SAAS_PLANS = ['free', 'starter', 'pro', 'enterprise'] as const;
 
+// Tool Crib / Equipment Custody enums (Odoo Standard)
+export const TOOL_LOAN_STATUSES = ['DRAFT', 'DISPATCHED', 'PARTIALLY_RETURNED', 'COMPLETED', 'OVERDUE', 'CANCELLED'] as const;
+export const TOOL_ITEM_STATUSES = ['AVAILABLE', 'ON_LOAN', 'IN_MAINTENANCE', 'RETIRED'] as const;
+export const TOOL_TRACKING_MODES = ['BY_QUANTITY', 'SERIALIZED'] as const;
+
 
 export const SYSTEM_ROLES = {
     SUPERADMIN: 'superadmin',
@@ -114,7 +119,7 @@ export const RBAC_MODULES = [
     // Catalog children
     'products', 'services', 'categories', 'brands', 'uom', 'attributes',
     // Warehouse children
-    'inventory', 'movements', 'orders', 'locations', 'reception_materials', 'remission_guides',
+    'inventory', 'movements', 'orders', 'locations', 'reception_materials', 'remission_guides', 'tools', 'tool_loans',
     // Operations children
     'operations', 'work_orders', 'schedule', 'projects',
     // Production children
@@ -220,3 +225,10 @@ export const purchaseQuoteStatusEnum = pgEnum('purchase_quote_status', PURCHASE_
 export const paymentStatusEnum = pgEnum('payment_status', PAYMENT_STATUSES);
 export const priceChangeTypeEnum = pgEnum('price_change_type', PRICE_CHANGE_TYPES);
 export const priceChangeSourceEnum = pgEnum('price_change_source', PRICE_CHANGE_SOURCES);
+export const toolLoanStatusEnum = pgEnum('tool_loan_status', TOOL_LOAN_STATUSES);
+export const toolItemStatusEnum = pgEnum('tool_item_status', TOOL_ITEM_STATUSES);
+export const toolTrackingModeEnum = pgEnum('tool_tracking_mode', TOOL_TRACKING_MODES);
+
+export type ToolLoanStatus = typeof TOOL_LOAN_STATUSES[number];
+export type ToolItemStatus = typeof TOOL_ITEM_STATUSES[number];
+export type ToolTrackingMode = typeof TOOL_TRACKING_MODES[number];

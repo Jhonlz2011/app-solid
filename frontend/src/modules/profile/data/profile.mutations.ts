@@ -13,9 +13,12 @@ export function useUpdateProfile() {
     return createMutation(() => ({
         mutationFn: (body: { username?: string; email?: string }) =>
             profileApi.updateProfile(body),
-        onSuccess: (_data: unknown, variables: { username?: string; email?: string }) => {
+        onSuccess: (data: any, variables: { username?: string; email?: string }) => {
             queryClient.invalidateQueries({ queryKey: profileKeys.me() });
-            authActions.updateUser(variables);
+            authActions.updateUser({
+                ...variables,
+                ...(data?.user ?? {}),
+            });
         },
     }));
 }

@@ -13,7 +13,6 @@ import { SessionsSection } from '../components/SessionsSection';
 import { ShieldIcon } from '@icons/ShieldIcon';
 import { UserIcon } from '@icons/UserIcon';
 import { DeviceIcon } from '@icons/DeviceIcon';
-import { WarningIcon } from '@icons/WarningIcon';
 
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
 

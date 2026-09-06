@@ -15,6 +15,7 @@ import { createBrandsRoutes } from './modules/brands/brands.routes';
 import { createUomRoutes } from './modules/uom/uom.routes';
 import { createAttributesRoutes } from './modules/attributes/attributes.routes';
 import { createLocationRoutes } from './modules/locations/locations.routes';
+import { createToolsRoutes } from './modules/tools/tools.routes';
 import { createCrudLayout } from './shared/routes/crud.layout';
 
 // P1-5: Removed connectSSE import — SSE connection is managed solely by MainLayout.createEffect(isOnline())
@@ -224,6 +225,23 @@ const profileRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: '/profile',
   pendingComponent: ProfilePendingComponent,
+  loader: async () => {
+    const { profileKeys } = await import('@modules/profile/data/profile.keys');
+    const { profileApi } = await import('@modules/profile/data/profile.api');
+    const { STALE_TIME } = await import('@shared/constants/cache.constants');
+    await Promise.all([
+      queryClient.ensureQueryData({
+        queryKey: profileKeys.me(),
+        queryFn: () => profileApi.getMe(),
+        staleTime: STALE_TIME.MEDIUM,
+      }),
+      queryClient.ensureQueryData({
+        queryKey: profileKeys.sessions(),
+        queryFn: () => profileApi.getMySessions(),
+        staleTime: 60_000,
+      }),
+    ]);
+  },
   component: ProfilePage,
 });
 
@@ -255,6 +273,7 @@ const routeTree = rootRoute.addChildren([
     createUomRoutes(layoutRoute),
     createAttributesRoutes(layoutRoute),
     createLocationRoutes(layoutRoute),
+    createToolsRoutes(layoutRoute),
     // Pilot CRUD layout (rutas con navegación instantánea sin bloqueo de layout)
     crudLayout.addChildren([
       createClientsRoutes(crudLayout),

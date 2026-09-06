@@ -145,6 +145,11 @@ export async function fetchProductRows(ids: number[], companyId: number) {
                 WHERE pv.product_id = ${products.id} AND pv.is_default = true
                 LIMIT 1
             )`,
+            default_variant_id: sql<number | null>`(
+                SELECT pv.id FROM product_variants pv
+                WHERE pv.product_id = ${products.id} AND pv.is_default = true
+                LIMIT 1
+            )`.mapWith(Number),
             variant_count: sql<number>`(
                 SELECT count(*) FROM product_variants pv
                 WHERE pv.product_id = ${products.id} AND pv.is_active = true

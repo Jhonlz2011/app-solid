@@ -327,11 +327,13 @@ export const actions = {
         // sse.store dispatches CustomEvents for every incoming WS message.
         // We filter by userId to only update our own user's data.
         window.addEventListener('user:profile_updated', (e: Event) => {
-            const { userId, username, email } = (e as CustomEvent).detail ?? {};
+            const { userId, username, email, name, image } = (e as CustomEvent).detail ?? {};
             if (!state.user || String(state.user.id) !== String(userId)) return;
             // Granular update — SolidJS only re-renders components that read these specific fields
             if (username !== undefined) setState('user', 'username', username);
             if (email !== undefined) setState('user', 'email', email);
+            if (name !== undefined) setState('user', 'name', name);
+            if (image !== undefined) setState('user', 'image', image);
         });
 
         // WS: real-time RBAC/permissions update from the server
@@ -395,6 +397,8 @@ export const actions = {
                 // Granular updates only — DO NOT spread/replace the whole user object
                 if (data.user.username !== undefined) setState('user', 'username', data.user.username);
                 if (data.user.email !== undefined) setState('user', 'email', data.user.email);
+                if (data.user.name !== undefined) setState('user', 'name', data.user.name);
+                if (data.user.image !== undefined) setState('user', 'image', data.user.image);
             }
         });
 

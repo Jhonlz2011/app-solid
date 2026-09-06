@@ -69,9 +69,6 @@ export const categories = pgTableV2("categories", {
     // Sort order for UI display
     sort_order: integer("sort_order").default(0),
 
-    // Herramientas → true (deben retornarse), Materiales → false
-    requires_return: boolean("requires_return").default(false),
-
     is_active: boolean("is_active").default(true),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),

@@ -750,3 +750,42 @@ export const priceListItemsRelations = relations(tables.priceListItems, ({ one }
     product: one(tables.products, { fields: [tables.priceListItems.product_id], references: [tables.products.id] }),
     variant: one(tables.productVariants, { fields: [tables.priceListItems.variant_id], references: [tables.productVariants.id] }),
 }));
+
+// =============================================================================
+// 18. Tools & Equipment Custody
+// =============================================================================
+
+export const toolItemsRelations = relations(tables.toolItems, ({ one, many }) => ({
+    company: one(tables.companies, { fields: [tables.toolItems.company_id], references: [tables.companies.id] }),
+    variant: one(tables.productVariants, { fields: [tables.toolItems.variant_id], references: [tables.productVariants.id] }),
+    location: one(tables.warehouseLocations, { fields: [tables.toolItems.location_id], references: [tables.warehouseLocations.id] }),
+    loanItems: many(tables.toolLoanItems),
+}));
+
+export const toolLoansRelations = relations(tables.toolLoans, ({ one, many }) => ({
+    company: one(tables.companies, { fields: [tables.toolLoans.company_id], references: [tables.companies.id] }),
+    borrower: one(tables.entities, { fields: [tables.toolLoans.borrower_id], references: [tables.entities.id] }),
+    dispatchedByUser: one(tables.entities, { fields: [tables.toolLoans.dispatched_by], references: [tables.entities.id] }),
+    workOrder: one(tables.workOrders, { fields: [tables.toolLoans.work_order_id], references: [tables.workOrders.id] }),
+    items: many(tables.toolLoanItems),
+    returns: many(tables.toolReturns),
+}));
+
+export const toolLoanItemsRelations = relations(tables.toolLoanItems, ({ one, many }) => ({
+    loan: one(tables.toolLoans, { fields: [tables.toolLoanItems.loan_id], references: [tables.toolLoans.id] }),
+    variant: one(tables.productVariants, { fields: [tables.toolLoanItems.variant_id], references: [tables.productVariants.id] }),
+    toolItem: one(tables.toolItems, { fields: [tables.toolLoanItems.tool_item_id], references: [tables.toolItems.id] }),
+    returnItems: many(tables.toolReturnItems),
+}));
+
+export const toolReturnsRelations = relations(tables.toolReturns, ({ one, many }) => ({
+    loan: one(tables.toolLoans, { fields: [tables.toolReturns.loan_id], references: [tables.toolLoans.id] }),
+    receivedByUser: one(tables.entities, { fields: [tables.toolReturns.received_by], references: [tables.entities.id] }),
+    items: many(tables.toolReturnItems),
+}));
+
+export const toolReturnItemsRelations = relations(tables.toolReturnItems, ({ one }) => ({
+    returnReceipt: one(tables.toolReturns, { fields: [tables.toolReturnItems.return_id], references: [tables.toolReturns.id] }),
+    loanItem: one(tables.toolLoanItems, { fields: [tables.toolReturnItems.loan_item_id], references: [tables.toolLoanItems.id] }),
+}));
+

@@ -15,3 +15,4 @@ export * from './finance';
 export * from './inventory_defaults';
 export * from './email_logs';
 export * from './pricing';
+export * from './tools';

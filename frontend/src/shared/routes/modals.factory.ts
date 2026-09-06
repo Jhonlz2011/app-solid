@@ -14,7 +14,9 @@ function guardPermission(entityKey: RbacModule, action: PermissionAction, parent
 }
 
 function bounceToParent(parentRoute: any) {
-    return () => { throw redirect({ to: parentRoute.fullPath }); };
+    return ({ search }: { search?: any }) => {
+        throw redirect({ to: parentRoute.fullPath, search: search ?? true });
+    };
 }
 
 interface DetailConfig {

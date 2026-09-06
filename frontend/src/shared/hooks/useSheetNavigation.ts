@@ -56,15 +56,23 @@ export function useSheetNavigation(props: SheetNavigationProps) {
         try {
             const matches = router.state.matches;
             if (matches.length >= 2) {
-                const parentMatch = matches[matches.length - 2];
-                if (parentMatch?.pathname) {
-                    navigate({ to: parentMatch.pathname, search: true });
+                let targetIndex = matches.length - 2;
+                const parentMatch = matches[targetIndex];
+
+                // If parent match is an intermediate parameterized base route (e.g. $roleId, $userId, or numeric ID), step up to entity parent
+                if (parentMatch && matches.length >= 3 && (parentMatch.routeId?.includes('$') || parentMatch.pathname?.match(/\/\d+$/))) {
+                    targetIndex = matches.length - 3;
+                }
+
+                const finalTarget = matches[targetIndex];
+                if (finalTarget?.pathname) {
+                    navigate({ to: finalTarget.pathname, search: (prev: any) => prev });
                     return;
                 }
             }
-            navigate({ to: '..', search: true });
+            navigate({ to: '..', search: (prev: any) => prev });
         } catch {
-            navigate({ to: '..', search: true });
+            navigate({ to: '..', search: (prev: any) => prev });
         }
     };
 

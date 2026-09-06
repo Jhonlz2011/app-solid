@@ -45,7 +45,6 @@ export const CategoryFormSchema = object({
     icon: optional(nullable(string())),
     nameTemplate: optional(nullable(string())),
     sortOrder: optional(number()),
-    requiresReturn: optional(boolean()),
     attributes: array(CategoryAttributeEntrySchema),
 });
 

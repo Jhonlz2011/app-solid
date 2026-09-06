@@ -56,12 +56,27 @@ export const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
         <Show when={!props.isLoading} fallback={<ProfileHeaderSkeleton />}>
             <div class="mb-8">
                 <div class="flex flex-col sm:flex-row items-center gap-5">
-                    {/* Large Avatar - Now reactive to name changes */}
-                    <div
-                        class="size-20 sm:size-24 rounded-2xl flex items-center justify-center text-white font-bold text-2xl sm:text-3xl shadow-lg shrink-0"
-                        style={avatarStyle()}
-                    >
-                        {initials()}
+                    {/* Large Avatar - Supports image with fallback to gradient initials */}
+                    <div class="size-20 sm:size-24 rounded-2xl shadow-lg shrink-0 overflow-hidden">
+                        <Show
+                            when={props.profile?.image}
+                            fallback={
+                                <div
+                                    class="w-full h-full flex items-center justify-center text-white font-bold text-2xl sm:text-3xl"
+                                    style={avatarStyle()}
+                                >
+                                    {initials()}
+                                </div>
+                            }
+                        >
+                            {(img) => (
+                                <img
+                                    src={img()}
+                                    alt={displayName()}
+                                    class="w-full h-full object-cover"
+                                />
+                            )}
+                        </Show>
                     </div>
 
                     {/* User Info */}

@@ -13,3 +13,4 @@ export * from './documents.dto';
 export * from './rbac.dto';
 export * from './settings.dto';
 export * from './references.dto';
+export * from './tools.dto';

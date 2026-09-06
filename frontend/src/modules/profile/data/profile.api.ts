@@ -25,7 +25,7 @@ export const profileApi = {
         const res = await authClient.changePassword({
             currentPassword: body.currentPassword,
             newPassword: body.newPassword,
-            revokeOtherSessions: false,
+            revokeOtherSessions: true,
         });
         if (res.error) {
             throw new Error(res.error.message || 'Error al cambiar la contraseña');

@@ -11,3 +11,4 @@ export * from './auth.schema';
 export * from './rbac.schema';
 export * from './profile.schema';
 export * from './settings.schema';
+export * from './tools.schema';

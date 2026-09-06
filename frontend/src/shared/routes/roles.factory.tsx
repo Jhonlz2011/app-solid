@@ -49,8 +49,11 @@ export const createRoleModals = (parentRoute: any, basePath = 'role') => {
     const indexRoute = createRoute({
         getParentRoute: () => baseRoute,
         path: `/`,
-        beforeLoad: () => {
-            throw redirect({ to: parentRoute.fullPath });
+        beforeLoad: ({ search }) => {
+            throw redirect({
+                to: parentRoute.fullPath,
+                search: (search && Object.keys(search).length > 0) ? search : { tab: 'roles' },
+            });
         },
     });
 

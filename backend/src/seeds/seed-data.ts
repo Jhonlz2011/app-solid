@@ -190,6 +190,17 @@ export const PERMISSIONS = [
     parsePerm('remission_guides.update', 'Editar guías de remisión'),
     parsePerm('remission_guides.delete', 'Eliminar guías de remisión'),
 
+    // Tools & Equipment Custody (Pañol de Herramientas)
+    parsePerm('tool_loans.read', 'Ver préstamos de herramientas'),
+    parsePerm('tool_loans.create', 'Crear vales de préstamo de herramientas'),
+    parsePerm('tool_loans.update', 'Registrar devoluciones e inspecciones de herramientas'),
+    parsePerm('tool_loans.delete', 'Cancelar vales de préstamo de herramientas'),
+
+    parsePerm('tools.read', 'Ver inventario de herramientas'),
+    parsePerm('tools.create', 'Registrar herramientas en pañol'),
+    parsePerm('tools.update', 'Editar herramientas y condición'),
+    parsePerm('tools.delete', 'Dar de baja herramientas'),
+
     // BOM (Recetas)
     parsePerm('bom.read', 'Ver recetas de producción'),
     parsePerm('bom.create', 'Crear recetas de producción'),
@@ -379,7 +390,9 @@ export const ROLE_PERMISSIONS: Record<string, (slug: string) => boolean> = {
             slug.startsWith('dispatch_requests.') ||
             slug.startsWith('work_orders.') ||
             slug.startsWith('materials.') ||
-            slug.startsWith('quality.');
+            slug.startsWith('quality.') ||
+            slug.startsWith('tool_loans.') ||
+            slug.startsWith('tools.');
     },
 
     inventario: (slug) => {
@@ -396,7 +409,9 @@ export const ROLE_PERMISSIONS: Record<string, (slug: string) => boolean> = {
             slug.startsWith('orders.') ||
             slug.startsWith('locations.') ||
             slug.startsWith('reception_materials.') ||
-            slug.startsWith('remission_guides.');
+            slug.startsWith('remission_guides.') ||
+            slug.startsWith('tool_loans.') ||
+            slug.startsWith('tools.');
     },
 
     contabilidad: (slug) => {
@@ -496,6 +511,7 @@ export const MENU_ITEMS: MenuSeedItem[] = [
             { key: 'reception_materials', label: 'Recepcion de Mercaderia', path: '/reception-materials', permission_prefix: 'reception_materials', sort_order: 3, icon: 'M3 3a1 1 0 0 0-1 1v3q0 1 1 1h1v11q.2 1.8 2 2h2-2c-1 0-2-1-2-2V8h16v11c0 1-1 2-2 2h-2 2q1.8-.2 2-2V8h1q1 0 1-1V4q0-1-1-1zm0 0h18q.9.1 1 1v3q-.1.9-1 1H3a1 1 0 0 1-1-1V4q.1-.9 1-1m9 9-3 3 3-2.9V21v-8.9l3 3V15z', status: 'development' },
             { key: 'locations', label: 'Ubicaciones', path: '/locations', permission_prefix: 'locations', sort_order: 4, icon: 'M4 2v20-2h16v2V2v2H4zm0 2h16v8h-8V9q0-1-1-1H9a1 1 0 0 0-1 1v3H4zm5 4h2q.9.1 1 1v3H8V9q.1-.9 1-1m-5 4h16v8h-4v-3q0-1-1-1h-2a1 1 0 0 0-1 1v3H4zm9 4h2q.9.1 1 1v3h-4v-3q.1-.9 1-1', status: 'active' },
             { key: 'shipping_guides', label: 'Guías de Remisión', path: '/shipping-guides', permission_prefix: 'remission_guides', sort_order: 5, icon: 'M9 2a1 1 0 0 0-1 1v1H6a2 2 0 0 0-2 2v14q.2 1.8 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V3q0-1-1-1zm0 0h6q1 0 1 1v2q0 1-1 1H9a1 1 0 0 1-1-1V3q0-1 1-1M6 4h2v1q0 1 1 1h6q1 0 1-1V4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6q.2-1.8 2-2M8 11zl.1.1.1-.1zm4 0h4zm-4 5zl.1.1.1-.1zm4 0h4z', status: 'development' },
+            { key: 'tool_loans', label: 'Pañol de Herramientas', path: '/tool-loans', permission_prefix: 'tool_loans', sort_order: 6, icon: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.1-3.1q.7-.4 1 .2a6 6 0 0 1-8.3 7l-7.9 8a1 1 0 0 1-3-3l8-8a6 6 0 0 1 7-8.2c.4.1.5.7.2 1z', status: 'active' },
         ],
     },
     {

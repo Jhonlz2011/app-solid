@@ -65,9 +65,21 @@ export async function revokeSession(sessionId: string, userId: string | number) 
   const deleted = await db
     .delete(sessions)
     .where(and(eq(sessions.id, sessionId), eq(sessions.userId, userIdStr)))
-    .returning({ id: sessions.id });
+    .returning({ id: sessions.id, token: sessions.token });
 
   if (deleted.length === 0) throw new AuthError('Sesión no encontrada', 404);
+
+  const token = deleted[0]?.token;
+  if (token) {
+    try {
+      const { redis } = await import('../../core/cache/redis');
+      await Promise.all([
+        redis.del(`session:${token}`),
+        redis.del(`better-auth:session:${token}`),
+        redis.del(token),
+      ]);
+    } catch { /* Redis delete best effort */ }
+  }
 
   broadcastToUser(userIdStr, RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId });
   cacheService.invalidate(`session:${sessionId}`);
