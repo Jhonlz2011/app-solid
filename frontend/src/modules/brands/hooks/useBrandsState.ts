@@ -126,8 +126,6 @@ export function useBrandsState() {
         createBrandColumns({
             onDelete: handleDeactivate,
             onRestore: handleRestore,
-            canEdit: auth.canEdit('brands'),
-            canDelete: auth.canDelete('brands'),
         })
     );
 

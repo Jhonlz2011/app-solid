@@ -236,8 +236,6 @@ export function useUomState() {
             onEdit: handleEdit,
             onDelete: handleDelete,
             onRestore: handleRestore,
-            canEdit: canEdit(),
-            canDelete: canDelete(),
             filters: {
                 uomGroup: {
                     options: uomGroupFilterOptions,

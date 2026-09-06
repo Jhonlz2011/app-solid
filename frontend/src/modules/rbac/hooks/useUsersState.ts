@@ -216,7 +216,6 @@ export function useUsersState() {
         createUserColumns({
             onDelete: handleDeleteUser,
             onRestore: handleRestore,
-            auth,
             filters: {
                 isActive: { options: isActiveOptions, selected: isActiveFilter, onChange: handleFilterChange(setIsActiveFilter), isLoading: () => facetsQuery.isPending },
                 roles: { options: rolesOptions, selected: rolesFilter, onChange: handleFilterChange(setRolesFilter), isLoading: () => facetsQuery.isPending },

@@ -1,26 +1,16 @@
 /**
  * Brand Column Definitions
- *
- * Uses ActionMenu (same pattern as supplier.columns.tsx) for row actions.
- * ActionMenu handles RBAC internally via useAuth().
  */
-import { Show } from 'solid-js';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { BrandItem } from '@app/schema/dto';
 import Checkbox from '@form/Checkbox';
 import { StatusBadge } from '@display/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
-import { EditIcon } from '@icons/EditIcon';
-import { TrashIcon } from '@icons/TrashIcon';
-import { RotateCcwIcon } from '@icons/RotateCcwIcon';
-import Button from '@form/Button';
-import LinkButton from '@form/LinkButton';
+import { ActionButtons } from '@/shared/ui/overlay/ActionButtons';
 
 export interface BrandColumnHandlers {
     onDelete: (brand: BrandItem) => void;
     onRestore: (brand: BrandItem) => void;
-    canEdit: boolean;
-    canDelete: boolean;
 }
 
 export function createBrandColumns(handlers: BrandColumnHandlers): ColumnDef<BrandItem>[] {
@@ -91,37 +81,19 @@ export function createBrandColumns(handlers: BrandColumnHandlers): ColumnDef<Bra
         {
             id: 'actions',
             header: '',
-            size: 80,
+            size: 84,
             enableHiding: false,
+            enableSorting: false,
             cell: (info) => {
                 const brand = info.row.original;
-                const isActive = brand.is_active ?? true;
                 return (
-                    <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100" onClick={(e) => e.stopPropagation()}>
-                        <Show when={handlers.canEdit && isActive}>
-                            <LinkButton variant="ghost" size="icon_md" to={`/brands/${brand.id}/edit`} preload="intent" icon={<EditIcon class="size-4"/>} />
-                        </Show>
-                        <Show when={handlers.canDelete && isActive}>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon_md"
-                                class="hover:text-danger hover:bg-danger/10"
-                                onClick={() => handlers.onDelete(brand)}
-                                icon={<TrashIcon class="size-4" />}
-                            />
-                        </Show>
-                        <Show when={handlers.canDelete && !isActive}>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon_md"
-                                class="hover:text-success hover:bg-success/10"
-                                onClick={() => handlers.onRestore(brand)}
-                                icon={<RotateCcwIcon class="size-4" />}
-                            />
-                        </Show>
-                    </div>
+                    <ActionButtons
+                        module="brands"
+                        isActive={brand.is_active ?? true}
+                        editTo={`/brands/${brand.id}/edit`}
+                        onDelete={() => handlers.onDelete(brand)}
+                        onRestore={() => handlers.onRestore(brand)}
+                    />
                 );
             },
         },

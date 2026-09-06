@@ -5,7 +5,6 @@ import { Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { ProductListItem } from '../data/products.api';
-import { useAuth } from '@/modules/auth/store/auth.store';
 import Checkbox from '@form/Checkbox';
 import { Badge, StatusBadge } from '@display/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
@@ -27,7 +26,6 @@ export interface ProductColumnHandlers {
     onDelete: (product: ProductListItem) => void;
     onRestore: (product: ProductListItem) => void;
     onPreviewImage?: (url: string) => void;
-    auth: ReturnType<typeof useAuth>;
     routePrefix?: string;
     hideTypeColumn?: boolean;
     hideBrandColumn?: boolean;
@@ -314,6 +312,7 @@ export function createProductColumns(handlers: ProductColumnHandlers): ColumnDef
             header: '',
             size: 50,
             enableHiding: false,
+            enableSorting: false,
             cell: (info) => {
                 const product = info.row.original;
                 return (

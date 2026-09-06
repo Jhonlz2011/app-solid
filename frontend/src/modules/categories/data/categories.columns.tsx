@@ -14,7 +14,6 @@ import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 import { Badge, StatusBadge, CounterBadge } from '@display/Badge';
 import Checkbox from '@form/Checkbox';
 import ActionMenu from '@/shared/ui/overlay/ActionMenu';
-import DropdownMenu from '@display/DropdownMenu';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { ChevronRightIcon } from '@icons/ChevronRightIcon';
 import { ChevronDownIcon } from '@icons/ChevronDownIcon';
@@ -254,13 +253,13 @@ export function createCategoryColumns(handlers: CategoryColumnHandlers): ColumnD
                     >
                         {/* Add subcategory */}
                         <Show when={cat.is_active && auth.canAdd('categories')}>
-                            <DropdownMenu.Item
+                            <ActionMenu.Item
                                 to="/categories/new"
                                 search={{ parentId: String(cat.id) }}
                             >
                                 <PlusIcon class="size-4 text-muted mr-2" />
                                 <span>Agregar subcategoría</span>
-                            </DropdownMenu.Item>
+                            </ActionMenu.Item>
                         </Show>
                     </ActionMenu>
                 );

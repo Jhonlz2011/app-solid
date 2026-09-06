@@ -183,7 +183,6 @@ export function useProductsState(initialProps?: UseProductsStateOptions) {
             onDelete: handleDelete,
             onRestore: handleRestore,
             onPreviewImage: (url) => setPreviewImageUrl(url),
-            auth,
             routePrefix,
             hideTypeColumn,
             hideBrandColumn,

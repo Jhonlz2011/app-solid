@@ -230,8 +230,6 @@ export function useAttributeState() {
             onEdit: handleEdit,
             onDelete: handleDelete,
             onRestore: handleRestore,
-            canEdit: canEdit(),
-            canDelete: canDelete(),
             filters: {
                 type: {
                     options: typeFilterOptions,

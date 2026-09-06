@@ -80,6 +80,7 @@ export { TagIcon } from './TagIcon';
 export { ThermometerIcon } from './ThermometerIcon';
 export { TrashIcon } from './TrashIcon';
 export { TruckIcon } from './TruckIcon';
+export { UndoIcon } from './UndoIcon';
 export { UploadIcon } from './UploadIcon';
 export { UserHistoryIcon } from './UserHistoryIcon';
 export { UserIcon } from './UserIcon';

@@ -10,7 +10,7 @@ import { buttonVariants, type ButtonVariant, type ButtonSize } from '@form/butto
 // Colors use Tailwind v4 design tokens from index.css
 // ============================================================================
 
-interface DropdownMenuProps {
+export interface DropdownMenuProps {
     children: JSX.Element;
     open?: boolean;
     defaultOpen?: boolean;
@@ -22,7 +22,7 @@ interface DropdownMenuProps {
     forceMount?: boolean;
 }
 
-interface DropdownMenuTriggerProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface DropdownMenuTriggerProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
     children: JSX.Element;
     class?: string;
     asChild?: boolean;
@@ -30,12 +30,12 @@ interface DropdownMenuTriggerProps extends JSX.ButtonHTMLAttributes<HTMLButtonEl
     size?: ButtonSize;
 }
 
-interface DropdownMenuContentProps {
+export interface DropdownMenuContentProps {
     children: JSX.Element;
     class?: string;
 }
 
-interface DropdownMenuItemProps extends Partial<Omit<LinkProps, 'search' | 'to'>> {
+export interface DropdownMenuItemProps extends Partial<Omit<LinkProps, 'search' | 'to'>> {
     children: JSX.Element;
     class?: string;
     onSelect?: () => void;
@@ -45,16 +45,16 @@ interface DropdownMenuItemProps extends Partial<Omit<LinkProps, 'search' | 'to'>
     to?: any;
 }
 
-interface DropdownMenuSeparatorProps {
+export interface DropdownMenuSeparatorProps {
     class?: string;
 }
 
-interface DropdownMenuLabelProps {
+export interface DropdownMenuLabelProps {
     children: JSX.Element;
     class?: string;
 }
 
-interface DropdownMenuGroupProps {
+export interface DropdownMenuGroupProps {
     children: JSX.Element;
     class?: string;
 }

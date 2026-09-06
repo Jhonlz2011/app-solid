@@ -271,6 +271,7 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
             id: 'actions',
             size: 50,
             enableHiding: false,
+            enableSorting: false,
             cell: ({ row }) => {
                 const entity = row.original;
                 return (

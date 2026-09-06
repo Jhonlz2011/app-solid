@@ -16,7 +16,6 @@ import type { ToolLoanNode } from '../data/tools.api';
 
 export const ToolLoansPage: Component = () => {
     const auth = useAuth();
-    const navigate = useNavigate();
 
     // Filters state
     const [search, setSearch] = createSignal('');

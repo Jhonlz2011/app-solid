@@ -9,7 +9,6 @@ import { Link } from '@tanstack/solid-router';
 import type { ColumnDef } from '@tanstack/solid-table';
 import type { UserListItemType } from '@app/schema/backend';
 export type { UserListItemType };
-import { useAuth } from '@modules/auth/store/auth.store';
 import { Avatar } from '@shared/ui/display/Avatar';
 import { RoleBadge, StatusBadge, EntityTypeBadge } from '@display/Badge';
 import { formatSessionDate } from '@shared/utils/session.utils';
@@ -30,7 +29,6 @@ export interface UserColumnHandlers {
     onDelete: (user: UserListItemType) => void;
     onRestore: (user: UserListItemType) => void;
     onRoleBadgeClick?: (role: { id: number; name: string }) => void;
-    auth: ReturnType<typeof useAuth>;
     filters?: {
         username?: ColumnFilterConfig;
         isActive?: ColumnFilterConfig;
@@ -275,6 +273,7 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
             header: '',
             size: 50,
             enableHiding: false,
+            enableSorting: false,
             cell: (info) => {
                 const user = info.row.original;
                 const isSuperadmin = user.roles?.some((r: any) => r.name === 'superadmin') ?? false;

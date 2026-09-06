@@ -8,19 +8,12 @@ import type { ColumnFilterConfig } from '@shared/ui/DataTable';
 import Checkbox from '@form/Checkbox';
 import { StatusBadge, Badge } from '@display/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
-import { EditIcon } from '@icons/EditIcon';
-import { TrashIcon } from '@icons/TrashIcon';
-import { RotateCcwIcon } from '@icons/RotateCcwIcon';
-import Button from '@form/Button';
-import LinkButton from '@form/LinkButton';
-
+import { ActionButtons } from '@/shared/ui/overlay/ActionButtons';
 
 export interface AttributeColumnHandlers {
     onEdit: (attr: AttributeItem) => void;
     onDelete: (attr: AttributeItem) => void;
     onRestore: (attr: AttributeItem) => void;
-    canEdit: boolean;
-    canDelete: boolean;
     filters?: {
         type?: ColumnFilterConfig;
         isActive?: ColumnFilterConfig;
@@ -157,42 +150,23 @@ export function createAttributeColumns(handlers: AttributeColumnHandlers): Colum
             cell: (info) => <StatusBadge isActive={info.getValue<boolean>() ?? true} />,
         },
 
-        // Actions — inline buttons
+        // Actions
         {
             id: 'actions',
             header: '',
-            size: 80,
+            size: 84,
             enableHiding: false,
+            enableSorting: false,
             cell: (info) => {
                 const item = info.row.original;
-                const isActive = item.is_active ?? true;
                 return (
-                    <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100" onClick={(e) => e.stopPropagation()}>
-                        <Show when={handlers.canEdit && isActive}>
-                            <LinkButton variant="ghost" size="icon_md" to={`/attributes/${item.id}/edit`} preload="intent" icon={<EditIcon class="size-4"/>}
-                            />
-                        </Show>
-                        <Show when={handlers.canDelete && isActive}>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon_md"
-                                class="hover:text-danger hover:bg-danger/10"
-                                onClick={() => handlers.onDelete(item)}
-                                icon={<TrashIcon class="size-4" />}
-                            />
-                        </Show>
-                        <Show when={handlers.canDelete && !isActive}>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon_md"
-                                class="hover:text-success hover:bg-success/10"
-                                onClick={() => handlers.onRestore(item)}
-                                icon={<RotateCcwIcon class="size-4" />}
-                            />
-                        </Show>
-                    </div>
+                    <ActionButtons
+                        module="attributes"
+                        isActive={item.is_active ?? true}
+                        editTo={`/attributes/${item.id}/edit`}
+                        onDelete={() => handlers.onDelete(item)}
+                        onRestore={() => handlers.onRestore(item)}
+                    />
                 );
             },
         },

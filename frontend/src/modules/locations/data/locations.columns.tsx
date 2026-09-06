@@ -13,7 +13,6 @@ import type { FilterOption } from "@shared/ui/DataTable/DataTableColumnFilter";
 import { Badge, CounterBadge, StatusBadge } from "@display/Badge";
 import Checkbox from "@form/Checkbox";
 import ActionMenu from "@/shared/ui/overlay/ActionMenu";
-import DropdownMenu from "@display/DropdownMenu";
 import { useAuth } from "@modules/auth/store/auth.store";
 import { ChevronRightIcon } from '@icons/ChevronRightIcon';
 import { ChevronDownIcon } from '@icons/ChevronDownIcon';
@@ -294,13 +293,13 @@ export function createLocationColumns(
           >
             {/* Add child location */}
             <Show when={(loc.is_active ?? true) && isPhysical && auth.canAdd('locations')}>
-              <DropdownMenu.Item
+              <ActionMenu.Item
                 to="/locations/new"
                 search={{ parentId: String(loc.id) }}
               >
                 <PlusIcon class="size-4 text-muted mr-2" />
                 <span>Agregar sub-ubicación</span>
-              </DropdownMenu.Item>
+              </ActionMenu.Item>
             </Show>
           </ActionMenu>
         );

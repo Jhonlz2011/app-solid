@@ -2,8 +2,6 @@ import { Show } from 'solid-js';
 import type { ColumnDef } from '@tanstack/solid-table';
 import { Badge, CounterBadge } from '@display/Badge';
 import ActionMenu from '@/shared/ui/overlay/ActionMenu';
-import DropdownMenu from '@display/DropdownMenu';
-import { EyeIcon } from '@icons/EyeIcon';
 import { UndoIcon } from '@icons/UndoIcon';
 import type { ToolLoanNode } from './tools.api';
 
@@ -141,21 +139,23 @@ export function createToolLoanColumns(handlers: ToolLoanColumnHandlers): ColumnD
         {
             id: 'actions',
             header: '',
-            size: 60,
+            size: 50,
             enableSorting: false,
+            enableHiding: false,
             cell: ({ row }) => {
                 const isCompleted = row.original.status === 'COMPLETED' || row.original.status === 'CANCELLED';
                 return (
-                    <ActionMenu>
-                        <DropdownMenu.Item onSelect={() => handlers.onViewDetail(row.original)}>
-                            <EyeIcon class="size-4 mr-2" />
-                            Ver Detalle
-                        </DropdownMenu.Item>
+                    <ActionMenu
+                        module="tool_loans"
+                        isActive={!isCompleted}
+                        onView={() => handlers.onViewDetail(row.original)}
+                        showLabel="Ver Detalle"
+                    >
                         <Show when={!isCompleted}>
-                            <DropdownMenu.Item onSelect={() => handlers.onRecordReturn(row.original)}>
+                            <ActionMenu.Item onSelect={() => handlers.onRecordReturn(row.original)}>
                                 <UndoIcon class="size-4 mr-2 text-warning" />
-                                Registrar Devolución
-                            </DropdownMenu.Item>
+                                <span>Registrar Devolución</span>
+                            </ActionMenu.Item>
                         </Show>
                     </ActionMenu>
                 );

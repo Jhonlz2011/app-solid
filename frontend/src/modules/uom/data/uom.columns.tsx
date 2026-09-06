@@ -18,12 +18,8 @@ import Checkbox from '@form/Checkbox';
 import { StatusBadge } from '@display/Badge';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import { Tooltip } from '@/shared/ui/overlay/Tooltip';
-import LinkButton from '@form/LinkButton';
-import Button from '@form/Button';
+import { ActionButtons } from '@/shared/ui/overlay/ActionButtons';
 import { LockIcon } from '@icons/LockIcon';
-import { EditIcon } from '@icons/EditIcon';
-import { TrashIcon } from '@icons/TrashIcon';
-import { RotateCcwIcon } from '@icons/RotateCcwIcon';
 
 /** Filter configuration for a column — uses accessors for SolidJS reactivity */
 export interface ColumnFilterConfig {
@@ -37,8 +33,6 @@ export interface UomColumnHandlers {
     onEdit: (uom: UomItem) => void;
     onDelete: (uom: UomItem) => void;
     onRestore: (uom: UomItem) => void;
-    canEdit: boolean;
-    canDelete: boolean;
     filters?: {
         uomGroup?: ColumnFilterConfig;
         isActive?: ColumnFilterConfig;
@@ -186,48 +180,24 @@ export function createUomColumns(handlers: UomColumnHandlers): ColumnDef<UomItem
             cell: (info) => <StatusBadge isActive={info.getValue<boolean>() ?? true} />,
         },
 
-        // Actions — inline buttons, hidden for system UOMs
+        // Actions — hidden for system UOMs
         {
             id: 'actions',
             header: '',
-            size: 80,
+            size: 84,
             enableHiding: false,
+            enableSorting: false,
             cell: (info) => {
                 const item = info.row.original;
                 if (item.is_system) return null;
-                const isActive = item.is_active ?? true;
                 return (
-                    <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100" onClick={(e) => e.stopPropagation()}>
-                        <Show when={handlers.canEdit && isActive}>
-                                <LinkButton
-                                    to={`/uom/${item.id}/edit`}
-                                    preload="intent"
-                                    variant="ghost"
-                                    size="icon_md"
-                                    icon={<EditIcon class="size-4" />}
-                                />
-                        </Show>
-                        <Show when={handlers.canDelete && isActive}>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon_md"
-                                    class="hover:text-danger hover:bg-danger/10"
-                                    onClick={() => handlers.onDelete(item)}
-                                    icon={<TrashIcon class="size-4" />}
-                                />
-                        </Show>
-                        <Show when={handlers.canDelete && !isActive}>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon_md"
-                                    class="hover:text-success hover:bg-success/10"
-                                    onClick={() => handlers.onRestore(item)}
-                                    icon={<RotateCcwIcon class="size-4" />}
-                                />
-                        </Show>
-                    </div>
+                    <ActionButtons
+                        module="uom"
+                        isActive={item.is_active ?? true}
+                        editTo={`/uom/${item.id}/edit`}
+                        onDelete={() => handlers.onDelete(item)}
+                        onRestore={() => handlers.onRestore(item)}
+                    />
                 );
             },
         },
