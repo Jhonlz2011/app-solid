@@ -6,7 +6,7 @@ import { adminDb } from '../core/db';
 import { redis } from '../core/cache/redis';
 import { broadcastToUser } from '../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
-import { eq } from '@app/schema';
+import { eq, and, gt, asc, inArray } from '@app/schema';
 import * as schema from '@app/schema/tables';
 import { emailService } from '../core/email';
 import { env } from './env';
@@ -168,6 +168,64 @@ function generateUsername(email?: string | null, name?: string | null): string {
     return `${base.slice(0, 24)}_${randomSuffix}`;
 }
 
+/**
+ * Limita a un máximo de 5 sesiones concurrentes activas por usuario.
+ * Revoca automáticamente las sesiones más antiguas, purga sus tokens de Redis y notifica vía SSE.
+ */
+export async function enforceMaxActiveSessions(userId: string, maxSessions = 5): Promise<void> {
+    try {
+        const userSessions = await adminDb
+            .select({
+                id: schema.session.id,
+                token: schema.session.token,
+                createdAt: schema.session.createdAt,
+            })
+            .from(schema.session)
+            .where(
+                and(
+                    eq(schema.session.userId, userId),
+                    gt(schema.session.expiresAt, new Date())
+                )
+            )
+            .orderBy(asc(schema.session.createdAt));
+
+        if (userSessions.length > maxSessions) {
+            const excessCount = userSessions.length - maxSessions;
+            const toRevoke = userSessions.slice(0, excessCount);
+            const revokeIds = toRevoke.map(s => s.id);
+
+            // 1. Eliminar de Postgres
+            await adminDb
+                .delete(schema.session)
+                .where(inArray(schema.session.id, revokeIds));
+
+            // 2. Invalidar caché en Redis y emitir SSE para cada sesión revocada
+            await Promise.all(
+                toRevoke.map(async (s) => {
+                    try {
+                        await Promise.all([
+                            redis.del(`session:${s.token}`),
+                            redis.del(`better-auth:session:${s.token}`),
+                            redis.del(s.token),
+                            redis.del(`session:${s.id}`),
+                        ]);
+                    } catch { /* Redis best effort */ }
+
+                    broadcastToUser(userId, RealtimeEvents.USER.SESSION_REVOKED, {
+                        id: userId,
+                        sessionId: s.id,
+                        reason: 'MAX_SESSIONS_EXCEEDED',
+                    });
+                })
+            );
+
+            console.info(`[BetterAuth] Límite de ${maxSessions} sesiones aplicado para usuario ${userId}: revocada(s) ${excessCount} sesión(es) antigua(s).`);
+        }
+    } catch (err) {
+        console.error('[BetterAuth] Error aplicando límite de sesiones activas:', err);
+    }
+}
+
 // ============================================================================
 // 5. BETTER AUTH INSTANCE
 // ============================================================================
@@ -317,11 +375,39 @@ export const auth = betterAuth({
         },
         session: {
             create: {
-                before: async (sess) => {
+                before: async (sess, context) => {
+                    let ipAddress = sess.ipAddress;
+                    let userAgent = sess.userAgent;
+
+                    const headers = (context as any)?.headers as Headers | undefined;
+                    if (headers) {
+                        const extractedIp =
+                            headers.get('cf-connecting-ip') ||
+                            headers.get('x-client-ip') ||
+                            headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+                            headers.get('x-real-ip');
+
+                        if (extractedIp) {
+                            ipAddress = extractedIp.startsWith('::ffff:')
+                                ? extractedIp.substring(7)
+                                : extractedIp;
+                        }
+
+                        if (!userAgent || userAgent === 'Desconocido') {
+                            userAgent = headers.get('user-agent') || 'Desconocido';
+                        }
+                    }
+
+                    if (!ipAddress && env.NODE_ENV !== 'production') {
+                        ipAddress = '127.0.0.1';
+                    }
+
                     return {
                         data: {
                             ...sess,
                             id: (sess as any).id || uuidv7(),
+                            ipAddress,
+                            userAgent,
                         },
                     };
                 },
@@ -335,6 +421,15 @@ export const auth = betterAuth({
                         } catch (err) {
                             console.error('[BetterAuth] Error actualizando last_login en session.create:', err);
                         }
+
+                        // Límite de 5 sesiones activas concurrentes
+                        await enforceMaxActiveSessions(sess.userId, 5);
+
+                        // Notificar vía SSE a los clientes del usuario
+                        broadcastToUser(sess.userId, RealtimeEvents.USER.SESSION_CREATED, {
+                            id: sess.userId,
+                            sessionId: sess.id,
+                        });
                     }
                 },
             },

@@ -63,9 +63,9 @@ export const ToolLoanShowPanel: Component<ToolLoanShowPanelProps> = (props) => {
         >
             <Show when={loanQuery.isLoading}>
                 <div class="space-y-4 py-4">
-                    <SkeletonLoader class="h-8 w-1/3 rounded-lg" />
-                    <SkeletonLoader class="h-24 w-full rounded-xl" />
-                    <SkeletonLoader class="h-40 w-full rounded-xl" />
+                    <SkeletonLoader type="text" class="h-8 w-1/3 rounded-lg" />
+                    <SkeletonLoader type="card" class="h-24 w-full rounded-xl" />
+                    <SkeletonLoader type="card" class="h-40 w-full rounded-xl" />
                 </div>
             </Show>
 
@@ -203,11 +203,11 @@ export const ToolLoanShowPanel: Component<ToolLoanShowPanelProps> = (props) => {
                             {/* Section: Returns History & Inspection */}
                             <div class="space-y-3 pt-2">
                                 <h4 class="text-xs font-bold uppercase tracking-wider text-muted">
-                                    Historial de Recepción e Inspección Técnica ({loan.returns.length})
+                                    Historial de Recepción e Inspección Técnica ({loan.returns?.length ?? 0})
                                 </h4>
 
                                 <Show
-                                    when={loan.returns.length > 0}
+                                    when={(loan.returns?.length ?? 0) > 0}
                                     fallback={
                                         <div class="p-6 text-center rounded-xl border border-dashed border-border/60 text-muted text-xs">
                                             Aún no se han registrado recepciones ni inspecciones para este vale de salida.
@@ -215,7 +215,7 @@ export const ToolLoanShowPanel: Component<ToolLoanShowPanelProps> = (props) => {
                                     }
                                 >
                                     <div class="space-y-3">
-                                        <For each={loan.returns}>
+                                        <For each={loan.returns ?? []}>
                                             {(ret) => {
                                                 const retDate = new Date(ret.return_date);
                                                 return (

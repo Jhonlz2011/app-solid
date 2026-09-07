@@ -3,17 +3,28 @@ import { Elysia } from 'elysia';
 export const getIpAndUserAgent = (request: Request) => {
     const userAgent = request.headers.get('user-agent') || 'Desconocido';
 
-    // Improved IP extraction
-    let ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0].trim();
-    if (!ipAddress) {
-        ipAddress = request.headers.get('x-real-ip') || undefined;
+    // Comprehensive IP extraction supporting Cloudflare, reverse proxies and load balancers
+    let ipAddress =
+        request.headers.get('cf-connecting-ip') ||
+        request.headers.get('x-client-ip') ||
+        request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+        request.headers.get('x-real-ip') ||
+        undefined;
+
+    if (ipAddress) {
+        // Strip IPv6 mapped IPv4 prefix if present (e.g., ::ffff:127.0.0.1 -> 127.0.0.1)
+        if (ipAddress.startsWith('::ffff:')) {
+            ipAddress = ipAddress.substring(7);
+        }
+        // Normalize IPv6 localhost
+        if (ipAddress === '::1') {
+            ipAddress = '127.0.0.1';
+        }
     }
 
-    // Fallback for local development if no headers present or localhost/private IP
-    const isPrivateIP = !ipAddress || ipAddress === '::1' || ipAddress === '127.0.0.1' || ipAddress.startsWith('192.168.') || ipAddress.startsWith('10.');
-
-    if (isPrivateIP && process.env.NODE_ENV !== 'production') {
-        ipAddress = '198.51.100.1'; // RFC 5737 documentation IP (TEST-NET-2)
+    // Fallback for local development if no headers present
+    if (!ipAddress && process.env.NODE_ENV !== 'production') {
+        ipAddress = '127.0.0.1';
     }
 
     return { ipAddress, userAgent };

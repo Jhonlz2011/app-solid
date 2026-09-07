@@ -19,9 +19,7 @@ export function useMySessions() {
     return createQuery(() => ({
         queryKey: profileKeys.sessions(),
         queryFn: () => profileApi.getMySessions(),
-        staleTime: 60_000,
+        staleTime: STALE_TIME.SHORT,
         gcTime: STALE_TIME.MEDIUM,
-        refetchOnMount: false,
-        refetchOnWindowFocus: false,
     }));
 }

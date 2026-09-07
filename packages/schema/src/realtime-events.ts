@@ -49,6 +49,8 @@ export const RealtimeEvents = {
         UOM: 'uom',
         VEHICLES: 'vehicles',
         WAREHOUSES: 'warehouses',
+        INVENTORY: 'inventory',
+        TOOLS: 'tools',
     },
 } as const;
 

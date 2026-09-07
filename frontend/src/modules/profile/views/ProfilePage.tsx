@@ -2,7 +2,7 @@
 import { Component, Show, onMount, onCleanup, createMemo } from 'solid-js';
 import { useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
-import { useProfile } from '../data/profile.queries';
+import { useProfile, useMySessions } from '../data/profile.queries';
 import { useUpdateProfile, useChangePassword } from '../data/profile.mutations';
 import { profileKeys } from '../data/profile.keys';
 import { ScrollArea } from '@/layout/components/ScrollArea';
@@ -46,11 +46,13 @@ const ProfilePage: Component = () => {
     const queryClient = useQueryClient();
 
     const profileQuery = useProfile();
+    const sessionsQuery = useMySessions();
     const updateProfileMutation = useUpdateProfile();
     const changePasswordMutation = useChangePassword();
 
     // Stable profile reference - prevents re-renders on refetch when data hasn't changed
     const profile = createMemo(() => profileQuery.data);
+    const sessionsCount = () => sessionsQuery.data?.length;
 
     // Listen for profile updates from other tabs (via centralized broadcast store)
     onMount(() => {
@@ -122,7 +124,7 @@ const ProfilePage: Component = () => {
                                     <span class="hidden sm:inline">Seguridad</span>
                                 </TabsTrigger>
 
-                                <TabsTrigger value="sessions">
+                                <TabsTrigger value="sessions" count={sessionsCount()}>
                                     <DeviceIcon class="size-4" />
                                     <span class="hidden sm:inline">Sesiones</span>
                                 </TabsTrigger>

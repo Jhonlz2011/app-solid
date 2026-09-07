@@ -52,7 +52,7 @@ export const createRoleModals = (parentRoute: any, basePath = 'role') => {
         beforeLoad: ({ search }) => {
             throw redirect({
                 to: parentRoute.fullPath,
-                search: (search && Object.keys(search).length > 0) ? search : { tab: 'roles' },
+                search: ((search && Object.keys(search).length > 0) ? search : { tab: 'roles' }) as any,
             });
         },
     });

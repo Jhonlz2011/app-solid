@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal } from 'solid-js';
+import { Component, For, Show, createSignal, createMemo } from 'solid-js';
 import type { AuditLogEntryType } from '@app/schema/dto';
 export type { AuditLogEntryType };
 import { formatSessionDate } from '@shared/utils/session.utils';
@@ -16,8 +16,8 @@ const AuditDiffView: Component<{ entry: AuditLogEntryType }> = (props) => {
     const oldData = () => props.entry.oldData as Record<string, unknown> | null | undefined;
     const newData = () => props.entry.newData as Record<string, unknown> | null | undefined;
 
-    const changes = () => computeDiff(oldData(), newData());
-    const hasData = () => oldData() || newData();
+    const changes = createMemo(() => computeDiff(oldData(), newData()));
+    const hasData = () => Boolean(oldData() || newData());
 
     return (
         <Show when={hasData() && changes().length > 0}>

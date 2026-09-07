@@ -156,7 +156,7 @@ export const ToolLoanNewSheet: Component<ToolLoanNewSheetProps> = (props) => {
                                 <For each={employeesQuery.data?.data || []}>
                                     {(emp) => (
                                         <option value={emp.id}>
-                                            {emp.business_name} ({emp.identification_number || (emp as any).tax_id || ''})
+                                            {emp.business_name} ({emp.tax_id || ''})
                                         </option>
                                     )}
                                 </For>

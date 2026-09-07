@@ -1,4 +1,4 @@
-import { db } from '../../core/db';
+import { adminDb } from '../../core/db';
 import { sessions } from '@app/schema/tables';
 import { eq, and, gt } from '@app/schema';
 import { cacheService } from '../../core/cache';
@@ -19,7 +19,7 @@ export class AuthError extends DomainError {
  */
 export async function getActiveSessions(userId: string | number, currentSessionId?: string) {
   const userIdStr = String(userId);
-  const activeSessions = await db
+  const activeSessions = await adminDb
     .select({
       id: sessions.id,
       userAgent: sessions.userAgent,
@@ -37,8 +37,22 @@ export async function getActiveSessions(userId: string | number, currentSessionI
     .orderBy(sessions.createdAt);
 
   const mapped = activeSessions.map((s) => {
-    const geo = s.ipAddress ? geoip.lookup(s.ipAddress) : null;
-    const location = geo ? `${geo.city}, ${geo.country}` : null;
+    let location: string | null = null;
+    if (s.ipAddress) {
+      if (
+        s.ipAddress === '127.0.0.1' ||
+        s.ipAddress === '::1' ||
+        s.ipAddress.startsWith('192.168.') ||
+        s.ipAddress.startsWith('10.') ||
+        s.ipAddress.startsWith('172.') ||
+        s.ipAddress === 'localhost'
+      ) {
+        location = 'Red local / Dev';
+      } else {
+        const geo = geoip.lookup(s.ipAddress);
+        location = geo ? `${geo.city ? `${geo.city}, ` : ''}${geo.country}` : null;
+      }
+    }
 
     return {
       id: s.id,
@@ -46,7 +60,7 @@ export async function getActiveSessions(userId: string | number, currentSessionI
       ip_address: s.ipAddress,
       location,
       created_at: s.createdAt,
-      is_current: s.id === currentSessionId,
+      is_current: Boolean(currentSessionId && s.id === currentSessionId),
     };
   });
 
@@ -62,7 +76,7 @@ export async function getActiveSessions(userId: string | number, currentSessionI
  */
 export async function revokeSession(sessionId: string, userId: string | number) {
   const userIdStr = String(userId);
-  const deleted = await db
+  const deleted = await adminDb
     .delete(sessions)
     .where(and(eq(sessions.id, sessionId), eq(sessions.userId, userIdStr)))
     .returning({ id: sessions.id, token: sessions.token });
