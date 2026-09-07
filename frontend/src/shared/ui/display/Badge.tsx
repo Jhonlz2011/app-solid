@@ -76,8 +76,8 @@ const counterPresentations: Record<CounterVariant, string> = {
     cyan: "bg-cyan-500/15 text-cyan-600",
     indigo: "bg-indigo-500/15 text-indigo-600",
     default: "bg-muted/15 text-muted",
-    tab: "bg-surface/50 text-muted border border-border/50 group-hover:bg-primary/10 group-hover:text-text/80 group-data-[selected]:bg-primary/15 group-data-[selected]:text-text transition-colors",
-    "tab-pill": "bg-surface/50 text-muted border border-border group-hover:bg-card-alt group-hover:border-border-strong group-hover:text-heading group-data-[selected]:bg-white/60 group-data-[selected]:border-transparent group-data-[selected]:text-primary-strong transition-colors",
+    tab: "bg-surface/50 text-muted border border-border/50 group-hover:bg-primary/10 group-hover:text-text/80 group-data-[selected]:bg-primary/15 group-data-[selected]:text-text",
+    "tab-pill": "bg-surface/50 text-muted border border-border group-hover:bg-card-alt group-hover:border-border-strong group-hover:text-heading group-data-[selected]:bg-white/60 group-data-[selected]:border-transparent group-data-[selected]:text-primary-strong",
 };
 
 export const CounterBadge: Component<CounterBadgeProps> = (props) => {

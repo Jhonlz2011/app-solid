@@ -6,7 +6,7 @@ import { adminDb } from '../core/db';
 import { redis } from '../core/cache/redis';
 import { broadcastToUser } from '../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
-import { eq, and, gt, asc, inArray } from '@app/schema';
+import { eq, and, gt, asc, inArray, sql } from '@app/schema';
 import * as schema from '@app/schema/tables';
 import { emailService } from '../core/email';
 import { env } from './env';
@@ -184,7 +184,7 @@ export async function enforceMaxActiveSessions(userId: string, maxSessions = 5):
             .where(
                 and(
                     eq(schema.session.userId, userId),
-                    gt(schema.session.expiresAt, new Date())
+                    sql`${schema.session.expiresAt} > NOW()`
                 )
             )
             .orderBy(asc(schema.session.createdAt));
@@ -379,7 +379,7 @@ export const auth = betterAuth({
                     let ipAddress = sess.ipAddress;
                     let userAgent = sess.userAgent;
 
-                    const headers = (context as any)?.headers as Headers | undefined;
+                    const headers = ((context as any)?.headers || (context as any)?.request?.headers) as Headers | undefined;
                     if (headers) {
                         const extractedIp =
                             headers.get('cf-connecting-ip') ||

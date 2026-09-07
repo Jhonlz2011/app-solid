@@ -207,3 +207,11 @@ html, body, #root {
   position: relative;
   z-index: 10;
 }
+
+/* Kobalte Tab Visibility Contract: Guarantees panels display on selection and hide on unselect */
+[role="tabpanel"]:not([data-selected]) {
+  display: none !important;
+}
+[role="tabpanel"][data-selected] {
+  display: block !important;
+}

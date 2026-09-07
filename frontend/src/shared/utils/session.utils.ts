@@ -9,7 +9,7 @@ import { UAParser } from 'ua-parser-js';
 /**
  * Parse a User-Agent string into human-readable browser/OS info and a device icon SVG path.
  */
-export const parseUserAgent = (ua: string | null): { browser: string; os: string; icon: string } => {
+export const parseUserAgent = (ua?: string | null): { browser: string; os: string; icon: string } => {
     if (!ua) return { browser: 'Desconocido', os: 'Desconocido', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' };
     const parser = new UAParser(ua);
     const result = parser.getResult();

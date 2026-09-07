@@ -29,8 +29,6 @@ export const SessionsSection: Component = () => {
     const revokeMutation = useRevokeMySession();
 
     // ── Real-time session updates ──
-    const [cleanupFns, setCleanupFns] = createSignal<(() => void)[]>([]);
-
     createEffect(() => {
         const userId = auth.user()?.id;
         if (!userId) return;
@@ -46,14 +44,12 @@ export const SessionsSection: Component = () => {
         window.addEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged);
         window.addEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged);
 
-        setCleanupFns([
-            cleanupBroadcast,
-            () => window.removeEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged),
-            () => window.removeEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged),
-        ]);
+        onCleanup(() => {
+            cleanupBroadcast();
+            window.removeEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged);
+            window.removeEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged);
+        });
     });
-
-    onCleanup(() => cleanupFns().forEach(fn => fn()));
 
     // ── Handlers ──
     const handleRevoke = async (sessionId: string) => {

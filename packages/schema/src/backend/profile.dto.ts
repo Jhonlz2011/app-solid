@@ -65,10 +65,10 @@ export const UpdateProfileResponseSchema = Type.Object({
 
 export const UserSessionResponseSchema = Type.Object({
     id: Type.String(),
-    user_agent: Type.Union([Type.String(), Type.Null()]),
-    ip_address: Type.Union([Type.String(), Type.Null()]),
-    location: Type.Union([Type.String(), Type.Null()]),
-    created_at: Type.Date(),
+    user_agent: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    ip_address: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    location: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    created_at: Type.Union([Type.Date(), Type.String()]),
     is_current: Type.Boolean(),
 });
 

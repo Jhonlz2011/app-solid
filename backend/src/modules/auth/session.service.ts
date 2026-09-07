@@ -1,6 +1,6 @@
 import { adminDb } from '../../core/db';
 import { sessions } from '@app/schema/tables';
-import { eq, and, gt } from '@app/schema';
+import { eq, and, or, sql } from '@app/schema';
 import { cacheService } from '../../core/cache';
 import { broadcastToUser } from '../../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
@@ -31,7 +31,10 @@ export async function getActiveSessions(userId: string | number, currentSessionI
     .where(
       and(
         eq(sessions.userId, userIdStr),
-        gt(sessions.expiresAt, new Date()),
+        or(
+          sql`${sessions.expiresAt} > NOW()`,
+          currentSessionId ? eq(sessions.id, currentSessionId) : sql`false`
+        )
       )
     )
     .orderBy(sessions.createdAt);
@@ -56,9 +59,9 @@ export async function getActiveSessions(userId: string | number, currentSessionI
 
     return {
       id: s.id,
-      user_agent: s.userAgent,
-      ip_address: s.ipAddress,
-      location,
+      user_agent: s.userAgent ?? null,
+      ip_address: s.ipAddress ?? null,
+      location: location ?? null,
       created_at: s.createdAt,
       is_current: Boolean(currentSessionId && s.id === currentSessionId),
     };

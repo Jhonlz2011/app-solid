@@ -30,7 +30,7 @@ export const TabsList: Component<Parameters<typeof KTabs.List>[0] & { class?: st
             {/* INDICADOR (FONDO MÓVIL) */}
             <KTabs.Indicator
                 class={cn(
-                    "absolute left-0 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] z-0",
+                    "absolute left-0 transition-all duration-300 ease-cubic-bezier(0.4,0,0.2,1) z-0",
                     isPills()
                         ? "inset-y-0 bg-primary-strong border border-primary/50 rounded-full shadow-[0_10px_30px_color-mix(in_srgb,var(--color-primary)_35%,transparent)]"
                         : "inset-y-1 bg-surface shadow-sm rounded-lg border border-border/10",
@@ -61,7 +61,7 @@ export const TabsTrigger: Component<TabsTriggerProps> = (props) => {
         <KTabs.Trigger
             {...others}
             class={cn(
-                "group relative z-10 flex cursor-pointer items-center justify-center gap-2 outline-none transition-colors",
+                "group relative z-10 flex cursor-pointer items-center justify-center gap-2 outline-none",
                 isPills()
                     ? "font-semibold rounded-full border border-border-strong px-[1.15rem] py-[0.45rem] text-[0.9rem] text-muted hover:border-primary/50 hover:bg-card-alt hover:text-heading data-selected:border-transparent data-selected:text-primary-strong"
                     : "flex-1 py-2 px-3 text-sm font-medium rounded-lg text-muted hover:text-heading hover:bg-surface/40 data-selected:text-heading focus-visible:ring-2 focus-visible:ring-primary/50",
@@ -97,7 +97,11 @@ export const TabsContent: Component<Parameters<typeof KTabs.Content>[0] & { clas
         <KTabs.Content
             {...others}
             forceMount={local.forceMount}
-            class={cn("hidden data-selected:block outline-none", local.class)}
+            class={cn(
+                local.forceMount ? "hidden data-selected:block" : "data-selected:block",
+                "outline-none",
+                local.class
+            )}
         />
     );
 };
