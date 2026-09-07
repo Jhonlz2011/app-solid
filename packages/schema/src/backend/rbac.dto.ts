@@ -61,6 +61,7 @@ export const RoleUserResponseSchema = Type.Object({
     id: Type.String(),
     username: Type.String(),
     email: Type.String(),
+    image: Type.Union([Type.String(), Type.Null()]),
     isActive: Type.Union([Type.Boolean(), Type.Null()]),
 });
 
@@ -92,6 +93,7 @@ export const UserListItemResponseSchema = Type.Object({
     id: Type.String(),
     username: Type.String(),
     email: Type.String(),
+    image: Type.Union([Type.String(), Type.Null()]),
     isActive: Type.Union([Type.Boolean(), Type.Null()]),
     lastLogin: Type.Union([Type.Date(), Type.Null()]),
     entityId: Type.Union([Type.String(), Type.Null()]),
@@ -103,6 +105,7 @@ export const UserDetailResponseSchema = Type.Object({
     id: Type.String(),
     username: Type.String(),
     email: Type.String(),
+    image: Type.Union([Type.String(), Type.Null()]),
     isActive: Type.Union([Type.Boolean(), Type.Null()]),
     lastLogin: Type.Union([Type.Date(), Type.Null()]),
     entityId: Type.Union([Type.String(), Type.Null()]),

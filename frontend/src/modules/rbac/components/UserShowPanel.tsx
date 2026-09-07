@@ -81,7 +81,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                 {/* Header */}
                                 <div class="flex items-start justify-between shrink-0">
                                     <div class="flex items-center gap-4">
-                                        <Avatar name={user.username} size="lg" />
+                                        <Avatar name={user.username} src={user.image} size="lg" shape="rounded" class="size-12 rounded-xl" />
                                         <div class="flex flex-col gap-1">
                                             <h3 class="text-xl font-bold text-text leading-tight">{user.username}</h3>
                                             <p class="text-sm text-muted font-medium">{user.email}</p>

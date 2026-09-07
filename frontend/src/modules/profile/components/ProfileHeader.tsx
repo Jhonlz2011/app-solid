@@ -1,6 +1,6 @@
 // Profile Header Component
 import { Component, For, createMemo, Show } from 'solid-js';
-import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
+import { Avatar } from '@display/Avatar';
 import type { ProfileType } from '@app/schema/dto';
 import { Badge, RoleBadge } from '@display/Badge';
 import { useAuth } from '@modules/auth/store/auth.store';
@@ -49,35 +49,18 @@ export const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
         props.profile?.entity?.businessName || auth.user()?.username || props.profile?.email || ''
     );
 
-    const avatarStyle = createMemo(() => getAvatarGradientStyle(displayName()));
-    const initials = createMemo(() => getInitials(displayName()));
-
     return (
         <Show when={!props.isLoading} fallback={<ProfileHeaderSkeleton />}>
             <div class="mb-8">
                 <div class="flex flex-col sm:flex-row items-center gap-5">
                     {/* Large Avatar - Supports image with fallback to gradient initials */}
-                    <div class="size-20 sm:size-24 rounded-2xl shadow-lg shrink-0 overflow-hidden">
-                        <Show
-                            when={props.profile?.image}
-                            fallback={
-                                <div
-                                    class="w-full h-full flex items-center justify-center text-white font-bold text-2xl sm:text-3xl"
-                                    style={avatarStyle()}
-                                >
-                                    {initials()}
-                                </div>
-                            }
-                        >
-                            {(img) => (
-                                <img
-                                    src={img()}
-                                    alt={displayName()}
-                                    class="w-full h-full object-cover"
-                                />
-                            )}
-                        </Show>
-                    </div>
+                    <Avatar
+                        name={displayName()}
+                        src={props.profile?.image || auth.user()?.image}
+                        size="2xl"
+                        shape="rounded"
+                        class="size-20 sm:size-24 rounded-2xl shadow-lg"
+                    />
 
                     {/* User Info */}
                     <div class="flex-1 text-center sm:text-left">

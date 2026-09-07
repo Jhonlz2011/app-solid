@@ -1,7 +1,7 @@
 import { Component, createSignal, Show } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { useAuth } from '@modules/auth/store/auth.store';
-import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
+import { Avatar } from '@display/Avatar';
 import { useMobileSidebar } from '@shared/store/layout.store';
 import { clickOutside } from '@shared/directives/clickOutside';
 import { useLogout } from '@modules/auth/hooks/useLogout';
@@ -20,7 +20,7 @@ const MobileHeader: Component = () => {
     
     const { handleLogout, isLoggingOut } = useLogout();
     
-    const userName = () => auth.user()?.username || 'Usuario';
+    const userName = () => auth.user()?.name || auth.user()?.username || 'Usuario';
     const userRole = () => auth.user()?.roles?.[0] || 'Usuario';
 
     const handleNavClick = () => {
@@ -54,13 +54,18 @@ const MobileHeader: Component = () => {
             <div class="relative" use:clickOutside={() => setShowUserMenu(false)}>
                 <button
                     onClick={() => setShowUserMenu(!showUserMenu())}
-                    class="size-9 rounded-xl flex items-center justify-center text-white font-semibold text-xs shadow-sm hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
-                    style={getAvatarGradientStyle(userName())}
+                    class="size-9 rounded-xl overflow-hidden flex items-center justify-center shadow-sm hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
                     aria-label="Menú de usuario"
                     aria-expanded={showUserMenu()}
                     aria-haspopup="menu"
                 >
-                    {getInitials(userName())}
+                    <Avatar
+                        name={userName()}
+                        src={auth.user()?.image}
+                        size="sm"
+                        shape="rounded"
+                        class="size-9 rounded-xl"
+                    />
                 </button>
 
                 <Show when={showUserMenu()}>

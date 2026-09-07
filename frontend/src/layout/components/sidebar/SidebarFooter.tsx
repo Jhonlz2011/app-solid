@@ -1,6 +1,6 @@
-import { Component, Show, createMemo } from 'solid-js';
+import { Component, Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
-import { getAvatarGradientStyle, getInitials } from '@shared/utils/avatar';
+import { Avatar } from '@display/Avatar';
 import ThemeToggle from '../ThemeToggle';
 import { useSidebar } from './SidebarContext';
 import { LogoutIcon } from '@icons/LogoutIcon';
@@ -21,8 +21,6 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
 
     const name = () => props.userName || 'Usuario';
     const role = () => props.userRole || 'Usuario';
-    const avatarStyle = createMemo(() => getAvatarGradientStyle(name()));
-    const initials = createMemo(() => getInitials(name()));
 
     const handleNavClick = () => {
         if (isMobileViewport()) setIsMobileOpen(false);
@@ -35,27 +33,13 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
         >
             {/* Avatar — always visible, on top */}
             <div class="absolute inset-0 flex items-center px-4 sm:pl-5 pointer-events-none z-10">
-                <div class="size-10 rounded-xl shadow-sm shrink-0 overflow-hidden">
-                    <Show
-                        when={props.userImage}
-                        fallback={
-                            <div
-                                class="w-full h-full flex items-center justify-center text-white font-semibold text-sm"
-                                style={avatarStyle()}
-                            >
-                                {initials()}
-                            </div>
-                        }
-                    >
-                        {(img) => (
-                            <img
-                                src={img()}
-                                alt={name()}
-                                class="w-full h-full object-cover"
-                            />
-                        )}
-                    </Show>
-                </div>
+                <Avatar
+                    name={name()}
+                    src={props.userImage}
+                    size="md"
+                    shape="rounded"
+                    class="size-10 rounded-xl shadow-xs"
+                />
             </div>
 
             {/* COLLAPSED: avatar doubles as menu trigger → DropdownMenu */}
@@ -113,6 +97,7 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                         disabled={isLoggingOut()}
                         loading={isLoggingOut()}
                         title="Cerrar Sesión"
+                        class='text-danger'
                         aria-label="Cerrar Sesión"
                         icon={<LogoutIcon class="size-5" />}
                     />

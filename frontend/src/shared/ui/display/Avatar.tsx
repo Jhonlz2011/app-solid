@@ -1,62 +1,84 @@
-import { Component, splitProps } from 'solid-js';
+import { Component, createSignal, createMemo, createEffect, Show, splitProps } from 'solid-js';
 import { cn } from '../../lib/utils';
+import { getAvatarGradientStyle, getInitials } from '../../utils/avatar';
 
-interface AvatarProps {
+export interface AvatarProps {
     /** Full name or username — first 2 chars become initials */
     name: string;
-    size?: 'sm' | 'md' | 'lg';
+    /** Image URL (e.g. from OAuth Google/Microsoft). If absent or fails to load, falls back to gradient initials */
+    src?: string | null;
+    /** Accessible alt text (defaults to name) */
+    alt?: string;
+    /** Size preset */
+    size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+    /** Shape: 'circle' (rounded-full) or 'rounded' (rounded-xl / rounded-2xl) */
+    shape?: 'circle' | 'rounded';
     class?: string;
 }
 
-const sizeClasses = {
-    sm: 'w-8 h-8 text-xs',
-    md: 'w-10 h-10 text-sm',
-    lg: 'w-12 h-12 text-base',
+const sizeClasses: Record<NonNullable<AvatarProps['size']>, string> = {
+    sm: 'size-8 text-xs',
+    md: 'size-10 text-sm',
+    lg: 'size-12 text-base',
+    xl: 'size-16 text-xl',
+    '2xl': 'size-20 sm:size-24 text-2xl sm:text-3xl',
 };
 
-/** 8 gradient pairs — deterministic by name hash */
-const gradients = [
-    'from-blue-500/20 to-purple-600/40',
-    'from-emerald-500/20 to-teal-600/40',
-    'from-amber-500/20 to-orange-600/40',
-    'from-rose-500/20 to-pink-600/40',
-    'from-cyan-500/20 to-sky-600/40',
-    'from-violet-500/20 to-indigo-600/40',
-    'from-lime-500/20 to-green-600/40',
-    'from-fuchsia-500/20 to-purple-600/40',
-];
-
-/** Stable hash → pick gradient index */
-function hashName(name: string): number {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
-    }
-    return Math.abs(hash);
-}
-
 /**
- * Deterministic avatar with initials and gradient.
- * Color is derived from the name so same name always = same color.
+ * Resilient Avatar component supporting OAuth images with deterministic gradient fallback.
+ * 
+ * - Renders OAuth avatar via <img> with lazy loading and referrerpolicy="no-referrer" (crucial for Google OAuth).
+ * - Reactively switches to deterministic initials + gradient on network/CORS error (onError) or when src is absent.
  */
 export const Avatar: Component<AvatarProps> = (props) => {
-    const [local, rest] = splitProps(props, ['name', 'size', 'class']);
-    const initials = () => local.name.slice(0, 2).toUpperCase();
-    const gradient = () => gradients[hashName(local.name) % gradients.length];
-    const size = () => sizeClasses[local.size ?? 'md'];
+    const [local, rest] = splitProps(props, ['name', 'src', 'alt', 'size', 'shape', 'class']);
+
+    const [imageError, setImageError] = createSignal(false);
+
+    // Reset error state whenever the image source changes
+    createEffect(() => {
+        local.src;
+        setImageError(false);
+    });
+
+    const showImage = createMemo(() => Boolean(local.src && !imageError()));
+    const avatarStyle = createMemo(() => getAvatarGradientStyle(local.name || ''));
+    const initials = createMemo(() => getInitials(local.name || ''));
+
+    const shapeClass = () => {
+        if (local.shape === 'circle') return 'rounded-full';
+        return local.size === '2xl' ? 'rounded-2xl' : 'rounded-xl';
+    };
 
     return (
         <div
             class={cn(
-                'rounded-full bg-linear-to-br flex items-center justify-center ring-1 ring-white/10 font-semibold select-none',
-                gradient(),
-                size(),
+                'relative inline-flex items-center justify-center shrink-0 overflow-hidden select-none font-semibold shadow-xs',
+                shapeClass(),
+                sizeClasses[local.size ?? 'md'],
                 local.class,
             )}
-            style={{ color: 'var(--color-primary)' }}
+            style={!showImage() ? avatarStyle() : undefined}
             {...rest}
         >
-            {initials()}
+            <Show
+                when={showImage()}
+                fallback={
+                    <span class="text-white font-bold leading-none">
+                        {initials()}
+                    </span>
+                }
+            >
+                <img
+                    src={local.src!}
+                    alt={local.alt || local.name}
+                    class="w-full h-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                    referrerpolicy="no-referrer"
+                    onError={() => setImageError(true)}
+                />
+            </Show>
         </div>
     );
 };

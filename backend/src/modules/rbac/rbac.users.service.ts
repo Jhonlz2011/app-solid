@@ -148,6 +148,7 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
             username: authUsers.username,
             name: authUsers.name,
             email: authUsers.email,
+            image: authUsers.image,
             isActive: authUsers.is_active,
             lastLogin: authUsers.last_login,
             entityId: entities.id,
@@ -204,6 +205,7 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
             id: user.id,
             username: user.username || user.name,
             email: user.email,
+            image: user.image ?? null,
             isActive: user.isActive,
             lastLogin: user.lastLogin,
             entityId: user.entityId,
@@ -333,6 +335,7 @@ export async function getUserById(id: string | number, companyId?: number) {
             username: true,
             name: true,
             email: true,
+            image: true,
             is_active: true,
             last_login: true,
         },
@@ -395,6 +398,7 @@ export async function getUserById(id: string | number, companyId?: number) {
         id: user.id,
         username: user.username || user.name,
         email: user.email,
+        image: user.image ?? null,
         isActive: user.is_active,
         lastLogin: user.last_login,
         entityId,
@@ -879,13 +883,14 @@ export async function getUsersByRole(roleId: number, companyId?: number) {
             username: authUsers.username,
             name: authUsers.name,
             email: authUsers.email,
+            image: authUsers.image,
             isActive: authUsers.is_active,
         })
         .from(authUserRoles)
         .innerJoin(authUsers, eq(authUserRoles.user_id, authUsers.id))
         .where(and(...conditions));
 
-    return usersInRole.map(u => ({ ...u, username: u.username || u.name }));
+    return usersInRole.map(u => ({ ...u, username: u.username || u.name, image: u.image ?? null }));
 }
 
 /**

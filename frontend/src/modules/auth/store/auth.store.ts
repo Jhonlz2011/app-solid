@@ -25,8 +25,8 @@ let currentSessionId: string | null = null;
 let currentActiveOrgId: string | null = null;
 
 // Helper to strip non-serializable fields from ProfileType before sending via BroadcastChannel
-const sanitizeUser = ({ id, username, email, roles, permissions, entity }: ProfileType): Partial<ProfileType> =>
-    ({ id, username, email, roles, permissions, entity });
+const sanitizeUser = ({ id, username, email, roles, permissions, entity, image }: ProfileType): Partial<ProfileType> =>
+    ({ id, username, email, roles, permissions, entity, image });
 
 // --- ESTADO REACTIVO ---
 interface AuthState {

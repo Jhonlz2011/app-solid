@@ -103,7 +103,7 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
                     class="flex items-center gap-3 min-w-0 pl-2 cursor-pointer group/cell"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <Avatar name={info.row.original.username} size="sm" />
+                    <Avatar name={info.row.original.username} src={info.row.original.image} size="sm" shape="circle" />
                     <div class="min-w-0">
                         <div class="font-medium text-text truncate group-hover/cell:text-primary transition-colors duration-150">{info.row.original.username}</div>
                         <div class="text-xs text-muted truncate">{info.row.original.email}</div>

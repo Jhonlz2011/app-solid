@@ -207,7 +207,7 @@ export const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
                                         </p>
                                     }
                                 >
-                                    <For each={availableUsers()}>
+                                     <For each={availableUsers()}>
                                         {(user) => (
                                             <Button
                                                 variant="ghost"
@@ -216,7 +216,7 @@ export const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
                                                 onClick={() => handleAssign(user.id, user.username)}
                                                 disabled={assignMutation.isPending}
                                             >
-                                                <Avatar name={user.username} size="sm" />
+                                                <Avatar name={user.username} src={user.image} size="sm" shape="circle" />
                                                 <div class="flex-1 min-w-0">
                                                     <div class="text-sm font-medium text-text truncate">{user.username}</div>
                                                     <div class="text-xs text-muted truncate">{user.email}</div>
@@ -254,9 +254,9 @@ export const RoleUsersDialog: Component<RoleUsersDialogProps> = (props) => {
                         >
                             <div class="space-y-1">
                                 <For each={filteredRoleUsers()}>
-                                    {(user: any) => (
+                                    {(user: RoleUserType) => (
                                         <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface/50 transition-colors group/item">
-                                            <Avatar name={user.username} size="sm" />
+                                            <Avatar name={user.username} src={user.image} size="sm" shape="circle" />
                                             <div class="flex-1 min-w-0">
                                                 <div class="text-sm font-medium text-text truncate">{user.username}</div>
                                                 <div class="text-xs text-muted truncate">{user.email}</div>
