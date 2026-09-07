@@ -30,7 +30,7 @@ export const TabsList: Component<Parameters<typeof KTabs.List>[0] & { class?: st
             {/* INDICADOR (FONDO MÓVIL) */}
             <KTabs.Indicator
                 class={cn(
-                    "absolute left-0 transition-all duration-300 ease-cubic-bezier(0.4,0,0.2,1) z-0",
+                    "absolute left-0 transition-transform duration-300 ease-cubic-bezier(0.4,0,0.2,1) z-0",
                     isPills()
                         ? "inset-y-0 bg-primary-strong border border-primary/50 rounded-full shadow-[0_10px_30px_color-mix(in_srgb,var(--color-primary)_35%,transparent)]"
                         : "inset-y-1 bg-surface shadow-sm rounded-lg border border-border/10",

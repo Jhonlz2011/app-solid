@@ -8,6 +8,8 @@ import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { InfoIcon } from '@icons/InfoIcon';
+import { BanIcon } from '@icons/BanIcon';
+import { RotateCcwIcon } from '@icons/RotateCcwIcon';
 import { SkeletonLoader } from '@display/SkeletonLoader';
 import { useUser, useRoles } from '../data/users.queries';
 import {
@@ -120,6 +122,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                         <Button
                             variant={(userQuery.data?.isActive ?? true) ? 'danger' : 'success'}
                             onClick={handleToggleActive}
+                            icon={(userQuery.data?.isActive ?? true) ? <BanIcon class="size-4" /> : <RotateCcwIcon class="size-4" />}
                             loading={deactivateMut.isPending || restoreMut.isPending}
                             loadingText={(userQuery.data?.isActive ?? true) ? 'Desactivando...' : 'Restaurando...'}
                             disabled={isPending()}

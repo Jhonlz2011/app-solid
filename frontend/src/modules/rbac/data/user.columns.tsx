@@ -16,6 +16,7 @@ import Checkbox from '@form/Checkbox';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 import ActionMenu from '@shared/ui/overlay/ActionMenu';
+import { BanIcon } from '@icons/BanIcon';
 
 /** Filter configuration for a single column - uses accessors for SolidJS reactivity */
 export interface ColumnFilterConfig {
@@ -177,9 +178,9 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
 
                 const entityPath = () => {
                     if (!user.entityId) return null;
-                    if (entity.isEmployee) return `/users/employee/${user.entityId}/show`;
-                    if (entity.isClient) return `/users/client/${user.entityId}/show`;
-                    if (entity.isSupplier) return `/users/supplier/${user.entityId}/show`;
+                    if (entity.isEmployee) return `/users/employees/${user.entityId}/show`;
+                    if (entity.isClient) return `/users/clients/${user.entityId}/show`;
+                    if (entity.isSupplier) return `/users/suppliers/${user.entityId}/show`;
                     return null;
                 };
 
@@ -283,6 +284,8 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
                         isActive={user.isActive ?? false}
                         showTo={`/users/${user.id}/show`}
                         editTo={`/users/${user.id}/edit`}
+                        deleteLabel="Desactivar"
+                        deleteIcon={<BanIcon class="size-4 mr-2" />}
                         onRestore={isSuperadmin ? undefined : () => handlers.onRestore(user)}
                         onDelete={isSuperadmin ? undefined : () => handlers.onDelete(user)}
                     />

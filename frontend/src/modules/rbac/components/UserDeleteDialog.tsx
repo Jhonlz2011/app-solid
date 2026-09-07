@@ -9,6 +9,7 @@ import {
 import type { UserListItemType, UserReferencesType } from '@app/schema/dto';
 
 import DeleteDialog from '@overlay/DeleteDialog';
+import { BanIcon } from '@icons/BanIcon';
 
 export interface UserDeleteDialogProps {
     user: UserListItemType | null;
@@ -64,8 +65,10 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
             onClose={props.onClose}
             onConfirm={handleConfirm}
             onModeChange={setMode}
-            title="Eliminar usuario"
+            title="Desactivar usuario"
             description={props.user?.username}
+            icon={<BanIcon class="size-4 sm:size-5 text-danger" />}
+            softDeleteIcon={<BanIcon class="size-4 text-danger" />}
             allowHardDelete={canDestroy()}
             isLoading={isLoading()}
             softDeleteTitle="Desactivar"

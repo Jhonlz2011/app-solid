@@ -50,6 +50,10 @@ export interface ActionMenuProps {
     deleteLabel?: string;
     restoreLabel?: string;
 
+    /** Custom icons for default actions */
+    deleteIcon?: JSX.Element;
+    restoreIcon?: JSX.Element;
+
     /** Trigger & container styling */
     triggerTitle?: string;
     placement?: ActionMenuPlacement;
@@ -164,7 +168,7 @@ const ActionMenuComponent: Component<ActionMenuProps> = (props) => {
                     {/* Restaurar */}
                     <Show when={hasRestoreAction() && canRestore()}>
                         <DropdownMenu.Item onSelect={props.onRestore}>
-                            <RotateCcwIcon class="size-4 mr-2 text-emerald-500" />
+                            {props.restoreIcon ?? <RotateCcwIcon class="size-4 mr-2 text-emerald-500" />}
                             <span class="text-emerald-500 font-medium">{props.restoreLabel ?? 'Restaurar'}</span>
                         </DropdownMenu.Item>
                     </Show>
@@ -178,7 +182,7 @@ const ActionMenuComponent: Component<ActionMenuProps> = (props) => {
                             <DropdownMenu.Separator />
                         </Show>
                         <DropdownMenu.Item onSelect={props.onDelete} destructive>
-                            <TrashIcon class="size-4 mr-2" />
+                            {props.deleteIcon ?? <TrashIcon class="size-4 mr-2" />}
                             <span>{props.deleteLabel ?? 'Eliminar'}</span>
                         </DropdownMenu.Item>
                     </Show>

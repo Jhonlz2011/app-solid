@@ -19,6 +19,9 @@ export interface DeleteDialogProps {
     title: string;
     description?: string;
     
+    icon?: JSX.Element;
+    softDeleteIcon?: JSX.Element;
+    
     allowHardDelete?: boolean;
     isLoading?: boolean;
     
@@ -94,7 +97,7 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
                         <div class="flex items-start justify-between px-5 sm:px-6 pt-5 sm:pt-6 pb-4">
                             <div class="flex items-center gap-3 sm:gap-4">
                                 <div class="size-10 sm:size-12 rounded-xl sm:rounded-2xl bg-danger/10 border border-danger/20 flex items-center justify-center shrink-0">
-                                    <TrashIcon class="size-4 sm:size-5 text-danger" />
+                                    {props.icon ?? <TrashIcon class="size-4 sm:size-5 text-danger" />}
                                 </div>
                                 <div class="min-w-0">
                                     <Dialog.Title class="text-base sm:text-lg font-semibold text-text">
@@ -128,7 +131,7 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
                                         onSelect={() => setMode('soft')}
                                         indicator="radio"
                                         variant="danger"
-                                        icon={<EyeOffIcon class="size-4 text-danger" />}
+                                        icon={props.softDeleteIcon ?? <EyeOffIcon class="size-4 text-danger" />}
                                         title={props.softDeleteTitle}
                                         description={props.softDeleteDesc}
                                         badge="recomendado"

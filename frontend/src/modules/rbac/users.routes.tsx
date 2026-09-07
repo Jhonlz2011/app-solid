@@ -39,13 +39,13 @@ export const createUsersRoutes = (layoutRoute: any) => {
         component: UsersRolesPage,
     });
 
-    // Inject deep nested modals
+    // Inject deep nested modals (standardized to plural)
     usersRoute.addChildren([
         ...createUserModals(usersRoute),
         ...createRoleModals(usersRoute, 'role'),
-        ...createEmployeeModals(usersRoute, 'employee'),
-        ...createClientsModals(usersRoute, 'client'),
-        ...createSupplierModals(usersRoute, 'supplier'),
+        ...createEmployeeModals(usersRoute, 'employees'),
+        ...createClientsModals(usersRoute, 'clients'),
+        ...createSupplierModals(usersRoute, 'suppliers'),
     ]);
 
     return usersRoute;

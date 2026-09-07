@@ -31,6 +31,7 @@ import { IdCardIcon } from '@icons/IdCardIcon';
 import { UserKeyIcon } from '@icons/UserKeyIcon';
 import { PlusIcon } from '@icons/PlusIcon';
 import { TrashIcon } from '@icons/TrashIcon';
+import { BanIcon } from '@icons/BanIcon';
 import { CopyIcon } from '@icons/CopyIcon';
 import { RotateCcwIcon } from '@icons/RotateCcwIcon';
 import { ChevronsUpDownIcon } from '@icons/ChevronsUpDownIcon';
@@ -199,8 +200,8 @@ const UsersRolesPage: Component = () => {
                 <SelectionBarSeparator />
                 <Show when={state.selectedActiveCount() > 0 && state.selectedInactiveCount() === 0}>
                     <SelectionBarAction
-                        icon={<TrashIcon class="size-4" />} label="Eliminar" variant="danger"
-                        onClick={state.handleBulkDelete} loading={state.bulkDeleteMutation.isPending} loadingText="Eliminando..."
+                        icon={<BanIcon class="size-4" />} label="Desactivar" variant="danger"
+                        onClick={state.handleBulkDelete} loading={state.bulkDeleteMutation.isPending} loadingText="Desactivando..."
                     />
                 </Show>
                 <Show when={state.selectedInactiveCount() > 0 && state.selectedActiveCount() === 0}>
@@ -217,8 +218,8 @@ const UsersRolesPage: Component = () => {
                         </DropdownMenu.Trigger>
                         <DropdownMenu.Content class="min-w-45">
                             <DropdownMenu.Item onSelect={state.handleBulkDelete} destructive>
-                                <TrashIcon class="size-4 mr-2" />
-                                <span class="flex-1 font-medium">Eliminar Activos</span>
+                                <BanIcon class="size-4 mr-2" />
+                                <span class="flex-1 font-medium">Desactivar Activos</span>
                                 <span class="bg-danger/20 text-danger font-bold text-xs px-1.5 py-0.5 rounded tabular-nums">{state.selectedActiveCount()}</span>
                             </DropdownMenu.Item>
                             <DropdownMenu.Item onSelect={() => state.setShowBulkRestoreConfirm(true)}>

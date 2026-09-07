@@ -46,6 +46,10 @@ export interface ActionButtonsProps {
     deleteLabel?: string;
     restoreLabel?: string;
 
+    /** Custom icons for default actions */
+    deleteIcon?: JSX.Element;
+    restoreIcon?: JSX.Element;
+
     /** Container & button styling */
     class?: string;
     buttonClass?: string;
@@ -230,7 +234,7 @@ export const ActionButtons: Component<ActionButtonsProps> = (props) => {
                     )}
                     onClick={props.onRestore}
                 >
-                    <RotateCcwIcon class="size-4" />
+                    {props.restoreIcon ?? <RotateCcwIcon class="size-4" />}
                 </button>
             </Show>
 
@@ -248,7 +252,7 @@ export const ActionButtons: Component<ActionButtonsProps> = (props) => {
                     )}
                     onClick={props.onDelete}
                 >
-                    <TrashIcon class="size-4" />
+                    {props.deleteIcon ?? <TrashIcon class="size-4" />}
                 </button>
             </Show>
         </div>
