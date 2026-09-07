@@ -1,4 +1,4 @@
-import { db, adminDb } from '../../core/db';
+import { adminDb } from '../../core/db';
 import { authUsers as users, companies, member, entities } from '@app/schema/tables';
 import { eq, and } from '@app/schema';
 import type { ProfileEntityType } from '@app/schema/dto';
@@ -141,7 +141,7 @@ export async function updateProfile(
     return { success: true, message: 'Sin cambios' } as const;
   }
 
-  const [updated] = await db.update(users).set(updateData).where(eq(users.id, userIdStr)).returning({
+  const [updated] = await adminDb.update(users).set(updateData).where(eq(users.id, userIdStr)).returning({
     id: users.id,
     email: users.email,
     username: users.username,

@@ -29,8 +29,8 @@ export const profileRoutes = new Elysia({ prefix: '/profile' })
       response: UpdateProfileResponseSchema,
     }
   )
-  .get('/sessions', async ({ currentUserId, currentSessionId }) => {
-    return getActiveSessions(currentUserId, currentSessionId);
+  .get('/sessions', async ({ currentUserId, currentSessionId, currentSession }) => {
+    return getActiveSessions(currentUserId, currentSessionId, currentSession);
   }, {
     response: t.Array(UserSessionResponseSchema),
   })

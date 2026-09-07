@@ -1,14 +1,14 @@
 import { Elysia } from 'elysia';
 
-export const getIpAndUserAgent = (request: Request) => {
-    const userAgent = request.headers.get('user-agent') || 'Desconocido';
+export const extractIpFromHeaders = (headers: Headers | { get(name: string): string | null }) => {
+    const userAgent = headers.get('user-agent') || 'Desconocido';
 
     // Comprehensive IP extraction supporting Cloudflare, reverse proxies and load balancers
     let ipAddress =
-        request.headers.get('cf-connecting-ip') ||
-        request.headers.get('x-client-ip') ||
-        request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-        request.headers.get('x-real-ip') ||
+        headers.get('cf-connecting-ip') ||
+        headers.get('x-client-ip') ||
+        headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+        headers.get('x-real-ip') ||
         undefined;
 
     if (ipAddress) {
@@ -29,6 +29,8 @@ export const getIpAndUserAgent = (request: Request) => {
 
     return { ipAddress, userAgent };
 };
+
+export const getIpAndUserAgent = (request: Request) => extractIpFromHeaders(request.headers);
 
 export const ipPlugin = new Elysia({ name: 'ip-plugin' })
     .derive(({ request }) => {

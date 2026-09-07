@@ -134,6 +134,7 @@ export const authGuard = (app: Elysia) => app
         currentUserId: user.id,
         currentCompanyId: resolvedCompanyId,
         currentSessionId: session.id,
+        currentSession: session,
         currentRoles: roles,
         currentPermissions: permissions,
         currentUser: user,

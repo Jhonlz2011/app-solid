@@ -15,10 +15,69 @@ export class AuthError extends DomainError {
 }
 
 /**
- * Get active sessions for a user with geoip location info
+ * Resolves a human-friendly location string from an IP address.
  */
-export async function getActiveSessions(userId: string | number, currentSessionId?: string) {
+function resolveLocation(ipAddress: string | null): string | null {
+  if (!ipAddress) return null;
+  if (
+    ipAddress === '127.0.0.1' ||
+    ipAddress === '::1' ||
+    ipAddress.startsWith('192.168.') ||
+    ipAddress.startsWith('10.') ||
+    ipAddress.startsWith('172.') ||
+    ipAddress === 'localhost'
+  ) {
+    return 'Red local / Dev';
+  }
+  const geo = geoip.lookup(ipAddress);
+  return geo ? `${geo.city ? `${geo.city}, ` : ''}${geo.country}` : null;
+}
+
+export async function getActiveSessions(
+  userId: string | number,
+  currentSessionId?: string,
+  currentSession?: {
+    id: string;
+    token?: string;
+    userId?: string;
+    expiresAt?: Date | string;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    activeOrganizationId?: string | null;
+  }
+) {
   const userIdStr = String(userId);
+
+  // Resilient Session Sync: Ensure active Better-Auth session is persisted to Postgres
+  if (currentSession?.id) {
+    try {
+      await adminDb
+        .insert(sessions)
+        .values({
+          id: currentSession.id,
+          token: currentSession.token || currentSession.id,
+          userId: userIdStr,
+          expiresAt: currentSession.expiresAt ? new Date(currentSession.expiresAt) : new Date(Date.now() + 7 * 24 * 3600 * 1000),
+          createdAt: currentSession.createdAt ? new Date(currentSession.createdAt) : new Date(),
+          updatedAt: new Date(),
+          ipAddress: currentSession.ipAddress ?? null,
+          userAgent: currentSession.userAgent ?? null,
+          activeOrganizationId: currentSession.activeOrganizationId ?? null,
+        })
+        .onConflictDoUpdate({
+          target: sessions.id,
+          set: {
+            updatedAt: new Date(),
+            ipAddress: currentSession.ipAddress ?? sql`${sessions.ipAddress}`,
+            userAgent: currentSession.userAgent ?? sql`${sessions.userAgent}`,
+          },
+        });
+    } catch (err) {
+      console.warn('[SessionService] Current session persistence best-effort:', err);
+    }
+  }
   const activeSessions = await adminDb
     .select({
       id: sessions.id,
@@ -39,33 +98,14 @@ export async function getActiveSessions(userId: string | number, currentSessionI
     )
     .orderBy(sessions.createdAt);
 
-  const mapped = activeSessions.map((s) => {
-    let location: string | null = null;
-    if (s.ipAddress) {
-      if (
-        s.ipAddress === '127.0.0.1' ||
-        s.ipAddress === '::1' ||
-        s.ipAddress.startsWith('192.168.') ||
-        s.ipAddress.startsWith('10.') ||
-        s.ipAddress.startsWith('172.') ||
-        s.ipAddress === 'localhost'
-      ) {
-        location = 'Red local / Dev';
-      } else {
-        const geo = geoip.lookup(s.ipAddress);
-        location = geo ? `${geo.city ? `${geo.city}, ` : ''}${geo.country}` : null;
-      }
-    }
-
-    return {
-      id: s.id,
-      user_agent: s.userAgent ?? null,
-      ip_address: s.ipAddress ?? null,
-      location: location ?? null,
-      created_at: s.createdAt,
-      is_current: Boolean(currentSessionId && s.id === currentSessionId),
-    };
-  });
+  const mapped = activeSessions.map((s) => ({
+    id: s.id,
+    user_agent: s.userAgent ?? null,
+    ip_address: s.ipAddress ?? null,
+    location: resolveLocation(s.ipAddress),
+    created_at: s.createdAt,
+    is_current: Boolean(currentSessionId && s.id === currentSessionId),
+  }));
 
   return mapped.sort((a, b) => {
     if (a.is_current) return -1;
@@ -94,6 +134,7 @@ export async function revokeSession(sessionId: string, userId: string | number) 
         redis.del(`session:${token}`),
         redis.del(`better-auth:session:${token}`),
         redis.del(token),
+        redis.del(`session:${sessionId}`),
       ]);
     } catch { /* Redis delete best effort */ }
   }

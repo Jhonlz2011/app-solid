@@ -88,7 +88,7 @@ export const SessionItem: Component<SessionItemProps> = (props) => {
                             'text-xs mt-1': !props.compact,
                             'text-[11px]': props.compact,
                         }}>
-                            {props.compact ? 'Iniciada' : 'Ultima vez iniciado el'} {formatSessionDate(props.session.created_at)}
+                            {props.compact ? 'Iniciada' : 'Última vez iniciado el'} {formatSessionDate(props.session.created_at)}
                         </div>
                     </div>
                 </div>

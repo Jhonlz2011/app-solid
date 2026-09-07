@@ -4,52 +4,22 @@
  * Uses centralized queries/mutations from the data layer.
  * Real-time updates via SSE + BroadcastChannel.
  */
-import { Component, createSignal, createEffect, For, Show, onCleanup } from 'solid-js';
-import { useQueryClient } from '@tanstack/solid-query';
+import { Component, createSignal, For, Show } from 'solid-js';
 import { toast } from 'solid-sonner';
-import { useAuth } from '@modules/auth/store/auth.store';
 import { SessionItem } from '@/shared/ui/overlay/SessionItem';
 import { DeviceIcon } from '@icons/DeviceIcon';
-import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
-import { RealtimeEvents } from '@app/schema/realtime-events';
 import { ListItemSkeleton } from '@display/SkeletonLoader';
 import ErrorState from '@/shared/ui/display/ErrorState';
-import { profileKeys } from '../data/profile.keys';
 import { useMySessions } from '../data/profile.queries';
 import { useRevokeMySession } from '../data/profile.mutations';
 import ConfirmDialog from '@overlay/ConfirmDialog';
 
 export const SessionsSection: Component = () => {
-    const queryClient = useQueryClient();
-    const auth = useAuth();
     const [revoking, setRevoking] = createSignal<string | null>(null);
     const [confirmRevoke, setConfirmRevoke] = createSignal<string | null>(null);
 
     const sessionsQuery = useMySessions();
     const revokeMutation = useRevokeMySession();
-
-    // ── Real-time session updates ──
-    createEffect(() => {
-        const userId = auth.user()?.id;
-        if (!userId) return;
-
-        const cleanupBroadcast = broadcast.on(BroadcastEvents.SESSIONS_REFRESH, () => {
-            queryClient.invalidateQueries({ queryKey: profileKeys.sessions() });
-        });
-
-        const handleSessionsChanged = () => {
-            queryClient.invalidateQueries({ queryKey: profileKeys.sessions() });
-        };
-
-        window.addEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged);
-        window.addEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged);
-
-        onCleanup(() => {
-            cleanupBroadcast();
-            window.removeEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged);
-            window.removeEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged);
-        });
-    });
 
     // ── Handlers ──
     const handleRevoke = async (sessionId: string) => {

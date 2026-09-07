@@ -14,7 +14,7 @@ const listeners = new Map<string, Set<MessageHandler>>();
 let initialized = false;
 
 /**
- * Initialize the broadcast store (call once in app entry)
+ * Initialize the broadcast store (call once in app entry or auto-initialized)
  */
 export const initBroadcast = () => {
     if (initialized || !channel) return;
@@ -23,7 +23,6 @@ export const initBroadcast = () => {
     channel.onmessage = (e: MessageEvent) => {
         const { type, data } = e.data || {};
         if (!type) return;
-
 
         // Call all registered handlers for this type
         const handlers = listeners.get(type);
@@ -35,6 +34,11 @@ export const initBroadcast = () => {
         window.dispatchEvent(new CustomEvent(`bc:${type}`, { detail: data }));
     };
 };
+
+// Auto-initialize immediately if running in browser
+if (typeof window !== 'undefined') {
+    initBroadcast();
+}
 
 /**
  * Emit an event to other tabs (and optionally locally)

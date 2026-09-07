@@ -15,6 +15,7 @@ import { UserIcon } from '@icons/UserIcon';
 import { DeviceIcon } from '@icons/DeviceIcon';
 
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/form/Tabs';
 import { Skeleton } from '@display/Skeleton';
@@ -54,13 +55,29 @@ const ProfilePage: Component = () => {
     const profile = createMemo(() => profileQuery.data);
     const sessionsCount = () => sessionsQuery.data?.length;
 
-    // Listen for profile updates from other tabs (via centralized broadcast store)
+    // Listen for profile and session updates from other tabs (via BroadcastChannel) and SSE
     onMount(() => {
-        const cleanup = broadcast.on(BroadcastEvents.PROFILE_UPDATE, () => {
+        const cleanupProfile = broadcast.on(BroadcastEvents.PROFILE_UPDATE, () => {
             queryClient.invalidateQueries({ queryKey: profileKeys.me() });
         });
 
-        onCleanup(cleanup);
+        const cleanupSessions = broadcast.on(BroadcastEvents.SESSIONS_REFRESH, () => {
+            queryClient.invalidateQueries({ queryKey: profileKeys.sessions() });
+        });
+
+        const handleSessionsChanged = () => {
+            queryClient.invalidateQueries({ queryKey: profileKeys.sessions() });
+        };
+
+        window.addEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged);
+        window.addEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged);
+
+        onCleanup(() => {
+            cleanupProfile();
+            cleanupSessions();
+            window.removeEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged);
+            window.removeEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged);
+        });
     });
 
     const handleUpdateProfile = async (data: { username?: string; email?: string }) => {

@@ -11,6 +11,7 @@ import * as schema from '@app/schema/tables';
 import { emailService } from '../core/email';
 import { env } from './env';
 import { hashPassword, verifyPassword } from '../core/security';
+import { extractIpFromHeaders } from '../plugins/ip';
 
 // ============================================================================
 // 1. TENANT URL RESOLVER
@@ -248,26 +249,43 @@ export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,        // https://api.zelys.app
     basePath: '/api/auth',
     trustedOrigins: dynamicTrustedOrigins,
+    session: {
+        storeSessionInDatabase: true,
+        expiresIn: 60 * 60 * 24 * 7, // 7 días
+        updateAge: 60 * 60 * 24, // 1 día
+    },
     secondaryStorage: {
         get: async (key: string) => {
-            return await redis.get(key);
+            try {
+                return await redis.get(key);
+            } catch {
+                return null;
+            }
         },
         set: async (key: string, value: string, ttl?: number) => {
-            if (ttl) {
-                await redis.set(key, value, 'EX', ttl);
-            } else {
-                await redis.set(key, value);
-            }
+            try {
+                if (ttl) {
+                    await redis.set(key, value, 'EX', ttl);
+                } else {
+                    await redis.set(key, value);
+                }
+            } catch { /* Redis best effort */ }
         },
         delete: async (key: string) => {
-            await redis.del(key);
+            try {
+                await redis.del(key);
+            } catch { /* Redis best effort */ }
         },
         increment: async (key: string, ttl?: number) => {
-            const count = await redis.incr(key);
-            if (count === 1 && ttl) {
-                await redis.expire(key, ttl);
+            try {
+                const count = await redis.incr(key);
+                if (count === 1 && ttl) {
+                    await redis.expire(key, ttl);
+                }
+                return count;
+            } catch {
+                return 1;
             }
-            return count;
         },
     },
     rateLimit: {
@@ -376,38 +394,15 @@ export const auth = betterAuth({
         session: {
             create: {
                 before: async (sess, context) => {
-                    let ipAddress = sess.ipAddress;
-                    let userAgent = sess.userAgent;
-
                     const headers = ((context as any)?.headers || (context as any)?.request?.headers) as Headers | undefined;
-                    if (headers) {
-                        const extractedIp =
-                            headers.get('cf-connecting-ip') ||
-                            headers.get('x-client-ip') ||
-                            headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-                            headers.get('x-real-ip');
-
-                        if (extractedIp) {
-                            ipAddress = extractedIp.startsWith('::ffff:')
-                                ? extractedIp.substring(7)
-                                : extractedIp;
-                        }
-
-                        if (!userAgent || userAgent === 'Desconocido') {
-                            userAgent = headers.get('user-agent') || 'Desconocido';
-                        }
-                    }
-
-                    if (!ipAddress && env.NODE_ENV !== 'production') {
-                        ipAddress = '127.0.0.1';
-                    }
+                    const extracted = headers ? extractIpFromHeaders(headers) : null;
 
                     return {
                         data: {
                             ...sess,
                             id: (sess as any).id || uuidv7(),
-                            ipAddress,
-                            userAgent,
+                            ipAddress: sess.ipAddress || extracted?.ipAddress || (env.NODE_ENV !== 'production' ? '127.0.0.1' : undefined),
+                            userAgent: sess.userAgent || extracted?.userAgent || 'Desconocido',
                         },
                     };
                 },

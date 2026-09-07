@@ -40,12 +40,16 @@ export function removeClientFromAllRooms(clientId: string, rooms: Set<string>): 
     }
 }
 
+// --- INSTANCE ID (for local broadcast dedup across Redis nodes) ---
+const INSTANCE_ID = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
 // --- REDIS ADAPTER ---
 
 export async function initSSERedisAdapter(): Promise<void> {
     const handleIncoming = (message: string) => {
         try {
             const parsed = JSON.parse(message);
+            if (parsed.originNodeId === INSTANCE_ID) return; // Already broadcast locally on this instance
             const { event, data, room } = parsed;
             broadcastLocal(event, data, room);
         } catch (e) {
@@ -83,9 +87,13 @@ export async function broadcastToTenant(
     subRoom?: string
 ): Promise<void> {
     const canonicalRoom = subRoom ? getTenantRoom(companyId, subRoom) : getCompanyRoom(companyId);
+    // 1. Entrega inmediata local (0ms en el mismo proceso)
+    broadcastLocal(event, data, canonicalRoom);
+
+    // 2. Publicación distribuida a otros nodos en Redis
     const channel = `sse:c:${companyId}`;
     try {
-        const payload = JSON.stringify({ event, data, room: canonicalRoom, companyId });
+        const payload = JSON.stringify({ event, data, room: canonicalRoom, companyId, originNodeId: INSTANCE_ID });
         await publishToChannel(channel, payload);
     } catch (e) {
         console.error(`❌ SSE broadcastToTenant failed for company ${companyId}:`, e);
@@ -102,9 +110,13 @@ export async function broadcastToUser(
     data: unknown
 ): Promise<void> {
     const canonicalRoom = getUserRoom(userId);
+    // 1. Entrega inmediata local (0ms en el mismo proceso)
+    broadcastLocal(event, data, canonicalRoom);
+
+    // 2. Publicación distribuida a otros nodos en Redis
     const channel = `sse:u:${userId}`;
     try {
-        const payload = JSON.stringify({ event, data, room: canonicalRoom, userId });
+        const payload = JSON.stringify({ event, data, room: canonicalRoom, userId, originNodeId: INSTANCE_ID });
         await publishToChannel(channel, payload);
     } catch (e) {
         console.error(`❌ SSE broadcastToUser failed for user ${userId}:`, e);
@@ -115,8 +127,12 @@ export async function broadcastToUser(
  * Emisión general (fallback global)
  */
 export async function broadcast(event: string, data: unknown, room: string = '*'): Promise<void> {
+    // 1. Entrega inmediata local
+    broadcastLocal(event, data, room);
+
+    // 2. Publicación distribuida a otros nodos en Redis
     try {
-        const payload = JSON.stringify({ event, data, room });
+        const payload = JSON.stringify({ event, data, room, originNodeId: INSTANCE_ID });
         await publishToChannel('sse:events', payload);
     } catch (e) {
         console.error('❌ SSE broadcast failed:', e);

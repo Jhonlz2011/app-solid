@@ -1,8 +1,8 @@
 import { Elysia, t } from 'elysia';
 import { auth, resolveCompanyIdFromOrg } from '../../config/better-auth';
 import { adminDb } from '../db';
-import { companies, member } from '@app/schema/tables';
-import { eq, and } from '@app/schema';
+import { companies, member, session as sessionTable, user as schemaUser } from '@app/schema/tables';
+import { eq, and, or, sql } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
 import {
     clients,
@@ -21,9 +21,45 @@ export const ssePlugin = (app: Elysia) =>
                 headers.set('authorization', `Bearer ${query.token}`);
             }
 
-            const sessionData = await auth.api.getSession({
+            let sessionData = await auth.api.getSession({
                 headers,
-            });
+            }).catch(() => null);
+
+            // Resilient Session Fallback: If cookie/Bearer wasn't resolved by Better-Auth,
+            // check if query.token matches a valid session ID or session token in DB
+            if (!sessionData && query.token) {
+                const [dbSession] = await adminDb
+                    .select({
+                        id: sessionTable.id,
+                        userId: sessionTable.userId,
+                        token: sessionTable.token,
+                        activeOrganizationId: sessionTable.activeOrganizationId,
+                        expiresAt: sessionTable.expiresAt,
+                    })
+                    .from(sessionTable)
+                    .where(
+                        and(
+                            or(eq(sessionTable.id, query.token), eq(sessionTable.token, query.token)),
+                            sql`${sessionTable.expiresAt} > NOW()`
+                        )
+                    )
+                    .limit(1);
+
+                if (dbSession) {
+                    const [dbUser] = await adminDb
+                        .select()
+                        .from(schemaUser)
+                        .where(eq(schemaUser.id, dbSession.userId))
+                        .limit(1);
+
+                    if (dbUser) {
+                        sessionData = {
+                            user: dbUser as any,
+                            session: dbSession as any,
+                        };
+                    }
+                }
+            }
 
             if (!sessionData || !sessionData.user) {
                 set.status = 401;
