@@ -129,5 +129,5 @@ export type CarrierDriverFormData = InferInput<typeof CarrierDriverFormSchema>;
 
 // Compile-Time Assertion: Ensures Valibot schema matches exactly the E2E contract interface
 type AssertValibot<T extends EntityBodyType> = T;
-const _checkEntityFormData: AssertValibot<EntityFormData> = {} as any as EntityFormData;
+const _checkEntityFormData: AssertValibot<EntityFormData> = {} as unknown as EntityFormData;
 void _checkEntityFormData;

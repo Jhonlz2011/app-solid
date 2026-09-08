@@ -11,15 +11,28 @@ export function useUpdateProfile() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: (body: { username?: string; email?: string }) =>
+        mutationFn: (body: { username?: string; name?: string }) =>
             profileApi.updateProfile(body),
-        onSuccess: (data: any, variables: { username?: string; email?: string }) => {
+        onSuccess: (data: any, variables: { username?: string; name?: string }) => {
             queryClient.invalidateQueries({ queryKey: profileKeys.me() });
             authActions.updateUser({
                 ...variables,
                 ...(data?.user ?? {}),
             });
+            broadcast.emit(BroadcastEvents.PROFILE_UPDATE, {
+                user: {
+                    ...variables,
+                    ...(data?.user ?? {}),
+                },
+            });
         },
+    }));
+}
+
+export function useChangeEmail() {
+    return createMutation(() => ({
+        mutationFn: (newEmail: string) =>
+            profileApi.changeEmail(newEmail),
     }));
 }
 

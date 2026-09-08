@@ -266,17 +266,13 @@ export async function getEntity(id: string, companyId: number) {
         );
         if (!entity) throw new DomainError('Entidad no encontrada', 404);
 
-        const [addresses, contacts, vehicles, drivers] = await Promise.all([
+        const supervisors = alias(entities, 'supervisors');
+        const [addresses, contacts, vehicles, drivers, [empDetails]] = await Promise.all([
             db.select().from(entityAddresses).where(eq(entityAddresses.entity_id, id)),
             db.select().from(entityContacts).where(eq(entityContacts.entity_id, id)),
             entity.is_carrier != null ? db.select().from(carrierVehicles).where(eq(carrierVehicles.carrier_id, id)) : Promise.resolve([]),
             entity.is_carrier != null ? db.select().from(carrierDrivers).where(eq(carrierDrivers.carrier_id, id)) : Promise.resolve([]),
-        ]);
-
-        let details = null;
-        if (entity.is_employee != null) {
-            const supervisors = alias(entities, 'supervisors');
-            const [empDetails] = await db
+            entity.is_employee != null ? db
                 .select({
                     entity_id: employeeDetails.entity_id,
                     department_id: employeeDetails.department_id,
@@ -305,9 +301,8 @@ export async function getEntity(id: string, companyId: number) {
                 .leftJoin(departments, eq(employeeDetails.department_id, departments.id))
                 .leftJoin(jobTitles, eq(employeeDetails.job_title_id, jobTitles.id))
                 .leftJoin(supervisors, eq(employeeDetails.reports_to, supervisors.id))
-                .where(eq(employeeDetails.entity_id, id));
-            details = empDetails || null;
-        }
+                .where(eq(employeeDetails.entity_id, id)) : Promise.resolve([]),
+        ]);
 
         const isEntityActive = (
             entity.is_client === true ||
@@ -316,7 +311,7 @@ export async function getEntity(id: string, companyId: number) {
             entity.is_carrier === true
         );
 
-        return { ...entity, is_active: isEntityActive, addresses, contacts, employeeDetails: details, vehicles, drivers };
+        return { ...entity, is_active: isEntityActive, addresses, contacts, employeeDetails: empDetails || null, vehicles, drivers };
     }, 3600);
 }
 

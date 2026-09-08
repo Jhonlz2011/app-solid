@@ -18,6 +18,8 @@ import CompanyFields, { type CompanyFieldsStatus } from '../components/CompanyFi
 import CompanySummaryCard from '../components/CompanySummaryCard';
 import AuthStepper from '../components/AuthStepper';
 import { Badge } from '@shared/ui/display/Badge';
+import { useAvailabilityCheck } from '@shared/hooks/useAvailabilityCheck';
+import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
 
 // ─── Password Strength Meter ───
 const PasswordStrength: Component<{ password: string }> = (props) => {
@@ -81,6 +83,18 @@ const Register: Component = () => {
             setStep(1);
         },
     }));
+
+    const usernameCheck = useAvailabilityCheck({
+        type: 'username',
+        value: () => step1Form.useStore((s) => s.values.username)(),
+        enabled: () => !isOAuthUser(),
+    });
+
+    const emailCheck = useAvailabilityCheck({
+        type: 'email',
+        value: () => step1Form.useStore((s) => s.values.email)(),
+        enabled: () => !isOAuthUser(),
+    });
 
     // Auto-redirect authenticated users with existing companies to /create-company
     createEffect(() => {
@@ -266,13 +280,28 @@ const Register: Component = () => {
                         )} />
                         <step1Form.Field name="username" children={(f) => (
                             <TextField.Root field={f()}>
-                                <TextField.Label>Nombre de usuario *</TextField.Label>
-                                <TextField.Input type="text" placeholder="ej: juan.perez" autocomplete="username"
+                                <div class="flex items-center justify-between gap-2">
+                                    <TextField.Label>Nombre de usuario *</TextField.Label>
+                                    <Show when={!isOAuthUser()}>
+                                        <AvailabilityBadge
+                                            status={usernameCheck.status}
+                                            availableLabel="Disponible"
+                                            takenLabel="En uso"
+                                            checkingLabel="Comprobando..."
+                                        />
+                                    </Show>
+                                </div>
+                                <TextField.Input
+                                    type="text"
+                                    placeholder="ej: juan.perez"
+                                    autocomplete="username"
+                                    loading={usernameCheck.isChecking()}
                                     onInput={(e) => {
                                         const v = e.currentTarget.value.toLowerCase().replace(/[^a-z0-9._-]/g, '');
                                         e.currentTarget.value = v;
                                         f().handleChange(v);
-                                    }} />
+                                    }}
+                                />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )} />
@@ -295,8 +324,24 @@ const Register: Component = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                             <step1Form.Field name="email" children={(f) => (
                                 <TextField.Root field={f()}>
-                                    <TextField.Label>Correo electrónico *</TextField.Label>
-                                    <TextField.Input type="email" placeholder="correo@ejemplo.com" autocomplete="email" disabled={isOAuthUser()} />
+                                    <div class="flex items-center justify-between gap-2">
+                                        <TextField.Label>Correo electrónico *</TextField.Label>
+                                        <Show when={!isOAuthUser()}>
+                                            <AvailabilityBadge
+                                                status={emailCheck.status}
+                                                availableLabel="Disponible"
+                                                takenLabel="Ya registrado"
+                                                checkingLabel="Comprobando..."
+                                            />
+                                        </Show>
+                                    </div>
+                                    <TextField.Input
+                                        type="email"
+                                        placeholder="correo@ejemplo.com"
+                                        autocomplete="email"
+                                        disabled={isOAuthUser()}
+                                        loading={emailCheck.isChecking()}
+                                    />
                                     <TextField.ErrorMessage />
                                 </TextField.Root>
                             )} />
@@ -314,12 +359,24 @@ const Register: Component = () => {
                             </Show>
                         </div>
                         <step1Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting, isDirty: s.isDirty })}
-                            children={(s) => (
-                                <Button class="mt-2" type="submit" fullWidth disabled={(!isOAuthUser() && !s().isDirty) || s().isSubmitting}
-                                    loading={s().isSubmitting} loadingText="Validando…">
-                                    Siguiente
-                                </Button>
-                            )} />
+                            children={(s) => {
+                                const isBlocked = () =>
+                                    !isOAuthUser() && (
+                                        usernameCheck.status() === 'taken' ||
+                                        emailCheck.status() === 'taken' ||
+                                        usernameCheck.isChecking() ||
+                                        emailCheck.isChecking()
+                                    );
+
+                                return (
+                                    <Button class="mt-2" type="submit" fullWidth
+                                        disabled={(!isOAuthUser() && !s().isDirty) || s().isSubmitting || isBlocked()}
+                                        loading={s().isSubmitting || usernameCheck.isChecking() || emailCheck.isChecking()}
+                                        loadingText="Validando…">
+                                        Siguiente
+                                    </Button>
+                                );
+                            }} />
 
                         {/* ── OAuth Social Providers ── */}
                         <Show when={!isOAuthUser()}>

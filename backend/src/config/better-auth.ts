@@ -369,6 +369,18 @@ export const auth = betterAuth({
             },
             update: {
                 after: async (user) => {
+                    // Emitir actualización de perfil en tiempo real para todos los dispositivos del usuario vía SSE
+                    broadcastToUser(
+                        user.id,
+                        RealtimeEvents.USER.PROFILE_UPDATED,
+                        {
+                            id: user.id,
+                            username: (user as any).username,
+                            name: (user as any).name,
+                            email: (user as any).email,
+                        }
+                    );
+
                     if (user.emailVerified) {
                         broadcastToUser(
                             user.id,
@@ -460,6 +472,9 @@ export const auth = betterAuth({
         },
     },
     user: {
+        changeEmail: {
+            enabled: true,
+        },
         additionalFields: {
             companyId: {
                 type: 'number',

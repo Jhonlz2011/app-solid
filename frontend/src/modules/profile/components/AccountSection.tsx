@@ -1,17 +1,21 @@
-// Account Section - Username/Email Form with TanStack Form + Valibot
-import { Component, Show, createMemo } from 'solid-js';
+// Account Section - Username/Email Management with Real-Time Validation & Native Better-Auth
+import { Component, Show, createMemo, createSignal } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import type { ProfileType } from '@app/schema/dto';
-import { UpdateProfileSchema } from '@app/schema/frontend';
 import { TextField } from '@form/TextField';
 import Button from '@form/Button';
 import { AlertCircleIcon } from '@icons/AlertCircleIcon';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
+import { MailIcon } from '@icons/MailIcon';
+import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
+import { useAvailabilityCheck } from '@shared/hooks/useAvailabilityCheck';
 
 interface AccountSectionProps {
     profile: ProfileType;
-    onUpdate: (data: { username?: string; email?: string }) => Promise<void>;
-    isUpdating: boolean;
+    onUpdateProfile: (data: { username?: string; name?: string }) => Promise<void>;
+    onChangeEmail: (newEmail: string) => Promise<void>;
+    isUpdatingProfile: boolean;
+    isChangingEmail: boolean;
 }
 
 export const AccountSection: Component<AccountSectionProps> = (props) => {
@@ -19,35 +23,71 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
     const profileUsername = createMemo(() => props.profile.username || '');
     const profileEmail = createMemo(() => props.profile.email || '');
 
+    // Feedback for email change request
+    const [pendingNewEmail, setPendingNewEmail] = createSignal<string | null>(null);
+
     const form = createForm(() => ({
         defaultValues: {
             username: profileUsername(),
             email: profileEmail(),
         },
-        validators: {
-            onBlur: UpdateProfileSchema,
-            onSubmit: UpdateProfileSchema,
-        },
         onSubmit: async ({ value }) => {
-            // Only send changed fields
-            const updates: { username?: string; email?: string } = {};
-            if (value.username !== profileUsername()) {
-                updates.username = value.username;
-            }
-            if (value.email !== profileEmail()) {
-                updates.email = value.email;
+            const hasUsernameChanged = value.username !== profileUsername();
+            const hasEmailChanged = value.email !== profileEmail();
+
+            // 1. Manejo de cambio de username (Inmediato vía Better-Auth)
+            if (hasUsernameChanged) {
+                if (usernameCheck.status() === 'taken' || !usernameCheck.isValidFormat()) {
+                    return;
+                }
+                await props.onUpdateProfile({ username: value.username });
             }
 
-            if (Object.keys(updates).length > 0) {
-                await props.onUpdate(updates);
+            // 2. Manejo de cambio de correo (Seguro con verificación vía Better-Auth)
+            if (hasEmailChanged) {
+                if (emailCheck.status() === 'taken' || !emailCheck.isValidFormat()) {
+                    return;
+                }
+                await props.onChangeEmail(value.email);
+                setPendingNewEmail(value.email);
             }
         },
     }));
 
+    // Real-time debounced availability checks
+    const usernameCheck = useAvailabilityCheck({
+        type: 'username',
+        value: () => form.useStore((s) => s.values.username)(),
+        currentValue: profileUsername,
+    });
+
+    const emailCheck = useAvailabilityCheck({
+        type: 'email',
+        value: () => form.useStore((s) => s.values.email)(),
+        currentValue: profileEmail,
+    });
+
+    const isPending = () => props.isUpdatingProfile || props.isChangingEmail;
+
     return (
-            <div>
-                <h2 class="text-lg font-semibold text-heading mb-1">Información de la cuenta</h2>
-            <p class="text-sm text-muted mb-6">Actualiza tu nombre de usuario y dirección de email.</p>
+        <div>
+            <h2 class="text-lg font-semibold text-heading mb-1">Información de la cuenta</h2>
+            <p class="text-sm text-muted mb-6">Actualiza tu nombre de usuario y dirección de email de forma segura.</p>
+
+            {/* Banner informativo si se solicitó cambio de correo */}
+            <Show when={pendingNewEmail()}>
+                {(email) => (
+                    <div class="mb-5 p-4 bg-primary/10 border border-primary/20 rounded-xl flex items-start gap-3 animate-in fade-in duration-200">
+                        <MailIcon class="size-5 text-primary shrink-0 mt-0.5" />
+                        <div class="text-xs text-heading space-y-1">
+                            <p class="font-semibold text-primary">Enlace de confirmación enviado</p>
+                            <p class="text-muted leading-relaxed">
+                                Hemos enviado un enlace de validación a <strong>{email()}</strong>. Tu cuenta mantendrá tu correo actual ({profileEmail()}) hasta que verifiques la nueva dirección.
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </Show>
 
             <form
                 onSubmit={(e) => {
@@ -57,26 +97,52 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 }}
                 class="space-y-4"
             >
-                {/* Username Field */}
+                {/* Username Field with Live Availability */}
                 <form.Field name="username">
                     {(field) => (
-                        <TextField.Root field={field()} disabled={props.isUpdating}>
-                            <TextField.Label>Nombre de usuario</TextField.Label>
+                        <TextField.Root field={field()} disabled={isPending()}>
+                            <div class="flex items-center justify-between gap-2">
+                                <TextField.Label>Nombre de usuario</TextField.Label>
+                                <AvailabilityBadge
+                                    status={usernameCheck.status}
+                                    currentLabel="Tu usuario actual"
+                                    availableLabel="Disponible"
+                                    takenLabel="Ya en uso"
+                                    checkingLabel="Comprobando..."
+                                />
+                            </div>
                             <div class="relative">
                                 <span class="absolute left-4 top-1/2 -translate-y-1/2 text-muted z-10">@</span>
-                                <TextField.Input placeholder="nombredeusuario" class="pl-9" />
+                                <TextField.Input
+                                    placeholder="nombredeusuario"
+                                    class="pl-9"
+                                    loading={usernameCheck.isChecking()}
+                                />
                             </div>
                             <TextField.ErrorMessage />
                         </TextField.Root>
                     )}
                 </form.Field>
 
-                {/* Email Field */}
+                {/* Email Field with Live Availability */}
                 <form.Field name="email">
                     {(field) => (
-                        <TextField.Root field={field()} disabled={props.isUpdating}>
-                            <TextField.Label>Correo electrónico</TextField.Label>
-                            <TextField.Input type="email" placeholder="tu@email.com" />
+                        <TextField.Root field={field()} disabled={isPending()}>
+                            <div class="flex items-center justify-between gap-2">
+                                <TextField.Label>Correo electrónico</TextField.Label>
+                                <AvailabilityBadge
+                                    status={emailCheck.status}
+                                    currentLabel="Tu correo actual"
+                                    availableLabel="Disponible"
+                                    takenLabel="Ya registrado"
+                                    checkingLabel="Comprobando..."
+                                />
+                            </div>
+                            <TextField.Input
+                                type="email"
+                                placeholder="tu@email.com"
+                                loading={emailCheck.isChecking()}
+                            />
                             <TextField.ErrorMessage />
                         </TextField.Root>
                     )}
@@ -90,24 +156,37 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                     </div>
                 </Show>
 
-                {/* Submit Button - using form.Subscribe for proper reactivity */}
+                {/* Submit Button */}
                 <form.Subscribe selector={(state) => ({
                     values: state.values,
                     isSubmitting: state.isSubmitting,
                 })}>
                     {(state) => {
-                        const hasChanges = () =>
-                            state().values.username !== profileUsername() ||
-                            state().values.email !== profileEmail();
+                        const hasUsernameChange = () => state().values.username !== profileUsername();
+                        const hasEmailChange = () => state().values.email !== profileEmail();
+                        const hasChanges = () => hasUsernameChange() || hasEmailChange();
+
+                        const isBlockedByUsername = () =>
+                            hasUsernameChange() && (usernameCheck.status() === 'taken' || !usernameCheck.isValidFormat() || usernameCheck.isChecking());
+
+                        const isBlockedByEmail = () =>
+                            hasEmailChange() && (emailCheck.status() === 'taken' || !emailCheck.isValidFormat() || emailCheck.isChecking());
+
+                        const isSubmitDisabled = () =>
+                            !hasChanges() ||
+                            isPending() ||
+                            state().isSubmitting ||
+                            isBlockedByUsername() ||
+                            isBlockedByEmail();
 
                         return (
                             <Button
                                 type="submit"
-                                disabled={!hasChanges() || props.isUpdating || state().isSubmitting}
-                                loading={props.isUpdating || state().isSubmitting}
+                                disabled={isSubmitDisabled()}
+                                loading={isPending() || state().isSubmitting}
                                 loadingText="Guardando..."
                                 size="lg"
-                                icon={<FloppyDiskIcon/>}
+                                icon={<FloppyDiskIcon class="size-4" />}
                             >
                                 Guardar cambios
                             </Button>
@@ -115,6 +194,8 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                     }}
                 </form.Subscribe>
             </form>
-            </div>
+        </div>
     );
 };
+
+export default AccountSection;

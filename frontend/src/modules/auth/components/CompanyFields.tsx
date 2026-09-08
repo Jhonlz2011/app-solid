@@ -1,11 +1,11 @@
-import { Component, Show, onCleanup, createSignal, type Accessor } from 'solid-js';
+import { Component, Show, type Accessor } from 'solid-js';
 import TextField, { FieldLabel } from '@form/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem, SegmentedControlItemInput, SegmentedControlItemLabel } from '@form/SegmentedControl';
 import { businessTypeSelectOptions, taxRegimeSelectOptions, type SelectOption } from '@shared/constants/entity-labels';
 import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
-import { authApi } from '@modules/auth/api/auth.api';
-import { Badge } from '@shared/ui/display/Badge';
+import { useAvailabilityCheck } from '@shared/hooks/useAvailabilityCheck';
+import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
 
 export interface CompanyFieldsStatus {
     slugAvailable: Accessor<boolean | null>;
@@ -22,101 +22,29 @@ interface CompanyFieldsProps {
 }
 
 export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
-    const [slugAvailable, setSlugAvailable] = createSignal<boolean | null>(null);
-    const [slugChecking, setSlugChecking] = createSignal(false);
-    const [rucAvailable, setRucAvailable] = createSignal<boolean | null>(null);
-    const [rucChecking, setRucChecking] = createSignal(false);
-
-    // AbortControllers to prevent memory leaks and stale in-flight responses
-    let slugAbortController: AbortController | null = null;
-    let rucAbortController: AbortController | null = null;
-    let slugTimer: ReturnType<typeof setTimeout> | null = null;
-    let rucTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const cleanupSlug = () => {
-        if (slugTimer) {
-            clearTimeout(slugTimer);
-            slugTimer = null;
-        }
-        if (slugAbortController) {
-            slugAbortController.abort();
-            slugAbortController = null;
-        }
-    };
-
-    const cleanupRuc = () => {
-        if (rucTimer) {
-            clearTimeout(rucTimer);
-            rucTimer = null;
-        }
-        if (rucAbortController) {
-            rucAbortController.abort();
-            rucAbortController = null;
-        }
-    };
-
-    onCleanup(() => {
-        cleanupSlug();
-        cleanupRuc();
+    const slugCheck = useAvailabilityCheck({
+        type: 'slug',
+        value: () => props.form.useStore((s: any) => s.values.slug)(),
     });
 
-    const checkSlug = (slug: string) => {
-        cleanupSlug();
-        setSlugAvailable(null);
-        if (slug.length < 3) {
-            setSlugChecking(false);
-            return;
-        }
-        setSlugChecking(true);
-        slugTimer = setTimeout(async () => {
-            slugAbortController = new AbortController();
-            try {
-                const res = await authApi.checkSlug(slug, slugAbortController.signal);
-                setSlugAvailable(res.available);
-            } catch (err: any) {
-                if (err?.name !== 'AbortError') {
-                    setSlugAvailable(null);
-                }
-            } finally {
-                setSlugChecking(false);
-                slugAbortController = null;
-            }
-        }, 400);
-    };
+    const rucCheck = useAvailabilityCheck({
+        type: 'ruc',
+        value: () => props.form.useStore((s: any) => s.values.ruc)(),
+    });
 
-    const checkRuc = (ruc: string) => {
-        cleanupRuc();
-        setRucAvailable(null);
-        if (ruc.length !== 13) {
-            setRucChecking(false);
-            return;
-        }
-        setRucChecking(true);
-        rucTimer = setTimeout(async () => {
-            rucAbortController = new AbortController();
-            try {
-                const res = await authApi.checkRuc(ruc, rucAbortController.signal);
-                setRucAvailable(res.available);
-            } catch (err: any) {
-                if (err?.name !== 'AbortError') {
-                    setRucAvailable(null);
-                }
-            } finally {
-                setRucChecking(false);
-                rucAbortController = null;
-            }
-        }, 400);
-    };
-
-    const isValidForSubmit = () => slugAvailable() !== false && rucAvailable() !== false && !slugChecking() && !rucChecking();
+    const isValidForSubmit = () =>
+        slugCheck.status() !== 'taken' &&
+        rucCheck.status() !== 'taken' &&
+        !slugCheck.isChecking() &&
+        !rucCheck.isChecking();
 
     // Expose status to parent if callback provided
     if (props.onStatusChange) {
         props.onStatusChange({
-            slugAvailable,
-            slugChecking,
-            rucAvailable,
-            rucChecking,
+            slugAvailable: slugCheck.isAvailable,
+            slugChecking: slugCheck.isChecking,
+            rucAvailable: rucCheck.isAvailable,
+            rucChecking: rucCheck.isChecking,
             isValidForSubmit,
         });
     }
@@ -133,26 +61,21 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                     <TextField.Root field={f()}>
                         <div class="flex items-center justify-between gap-2">
                             <TextField.Label>Subdominio (slug) *</TextField.Label>
-                            <Show when={!slugChecking() && f().state.value.length >= 3 && slugAvailable() === true}>
-                                <Badge variant="success" class="text-[11px] px-1.5 py-0 animate-in fade-in">
-                                    ✓ Disponible
-                                </Badge>
-                            </Show>
-                            <Show when={!slugChecking() && f().state.value.length >= 3 && slugAvailable() === false}>
-                                <Badge variant="danger" class="text-[11px] px-1.5 py-0 animate-in fade-in">
-                                    ✗ En uso
-                                </Badge>
-                            </Show>
+                            <AvailabilityBadge
+                                status={slugCheck.status}
+                                availableLabel="Disponible"
+                                takenLabel="En uso"
+                                checkingLabel="Comprobando..."
+                            />
                         </div>
                         <TextField.Input
                             type="text"
                             placeholder="mi-empresa"
-                            loading={slugChecking()}
+                            loading={slugCheck.isChecking()}
                             onInput={(e: any) => {
                                 const v = e.currentTarget.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
                                 e.currentTarget.value = v;
                                 f().handleChange(v);
-                                checkSlug(v);
                             }}
                         />
                         <TextField.ErrorMessage />
@@ -197,27 +120,22 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                     <TextField.Root field={f()}>
                         <div class="flex items-center justify-between gap-2">
                             <TextField.Label>RUC *</TextField.Label>
-                            <Show when={!rucChecking() && f().state.value.length === 13 && rucAvailable() === true}>
-                                <Badge variant="success" class="text-[10px] px-1.5 py-0 animate-in fade-in">
-                                    ✓ Válido
-                                </Badge>
-                            </Show>
-                            <Show when={!rucChecking() && f().state.value.length === 13 && rucAvailable() === false}>
-                                <Badge variant="danger" class="text-[10px] px-1.5 py-0 animate-in fade-in">
-                                    ✗ Registrado
-                                </Badge>
-                            </Show>
+                            <AvailabilityBadge
+                                status={rucCheck.status}
+                                availableLabel="Válido"
+                                takenLabel="Registrado"
+                                checkingLabel="Comprobando..."
+                            />
                         </div>
                         <TextField.Input
                             type="text"
                             placeholder="0990123456001"
                             maxLength={13}
-                            loading={rucChecking()}
+                            loading={rucCheck.isChecking()}
                             onInput={(e: any) => {
                                 const v = e.currentTarget.value.replace(/\D/g, '');
                                 e.currentTarget.value = v;
                                 f().handleChange(v);
-                                checkRuc(v);
                             }}
                         />
                         <TextField.ErrorMessage />

@@ -47,8 +47,8 @@ export const ProfileResponseSchema = Type.Object({
 });
 
 export const UpdateProfileBodySchema = Type.Object({
-    username: Type.Optional(Type.String({ minLength: 3 })),
-    email: Type.Optional(Type.String({ format: 'email' })),
+    username: Type.Optional(Type.String({ minLength: 3, maxLength: 30 })),
+    name: Type.Optional(Type.String({ minLength: 1 })),
 });
 
 export const UpdateProfileResponseSchema = Type.Object({

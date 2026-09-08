@@ -34,6 +34,11 @@ export const authApi = {
         if (error) throwApiError(error);
         return data!;
     },
+    checkEmail: async (email: string, signal?: AbortSignal) => {
+        const { data, error } = await api.tenants['check-email']({ email }).get({ fetch: { signal } });
+        if (error) throwApiError(error);
+        return data!;
+    },
     getTenantInfo: async (slug?: string) => {
         const { data, error } = await api.tenants['tenant-info'].get({ query: { slug } });
         if (error) throwApiError(error);

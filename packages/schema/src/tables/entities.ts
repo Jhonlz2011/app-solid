@@ -39,14 +39,14 @@ export const entities = pgTableV2("entities", {
     uniqueIndex("idx_entities_company_tax_id").on(t.company_id, t.tax_id),
     index("idx_entities_company").on(t.company_id),
     index("idx_entities_roles").on(t.is_client, t.is_supplier, t.is_employee, t.is_carrier),
-    // Partial indexes for active entities per role (ultrafast index scans)
-    index("idx_active_clients").on(t.company_id, t.id).where(sql`${t.is_client} = true`),
-    index("idx_active_suppliers").on(t.company_id, t.id).where(sql`${t.is_supplier} = true`),
-    index("idx_active_employees").on(t.company_id, t.id).where(sql`${t.is_employee} = true`),
-    index("idx_active_carriers").on(t.company_id, t.id).where(sql`${t.is_carrier} = true`),
-    // Composite indexes for sorted pagination (column + id tiebreaker)
-    index("idx_entities_business_name_id").on(t.business_name, t.id),
-    index("idx_entities_created_at_id").on(t.created_at, t.id),
+    // Partial indexes for active entities per role with business_name for sorted scans
+    index("idx_active_clients").on(t.company_id, t.business_name, t.id).where(sql`${t.is_client} = true`),
+    index("idx_active_suppliers").on(t.company_id, t.business_name, t.id).where(sql`${t.is_supplier} = true`),
+    index("idx_active_employees").on(t.company_id, t.business_name, t.id).where(sql`${t.is_employee} = true`),
+    index("idx_active_carriers").on(t.company_id, t.business_name, t.id).where(sql`${t.is_carrier} = true`),
+    // Multi-tenant composite indexes for sorted pagination (company + column + id tiebreaker)
+    index("idx_entities_company_business_name").on(t.company_id, t.business_name, t.id),
+    index("idx_entities_company_created_at").on(t.company_id, t.created_at, t.id),
     tenantPolicy(),
 ]).enableRLS();
 
@@ -137,7 +137,9 @@ export const entityAddresses = pgTableV2("entity_addresses", {
     parish: text("parish"), // Parroquia (Ecuador - muy usado para envíos)
     postal_code: text("postal_code"),
     is_main: boolean("is_main").default(false),
-});
+}, (t) => [
+    index("idx_entity_addresses_entity_id").on(t.entity_id),
+]);
 
 // --- 2. VEHÍCULOS DEL TRANSPORTISTA Y FLOTA DE LA EMPRESA (Para la Guía de Remisión) ---
 export const carrierVehicles = pgTableV2("carrier_vehicles", {

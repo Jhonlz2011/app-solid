@@ -13,6 +13,8 @@ import { SparklesIcon } from '@icons/SparklesIcon';
 import { AlertTriangleIcon } from '@icons/AlertTriangleIcon';
 import { UserRolePicker } from './shared/UserRolePicker';
 import { useCheckUserEmail } from '../data/users.queries';
+import { useAvailabilityCheck } from '@shared/hooks/useAvailabilityCheck';
+import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
 
 export type UserOnboardingMode = 'invite' | 'direct';
 
@@ -79,20 +81,33 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
     }));
 
     const emailValue = form.useStore((s) => s.values.email);
+    const usernameValue = form.useStore((s) => s.values.username);
     const selectedRoleIds = form.useStore((s) => s.values.roleIds);
 
     // Live email check query
     const checkQuery = useCheckUserEmail(() => emailValue());
 
+    // Live username check query for direct onboarding
+    const usernameCheck = useAvailabilityCheck({
+        type: 'username',
+        value: () => usernameValue() || '',
+        enabled: () => onboardingMode() === 'direct' && Boolean(usernameValue()?.trim()),
+    });
+
     const isAlreadyMember = createMemo(() => Boolean(checkQuery.data?.isAlreadyMember));
     const isExistingUser = createMemo(() => Boolean(checkQuery.data?.exists && !checkQuery.data?.isAlreadyMember));
+    const isBlockedByUsername = createMemo(() =>
+        onboardingMode() === 'direct' &&
+        Boolean(usernameValue()?.trim()) &&
+        (usernameCheck.status() === 'taken' || usernameCheck.isChecking())
+    );
 
     createEffect(() => {
         props.onStateChange?.({
             mode: onboardingMode(),
             isExistingUser: isExistingUser(),
             isAlreadyMember: isAlreadyMember(),
-            canSubmit: !isAlreadyMember(),
+            canSubmit: !isAlreadyMember() && !isBlockedByUsername(),
         });
     });
 
@@ -104,7 +119,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                     e.preventDefault();
                     e.stopPropagation();
                     setHasAttemptedSubmit(true);
-                    if (isAlreadyMember()) return;
+                    if (isAlreadyMember() || isBlockedByUsername()) return;
                     form.handleSubmit();
                 }}
                 class="flex flex-col gap-4 py-4"
@@ -181,8 +196,20 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                     <form.Field name="username">
                                         {(field) => (
                                             <TextField.Root field={field()} disabled={props.isSubmitting}>
-                                                <TextField.Label>Nombre de usuario (Opcional)</TextField.Label>
-                                                <TextField.Input placeholder="Se generará del correo si se deja vacío" autocomplete="username" />
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <TextField.Label>Nombre de usuario (Opcional)</TextField.Label>
+                                                    <AvailabilityBadge
+                                                        status={usernameCheck.status}
+                                                        availableLabel="Disponible"
+                                                        takenLabel="En uso"
+                                                        checkingLabel="Comprobando..."
+                                                    />
+                                                </div>
+                                                <TextField.Input
+                                                    placeholder="Se generará del correo si se deja vacío"
+                                                    autocomplete="username"
+                                                    loading={usernameCheck.isChecking()}
+                                                />
                                                 <TextField.ErrorMessage />
                                             </TextField.Root>
                                         )}

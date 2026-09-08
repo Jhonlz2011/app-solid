@@ -3,7 +3,7 @@ import { Component, Show, onMount, onCleanup, createMemo } from 'solid-js';
 import { useQueryClient } from '@tanstack/solid-query';
 import { toast } from 'solid-sonner';
 import { useProfile, useMySessions } from '../data/profile.queries';
-import { useUpdateProfile, useChangePassword } from '../data/profile.mutations';
+import { useUpdateProfile, useChangeEmail, useChangePassword } from '../data/profile.mutations';
 import { profileKeys } from '../data/profile.keys';
 import { ScrollArea } from '@/layout/components/ScrollArea';
 import { ProfileHeader, ProfileHeaderSkeleton } from '../components/ProfileHeader';
@@ -49,13 +49,14 @@ const ProfilePage: Component = () => {
     const profileQuery = useProfile();
     const sessionsQuery = useMySessions();
     const updateProfileMutation = useUpdateProfile();
+    const changeEmailMutation = useChangeEmail();
     const changePasswordMutation = useChangePassword();
 
     // Stable profile reference - prevents re-renders on refetch when data hasn't changed
     const profile = createMemo(() => profileQuery.data);
     const sessionsCount = () => sessionsQuery.data?.length;
 
-    // Listen for profile and session updates from other tabs (via BroadcastChannel) and SSE
+    // Listen for profile and session updates from other tabs (via BroadcastChannel) and SSE (cross-device)
     onMount(() => {
         const cleanupProfile = broadcast.on(BroadcastEvents.PROFILE_UPDATE, () => {
             queryClient.invalidateQueries({ queryKey: profileKeys.me() });
@@ -69,24 +70,41 @@ const ProfilePage: Component = () => {
             queryClient.invalidateQueries({ queryKey: profileKeys.sessions() });
         };
 
+        const handleProfileChanged = () => {
+            queryClient.invalidateQueries({ queryKey: profileKeys.me() });
+        };
+
         window.addEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged);
         window.addEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged);
+        window.addEventListener(RealtimeEvents.USER.PROFILE_UPDATED, handleProfileChanged);
+        window.addEventListener(RealtimeEvents.USER.EMAIL_VERIFIED, handleProfileChanged);
 
         onCleanup(() => {
             cleanupProfile();
             cleanupSessions();
             window.removeEventListener(RealtimeEvents.USER.SESSION_REVOKED, handleSessionsChanged);
             window.removeEventListener(RealtimeEvents.USER.SESSION_CREATED, handleSessionsChanged);
+            window.removeEventListener(RealtimeEvents.USER.PROFILE_UPDATED, handleProfileChanged);
+            window.removeEventListener(RealtimeEvents.USER.EMAIL_VERIFIED, handleProfileChanged);
         });
     });
 
-    const handleUpdateProfile = async (data: { username?: string; email?: string }) => {
+    const handleUpdateProfile = async (data: { username?: string; name?: string }) => {
         try {
             await updateProfileMutation.mutateAsync(data);
-            // authActions.updateUser + queryClient.invalidateQueries handled by mutation onSuccess
             toast.success('Perfil actualizado correctamente');
         } catch (error: any) {
             toast.error(error?.message || 'Error al actualizar el perfil');
+            throw error;
+        }
+    };
+
+    const handleChangeEmail = async (newEmail: string) => {
+        try {
+            await changeEmailMutation.mutateAsync(newEmail);
+            toast.info(`Hemos enviado un enlace de confirmación a ${newEmail}. Revisa tu bandeja de entrada.`);
+        } catch (error: any) {
+            toast.error(error?.message || 'Error al solicitar cambio de correo');
             throw error;
         }
     };
@@ -152,8 +170,10 @@ const ProfilePage: Component = () => {
                                 <TabsContent value="account" forceMount>
                                     <AccountSection
                                         profile={profileData()}
-                                        onUpdate={handleUpdateProfile}
-                                        isUpdating={updateProfileMutation.isPending}
+                                        onUpdateProfile={handleUpdateProfile}
+                                        onChangeEmail={handleChangeEmail}
+                                        isUpdatingProfile={updateProfileMutation.isPending}
+                                        isChangingEmail={changeEmailMutation.isPending}
                                     />
                                 </TabsContent>
                                 <TabsContent value="security" forceMount>

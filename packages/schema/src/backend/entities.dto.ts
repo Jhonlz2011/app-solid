@@ -182,11 +182,19 @@ export const EntityPickerQuerySchema = Type.Object({
 
 export const EntityListQuerySchema = Type.Object({
     cursor: Type.Optional(Type.String()),
-    direction: Type.Optional(Type.String()),
+    direction: Type.Optional(Type.Union([
+        Type.Literal('forward'),
+        Type.Literal('backward'),
+        Type.Literal('first'),
+        Type.Literal('last'),
+    ])),
     search: Type.Optional(Type.String()),
     limit: Type.Optional(Type.Number()),
     sortBy: Type.Optional(Type.String()),
-    sortOrder: Type.Optional(Type.String()),
+    sortOrder: Type.Optional(Type.Union([
+        Type.Literal('asc'),
+        Type.Literal('desc'),
+    ])),
     page: Type.Optional(Type.Number()),
     personType: Type.Optional(Type.String()),
     taxIdType: Type.Optional(Type.String()),

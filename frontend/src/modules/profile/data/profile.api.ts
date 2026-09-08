@@ -15,10 +15,21 @@ export const profileApi = {
         return data!;
     },
 
-    updateProfile: async (body: { username?: string; email?: string }) => {
+    updateProfile: async (body: { username?: string; name?: string }) => {
         const { data, error } = await api.profile.put(body);
         if (error) throwApiError(error);
         return data!;
+    },
+
+    changeEmail: async (newEmail: string) => {
+        const res = await authClient.changeEmail({
+            newEmail,
+            callbackURL: '/verify-email',
+        });
+        if (res.error) {
+            throw new Error(res.error.message || 'Error al solicitar el cambio de correo');
+        }
+        return { success: true };
     },
 
     changePassword: async (body: { currentPassword: string; newPassword: string }) => {

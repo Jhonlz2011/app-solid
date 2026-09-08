@@ -123,19 +123,31 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
 
 /**
  * User personal profile update
+ * NOTE: Email changes MUST go through Better-Auth changeEmail flow (/api/auth/change-email).
  */
 export async function updateProfile(
   userId: string,
-  data: { username?: string; email?: string }
+  data: { username?: string; name?: string }
 ) {
   const userIdStr = String(userId);
-  const updateData: { username?: string; name?: string; email?: string } = {};
+  const updateData: { username?: string; name?: string } = {};
 
   if (data.username) {
-    updateData.username = data.username;
-    updateData.name = data.username;
+    const normalizedUsername = data.username.trim().toLowerCase();
+    // Validate that the username is not already taken by another user
+    const existing = await adminDb.query.authUsers.findFirst({
+      where: eq(users.username, normalizedUsername),
+      columns: { id: true },
+    });
+    if (existing && existing.id !== userIdStr) {
+      throw new AuthError('El nombre de usuario ya está en uso');
+    }
+    updateData.username = normalizedUsername;
   }
-  if (data.email) updateData.email = data.email;
+
+  if (data.name) {
+    updateData.name = data.name.trim();
+  }
 
   if (Object.keys(updateData).length === 0) {
     return { success: true, message: 'Sin cambios' } as const;

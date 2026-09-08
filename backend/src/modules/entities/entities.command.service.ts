@@ -1,6 +1,6 @@
 import { and, eq, count, inArray, or, isNull, isNotNull } from '@app/schema';
 import { db, type Tx } from '../../core/db';
-import { entities, entityAddresses, employeeDetails, entityContacts, carrierVehicles, carrierDrivers, supplierProducts, workOrders, electronicDocuments, departments, jobTitles } from '@app/schema/tables';
+import { entities, entityAddresses, employeeDetails, entityContacts, carrierVehicles, carrierDrivers, supplierProducts, workOrders, electronicDocuments, departments, jobTitles, accountsReceivable, accountsPayable, toolLoans } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
 import { broadcastToTenant } from '../../core/sse/events';
@@ -594,7 +594,7 @@ export async function restoreEntity(
 }
 
 export async function checkEntityReferences(id: string, companyId: number): Promise<EntityReferencesType> {
-    const [[spCount], [docCount], [woCount]] = await Promise.all([
+    const [[spCount], [docCount], [woCount], [arCount], [apCount], [tlCount]] = await Promise.all([
         db.select({ value: count() }).from(supplierProducts).where(
             and(eq(supplierProducts.supplier_id, id), eq(supplierProducts.company_id, companyId))
         ),
@@ -604,12 +604,24 @@ export async function checkEntityReferences(id: string, companyId: number): Prom
         db.select({ value: count() }).from(workOrders).where(
             and(eq(workOrders.client_id, id), eq(workOrders.company_id, companyId))
         ),
+        db.select({ value: count() }).from(accountsReceivable).where(
+            and(eq(accountsReceivable.entity_id, id), eq(accountsReceivable.company_id, companyId))
+        ),
+        db.select({ value: count() }).from(accountsPayable).where(
+            and(eq(accountsPayable.entity_id, id), eq(accountsPayable.company_id, companyId))
+        ),
+        db.select({ value: count() }).from(toolLoans).where(
+            and(eq(toolLoans.borrower_id, id), eq(toolLoans.company_id, companyId))
+        ),
     ]);
 
     const total =
         (spCount?.value ?? 0) +
         (docCount?.value ?? 0) +
-        (woCount?.value ?? 0);
+        (woCount?.value ?? 0) +
+        (arCount?.value ?? 0) +
+        (apCount?.value ?? 0) +
+        (tlCount?.value ?? 0);
 
     return {
         supplierProducts: Number(spCount?.value ?? 0),
@@ -719,23 +731,21 @@ export async function addContact(entityId: string, payload: EntityContactType, c
 
 export async function updateContact(contactId: number, payload: Partial<EntityContactType>, companyId: number) {
     const [contact] = await db
-        .select()
+        .select({
+            id: entityContacts.id,
+            entityId: entityContacts.entity_id,
+        })
         .from(entityContacts)
+        .innerJoin(entities, and(eq(entityContacts.entity_id, entities.id), eq(entities.company_id, companyId)))
         .where(eq(entityContacts.id, contactId));
 
     if (!contact) throw new DomainError('Contacto no encontrado', 404);
-
-    const [ent] = await db
-        .select({ id: entities.id })
-        .from(entities)
-        .where(and(eq(entities.id, contact.entity_id), eq(entities.company_id, companyId)));
-    if (!ent) throw new DomainError('Entidad no encontrada', 404);
 
     if (payload.isPrimary) {
         await db
             .update(entityContacts)
             .set({ is_primary: false })
-            .where(eq(entityContacts.entity_id, contact.entity_id));
+            .where(eq(entityContacts.entity_id, contact.entityId));
     }
 
     const [updated] = await db
@@ -750,26 +760,24 @@ export async function updateContact(contactId: number, payload: Partial<EntityCo
         .where(eq(entityContacts.id, contactId))
         .returning();
 
-    await cacheService.invalidate(`entity:c${companyId}:${contact.entity_id}`);
+    await cacheService.invalidate(`entity:c${companyId}:${contact.entityId}`);
     return updated;
 }
 
 export async function deleteContact(contactId: number, companyId: number) {
     const [contact] = await db
-        .select()
+        .select({
+            id: entityContacts.id,
+            entityId: entityContacts.entity_id,
+        })
         .from(entityContacts)
+        .innerJoin(entities, and(eq(entityContacts.entity_id, entities.id), eq(entities.company_id, companyId)))
         .where(eq(entityContacts.id, contactId));
 
     if (!contact) throw new DomainError('Contacto no encontrado', 404);
 
-    const [ent] = await db
-        .select({ id: entities.id })
-        .from(entities)
-        .where(and(eq(entities.id, contact.entity_id), eq(entities.company_id, companyId)));
-    if (!ent) throw new DomainError('Entidad no encontrada', 404);
-
     await db.delete(entityContacts).where(eq(entityContacts.id, contactId));
-    await cacheService.invalidate(`entity:c${companyId}:${contact.entity_id}`);
+    await cacheService.invalidate(`entity:c${companyId}:${contact.entityId}`);
 
     return { success: true };
 }

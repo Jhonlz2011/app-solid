@@ -11,7 +11,7 @@ import {
 import { registerRateLimit } from '../../plugins/register-rate-limit';
 import { ipPlugin, getIpAndUserAgent } from '../../plugins/ip';
 import { adminDb } from '../../core/db';
-import { companies } from '@app/schema/tables';
+import { companies, user } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
 import { getTenantBySlug } from '../../core/spa';
@@ -115,6 +115,23 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
     return { available: !existing };
   }, {
     params: t.Object({ ruc: t.String() }),
+    response: t.Object({ available: t.Boolean() }),
+    beforeHandle: registerRateLimit as any,
+  })
+
+  // =========================================================================
+  // GET /check-email/:email — Email availability check (global scope)
+  // =========================================================================
+  .get('/check-email/:email', async ({ params }) => {
+    const normalized = params.email.trim().toLowerCase();
+    const [existing] = await adminDb
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.email, normalized))
+      .limit(1);
+    return { available: !existing };
+  }, {
+    params: t.Object({ email: t.String() }),
     response: t.Object({ available: t.Boolean() }),
     beforeHandle: registerRateLimit as any,
   })
