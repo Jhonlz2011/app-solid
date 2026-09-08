@@ -237,7 +237,7 @@ export const MENU_ITEMS: MenuSeedItem[] = [
         permission_prefix: 'crm',
         sort_order: 10,
         children: [
-            { key: 'clients', label: 'Clientes', path: '/clients', path_alias: 'clientes', permission_prefix: 'clients', sort_order: 0, icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', status: 'active' },
+            { key: 'clients', label: 'Clientes', path: '/clients', path_alias: '/clientes', permission_prefix: 'clients', sort_order: 0, icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', status: 'active' },
             { key: 'technical_visits', label: 'Visitas Técnicas', path: '/visits', path_alias: '/visitas', permission_prefix: 'visits', sort_order: 1, icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7', status: 'development' },
             { key: 'budgets', label: 'Presupuestos', path: '/budgets', path_alias: '/presupuestos', permission_prefix: 'budgets', sort_order: 2, icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z', status: 'development' },
             { key: 'invoicing', label: 'Facturación', path: '/invoices', path_alias: '/facturacion', permission_prefix: 'invoices', sort_order: 3, icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', status: 'development' },

@@ -2,6 +2,25 @@ import { createStore } from "solid-js/store";
 import { api } from "../lib/eden";
 import { useAuth } from "@modules/auth/store/auth.store";
 import type { MenuItemStatus } from "@app/schema/enums";
+import { updateRouteAliases } from "@shared/utils/route-alias";
+
+function syncRouteAliases(modules: ModuleConfig[]): void {
+    const aliasMap: Record<string, string> = {};
+    const traverse = (items: ModuleConfig[]) => {
+        for (const item of items) {
+            if (item.path && item.pathAlias && item.path !== item.pathAlias) {
+                aliasMap[item.pathAlias] = item.path;
+            }
+            if (item.children?.length) {
+                traverse(item.children);
+            }
+        }
+    };
+    traverse(modules);
+    if (Object.keys(aliasMap).length > 0) {
+        updateRouteAliases(aliasMap);
+    }
+}
 
 export interface ModuleConfig {
     key: string;
@@ -59,8 +78,10 @@ export const actions = {
             try {
                 const { data, error } = await api.modules.tree.get();
                 if (error) throw new Error(String(error.value));
+                const modulesList = Array.isArray(data) ? data as ModuleConfig[] : [];
+                syncRouteAliases(modulesList);
                 setState({
-                    modules: Array.isArray(data) ? data as ModuleConfig[] : [],
+                    modules: modulesList,
                     error: null,
                     cachedKey: cacheKey,
                 });
@@ -86,9 +107,12 @@ export const actions = {
         const currentTenant = user?.companySlug || (user?.companyId ? String(user.companyId) : null);
         const cacheKey = currentUserId ? `${currentUserId}:${currentTenant || 'global'}` : null;
 
+        const modulesList = Array.isArray(modules) ? modules : [];
+        syncRouteAliases(modulesList);
+
         fetchPromise = null;
         setState({
-            modules: Array.isArray(modules) ? modules : [],
+            modules: modulesList,
             error: null,
             isLoading: false,
             cachedKey: cacheKey,

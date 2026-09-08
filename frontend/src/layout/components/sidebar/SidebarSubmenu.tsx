@@ -46,7 +46,6 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
 
                                         <Link
                                             to={child.path || '#'}
-                                            {...(child.pathAlias ? { mask: { to: child.pathAlias } } as any : {})}
                                             role="menuitem"
                                             tabIndex={props.expanded && !isDevelopment() ? 0 : -1}
                                             data-active={(isChildActive() && !isDevelopment()) ? 'true' : undefined}

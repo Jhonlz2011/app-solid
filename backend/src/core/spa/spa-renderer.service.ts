@@ -251,23 +251,6 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                         headInjections += `
 <script id="route-aliases" type="application/json">${safeAliasJson}</script>
 <script id="route-reverse-aliases" type="application/json">${safeReverseJson}</script>
-<script>
-(function(){
-  try{
-    var a=JSON.parse(document.getElementById('route-aliases').textContent);
-    var p=location.pathname;
-    // Also match sub-paths: /ventas/clientes/123 → /clients/123
-    var real=a[p];
-    if(!real){
-      for(var k in a){if(p.startsWith(k+'/')){real=a[k]+p.slice(k.length);break;}}
-    }
-    if(real&&real!==p){
-      window.__MASKED_PATH__=p;
-      history.replaceState(history.state||{},'',real+location.search+location.hash);
-    }
-  }catch(e){}
-})();
-</script>
 `;
                     }
                 } catch (aliasErr) {

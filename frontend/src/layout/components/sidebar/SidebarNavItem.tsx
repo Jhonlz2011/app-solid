@@ -166,7 +166,6 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                 {/* Navigable item - uses Link (supports right-click open in new tab) */}
                 <Link
                     to={props.item.path!}
-                    {...(props.item.pathAlias ? { mask: { to: props.item.pathAlias } } as any : {})}
                     ref={tooltip.setTriggerRef}
                     data-state={dataState()}
                     onClick={() => {
@@ -244,7 +243,6 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                                         <li role="none">
                                             <Link
                                                 to={child.path || '#'}
-                                                {...(child.pathAlias ? { mask: { to: child.pathAlias } } as any : {})}
                                                 role="menuitem"
                                                 onClick={(e) => {
                                                     if (isChildDev) {

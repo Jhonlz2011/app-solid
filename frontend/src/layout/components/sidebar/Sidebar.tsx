@@ -77,24 +77,10 @@ export const Sidebar: Component = () => {
     const hasActiveDescendant = (item: MenuItem): boolean =>
         item.children?.some(isItemActive) ?? false;
 
-    // Read reverse alias map injected by SPA renderer
-    const getReverseAliases = (): Record<string, string> => {
-        try {
-            const el = document.getElementById('route-reverse-aliases');
-            if (el) return JSON.parse(el.textContent || '{}');
-        } catch {}
-        return {};
-    };
-
-    const handleNavigation = (path?: string, pathAlias?: string) => {
+    const handleNavigation = (path?: string, _pathAlias?: string) => {
         if (path) {
-            const alias = pathAlias || getReverseAliases()[path];
-            setOptimisticPath(alias || path);
-            if (alias && alias !== path) {
-                navigate({ to: path, mask: { to: alias } } as any);
-            } else {
-                navigate({ to: path });
-            }
+            setOptimisticPath(path);
+            navigate({ to: path });
             if (isMobileViewport()) closeMobile();
         }
     };

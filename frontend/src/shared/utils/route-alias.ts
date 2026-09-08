@@ -1,0 +1,147 @@
+/**
+ * Route Alias Resolution Utility
+ * 
+ * Provides seamless bidirectional path translation between user-facing tenant aliases
+ * (e.g., `/proveedores`, `/ventas/clientes`) and TanStack Router's internal canonical routes
+ * (e.g., `/suppliers`, `/clients`).
+ * 
+ * In production (*.zelys.app), aliases are pre-injected by Elysia SPA Renderer as JSON tags:
+ * - `<script id="route-aliases" type="application/json">` (alias -> real)
+ * - `<script id="route-reverse-aliases" type="application/json">` (real -> alias)
+ */
+
+let cachedAliases: Record<string, string> | null = null;
+let cachedReverseAliases: Record<string, string> | null = null;
+let sortedAliasKeys: string[] = [];
+let sortedReverseKeys: string[] = [];
+
+/**
+ * Initializes aliases from pre-injected DOM script tags.
+ * Cached in memory for O(1) performance on subsequent lookups.
+ */
+function initAliases(): void {
+    if (cachedAliases !== null) return;
+
+    try {
+        const el = typeof document !== 'undefined' ? document.getElementById('route-aliases') : null;
+        cachedAliases = el?.textContent ? JSON.parse(el.textContent) : {};
+    } catch {
+        cachedAliases = {};
+    }
+
+    try {
+        const el = typeof document !== 'undefined' ? document.getElementById('route-reverse-aliases') : null;
+        cachedReverseAliases = el?.textContent ? JSON.parse(el.textContent) : {};
+    } catch {
+        cachedReverseAliases = {};
+    }
+
+    // Sort descending by length so deeper prefix paths match before shallower ones
+    // (e.g., '/ventas/clientes' must match before '/ventas')
+    sortedAliasKeys = Object.keys(cachedAliases!).sort((a, b) => b.length - a.length);
+    sortedReverseKeys = Object.keys(cachedReverseAliases!).sort((a, b) => b.length - a.length);
+}
+
+/**
+ * Parses raw URL or path into pathname, search params, and hash fragment.
+ */
+function parseUrlParts(rawUrl: string): { pathname: string; search: string; hash: string } {
+    const hashIdx = rawUrl.indexOf('#');
+    const searchIdx = rawUrl.indexOf('?');
+
+    let pathname = rawUrl;
+    let search = '';
+    let hash = '';
+
+    if (hashIdx !== -1) {
+        hash = rawUrl.slice(hashIdx);
+        pathname = rawUrl.slice(0, hashIdx);
+    }
+
+    if (searchIdx !== -1 && (hashIdx === -1 || searchIdx < hashIdx)) {
+        search = rawUrl.slice(searchIdx, hashIdx !== -1 ? hashIdx : undefined);
+        pathname = rawUrl.slice(0, searchIdx);
+    }
+
+    return { pathname, search, hash };
+}
+
+/**
+ * Translates an incoming browser path (alias) to the internal TanStack Router path.
+ * Examples:
+ * - `/proveedores` -> `/suppliers`
+ * - `/proveedores/new` -> `/suppliers/new`
+ * - `/proveedores/123/edit` -> `/suppliers/123/edit`
+ * - `/ventas/clientes/new` -> `/clients/new`
+ */
+export function toRealPath(rawUrl: string): string {
+    initAliases();
+    const { pathname, search, hash } = parseUrlParts(rawUrl);
+
+    if (!cachedAliases || sortedAliasKeys.length === 0) {
+        return rawUrl;
+    }
+
+    // 1. Exact match
+    if (cachedAliases[pathname]) {
+        return `${cachedAliases[pathname]}${search}${hash}`;
+    }
+
+    // 2. Prefix match for sub-routes and modals (sorted by length descending)
+    for (const alias of sortedAliasKeys) {
+        if (pathname.startsWith(`${alias}/`)) {
+            const real = cachedAliases[alias];
+            const subPath = pathname.slice(alias.length);
+            return `${real}${subPath}${search}${hash}`;
+        }
+    }
+
+    return rawUrl;
+}
+
+/**
+ * Translates an internal TanStack Router path to the visible browser alias path.
+ * Examples:
+ * - `/suppliers` -> `/proveedores`
+ * - `/suppliers/new` -> `/proveedores/new`
+ * - `/suppliers/123/edit` -> `/proveedores/123/edit`
+ * - `/clients/new` -> `/ventas/clientes/new`
+ */
+export function toAliasPath(rawUrl: string): string {
+    initAliases();
+    const { pathname, search, hash } = parseUrlParts(rawUrl);
+
+    if (!cachedReverseAliases || sortedReverseKeys.length === 0) {
+        return rawUrl;
+    }
+
+    // 1. Exact match
+    if (cachedReverseAliases[pathname]) {
+        return `${cachedReverseAliases[pathname]}${search}${hash}`;
+    }
+
+    // 2. Prefix match for sub-routes and modals
+    for (const real of sortedReverseKeys) {
+        if (pathname.startsWith(`${real}/`)) {
+            const alias = cachedReverseAliases[real];
+            const subPath = pathname.slice(real.length);
+            return `${alias}${subPath}${search}${hash}`;
+        }
+    }
+
+    return rawUrl;
+}
+
+/**
+ * Dynamically updates the route alias map at runtime (e.g. on menu fetch or tenant switch).
+ */
+export function updateRouteAliases(aliasMap: Record<string, string>): void {
+    cachedAliases = { ...(cachedAliases || {}), ...aliasMap };
+    const reverse: Record<string, string> = { ...(cachedReverseAliases || {}) };
+    for (const [alias, real] of Object.entries(cachedAliases)) {
+        reverse[real] = alias;
+    }
+    cachedReverseAliases = reverse;
+    sortedAliasKeys = Object.keys(cachedAliases).sort((a, b) => b.length - a.length);
+    sortedReverseKeys = Object.keys(cachedReverseAliases).sort((a, b) => b.length - a.length);
+}
