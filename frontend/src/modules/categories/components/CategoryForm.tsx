@@ -204,8 +204,8 @@ export const CategoryForm: Component<CategoryFormProps> = (props) => {
                         <form.Field name="description">
                             {(field) => (
                                 <TextField.Root field={field()}>
-                                    <TextField.Label>Descripción</TextField.Label>
-                                    <TextField.Input type="text" placeholder="Descripción breve de la categoría (opcional)" />
+                                    <TextField.Label optional>Descripción</TextField.Label>
+                                    <TextField.Input type="text" placeholder="Descripción breve de la categoría" />
                                     <TextField.ErrorMessage />
                                 </TextField.Root>
                             )}

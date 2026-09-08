@@ -197,7 +197,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                         {(field) => (
                                             <TextField.Root field={field()} disabled={props.isSubmitting}>
                                                 <div class="flex items-center justify-between gap-2">
-                                                    <TextField.Label>Nombre de usuario (Opcional)</TextField.Label>
+                                                    <TextField.Label optional>Nombre de usuario</TextField.Label>
                                                     <AvailabilityBadge
                                                         status={usernameCheck.status}
                                                         availableLabel="Disponible"

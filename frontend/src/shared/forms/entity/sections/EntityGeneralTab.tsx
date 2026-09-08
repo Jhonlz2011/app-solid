@@ -322,10 +322,9 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                     <props.form.Field name="tradeName">
                         {(field) => (
                             <TextField.Root field={field()}>
-                                <TextField.Label>Nombre Comercial</TextField.Label>
-                                <TextField.Input type="text" placeholder="Marca (opcional)" />
+                                <TextField.Label tooltip="Nombre con el que es conocida comúnmente en el mercado" optional>Nombre Comercial</TextField.Label>
+                                <TextField.Input type="text" placeholder="Ej: Farmacia Luz del Sur" />
                                 <TextField.ErrorMessage />
-                                <TextField.Description>Nombre con el que es conocida comúnmente en el mercado</TextField.Description>
                             </TextField.Root>
                         )}
                     </props.form.Field>

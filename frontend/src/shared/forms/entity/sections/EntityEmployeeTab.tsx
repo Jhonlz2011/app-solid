@@ -177,7 +177,7 @@ export const EntityEmployeeTab: Component<EntityEmployeeTabProps> = (props) => {
                     <props.form.Field name="employeeDetails.terminationDate">
                         {(field) => (
                             <TextField.Root field={field()}>
-                                <TextField.Label>Fecha de Salida (Opcional)</TextField.Label>
+                                <TextField.Label optional>Fecha de Salida</TextField.Label>
                                 <TextField.Input type="date" />
                                 <TextField.ErrorMessage />
                             </TextField.Root>

@@ -408,7 +408,7 @@ const Register: Component = () => {
                             <span class="truncate">Autenticado como <strong>{auth.user()?.email}</strong></span>
                         </div>
                         <Badge variant="primary" onClick={handleCancelOAuth} class="cursor-pointer hover:bg-primary/20 transition-colors text-[11px]">
-                            Cambiar cuenta / Salir
+                            Salir
                         </Badge>
                     </div>
                 </Show>

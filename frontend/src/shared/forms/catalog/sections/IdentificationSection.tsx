@@ -92,9 +92,9 @@ const IdentificationSection: Component<IdentificationSectionProps> = (props) => 
             <props.form.Field name="description">
                 {(field) => (
                     <TextField.Root field={field()}>
-                        <TextField.Label>Descripción</TextField.Label>
+                        <TextField.Label optional>Descripción</TextField.Label>
                         <TextField.TextArea
-                            placeholder="Descripción opcional del producto..."
+                            placeholder="Descripción del producto..."
                             rows={3}
                         />
                     </TextField.Root>
