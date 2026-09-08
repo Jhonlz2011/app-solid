@@ -44,7 +44,7 @@ const LocationDeleteDialog: Component<LocationDeleteDialogProps> = (props) => {
                     props.onClose();
                 },
                 onError: (err: any) => {
-                    toast.error(err.message || 'Error al destruir permanentemente');
+                    toast.error(err.message || 'Error al eliminar permanentemente');
                 }
             });
         } else {
@@ -84,16 +84,16 @@ const LocationDeleteDialog: Component<LocationDeleteDialogProps> = (props) => {
             isLoading={isLoading()}
             softDeleteTitle="Desactivar"
             softDeleteDesc="La ubicación quedará inactiva y podrá restaurarse en cualquier momento."
-            hardDeleteTitle="Destruir permanentemente"
+            hardDeleteTitle="Eliminar permanentemente"
             hardDeleteDesc="Se eliminará de forma definitiva sin posibilidad de recuperación."
 
             softLoadingText="Desactivando..."
-            hardLoadingText="Destruyendo..."
+            hardLoadingText="Eliminando..."
 
             isCheckingDependencies={refsQuery.isFetching}
             hasDependencies={hasReferences()}
             dependencyWarnings={referenceLines()}
-            preventHardDeleteText="No se puede destruir"
+            preventHardDeleteText="No se puede eliminar permanentemente"
             preventHardDeleteReason="Registros vinculados que lo impiden:"
             preventHardDeleteSuggestion={<>Usa <strong class="text-muted font-semibold">Desactivar</strong> para ocultar la ubicación conservando las referencias.</>}
         />

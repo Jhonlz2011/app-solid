@@ -46,13 +46,13 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
         {
             allowHardDelete: false,
             isLoading: false,
-            softDeleteTitle: 'Eliminar',
+            softDeleteTitle: 'Desactivar',
             softDeleteDesc: 'El registro quedará inactivo y podrá restaurarse en cualquier momento.',
-            hardDeleteTitle: 'Destruir permanentemente',
+            hardDeleteTitle: 'Eliminar permanentemente',
             hardDeleteDesc: 'Se eliminará de forma definitiva sin posibilidad de recuperación.',
-            softLoadingText: 'Eliminando...',
-            hardLoadingText: 'Destruyendo...',
-            preventHardDeleteText: 'No se puede destruir',
+            softLoadingText: 'Desactivando...',
+            hardLoadingText: 'Eliminando...',
+            preventHardDeleteText: 'No se puede eliminar permanentemente',
             preventHardDeleteReason: 'Registros vinculados que lo impiden:',
         },
         rawProps

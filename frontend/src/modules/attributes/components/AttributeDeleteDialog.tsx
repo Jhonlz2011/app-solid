@@ -64,16 +64,16 @@ const AttributeDeleteDialog: Component<AttributeDeleteDialogProps> = (props) => 
             isLoading={isLoading()}
             softDeleteTitle="Desactivar"
             softDeleteDesc="El atributo quedará inactivo y podrá restaurarse en cualquier momento."
-            hardDeleteTitle="Destruir permanentemente"
+            hardDeleteTitle="Eliminar permanentemente"
             hardDeleteDesc="Se eliminará de forma definitiva sin posibilidad de recuperación."
 
             softLoadingText="Desactivando..."
-            hardLoadingText="Destruyendo..."
+            hardLoadingText="Eliminando..."
 
             isCheckingDependencies={refsQuery.isFetching}
             hasDependencies={hasReferences()}
             dependencyWarnings={referenceLines()}
-            preventHardDeleteText="No se puede destruir"
+            preventHardDeleteText="No se puede eliminar permanentemente"
             preventHardDeleteReason="Registros vinculados que lo impiden:"
             preventHardDeleteSuggestion={<>Usa <strong class="text-muted font-semibold">Desactivar</strong> para ocultar el atributo conservando las referencias.</>}
         />

@@ -1,5 +1,5 @@
 import { Component, Show, For, createMemo } from 'solid-js';
-import { useParams } from '@tanstack/solid-router';
+import { useParams, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useProduct } from '../data/products.queries';
 import { productTypeLabels, productSubtypeLabels } from '../data/products.api';
@@ -15,6 +15,7 @@ import { useAuth } from '@modules/auth/store/auth.store';
 interface ProductShowPanelProps {
     productId?: number;
     onClose?: () => void;
+    editTo?: () => string;
 }
 
 const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
@@ -46,7 +47,7 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
                 <div class="flex items-center gap-2 w-full justify-end">
                     <Button variant="outline" onClick={close}>Cerrar</Button>
                     <Show when={auth.canEdit('products')}>
-                        <LinkButton to={`/products/${productId()}/show/edit`} preload="intent">
+                        <LinkButton to={props.editTo ? props.editTo() : `/products/${productId()}/show/edit`} preload="intent">
                             Editar
                         </LinkButton>
                     </Show>
@@ -200,6 +201,7 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
                     )}
                 </Show>
             </Show>
+            <Outlet />
         </Sheet>
     );
 };

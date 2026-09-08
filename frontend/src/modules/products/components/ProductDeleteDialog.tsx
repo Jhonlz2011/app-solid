@@ -73,18 +73,18 @@ const ProductDeleteDialog: Component<ProductDeleteDialogProps> = (props) => {
             description={props.product?.name}
             allowHardDelete={canDestroy()}
             isLoading={isLoading()}
-            softDeleteTitle="Eliminar"
+            softDeleteTitle="Desactivar"
             softDeleteDesc="El producto quedará inactivo y podrá restaurarse en cualquier momento."
-            hardDeleteTitle="Destruir permanentemente"
+            hardDeleteTitle="Eliminar permanentemente"
             hardDeleteDesc="Se eliminará de forma definitiva sin posibilidad de recuperación."
             
-            softLoadingText="Eliminando..."
-            hardLoadingText="Destruyendo..."
+            softLoadingText="Desactivando..."
+            hardLoadingText="Eliminando..."
 
             isCheckingDependencies={refsQuery.isFetching}
             hasDependencies={hasReferences()}
             dependencyWarnings={referenceLines()}
-            preventHardDeleteText="No se puede destruir"
+            preventHardDeleteText="No se puede eliminar permanentemente"
             preventHardDeleteReason="Registros vinculados que lo impiden:"
             preventHardDeleteSuggestion={<>Usa <strong class="text-muted font-semibold">Eliminar</strong> para ocultar el producto conservando el historial.</>}
         />

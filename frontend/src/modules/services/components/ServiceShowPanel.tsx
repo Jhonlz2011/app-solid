@@ -1,5 +1,5 @@
 import { Component, Show, For, createMemo } from 'solid-js';
-import { useParams } from '@tanstack/solid-router';
+import { useParams, Outlet } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { useProduct } from '@/modules/products/data/products.queries';
 import { productTypeLabels, productSubtypeLabels } from '@/modules/products/data/products.api';
@@ -15,6 +15,7 @@ import { useAuth } from '@modules/auth/store/auth.store';
 interface ServiceShowPanelProps {
     serviceId?: number;
     onClose?: () => void;
+    editTo?: () => string;
 }
 
 const ServiceShowPanel: Component<ServiceShowPanelProps> = (props) => {
@@ -46,7 +47,7 @@ const ServiceShowPanel: Component<ServiceShowPanelProps> = (props) => {
                 <div class="flex items-center gap-2 w-full justify-end">
                     <Button variant="outline" onClick={close}>Cerrar</Button>
                     <Show when={auth.canEdit('products')}>
-                        <LinkButton to={`./edit`} preload="intent">
+                        <LinkButton to={props.editTo ? props.editTo() : './edit'} preload="intent">
                             Editar
                         </LinkButton>
                     </Show>
@@ -160,6 +161,7 @@ const ServiceShowPanel: Component<ServiceShowPanelProps> = (props) => {
                     )}
                 </Show>
             </Show>
+            <Outlet />
         </Sheet>
     );
 };

@@ -120,8 +120,8 @@ export const StatusBadge: Component<{ isActive: boolean | null }> = (props) => (
 // ── Action Badge ──
 const ACTION_LABELS: Record<string, string> = {
     read: 'Ver', create: 'Crear', add: 'Agregar', update: 'Editar',
-    edit: 'Editar', delete: 'Eliminar', restore: 'Restaurar',
-    destroy: 'Destruir', export: 'Exportar', import: 'Importar',
+    edit: 'Editar', delete: 'Desactivar', restore: 'Restaurar',
+    destroy: 'Eliminar', export: 'Exportar', import: 'Importar',
     approve: 'Aprobar', assign: 'Asignar', audit: 'Auditar',
 };
 
@@ -129,7 +129,7 @@ const ACTION_LABELS: Record<string, string> = {
 const ACTION_VARIANTS: Record<string, BadgeVariant> = {
     read: 'info', create: 'success', add: 'success',
     update: 'warning', edit: 'warning', approve: 'warning',
-    delete: 'danger', destroy: 'danger', restore: 'primary',
+    delete: 'danger', destroy: 'destructive', restore: 'primary',
     assign: 'primary', export: 'info', import: 'success',
 };
 

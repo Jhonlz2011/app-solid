@@ -19,6 +19,7 @@ import LinkButton from '@form/LinkButton';
 interface AttributeShowPanelProps {
     attributeId?: number;
     onClose?: () => void;
+    editTo?: () => string;
 }
 
 const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
@@ -110,7 +111,7 @@ const AttributeShowPanel: Component<AttributeShowPanelProps> = (props) => {
                                                 variant="outline"
                                                 size="sm"
                                                 class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                                to={`./edit`}
+                                                to={props.editTo ? props.editTo() : './edit'}
                                                 disabled={!attributeId()}
                                             >
                                                 <EditIcon class="size-4 text-muted" />

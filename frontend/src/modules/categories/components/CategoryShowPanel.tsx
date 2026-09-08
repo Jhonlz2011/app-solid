@@ -21,6 +21,7 @@ import { type CategoryNode } from '@app/schema/dto';
 interface CategoryShowPanelProps {
     categoryId?: number;
     onClose?: () => void;
+    editTo?: () => string;
 }
 
 const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
@@ -117,7 +118,7 @@ const CategoryShowPanel: Component<CategoryShowPanelProps> = (props) => {
                                                 variant="outline"
                                                 size="sm"
                                                 class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                                to={`./edit`}
+                                                to={props.editTo ? props.editTo() : './edit'}
                                                 disabled={!categoryId()}
                                             >
                                                 <EditIcon class="size-4 text-muted" />

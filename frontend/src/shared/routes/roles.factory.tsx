@@ -1,24 +1,37 @@
-import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
+import { createRoute, redirect, lazyRouteComponent, useNavigate } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import { rbacKeys } from '@/modules/rbac/data/users.keys';
 import { usersApi } from '@/modules/rbac/data/users.api';
 import { STALE_TIME } from '@shared/constants/cache.constants';
 
 const LazyRoleNewRoute = lazyRouteComponent(() =>
-    import('@/modules/rbac/components/RoleFormDialog').then(m => ({ default: () => <m.default mode="create" isOpen={true} /> }))
+    import('@/modules/rbac/components/RoleFormDialog').then(m => ({ default: (props: any) => <m.default mode="create" isOpen={true} {...props} /> }))
 );
 const LazyRoleEditRoute = lazyRouteComponent(() =>
-    import('@/modules/rbac/components/RoleFormDialog').then(m => ({ default: () => <m.default mode="edit" isOpen={true} /> }))
+    import('@/modules/rbac/components/RoleFormDialog').then(m => ({ default: (props: any) => <m.default mode="edit" isOpen={true} {...props} /> }))
 );
 const LazyRolePermissionsRoute = lazyRouteComponent(() =>
-    import('@/modules/rbac/components/RoleFormDialog').then(m => ({ default: () => <m.default mode="permissions" isOpen={true} /> }))
+    import('@/modules/rbac/components/RoleFormDialog').then(m => ({ default: (props: any) => <m.default mode="permissions" isOpen={true} {...props} /> }))
 );
 const LazyRoleUsersRoute = lazyRouteComponent(() =>
-    import('@/modules/rbac/components/RoleUsersDialog').then(m => ({ default: () => <m.default isOpen={true} roleId={null} roleName="" /> }))
+    import('@/modules/rbac/components/RoleUsersDialog').then(m => ({ default: (props: any) => <m.default isOpen={true} roleId={null} roleName="" {...props} /> }))
 );
 
 export const createRoleModals = (parentRoute: any, basePath = 'role') => {
     const prefix = basePath ? `${basePath}/` : '';
+
+    const wrapRoleRouteComponent = (Comp: any) => {
+        return (routeProps: any) => {
+            const navigate = useNavigate();
+            const handleClose = () => {
+                navigate({
+                    to: parentRoute.fullPath,
+                    search: ((prev: any) => ((prev && Object.keys(prev).length > 0) ? prev : { tab: 'roles' })) as any,
+                });
+            };
+            return <Comp {...routeProps} onClose={handleClose} />;
+        };
+    };
 
     // --- CREATE ROLE (/users/role/new) ---
     const newRoute = createRoute({
@@ -37,7 +50,7 @@ export const createRoleModals = (parentRoute: any, basePath = 'role') => {
                 staleTime: STALE_TIME.LONG,
             });
         },
-        component: LazyRoleNewRoute,
+        component: wrapRoleRouteComponent(LazyRoleNewRoute),
     });
 
     // --- $roleId BASE (/users/role/$roleId) ---
@@ -89,7 +102,7 @@ export const createRoleModals = (parentRoute: any, basePath = 'role') => {
                 ]);
             }
         },
-        component: LazyRoleEditRoute,
+        component: wrapRoleRouteComponent(LazyRoleEditRoute),
     });
 
     // --- PERMISSIONS ONLY (/users/role/$roleId/permissions) ---
@@ -124,7 +137,7 @@ export const createRoleModals = (parentRoute: any, basePath = 'role') => {
                 ]);
             }
         },
-        component: LazyRolePermissionsRoute,
+        component: wrapRoleRouteComponent(LazyRolePermissionsRoute),
     });
 
     // --- ROLE USERS (/users/role/$roleId/users) ---
@@ -154,7 +167,7 @@ export const createRoleModals = (parentRoute: any, basePath = 'role') => {
                 ]);
             }
         },
-        component: LazyRoleUsersRoute,
+        component: wrapRoleRouteComponent(LazyRoleUsersRoute),
     });
 
     return [newRoute, baseRoute.addChildren([indexRoute, editRoute, permissionsRoute, usersRoute])];

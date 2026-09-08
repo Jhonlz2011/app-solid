@@ -34,6 +34,7 @@ export interface EntityShowPanelProps {
     employeeId?: string | number;
     type?: EntityModuleType;
     onClose?: () => void;
+    editTo?: () => string;
 }
 
 export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
@@ -192,7 +193,7 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                         <Show when={canEdit()}>
                                             <div class="flex items-center gap-2 self-start sm:self-auto shrink-0">
                                                 <LinkButton
-                                                    to="./edit"
+                                                    to={props.editTo ? props.editTo() : './edit'}
                                                     preload="intent"
                                                     variant="outline"
                                                     size="sm"

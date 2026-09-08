@@ -92,7 +92,7 @@ export const SidebarFooter: Component<SidebarFooterProps> = (props) => {
                     <Button
                         variant="ghost-danger"
                         size="icon_sm"
-                        radius="xl"
+                        radius="lg"
                         onClick={handleLogout}
                         disabled={isLoggingOut()}
                         loading={isLoggingOut()}

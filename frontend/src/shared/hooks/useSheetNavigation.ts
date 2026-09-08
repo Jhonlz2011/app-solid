@@ -1,4 +1,4 @@
-import { useNavigate, useRouter } from '@tanstack/solid-router';
+import { useNavigate } from '@tanstack/solid-router';
 
 export interface SheetNavigationProps {
     onClose?: () => void;
@@ -20,7 +20,6 @@ export interface SheetNavigationProps {
  */
 export function useSheetNavigation(props: SheetNavigationProps) {
     const navigate = useNavigate();
-    const router = useRouter();
     let dismissFn: (() => void) | undefined;
     let isClosing = false;
 
@@ -52,28 +51,7 @@ export function useSheetNavigation(props: SheetNavigationProps) {
             return;
         }
 
-        // Safe imperative fallback: navigate to parent in route tree without subscribing to dying matches
-        try {
-            const matches = router.state.matches;
-            if (matches.length >= 2) {
-                let targetIndex = matches.length - 2;
-                const parentMatch = matches[targetIndex];
-
-                // If parent match is an intermediate parameterized base route (e.g. $roleId, $userId, or numeric ID), step up to entity parent
-                if (parentMatch && matches.length >= 3 && (parentMatch.routeId?.includes('$') || parentMatch.pathname?.match(/\/\d+$/))) {
-                    targetIndex = matches.length - 3;
-                }
-
-                const finalTarget = matches[targetIndex];
-                if (finalTarget?.pathname) {
-                    navigate({ to: finalTarget.pathname, search: (prev: any) => prev });
-                    return;
-                }
-            }
-            navigate({ to: '..', search: (prev: any) => prev });
-        } catch {
-            navigate({ to: '..', search: (prev: any) => prev });
-        }
+        navigate({ to: '..', search: (prev: any) => prev });
     };
 
     /**

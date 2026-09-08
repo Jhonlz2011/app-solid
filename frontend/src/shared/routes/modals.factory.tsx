@@ -1,4 +1,4 @@
-import { createRoute, redirect } from '@tanstack/solid-router';
+import { createRoute, redirect, useNavigate, useParams } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
 import type { RbacModule } from '@app/schema/enums';
 
@@ -55,6 +55,29 @@ function createDetailLoader(idParam: string, detail?: DetailConfig, extraPreload
 }
 
 /**
+ * Creates a route component wrapper that injects declarative onClose and custom routing props
+ * directly into the target modal/sheet component.
+ */
+function wrapModalRouteComponent(
+    Component: any,
+    getCloseDestination: (params: Record<string, string>) => string,
+    extraProps?: (params: Record<string, string>) => Record<string, any>
+) {
+    if (!Component) return undefined;
+    return (routeProps: any) => {
+        const navigate = useNavigate();
+        const params = useParams({ strict: false }) as () => Record<string, string>;
+        const handleClose = () => {
+            const p = params() ?? {};
+            const target = getCloseDestination(p);
+            navigate({ to: target, search: (prev: any) => prev });
+        };
+        const more = extraProps ? extraProps(params() ?? {}) : {};
+        return <Component {...routeProps} {...more} onClose={handleClose} />;
+    };
+}
+
+/**
  * Aplica `nestInEdit` a UNA instancia concreta de ruta Edit. Cada entry
  * point que renderiza `components.Edit` (sibling, show/edit, new/show/edit)
  * es un nodo distinto del árbol, así que cada uno necesita su PROPIO set de
@@ -95,7 +118,7 @@ export function createEntityModals(parentRoute: any, basePath = '', config: Enti
         getParentRoute: () => parentRoute,
         path: `${prefix}new`,
         beforeLoad: guardPermission(entityKey, 'canAdd', parentRoute),
-        component: components.New,
+        component: wrapModalRouteComponent(components.New, () => parentRoute.fullPath),
     });
 
     const newChildren: any[] = [...(config.nestInNew?.(newRoute) ?? [])];
@@ -105,7 +128,16 @@ export function createEntityModals(parentRoute: any, basePath = '', config: Enti
             getParentRoute: () => newRoute,
             path: `$${idParam}/show`,
             loader: (detail || config.showPreload) ? createDetailLoader(idParam, detail, config.showPreload) : undefined,
-            component: components.Show,
+            component: wrapModalRouteComponent(
+                components.Show,
+                () => `${parentRoute.fullPath}/${prefix}new`,
+                (params) => ({
+                    editTo: () => {
+                        const id = params[idParam];
+                        return id ? `${parentRoute.fullPath}/${prefix}new/${id}/show/edit` : './edit';
+                    },
+                })
+            ),
         });
         const newShowEditRoute = attachEditChildren(
             createRoute({
@@ -113,7 +145,10 @@ export function createEntityModals(parentRoute: any, basePath = '', config: Enti
                 path: `edit`,
                 beforeLoad: guardPermission(entityKey, 'canEdit', parentRoute),
                 loader: config.editPreload ? createDetailLoader(idParam, undefined, config.editPreload) : undefined,
-                component: components.Edit,
+                component: wrapModalRouteComponent(
+                    components.Edit,
+                    (params) => `${parentRoute.fullPath}/${prefix}new/${params[idParam]}/show`
+                ),
             }),
             config.nestInEdit
         );
@@ -140,7 +175,7 @@ export function createEntityModals(parentRoute: any, basePath = '', config: Enti
             path: `edit`,
             beforeLoad: guardPermission(entityKey, 'canEdit', parentRoute),
             loader: (detail || config.editPreload) ? createDetailLoader(idParam, detail, config.editPreload) : undefined,
-            component: components.Edit,
+            component: wrapModalRouteComponent(components.Edit, () => parentRoute.fullPath),
         }),
         config.nestInEdit
     );
@@ -152,7 +187,16 @@ export function createEntityModals(parentRoute: any, basePath = '', config: Enti
             getParentRoute: () => baseRoute,
             path: `show`,
             loader: (detail || config.showPreload) ? createDetailLoader(idParam, detail, config.showPreload) : undefined,
-            component: components.Show,
+            component: wrapModalRouteComponent(
+                components.Show,
+                () => parentRoute.fullPath,
+                (params) => ({
+                    editTo: () => {
+                        const id = params[idParam];
+                        return id ? `${parentRoute.fullPath}/${prefix}${id}/show/edit` : './edit';
+                    },
+                })
+            ),
         });
         const nestedEditRoute = attachEditChildren(
             createRoute({
@@ -160,7 +204,13 @@ export function createEntityModals(parentRoute: any, basePath = '', config: Enti
                 path: `edit`,
                 beforeLoad: guardPermission(entityKey, 'canEdit', parentRoute),
                 loader: config.editPreload ? createDetailLoader(idParam, undefined, config.editPreload) : undefined,
-                component: components.Edit,
+                component: wrapModalRouteComponent(
+                    components.Edit,
+                    (params) => {
+                        const id = params[idParam];
+                        return id ? `${parentRoute.fullPath}/${prefix}${id}/show` : parentRoute.fullPath;
+                    }
+                ),
             }),
             config.nestInEdit
         );

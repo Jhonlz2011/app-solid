@@ -25,6 +25,7 @@ import UserActivityTab from './show/UserActivityTab';
 interface UserShowPanelProps {
     userId?: string;
     onClose?: () => void;
+    editTo?: () => string;
 }
 
 const UserShowPanel: Component<UserShowPanelProps> = (props) => {
@@ -96,7 +97,7 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                             variant="outline"
                                             size="sm"
                                             class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
-                                            to={`./edit`}
+                                            to={props.editTo ? props.editTo() : './edit'}
                                             disabled={!userId()}
                                         >
                                             <EditIcon class="size-4 text-muted" />

@@ -229,9 +229,7 @@ export const CardOption: Component<CardOptionProps> = (rawProps) => {
                         </span>
 
                         <Show when={props.badge && (props.badgePlacement === 'inline' || props.layout === 'horizontal')}>
-                            <div class="shrink-0">
                                 {renderBadge()}
-                            </div>
                         </Show>
                     </div>
 

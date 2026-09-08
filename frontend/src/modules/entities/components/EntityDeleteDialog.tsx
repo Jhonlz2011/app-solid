@@ -52,23 +52,23 @@ export const EntityDeleteDialog: Component<EntityDeleteDialogProps> = (props) =>
         if (confirmedMode === 'hard') {
             props.hardDeleteMutation.mutate(id, {
                 onSuccess: () => {
-                    toast.success(`Se ha destruido permanentemente '${name}'`);
+                    toast.success(`Se ha eliminado permanentemente '${name}'`);
                     props.onSuccess?.();
                     props.onClose();
                 },
                 onError: (err: any) => {
-                    toast.error(err.message || `Error al destruir ${nameSingular()}`);
+                    toast.error(err.message || `Error al eliminar permanentemente ${nameSingular()}`);
                 },
             });
         } else {
             props.deleteMutation.mutate(id, {
                 onSuccess: () => {
-                    toast.success(`Se ha eliminado '${name}'`);
+                    toast.success(`Se ha desactivado '${name}'`);
                     props.onSuccess?.();
                     props.onClose();
                 },
                 onError: (err: any) => {
-                    toast.error(err.message || `Error al eliminar ${nameSingular()}`);
+                    toast.error(err.message || `Error al desactivar ${nameSingular()}`);
                 },
             });
         }
@@ -97,14 +97,14 @@ export const EntityDeleteDialog: Component<EntityDeleteDialogProps> = (props) =>
             isLoading={isLoading()}
             softDeleteTitle="Eliminar"
             softDeleteDesc={`El ${nameSingular()} quedará inactivo y podrá restaurarse en cualquier momento.`}
-            hardDeleteTitle="Destruir permanentemente"
+            hardDeleteTitle="Eliminar permanentemente"
             hardDeleteDesc="Se eliminará de forma definitiva sin posibilidad de recuperación."
             softLoadingText="Eliminando..."
-            hardLoadingText="Destruyendo..."
+            hardLoadingText="Eliminando..."
             isCheckingDependencies={refsQuery.isFetching}
             hasDependencies={hasReferences()}
             dependencyWarnings={referenceLines()}
-            preventHardDeleteText="No se puede destruir"
+            preventHardDeleteText="No se puede eliminar permanentemente"
             preventHardDeleteReason="Registros vinculados que lo impiden:"
             preventHardDeleteSuggestion={<>Usa <strong class="text-muted font-semibold">Eliminar</strong> para ocultar el {nameSingular()} conservando el historial.</>}
         />
