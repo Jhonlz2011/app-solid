@@ -7,8 +7,6 @@ import {
   Outlet, 
   redirect, 
   lazyRouteComponent,
-  createBrowserHistory,
-  type HistoryLocation,
 } from '@tanstack/solid-router';
 import { toRealPath, toAliasPath } from './shared/utils/route-alias';
 
@@ -295,28 +293,28 @@ const routeTree = rootRoute.addChildren([
 ]);
 
 
-// --- NATIVE BROWSER HISTORY (with bidirectional alias translation) ---
-const history = createBrowserHistory({
-  parseLocation: (): HistoryLocation => {
-    const pathname = toRealPath(window.location.pathname);
-    const search = window.location.search;
-    const hash = window.location.hash;
-    return {
-      href: `${pathname}${search}${hash}`,
-      pathname,
-      search,
-      hash,
-      state: window.history.state || { __TSR_index: 0 },
-    };
-  },
-  createHref: (href: string) => toAliasPath(href),
-});
-
-// --- ROUTER ---
+// --- ROUTER (Native TanStack Router with rewrite subsystem) ---
 export const router = createRouter({
   routeTree,
-  history,
   context: { queryClient },
+  rewrite: {
+    input: ({ url }) => {
+      const real = toRealPath(url.pathname);
+      if (real !== url.pathname) {
+        url.pathname = real;
+        return url;
+      }
+      return undefined;
+    },
+    output: ({ url }) => {
+      const alias = toAliasPath(url.pathname);
+      if (alias !== url.pathname) {
+        url.pathname = alias;
+        return url;
+      }
+      return undefined;
+    },
+  },
   defaultPreload: 'intent',
   defaultPreloadDelay: 100,
   defaultViewTransition: true,

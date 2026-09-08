@@ -10,36 +10,80 @@
  * - `<script id="route-reverse-aliases" type="application/json">` (real -> alias)
  */
 
+/** Canonical fallback map for standard ERP modules */
+const CANONICAL_DEFAULT_ALIASES: Record<string, string> = {
+    '/clientes': '/clients',
+    '/ventas/clientes': '/clients',
+    '/proveedores': '/suppliers',
+    '/compras/proveedores': '/suppliers',
+    '/productos': '/products',
+    '/servicios': '/services',
+    '/categorias': '/categories',
+    '/marcas': '/brands',
+    '/unidades': '/uom',
+    '/unidades-medida': '/uom',
+    '/atributos': '/attributes',
+    '/ubicaciones': '/locations',
+    '/herramientas': '/tool-loans',
+    '/prestamos': '/tool-loans',
+    '/usuarios': '/users',
+    '/sistema/usuarios': '/users',
+    '/empleados': '/employees',
+    '/rrhh/empleados': '/employees',
+    '/configuracion': '/settings',
+    '/sistema/configuracion': '/settings',
+    '/panel': '/dashboard',
+};
+
+const CANONICAL_DEFAULT_REVERSE: Record<string, string> = {
+    '/clients': '/clientes',
+    '/suppliers': '/proveedores',
+    '/products': '/productos',
+    '/services': '/servicios',
+    '/categories': '/categorias',
+    '/brands': '/marcas',
+    '/uom': '/unidades',
+    '/attributes': '/atributos',
+    '/locations': '/ubicaciones',
+    '/tool-loans': '/herramientas',
+    '/users': '/usuarios',
+    '/employees': '/empleados',
+    '/settings': '/configuracion',
+    '/dashboard': '/panel',
+};
+
 let cachedAliases: Record<string, string> | null = null;
 let cachedReverseAliases: Record<string, string> | null = null;
 let sortedAliasKeys: string[] = [];
 let sortedReverseKeys: string[] = [];
 
 /**
- * Initializes aliases from pre-injected DOM script tags.
+ * Initializes aliases from canonical defaults merged with pre-injected DOM script tags.
  * Cached in memory for O(1) performance on subsequent lookups.
  */
 function initAliases(): void {
     if (cachedAliases !== null) return;
 
+    let injectedAliases: Record<string, string> = {};
     try {
         const el = typeof document !== 'undefined' ? document.getElementById('route-aliases') : null;
-        cachedAliases = el?.textContent ? JSON.parse(el.textContent) : {};
-    } catch {
-        cachedAliases = {};
-    }
+        if (el?.textContent) injectedAliases = JSON.parse(el.textContent);
+    } catch {}
 
+    let injectedReverse: Record<string, string> = {};
     try {
         const el = typeof document !== 'undefined' ? document.getElementById('route-reverse-aliases') : null;
-        cachedReverseAliases = el?.textContent ? JSON.parse(el.textContent) : {};
-    } catch {
-        cachedReverseAliases = {};
-    }
+        if (el?.textContent) injectedReverse = JSON.parse(el.textContent);
+    } catch {}
+
+    // Injected tenant custom aliases override canonical defaults
+    cachedAliases = { ...CANONICAL_DEFAULT_ALIASES, ...injectedAliases };
+    cachedReverseAliases = { ...CANONICAL_DEFAULT_REVERSE, ...injectedReverse };
 
     // Sort descending by length so deeper prefix paths match before shallower ones
     // (e.g., '/ventas/clientes' must match before '/ventas')
-    sortedAliasKeys = Object.keys(cachedAliases!).sort((a, b) => b.length - a.length);
-    sortedReverseKeys = Object.keys(cachedReverseAliases!).sort((a, b) => b.length - a.length);
+    sortedAliasKeys = Object.keys(cachedAliases).sort((a, b) => b.length - a.length);
+    sortedReverseKeys = Object.keys(cachedReverseAliases).sort((a, b) => b.length - a.length);
 }
 
 /**
