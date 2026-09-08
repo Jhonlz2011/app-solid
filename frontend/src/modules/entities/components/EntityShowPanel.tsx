@@ -265,11 +265,19 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                 <InfoRow label="Teléfono" value={e.phone || 'No registrado'} />
                                                 <InfoRow label="Roles en el Sistema">
                                                     <div class="flex gap-1.5 flex-wrap">
-                                                        <Show when={e.is_client}><Badge variant="success">Cliente</Badge></Show>
-                                                        <Show when={e.is_supplier}><Badge variant="warning">Proveedor</Badge></Show>
-                                                        <Show when={e.is_employee}><Badge variant="info">Empleado</Badge></Show>
-                                                        <Show when={e.is_carrier}><Badge variant="primary">Transportista</Badge></Show>
-                                                        <Show when={!e.is_client && !e.is_supplier && !e.is_employee && !e.is_carrier}>
+                                                        <Show when={e.is_client !== null && e.is_client !== undefined}>
+                                                            <Badge variant={e.is_client ? "success" : "muted"}>Cliente{e.is_client ? '' : ' (Inactivo)'}</Badge>
+                                                        </Show>
+                                                        <Show when={e.is_supplier !== null && e.is_supplier !== undefined}>
+                                                            <Badge variant={e.is_supplier ? "warning" : "muted"}>Proveedor{e.is_supplier ? '' : ' (Inactivo)'}</Badge>
+                                                        </Show>
+                                                        <Show when={e.is_employee !== null && e.is_employee !== undefined}>
+                                                            <Badge variant={e.is_employee ? "info" : "muted"}>Empleado{e.is_employee ? '' : ' (Inactivo)'}</Badge>
+                                                        </Show>
+                                                        <Show when={e.is_carrier !== null && e.is_carrier !== undefined}>
+                                                            <Badge variant={e.is_carrier ? "primary" : "muted"}>Transportista{e.is_carrier ? '' : ' (Inactivo)'}</Badge>
+                                                        </Show>
+                                                        <Show when={e.is_client == null && e.is_supplier == null && e.is_employee == null && e.is_carrier == null}>
                                                             <span class="text-sm text-text font-medium">—</span>
                                                         </Show>
                                                     </div>

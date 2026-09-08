@@ -10,6 +10,7 @@ import { useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { copyToClipboard } from '@shared/utils/clipboard';
 import { buildFilterOptions } from '@shared/utils/facets.utils';
+import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 import { isActiveLabels } from '@shared/constants/labels';
 import { STALE_TIME } from '@shared/constants/cache.constants';
 import { useDataTable } from '@shared/hooks/useDataTable';
@@ -185,7 +186,15 @@ export function useEntityState(config: UseEntityStateConfig) {
     const businessNameFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'business_name'));
     const taxIdTypeFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'tax_id_type', config.taxIdTypeDisplayLabels));
     const personTypeFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'person_type', config.personTypeLabels));
-    const isActiveFilterOptions = createMemo(() => buildFilterOptions(facetsQuery.data, 'is_active', isActiveLabels));
+    const isActiveFilterOptions = createMemo((): FilterOption[] => {
+        const counts = facetsQuery.data?.is_active ?? [];
+        const trueCount = counts.find((c: { value: string; count: number }) => c.value === 'true')?.count ?? 0;
+        const falseCount = counts.find((c: { value: string; count: number }) => c.value === 'false')?.count ?? 0;
+        return [
+            { value: 'true', label: isActiveLabels['true'] ?? 'Activo', count: trueCount },
+            { value: 'false', label: isActiveLabels['false'] ?? 'Inactivo', count: falseCount },
+        ];
+    });
 
     const filterConfigs = {
         businessName: { options: businessNameFilterOptions, selected: businessNameFilter, onChange: handleFilterChange(setBusinessNameFilter), isLoading: () => facetsQuery.isPending },

@@ -20,7 +20,9 @@ import {
     EntityLookupResponseSchema,
     EntityListResponseSchema,
 } from '@app/schema/backend';
-import type { EntityBodyType, EntityAddressType, EntityContactType, DepartmentType, JobTitleType, EntityType } from '@app/schema/dto';
+import type { EntityBodyType, EntityAddressType, EntityContactType, DepartmentType, JobTitleType, EntityType, EntityListResponseType } from '@app/schema/dto';
+import type { PersonType, TaxIdType } from '@app/schema/enums';
+import type { CursorDirection } from '../../core/db/paginator';
 import { getIpAndUserAgent } from '../../plugins/ip';
 import { rbac } from '../../plugins/rbac';
 import { createEntityService } from './entities.service';
@@ -113,18 +115,18 @@ export function createEntityRoutes(config: EntityRouteConfig) {
             async ({ query, currentCompanyId }) => {
                 const result = await service.list({
                     cursor: query.cursor,
-                    direction: query.direction as any,
+                    direction: query.direction as CursorDirection | undefined,
                     limit: query.limit !== undefined ? Number(query.limit) : undefined,
                     search: query.search,
                     sortBy: query.sortBy,
                     sortOrder: query.sortOrder as 'asc' | 'desc' | undefined,
                     page: query.page !== undefined ? Number(query.page) : undefined,
-                    personType: parseArray(query.personType) as any,
-                    taxIdType: parseArray(query.taxIdType) as any,
+                    personType: parseArray(query.personType) as PersonType[] | undefined,
+                    taxIdType: parseArray(query.taxIdType) as TaxIdType[] | undefined,
                     isActive: parseArray(query.isActive),
                     businessName: parseArray(query.businessName),
                 }, currentCompanyId);
-                return result as any;
+                return result as EntityListResponseType;
             },
             {
                 query: EntityListQuerySchema,
@@ -138,8 +140,8 @@ export function createEntityRoutes(config: EntityRouteConfig) {
             ({ query, currentCompanyId }) => {
                 return service.facets({
                     search: query.search,
-                    personType: parseArray(query.personType) as any,
-                    taxIdType: parseArray(query.taxIdType) as any,
+                    personType: parseArray(query.personType) as PersonType[] | undefined,
+                    taxIdType: parseArray(query.taxIdType) as TaxIdType[] | undefined,
                     isActive: parseArray(query.isActive),
                     businessName: parseArray(query.businessName),
                 }, currentCompanyId);

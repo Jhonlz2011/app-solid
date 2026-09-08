@@ -1,5 +1,5 @@
-import { and, eq, count, inArray, or, isNull } from '@app/schema';
-import { db } from '../../core/db';
+import { and, eq, count, inArray, or, isNull, isNotNull } from '@app/schema';
+import { db, type Tx } from '../../core/db';
 import { entities, entityAddresses, employeeDetails, entityContacts, carrierVehicles, carrierDrivers, supplierProducts, workOrders, electronicDocuments, departments, jobTitles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
 import { cacheService } from '../../core/cache';
@@ -8,6 +8,7 @@ import { RealtimeEvents } from '@app/schema/realtime-events';
 import { withAuditTransaction, type AuditContext } from '../audit/audit.service';
 import type { EntityBodyType, EntityContactType, EntityAddressType, EntityReferencesType, DepartmentType, JobTitleType } from '@app/schema/dto';
 import type { EntityType } from '@app/schema/enums';
+import { getRoleColumn, getRoleKey } from './entities.query.service';
 
 // Helper for numeric conversion
 const toDecimal = (val?: number | null): string | undefined =>
@@ -18,6 +19,18 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
     return Object.fromEntries(
         Object.entries(obj).filter(([_, v]) => v !== undefined)
     ) as Partial<T>;
+}
+
+/**
+ * Safe role state resolver for entity creation/updates:
+ * - undefined: role was not in payload -> do not modify (remains undefined)
+ * - false: role was explicitly unchecked -> null (removes role)
+ * - true: role was checked -> if previously false (inactive), preserve false (prevents accidental reactivation); otherwise true
+ */
+function resolveRoleUpdate(newVal: boolean | undefined, currentVal: boolean | null | undefined): boolean | null | undefined {
+    if (newVal === undefined) return undefined;
+    if (!newVal) return null;
+    return currentVal === false ? false : true;
 }
 
 function mapEmployeeDetailsValues(details: NonNullable<EntityBodyType['employeeDetails']>, entityId: string) {
@@ -68,7 +81,7 @@ function mapEmployeeDetailsUpdate(details: NonNullable<EntityBodyType['employeeD
 }
 
 async function validateSupervisor(
-    tx: any,
+    tx: Tx,
     reportsTo: string | null | undefined,
     currentEntityId: string | null | undefined,
     companyId: number
@@ -82,7 +95,6 @@ async function validateSupervisor(
     const [supervisor] = await tx
         .select({
             id: entities.id,
-            isActive: entities.is_active,
             isEmployee: entities.is_employee,
             businessName: entities.business_name,
         })
@@ -94,8 +106,8 @@ async function validateSupervisor(
         throw new DomainError('El supervisor seleccionado no existe en la empresa.', 404);
     }
 
-    if (!supervisor.isEmployee || !supervisor.isActive) {
-        throw new DomainError(`"${supervisor.businessName}"no es un empleado activo y no puede ser asignado como supervisor.`, 400);
+    if (supervisor.isEmployee !== true) {
+        throw new DomainError(`"${supervisor.businessName}" no es un empleado activo y no puede ser asignado como supervisor.`, 400);
     }
 
     // Direct circular hierarchy check (A reports to B, and B already reports to A)
@@ -118,7 +130,7 @@ async function validateSupervisor(
 
 export async function createEntity(type: EntityType, payload: EntityBodyType, audit: AuditContext | undefined, companyId: number) {
     return await withAuditTransaction(audit, async (tx) => {
-        const typeColumn = type === 'client' ? 'is_client' : type === 'supplier' ? 'is_supplier' : type === 'employee' ? 'is_employee' : 'is_carrier';
+        const typeColumn = getRoleKey(type);
         const cleanTaxId = payload.taxId.trim();
 
         // 1. Check if entity with taxId already exists in this company
@@ -130,17 +142,16 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
 
         if (existing) {
             // If already has the target role active -> 409 Conflict
-            if (existing[typeColumn] && existing.is_active) {
+            if (existing[typeColumn] === true) {
                 const roleName = type === 'client' ? 'cliente' : type === 'supplier' ? 'proveedor' : type === 'employee' ? 'empleado' : 'transportista';
-                throw new DomainError(`Ya existe un ${roleName} registrado con el número de identificación ${cleanTaxId}`, 409);
+                throw new DomainError(`Ya existe un ${roleName} activo registrado con el número de identificación ${cleanTaxId}`, 409);
             }
 
-            // PROMOTION OF ROLE
+            // PROMOTION OF ROLE OR REACTIVATION
             const [promoted] = await tx
                 .update(entities)
                 .set(stripUndefined({
                     [typeColumn]: true,
-                    is_active: true,
                     deleted_at: null,
                     deleted_by: null,
                     business_name: payload.businessName.trim() || existing.business_name,
@@ -152,10 +163,10 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
                     obligado_contabilidad: payload.obligadoContabilidad ?? existing.obligado_contabilidad,
                     is_retention_agent: payload.isRetentionAgent ?? existing.is_retention_agent,
                     is_special_contributor: payload.isSpecialContributor ?? existing.is_special_contributor,
-                    is_client: type === 'client' ? true : (payload.isClient ?? existing.is_client),
-                    is_supplier: type === 'supplier' ? true : (payload.isSupplier ?? existing.is_supplier),
-                    is_employee: type === 'employee' ? true : (payload.isEmployee ?? existing.is_employee),
-                    is_carrier: type === 'carrier' ? true : (payload.isCarrier ?? existing.is_carrier),
+                    is_client: type === 'client' ? true : resolveRoleUpdate(payload.isClient, existing.is_client),
+                    is_supplier: type === 'supplier' ? true : resolveRoleUpdate(payload.isSupplier, existing.is_supplier),
+                    is_employee: type === 'employee' ? true : resolveRoleUpdate(payload.isEmployee, existing.is_employee),
+                    is_carrier: type === 'carrier' ? true : resolveRoleUpdate(payload.isCarrier, existing.is_carrier),
                     updated_at: new Date(),
                 }))
                 .where(eq(entities.id, existing.id))
@@ -263,10 +274,10 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
                 phone: payload.phone?.trim() || null,
                 tax_regime_type: payload.taxRegimeType,
                 obligado_contabilidad: payload.obligadoContabilidad ?? false,
-                is_client: type === 'client' || (payload.isClient ?? false),
-                is_supplier: type === 'supplier' || (payload.isSupplier ?? false),
-                is_employee: type === 'employee' || (payload.isEmployee ?? false),
-                is_carrier: type === 'carrier' || (payload.isCarrier ?? false),
+                is_client: type === 'client' || payload.isClient ? true : null,
+                is_supplier: type === 'supplier' || payload.isSupplier ? true : null,
+                is_employee: type === 'employee' || payload.isEmployee ? true : null,
+                is_carrier: type === 'carrier' || payload.isCarrier ? true : null,
                 is_retention_agent: payload.isRetentionAgent ?? false,
                 is_special_contributor: payload.isSpecialContributor ?? false,
             })
@@ -347,23 +358,21 @@ export async function createEntity(type: EntityType, payload: EntityBodyType, au
 // Update Entity
 // =============================================================================
 
-function getTypeColumn(type: EntityType) {
-    switch (type) {
-        case 'client': return entities.is_client;
-        case 'supplier': return entities.is_supplier;
-        case 'employee': return entities.is_employee;
-        case 'carrier': return entities.is_carrier;
-    }
-}
-
 export async function updateEntity(id: string, type: EntityType, payload: Partial<EntityBodyType>, audit: AuditContext | undefined, companyId: number) {
     return withAuditTransaction(audit, async (tx) => {
-        const typeColumn = getTypeColumn(type);
+        const typeColumn = getRoleColumn(type);
 
         const [existing] = await tx
-            .select({ id: entities.id, is_system: entities.is_system })
+            .select({
+                id: entities.id,
+                is_system: entities.is_system,
+                is_client: entities.is_client,
+                is_supplier: entities.is_supplier,
+                is_employee: entities.is_employee,
+                is_carrier: entities.is_carrier,
+            })
             .from(entities)
-            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)))
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), isNotNull(typeColumn)))
             .limit(1);
 
         if (!existing) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
@@ -383,13 +392,13 @@ export async function updateEntity(id: string, type: EntityType, payload: Partia
                 obligado_contabilidad: payload.obligadoContabilidad,
                 is_retention_agent: payload.isRetentionAgent,
                 is_special_contributor: payload.isSpecialContributor,
-                is_client: payload.isClient,
-                is_supplier: payload.isSupplier,
-                is_employee: payload.isEmployee,
-                is_carrier: payload.isCarrier,
+                is_client: resolveRoleUpdate(payload.isClient, existing.is_client),
+                is_supplier: resolveRoleUpdate(payload.isSupplier, existing.is_supplier),
+                is_employee: resolveRoleUpdate(payload.isEmployee, existing.is_employee),
+                is_carrier: resolveRoleUpdate(payload.isCarrier, existing.is_carrier),
                 updated_at: new Date(),
             }))
-            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)))
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), isNotNull(typeColumn)))
             .returning();
 
         if (!updated) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
@@ -496,11 +505,13 @@ export async function deactivateEntity(
     companyId: number
 ) {
     return withAuditTransaction(audit, async (tx) => {
-        const typeColumn = getTypeColumn(type);
+        const typeColumn = getRoleColumn(type);
+        const roleKey = getRoleKey(type);
+
         const [existing] = await tx
             .select()
             .from(entities)
-            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)))
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), isNotNull(typeColumn)))
             .limit(1);
 
         if (!existing) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
@@ -509,10 +520,10 @@ export async function deactivateEntity(
         }
 
         const otherRolesActive = [
-            type !== 'client' && existing.is_client,
-            type !== 'supplier' && existing.is_supplier,
-            type !== 'employee' && existing.is_employee,
-            type !== 'carrier' && existing.is_carrier,
+            type !== 'client' && existing.is_client === true,
+            type !== 'supplier' && existing.is_supplier === true,
+            type !== 'employee' && existing.is_employee === true,
+            type !== 'carrier' && existing.is_carrier === true,
         ].filter(Boolean).length;
 
         let updated;
@@ -521,18 +532,17 @@ export async function deactivateEntity(
             [updated] = await tx
                 .update(entities)
                 .set({
-                    [type === 'client' ? 'is_client' : type === 'supplier' ? 'is_supplier' : type === 'employee' ? 'is_employee' : 'is_carrier']: false,
+                    [roleKey]: false,
                     updated_at: new Date(),
                 })
                 .where(and(eq(entities.id, id), eq(entities.company_id, companyId)))
                 .returning();
         } else {
-            // Full entity deactivation
+            // Full entity deactivation: no other active roles remain
             [updated] = await tx
                 .update(entities)
                 .set({
-                    [type === 'client' ? 'is_client' : type === 'supplier' ? 'is_supplier' : type === 'employee' ? 'is_employee' : 'is_carrier']: false,
-                    is_active: false,
+                    [roleKey]: false,
                     deleted_at: new Date(),
                     deleted_by: deletedBy ?? null,
                     updated_at: new Date(),
@@ -558,16 +568,18 @@ export async function restoreEntity(
     companyId: number
 ) {
     return withAuditTransaction(audit, async (tx) => {
-        const typeColumn = getTypeColumn(type);
+        const typeColumn = getRoleColumn(type);
+        const roleKey = getRoleKey(type);
+
         const [updated] = await tx
             .update(entities)
             .set({
-                is_active: true,
+                [roleKey]: true,
                 deleted_at: null,
                 deleted_by: null,
                 updated_at: new Date(),
             })
-            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)))
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), isNotNull(typeColumn)))
             .returning();
 
         if (!updated) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
@@ -623,18 +635,42 @@ export async function hardDeleteEntity(
     }
 
     return withAuditTransaction(audit, async (tx) => {
-        const typeColumn = getTypeColumn(type);
-        const [target] = await tx
-            .select({ id: entities.id, is_system: entities.is_system })
-            .from(entities)
-            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)));
+        const typeColumn = getRoleColumn(type);
+        const roleKey = getRoleKey(type);
 
-        if (!target) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
-        if (target.is_system) {
+        const [existing] = await tx
+            .select()
+            .from(entities)
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), isNotNull(typeColumn)))
+            .limit(1);
+
+        if (!existing) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
+        if (existing.is_system) {
             throw new DomainError('Esta entidad es del sistema y no puede ser eliminada.', 403);
         }
 
-        await tx.delete(entities).where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)));
+        const hasOtherRoles = [
+            type !== 'client' && existing.is_client !== null,
+            type !== 'supplier' && existing.is_supplier !== null,
+            type !== 'employee' && existing.is_employee !== null,
+            type !== 'carrier' && existing.is_carrier !== null,
+        ].some(Boolean);
+
+        if (hasOtherRoles) {
+            // Multi-role entity: Purge only this specific role by setting it to NULL
+            await tx
+                .update(entities)
+                .set({
+                    [roleKey]: null,
+                    updated_at: new Date(),
+                })
+                .where(and(eq(entities.id, id), eq(entities.company_id, companyId)));
+        } else {
+            // Single-role entity without transactional references: Full physical delete
+            await tx
+                .delete(entities)
+                .where(and(eq(entities.id, id), eq(entities.company_id, companyId)));
+        }
         
         await cacheService.invalidate(`entity:c${companyId}:${id}`);
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
@@ -787,31 +823,50 @@ export async function bulkDeactivateEntities(
 ) {
     if (ids.length === 0) return { success: true, count: 0 };
     return withAuditTransaction(audit, async (tx) => {
-        const typeColumn = type === 'client' ? entities.is_client : type === 'supplier' ? entities.is_supplier : type === 'employee' ? entities.is_employee : entities.is_carrier;
+        const typeColumn = getRoleColumn(type);
+        const roleKey = getRoleKey(type);
         const conditions = [
             eq(typeColumn, true),
-            eq(entities.is_active, true),
             eq(entities.company_id, companyId),
             inArray(entities.id, ids),
             or(isNull(entities.is_system), eq(entities.is_system, false))!,
         ];
 
         const existing = await tx
-            .select({ id: entities.id })
+            .select()
             .from(entities)
             .where(and(...conditions));
 
         const existingIds = existing.map(e => e.id);
         if (existingIds.length === 0) {
-            throw new DomainError('No se encontraron entidades válidas para eliminar', 404);
+            throw new DomainError('No se encontraron entidades válidas para desactivar', 404);
         }
 
         const updatedEntities = await tx.update(entities).set({
-            is_active: false,
-            deleted_at: new Date(),
+            [roleKey]: false,
             updated_at: new Date(),
         }).where(and(eq(entities.company_id, companyId), inArray(entities.id, existingIds)))
           .returning();
+
+        // Vectorized: Si alguna entidad ya no tiene ningún otro rol activo, registrar deleted_at en un solo query
+        const fullyDeactivatedIds = existing
+            .filter(ent => {
+                const otherActive = (
+                    (type !== 'client' && ent.is_client === true) ||
+                    (type !== 'supplier' && ent.is_supplier === true) ||
+                    (type !== 'employee' && ent.is_employee === true) ||
+                    (type !== 'carrier' && ent.is_carrier === true)
+                );
+                return !otherActive;
+            })
+            .map(ent => ent.id);
+
+        if (fullyDeactivatedIds.length > 0) {
+            await tx
+                .update(entities)
+                .set({ deleted_at: new Date(), deleted_by: audit?.userId ?? null })
+                .where(inArray(entities.id, fullyDeactivatedIds));
+        }
 
         await cacheService.invalidate(`${type}s:c${companyId}:*`);
         await cacheService.invalidate(`entities:c${companyId}:*`);
@@ -837,10 +892,10 @@ export async function bulkRestoreEntities(
 ) {
     if (ids.length === 0) return { success: true, count: 0 };
     return withAuditTransaction(audit, async (tx) => {
-        const typeColumn = type === 'client' ? entities.is_client : type === 'supplier' ? entities.is_supplier : type === 'employee' ? entities.is_employee : entities.is_carrier;
+        const typeColumn = getRoleColumn(type);
+        const roleKey = getRoleKey(type);
         const conditions = [
-            eq(typeColumn, true),
-            eq(entities.is_active, false),
+            eq(typeColumn, false),
             eq(entities.company_id, companyId),
             inArray(entities.id, ids),
         ];
@@ -856,7 +911,7 @@ export async function bulkRestoreEntities(
         }
 
         const updatedEntities = await tx.update(entities).set({
-            is_active: true,
+            [roleKey]: true,
             deleted_at: null,
             deleted_by: null,
             updated_at: new Date(),

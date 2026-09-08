@@ -1,4 +1,5 @@
-import {  alias, and, eq, ilike, or, asc, inArray, type AnyColumn, type SQL } from '@app/schema';
+import { alias, and, eq, ilike, or, asc, inArray, isNotNull, type AnyColumn, type SQL } from '@app/schema';
+import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db } from '../../core/db';
 import { entities, entityAddresses, entityContacts, employeeDetails, carrierVehicles, carrierDrivers, departments, jobTitles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
@@ -7,15 +8,36 @@ import { CursorPaginator } from '../../core/db/paginator';
 import type { EntityPickerType, EntityFilters } from '@app/schema/dto';
 import type { EntityType } from '@app/schema/enums';
 
-export const SORTABLE_COLUMNS: Record<string, AnyColumn> = {
-    id: entities.id,
-    business_name: entities.business_name,
-    tax_id: entities.tax_id,
-    person_type: entities.person_type,
-    tax_id_type: entities.tax_id_type,
-    is_active: entities.is_active,
-    created_at: entities.created_at,
-};
+export const ROLE_COLUMN_KEYS = {
+    client: 'is_client',
+    supplier: 'is_supplier',
+    employee: 'is_employee',
+    carrier: 'is_carrier',
+} as const satisfies Record<EntityType, 'is_client' | 'is_supplier' | 'is_employee' | 'is_carrier'>;
+
+export type EntityRoleKey = typeof ROLE_COLUMN_KEYS[EntityType];
+
+export function getRoleKey(type: EntityType): EntityRoleKey {
+    return ROLE_COLUMN_KEYS[type];
+}
+
+export function getRoleColumn(type: EntityType) {
+    return entities[ROLE_COLUMN_KEYS[type]];
+}
+
+export function getSortableColumns(type: EntityType): Record<string, AnyColumn> {
+    return {
+        id: entities.id,
+        business_name: entities.business_name,
+        tax_id: entities.tax_id,
+        person_type: entities.person_type,
+        tax_id_type: entities.tax_id_type,
+        is_active: getRoleColumn(type),
+        created_at: entities.created_at,
+    };
+}
+
+export const SORTABLE_COLUMNS = getSortableColumns('client');
 
 // =============================================================================
 // Shared Filter Builder
@@ -34,23 +56,37 @@ export interface FilterBuildOptions {
 export function buildWhereConditions(opts: FilterBuildOptions): SQL[] {
     const conditions: SQL[] = [eq(entities.company_id, opts.companyId)];
 
+    const cf = opts.filters;
+    const exclude = opts.excludeFilterKey || opts.excludeColumn;
+
     if (opts.type) {
-        switch (opts.type) {
-            case 'client':
-                conditions.push(eq(entities.is_client, true));
-                break;
-            case 'supplier':
-                conditions.push(eq(entities.is_supplier, true));
-                break;
-            case 'employee':
-                conditions.push(eq(entities.is_employee, true));
-                if (opts.isCarrier !== undefined) {
-                    conditions.push(eq(entities.is_carrier, opts.isCarrier));
+        const roleCol = getRoleColumn(opts.type);
+
+        if (opts.type === 'employee' && opts.isCarrier !== undefined) {
+            conditions.push(eq(entities.is_carrier, opts.isCarrier));
+        }
+
+        if (exclude !== 'isActive') {
+            const activeFilters = cf?.isActive;
+            if (activeFilters && activeFilters.length > 0) {
+                const hasTrue = activeFilters.includes('true');
+                const hasFalse = activeFilters.includes('false');
+
+                if (hasTrue && hasFalse) {
+                    // Muestra tanto activos como inactivos de este rol
+                    conditions.push(isNotNull(roleCol));
+                } else if (hasTrue) {
+                    conditions.push(eq(roleCol, true));
+                } else if (hasFalse) {
+                    conditions.push(eq(roleCol, false));
                 }
-                break;
-            case 'carrier':
-                conditions.push(eq(entities.is_carrier, true));
-                break;
+            } else {
+                // Por defecto (sin filtro explícito): solo activos
+                conditions.push(eq(roleCol, true));
+            }
+        } else {
+            // Durante cálculo de facetas para isActive: incluir todos los que tienen este rol (true o false)
+            conditions.push(isNotNull(roleCol));
         }
     }
 
@@ -66,20 +102,6 @@ export function buildWhereConditions(opts: FilterBuildOptions): SQL[] {
             ilike(entities.trade_name, pattern)
         );
         if (searchCondition) conditions.push(searchCondition);
-    }
-
-    const cf = opts.filters;
-    const exclude = opts.excludeFilterKey || opts.excludeColumn;
-
-    if (exclude !== 'isActive') {
-        if (cf?.isActive && cf.isActive.length > 0) {
-            const boolValues = cf.isActive.map(v => v === 'true');
-            if (boolValues.length === 1) {
-                conditions.push(eq(entities.is_active, boolValues[0]));
-            }
-        } else {
-            conditions.push(eq(entities.is_active, true));
-        }
     }
 
     if (exclude !== 'personType' && cf?.personType && cf.personType.length > 0) {
@@ -104,7 +126,7 @@ function createEntityPaginator(type: EntityType) {
         table: entities,
         idColumn: entities.id,
         companyIdColumn: entities.company_id,
-        sortableColumns: SORTABLE_COLUMNS,
+        sortableColumns: getSortableColumns(type),
         defaultSortBy: 'business_name',
         cacheNamespace: `${type}s`,
         ttl: 120,
@@ -130,31 +152,53 @@ const entityPaginators: Record<EntityType, CursorPaginator<typeof entities, Enti
 // List Entities
 // =============================================================================
 
+export function mapEntityRow<T extends Record<string, unknown>>(row: T, type: EntityType) {
+    const roleKey = ROLE_COLUMN_KEYS[type];
+    const roleValue = row[roleKey];
+
+    return {
+        ...row,
+        is_active: roleValue === true,
+    };
+}
+
 export async function listEntities(type: EntityType, filters: EntityFilters, companyId: number) {
     const paginator = entityPaginators[type] || createEntityPaginator(type);
     const { cursor, direction, limit, search, isCarrier, sortBy, sortOrder, page, ...columnFilters } = filters;
-    return paginator.paginate(
+    const result = await paginator.paginate(
         { cursor, direction, limit, search, sortBy, sortOrder, page, filters: { ...columnFilters, isCarrier } },
         companyId
     );
+    return {
+        ...result,
+        data: result.data.map(item => mapEntityRow(item, type)),
+    };
 }
 
 export async function listEntitiesCursor(type: EntityType, filters: EntityFilters, companyId: number) {
     const paginator = entityPaginators[type] || createEntityPaginator(type);
     const { cursor, direction, limit, search, isCarrier, sortBy, sortOrder, page, ...columnFilters } = filters;
-    return paginator.paginateCursor(
+    const result = await paginator.paginateCursor(
         { cursor, direction, limit, search, sortBy, sortOrder, page, filters: { ...columnFilters, isCarrier } },
         companyId
     );
+    return {
+        ...result,
+        data: result.data.map(item => mapEntityRow(item, type)),
+    };
 }
 
 export async function listEntitiesSorted(type: EntityType, filters: EntityFilters, companyId: number) {
     const paginator = entityPaginators[type] || createEntityPaginator(type);
     const { cursor, direction, limit, search, isCarrier, sortBy, sortOrder, page, ...columnFilters } = filters;
-    return paginator.paginateSorted(
+    const result = await paginator.paginateSorted(
         { cursor, direction, limit, search, sortBy, sortOrder, page, filters: { ...columnFilters, isCarrier } },
         companyId
     );
+    return {
+        ...result,
+        data: result.data.map(item => mapEntityRow(item, type)),
+    };
 }
 
 export async function getCachedTotal(
@@ -191,10 +235,11 @@ export async function getEntityFacets(
     companyId: number
 ): Promise<Record<string, { value: string; count: number }[]>> {
     const paginator = entityPaginators[type] || createEntityPaginator(type);
-    const columnMap: Record<FacetColumn, any> = {
+    const roleCol = getRoleColumn(type);
+    const columnMap: Record<FacetColumn, PgColumn<any>> = {
         person_type: entities.person_type,
         tax_id_type: entities.tax_id_type,
-        is_active: entities.is_active,
+        is_active: roleCol,
         business_name: entities.business_name,
     };
 
@@ -224,12 +269,12 @@ export async function getEntity(id: string, companyId: number) {
         const [addresses, contacts, vehicles, drivers] = await Promise.all([
             db.select().from(entityAddresses).where(eq(entityAddresses.entity_id, id)),
             db.select().from(entityContacts).where(eq(entityContacts.entity_id, id)),
-            entity.is_carrier ? db.select().from(carrierVehicles).where(eq(carrierVehicles.carrier_id, id)) : Promise.resolve([]),
-            entity.is_carrier ? db.select().from(carrierDrivers).where(eq(carrierDrivers.carrier_id, id)) : Promise.resolve([]),
+            entity.is_carrier != null ? db.select().from(carrierVehicles).where(eq(carrierVehicles.carrier_id, id)) : Promise.resolve([]),
+            entity.is_carrier != null ? db.select().from(carrierDrivers).where(eq(carrierDrivers.carrier_id, id)) : Promise.resolve([]),
         ]);
 
         let details = null;
-        if (entity.is_employee) {
+        if (entity.is_employee != null) {
             const supervisors = alias(entities, 'supervisors');
             const [empDetails] = await db
                 .select({
@@ -264,7 +309,14 @@ export async function getEntity(id: string, companyId: number) {
             details = empDetails || null;
         }
 
-        return { ...entity, addresses, contacts, employeeDetails: details, vehicles, drivers };
+        const isEntityActive = (
+            entity.is_client === true ||
+            entity.is_supplier === true ||
+            entity.is_employee === true ||
+            entity.is_carrier === true
+        );
+
+        return { ...entity, is_active: isEntityActive, addresses, contacts, employeeDetails: details, vehicles, drivers };
     }, 3600);
 }
 
@@ -357,25 +409,17 @@ export async function listForPicker(companyId: number, options: ListForPickerOpt
 
     const conditions: SQL[] = [eq(entities.company_id, companyId)];
 
-    if (isActive !== undefined) {
-        conditions.push(eq(entities.is_active, isActive));
-    }
-
     if (type) {
-        switch (type) {
-            case 'client':
-                conditions.push(eq(entities.is_client, true));
-                break;
-            case 'supplier':
-                conditions.push(eq(entities.is_supplier, true));
-                break;
-            case 'employee':
-                conditions.push(eq(entities.is_employee, true));
-                break;
-            case 'carrier':
-                conditions.push(eq(entities.is_carrier, true));
-                break;
-        }
+        const roleCol = getRoleColumn(type);
+        conditions.push(isActive ? eq(roleCol, true) : isNotNull(roleCol));
+    } else if (isActive) {
+        const activeRole = or(
+            eq(entities.is_client, true),
+            eq(entities.is_supplier, true),
+            eq(entities.is_employee, true),
+            eq(entities.is_carrier, true)
+        );
+        if (activeRole) conditions.push(activeRole);
     }
 
     if (isClient !== undefined) conditions.push(eq(entities.is_client, isClient));

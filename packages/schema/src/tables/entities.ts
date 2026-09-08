@@ -17,17 +17,16 @@ export const entities = pgTableV2("entities", {
     trade_name: text("trade_name"),
     email_billing: text("email_billing"),
     phone: text("phone"),
-    is_client: boolean("is_client").default(false),
-    is_supplier: boolean("is_supplier").default(false),
-    is_employee: boolean("is_employee").default(false),
-    is_carrier: boolean("is_carrier").default(false),
+    is_client: boolean("is_client"),       // null = no rol, true = activo, false = inactivo (soft-deleted)
+    is_supplier: boolean("is_supplier"),   // null = no rol, true = activo, false = inactivo (soft-deleted)
+    is_employee: boolean("is_employee"),   // null = no rol, true = activo, false = inactivo (soft-deleted)
+    is_carrier: boolean("is_carrier"),     // null = no rol, true = activo, false = inactivo (soft-deleted)
     is_system: boolean("is_system").default(false),
     tax_regime_type: taxRegimeTypeEnum("tax_regime_type").default('GENERAL'),
     is_retention_agent: boolean("is_retention_agent").default(false),
     is_special_contributor: boolean("is_special_contributor").default(false),
     obligado_contabilidad: boolean("obligado_contabilidad").default(false).notNull(),
     default_price_list_id: integer("default_price_list_id").references(() => priceLists.id),
-    is_active: boolean("is_active").default(true),
     updated_at: timestamp("updated_at", TZ)
         .defaultNow()
         .$onUpdate(() => new Date()) // Drizzle actualiza esto automáticamente al hacer un UPDATE
@@ -40,9 +39,11 @@ export const entities = pgTableV2("entities", {
     uniqueIndex("idx_entities_company_tax_id").on(t.company_id, t.tax_id),
     index("idx_entities_company").on(t.company_id),
     index("idx_entities_roles").on(t.is_client, t.is_supplier, t.is_employee, t.is_carrier),
-    index("idx_entities_active").on(t.is_active),
-    // Partial index for active suppliers (most common query)
-    index("idx_active_suppliers").on(t.company_id, t.id).where(sql`${t.is_supplier} = true AND ${t.is_active} = true`),
+    // Partial indexes for active entities per role (ultrafast index scans)
+    index("idx_active_clients").on(t.company_id, t.id).where(sql`${t.is_client} = true`),
+    index("idx_active_suppliers").on(t.company_id, t.id).where(sql`${t.is_supplier} = true`),
+    index("idx_active_employees").on(t.company_id, t.id).where(sql`${t.is_employee} = true`),
+    index("idx_active_carriers").on(t.company_id, t.id).where(sql`${t.is_carrier} = true`),
     // Composite indexes for sorted pagination (column + id tiebreaker)
     index("idx_entities_business_name_id").on(t.business_name, t.id),
     index("idx_entities_created_at_id").on(t.created_at, t.id),

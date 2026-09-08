@@ -2,6 +2,7 @@ import {
     listEntities, 
     getEntityFacets, 
     getEntity, 
+    getRoleKey,
 } from './entities.query.service';
 
 import type { EntityBodyType, EntityFilters, EntityType } from '@app/schema/dto';
@@ -33,8 +34,8 @@ export function createEntityService(type: EntityType) {
         },
         async get(id: string, companyId: number) {
             const entity = await getEntity(id, companyId);
-            const isValid = type === 'client' ? entity.is_client : type === 'supplier' ? entity.is_supplier : type === 'employee' ? entity.is_employee : entity.is_carrier;
-            if (!isValid) throw new DomainError(`Entidad no es un ${type}`, 404);
+            const roleVal = entity[getRoleKey(type)];
+            if (roleVal === null || roleVal === undefined) throw new DomainError(`Entidad no es un ${type}`, 404);
             return entity;
         },
         async create(payload: EntityBodyType, audit: AuditContext | undefined, companyId: number) {

@@ -83,10 +83,10 @@ export function useEntitySmartLookup(
                     const { data: localEntity } = await api.entities.lookup({ taxId: val }).get();
                     if (localEntity) {
                         const existingRoles: string[] = [];
-                        if (localEntity.is_client) existingRoles.push('Cliente');
-                        if (localEntity.is_supplier) existingRoles.push('Proveedor');
-                        if (localEntity.is_employee) existingRoles.push('Empleado');
-                        if (localEntity.is_carrier) existingRoles.push('Transportista');
+                        if (localEntity.is_client !== null && localEntity.is_client !== undefined) existingRoles.push(localEntity.is_client ? 'Cliente' : 'Cliente (Inactivo)');
+                        if (localEntity.is_supplier !== null && localEntity.is_supplier !== undefined) existingRoles.push(localEntity.is_supplier ? 'Proveedor' : 'Proveedor (Inactivo)');
+                        if (localEntity.is_employee !== null && localEntity.is_employee !== undefined) existingRoles.push(localEntity.is_employee ? 'Empleado' : 'Empleado (Inactivo)');
+                        if (localEntity.is_carrier !== null && localEntity.is_carrier !== undefined) existingRoles.push(localEntity.is_carrier ? 'Transportista' : 'Transportista (Inactivo)');
 
                         setExistingEntityNotice({
                             businessName: localEntity.business_name,
