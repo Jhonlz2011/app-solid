@@ -30,7 +30,7 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
                     <ul role="menu" aria-label="Submenú" class="space-y-0.5">
                         <For each={props.items}>
                             {(child) => {
-                                const isChildActive = createMemo(() => isActive(child.path));
+                                const isChildActive = createMemo(() => isActive(child.path) || (child.pathAlias ? isActive(child.pathAlias) : false));
                                 const isDevelopment = createMemo(() => child.status === 'development');
 
                                 return (
@@ -46,6 +46,7 @@ export const SidebarSubmenu: Component<SidebarSubmenuProps> = (props) => {
 
                                         <Link
                                             to={child.path || '#'}
+                                            {...(child.pathAlias ? { mask: { to: child.pathAlias } } as any : {})}
                                             role="menuitem"
                                             tabIndex={props.expanded && !isDevelopment() ? 0 : -1}
                                             data-active={(isChildActive() && !isDevelopment()) ? 'true' : undefined}

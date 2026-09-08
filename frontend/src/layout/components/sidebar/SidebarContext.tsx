@@ -13,7 +13,7 @@ interface SidebarState {
     setIsMobileOpen: (v: boolean) => void;
     toggleMenu: (id: string) => void;
     setActiveTooltipId: (id: string | null) => void;
-    handleNavigation: (path?: string) => void;
+    handleNavigation: (path?: string, pathAlias?: string) => void;
     // Helpers
     isActive: (path?: string) => boolean;
     isItemActive: (item: MenuItem) => boolean;

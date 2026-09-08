@@ -166,6 +166,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                 {/* Navigable item - uses Link (supports right-click open in new tab) */}
                 <Link
                     to={props.item.path!}
+                    {...(props.item.pathAlias ? { mask: { to: props.item.pathAlias } } as any : {})}
                     ref={tooltip.setTriggerRef}
                     data-state={dataState()}
                     onClick={() => {
@@ -243,6 +244,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                                         <li role="none">
                                             <Link
                                                 to={child.path || '#'}
+                                                {...(child.pathAlias ? { mask: { to: child.pathAlias } } as any : {})}
                                                 role="menuitem"
                                                 onClick={(e) => {
                                                     if (isChildDev) {
@@ -281,7 +283,7 @@ export const SidebarNavItem: Component<SidebarNavItemProps> = (props) => {
                                                 class={`flex justify-between z-100 items-center gap-2 px-2 py-2 rounded-lg text-sm transition-all ${
                                                     isChildDev
                                                         ? 'text-muted/50 cursor-not-allowed bg-transparent'
-                                                        : (isActive(child.path) ? 'bg-primary/10 text-primary-strong font-medium' : 'text-muted hover:bg-primary/10 hover:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset focus-visible:text-heading')
+                                                        : ((isActive(child.path) || (child.pathAlias && isActive(child.pathAlias))) ? 'bg-primary/10 text-primary-strong font-medium' : 'text-muted hover:bg-primary/10 hover:text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset focus-visible:text-heading')
                                                 }`}
                                             >
                                                 <div class="flex items-center gap-2 truncate">

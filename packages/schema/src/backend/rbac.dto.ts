@@ -1,5 +1,5 @@
 import { Type, type Static } from '@sinclair/typebox';
-import { RBAC_MODULES, RBAC_ACTIONS } from '../enums';
+import { MODULE_ACTIONS_MAP, type PermissionSlug, type RbacModule, type RbacAction } from '../enums';
 import { PaginationMetaSchema, PaginationQuerySchema, type BaseFilters, type PaginationQueryType } from './common.dto';
 import { type UserSessionType } from './profile.dto';
 
@@ -13,8 +13,8 @@ export interface UsersFilters extends BaseFilters {
 }
 
 export const PermissionSlugSchema = Type.Union(
-    RBAC_MODULES.flatMap(m =>
-        RBAC_ACTIONS.map(a => Type.Literal(`${m}.${a}` as const))
+    (Object.entries(MODULE_ACTIONS_MAP) as [RbacModule, readonly RbacAction[]][]).flatMap(([mod, actions]) =>
+        actions.map(act => Type.Literal(`${mod}.${act}` as PermissionSlug))
     )
 );
 
@@ -69,7 +69,7 @@ export const RoleBodySchema = Type.Object({
 });
 
 export const RolePermissionsUpdateBodySchema = Type.Object({
-    permissionSlugs: Type.Array(Type.String()),
+    permissionSlugs: Type.Array(PermissionSlugSchema),
 });
 
 export const UserRoleReferenceSchema = Type.Object({

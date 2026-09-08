@@ -6,6 +6,7 @@ export interface MenuItem {
     label: string;
     icon: string;
     path?: string;
+    pathAlias?: string;
     status?: MenuItemStatus;
     children?: MenuItem[];
 }
@@ -21,7 +22,7 @@ export interface SidebarContextValue {
     toggleMenu: (id: string) => void;
     setIsMobileOpen: (open: boolean) => void;
     setActiveTooltipId: (id: string | null) => void;
-    handleNavigation: (path?: string) => void;
+    handleNavigation: (path?: string, pathAlias?: string) => void;
     isActive: (path?: string) => boolean;
     isItemActive: (item: MenuItem) => boolean;
     hasActiveDescendant: (item: MenuItem) => boolean;

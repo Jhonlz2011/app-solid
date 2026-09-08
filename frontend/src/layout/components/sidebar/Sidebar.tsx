@@ -55,6 +55,7 @@ export const Sidebar: Component = () => {
             label: m.label,
             icon: m.icon || '',
             path: m.path,
+            pathAlias: m.pathAlias,
             status: m.status,
             children: m.children?.map(mapItem)
         });
@@ -62,22 +63,38 @@ export const Sidebar: Component = () => {
         return Array.isArray(raw) ? raw.map(mapItem) : [];
     });
 
-    const isActive = (path?: string) => {
+    const isActive = (path?: string, pathAlias?: string) => {
         if (!path) return false;
         const current = optimisticPath() || location().pathname;
-        return current === path || current.startsWith(path + '/');
+        // Match against both real path and alias
+        return current === path || current.startsWith(path + '/')
+            || (pathAlias ? (current === pathAlias || current.startsWith(pathAlias + '/')) : false);
     };
 
     const isItemActive = (item: MenuItem): boolean =>
-        isActive(item.path) || (item.children?.some(isItemActive) ?? false);
+        isActive(item.path, item.pathAlias) || (item.children?.some(isItemActive) ?? false);
 
     const hasActiveDescendant = (item: MenuItem): boolean =>
         item.children?.some(isItemActive) ?? false;
 
-    const handleNavigation = (path?: string) => {
+    // Read reverse alias map injected by SPA renderer
+    const getReverseAliases = (): Record<string, string> => {
+        try {
+            const el = document.getElementById('route-reverse-aliases');
+            if (el) return JSON.parse(el.textContent || '{}');
+        } catch {}
+        return {};
+    };
+
+    const handleNavigation = (path?: string, pathAlias?: string) => {
         if (path) {
-            setOptimisticPath(path);
-            navigate({ to: path });
+            const alias = pathAlias || getReverseAliases()[path];
+            setOptimisticPath(alias || path);
+            if (alias && alias !== path) {
+                navigate({ to: path, mask: { to: alias } } as any);
+            } else {
+                navigate({ to: path });
+            }
             if (isMobileViewport()) closeMobile();
         }
     };

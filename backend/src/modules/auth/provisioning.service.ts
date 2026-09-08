@@ -69,8 +69,9 @@ export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: st
 
 /**
  * Seeds all menu items for a company (parents + children).
+ * company_id = null → global template; company_id = N → tenant-specific copy.
  */
-export async function seedCompanyMenus(tx: Tx) {
+export async function seedCompanyMenus(tx: Tx, companyId: number | null = null) {
     const parentMap = new Map<string, number>();
 
     // Insert parent items
@@ -83,17 +84,20 @@ export async function seedCompanyMenus(tx: Tx) {
                 label: item.label,
                 icon: item.icon,
                 path: item.path || null,
+                path_alias: item.path_alias || null,
                 parent_id: null,
                 sort_order: item.sort_order,
                 permission_prefix: item.permission_prefix || null,
                 status: itemStatus,
+                company_id: companyId,
             })
             .onConflictDoUpdate({
-                target: authMenuItems.key,
+                target: [authMenuItems.company_id, authMenuItems.key],
                 set: {
                     label: item.label,
                     icon: item.icon,
                     path: item.path || null,
+                    path_alias: item.path_alias || null,
                     sort_order: item.sort_order,
                     permission_prefix: item.permission_prefix || null,
                     status: itemStatus,
@@ -119,17 +123,20 @@ export async function seedCompanyMenus(tx: Tx) {
                     label: child.label,
                     icon: child.icon,
                     path: child.path || null,
+                    path_alias: child.path_alias || null,
                     parent_id: parentId,
                     sort_order: child.sort_order,
                     permission_prefix: child.permission_prefix || null,
                     status: childStatus,
+                    company_id: companyId,
                 })
                 .onConflictDoUpdate({
-                    target: authMenuItems.key,
+                    target: [authMenuItems.company_id, authMenuItems.key],
                     set: {
                         label: child.label,
                         icon: child.icon,
                         path: child.path || null,
+                        path_alias: child.path_alias || null,
                         parent_id: parentId,
                         sort_order: child.sort_order,
                         permission_prefix: child.permission_prefix || null,
@@ -139,7 +146,8 @@ export async function seedCompanyMenus(tx: Tx) {
         }
     }
 
-    cacheService.invalidate('menus:*');
+    cacheService.invalidate(`menus:${companyId ?? 'global'}`);
+    if (companyId) cacheService.invalidate(`aliases:${companyId}`);
 }
 
 /**

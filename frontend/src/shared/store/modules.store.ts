@@ -8,6 +8,7 @@ export interface ModuleConfig {
     label: string;
     icon?: string;
     path?: string;
+    pathAlias?: string;
     permission?: string;
     status?: MenuItemStatus;
     children?: ModuleConfig[];

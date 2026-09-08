@@ -96,7 +96,6 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                         <LinkButton
                                             variant="outline"
                                             size="sm"
-                                            class="gap-2 shrink-0 bg-surface/50 hover:bg-surface"
                                             to={props.editTo ? props.editTo() : './edit'}
                                             disabled={!userId()}
                                         >

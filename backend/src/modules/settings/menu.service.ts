@@ -1,6 +1,6 @@
 import { db, adminDb } from '../../core/db';
 import { authMenuItems } from '@app/schema/tables';
-import { eq, asc, sql } from '@app/schema';
+import { eq, asc, sql, isNull, and, isNotNull } from '@app/schema';
 import type { MenuItemStatus } from '@app/schema/enums';
 import { getUserPermissions, getUserRoles } from '../rbac/rbac.permission.service';
 import { cacheService } from '../../core/cache';
@@ -11,6 +11,7 @@ export interface ModuleConfig {
     label: string;
     icon?: string;
     path?: string;
+    pathAlias?: string;
     permission?: string;
     status?: MenuItemStatus;
     children?: ModuleConfig[];
@@ -22,6 +23,7 @@ interface DbMenuItem {
     label: string;
     icon: string | null;
     path: string | null;
+    path_alias: string | null;
     parent_id: number | null;
     sort_order: number | null;
     permission_prefix: string | null;
@@ -29,17 +31,22 @@ interface DbMenuItem {
 }
 
 /**
- * Get menu tree for a specific user, filtered by their permissions
+ * Get menu tree for a specific user, filtered by their permissions.
+ * Queries tenant-specific rows (company_id = N), falls back to global template (company_id IS NULL).
  */
 export async function getMenuForUser(userId: string | number, companyId?: number | null): Promise<ModuleConfig[]> {
     // Parallel: Redis + DB at the same time — eliminates serial waterfall
     const [roles, permissions, allMenus] = await Promise.all([
         getUserRoles(userId, companyId),
         getUserPermissions(userId, companyId),
-        cacheService.getOrSet('menus:all', async () => {
+        cacheService.getOrSet(`menus:${companyId ?? 'global'}`, async () => {
+            // Prefer tenant-specific rows; fall back to global template
+            const companyFilter = companyId
+                ? eq(authMenuItems.company_id, companyId)
+                : isNull(authMenuItems.company_id);
             return adminDb.select()
                 .from(authMenuItems)
-                // We fetch all items, including 'development', to show them locked in the UI
+                .where(companyFilter)
                 .orderBy(asc(authMenuItems.sort_order));
         }, 86400),
     ]);
@@ -181,6 +188,7 @@ function buildMenuTree(menus: DbMenuItem[]): ModuleConfig[] {
             label: menu.label,
             icon: menu.icon ?? undefined,
             path: menu.path ?? undefined,
+            pathAlias: menu.path_alias ?? undefined,
             permission: menu.permission_prefix ? `${menu.permission_prefix}.read` : undefined,
             status: menu.status ?? undefined,
             children: [],
@@ -218,3 +226,27 @@ function buildMenuTree(menus: DbMenuItem[]): ModuleConfig[] {
     return roots.map(cleanNode);
 }
 
+/**
+ * Returns the route alias map for a tenant (alias → real path).
+ * Used by SPA Renderer to inject pre-boot script for 100% alias mitigation.
+ */
+export async function getRouteAliases(companyId: number): Promise<Record<string, string>> {
+    const menus = await cacheService.getOrSet(`aliases:${companyId}`, async () => {
+        return adminDb
+            .select({ path: authMenuItems.path, path_alias: authMenuItems.path_alias })
+            .from(authMenuItems)
+            .where(and(
+                eq(authMenuItems.company_id, companyId),
+                isNotNull(authMenuItems.path),
+                isNotNull(authMenuItems.path_alias),
+            ));
+    }, 86400);
+
+    const aliasMap: Record<string, string> = {};
+    for (const m of menus) {
+        if (m.path && m.path_alias && m.path !== m.path_alias) {
+            aliasMap[m.path_alias] = m.path;  // alias → real
+        }
+    }
+    return aliasMap;
+}

@@ -307,6 +307,20 @@ export const router = createRouter({
   }
 });
 
+// Post-boot: restore masked path after TanStack Router has initialized.
+// The pre-boot script (injected by SPA Renderer) did history.replaceState to the real path
+// so TanStack Router could match it. Now we restore the alias URL the user expects to see.
+if (typeof window !== 'undefined' && (window as any).__MASKED_PATH__) {
+  queueMicrotask(() => {
+    const maskedPath = (window as any).__MASKED_PATH__;
+    if (maskedPath && window.location.pathname !== maskedPath) {
+      history.replaceState(history.state, '', maskedPath + window.location.search + window.location.hash);
+    }
+    delete (window as any).__MASKED_PATH__;
+  });
+}
+
+
 declare module '@tanstack/solid-router' {
   interface Register {
     router: typeof router;

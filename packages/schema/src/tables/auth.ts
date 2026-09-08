@@ -37,7 +37,6 @@ export const user = pgTableV2("user", {
     last_login: timestamp("last_login", TZ),
 }, (t) => [
     uniqueIndex("idx_user_email_unique").on(t.email),
-    index("idx_user_username").on(t.username),
     index("idx_user_company").on(t.company_id),
 ]);
 
@@ -54,7 +53,6 @@ export const session = pgTableV2("session", {
     activeOrganizationId: text("active_organization_id"),
 }, (t) => [
     index("idx_session_user").on(t.userId),
-    index("idx_session_token").on(t.token),
     index("idx_session_expires").on(t.expiresAt),
 ]);
 
@@ -99,9 +97,7 @@ export const organization = pgTableV2("organization", {
     logo: text("logo"),
     createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
     metadata: text("metadata"),
-}, (t) => [
-    index("idx_org_slug").on(t.slug),
-]);
+});
 
 /**
  * Organization member — links user to organization with a role.
@@ -117,7 +113,7 @@ export const member = pgTableV2("member", {
     // Per-org entity mapping: resolves user → entity (client/supplier/employee) per company
     entityId: uuid("entity_id").references(() => entities.id),
 }, (t) => [
-    index("idx_member_org").on(t.organizationId),
+    uniqueIndex("idx_member_org_user").on(t.organizationId, t.userId),
     index("idx_member_user").on(t.userId),
 ]);
 
@@ -178,7 +174,6 @@ export const authRoles = pgTableV2("auth_roles", {
     createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
 }, (t) => [
     uniqueIndex("idx_auth_roles_name").on(t.company_id, t.name),
-    index("idx_auth_roles_company").on(t.company_id),
     tenantPolicy(),
 ]).enableRLS();
 
@@ -214,22 +209,24 @@ export const authUserRoles = pgTableV2("auth_user_roles", {
 ]).enableRLS();
 
 // ============================================================================
-// 3. MENU SYSTEM (Dynamic Menus)
+// 3. MENU SYSTEM (Dynamic Menus) — Per-tenant with global template
 // ============================================================================
 
 export const authMenuItems = pgTableV2("auth_menu_items", {
     id: smallint("id").generatedAlwaysAsIdentity().primaryKey(),
-    key: text("key").notNull().unique(),               // 'inventory', 'products'
+    company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }),  // NULL = global template
+    key: text("key").notNull(),                        // 'inventory', 'products'
     label: text("label").notNull(),                    // 'Inventario' (editable by admin)
     icon: text("icon"),                                // SVG path data
     path: text("path"),                                // '/products' (null for parent categories)
+    path_alias: text("path_alias"),                    // '/catalogo/productos' (visible URL alias per tenant)
     parent_id: smallint("parent_id"),                   // Self-reference for tree hierarchy
     sort_order: smallint("sort_order").default(0),      // For custom ordering
     permission_prefix: text("permission_prefix"),      // 'products' -> maps to authPermissions.module
     status: menuItemStatusEnum("status").default('active'),
 }, (t) => [
     foreignKey({ columns: [t.parent_id], foreignColumns: [t.id] }),
-    index("idx_menu_parent").on(t.parent_id),
-    index("idx_menu_order").on(t.parent_id, t.sort_order),
+    uniqueIndex("idx_menu_company_key").on(t.company_id, t.key),
+    index("idx_menu_order").on(t.company_id, t.parent_id, t.sort_order),
     index("idx_menu_active").on(t.status),
 ]);

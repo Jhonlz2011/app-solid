@@ -4,6 +4,7 @@ import { eq } from '@app/schema';
 import type { TenantBrandingType } from '@app/schema/backend';
 import { env } from '../../config/env';
 import { resolveSlugFromHost, getContrastColor, isHexColor, THEME_PRESETS, BRANDING_DEFAULTS } from '@app/schema/utils';
+import { getRouteAliases } from '../../modules/settings/menu.service';
 
 // Cache in-memory in production with a TTL (e.g., 5 minutes)
 let cachedHtml: string | null = null;
@@ -130,6 +131,13 @@ async function getRawHtml(requestHost?: string): Promise<string> {
     }
 }
 
+// Helper: inject app-config JSON (deduplicated — was repeated 3x)
+function injectAppConfig(html: string, apiUrl: string, sseUrl: string): string {
+    const json = JSON.stringify({ apiUrl, sseUrl })
+        .replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+    return html.replace('</head>', `\n<script id="app-config" type="application/json">\n  ${json}\n</script>\n</head>`);
+}
+
 // Wildcard Elysia route handler for serving the branded SPA index.html
 export async function serveSpa({ request, query, set }: { request: Request; query: Record<string, string | undefined>; set: any }) {
     const url = new URL(request.url);
@@ -145,9 +153,9 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
 
     let html = await getRawHtml(originalHost);
 
-    // Canonical production endpoints for API and SSE
-    const apiUrl = 'https://api.zelys.app';
-    const sseUrl = 'https://api.zelys.app/api/sse';
+    // Resolve API URL dynamically from env (no hardcoding)
+    const apiUrl = env.API_PUBLIC_URL || `https://api.zelys.app`;
+    const sseUrl = `${apiUrl}/api/sse`;
 
     if (slug) {
         try {
@@ -226,6 +234,47 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                     headInjections += `\n<link rel="shortcut icon" href="/favicon.ico">`;
                 }
 
+                // 7. Route Aliases — Pre-boot script for 100% alias mitigation
+                try {
+                    const aliasMap = await getRouteAliases(company.id);
+                    if (Object.keys(aliasMap).length > 0) {
+                        const reverseMap: Record<string, string> = {};
+                        for (const [alias, real] of Object.entries(aliasMap)) {
+                            reverseMap[real] = alias;
+                        }
+
+                        const safeAliasJson = JSON.stringify(aliasMap)
+                            .replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+                        const safeReverseJson = JSON.stringify(reverseMap)
+                            .replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+
+                        headInjections += `
+<script id="route-aliases" type="application/json">${safeAliasJson}</script>
+<script id="route-reverse-aliases" type="application/json">${safeReverseJson}</script>
+<script>
+(function(){
+  try{
+    var a=JSON.parse(document.getElementById('route-aliases').textContent);
+    var p=location.pathname;
+    // Also match sub-paths: /ventas/clientes/123 → /clients/123
+    var real=a[p];
+    if(!real){
+      for(var k in a){if(p.startsWith(k+'/')){real=a[k]+p.slice(k.length);break;}}
+    }
+    if(real&&real!==p){
+      window.__MASKED_PATH__=p;
+      history.replaceState(history.state||{},'',real+location.search+location.hash);
+    }
+  }catch(e){}
+})();
+</script>
+`;
+                    }
+                } catch (aliasErr) {
+                    // Non-critical: if aliases fail, the app works normally without masking
+                    console.error('⚠️ Route aliases injection skipped:', aliasErr);
+                }
+
                 // Remove existing static favicon tags to avoid duplicates
                 html = html.replace(/<link[^>]+rel=["']?(?:shortcut icon|icon|apple-touch-icon)["']?[^>]*>/gi, '');
 
@@ -242,27 +291,19 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                 const titleText = escapeHtml(`${company.tradeName || company.businessName}`);
                 html = html.replace(/<title>.*?<\/title>/, `<title>${titleText}</title>`);
             } else {
-                // Tenant not found or inactive — index.html already has the default manifest link
-                const appConfigJson = JSON.stringify({ apiUrl, sseUrl })
-                    .replace(/</g, '\\u003c')
-                    .replace(/>/g, '\\u003e');
-                html = html.replace('</head>', `\n<script id="app-config" type="application/json">\n  ${appConfigJson}\n</script>\n</head>`);
+                // Tenant not found or inactive
+                html = injectAppConfig(html, apiUrl, sseUrl);
             }
         } catch (dbError) {
             console.error('❌ Error resolving tenant from database in SPA renderer:', dbError);
-            const appConfigJson = JSON.stringify({ apiUrl, sseUrl })
-                .replace(/</g, '\\u003c')
-                .replace(/>/g, '\\u003e');
-            html = html.replace('</head>', `\n<script id="app-config" type="application/json">\n  ${appConfigJson}\n</script>\n</head>`);
+            html = injectAppConfig(html, apiUrl, sseUrl);
         }
     } else {
-        // No tenant resolved (landing page or default site) — index.html already has the default manifest link
-        const appConfigJson = JSON.stringify({ apiUrl, sseUrl })
-            .replace(/</g, '\\u003c')
-            .replace(/>/g, '\\u003e');
-        html = html.replace('</head>', `\n<script id="app-config" type="application/json">\n  ${appConfigJson}\n</script>\n</head>`);
+        // No tenant resolved (landing page or default site)
+        html = injectAppConfig(html, apiUrl, sseUrl);
     }
 
     set.headers['content-type'] = 'text/html; charset=utf-8';
+    set.headers['cache-control'] = 'no-cache, no-store, must-revalidate';
     return html;
 }

@@ -111,32 +111,86 @@ export const SYSTEM_ROLES = {
     ADMIN: 'admin',
 } as const;
 
-/** All business modules that can have permissions */
-export const RBAC_MODULES = [
-    'dashboard',
-    // CRM children
-    'crm', 'clients', 'visits', 'budgets', 'invoices',
-    // Catalog children
-    'products', 'services', 'categories', 'brands', 'uom', 'attributes',
-    // Warehouse children
-    'inventory', 'movements', 'orders', 'locations', 'reception_materials', 'remission_guides', 'tools', 'tool_loans',
-    // Operations children
-    'operations', 'work_orders', 'schedule', 'projects',
-    // Production children
-    'production', 'planning', 'bom', 'dispatch_requests', 'materials',
-    // Purchases children
-    'suppliers', 'purchase_quotes', 'purchase_orders', 'purchase_invoices', 'retentions',
-    // POS children
-    'pos_sell', 'pos_sessions', 'pos_history',
-    // Finance children
-    'documents', 'receivable', 'payable',
-    // HR children
-    'hr', 'employees', 'schedules', 'hours',
-    // System children
-    'system', 'config', 'users', 'audit', 'roles', 'permissions',
-    // Other
-    'manufacturing', 'pos', 'menu', 'companies', 'stock_taking',
-] as const;
+/**
+ * Single source of truth for business modules and their domain-valid actions.
+ * Eliminates Cartesian product phantom permissions (e.g., 'dashboard.destroy', 'audit.delete').
+ */
+export const MODULE_ACTIONS_MAP = {
+    // 1. Read-only / Dashboards
+    dashboard: ['read'],
+
+    // 2. Immutable Compliance Logs
+    audit: ['read', 'export'],
+
+    // 3. Settings & Administration (Update only, singleton/tenant structure)
+    system: ['read', 'update'],
+    config: ['read', 'update'],
+    companies: ['read', 'update'],
+    menu: ['read', 'update'],
+    permissions: ['read', 'update'],
+
+    // 4. Security Roles (CRUD without recycle bin)
+    roles: ['read', 'create', 'update', 'delete'],
+
+    // 5. Parent Navigation Hubs (Categorical index views)
+    crm: ['read'],
+    operations: ['read'],
+    production: ['read'],
+    pos: ['read'],
+    hr: ['read'],
+    manufacturing: ['read'],
+
+    // 6. Master Catalogs / Entities (Full Lifecycle: CRUD + Recycle Bin)
+    clients: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+    suppliers: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+    employees: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+    products: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+    services: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+    categories: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+    brands: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+    uom: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+    attributes: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+    locations: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+    tools: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+    users: ['read', 'create', 'update', 'delete', 'restore', 'destroy'],
+
+    // 7. Operations, Workflows & Transactions (Standard CRUD)
+    visits: ['read', 'create', 'update', 'delete'],
+    budgets: ['read', 'create', 'update', 'delete'],
+    invoices: ['read', 'create', 'update', 'delete'],
+    inventory: ['read', 'update'],
+    movements: ['read', 'create', 'update', 'delete'],
+    orders: ['read', 'create', 'update', 'delete'],
+    reception_materials: ['read', 'create', 'update', 'delete'],
+    remission_guides: ['read', 'create', 'update', 'delete'],
+    tool_loans: ['read', 'create', 'update', 'delete'],
+    work_orders: ['read', 'create', 'update', 'delete'],
+    schedule: ['read', 'update'],
+    projects: ['read', 'create', 'update', 'delete'],
+    planning: ['read', 'create', 'update', 'delete'],
+    bom: ['read', 'create', 'update', 'delete'],
+    dispatch_requests: ['read', 'create', 'update', 'delete'],
+    materials: ['read', 'create', 'update', 'delete'],
+    purchase_quotes: ['read', 'create', 'update', 'delete'],
+    purchase_orders: ['read', 'create', 'update', 'delete'],
+    purchase_invoices: ['read', 'create', 'update', 'delete'],
+    retentions: ['read', 'create', 'update', 'delete'],
+    documents: ['read', 'create', 'update', 'delete'],
+    receivable: ['read', 'create', 'update', 'delete'],
+    payable: ['read', 'create', 'update', 'delete'],
+    schedules: ['read', 'create', 'update', 'delete'],
+    hours: ['read', 'create', 'update', 'delete'],
+    stock_taking: ['read', 'create', 'update', 'delete'],
+
+    // 8. POS Terminals
+    pos_sell: ['read', 'create'],
+    pos_sessions: ['read', 'create', 'update'],
+    pos_history: ['read'],
+} as const;
+
+export type ModuleActionsMap = typeof MODULE_ACTIONS_MAP;
+export type RbacModule = keyof ModuleActionsMap;
+export const RBAC_MODULES = Object.keys(MODULE_ACTIONS_MAP) as RbacModule[];
 
 /** Standard CRUD actions */
 export const RBAC_ACTIONS = ['read', 'create', 'update', 'delete', 'restore', 'destroy', 'export', 'import', 'assign', 'unassign'] as const;
@@ -183,11 +237,12 @@ export type MenuItemStatus = typeof MENU_ITEM_STATUSES[number];
 export type ContractType = typeof CONTRACT_TYPES[number];
 export type BankAccountType = typeof BANK_ACCOUNT_TYPES[number];
 
-export type RbacModule = typeof RBAC_MODULES[number];
 export type RbacAction = typeof RBAC_ACTIONS[number];
 
-/** Compile-time permission slug: 'suppliers.create' | 'invoices.read' | ... */
-export type PermissionSlug = `${RbacModule}.${RbacAction}`;
+/** Compile-time strictly safe permission slug derived from MODULE_ACTIONS_MAP */
+export type PermissionSlug = {
+    [M in RbacModule]: `${M}.${ModuleActionsMap[M][number]}`
+}[RbacModule];
 
 // ============================================================================
 // PG ENUMS - For Drizzle schema definitions
