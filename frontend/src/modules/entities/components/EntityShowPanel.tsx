@@ -108,7 +108,8 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
         }
     };
 
-    const canEdit = () => auth.canEdit(typeConfig().permKey as any);
+    const isSystem = () => Boolean(entity()?.is_system);
+    const canEdit = () => !isSystem() && auth.canEdit(typeConfig().permKey as any);
 
     return (
         <Sheet
@@ -176,6 +177,11 @@ export const EntityShowPanel: Component<EntityShowPanelProps> = (props) => {
                                                         {e.business_name}
                                                     </h3>
                                                     <StatusBadge isActive={e.is_active ?? true} />
+                                                    <Show when={isSystem()}>
+                                                        <Badge variant="warning" class="text-[11px] font-bold tracking-wider">
+                                                            Sistema (Protegido)
+                                                        </Badge>
+                                                    </Show>
                                                 </div>
                                                 <Show when={e.trade_name}>
                                                     <p class="text-sm text-muted font-medium mt-0.5">{e.trade_name}</p>

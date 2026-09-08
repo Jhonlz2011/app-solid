@@ -17,6 +17,8 @@ import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeade
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 import ActionMenu from '@shared/ui/overlay/ActionMenu';
 import { BanIcon } from '@icons/BanIcon';
+import { useAuth } from '@/modules/auth/store/auth.store';
+import { SYSTEM_ROLES } from '@app/schema/enums';
 
 /** Filter configuration for a single column - uses accessors for SolidJS reactivity */
 export interface ColumnFilterConfig {
@@ -277,7 +279,10 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
             enableSorting: false,
             cell: (info) => {
                 const user = info.row.original;
-                const isSuperadmin = user.roles?.some((r: any) => r.name === 'superadmin') ?? false;
+                const auth = useAuth();
+                const isSuperadmin = user.roles?.some((r: any) => r.name === 'superadmin' || r.name === SYSTEM_ROLES.SUPERADMIN) ?? false;
+                const isSelf = user.id === auth.user()?.id;
+                const canDeactivate = !isSuperadmin && !isSelf;
                 return (
                     <ActionMenu
                         module="users"
@@ -287,7 +292,7 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
                         deleteLabel="Desactivar"
                         deleteIcon={<BanIcon class="size-4 mr-2" />}
                         onRestore={isSuperadmin ? undefined : () => handlers.onRestore(user)}
-                        onDelete={isSuperadmin ? undefined : () => handlers.onDelete(user)}
+                        onDelete={canDeactivate ? () => handlers.onDelete(user) : undefined}
                     />
                 );
             },

@@ -63,7 +63,7 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
     const accentColor = () => ROLE_ACCENT_COLORS[props.role.name] ?? DEFAULT_ACCENT;
 
     return (
-        <div class="group relative bg-card border border-border/60 rounded-2xl shadow-card-soft overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
+        <div class="group relative bg-card border border-border/60 rounded-2xl shadow-card-soft overflow-hidden hover:shadow-lg">
             {/* Accent top bar — matches badge color */}
             <div class={`h-1 w-full bg-linear-to-r ${accentColor()} to-transparent`} />
 

@@ -10,6 +10,7 @@ import type { UserListItemType, UserReferencesType } from '@app/schema/dto';
 
 import DeleteDialog from '@overlay/DeleteDialog';
 import { BanIcon } from '@icons/BanIcon';
+import { SYSTEM_ROLES } from '@app/schema/enums';
 
 export interface UserDeleteDialogProps {
     user: UserListItemType | null;
@@ -41,6 +42,15 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
 
     const handleConfirm = (confirmedMode: 'soft' | 'hard') => {
         if (!props.user) return;
+        if (props.user.id === auth.user()?.id) {
+            props.onClose();
+            return;
+        }
+        const isSuperadmin = props.user.roles?.some((r: any) => r.name === 'superadmin' || r.name === SYSTEM_ROLES.SUPERADMIN);
+        if (isSuperadmin) {
+            props.onClose();
+            return;
+        }
         const id = props.user.id;
         if (confirmedMode === 'hard') {
             hardDeleteMutation.mutate(id, { onSuccess: () => { props.onSuccess?.(); props.onClose(); } });
@@ -65,7 +75,7 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
             onClose={props.onClose}
             onConfirm={handleConfirm}
             onModeChange={setMode}
-            title="Desactivar usuario"
+            title="Eliminar usuario"
             description={props.user?.username}
             icon={<BanIcon class="size-4 sm:size-5 text-danger" />}
             softDeleteIcon={<BanIcon class="size-4 text-danger" />}
@@ -73,16 +83,14 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
             isLoading={isLoading()}
             softDeleteTitle="Desactivar"
             softDeleteDesc="El usuario quedará inactivo y podrá restaurarse en cualquier momento. Sus roles se conservarán."
-            hardDeleteTitle="Remover permanentemente"
+            hardDeleteTitle="Eliminar"
             hardDeleteDesc="Se eliminará de forma definitiva junto con sus roles y sesiones, sin posibilidad de recuperación."
-            
             softLoadingText="Desactivando..."
-            hardLoadingText="Removiendo..."
-
+            hardLoadingText="Eliminando..."
             isCheckingDependencies={refsQuery.isFetching}
             hasDependencies={hasReferences()}
             dependencyWarnings={referenceLines()}
-            preventHardDeleteText="No se puede remover"
+            preventHardDeleteText="No se puede eliminar permanentemente"
             preventHardDeleteReason="Registros vinculados que lo impiden:"
             preventHardDeleteSuggestion={<>Usa <strong class="text-muted font-semibold">Desactivar acceso</strong> para inhabilitar al usuario en esta empresa conservando el historial.</>}
         />

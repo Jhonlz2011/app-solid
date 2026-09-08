@@ -95,18 +95,18 @@ export const EntityDeleteDialog: Component<EntityDeleteDialogProps> = (props) =>
             description={props.entity?.business_name}
             allowHardDelete={canDestroy()}
             isLoading={isLoading()}
-            softDeleteTitle="Eliminar"
+            softDeleteTitle="Desactivar"
             softDeleteDesc={`El ${nameSingular()} quedará inactivo y podrá restaurarse en cualquier momento.`}
-            hardDeleteTitle="Eliminar permanentemente"
+            hardDeleteTitle="Eliminar"
             hardDeleteDesc="Se eliminará de forma definitiva sin posibilidad de recuperación."
-            softLoadingText="Eliminando..."
+            softLoadingText="Desactivando..."
             hardLoadingText="Eliminando..."
             isCheckingDependencies={refsQuery.isFetching}
             hasDependencies={hasReferences()}
             dependencyWarnings={referenceLines()}
             preventHardDeleteText="No se puede eliminar permanentemente"
             preventHardDeleteReason="Registros vinculados que lo impiden:"
-            preventHardDeleteSuggestion={<>Usa <strong class="text-muted font-semibold">Eliminar</strong> para ocultar el {nameSingular()} conservando el historial.</>}
+            preventHardDeleteSuggestion={<>Usa <strong class="text-muted font-semibold">Desactivar</strong> para ocultar el {nameSingular()} conservando el historial.</>}
         />
     );
 };

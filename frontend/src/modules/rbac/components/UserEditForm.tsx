@@ -16,6 +16,8 @@ export interface UserEditFormProps {
     rolesLoading?: boolean;
     initialEntity?: { id: string; businessName: string; taxId: string } | null;
     isGlobalUser?: boolean;
+    isSelf?: boolean;
+    isSuperadmin?: boolean;
     onSubmit: (values: UserUpdateData & { newPassword?: string }) => void | Promise<void>;
     isSubmitting?: boolean;
 }
@@ -26,7 +28,7 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
 
     const form = createForm(() => ({
         defaultValues: {
-            isActive: props.defaultValues.isActive ?? true,
+            isActive: (props.isSelf || props.isSuperadmin) ? true : (props.defaultValues.isActive ?? true),
             roleIds: props.defaultValues.roleIds ?? [],
             entityId: props.defaultValues.entityId ?? null,
         } as UserUpdateData,
@@ -59,9 +61,23 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
             >
                 {/* ═══ User Identity (Global Read-Only in Tenant RBAC) ═══ */}
                 <div class="space-y-2">
-                    <FieldLabel tooltip="Identidad de acceso única del colaborador">
-                        Identidad de la cuenta
-                    </FieldLabel>
+                    <div class="flex items-center justify-between">
+                        <FieldLabel tooltip="Identidad de acceso única del colaborador">
+                            Identidad de la cuenta
+                        </FieldLabel>
+                        <div class="flex items-center gap-1.5">
+                            <Show when={props.isSuperadmin}>
+                                <span class="text-[11px] text-primary font-semibold bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+                                    Superadmin
+                                </span>
+                            </Show>
+                            <Show when={props.isSelf}>
+                                <span class="text-[11px] text-info font-semibold bg-info/10 px-2 py-0.5 rounded-md border border-info/20">
+                                    Tu cuenta
+                                </span>
+                            </Show>
+                        </div>
+                    </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div class="p-3 bg-surface/50 rounded-xl border border-border/60">
                             <p class="text-[10px] font-semibold uppercase tracking-wider text-muted">Nombre de usuario</p>

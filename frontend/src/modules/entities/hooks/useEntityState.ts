@@ -107,8 +107,8 @@ export function useEntityState(config: UseEntityStateConfig) {
     const entities = () => entitiesQuery.data?.data ?? [];
     const meta = () => entitiesQuery.data?.meta;
 
-    const selectedActiveCount = () => tableState.selectedItems().filter(s => s.is_active).length;
-    const selectedInactiveCount = () => tableState.selectedItems().filter(s => !s.is_active).length;
+    const selectedActiveCount = () => tableState.selectedItems().filter(s => s.is_active && !s.is_system).length;
+    const selectedInactiveCount = () => tableState.selectedItems().filter(s => !s.is_active && !s.is_system).length;
 
     // ─── Navigation Handlers ─────────────────────────────────────
     const handleClosePanel = () => navigate({ to: '.', search: (prev: any) => ({ ...prev, panel: undefined, id: undefined, from: undefined }) } as any);
@@ -138,9 +138,19 @@ export function useEntityState(config: UseEntityStateConfig) {
         tableState.setRowSelection({});
     };
 
-    const handleDelete = (entity: EntityListItem) => setDeleteTarget(entity);
+    const handleDelete = (entity: EntityListItem) => {
+        if (entity.is_system) {
+            toast.error('Esta entidad es del sistema y está protegida contra eliminación.');
+            return;
+        }
+        setDeleteTarget(entity);
+    };
 
     const handleRestore = (entity: EntityListItem) => {
+        if (entity.is_system) {
+            toast.error('Esta entidad es del sistema y está protegida contra modificaciones.');
+            return;
+        }
         restoreMutation.mutate(entity.id, {
             onSuccess: () => toast.success(`Se ha restaurado '${entity.business_name}'`),
             onError: (err: any) => toast.error(err.message || 'Error al restaurar'),
@@ -150,7 +160,7 @@ export function useEntityState(config: UseEntityStateConfig) {
     const handleBulkDelete = () => setShowBulkDeleteConfirm(true);
 
     const confirmBulkDelete = () => {
-        const ids = tableState.selectedItems().filter(s => s.is_active).map(s => s.id);
+        const ids = tableState.selectedItems().filter(s => s.is_active && !s.is_system).map(s => s.id);
         if (ids.length === 0) return;
         bulkDeleteMutation.mutate(ids, {
             onSuccess: () => { toast.success(`${ids.length} ${entityNamePlural} eliminados`); tableState.setRowSelection({}); setShowBulkDeleteConfirm(false); },
@@ -159,7 +169,7 @@ export function useEntityState(config: UseEntityStateConfig) {
     };
 
     const confirmBulkRestore = () => {
-        const ids = tableState.selectedItems().filter(s => !s.is_active).map(s => s.id);
+        const ids = tableState.selectedItems().filter(s => !s.is_active && !s.is_system).map(s => s.id);
         if (ids.length === 0) return;
         bulkRestoreMutation.mutate(ids, {
             onSuccess: () => { toast.success(`${ids.length} ${entityNamePlural} restaurados`); tableState.setRowSelection({}); setShowBulkRestoreConfirm(false); },

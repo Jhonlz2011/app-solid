@@ -980,6 +980,14 @@ export async function updateUser(
 
         // 3. Update status
         if (data.isActive !== undefined) {
+            if (data.isActive === false) {
+                if (currentUserId && userIdStr === String(currentUserId)) {
+                    throw new DomainError('No puedes desactivar tu propia cuenta', 403);
+                }
+                if (effectiveCompanyId) {
+                    await assertNotSuperadmin(userIdStr, effectiveCompanyId, 'desactivar');
+                }
+            }
             await tx.update(authUsers)
                 .set({ is_active: data.isActive })
                 .where(eq(authUsers.id, userIdStr));

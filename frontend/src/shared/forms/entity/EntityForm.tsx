@@ -29,6 +29,7 @@ export interface EntityFormProps {
     onSubmit: (data: EntityFormData) => Promise<void>;
     isSubmitting: boolean;
     lockedRoles?: Partial<Record<'isClient' | 'isSupplier' | 'isEmployee' | 'isCarrier', boolean>>;
+    readOnly?: boolean;
 }
 
 export const EntityForm: Component<EntityFormProps> = (props) => {
@@ -49,6 +50,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
             onSubmit: EntityFormSchema,
         },
         onSubmit: async ({ value }) => {
+            if (props.readOnly) return;
             try {
                 await props.onSubmit(value as EntityFormData);
             } catch (err) {
@@ -83,6 +85,7 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                 onSubmit={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (props.readOnly) return;
                     setHasAttemptedSubmit(true);
                     form.handleSubmit();
                 }}
@@ -127,33 +130,35 @@ export const EntityForm: Component<EntityFormProps> = (props) => {
                         </TabsList>
                     </div>
 
-                    <div class="pt-3">
-                        <TabsContent value="general">
-                            <EntityGeneralTab form={form} isEdit={isEdit} lockedRoles={props.lockedRoles} />
-                        </TabsContent>
-
-                        <Show when={isEmployeeVal()}>
-                            <TabsContent value="employee" forceMount={false} class="w-full max-w-5xl">
-                                <EntityEmployeeTab form={form} isEdit={isEdit} entity={props.entity} />
+                    <fieldset disabled={props.readOnly} class="contents">
+                        <div class="pt-3">
+                            <TabsContent value="general">
+                                <EntityGeneralTab form={form} isEdit={isEdit} lockedRoles={props.lockedRoles} />
                             </TabsContent>
-                        </Show>
 
-                        <Show when={showContacts()}>
-                            <TabsContent value="contacts" forceMount={false} class="w-full max-w-5xl">
-                                <EntityContactsArray form={form} />
+                            <Show when={isEmployeeVal()}>
+                                <TabsContent value="employee" forceMount={false} class="w-full max-w-5xl">
+                                    <EntityEmployeeTab form={form} isEdit={isEdit} entity={props.entity} />
+                                </TabsContent>
+                            </Show>
+
+                            <Show when={showContacts()}>
+                                <TabsContent value="contacts" forceMount={false} class="w-full max-w-5xl">
+                                    <EntityContactsArray form={form} />
+                                </TabsContent>
+                            </Show>
+
+                            <TabsContent value="addresses" forceMount={false} class="w-full max-w-5xl">
+                                <EntityAddressArray form={form} />
                             </TabsContent>
-                        </Show>
 
-                        <TabsContent value="addresses" forceMount={false} class="w-full max-w-5xl">
-                            <EntityAddressArray form={form} />
-                        </TabsContent>
-
-                        <Show when={isCarrierVal()}>
-                            <TabsContent value="carrier" forceMount={false} class="w-full max-w-5xl">
-                                <EntityCarrierTab form={form} />
-                            </TabsContent>
-                        </Show>
-                    </div>
+                            <Show when={isCarrierVal()}>
+                                <TabsContent value="carrier" forceMount={false} class="w-full max-w-5xl">
+                                    <EntityCarrierTab form={form} />
+                                </TabsContent>
+                            </Show>
+                        </div>
+                    </fieldset>
                 </Tabs>
             </form>
         </FormSubmissionContext.Provider>

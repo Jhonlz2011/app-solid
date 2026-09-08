@@ -30,20 +30,17 @@ export const BUTTON_BASE_VARIANTS: Record<string, string> = {
 /** Surface face colors (inner floating layer) */
 export const BUTTON_SURFACE_VARIANTS: Record<string, string> = {
   none: "",
-  primary: "bg-primary text-on-primary shadow-sm shadow-primary/20 hover:bg-primary-strong",
-  secondary: "bg-secondary text-on-secondary shadow-sm shadow-secondary/20 hover:bg-secondary-strong",
+  primary: "bg-primary text-on-primary shadow-sm shadow-primary/20",
+  secondary: "bg-secondary text-on-secondary shadow-sm shadow-secondary/20",
   outline: "bg-card text-text border border-border hover:bg-surface hover:border-border-strong active:bg-surface-3",
-  danger: "bg-danger text-white shadow-sm shadow-danger/20 hover:bg-danger/90",
-  destructive: "bg-destructive text-white shadow-sm shadow-destructive/30 hover:bg-destructive/90",
-  warning: "bg-warning text-white shadow-sm shadow-warning/20 hover:bg-warning/90",
-  success: "bg-success text-white shadow-sm shadow-success/20 hover:bg-success/90",
+  danger: "bg-danger text-white shadow-sm shadow-danger/20",
+  destructive: "bg-destructive text-white shadow-sm shadow-destructive/30",
+  warning: "bg-warning text-white shadow-sm shadow-warning/20",
+  success: "bg-success text-white shadow-sm shadow-success/20",
   ghost: "bg-transparent text-muted hover:text-heading hover:bg-surface active:bg-surface-3 transition-colors active:scale-[0.98]",
   'ghost-danger': "bg-transparent text-muted hover:text-danger hover:bg-danger/10 focus-visible:ring-danger/50 active:bg-danger/20 transition-colors active:scale-[0.98]",
   link: "bg-transparent text-primary hover:text-primary-strong hover:underline transition-colors p-0 h-auto",
 };
-
-// Backward compatibility map
-export const BUTTON_VARIANTS = BUTTON_SURFACE_VARIANTS;
 
 export const BUTTON_SIZES = {
   sm: "h-8 px-3 text-xs",

@@ -64,7 +64,7 @@ const AttributeDeleteDialog: Component<AttributeDeleteDialogProps> = (props) => 
             isLoading={isLoading()}
             softDeleteTitle="Desactivar"
             softDeleteDesc="El atributo quedará inactivo y podrá restaurarse en cualquier momento."
-            hardDeleteTitle="Eliminar permanentemente"
+            hardDeleteTitle="Eliminar"
             hardDeleteDesc="Se eliminará de forma definitiva sin posibilidad de recuperación."
 
             softLoadingText="Desactivando..."

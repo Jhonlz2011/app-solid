@@ -42,6 +42,7 @@ export interface BaseEntityListItem {
     obligado_contabilidad?: boolean | null;
     is_retention_agent?: boolean | null;
     is_special_contributor?: boolean | null;
+    is_system?: boolean | null;
 }
 
 export function createBaseEntityColumns<T extends BaseEntityListItem>(
@@ -66,14 +67,18 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
                     onChange={(checked) => table.toggleAllPageRowsSelected(checked)}
                 />
             ),
-            cell: ({ row }) => (
-                <div onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                        checked={row.getIsSelected()}
-                        onChange={(checked) => row.toggleSelected(checked)}
-                    />
-                </div>
-            ),
+            cell: ({ row }) => {
+                const isSystem = row.original.is_system ?? false;
+                return (
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                            checked={row.getIsSelected()}
+                            disabled={isSystem}
+                            onChange={(checked) => row.toggleSelected(checked)}
+                        />
+                    </div>
+                );
+            },
             size: 36,
             enableSorting: false,
             enableHiding: false,
@@ -274,14 +279,18 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
             enableSorting: false,
             cell: ({ row }) => {
                 const entity = row.original;
+                const isSystem = entity.is_system ?? false;
                 return (
                     <ActionMenu
                         module={handlers.baseRoute}
                         isActive={entity.is_active ?? false}
                         showTo={`/${handlers.baseRoute}/${entity.id}/show`}
-                        editTo={`/${handlers.baseRoute}/${entity.id}/edit`}
-                        onRestore={() => handlers.onRestore(entity)}
-                        onDelete={() => handlers.onDelete(entity)}
+                        editTo={isSystem ? undefined : `/${handlers.baseRoute}/${entity.id}/edit`}
+                        canEdit={!isSystem}
+                        canDelete={!isSystem}
+                        canRestore={!isSystem}
+                        onRestore={isSystem ? undefined : () => handlers.onRestore(entity)}
+                        onDelete={isSystem ? undefined : () => handlers.onDelete(entity)}
                     />
                 );
             },

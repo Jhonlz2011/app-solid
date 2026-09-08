@@ -17,6 +17,8 @@ import {
     useSetUserEntity, useAdminResetPassword,
     useDeactivateUser, useRestoreUser,
 } from '../data/users.mutations';
+import { useAuth } from '@modules/auth/store/auth.store';
+import { SYSTEM_ROLES } from '@app/schema/enums';
 import { UserEditForm } from './UserEditForm';
 
 interface UserEditSheetProps {
@@ -27,6 +29,7 @@ interface UserEditSheetProps {
 const UserEditSheet: Component<UserEditSheetProps> = (props) => {
     const params = useParams({ strict: false }) as () => { userId?: string };
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
+    const auth = useAuth();
     const initialUserId = props.userId ?? params()?.userId;
     const userId = () => props.userId ?? params()?.userId ?? initialUserId;
 
@@ -38,6 +41,20 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
     const resetPwMutation = useAdminResetPassword();
     const deactivateMut = useDeactivateUser();
     const restoreMut = useRestoreUser();
+
+    const isCurrentUser = () => {
+        const myId = auth.user()?.id;
+        const targetId = userQuery.data?.id;
+        return Boolean(myId && targetId && myId === targetId);
+    };
+
+    const isSuperadmin = () => {
+        const u = userQuery.data;
+        if (!u) return false;
+        return u.roles?.some((r: any) => r.name === SYSTEM_ROLES.SUPERADMIN || r.name === 'superadmin') ?? false;
+    };
+
+    const canDeactivate = () => !isCurrentUser() && !isSuperadmin();
 
     const handleSubmit = async (values: UserUpdateData & { newPassword?: string }) => {
         const targetId = userId();
@@ -118,7 +135,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
             size="lg"
             footer={
                 <>
-                    <Show when={userQuery.data}>
+                    <Show when={userQuery.data && canDeactivate()}>
                         <Button
                             variant={(userQuery.data?.isActive ?? true) ? 'danger' : 'success'}
                             onClick={handleToggleActive}
@@ -180,6 +197,8 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                             rolesLoading={rolesQuery.isPending}
                             initialEntity={user.entity}
                             isGlobalUser={user.isGlobalUser}
+                            isSelf={isCurrentUser()}
+                            isSuperadmin={isSuperadmin()}
                             onSubmit={handleSubmit}
                             isSubmitting={isPending()}
                         />

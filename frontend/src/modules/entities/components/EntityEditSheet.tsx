@@ -15,6 +15,7 @@ import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { SearchIcon } from '@icons/SearchIcon';
 import { InfoIcon } from '@icons/InfoIcon';
+import { LockIcon } from '@icons/LockIcon';
 import { useClient } from '@modules/clients/data/clients.queries';
 import { useSupplier } from '@modules/suppliers/data/suppliers.queries';
 import { useEmployee } from '@modules/employees/data/employees.queries';
@@ -125,7 +126,15 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
         }
     };
 
+    const query = () => activeQuery();
+    const isPending = () => activeMutation().isPending;
+    const isSystem = () => Boolean(query().data?.is_system);
+
     const handleSubmit = async (data: EntityFormData) => {
+        if (isSystem()) {
+            toast.error('Esta entidad es del sistema y está protegida contra modificaciones.');
+            return;
+        }
         const id = entityId();
         if (!id) return;
         const { taxId, taxIdType, ...updateData } = data;
@@ -157,19 +166,23 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
         }
     };
 
-    const query = () => activeQuery();
-    const isPending = () => activeMutation().isPending;
-
     return (
         <Sheet
             bindDismiss={nav.bindDismiss}
             isOpen={true}
             onClose={nav.navigateAway}
-            title={typeConfig().title}
-            description={typeConfig().description}
+            title={isSystem() ? `${typeConfig().title} (Protegido)` : typeConfig().title}
+            description={isSystem() ? 'Registro del sistema reservado, protegido contra modificaciones.' : typeConfig().description}
             size="xxxxl"
             footer={
-                <>
+                <Show
+                    when={!isSystem()}
+                    fallback={
+                        <Button variant="outline" type="button" onClick={nav.close}>
+                            Cerrar
+                        </Button>
+                    }
+                >
                     <Button variant="outline" type="button" onClick={nav.close} disabled={isPending()}>
                         Cancelar
                     </Button>
@@ -182,7 +195,7 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
                     >
                         {typeConfig().btnText}
                     </Button>
-                </>
+                </Show>
             }
         >
             <Show
@@ -216,12 +229,28 @@ export const EntityEditSheet: Component<EntityEditSheetProps> = (props) => {
                         }
                     >
                         {(entityData) => (
-                            <EntityForm
-                                entity={entityData}
-                                onSubmit={handleSubmit}
-                                isSubmitting={isPending()}
-                                lockedRoles={typeConfig().lockedRoles}
-                            />
+                            <>
+                                <Show when={isSystem()}>
+                                    <div class="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-700 dark:text-amber-300">
+                                        <LockIcon class="size-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                                        <div class="text-xs space-y-1">
+                                            <p class="font-bold text-sm text-amber-800 dark:text-amber-200">
+                                                Registro del Sistema Protegido
+                                            </p>
+                                            <p class="leading-relaxed">
+                                                Esta entidad es un registro reservado por el sistema para operaciones fiscales y facturación rápida autorizadas por el SRI. Sus datos están protegidos contra edición o eliminación.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </Show>
+                                <EntityForm
+                                    entity={entityData}
+                                    onSubmit={handleSubmit}
+                                    isSubmitting={isPending()}
+                                    lockedRoles={typeConfig().lockedRoles}
+                                    readOnly={isSystem()}
+                                />
+                            </>
                         )}
                     </Show>
                 </Show>

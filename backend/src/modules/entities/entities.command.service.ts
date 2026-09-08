@@ -1,4 +1,4 @@
-import { and, eq, count, inArray } from '@app/schema';
+import { and, eq, count, inArray, or, isNull } from '@app/schema';
 import { db } from '../../core/db';
 import { entities, entityAddresses, employeeDetails, entityContacts, carrierVehicles, carrierDrivers, supplierProducts, workOrders, electronicDocuments, departments, jobTitles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
@@ -359,6 +359,18 @@ function getTypeColumn(type: EntityType) {
 export async function updateEntity(id: string, type: EntityType, payload: Partial<EntityBodyType>, audit: AuditContext | undefined, companyId: number) {
     return withAuditTransaction(audit, async (tx) => {
         const typeColumn = getTypeColumn(type);
+
+        const [existing] = await tx
+            .select({ id: entities.id, is_system: entities.is_system })
+            .from(entities)
+            .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)))
+            .limit(1);
+
+        if (!existing) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
+        if (existing.is_system) {
+            throw new DomainError('Esta entidad es del sistema y está protegida contra modificaciones.', 403);
+        }
+
         const [updated] = await tx
             .update(entities)
             .set(stripUndefined({
@@ -492,6 +504,9 @@ export async function deactivateEntity(
             .limit(1);
 
         if (!existing) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
+        if (existing.is_system) {
+            throw new DomainError('Esta entidad es del sistema y está protegida contra desactivación o eliminación.', 403);
+        }
 
         const otherRolesActive = [
             type !== 'client' && existing.is_client,
@@ -610,11 +625,14 @@ export async function hardDeleteEntity(
     return withAuditTransaction(audit, async (tx) => {
         const typeColumn = getTypeColumn(type);
         const [target] = await tx
-            .select({ id: entities.id })
+            .select({ id: entities.id, is_system: entities.is_system })
             .from(entities)
             .where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)));
 
         if (!target) throw new DomainError(`Entidad no encontrada o no es de tipo ${type}`, 404);
+        if (target.is_system) {
+            throw new DomainError('Esta entidad es del sistema y no puede ser eliminada.', 403);
+        }
 
         await tx.delete(entities).where(and(eq(entities.id, id), eq(entities.company_id, companyId), eq(typeColumn, true)));
         
@@ -775,6 +793,7 @@ export async function bulkDeactivateEntities(
             eq(entities.is_active, true),
             eq(entities.company_id, companyId),
             inArray(entities.id, ids),
+            or(isNull(entities.is_system), eq(entities.is_system, false))!,
         ];
 
         const existing = await tx

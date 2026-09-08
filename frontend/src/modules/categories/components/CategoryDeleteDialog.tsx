@@ -79,7 +79,7 @@ const CategoryDeleteDialog: Component<CategoryDeleteDialogProps> = (props) => {
             isLoading={isLoading()}
             softDeleteTitle="Desactivar"
             softDeleteDesc="La categoría quedará inactiva y podrá restaurarse en cualquier momento."
-            hardDeleteTitle="Eliminar permanentemente"
+            hardDeleteTitle="Eliminar"
             hardDeleteDesc="Se eliminará de forma definitiva sin posibilidad de recuperación."
             softLoadingText="Desactivando..."
             hardLoadingText="Eliminando..."

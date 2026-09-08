@@ -54,6 +54,7 @@ export const EntityCard: Component<EntityCardProps> = (props) => {
             <div class="pt-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                 <Checkbox
                     checked={props.isSelected}
+                    disabled={props.entity.is_system ?? false}
                     onChange={props.onSelect}
                 />
             </div>
@@ -65,7 +66,14 @@ export const EntityCard: Component<EntityCardProps> = (props) => {
                     <span class="font-semibold text-text text-sm leading-tight truncate">
                         {props.entity.business_name}
                     </span>
-                    <StatusBadge isActive={props.entity.is_active} />
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <Show when={props.entity.is_system}>
+                            <Badge variant="warning" class="text-[10px] px-1.5 py-0 font-bold">
+                                Sistema
+                            </Badge>
+                        </Show>
+                        <StatusBadge isActive={props.entity.is_active} />
+                    </div>
                 </div>
 
                 {/* Row 2: trade name */}
@@ -100,51 +108,53 @@ export const EntityCard: Component<EntityCardProps> = (props) => {
                 class="flex items-center gap-0.5 shrink-0 self-center"
                 onClick={(e) => e.stopPropagation()}
             >
-                <Show
-                    when={props.entity.is_active}
-                    fallback={
-                        <>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-8 w-8 text-muted hover:text-emerald-400 hover:bg-emerald-500/10"
-                                title="Restaurar"
-                                onClick={() => props.onRestore(props.entity)}
-                            >
-                                <RotateCcwIcon class="size-4" />
-                            </Button>
-                            <Show when={canDestroy()}>
+                <Show when={!props.entity.is_system}>
+                    <Show
+                        when={props.entity.is_active}
+                        fallback={
+                            <>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    class="size-8 text-muted hover:text-danger hover:bg-danger/10 shadow-none"
-                                    title="Eliminar permanentemente"
-                                    onClick={() => props.onDelete(props.entity)}
+                                    class="h-8 w-8 text-muted hover:text-emerald-400 hover:bg-emerald-500/10"
+                                    title="Restaurar"
+                                    onClick={() => props.onRestore(props.entity)}
                                 >
-                                    <TrashIcon class="size-4" />
+                                    <RotateCcwIcon class="size-4" />
                                 </Button>
-                            </Show>
-                        </>
-                    }
-                >
-                    <LinkButton
-                        to={`${basePath()}/${props.entity.id}/edit`}
-                        variant="ghost"
-                        size="icon"
-                        class="size-8 text-muted hover:text-info hover:bg-info/10"
-                        onClick={(e: MouseEvent) => e.stopPropagation()}
+                                <Show when={canDestroy()}>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="size-8 text-muted hover:text-danger hover:bg-danger/10 shadow-none"
+                                        title="Eliminar permanentemente"
+                                        onClick={() => props.onDelete(props.entity)}
+                                    >
+                                        <TrashIcon class="size-4" />
+                                    </Button>
+                                </Show>
+                            </>
+                        }
                     >
-                        <EditIcon class="size-4" />
-                    </LinkButton>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8 text-muted hover:text-danger hover:bg-danger/10"
-                        title="Eliminar"
-                        onClick={() => props.onDelete(props.entity)}
-                    >
-                        <TrashIcon class="size-4" />
-                    </Button>
+                        <LinkButton
+                            to={`${basePath()}/${props.entity.id}/edit`}
+                            variant="ghost"
+                            size="icon"
+                            class="size-8 text-muted hover:text-info hover:bg-info/10"
+                            onClick={(e: MouseEvent) => e.stopPropagation()}
+                        >
+                            <EditIcon class="size-4" />
+                        </LinkButton>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            class="h-8 w-8 text-muted hover:text-danger hover:bg-danger/10"
+                            title="Eliminar"
+                            onClick={() => props.onDelete(props.entity)}
+                        >
+                            <TrashIcon class="size-4" />
+                        </Button>
+                    </Show>
                 </Show>
             </div>
         </div>
