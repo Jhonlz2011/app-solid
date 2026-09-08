@@ -257,6 +257,13 @@ async function seed() {
             }
 
             // =====================================================================
+            // 5.1 SEED DEV COMPANY MENUS & ROUTE ALIASES
+            // =====================================================================
+            console.log('\n📂 Seeding tenant menu items for dev company...');
+            await seedCompanyMenus(db as any, devCompany.id);
+            console.log('   ✅ Dev company menus seeded');
+
+            // =====================================================================
             // 6. SUMMARY & VERIFICATION
             // =====================================================================
             const permCount = await db.select({ count: sql<number>`count(*)` }).from(authPermissions);

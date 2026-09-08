@@ -40,13 +40,22 @@ export async function getMenuForUser(userId: string | number, companyId?: number
         getUserRoles(userId, companyId),
         getUserPermissions(userId, companyId),
         cacheService.getOrSet(`menus:${companyId ?? 'global'}`, async () => {
-            // Prefer tenant-specific rows; fall back to global template
-            const companyFilter = companyId
-                ? eq(authMenuItems.company_id, companyId)
-                : isNull(authMenuItems.company_id);
+            // 1. If companyId is provided, check for tenant-specific custom menus
+            if (companyId) {
+                const tenantMenus = await adminDb.select()
+                    .from(authMenuItems)
+                    .where(eq(authMenuItems.company_id, companyId))
+                    .orderBy(asc(authMenuItems.sort_order));
+
+                if (tenantMenus.length > 0) {
+                    return tenantMenus;
+                }
+            }
+
+            // 2. Fallback to global template (company_id IS NULL)
             return adminDb.select()
                 .from(authMenuItems)
-                .where(companyFilter)
+                .where(isNull(authMenuItems.company_id))
                 .orderBy(asc(authMenuItems.sort_order));
         }, 86400),
     ]);
@@ -232,11 +241,26 @@ function buildMenuTree(menus: DbMenuItem[]): ModuleConfig[] {
  */
 export async function getRouteAliases(companyId: number): Promise<Record<string, string>> {
     const menus = await cacheService.getOrSet(`aliases:${companyId}`, async () => {
-        return adminDb
+        // 1. Check for tenant-specific custom aliases
+        const tenantAliases = await adminDb
             .select({ path: authMenuItems.path, path_alias: authMenuItems.path_alias })
             .from(authMenuItems)
             .where(and(
                 eq(authMenuItems.company_id, companyId),
+                isNotNull(authMenuItems.path),
+                isNotNull(authMenuItems.path_alias),
+            ));
+
+        if (tenantAliases.length > 0) {
+            return tenantAliases;
+        }
+
+        // 2. Fallback to global template aliases (company_id IS NULL)
+        return adminDb
+            .select({ path: authMenuItems.path, path_alias: authMenuItems.path_alias })
+            .from(authMenuItems)
+            .where(and(
+                isNull(authMenuItems.company_id),
                 isNotNull(authMenuItems.path),
                 isNotNull(authMenuItems.path_alias),
             ));

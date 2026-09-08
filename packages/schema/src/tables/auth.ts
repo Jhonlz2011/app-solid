@@ -1,4 +1,4 @@
-import { customType, text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { customType, text, integer, boolean, timestamp, primaryKey, smallint, foreignKey, index, uniqueIndex, unique, uuid } from 'drizzle-orm/pg-core';
 import { v7 as uuidv7 } from 'uuid';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { entities } from './entities';
@@ -226,7 +226,7 @@ export const authMenuItems = pgTableV2("auth_menu_items", {
     status: menuItemStatusEnum("status").default('active'),
 }, (t) => [
     foreignKey({ columns: [t.parent_id], foreignColumns: [t.id] }),
-    uniqueIndex("idx_menu_company_key").on(t.company_id, t.key),
+    unique("idx_menu_company_key").on(t.company_id, t.key).nullsNotDistinct(),
     index("idx_menu_order").on(t.company_id, t.parent_id, t.sort_order),
     index("idx_menu_active").on(t.status),
 ]);
