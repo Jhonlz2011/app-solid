@@ -872,7 +872,7 @@ export async function bulkDeactivateEntities(
         if (fullyDeactivatedIds.length > 0) {
             await tx
                 .update(entities)
-                .set({ deleted_at: new Date(), deleted_by: audit?.userId ?? null })
+                .set({ deleted_at: new Date(), deleted_by: audit?.userId ? Number(audit.userId) : null })
                 .where(inArray(entities.id, fullyDeactivatedIds));
         }
 

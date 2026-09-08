@@ -30,22 +30,39 @@ export interface UseAvailabilityCheckReturn {
  */
 export function useAvailabilityCheck(options: UseAvailabilityCheckOptions): UseAvailabilityCheckReturn {
     const delay = options.debounceMs ?? 350;
+    const rawValue = () => options.value().trim();
 
     // 1. Reactive debounce signal with automatic timer cleanup
-    const [debouncedValue, setDebouncedValue] = createSignal(options.value().trim());
+    const [debouncedValue, setDebouncedValue] = createSignal(rawValue());
+    const [isDebouncing, setIsDebouncing] = createSignal(false);
 
     createEffect(() => {
-        const val = options.value().trim();
-        const timer = setTimeout(() => {
-            setDebouncedValue(val);
-        }, delay);
+        const val = rawValue();
+        const current = options.currentValue?.()?.trim();
 
-        onCleanup(() => clearTimeout(timer));
+        // If empty or identical to current value, reset debounce immediately
+        if (!val || (current && val.toLowerCase() === current.toLowerCase())) {
+            setDebouncedValue(val);
+            setIsDebouncing(false);
+            return;
+        }
+
+        if (val !== debouncedValue()) {
+            setIsDebouncing(true);
+            const timer = setTimeout(() => {
+                setDebouncedValue(val);
+                setIsDebouncing(false);
+            }, delay);
+
+            onCleanup(() => clearTimeout(timer));
+        } else {
+            setIsDebouncing(false);
+        }
     });
 
-    // 2. Format pre-flight validation
+    // 2. Format pre-flight validation (evaluated on current raw typing)
     const isValidFormat = createMemo(() => {
-        const val = debouncedValue();
+        const val = rawValue();
         if (!val) return false;
 
         switch (options.type) {
@@ -65,11 +82,28 @@ export function useAvailabilityCheck(options: UseAvailabilityCheckOptions): UseA
     // 3. Current user / company value exemption
     const isCurrent = createMemo(() => {
         const current = options.currentValue?.()?.trim().toLowerCase();
-        const input = debouncedValue().toLowerCase();
+        const input = rawValue().toLowerCase();
         return Boolean(current && input && current === input);
     });
 
     // 4. TanStack Query caching & automated request lifecycle
+    const isDebouncedFormatValid = createMemo(() => {
+        const val = debouncedValue().toLowerCase();
+        if (!val) return false;
+        switch (options.type) {
+            case 'username':
+                return val.length >= 3 && val.length <= 30 && /^[a-zA-Z0-9._-]+$/.test(val);
+            case 'email':
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+            case 'slug':
+                return val.length >= 3 && val.length <= 50 && /^[a-z0-9-]+$/.test(val);
+            case 'ruc':
+                return /^\d{13}$/.test(val);
+            default:
+                return false;
+        }
+    });
+
     const query = createQuery(() => {
         const val = debouncedValue().toLowerCase();
         const isExempt = isCurrent();
@@ -101,20 +135,25 @@ export function useAvailabilityCheck(options: UseAvailabilityCheckOptions): UseA
 
                 return { available: false };
             },
-            enabled: isExplicitlyEnabled && isValidFormat() && !isExempt,
+            enabled: isExplicitlyEnabled && isDebouncedFormatValid() && !isExempt && !isDebouncing(),
             staleTime: 30_000,
             gcTime: 60_000,
             retry: false,
         };
     });
 
-    // 5. Unified high-level status memo
+    // 5. Unified high-level state memos
+    const isChecking = createMemo(() => {
+        if (!isValidFormat() || isCurrent()) return false;
+        return isDebouncing() || query.isFetching;
+    });
+
     const status = createMemo<AvailabilityStatus>(() => {
-        const raw = options.value().trim();
+        const raw = rawValue();
         if (!raw) return 'idle';
-        if (!isValidFormat()) return 'invalid';
         if (isCurrent()) return 'current';
-        if (query.isFetching) return 'checking';
+        if (!isValidFormat()) return 'invalid';
+        if (isChecking()) return 'checking';
         if (query.data?.available === true) return 'available';
         if (query.data?.available === false) return 'taken';
         return 'idle';
@@ -123,13 +162,13 @@ export function useAvailabilityCheck(options: UseAvailabilityCheckOptions): UseA
     const isAvailable = createMemo<boolean | null>(() => {
         if (!isValidFormat()) return null;
         if (isCurrent()) return true;
-        if (query.isFetching) return null;
+        if (isChecking()) return null;
         return query.data?.available ?? null;
     });
 
     return {
         status,
-        isChecking: () => query.isFetching,
+        isChecking,
         isAvailable,
         isCurrent,
         isValidFormat,

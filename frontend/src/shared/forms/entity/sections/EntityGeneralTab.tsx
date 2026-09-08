@@ -9,6 +9,7 @@ import {
     getTaxIdTypeDisabledKeys,
     getTaxIdConfig,
     isPersonalTaxId,
+    type SelectOption,
 } from '../entity-form.utils';
 import { roleLabels } from '@shared/constants/entity-labels';
 import TextField, { FieldLabel } from '@form/TextField';
@@ -72,6 +73,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
     });
 
     const businessNameLabel = createMemo(() => {
+        if (taxIdType() === 'CONSUMIDOR_FINAL') return 'Razón Social';
         if (isPureEmployee() || (taxIdType() === 'CEDULA' && !isSupplierVal())) {
             return 'Nombres y Apellidos';
         }
@@ -79,6 +81,7 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
     });
 
     const businessNamePlaceholder = createMemo(() => {
+        if (taxIdType() === 'CONSUMIDOR_FINAL') return 'CONSUMIDOR FINAL';
         if (isPureEmployee() || taxIdType() === 'CEDULA') {
             return 'Ej: Juan Carlos Pérez González';
         }
@@ -99,10 +102,20 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
 
     const computedTaxIdTypeOptions = createMemo(() => {
         const disabledKeys = getTaxIdTypeDisabledKeys(personType());
-        return taxIdTypeOptions.map(opt => ({
+        const options: SelectOption<string>[] = taxIdTypeOptions.map(opt => ({
             ...opt,
             disabled: disabledKeys.includes(opt.value),
         }));
+
+        if (taxIdType() === 'CONSUMIDOR_FINAL' && !options.some(o => o.value === 'CONSUMIDOR_FINAL')) {
+            options.push({
+                value: 'CONSUMIDOR_FINAL',
+                label: 'Consumidor Final',
+                disabled: true,
+            });
+        }
+
+        return options;
     });
 
     // =========================================================================
@@ -209,13 +222,13 @@ export const EntityGeneralTab: Component<EntityGeneralTabProps> = (props) => {
                                 <div class="relative flex items-center w-full">
                                     <TextField.Input
                                         type="text"
-                                        inputMode={(taxIdType() === 'CEDULA' || taxIdType() === 'RUC') ? 'numeric' : 'text'}
+                                        inputMode={(taxIdType() === 'CEDULA' || taxIdType() === 'RUC' || taxIdType() === 'CONSUMIDOR_FINAL') ? 'numeric' : 'text'}
                                         placeholder={taxIdConfig().placeholder}
                                         maxLength={taxIdConfig().maxLength}
                                         disabled={props.isEdit()}
                                         onInput={(e) => {
                                             let val = e.currentTarget.value;
-                                            if (taxIdType() === 'CEDULA' || taxIdType() === 'RUC') {
+                                            if (taxIdType() === 'CEDULA' || taxIdType() === 'RUC' || taxIdType() === 'CONSUMIDOR_FINAL') {
                                                 const numeric = val.replace(/\D/g, '');
                                                 if (val !== numeric) {
                                                     val = numeric;

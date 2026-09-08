@@ -54,8 +54,8 @@ export const usersApi = {
         return data!;
     },
 
-    updateRolePermissions: async (roleId: number, permissionIds: number[]) => {
-        const { data, error } = await api.rbac.roles({ id: roleId }).permissions.put({ permissionIds });
+    updateRolePermissions: async (roleId: number, permissionSlugs: string[]) => {
+        const { data, error } = await api.rbac.roles({ id: roleId }).permissions.put({ permissionSlugs });
         if (error) throwApiError(error);
         return data!;
     },

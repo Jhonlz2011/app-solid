@@ -5,7 +5,7 @@
  * for the unified EntityForm component.
  */
 import type { EntityFormData } from '@app/schema/frontend';
-import type { TaxIdTypeForm, PersonType, TaxRegimeType, SalaryType, ContractType, BankAccountType } from '@app/schema/enums';
+import type { TaxIdType, TaxIdTypeForm, PersonType, TaxRegimeType, SalaryType, ContractType, BankAccountType } from '@app/schema/enums';
 import { TAX_ID_TYPES_FORM, CONTRACT_TYPES, BANK_ACCOUNT_TYPES, DEFAULT_SBU, MONTHLY_WORK_HOURS } from '@app/schema/enums';
 import type { EntityDetailType } from '@app/schema/dto';
 import {
@@ -124,7 +124,7 @@ export function mapEntityDetailToFormData(
 ): EntityFormData {
     return {
         taxId: e.tax_id,
-        taxIdType: (e.tax_id_type || 'RUC') as TaxIdTypeForm,
+        taxIdType: (e.tax_id_type || 'RUC') as TaxIdType,
         personType: (e.person_type || 'NATURAL') as PersonType,
         businessName: e.business_name || '',
         tradeName: e.trade_name ?? '',
@@ -192,7 +192,7 @@ export function mapEntityDetailToFormData(
 // =============================================================================
 
 /** Checks if the identification type is strictly a personal document (CEDULA or PASAPORTE) */
-export function isPersonalTaxId(taxIdType: TaxIdTypeForm): boolean {
+export function isPersonalTaxId(taxIdType: TaxIdType | string): boolean {
     return taxIdType === 'CEDULA' || taxIdType === 'PASAPORTE';
 }
 
@@ -203,7 +203,7 @@ export function getTaxIdTypeDisabledKeys(personType: PersonType): TaxIdTypeForm[
 }
 
 /** Get taxId max length and placeholder based on taxIdType */
-export function getTaxIdConfig(taxIdType: TaxIdTypeForm): { maxLength: number | undefined; placeholder: string } {
+export function getTaxIdConfig(taxIdType: TaxIdType | string): { maxLength: number | undefined; placeholder: string } {
     switch (taxIdType) {
         case 'CEDULA':
             return { maxLength: 10, placeholder: 'Cédula de 10 dígitos' };
@@ -211,7 +211,10 @@ export function getTaxIdConfig(taxIdType: TaxIdTypeForm): { maxLength: number | 
             return { maxLength: 13, placeholder: 'RUC de 13 dígitos' };
         case 'PASAPORTE':
             return { maxLength: 20, placeholder: 'Pasaporte alfanumérico' };
+        case 'CONSUMIDOR_FINAL':
+            return { maxLength: 13, placeholder: '9999999999999' };
         case 'EXTERIOR':
+        default:
             return { maxLength: undefined, placeholder: 'Número de identificación' };
     }
 }

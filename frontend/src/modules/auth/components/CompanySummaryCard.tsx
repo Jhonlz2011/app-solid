@@ -43,14 +43,14 @@ export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) =>
             <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm pt-1 items-center">
                 <span class="text-muted">Subdominio / Slug:</span>
                 <div>
-                    <Badge variant="primary" class="font-mono text-[11px] px-2 py-0.5">
+                    <Badge variant="primary" class="font-mono text-[10px] px-2 py-0.5">
                         {props.data.slug}.zelys.app
                     </Badge>
                 </div>
 
                 <span class="text-muted">RUC:</span>
                 <div>
-                    <Badge variant="default" class="font-mono text-[11px] px-2 py-0.5 text-text">
+                    <Badge variant="default" class="font-mono text-[10px] px-2 py-0.5 text-text">
                         {props.data.ruc}
                     </Badge>
                 </div>
@@ -66,7 +66,7 @@ export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) =>
                 <Show when={businessTypeLabel()}>
                     <span class="text-muted">Tipo de Negocio:</span>
                     <div>
-                        <Badge variant="purple" class="text-[11px]">
+                        <Badge variant="purple" class="text-[10px]">
                             {businessTypeLabel()}
                         </Badge>
                     </div>
@@ -80,7 +80,7 @@ export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) =>
                 <Show when={taxRegimeLabel()}>
                     <span class="text-muted">Régimen Tributario:</span>
                     <div>
-                        <Badge variant="teal" class="text-[11px]">
+                        <Badge variant="teal" class="text-[10px]">
                             {taxRegimeLabel()}
                         </Badge>
                     </div>
@@ -88,7 +88,7 @@ export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) =>
 
                 <span class="text-muted">¿Lleva contabilidad?</span>
                 <div>
-                    <Badge variant={props.data.obligadoContabilidad ? 'success' : 'default'} class="text-[11px]">
+                    <Badge variant={props.data.obligadoContabilidad ? 'success' : 'default'} class="text-[10px]">
                         {props.data.obligadoContabilidad ? 'Sí' : 'No'}
                     </Badge>
                 </div>
@@ -96,7 +96,7 @@ export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) =>
                 <Show when={props.data.contribuyenteEspecial}>
                     <span class="text-muted">Contribuyente Especial:</span>
                     <div>
-                        <Badge variant="warning" class="text-[11px]">
+                        <Badge variant="warning" class="text-[10px]">
                             {props.data.contribuyenteEspecial}
                         </Badge>
                     </div>

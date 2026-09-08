@@ -4,9 +4,11 @@ import { db } from './db';
 import { cacheService } from '../cache/cache.service';
 import { createHash } from 'crypto';
 
+export type CursorDirection = 'first' | 'next' | 'prev' | 'last';
+
 export interface PaginationParams<TFilters = Record<string, any>> {
     cursor?: string;
-    direction?: 'first' | 'next' | 'prev' | 'last';
+    direction?: CursorDirection;
     limit?: number;
     page?: number;
     sortBy?: string;

@@ -36,7 +36,10 @@ export function createEntityService(type: EntityType) {
             const entity = await getEntity(id, companyId);
             const roleVal = entity[getRoleKey(type)];
             if (roleVal === null || roleVal === undefined) throw new DomainError(`Entidad no es un ${type}`, 404);
-            return entity;
+            return {
+                ...entity,
+                is_active: roleVal === true,
+            };
         },
         async create(payload: EntityBodyType, audit: AuditContext | undefined, companyId: number) {
             return createEntity(type, payload, audit, companyId);

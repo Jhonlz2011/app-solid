@@ -184,11 +184,11 @@ export async function getAllPermissions() {
 
     const grouped: Record<string, typeof permissions> = {};
     for (const perm of permissions) {
-        const [module] = perm.slug.split('.');
-        if (!grouped[module]) {
-            grouped[module] = [];
+        const moduleName = perm.module;
+        if (!grouped[moduleName]) {
+            grouped[moduleName] = [];
         }
-        grouped[module].push(perm);
+        grouped[moduleName].push(perm);
     }
 
     return {
@@ -203,12 +203,11 @@ export async function getAllPermissions() {
 export async function getRolePermissions(roleId: number) {
     const permissions = await db
         .select({
-            id: authPermissions.id,
-            slug: authPermissions.slug,
+            slug: authRolePermissions.permission_slug,
             description: authPermissions.description,
         })
         .from(authRolePermissions)
-        .innerJoin(authPermissions, eq(authRolePermissions.permission_id, authPermissions.id))
+        .leftJoin(authPermissions, eq(authRolePermissions.permission_slug, authPermissions.slug))
         .where(eq(authRolePermissions.role_id, roleId));
 
     return permissions;
@@ -217,7 +216,7 @@ export async function getRolePermissions(roleId: number) {
 /**
  * Update permissions for a role
  */
-export async function updateRolePermissions(roleId: number, permissionIds: number[], currentUserId?: string | number) {
+export async function updateRolePermissions(roleId: number, permissionSlugs: string[], currentUserId?: string | number) {
     const role = await db.query.authRoles.findFirst({
         where: eq(authRoles.id, roleId),
     });
@@ -226,17 +225,17 @@ export async function updateRolePermissions(roleId: number, permissionIds: numbe
         throw new DomainError('Rol no encontrado', 404);
     }
 
-    const oldPerms = await db.select({ id: authRolePermissions.permission_id }).from(authRolePermissions).where(eq(authRolePermissions.role_id, roleId));
-    const oldPermIds = oldPerms.map(p => p.id);
+    const oldPerms = await db.select({ slug: authRolePermissions.permission_slug }).from(authRolePermissions).where(eq(authRolePermissions.role_id, roleId));
+    const oldPermSlugs = oldPerms.map(p => p.slug);
 
     await db.transaction(async (tx) => {
         await tx.delete(authRolePermissions).where(eq(authRolePermissions.role_id, roleId));
 
-        if (permissionIds.length > 0) {
+        if (permissionSlugs.length > 0) {
             await tx.insert(authRolePermissions).values(
-                permissionIds.map(permissionId => ({
+                permissionSlugs.map(slug => ({
                     role_id: roleId,
-                    permission_id: permissionId,
+                    permission_slug: slug,
                     company_id: role.company_id,
                 }))
             );
@@ -254,7 +253,7 @@ export async function updateRolePermissions(roleId: number, permissionIds: numbe
         broadcastToUser(userId, RealtimeEvents.USER.RBAC_CHANGED, { userId });
     }
 
-    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_role_permissions', roleId, { permissionIds }, { permissionIds: oldPermIds });
+    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_role_permissions', roleId, { permissionSlugs }, { permissionSlugs: oldPermSlugs });
 
     return { success: true };
 }

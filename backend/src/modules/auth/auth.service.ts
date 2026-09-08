@@ -1,5 +1,5 @@
 import { db, adminDb } from '../../core/db';
-import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, authRolePermissions, authPermissions, account, organization, member } from '@app/schema/tables';
+import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, authRolePermissions, account, organization, member } from '@app/schema/tables';
 import { eq, and, sql } from '@app/schema';
 import type { TaxRegimeType } from '@app/schema/enums';
 import { DomainError } from '../../core/errors';
@@ -168,10 +168,9 @@ async function provisionTenant(
     .where(eq(authUserRoles.user_id, ownerInfo.userId));
 
   const txPermissions = await tx
-    .selectDistinct({ slug: authPermissions.slug })
+    .selectDistinct({ slug: authRolePermissions.permission_slug })
     .from(authUserRoles)
     .innerJoin(authRolePermissions, eq(authUserRoles.role_id, authRolePermissions.role_id))
-    .innerJoin(authPermissions, eq(authRolePermissions.permission_id, authPermissions.id))
     .where(eq(authUserRoles.user_id, ownerInfo.userId));
 
   const roles = txRoles.map(r => r.roleName);

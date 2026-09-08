@@ -16,334 +16,100 @@ interface MenuSeedItem {
     children?: MenuSeedItem[];
 }
 
-function parsePerm(slug: string, description: string) {
-    const [module, action] = slug.split('.');
-    return { slug, module, action, description };
+export interface PermissionDef {
+    slug: string;
+    module: string;
+    action: string;
+    description: string;
 }
 
-export const PERMISSIONS = [
-    // Dashboard
-    parsePerm('dashboard.read', 'Ver panel de control'),
-    parsePerm('dashboard.create', 'Crear elementos en dashboard'),
-    parsePerm('dashboard.update', 'Editar elementos en dashboard'),
-    parsePerm('dashboard.delete', 'Eliminar elementos en dashboard'),
+const ACTION_LABELS: Record<string, string> = {
+    read: 'Ver',
+    create: 'Crear',
+    update: 'Editar',
+    delete: 'Desactivar',
+    restore: 'Restaurar',
+    destroy: 'Eliminar permanentemente',
+};
 
-    // CRM
-    parsePerm('crm.read', 'Ver módulo CRM'),
-    parsePerm('crm.create', 'Crear en CRM'),
-    parsePerm('crm.update', 'Editar en CRM'),
-    parsePerm('crm.delete', 'Eliminar en CRM'),
+// 1. FULL LIFECYCLE (read, create, update, delete, restore, destroy) — Entidades maestras con papelera
+const FULL_LIFECYCLE_MODULES = [
+    { key: 'clients', label: 'clientes' },
+    { key: 'visits', label: 'visitas técnicas' },
+    { key: 'budgets', label: 'presupuestos' },
+    { key: 'invoices', label: 'facturas' },
+    { key: 'products', label: 'productos' },
+    { key: 'services', label: 'servicios' },
+    { key: 'categories', label: 'categorías' },
+    { key: 'brands', label: 'marcas' },
+    { key: 'uom', label: 'unidades de medida' },
+    { key: 'attributes', label: 'atributos de producto' },
+    { key: 'inventory', label: 'inventario' },
+    { key: 'movements', label: 'movimientos de inventario' },
+    { key: 'orders', label: 'pedidos de material' },
+    { key: 'locations', label: 'ubicaciones' },
+    { key: 'suppliers', label: 'proveedores' },
+    { key: 'purchase_quotes', label: 'cotizaciones de compra' },
+    { key: 'purchase_orders', label: 'órdenes de compra' },
+    { key: 'purchase_invoices', label: 'facturas de compra' },
+    { key: 'documents', label: 'documentos electrónicos' },
+    { key: 'retentions', label: 'retenciones' },
+    { key: 'receivable', label: 'cuentas por cobrar' },
+    { key: 'payable', label: 'cuentas por pagar' },
+    { key: 'users', label: 'usuarios' },
+    { key: 'audit', label: 'auditoría' },
+    { key: 'roles', label: 'roles' },
+] as const;
 
-    // Clients
-    parsePerm('clients.read', 'Ver clientes'),
-    parsePerm('clients.create', 'Crear clientes'),
-    parsePerm('clients.update', 'Editar clientes'),
-    parsePerm('clients.delete', 'Desactivar clientes'),
-    parsePerm('clients.restore', 'Restaurar clientes'),
-    parsePerm('clients.destroy', 'Eliminar clientes permanentemente'),
+// 2. STANDARD CRUD (read, create, update, delete) — Operaciones, transacciones y configuración
+const CRUD_MODULES = [
+    { key: 'dashboard', label: 'panel de control' },
+    { key: 'crm', label: 'módulo CRM' },
+    { key: 'operations', label: 'operaciones' },
+    { key: 'work_orders', label: 'órdenes de trabajo' },
+    { key: 'schedule', label: 'cronograma' },
+    { key: 'projects', label: 'historial de proyectos' },
+    { key: 'production', label: 'producción' },
+    { key: 'planning', label: 'planificación' },
+    { key: 'materials', label: 'solicitudes de materiales' },
+    { key: 'quality', label: 'control de calidad' },
+    { key: 'reception_materials', label: 'recepción de mercadería' },
+    { key: 'remission_guides', label: 'guías de remisión' },
+    { key: 'tools', label: 'inventario de herramientas' },
+    { key: 'tool_loans', label: 'préstamos de herramientas' },
+    { key: 'bom', label: 'recetas de producción (BOM)' },
+    { key: 'dispatch_requests', label: 'solicitudes de despacho' },
+    { key: 'pos_sell', label: 'caja POS' },
+    { key: 'pos_sessions', label: 'sesiones POS' },
+    { key: 'pos_history', label: 'historial de ventas POS' },
+    { key: 'pos', label: 'módulo POS' },
+    { key: 'hr', label: 'talento humano' },
+    { key: 'employees', label: 'nómina de empleados' },
+    { key: 'schedules', label: 'horarios' },
+    { key: 'hours', label: 'reporte de horas' },
+    { key: 'system', label: 'sistema' },
+    { key: 'config', label: 'configuración' },
+    { key: 'menu', label: 'menú y navegación' },
+    { key: 'companies', label: 'empresas' },
+    { key: 'manufacturing', label: 'manufactura' },
+    { key: 'stock_taking', label: 'toma de inventario físico' },
+    { key: 'permissions', label: 'permisos' },
+] as const;
 
-    // Technical Visits
-    parsePerm('visits.read', 'Ver visitas técnicas'),
-    parsePerm('visits.create', 'Crear visitas técnicas'),
-    parsePerm('visits.update', 'Editar visitas técnicas'),
-    parsePerm('visits.delete', 'Eliminar visitas técnicas'),
-    parsePerm('visits.restore', 'Restaurar visitas técnicas'),
-    parsePerm('visits.destroy', 'Eliminar visitas técnicas permanentemente'),
+function buildModulePermissions(modules: readonly { key: string; label: string }[], actions: readonly string[]): PermissionDef[] {
+    return modules.flatMap(({ key, label }) =>
+        actions.map(action => ({
+            slug: `${key}.${action}`,
+            module: key,
+            action,
+            description: `${ACTION_LABELS[action] || action} ${label}`,
+        }))
+    );
+}
 
-    // Budgets/Quotations
-    parsePerm('budgets.read', 'Ver presupuestos'),
-    parsePerm('budgets.create', 'Crear presupuestos'),
-    parsePerm('budgets.update', 'Editar presupuestos'),
-    parsePerm('budgets.delete', 'Desactivar presupuestos'),
-    parsePerm('budgets.restore', 'Restaurar presupuestos'),
-    parsePerm('budgets.destroy', 'Eliminar presupuestos permanentemente'),
-
-    // Invoicing
-    parsePerm('invoices.read', 'Ver facturación'),
-    parsePerm('invoices.create', 'Crear facturas'),
-    parsePerm('invoices.update', 'Editar facturas'),
-    parsePerm('invoices.delete', 'Eliminar facturas'),
-    parsePerm('invoices.restore', 'Restaurar facturas'),
-    parsePerm('invoices.destroy', 'Eliminar facturas permanentemente'),
-
-    // Operations
-    parsePerm('operations.read', 'Ver operaciones'),
-    parsePerm('operations.create', 'Crear operaciones'),
-    parsePerm('operations.update', 'Editar operaciones'),
-    parsePerm('operations.delete', 'Eliminar operaciones'),
-
-    // Work Orders
-    parsePerm('work_orders.read', 'Ver órdenes de trabajo'),
-    parsePerm('work_orders.create', 'Crear órdenes de trabajo'),
-    parsePerm('work_orders.update', 'Editar órdenes de trabajo'),
-    parsePerm('work_orders.delete', 'Eliminar órdenes de trabajo'),
-
-    // Schedule
-    parsePerm('schedule.read', 'Ver cronograma'),
-    parsePerm('schedule.create', 'Crear cronograma'),
-    parsePerm('schedule.update', 'Editar cronograma'),
-    parsePerm('schedule.delete', 'Eliminar cronograma'),
-
-    // Projects
-    parsePerm('projects.read', 'Ver historial de proyectos'),
-    parsePerm('projects.create', 'Crear proyectos'),
-    parsePerm('projects.update', 'Editar proyectos'),
-    parsePerm('projects.delete', 'Eliminar proyectos'),
-
-    // Production
-    parsePerm('production.read', 'Ver producción'),
-    parsePerm('production.create', 'Crear producción'),
-    parsePerm('production.update', 'Editar producción'),
-    parsePerm('production.delete', 'Eliminar producción'),
-
-    // Planning
-    parsePerm('planning.read', 'Ver planificación'),
-    parsePerm('planning.create', 'Crear planificación'),
-    parsePerm('planning.update', 'Editar planificación'),
-    parsePerm('planning.delete', 'Eliminar planificación'),
-
-    // Materials (legacy — Solicitud Herramientas/Material)
-    parsePerm('materials.read', 'Ver solicitudes de materiales'),
-    parsePerm('materials.create', 'Crear solicitudes de materiales'),
-    parsePerm('materials.update', 'Editar solicitudes de materiales'),
-    parsePerm('materials.delete', 'Eliminar solicitudes de materiales'),
-
-    // Quality Control
-    parsePerm('quality.read', 'Ver control de calidad'),
-    parsePerm('quality.create', 'Crear control de calidad'),
-    parsePerm('quality.update', 'Editar control de calidad'),
-    parsePerm('quality.delete', 'Eliminar control de calidad'),
-
-    // --- CATALOG children ---
-    parsePerm('products.read', 'Ver productos'),
-    parsePerm('products.create', 'Crear productos'),
-    parsePerm('products.update', 'Editar productos'),
-    parsePerm('products.delete', 'Eliminar productos'),
-
-    parsePerm('services.read', 'Ver servicios'),
-    parsePerm('services.create', 'Crear servicios'),
-    parsePerm('services.update', 'Editar servicios'),
-    parsePerm('services.delete', 'Eliminar servicios'),
-
-    parsePerm('categories.read', 'Ver categorías'),
-    parsePerm('categories.create', 'Crear categorías'),
-    parsePerm('categories.update', 'Editar categorías'),
-    parsePerm('categories.delete', 'Eliminar categorías'),
-
-    parsePerm('brands.read', 'Ver marcas'),
-    parsePerm('brands.create', 'Crear marcas'),
-    parsePerm('brands.update', 'Editar marcas'),
-    parsePerm('brands.delete', 'Eliminar marcas'),
-
-
-    parsePerm('uom.read', 'Ver unidades de medida'),
-    parsePerm('uom.create', 'Crear unidades de medida'),
-    parsePerm('uom.update', 'Editar unidades de medida'),
-    parsePerm('uom.delete', 'Desactivar unidades de medida'),
-    parsePerm('uom.restore', 'Restaurar unidades de medida'),
-    parsePerm('uom.destroy', 'Eliminar unidades de medida permanentemente'),
-
-    parsePerm('attributes.read', 'Ver atributos de producto'),
-    parsePerm('attributes.create', 'Crear atributos de producto'),
-    parsePerm('attributes.update', 'Editar atributos de producto'),
-    parsePerm('attributes.delete', 'Desactivar atributos de producto'),
-    parsePerm('attributes.restore', 'Restaurar atributos de producto'),
-    parsePerm('attributes.destroy', 'Eliminar atributos de producto permanentemente'),
-    
-
-    // --- WAREHOUSE children ---
-    parsePerm('inventory.read', 'Ver inventario'),
-    parsePerm('inventory.create', 'Crear en inventario'),
-    parsePerm('inventory.update', 'Editar inventario'),
-    parsePerm('inventory.delete', 'Desactivar en inventario'),
-    parsePerm('inventory.restore', 'Restaurar inventario'),
-    parsePerm('inventory.destroy', 'Eliminar inventario permanentemente'),
-
-    parsePerm('movements.read', 'Ver movimientos'),
-    parsePerm('movements.create', 'Crear movimientos'),
-    parsePerm('movements.update', 'Editar movimientos'),
-    parsePerm('movements.delete', 'Desactivar movimientos'),
-    parsePerm('movements.restore', 'Restaurar movimientos'),
-    parsePerm('movements.destroy', 'Eliminar movimientos permanentemente'),
-
-    parsePerm('orders.read', 'Ver pedidos de material'),
-    parsePerm('orders.create', 'Crear pedidos de material'),
-    parsePerm('orders.update', 'Editar pedidos de material'),
-    parsePerm('orders.delete', 'Eliminar pedidos de material'),
-    parsePerm('orders.restore', 'Restaurar pedidos de material'),
-    parsePerm('orders.destroy', 'Eliminar pedidos de material permanentemente'),
-
-    parsePerm('locations.read', 'Ver ubicaciones'),
-    parsePerm('locations.create', 'Crear ubicaciones'),
-    parsePerm('locations.update', 'Editar ubicaciones'),
-    parsePerm('locations.delete', 'Desactivar ubicaciones'),
-    parsePerm('locations.restore', 'Restaurar ubicaciones'),
-    parsePerm('locations.destroy', 'Eliminar ubicaciones permanentemente'),
-
-    parsePerm('reception_materials.read', 'Ver recepción de mercadería'),
-    parsePerm('reception_materials.create', 'Crear recepción de mercadería'),
-    parsePerm('reception_materials.update', 'Editar recepción de mercadería'),
-    parsePerm('reception_materials.delete', 'Eliminar recepción de mercadería'),
-
-    parsePerm('remission_guides.read', 'Ver guías de remisión'),
-    parsePerm('remission_guides.create', 'Crear guías de remisión'),
-    parsePerm('remission_guides.update', 'Editar guías de remisión'),
-    parsePerm('remission_guides.delete', 'Eliminar guías de remisión'),
-
-    // Tools & Equipment Custody (Pañol de Herramientas)
-    parsePerm('tool_loans.read', 'Ver préstamos de herramientas'),
-    parsePerm('tool_loans.create', 'Crear vales de préstamo de herramientas'),
-    parsePerm('tool_loans.update', 'Registrar devoluciones e inspecciones de herramientas'),
-    parsePerm('tool_loans.delete', 'Cancelar vales de préstamo de herramientas'),
-
-    parsePerm('tools.read', 'Ver inventario de herramientas'),
-    parsePerm('tools.create', 'Registrar herramientas en pañol'),
-    parsePerm('tools.update', 'Editar herramientas y condición'),
-    parsePerm('tools.delete', 'Dar de baja herramientas'),
-
-    // BOM (Recetas)
-    parsePerm('bom.read', 'Ver recetas de producción'),
-    parsePerm('bom.create', 'Crear recetas de producción'),
-    parsePerm('bom.update', 'Editar recetas de producción'),
-    parsePerm('bom.delete', 'Eliminar recetas de producción'),
-
-    // Dispatch Requests
-    parsePerm('dispatch_requests.read', 'Ver solicitudes de despacho'),
-    parsePerm('dispatch_requests.create', 'Crear solicitudes de despacho'),
-    parsePerm('dispatch_requests.update', 'Editar solicitudes de despacho'),
-    parsePerm('dispatch_requests.delete', 'Eliminar solicitudes de despacho'),
-
-    // --- PURCHASES children ---
-    parsePerm('suppliers.read', 'Ver proveedores'),
-    parsePerm('suppliers.create', 'Crear proveedores'),
-    parsePerm('suppliers.update', 'Editar proveedores'),
-    parsePerm('suppliers.delete', 'Eliminar proveedores'),
-    parsePerm('suppliers.restore', 'Restaurar proveedores'),
-    parsePerm('suppliers.destroy', 'Eliminar proveedores permanentemente'),
-
-    parsePerm('purchase_quotes.read', 'Ver cotizaciones de compra'),
-    parsePerm('purchase_quotes.create', 'Crear cotizaciones de compra'),
-    parsePerm('purchase_quotes.update', 'Editar cotizaciones de compra'),
-    parsePerm('purchase_quotes.delete', 'Eliminar cotizaciones de compra'),
-    parsePerm('purchase_quotes.restore', 'Restaurar cotizaciones de compra'),
-    parsePerm('purchase_quotes.destroy', 'Eliminar cotizaciones de compra permanentemente'),
-
-    parsePerm('purchase_orders.read', 'Ver órdenes de compra'),
-    parsePerm('purchase_orders.create', 'Crear órdenes de compra'),
-    parsePerm('purchase_orders.update', 'Editar órdenes de compra'),
-    parsePerm('purchase_orders.delete', 'Eliminar órdenes de compra'),
-    parsePerm('purchase_orders.restore', 'Restaurar órdenes de compra'),
-    parsePerm('purchase_orders.destroy', 'Eliminar órdenes de compra permanentemente'),
-
-    parsePerm('purchase_invoices.read', 'Ver facturas de compra'),
-    parsePerm('purchase_invoices.create', 'Crear facturas de compra'),
-    parsePerm('purchase_invoices.update', 'Editar facturas de compra'),
-    parsePerm('purchase_invoices.delete', 'Eliminar facturas de compra'),
-    parsePerm('purchase_invoices.restore', 'Restaurar facturas de compra'),
-    parsePerm('purchase_invoices.destroy', 'Eliminar facturas de compra permanentemente'),
-
-    // --- FINANCE children ---
-    parsePerm('documents.read', 'Ver documentos electrónicos'),
-    parsePerm('documents.create', 'Crear documentos electrónicos'),
-    parsePerm('documents.update', 'Editar documentos electrónicos'),
-    parsePerm('documents.delete', 'Eliminar documentos electrónicos'),
-    parsePerm('documents.restore', 'Restaurar documentos electrónicos'),
-    parsePerm('documents.destroy', 'Eliminar documentos electrónicos permanentemente'),
-
-    parsePerm('retentions.read', 'Ver retenciones'),
-    parsePerm('retentions.create', 'Crear retenciones'),
-    parsePerm('retentions.update', 'Editar retenciones'),
-    parsePerm('retentions.delete', 'Eliminar retenciones'),
-    parsePerm('retentions.restore', 'Restaurar retenciones'),
-    parsePerm('retentions.destroy', 'Eliminar retenciones permanentemente'),
-
-    parsePerm('receivable.read', 'Ver cuentas por cobrar'),
-    parsePerm('receivable.create', 'Crear cuentas por cobrar'),
-    parsePerm('receivable.update', 'Editar cuentas por cobrar'),
-    parsePerm('receivable.delete', 'Eliminar cuentas por cobrar'),
-    parsePerm('receivable.restore', 'Restaurar cuentas por cobrar'),
-    parsePerm('receivable.destroy', 'Eliminar cuentas por cobrar permanentemente'),
-
-    parsePerm('payable.read', 'Ver cuentas por pagar'),
-    parsePerm('payable.create', 'Crear cuentas por pagar'),
-    parsePerm('payable.update', 'Editar cuentas por pagar'),
-    parsePerm('payable.delete', 'Eliminar cuentas por pagar'),
-    parsePerm('payable.restore', 'Restaurar cuentas por pagar'),
-    parsePerm('payable.destroy', 'Eliminar cuentas por pagar permanentemente'),
-
-    // --- POS children ---
-    parsePerm('pos_sell.read', 'Ver caja POS'),
-    parsePerm('pos_sell.create', 'Operar caja POS'),
-    parsePerm('pos_sell.update', 'Editar caja POS'),
-    parsePerm('pos_sell.delete', 'Eliminar en caja POS'),
-
-    parsePerm('pos_sessions.read', 'Ver sesiones POS'),
-    parsePerm('pos_sessions.create', 'Crear sesiones POS'),
-    parsePerm('pos_sessions.update', 'Editar sesiones POS'),
-    parsePerm('pos_sessions.delete', 'Eliminar sesiones POS'),
-
-    parsePerm('pos_history.read', 'Ver historial de ventas POS'),
-    parsePerm('pos_history.create', 'Crear en historial POS'),
-    parsePerm('pos_history.update', 'Editar historial POS'),
-    parsePerm('pos_history.delete', 'Eliminar historial POS'),
-
-    // --- HR children ---
-    parsePerm('hr.read', 'Ver talento humano'),
-    parsePerm('hr.create', 'Crear en talento humano'),
-    parsePerm('hr.update', 'Editar en talento humano'),
-    parsePerm('hr.delete', 'Eliminar en talento humano'),
-
-    parsePerm('employees.read', 'Ver nómina de empleados'),
-    parsePerm('employees.create', 'Crear nómina de empleados'),
-    parsePerm('employees.update', 'Editar nómina de empleados'),
-    parsePerm('employees.delete', 'Eliminar nómina de empleados'),
-
-    parsePerm('schedules.read', 'Ver horarios'),
-    parsePerm('schedules.create', 'Crear horarios'),
-    parsePerm('schedules.update', 'Editar horarios'),
-    parsePerm('schedules.delete', 'Eliminar horarios'),
-
-    parsePerm('hours.read', 'Ver reporte de horas'),
-    parsePerm('hours.create', 'Crear reporte de horas'),
-    parsePerm('hours.update', 'Editar reporte de horas'),
-    parsePerm('hours.delete', 'Eliminar reporte de horas'),
-
-    // --- SYSTEM children ---
-    parsePerm('system.read', 'Ver sistema'),
-    parsePerm('system.create', 'Crear en sistema'),
-    parsePerm('system.update', 'Editar sistema'),
-    parsePerm('system.delete', 'Eliminar en sistema'),
-
-    parsePerm('config.read', 'Ver configuración'),
-    parsePerm('config.create', 'Crear configuración'),
-    parsePerm('config.update', 'Editar configuración'),
-    parsePerm('config.delete', 'Eliminar configuración'),
-
-    parsePerm('users.read', 'Ver usuarios'),
-    parsePerm('users.create', 'Crear usuarios'),
-    parsePerm('users.update', 'Editar usuarios'),
-    parsePerm('users.delete', 'Eliminar usuarios'),
-    parsePerm('users.restore', 'Restaurar usuarios'),
-    parsePerm('users.destroy', 'Eliminar usuarios permanentemente'),
-
-    parsePerm('audit.read', 'Ver auditoría'),
-    parsePerm('audit.create', 'Crear auditoría'),
-    parsePerm('audit.update', 'Editar auditoría'),
-    parsePerm('audit.delete', 'Eliminar auditoría'),
-    parsePerm('audit.restore', 'Restaurar auditoría'),
-    parsePerm('audit.destroy', 'Eliminar auditoría permanentemente'),
-
-    parsePerm('roles.read', 'Ver roles'),
-    parsePerm('roles.create', 'Crear roles'),
-    parsePerm('roles.update', 'Editar roles'),
-    parsePerm('roles.delete', 'Eliminar roles'),
-    parsePerm('roles.restore', 'Restaurar roles'),
-    parsePerm('roles.destroy', 'Eliminar roles permanentemente'),
-
-    parsePerm('permissions.read', 'Ver permisos'),
-    parsePerm('permissions.create', 'Asignar permisos'),
-    parsePerm('permissions.update', 'Modificar asignación de permisos'),
-    parsePerm('permissions.delete', 'Revocar permisos'),
+export const PERMISSIONS: PermissionDef[] = [
+    ...buildModulePermissions(FULL_LIFECYCLE_MODULES, ['read', 'create', 'update', 'delete', 'restore', 'destroy']),
+    ...buildModulePermissions(CRUD_MODULES, ['read', 'create', 'update', 'delete']),
 ];
 
 export const ROLES = [

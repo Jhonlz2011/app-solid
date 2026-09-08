@@ -56,17 +56,6 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                 const isExisting = isExistingUser();
                 const isDirect = !isExisting && onboardingMode() === 'direct';
 
-                if (isDirect && (!value.password || value.password.trim().length < 8)) {
-                    form.setFieldMeta('password', (prev: any) => ({
-                        ...prev,
-                        errorMap: {
-                            ...prev?.errorMap,
-                            onSubmit: 'La contraseña es obligatoria (mínimo 8 caracteres)',
-                        },
-                    }));
-                    return;
-                }
-
                 const payload: UserCreateData = {
                     ...value,
                     mode: isExisting ? 'invite' : onboardingMode(),
@@ -133,14 +122,14 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                     <TextField.Label>Correo electrónico *</TextField.Label>
                                     {/* Non-intrusive live user detection */}
                                     <Show when={!checkQuery.isFetching && isExistingUser()}>
-                                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0 rounded-full border border-emerald-500/20 animate-in fade-in">
+                                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 animate-in fade-in">
                                             <SparklesIcon class="size-3" />
                                             Usuario (@{checkQuery.data?.username})
                                         </span>
                                     </Show>
 
                                     <Show when={!checkQuery.isFetching && isAlreadyMember()}>
-                                        <span class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-500/10 px-2 py-0 rounded-full border border-amber-500/20 animate-in fade-in">
+                                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 animate-in fade-in">
                                             <AlertTriangleIcon class="size-3" />
                                             Ya es miembro en esta empresa
                                         </span>
@@ -202,7 +191,6 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                                         status={usernameCheck.status}
                                                         availableLabel="Disponible"
                                                         takenLabel="En uso"
-                                                        checkingLabel="Comprobando..."
                                                     />
                                                 </div>
                                                 <TextField.Input

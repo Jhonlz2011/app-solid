@@ -40,24 +40,17 @@ export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: st
         if (result) roleMap.set(result.name, result.id);
     }
 
-    // 3. Get all permission IDs for mapping
-    const allPermissions = await tx.select().from(authPermissions);
-    const permMap = new Map(allPermissions.map(p => [p.slug, p.id]));
-
-    // 4. Assign permissions to roles using filter functions
+    // 3. Assign permissions to roles directly by slug (zero round-trip query needed)
     for (const [roleName, checkFn] of Object.entries(ROLE_PERMISSIONS) as [string, (slug: string) => boolean][]) {
         const roleId = roleMap.get(roleName);
         if (!roleId) continue;
 
-        const permIds = PERMISSIONS
-            .filter((p: { slug: string }) => checkFn(p.slug))
-            .map((p: { slug: string }) => permMap.get(p.slug))
-            .filter((id: number | undefined): id is number => id !== undefined);
+        const matchingPerms = PERMISSIONS.filter((p: { slug: string }) => checkFn(p.slug));
 
-        if (permIds.length > 0) {
+        if (matchingPerms.length > 0) {
             await tx
                 .insert(authRolePermissions)
-                .values(permIds.map(permissionId => ({ role_id: roleId, permission_id: permissionId, company_id: companyId })))
+                .values(matchingPerms.map(p => ({ role_id: roleId, permission_slug: p.slug, company_id: companyId })))
                 .onConflictDoNothing();
         }
     }

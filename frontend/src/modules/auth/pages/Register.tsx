@@ -287,7 +287,6 @@ const Register: Component = () => {
                                             status={usernameCheck.status}
                                             availableLabel="Disponible"
                                             takenLabel="En uso"
-                                            checkingLabel="Comprobando..."
                                         />
                                     </Show>
                                 </div>
@@ -331,7 +330,6 @@ const Register: Component = () => {
                                                 status={emailCheck.status}
                                                 availableLabel="Disponible"
                                                 takenLabel="Ya registrado"
-                                                checkingLabel="Comprobando..."
                                             />
                                         </Show>
                                     </div>

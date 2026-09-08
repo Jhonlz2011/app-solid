@@ -7,6 +7,7 @@ import ActionMenu from '@shared/ui/overlay/ActionMenu';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 import type { RbacModule }  from '@app/schema/enums';
+import { getTaxIdTypeLabel, getTaxRegimeTypeLabel } from '@modules/entities/models/entity.types';
 
 export interface ColumnFilterConfig {
     options: () => FilterOption[];
@@ -181,7 +182,7 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
                     <div class="font-mono text-sm font-semibold text-primary group-hover/cell:underline underline-offset-2 transition-colors duration-150">
                         {info.getValue<string>()}
                     </div>
-                    <div class="text-xs text-muted">{info.row.original.tax_id_type}</div>
+                    <div class="text-xs text-muted">{getTaxIdTypeLabel(info.row.original.tax_id_type)}</div>
                 </Link>
             ),
         } as ColumnDef<T>,
@@ -222,6 +223,7 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
                 const hasRegime = () => !!entity.tax_regime_type && entity.tax_regime_type !== 'GENERAL';
                 const hasFlags = () => !!entity.obligado_contabilidad || !!entity.is_retention_agent || !!entity.is_special_contributor;
                 const hasAny = () => hasRegime() || hasFlags();
+                const regimeLabel = () => getTaxRegimeTypeLabel(entity.tax_regime_type);
 
                 return (
                     <div class="flex flex-col gap-1 min-w-0">
@@ -229,9 +231,9 @@ export function createBaseEntityColumns<T extends BaseEntityListItem>(
                             <Badge
                                 variant="default"
                                 class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0 rounded w-max border-border/60"
-                                title={`Régimen: ${entity.tax_regime_type}`}
+                                title={`Régimen: ${regimeLabel()}`}
                             >
-                                {entity.tax_regime_type}
+                                {regimeLabel()}
                             </Badge>
                         </Show>
                         <Show when={hasFlags()}>

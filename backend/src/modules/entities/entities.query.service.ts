@@ -1,5 +1,4 @@
-import { alias, and, eq, ilike, or, asc, inArray, isNotNull, type AnyColumn, type SQL } from '@app/schema';
-import type { PgColumn } from 'drizzle-orm/pg-core';
+import { alias, and, eq, ilike, or, asc, inArray, isNotNull, type AnyColumn, type SQL, type PgColumn } from '@app/schema';
 import { db } from '../../core/db';
 import { entities, entityAddresses, entityContacts, employeeDetails, carrierVehicles, carrierDrivers, departments, jobTitles } from '@app/schema/tables';
 import { DomainError } from '../../core/errors';
@@ -171,7 +170,7 @@ export async function listEntities(type: EntityType, filters: EntityFilters, com
     );
     return {
         ...result,
-        data: result.data.map(item => mapEntityRow(item, type)),
+        data: result.data.map(item => mapEntityRow(item as Record<string, unknown>, type)),
     };
 }
 
@@ -184,7 +183,7 @@ export async function listEntitiesCursor(type: EntityType, filters: EntityFilter
     );
     return {
         ...result,
-        data: result.data.map(item => mapEntityRow(item, type)),
+        data: result.data.map(item => mapEntityRow(item as Record<string, unknown>, type)),
     };
 }
 
@@ -197,7 +196,7 @@ export async function listEntitiesSorted(type: EntityType, filters: EntityFilter
     );
     return {
         ...result,
-        data: result.data.map(item => mapEntityRow(item, type)),
+        data: result.data.map(item => mapEntityRow(item as Record<string, unknown>, type)),
     };
 }
 

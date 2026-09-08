@@ -29,6 +29,8 @@ export interface TextFieldRootProps<TValue extends string | number | undefined |
     disabled?: boolean;
     /** Read-only mode */
     readOnly?: boolean;
+    /** Loading state */
+    loading?: boolean;
     /** Additional classes */
     class?: string;
     /** Children (Label, Input, ErrorMessage) */
@@ -68,6 +70,7 @@ interface TextFieldTextAreaProps extends Omit<JSX.TextareaHTMLAttributes<HTMLTex
 
 interface TextFieldPasswordInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type'> {
     class?: string;
+    loading?: boolean;
 }
 
 interface TextFieldNumericInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type' | 'inputMode'> {
@@ -76,6 +79,9 @@ interface TextFieldNumericInputProps extends Omit<JSX.InputHTMLAttributes<HTMLIn
     allowNegative?: boolean;
     /** Whether to allow decimals. Default: true */
     allowDecimal?: boolean;
+    loading?: boolean;
+    rightIcon?: JSX.Element;
+    leftIcon?: JSX.Element;
 }
 
 interface TextFieldErrorMessageProps {
@@ -101,6 +107,7 @@ interface TextFieldContextValue {
     isInvalid: () => boolean;
     disabled: () => boolean;
     readOnly: () => boolean;
+    loading: () => boolean;
     errorMessage: () => string;
 }
 
@@ -142,6 +149,7 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
         'validationState',
         'disabled',
         'readOnly',
+        'loading',
         'class',
         'children',
     ]);
@@ -200,6 +208,7 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
         isInvalid: () => validationState() === 'invalid',
         disabled: () => local.disabled ?? false,
         readOnly: () => local.readOnly ?? false,
+        loading: () => local.loading ?? false,
         errorMessage,
     };
 
@@ -304,7 +313,8 @@ const Input = (props: TextFieldInputProps) => {
         }
     };
 
-    const hasRightAdornment = () => Boolean(local.loading || local.rightIcon);
+    const isLoading = () => (local.loading !== undefined ? local.loading : context.loading());
+    const hasRightAdornment = () => Boolean(isLoading() || local.rightIcon);
     const hasLeftAdornment = () => Boolean(local.leftIcon);
 
     return (
@@ -333,13 +343,13 @@ const Input = (props: TextFieldInputProps) => {
                 {...others}
             />
 
-            <Show when={local.loading}>
+            <Show when={isLoading()}>
                 <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
                     <SpinnerIcon class="size-4 animate-spin text-primary" />
                 </div>
             </Show>
 
-            <Show when={!local.loading && local.rightIcon}>
+            <Show when={!isLoading() && local.rightIcon}>
                 <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
                     {local.rightIcon}
                 </div>
@@ -351,8 +361,9 @@ const Input = (props: TextFieldInputProps) => {
 /** Text password input with toggle */
 const PasswordInput = (props: TextFieldPasswordInputProps) => {
     const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class']);
+    const [local, others] = splitProps(props, ['class', 'loading']);
     const [showPassword, setShowPassword] = createSignal(false);
+    const isLoading = () => (local.loading !== undefined ? local.loading : context.loading());
 
     return (
         <div class="relative w-full">
@@ -368,17 +379,23 @@ const PasswordInput = (props: TextFieldPasswordInputProps) => {
                 class={cn(inputBaseStyles, "pr-12", local.class)}
                 {...others}
             />
-            <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword())}
-                disabled={context.disabled()}
-                class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-heading transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                tabIndex={-1}
-            >
-                <Show when={showPassword()} fallback={<EyeIcon class="size-5" />}>
-                    <EyeOffIcon class="size-5" />
-                </Show>
-            </button>
+            <Show when={isLoading()} fallback={
+                <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword())}
+                    disabled={context.disabled()}
+                    class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-heading transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    tabIndex={-1}
+                >
+                    <Show when={showPassword()} fallback={<EyeIcon class="size-5" />}>
+                        <EyeOffIcon class="size-5" />
+                    </Show>
+                </button>
+            }>
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+                    <SpinnerIcon class="size-4 animate-spin text-primary" />
+                </div>
+            </Show>
         </div>
     );
 };
@@ -389,9 +406,12 @@ const PasswordInput = (props: TextFieldPasswordInputProps) => {
  */
 const NumericInput = (props: TextFieldNumericInputProps) => {
     const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'allowNegative', 'allowDecimal']);
+    const [local, others] = splitProps(props, ['class', 'allowNegative', 'allowDecimal', 'loading', 'rightIcon', 'leftIcon']);
     const [inputValue, setInputValue] = createSignal("");
     const [isTyping, setIsTyping] = createSignal(false);
+    const isLoading = () => (local.loading !== undefined ? local.loading : context.loading());
+    const hasRightAdornment = () => Boolean(isLoading() || local.rightIcon);
+    const hasLeftAdornment = () => Boolean(local.leftIcon);
 
     // Sync from context to local input ONLY when not typing
     createEffect(() => {
@@ -474,24 +494,50 @@ const NumericInput = (props: TextFieldNumericInputProps) => {
     };
 
     return (
-        <input
-            id={context.id}
-            type="text"
-            inputMode="decimal"
-            value={inputValue()}
-            onKeyDown={handleKeyDown}
-            onInput={handleInput}
-            onFocus={() => setIsTyping(true)}
-            onBlur={() => {
-                setIsTyping(false);
-                context.onBlur();
-            }}
-            disabled={context.disabled()}
-            readOnly={context.readOnly()}
-            data-invalid={context.isInvalid()}
-            class={cn(inputBaseStyles, "font-mono", local.class)}
-            {...others}
-        />
+        <div class="relative w-full">
+            <Show when={local.leftIcon}>
+                <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+                    {local.leftIcon}
+                </div>
+            </Show>
+
+            <input
+                id={context.id}
+                type="text"
+                inputMode="decimal"
+                value={inputValue()}
+                onKeyDown={handleKeyDown}
+                onInput={handleInput}
+                onFocus={() => setIsTyping(true)}
+                onBlur={() => {
+                    setIsTyping(false);
+                    context.onBlur();
+                }}
+                disabled={context.disabled()}
+                readOnly={context.readOnly()}
+                data-invalid={context.isInvalid()}
+                class={cn(
+                    inputBaseStyles,
+                    "font-mono",
+                    hasLeftAdornment() && 'pl-9',
+                    hasRightAdornment() && 'pr-9',
+                    local.class
+                )}
+                {...others}
+            />
+
+            <Show when={isLoading()}>
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+                    <SpinnerIcon class="size-4 animate-spin text-primary" />
+                </div>
+            </Show>
+
+            <Show when={!isLoading() && local.rightIcon}>
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+                    {local.rightIcon}
+                </div>
+            </Show>
+        </div>
     );
 };
 

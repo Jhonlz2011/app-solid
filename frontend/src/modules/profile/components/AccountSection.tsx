@@ -108,17 +108,13 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                                     currentLabel="Tu usuario actual"
                                     availableLabel="Disponible"
                                     takenLabel="Ya en uso"
-                                    checkingLabel="Comprobando..."
                                 />
                             </div>
-                            <div class="relative">
-                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-muted z-10">@</span>
-                                <TextField.Input
-                                    placeholder="nombredeusuario"
-                                    class="pl-9"
-                                    loading={usernameCheck.isChecking()}
-                                />
-                            </div>
+                            <TextField.Input
+                                placeholder="nombredeusuario"
+                                leftIcon={<span class="text-sm font-medium text-muted">@</span>}
+                                loading={usernameCheck.isChecking()}
+                            />
                             <TextField.ErrorMessage />
                         </TextField.Root>
                     )}
@@ -135,7 +131,6 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                                     currentLabel="Tu correo actual"
                                     availableLabel="Disponible"
                                     takenLabel="Ya registrado"
-                                    checkingLabel="Comprobando..."
                                 />
                             </div>
                             <TextField.Input

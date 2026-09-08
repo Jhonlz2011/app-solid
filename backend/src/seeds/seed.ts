@@ -127,7 +127,6 @@ async function seed() {
                     person_type: 'NATURAL',
                     business_name: 'CONSUMIDOR FINAL',
                     is_client: true,
-                    is_active: true,
                     is_system: true,
                     obligado_contabilidad: false,
                 })

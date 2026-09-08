@@ -19,10 +19,9 @@ export const PermissionSlugSchema = Type.Union(
 );
 
 export const PermissionSchema = Type.Object({
-    id: Type.Number(),
+    slug: Type.String(),
     module: Type.String(),
     action: Type.String(),
-    slug: Type.String(),
     description: Type.Union([Type.String(), Type.Null()]),
 });
 
@@ -32,7 +31,6 @@ export const PermissionsResponseSchema = Type.Object({
 });
 
 export const RolePermissionSchema = Type.Object({
-    id: Type.Number(),
     slug: Type.String(),
     description: Type.Union([Type.String(), Type.Null()]),
 });
@@ -71,7 +69,7 @@ export const RoleBodySchema = Type.Object({
 });
 
 export const RolePermissionsUpdateBodySchema = Type.Object({
-    permissionIds: Type.Array(Type.Number()),
+    permissionSlugs: Type.Array(Type.String()),
 });
 
 export const UserRoleReferenceSchema = Type.Object({

@@ -95,7 +95,7 @@ export const authPermissionsRelations = relations(tables.authPermissions, ({ man
 
 export const authRolePermissionsRelations = relations(tables.authRolePermissions, ({ one }) => ({
     role: one(tables.authRoles, { fields: [tables.authRolePermissions.role_id], references: [tables.authRoles.id] }),
-    permission: one(tables.authPermissions, { fields: [tables.authRolePermissions.permission_id], references: [tables.authPermissions.id] }),
+    permission: one(tables.authPermissions, { fields: [tables.authRolePermissions.permission_slug], references: [tables.authPermissions.slug] }),
 }));
 
 export const authUsersRelations = relations(tables.authUsers, ({ one, many }) => ({

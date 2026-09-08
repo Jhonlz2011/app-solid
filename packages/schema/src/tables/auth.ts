@@ -183,23 +183,21 @@ export const authRoles = pgTableV2("auth_roles", {
 ]).enableRLS();
 
 export const authPermissions = pgTableV2("auth_permissions", {
-    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    slug: text("slug").primaryKey(),                    // 'suppliers.read' (natural primary key)
     module: text("module").notNull(),                   // 'suppliers', 'invoices'
     action: text("action").notNull(),                   // 'read', 'create', 'update', 'delete', etc.
-    slug: text("slug").unique().notNull(),               // 'suppliers.read' (module.action)
     description: text("description"),
 }, (t) => [
-    uniqueIndex("idx_perm_module_action").on(t.module, t.action),
     index("idx_perm_module").on(t.module),
 ]);
 
 export const authRolePermissions = pgTableV2("auth_role_permissions", {
     role_id: integer("role_id").references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
-    permission_id: integer("permission_id").references(() => authPermissions.id, { onDelete: 'cascade' }).notNull(),
-    company_id: integer("company_id").references(() => companies.id).notNull(),
+    permission_slug: text("permission_slug").references(() => authPermissions.slug, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
+    company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }).notNull(),
 }, (t) => [
-    primaryKey({ columns: [t.role_id, t.permission_id] }),
-    index("idx_role_perms_by_perm").on(t.permission_id),
+    primaryKey({ columns: [t.role_id, t.permission_slug] }),
+    index("idx_role_perms_slug").on(t.permission_slug),
     index("idx_role_perms_company").on(t.company_id),
     tenantPolicy(),
 ]).enableRLS();

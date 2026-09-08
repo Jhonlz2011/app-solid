@@ -57,7 +57,7 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
     const [roleDescription, setRoleDescription] = createSignal('');
 
     // ── Permission selection state ───────────────────────────────────────────
-    const [selectedPermIds, setSelectedPermIds] = createSignal<number[]>([]);
+    const [selectedPermSlugs, setSelectedPermSlugs] = createSignal<string[]>([]);
 
     // Sync form fields from server when editing — keyed to roleId to prevent stale data
     createEffect(on(
@@ -79,7 +79,7 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
         () => rolePermsQuery.data,
         (perms) => {
             if (isEdit() && perms) {
-                setSelectedPermIds(perms.map(p => p.id));
+                setSelectedPermSlugs(perms.map(p => p.slug));
             }
         }
     ));
@@ -89,7 +89,7 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
         () => props.isOpen,
         (open) => {
             if (open && !isEdit()) {
-                setSelectedPermIds([]);
+                setSelectedPermSlugs([]);
                 setRoleName('');
                 setRoleDescription('');
             }
@@ -97,7 +97,7 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
     ));
 
     // ── Derived ──────────────────────────────────────────────────────────────
-    const selectedSet = createMemo(() => new Set(selectedPermIds()));
+    const selectedSet = createMemo(() => new Set(selectedPermSlugs()));
     const roleData = () => roleQuery.data;
     const isSystem = () => isEdit() && (roleData()?.is_system ?? false);
     const isPending = () =>
@@ -124,20 +124,20 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
     const isReady = () => !isEdit() || (Boolean(roleQuery.data) && !rolePermsQuery.isPending && !allPermsQuery.isPending);
 
     // ── Handlers ─────────────────────────────────────────────────────────────
-    const handleToggle = (id: number) => {
+    const handleToggle = (slug: string) => {
         if (isSystem()) return;
-        setSelectedPermIds(prev =>
-            prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+        setSelectedPermSlugs(prev =>
+            prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug]
         );
     };
 
     const handleModuleToggle = (prefix: string, selected: boolean) => {
         if (isSystem()) return;
         const perms = allPermsQuery.data?.all ?? [];
-        const moduleIds = perms.filter(p => p.slug.startsWith(prefix + '.')).map(p => p.id);
-        setSelectedPermIds(prev => {
+        const moduleSlugs = perms.filter(p => p.slug.startsWith(prefix + '.')).map(p => p.slug);
+        setSelectedPermSlugs(prev => {
             const set = new Set(prev);
-            moduleIds.forEach(id => selected ? set.add(id) : set.delete(id));
+            moduleSlugs.forEach(slug => selected ? set.add(slug) : set.delete(slug));
             return Array.from(set);
         });
     };
@@ -162,23 +162,23 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
                 // Permissions-only mode: only update permissions
                 await updatePermsMutation.mutateAsync({
                     roleId: targetRoleId,
-                    permissionIds: selectedPermIds(),
+                    permissionSlugs: selectedPermSlugs(),
                 });
                 toast.success('Permisos actualizados correctamente');
             } else if (isEdit() && targetRoleId) {
                 // Full edit: update role info + permissions in parallel
                 await Promise.all([
                     updateRoleMutation.mutateAsync({ id: targetRoleId, name, description }),
-                    updatePermsMutation.mutateAsync({ roleId: targetRoleId, permissionIds: selectedPermIds() }),
+                    updatePermsMutation.mutateAsync({ roleId: targetRoleId, permissionSlugs: selectedPermSlugs() }),
                 ]);
                 toast.success('Rol actualizado correctamente');
             } else {
                 // Create role, then assign permissions
                 const created = await createMutation.mutateAsync({ name, description });
-                if (selectedPermIds().length > 0) {
+                if (selectedPermSlugs().length > 0) {
                     await updatePermsMutation.mutateAsync({
                         roleId: created.id,
-                        permissionIds: selectedPermIds(),
+                        permissionSlugs: selectedPermSlugs(),
                     });
                 }
                 toast.success(`Rol "${name}" creado correctamente`);
@@ -259,7 +259,7 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
                     </Show>
                     <PermissionMatrix
                         allPermissions={allPermsQuery.data?.all ?? []}
-                        selectedIds={selectedSet()}
+                        selectedSlugs={selectedSet()}
                         onToggle={handleToggle}
                         onModuleToggle={handleModuleToggle}
                     />

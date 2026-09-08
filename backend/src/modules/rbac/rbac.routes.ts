@@ -98,7 +98,7 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     })
 
     .put('/roles/:id/permissions', async ({ params, body, currentUserId }) => {
-        return await updateRolePermissions(Number(params.id), body.permissionIds, currentUserId);
+        return await updateRolePermissions(Number(params.id), body.permissionSlugs, currentUserId);
     }, {
         permission: 'permissions.update',
         params: IdParamSchema,

@@ -30,18 +30,19 @@ const getActionLabel = (action: string) =>
 // ============================================
 
 export interface PermissionItem {
-    id: number;
     slug: string;
+    module?: string;
+    action?: string;
     description?: string | null;
 }
 
 export interface PermissionMatrixProps {
     /** All available permissions */
     allPermissions: PermissionItem[];
-    /** Currently selected permission IDs (controlled) */
-    selectedIds: Set<number>;
+    /** Currently selected permission slugs (controlled) */
+    selectedSlugs: Set<string>;
     /** Callback when a single permission is toggled */
-    onToggle: (permissionId: number) => void;
+    onToggle: (slug: string) => void;
     /** Callback when an entire module is toggled */
     onModuleToggle: (prefix: string, selected: boolean) => void;
     /** Optional external search term — if omitted, renders its own SearchInput */
@@ -68,13 +69,13 @@ export const PermissionMatrix: Component<PermissionMatrixProps> = (props) => {
 
     const search = () => props.search ?? internalSearch();
 
-    // Group permissions by module (slug.split('.')[0])
+    // Group permissions by module
     const grouped = createMemo(() => {
         const map = new Map<string, PermissionItem[]>();
         for (const perm of props.allPermissions) {
-            const [module] = perm.slug.split('.');
-            if (!map.has(module)) map.set(module, []);
-            map.get(module)!.push(perm);
+            const moduleName = perm.module || perm.slug.split('.')[0];
+            if (!map.has(moduleName)) map.set(moduleName, []);
+            map.get(moduleName)!.push(perm);
         }
         return map;
     });
@@ -116,7 +117,7 @@ export const PermissionMatrix: Component<PermissionMatrixProps> = (props) => {
     const moduleState = (perms: PermissionItem[]) => {
         let selected = 0;
         for (const p of perms) {
-            if (props.selectedIds.has(p.id)) selected++;
+            if (props.selectedSlugs.has(p.slug)) selected++;
         }
         if (selected === 0) return 'none' as const;
         if (selected === perms.length) return 'all' as const;
@@ -187,7 +188,7 @@ export const PermissionMatrix: Component<PermissionMatrixProps> = (props) => {
 
                                     {/* Counter */}
                                     <span class="text-xs text-muted">
-                                        {perms.filter(p => props.selectedIds.has(p.id)).length}/{perms.length}
+                                        {perms.filter(p => props.selectedSlugs.has(p.slug)).length}/{perms.length}
                                     </span>
                                 </button>
 
@@ -196,12 +197,12 @@ export const PermissionMatrix: Component<PermissionMatrixProps> = (props) => {
                                     <div class="px-3 pb-3 space-y-1 border-t border-border pt-2">
                                         <For each={perms}>
                                             {(perm) => {
-                                                const action = perm.slug.split('.')[1];
+                                                const action = perm.action || perm.slug.split('.')[1];
                                                 return (
-                                                    <label class={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${props.selectedIds.has(perm.id) ? 'bg-primary/5' : 'hover:bg-surface/30'}`}>
+                                                    <label class={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${props.selectedSlugs.has(perm.slug) ? 'bg-primary/5' : 'hover:bg-surface/30'}`}>
                                                         <Checkbox
-                                                            checked={props.selectedIds.has(perm.id)}
-                                                            onChange={() => props.onToggle(perm.id)}
+                                                            checked={props.selectedSlugs.has(perm.slug)}
+                                                            onChange={() => props.onToggle(perm.slug)}
                                                             onClick={(e: MouseEvent) => e.stopPropagation()}
                                                         />
                                                         <ActionBadge action={action} />

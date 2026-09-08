@@ -3,7 +3,7 @@ import { toast } from 'solid-sonner';
 import { useNavigate } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { RegisterStep2Schema } from '@app/schema/frontend';
-import { isGlobalPortalHost, buildTenantUrl } from '@app/schema/utils';
+import { buildTenantUrl } from '@app/schema/utils';
 import { authApi } from '@modules/auth/api/auth.api';
 import { authClient } from '@shared/lib/auth-client';
 import { fetchUserOrganizations, invalidateOrgCache } from '../utils/resolve-routing';
@@ -80,12 +80,7 @@ export const CreateCompany: Component = () => {
             await actions.initSession();
             toast.success(`¡Empresa "${values.businessName}" creada exitosamente!`);
 
-            const isGlobal = isGlobalPortalHost(window.location.hostname);
-            if (isGlobal && values.slug) {
-                window.location.href = buildTenantUrl(values.slug, '/dashboard', { queryParams: { session: 'true' } });
-            } else {
-                window.location.href = buildTenantUrl(values.slug, '/dashboard', { queryParams: { session: 'true' } });
-            }
+            window.location.href = buildTenantUrl(values.slug, '/dashboard', { queryParams: { session: 'true' } });
         } catch (err: any) {
             setTurnstileToken(null);
             turnstileActions?.reset();

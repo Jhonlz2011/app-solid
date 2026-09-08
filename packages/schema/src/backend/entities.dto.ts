@@ -139,7 +139,7 @@ export const CarrierDriverBodySchema = Type.Object({
 // Main Entity Form Schema (TypeBox) - Aligned strictly with frontend Valibot schema
 export const EntityBodySchema = Type.Object({
     taxId: Type.String(),
-    taxIdType: TaxIdTypeFormSchema,
+    taxIdType: TaxIdTypeSchema,
     personType: PersonTypeSchema,
     businessName: Type.String(),
     tradeName: Type.String(),
@@ -183,9 +183,9 @@ export const EntityPickerQuerySchema = Type.Object({
 export const EntityListQuerySchema = Type.Object({
     cursor: Type.Optional(Type.String()),
     direction: Type.Optional(Type.Union([
-        Type.Literal('forward'),
-        Type.Literal('backward'),
         Type.Literal('first'),
+        Type.Literal('next'),
+        Type.Literal('prev'),
         Type.Literal('last'),
     ])),
     search: Type.Optional(Type.String()),

@@ -77,7 +77,7 @@ export const CarrierDriverFormSchema = object({
 export const EntityFormSchema = pipe(
     object({
         taxId: pipe(string(), minLength(1, 'La identificación es requerida')),
-        taxIdType: TaxIdTypeFormSchema,
+        taxIdType: TaxIdTypeSchema,
         personType: PersonTypeSchema,
         businessName: pipe(string(), minLength(3, 'Razón social requerida')),
         tradeName: string(),

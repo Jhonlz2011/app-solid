@@ -65,7 +65,6 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                                 status={slugCheck.status}
                                 availableLabel="Disponible"
                                 takenLabel="En uso"
-                                checkingLabel="Comprobando..."
                             />
                         </div>
                         <TextField.Input
@@ -124,7 +123,6 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
                                 status={rucCheck.status}
                                 availableLabel="Válido"
                                 takenLabel="Registrado"
-                                checkingLabel="Comprobando..."
                             />
                         </div>
                         <TextField.Input

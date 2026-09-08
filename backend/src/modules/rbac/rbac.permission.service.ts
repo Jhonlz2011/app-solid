@@ -1,5 +1,5 @@
 import { db, adminDb } from '../../core/db';
-import { authUserRoles, authRoles, authRolePermissions, authPermissions, authUsers, sessions, member, companies } from '@app/schema/tables';
+import { authUserRoles, authRoles, authRolePermissions, authUsers, sessions, member, companies } from '@app/schema/tables';
 import { eq, and } from '@app/schema';
 import { redis } from '../../core/cache/redis';
 import { cacheService } from '../../core/cache';
@@ -66,10 +66,9 @@ export async function getUserPermissions(userId: string | number, companyId?: nu
         if (companyId) conditions.push(eq(authUserRoles.company_id, companyId));
 
         const result = await adminDb
-            .selectDistinct({ slug: authPermissions.slug })
+            .selectDistinct({ slug: authRolePermissions.permission_slug })
             .from(authUserRoles)
             .innerJoin(authRolePermissions, eq(authUserRoles.role_id, authRolePermissions.role_id))
-            .innerJoin(authPermissions, eq(authRolePermissions.permission_id, authPermissions.id))
             .where(and(...conditions));
 
         const perms = result.map(r => r.slug);

@@ -62,7 +62,7 @@ export const RoleUpdateSchema = object({
 export type RoleUpdateData = InferInput<typeof RoleUpdateSchema>;
 
 export const RolePermissionsUpdateSchema = object({
-    permissionIds: array(number()),
+    permissionSlugs: array(string()),
 });
 export type RolePermissionsUpdateData = InferInput<typeof RolePermissionsUpdateSchema>;
 

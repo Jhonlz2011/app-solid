@@ -118,8 +118,8 @@ export function useUpdateRolePermissions() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ roleId, permissionIds }: { roleId: number; permissionIds: number[] }) =>
-            usersApi.updateRolePermissions(roleId, permissionIds),
+        mutationFn: ({ roleId, permissionSlugs }: { roleId: number; permissionSlugs: string[] }) =>
+            usersApi.updateRolePermissions(roleId, permissionSlugs),
         onSettled: (_data, _err, variables) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.rolePermissions(variables.roleId) });
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
