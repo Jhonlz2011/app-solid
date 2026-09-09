@@ -2,7 +2,7 @@ import { Component, Show, type Accessor } from 'solid-js';
 import TextField, { FieldLabel } from '@form/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
 import { businessTypeSelectOptions, type SelectOption } from '@shared/constants/entity-labels';
-import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
+import { hasFieldError, getFieldError, type AnyFormApi } from '@shared/ui/form/form.types';
 import { useAvailabilityCheck } from '@shared/hooks/useAvailabilityCheck';
 import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
 
@@ -14,8 +14,19 @@ export interface CompanyGeneralFieldsStatus {
     isValidForSubmit: Accessor<boolean>;
 }
 
+export interface CompanyGeneralFormValues {
+    slug?: string;
+    ruc?: string;
+    businessName?: string;
+    tradeName?: string;
+    businessType?: string;
+    email?: string;
+    phone?: string;
+    mainAddress?: string;
+}
+
 export interface CompanyGeneralFieldsProps {
-    form: any;
+    form: AnyFormApi;
     stepSubmitted?: Accessor<boolean>;
     showSlug?: boolean;
     showContact?: boolean;
@@ -26,16 +37,20 @@ export interface CompanyGeneralFieldsProps {
 }
 
 export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props) => {
+    // Single-instance store accessors at component level with typed selectors
+    const slugValue = props.form.useStore((s: { values?: CompanyGeneralFormValues }) => s.values?.slug ?? '');
+    const rucValue = props.form.useStore((s: { values?: CompanyGeneralFormValues }) => s.values?.ruc ?? '');
+
     // Availability checks (conditionally enabled via props)
     const slugCheck = useAvailabilityCheck({
         type: 'slug',
-        value: () => props.form.useStore((s: any) => s.values?.slug ?? '')(),
+        value: slugValue,
         enabled: () => !!props.showSlug && (props.checkSlugAvailability ?? true),
     });
 
     const rucCheck = useAvailabilityCheck({
         type: 'ruc',
-        value: () => props.form.useStore((s: any) => s.values?.ruc ?? '')(),
+        value: rucValue,
         enabled: () => props.checkRucAvailability ?? false,
     });
 
@@ -65,21 +80,24 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
             <Show when={props.showSlug}>
                 <props.form.Field name="slug" children={(f: any) => (
                     <TextField.Root field={f()}>
-                        <div class="flex items-center justify-between gap-2">
-                            <TextField.Label>Subdominio (slug) *</TextField.Label>
-                            <Show when={props.checkSlugAvailability ?? true}>
-                                <AvailabilityBadge
-                                    status={slugCheck.status}
-                                    availableLabel="Disponible"
-                                    takenLabel="En uso"
-                                />
-                            </Show>
-                        </div>
+                        <TextField.Label
+                            badge={
+                                <Show when={props.checkSlugAvailability ?? true}>
+                                    <AvailabilityBadge
+                                        status={slugCheck.status}
+                                        availableLabel="Disponible"
+                                        takenLabel="En uso"
+                                    />
+                                </Show>
+                            }
+                        >
+                            Subdominio (slug) *
+                        </TextField.Label>
                         <TextField.Input
                             type="text"
                             placeholder="mi-empresa"
                             loading={slugCheck.isChecking()}
-                            onInput={(e: any) => {
+                            onInput={(e) => {
                                 const v = e.currentTarget.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
                                 e.currentTarget.value = v;
                                 f().handleChange(v);
@@ -95,22 +113,25 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
                 {/* RUC */}
                 <props.form.Field name="ruc" children={(f: any) => (
                     <TextField.Root field={f()}>
-                        <div class="flex items-center justify-between gap-2">
-                            <TextField.Label>RUC (13 dígitos) *</TextField.Label>
-                            <Show when={props.checkRucAvailability}>
-                                <AvailabilityBadge
-                                    status={rucCheck.status}
-                                    availableLabel="Válido"
-                                    takenLabel="Registrado"
-                                />
-                            </Show>
-                        </div>
+                        <TextField.Label
+                            badge={
+                                <Show when={props.checkRucAvailability}>
+                                    <AvailabilityBadge
+                                        status={rucCheck.status}
+                                        availableLabel="Válido"
+                                        takenLabel="Registrado"
+                                    />
+                                </Show>
+                            }
+                        >
+                            RUC (13 dígitos) *
+                        </TextField.Label>
                         <TextField.Input
                             type="text"
                             placeholder="1792345678001"
                             maxLength={13}
                             loading={rucCheck.isChecking()}
-                            onInput={(e: any) => {
+                            onInput={(e) => {
                                 const v = e.currentTarget.value.replace(/\D/g, '');
                                 e.currentTarget.value = v;
                                 f().handleChange(v);

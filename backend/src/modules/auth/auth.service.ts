@@ -30,7 +30,7 @@ interface CompanyData {
   mainAddress?: string;
   obligadoContabilidad?: boolean;
   contribuyenteEspecial?: string;
-  taxRegime?: string;
+  taxRegimeType?: TaxRegimeType;
   cedula?: string;
   phone?: string;
 }
@@ -105,7 +105,7 @@ async function provisionTenant(
       business_type: data.businessType || null,
       obligado_contabilidad: data.obligadoContabilidad ?? false,
       contribuyente_especial: data.contribuyenteEspecial || null,
-      rimpe_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
+      rimpe_type: data.taxRegimeType || 'GENERAL',
     })
     .returning();
 
@@ -142,7 +142,7 @@ async function provisionTenant(
     phone: data.phone || null,
     email_billing: ownerInfo.email,
     is_employee: true,
-    tax_regime_type: (data.taxRegime || 'GENERAL') as TaxRegimeType,
+    tax_regime_type: data.taxRegimeType || 'GENERAL',
   }).returning();
 
   // 8. Create Better-Auth member (owner role) with entity_id link

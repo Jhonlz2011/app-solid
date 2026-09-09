@@ -9,21 +9,14 @@ import { useBranding, getSubdomain } from '../store/branding.store';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import { buildTenantUrl, isGlobalPortalHost, resolveSlugFromHost } from '@app/schema/utils';
 import { resolvePostAuthRouting } from '../utils/resolve-routing';
-import { toRealPath } from '@shared/utils/route-alias';
-import Input from '@/shared/ui/form/Input';
+import { navigateSafely } from '@shared/utils/navigation';
+import TextField from '@form/TextField';
 import Button from '@form/Button';
 import Turnstile from '@shared/ui/Turnstile';
 import OAuthButtons from '../components/OAuthButtons';
 import { MailIcon } from '@icons/MailIcon';
 import { LockIcon } from '@icons/LockIcon';
 import { BuildingIcon } from '@icons/BuildingIcon';
-
-const getFieldError = (errors: unknown[]): string | undefined => {
-  if (!errors.length) return undefined;
-  const e = errors[0];
-  if (typeof e === 'object' && e && 'message' in e) return (e as { message: string }).message;
-  return String(e);
-};
 
 /** Progressive stagger delay for entrance animations */
 const stagger = (index: number): JSX.CSSProperties => ({
@@ -97,31 +90,6 @@ const Login: Component = () => {
     }
   });
 
-  const handleRedirect = (slug: string, path: string) => {
-    window.location.href = buildTenantUrl(slug, path, { queryParams: { session: 'true' } });
-  };
-
-  const handleSelectTenant = async (tenant: DiscoverTenantItemType) => {
-    setLoadingTenants(true);
-    try {
-      await actions.switchOrganization(tenant.organizationId);
-      const searchParams = typeof search === 'function' ? search() : search;
-      const redirectTo = (searchParams as any)?.redirect
-        ?? new URLSearchParams(window.location.search).get('redirect');
-      const rawPath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
-        ? new URL(redirectTo, window.location.origin).pathname
-        : '/dashboard';
-      const safePath = (!rawPath || rawPath === '/verify-email' || rawPath.startsWith('/login') || rawPath.startsWith('/register') || rawPath.startsWith('/verify-email'))
-        ? '/dashboard'
-        : rawPath;
-      handleRedirect(tenant.slug, safePath);
-    } catch (err: any) {
-      toast.error(err?.message || 'Error al seleccionar empresa');
-    } finally {
-      setLoadingTenants(false);
-    }
-  };
-
   /** Computes a safe redirect path from URL search params */
   const getSafeRedirectPath = (): string => {
     const searchParams = typeof search === 'function' ? search() : search;
@@ -133,6 +101,23 @@ const Login: Component = () => {
     return (!rawPath || rawPath === '/verify-email' || rawPath.startsWith('/login') || rawPath.startsWith('/register') || rawPath.startsWith('/verify-email'))
       ? '/dashboard'
       : rawPath;
+  };
+
+  const handleRedirect = (slug: string, path: string) => {
+    window.location.href = buildTenantUrl(slug, path, { queryParams: { session: 'true' } });
+  };
+
+  const handleSelectTenant = async (tenant: DiscoverTenantItemType) => {
+    setLoadingTenants(true);
+    try {
+      await actions.switchOrganization(tenant.organizationId);
+      const safePath = getSafeRedirectPath();
+      handleRedirect(tenant.slug, safePath);
+    } catch (err: any) {
+      toast.error(err?.message || 'Error al seleccionar empresa');
+    } finally {
+      setLoadingTenants(false);
+    }
   };
 
   const initialEmail = () => {
@@ -180,8 +165,7 @@ const Login: Component = () => {
             if (decision.organizationId) {
               await actions.switchOrganization(decision.organizationId);
             }
-            const canonicalPath = toRealPath(safePath);
-            navigate({ href: safePath, to: canonicalPath as any, replace: true });
+            await navigateSafely(safePath, { replace: true });
             return;
         }
       } catch (err) {
@@ -280,19 +264,18 @@ const Login: Component = () => {
             <form.Field
               name="email"
               children={(field) => (
-                <Input
-                  id="login-email"
-                  label="Usuario o correo electrónico"
-                  type="text"
-                  value={field().state.value}
-                  onBlur={field().handleBlur}
-                  onInput={(e) => field().handleChange(e.target.value)}
-                  required
-                  placeholder="nombre@empresa.com"
-                  autocomplete="username"
-                  error={getFieldError(field().state.meta.errors)}
-                  leadingIcon={<MailIcon class="size-4.5" />}
-                />
+                <TextField.Root field={field()}>
+                  <TextField.Label>Usuario o correo electrónico *</TextField.Label>
+                  <TextField.Input
+                    id="login-email"
+                    type="text"
+                    required
+                    placeholder="nombre@empresa.com"
+                    autocomplete="username"
+                    leftIcon={<MailIcon class="size-4.5" />}
+                  />
+                  <TextField.ErrorMessage />
+                </TextField.Root>
               )}
             />
           </div>
@@ -301,19 +284,17 @@ const Login: Component = () => {
             <form.Field
               name="password"
               children={(field) => (
-                <Input
-                  id="login-password"
-                  label="Contraseña"
-                  type="password"
-                  value={field().state.value}
-                  onBlur={field().handleBlur}
-                  onInput={(e) => field().handleChange(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  autocomplete="current-password"
-                  error={getFieldError(field().state.meta.errors)}
-                  leadingIcon={<LockIcon class="size-4.5" />}
-                />
+                <TextField.Root field={field()}>
+                  <TextField.Label>Contraseña *</TextField.Label>
+                  <TextField.PasswordInput
+                    id="login-password"
+                    required
+                    placeholder="••••••••"
+                    autocomplete="current-password"
+                    leftIcon={<LockIcon class="size-4.5" />}
+                  />
+                  <TextField.ErrorMessage />
+                </TextField.Root>
               )}
             />
           </div>

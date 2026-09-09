@@ -10,18 +10,24 @@ import {
 } from '@form/SegmentedControl';
 import Switch from '@/shared/ui/form/Switch';
 import { taxRegimeSelectOptions, type SelectOption } from '@shared/constants/entity-labels';
-import { hasFieldError, getFieldError } from '@shared/ui/form/form.types';
+import { hasFieldError, getFieldError, type AnyFormApi } from '@shared/ui/form/form.types';
 
 const SRI_ENV_OPTIONS: SelectOption[] = [
     { value: '1', label: 'Pruebas (Ambiente 1)' },
     { value: '2', label: 'Producción (Ambiente 2)' },
 ];
 
+export interface CompanyFiscalFormValues {
+    taxRegimeType?: string;
+    obligadoContabilidad?: boolean;
+    contribuyenteEspecial?: string;
+    agenteRetencion?: string;
+    sriEnvironment?: string;
+}
+
 export interface CompanyFiscalFieldsProps {
-    form: any;
+    form: AnyFormApi;
     stepSubmitted?: Accessor<boolean>;
-    /** 'taxRegime' for Auth, 'rimpeType' for Settings */
-    regimeFieldName?: 'taxRegime' | 'rimpeType';
     /** Control style: 'segmented' for onboarding/auth, 'switch' for settings panel */
     obligadoControlType?: 'segmented' | 'switch';
     /** Show SRI environment and Agente de Retención (used in Settings) */
@@ -31,11 +37,11 @@ export interface CompanyFiscalFieldsProps {
 }
 
 export const CompanyFiscalFields: Component<CompanyFiscalFieldsProps> = (props) => {
-    const regimeField = () => props.regimeFieldName ?? 'taxRegime';
     const controlType = () => props.obligadoControlType ?? 'segmented';
 
-    const currentRegime = () => props.form.useStore((s: any) => s.values[regimeField()])();
-    const isObligado = () => props.form.useStore((s: any) => s.values.obligadoContabilidad)();
+    // Subscribed once at component level with typed store selector
+    const currentRegime = props.form.useStore((s: { values: CompanyFiscalFormValues }) => s.values.taxRegimeType);
+    const isObligado = props.form.useStore((s: { values: CompanyFiscalFormValues }) => s.values.obligadoContabilidad);
 
     const handleRegimeChange = (val: string | undefined, fieldHandleChange: (v: any) => void) => {
         fieldHandleChange(val);
@@ -59,7 +65,7 @@ export const CompanyFiscalFields: Component<CompanyFiscalFieldsProps> = (props) 
             {/* ─── Fila: Régimen SRI + Obligado a Contabilidad (o SRI Environment si advanced) ─── */}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                 {/* Régimen Tributario */}
-                <props.form.Field name={regimeField()} children={(f: any) => (
+                <props.form.Field name="taxRegimeType" children={(f: any) => (
                     <div class="flex flex-col gap-1">
                         <FieldLabel>Régimen Tributario</FieldLabel>
                         <Select

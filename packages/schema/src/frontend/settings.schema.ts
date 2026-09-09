@@ -1,11 +1,21 @@
-import { pipe, string, minLength, object, email, picklist, boolean, union, literal, optional, nullable, regex, any, type InferInput } from 'valibot';
+import { pipe, string, minLength, object, email, picklist, boolean, union, literal, optional, nullable, regex, custom, type InferInput } from 'valibot';
 import { TaxRegimeTypeSchema } from './entities.schema';
+
+/** Accepts a remote image URL string or a local File upload instance */
+export const ImageSourceSchema = optional(
+    nullable(
+        custom<string | File>(
+            (v) => typeof v === 'string' || (typeof File !== 'undefined' && v instanceof File),
+            'Debe ser una URL válida o un archivo'
+        )
+    )
+);
 
 // --- 1. BRANDING & APARIENCIA ---
 export const BrandingSettingsFormSchema = object({
     primaryColor: pipe(string(), minLength(4, 'Color primario inválido')),
     themeColor: pipe(string(), minLength(4, 'Color de tema inválido')),
-    loginBgUrl: optional(nullable(any())),
+    loginBgUrl: ImageSourceSchema,
 });
 export type BrandingSettingsFormData = InferInput<typeof BrandingSettingsFormSchema>;
 
@@ -18,7 +28,7 @@ export const CompanyProfileFormSchema = object({
     businessType: optional(nullable(string())),
     email: optional(nullable(union([pipe(string(), email('Correo inválido')), literal('')]))),
     phone: optional(nullable(string())),
-    logoUrl: optional(nullable(any())),
+    logoUrl: ImageSourceSchema,
 });
 export type CompanyProfileFormData = InferInput<typeof CompanyProfileFormSchema>;
 
@@ -27,7 +37,7 @@ export const FiscalSettingsFormSchema = object({
     obligadoContabilidad: boolean(),
     contribuyenteEspecial: optional(nullable(string())),
     agenteRetencion: optional(nullable(string())),
-    rimpeType: optional(nullable(TaxRegimeTypeSchema)),
+    taxRegimeType: optional(nullable(TaxRegimeTypeSchema)),
     sriEnvironment: picklist(['1', '2']),
 });
 export type FiscalSettingsFormData = InferInput<typeof FiscalSettingsFormSchema>;

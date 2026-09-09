@@ -1,6 +1,7 @@
 import { Component, type Accessor } from 'solid-js';
 import CompanyGeneralFields, { type CompanyGeneralFieldsStatus } from '@shared/ui/form/company/CompanyGeneralFields';
 import CompanyFiscalFields from '@shared/ui/form/company/CompanyFiscalFields';
+import type { AnyFormApi } from '@shared/ui/form/form.types';
 
 export interface CompanyFieldsStatus {
     slugAvailable: Accessor<boolean | null>;
@@ -11,7 +12,7 @@ export interface CompanyFieldsStatus {
 }
 
 interface CompanyFieldsProps {
-    form: any;
+    form: AnyFormApi;
     stepSubmitted: Accessor<boolean>;
     onStatusChange?: (status: CompanyFieldsStatus) => void;
 }
@@ -42,7 +43,6 @@ export const CompanyFields: Component<CompanyFieldsProps> = (props) => {
             <CompanyFiscalFields
                 form={props.form}
                 stepSubmitted={props.stepSubmitted}
-                regimeFieldName="taxRegime"
                 obligadoControlType="segmented"
             />
         </div>

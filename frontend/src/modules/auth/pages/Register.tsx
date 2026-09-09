@@ -66,7 +66,7 @@ const Register: Component = () => {
     const [submitting, setSubmitting] = createSignal(false);
 
     // Status from CompanyFields
-    let step2FieldsStatus: CompanyFieldsStatus | undefined;
+    const [step2FieldsStatus, setStep2FieldsStatus] = createSignal<CompanyFieldsStatus | null>(null);
 
     // ─── STEP 1 FORM ───
     const step1Form = createForm(() => ({
@@ -84,15 +84,19 @@ const Register: Component = () => {
         },
     }));
 
+    // Single-instance store accessors at component level (no recreation in effects)
+    const usernameValue = step1Form.useStore((s) => s.values.username);
+    const emailValue = step1Form.useStore((s) => s.values.email);
+
     const usernameCheck = useAvailabilityCheck({
         type: 'username',
-        value: () => step1Form.useStore((s) => s.values.username)(),
+        value: usernameValue,
         enabled: () => !isOAuthUser(),
     });
 
     const emailCheck = useAvailabilityCheck({
         type: 'email',
-        value: () => step1Form.useStore((s) => s.values.email)(),
+        value: emailValue,
         enabled: () => !isOAuthUser(),
     });
 
@@ -136,7 +140,7 @@ const Register: Component = () => {
             tradeName: undefined as string | undefined,
             businessType: '',
             mainAddress: undefined as string | undefined,
-            taxRegime: 'GENERAL' as const,
+            taxRegimeType: 'GENERAL' as const,
             obligadoContabilidad: false,
             contribuyenteEspecial: undefined as string | undefined,
         },
@@ -163,7 +167,7 @@ const Register: Component = () => {
                     mainAddress: s2.mainAddress || undefined,
                     obligadoContabilidad: s2.obligadoContabilidad || undefined,
                     contribuyenteEspecial: s2.contribuyenteEspecial || undefined,
-                    taxRegime: s2.taxRegime || undefined,
+                    taxRegimeType: s2.taxRegimeType || undefined,
                     phone: s1.phone || undefined,
                     cedula: s1.cedula || undefined,
                     turnstileToken: turnstileToken() ?? undefined,
@@ -205,7 +209,7 @@ const Register: Component = () => {
                 mainAddress: s2.mainAddress || undefined,
                 obligadoContabilidad: s2.obligadoContabilidad || undefined,
                 contribuyenteEspecial: s2.contribuyenteEspecial || undefined,
-                taxRegime: s2.taxRegime || undefined,
+                taxRegimeType: s2.taxRegimeType || undefined,
                 turnstileToken: turnstileToken() ?? undefined,
             });
 
@@ -251,8 +255,9 @@ const Register: Component = () => {
     };
 
     const isStep2NextDisabled = () => {
-        if (!step2FieldsStatus) return false;
-        return !step2FieldsStatus.isValidForSubmit();
+        const s = step2FieldsStatus();
+        if (!s) return false;
+        return !s.isValidForSubmit();
     };
 
     const stepperSteps = () => isOAuthUser() ? ['Empresa', 'Confirmar'] : ['Usuario', 'Empresa', 'Confirmar'];
@@ -280,16 +285,19 @@ const Register: Component = () => {
                         )} />
                         <step1Form.Field name="username" children={(f) => (
                             <TextField.Root field={f()}>
-                                <div class="flex items-center justify-between gap-2">
-                                    <TextField.Label>Nombre de usuario *</TextField.Label>
-                                    <Show when={!isOAuthUser()}>
-                                        <AvailabilityBadge
-                                            status={usernameCheck.status}
-                                            availableLabel="Disponible"
-                                            takenLabel="En uso"
-                                        />
-                                    </Show>
-                                </div>
+                                <TextField.Label
+                                    badge={
+                                        <Show when={!isOAuthUser()}>
+                                            <AvailabilityBadge
+                                                status={usernameCheck.status}
+                                                availableLabel="Disponible"
+                                                takenLabel="En uso"
+                                            />
+                                        </Show>
+                                    }
+                                >
+                                    Nombre de usuario *
+                                </TextField.Label>
                                 <TextField.Input
                                     type="text"
                                     placeholder="ej: juan.perez"
@@ -323,16 +331,19 @@ const Register: Component = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                             <step1Form.Field name="email" children={(f) => (
                                 <TextField.Root field={f()}>
-                                    <div class="flex items-center justify-between gap-2">
-                                        <TextField.Label>Correo electrónico *</TextField.Label>
-                                        <Show when={!isOAuthUser()}>
-                                            <AvailabilityBadge
-                                                status={emailCheck.status}
-                                                availableLabel="Disponible"
-                                                takenLabel="Ya registrado"
-                                            />
-                                        </Show>
-                                    </div>
+                                    <TextField.Label
+                                        badge={
+                                            <Show when={!isOAuthUser()}>
+                                                <AvailabilityBadge
+                                                    status={emailCheck.status}
+                                                    availableLabel="Disponible"
+                                                    takenLabel="Ya registrado"
+                                                />
+                                            </Show>
+                                        }
+                                    >
+                                        Correo electrónico *
+                                    </TextField.Label>
                                     <TextField.Input
                                         type="email"
                                         placeholder="correo@ejemplo.com"
@@ -421,7 +432,7 @@ const Register: Component = () => {
                         <CompanyFields
                             form={step2Form}
                             stepSubmitted={step2Submitted}
-                            onStatusChange={(s) => { step2FieldsStatus = s; }}
+                            onStatusChange={(s) => setStep2FieldsStatus(s)}
                         />
 
                         <div class="flex items-center gap-3 mt-4 pt-4 border-t border-border">

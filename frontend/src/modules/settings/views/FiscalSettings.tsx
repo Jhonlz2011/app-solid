@@ -16,7 +16,7 @@ const FiscalSettings: Component = () => {
     } = useCompanySettingsForm({
         onSuccessMessage: 'Configuración fiscal guardada correctamente',
         schema: FiscalSettingsFormSchema,
-        fieldsSubset: ['obligadoContabilidad', 'contribuyenteEspecial', 'agenteRetencion', 'rimpeType', 'sriEnvironment'],
+        fieldsSubset: ['obligadoContabilidad', 'contribuyenteEspecial', 'agenteRetencion', 'taxRegimeType', 'sriEnvironment'],
     });
 
     return (
@@ -62,7 +62,6 @@ const FiscalSettings: Component = () => {
                                 <h3 class="text-base font-bold text-heading border-b border-border/60 pb-2">Información Fiscal Tributaria</h3>
                                 <CompanyFiscalFields
                                     form={form}
-                                    regimeFieldName="rimpeType"
                                     obligadoControlType="switch"
                                     showAdvancedSri={true}
                                     alwaysShowContribuyenteEspecial={true}

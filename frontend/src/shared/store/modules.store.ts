@@ -7,7 +7,6 @@ import { RealtimeEvents } from "@app/schema/realtime-events";
 
 function notifyRouterOfAliasChange(): void {
     if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('route-aliases:updated'));
         import('@/router').then(m => {
             m.router?.invalidate();
         }).catch(() => {});

@@ -37,7 +37,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
 
             // 1. Manejo de cambio de username (Inmediato vía Better-Auth)
             if (hasUsernameChanged) {
-                if (usernameCheck.status() === 'taken' || !usernameCheck.isValidFormat()) {
+                if (isBlockedByUsername()) {
                     return;
                 }
                 await props.onUpdateProfile({ username: value.username });
@@ -45,7 +45,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
 
             // 2. Manejo de cambio de correo (Seguro con verificación vía Better-Auth)
             if (hasEmailChanged) {
-                if (emailCheck.status() === 'taken' || !emailCheck.isValidFormat()) {
+                if (isBlockedByEmail()) {
                     return;
                 }
                 await props.onChangeEmail(value.email);
@@ -54,18 +54,27 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
         },
     }));
 
+    const usernameValue = form.useStore((s) => s.values.username);
+    const emailValue = form.useStore((s) => s.values.email);
+
     // Real-time debounced availability checks
     const usernameCheck = useAvailabilityCheck({
         type: 'username',
-        value: () => form.useStore((s) => s.values.username)(),
+        value: usernameValue,
         currentValue: profileUsername,
     });
 
     const emailCheck = useAvailabilityCheck({
         type: 'email',
-        value: () => form.useStore((s) => s.values.email)(),
+        value: emailValue,
         currentValue: profileEmail,
     });
+
+    const isBlockedByUsername = () =>
+        usernameCheck.status() === 'taken' || !usernameCheck.isValidFormat() || usernameCheck.isChecking();
+
+    const isBlockedByEmail = () =>
+        emailCheck.status() === 'taken' || !emailCheck.isValidFormat() || emailCheck.isChecking();
 
     const isPending = () => props.isUpdatingProfile || props.isChangingEmail;
 
@@ -101,15 +110,18 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 <form.Field name="username">
                     {(field) => (
                         <TextField.Root field={field()} disabled={isPending()}>
-                            <div class="flex items-center justify-between gap-2">
-                                <TextField.Label>Nombre de usuario</TextField.Label>
-                                <AvailabilityBadge
-                                    status={usernameCheck.status}
-                                    currentLabel="Tu usuario actual"
-                                    availableLabel="Disponible"
-                                    takenLabel="Ya en uso"
-                                />
-                            </div>
+                            <TextField.Label
+                                badge={
+                                    <AvailabilityBadge
+                                        status={usernameCheck.status}
+                                        currentLabel="Tu usuario actual"
+                                        availableLabel="Disponible"
+                                        takenLabel="Ya en uso"
+                                    />
+                                }
+                            >
+                                Nombre de usuario
+                            </TextField.Label>
                             <TextField.Input
                                 placeholder="nombredeusuario"
                                 leftIcon={<span class="text-sm font-medium text-muted">@</span>}
@@ -124,15 +136,18 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 <form.Field name="email">
                     {(field) => (
                         <TextField.Root field={field()} disabled={isPending()}>
-                            <div class="flex items-center justify-between gap-2">
-                                <TextField.Label>Correo electrónico</TextField.Label>
-                                <AvailabilityBadge
-                                    status={emailCheck.status}
-                                    currentLabel="Tu correo actual"
-                                    availableLabel="Disponible"
-                                    takenLabel="Ya registrado"
-                                />
-                            </div>
+                            <TextField.Label
+                                badge={
+                                    <AvailabilityBadge
+                                        status={emailCheck.status}
+                                        currentLabel="Tu correo actual"
+                                        availableLabel="Disponible"
+                                        takenLabel="Ya registrado"
+                                    />
+                                }
+                            >
+                                Correo electrónico
+                            </TextField.Label>
                             <TextField.Input
                                 type="email"
                                 placeholder="tu@email.com"
@@ -161,18 +176,12 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                         const hasEmailChange = () => state().values.email !== profileEmail();
                         const hasChanges = () => hasUsernameChange() || hasEmailChange();
 
-                        const isBlockedByUsername = () =>
-                            hasUsernameChange() && (usernameCheck.status() === 'taken' || !usernameCheck.isValidFormat() || usernameCheck.isChecking());
-
-                        const isBlockedByEmail = () =>
-                            hasEmailChange() && (emailCheck.status() === 'taken' || !emailCheck.isValidFormat() || emailCheck.isChecking());
-
                         const isSubmitDisabled = () =>
                             !hasChanges() ||
                             isPending() ||
                             state().isSubmitting ||
-                            isBlockedByUsername() ||
-                            isBlockedByEmail();
+                            (hasUsernameChange() && isBlockedByUsername()) ||
+                            (hasEmailChange() && isBlockedByEmail());
 
                         return (
                             <Button

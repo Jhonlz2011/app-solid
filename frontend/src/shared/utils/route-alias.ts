@@ -11,57 +11,15 @@
  */
 
 import { resolveSlugFromHost } from '@app/schema/utils';
+import { CANONICAL_DEFAULT_ALIASES, CANONICAL_DEFAULT_REVERSE } from '@app/schema';
 
-/** Storage prefixes for client-side synchronous alias hydration */
+/** Storage prefix for client-side synchronous alias hydration */
 const ALIAS_CACHE_PREFIX = 'zelys_route_aliases:';
-const REVERSE_CACHE_PREFIX = 'zelys_route_reverse:';
 
 function getTenantSlug(): string {
     if (typeof window === 'undefined') return 'default';
     return resolveSlugFromHost(window.location.hostname) || 'default';
 }
-
-/** Canonical fallback map for standard ERP modules */
-const CANONICAL_DEFAULT_ALIASES: Record<string, string> = {
-    '/clientes': '/clients',
-    '/ventas/clientes': '/clients',
-    '/proveedores': '/suppliers',
-    '/compras/proveedores': '/suppliers',
-    '/productos': '/products',
-    '/servicios': '/services',
-    '/categorias': '/categories',
-    '/marcas': '/brands',
-    '/unidades': '/uom',
-    '/unidades-medida': '/uom',
-    '/atributos': '/attributes',
-    '/ubicaciones': '/locations',
-    '/herramientas': '/tool-loans',
-    '/prestamos': '/tool-loans',
-    '/usuarios': '/users',
-    '/sistema/usuarios': '/users',
-    '/empleados': '/employees',
-    '/rrhh/empleados': '/employees',
-    '/configuracion': '/settings',
-    '/sistema/configuracion': '/settings',
-    '/panel': '/dashboard',
-};
-
-const CANONICAL_DEFAULT_REVERSE: Record<string, string> = {
-    '/clients': '/clientes',
-    '/suppliers': '/proveedores',
-    '/products': '/productos',
-    '/services': '/servicios',
-    '/categories': '/categorias',
-    '/brands': '/marcas',
-    '/uom': '/unidades',
-    '/attributes': '/atributos',
-    '/locations': '/ubicaciones',
-    '/tool-loans': '/herramientas',
-    '/users': '/usuarios',
-    '/employees': '/empleados',
-    '/settings': '/configuracion',
-    '/dashboard': '/panel',
-};
 
 let cachedAliases: Record<string, string> | null = null;
 let cachedReverseAliases: Record<string, string> | null = null;
@@ -70,28 +28,23 @@ let sortedReverseKeys: string[] = [];
 
 /**
  * Initializes aliases from canonical defaults merged with pre-injected DOM script tags.
+ * Reverse mapping is derived dynamically in memory — zero duplicate storage overhead.
  * Cached in memory for O(1) performance on subsequent lookups.
  */
 function initAliases(): void {
     if (cachedAliases !== null) return;
 
+    // 1. Injected aliases from Elysia SPA pre-boot script
     let injectedAliases: Record<string, string> = {};
     try {
         const el = typeof document !== 'undefined' ? document.getElementById('route-aliases') : null;
         if (el?.textContent) injectedAliases = JSON.parse(el.textContent);
     } catch {}
 
-    let injectedReverse: Record<string, string> = {};
-    try {
-        const el = typeof document !== 'undefined' ? document.getElementById('route-reverse-aliases') : null;
-        if (el?.textContent) injectedReverse = JSON.parse(el.textContent);
-    } catch {}
-
-    // Synchronous localStorage cache for F5 reloads, direct navigation, and Vite dev
+    // 2. Synchronous localStorage cache for F5 reloads, direct navigation, and Vite dev
     // Client-side stored aliases take precedence over stale server/SW HTML
     const slug = getTenantSlug();
     let storedAliases: Record<string, string> = {};
-    let storedReverse: Record<string, string> = {};
     if (typeof window !== 'undefined') {
         try {
             const stored = localStorage.getItem(`${ALIAS_CACHE_PREFIX}${slug}`)
@@ -99,21 +52,14 @@ function initAliases(): void {
                 || localStorage.getItem(`${ALIAS_CACHE_PREFIX}default`);
             if (stored) storedAliases = JSON.parse(stored);
         } catch {}
-        try {
-            const storedRev = localStorage.getItem(`${REVERSE_CACHE_PREFIX}${slug}`)
-                || localStorage.getItem(`${REVERSE_CACHE_PREFIX}latest`)
-                || localStorage.getItem(`${REVERSE_CACHE_PREFIX}default`);
-            if (storedRev) storedReverse = JSON.parse(storedRev);
-        } catch {}
     }
 
     // Precedence: Canonical defaults < DOM Injected < LocalStorage client-updated
     cachedAliases = { ...CANONICAL_DEFAULT_ALIASES, ...injectedAliases, ...storedAliases };
-    cachedReverseAliases = { ...CANONICAL_DEFAULT_REVERSE, ...injectedReverse, ...storedReverse };
 
-    // Guaranteed bidirectional synchronization:
-    // Any active custom alias (e.g. '/pacientes' -> '/clients') must strictly override
-    // the reverse display mapping (e.g. '/clients' -> '/pacientes') so the URL never reverts.
+    // Pure dynamic derivation of reverse aliases:
+    // Any active custom alias (e.g. '/pacientes' -> '/clients') overrides the reverse display
+    cachedReverseAliases = { ...CANONICAL_DEFAULT_REVERSE };
     for (const [alias, real] of Object.entries(injectedAliases)) {
         if (alias && real) cachedReverseAliases[real] = alias;
     }
@@ -122,7 +68,6 @@ function initAliases(): void {
     }
 
     // Sort descending by length so deeper prefix paths match before shallower ones
-    // (e.g., '/ventas/clientes' must match before '/ventas')
     sortedAliasKeys = Object.keys(cachedAliases).sort((a, b) => b.length - a.length);
     sortedReverseKeys = Object.keys(cachedReverseAliases).sort((a, b) => b.length - a.length);
 }
@@ -257,11 +202,8 @@ export function setRouteAliases(tenantAliases: Record<string, string>, tenantSlu
     if (typeof window !== 'undefined') {
         try {
             const aliasJson = JSON.stringify(tenantAliases);
-            const reverseJson = JSON.stringify(reverse);
             localStorage.setItem(`${ALIAS_CACHE_PREFIX}${slug}`, aliasJson);
-            localStorage.setItem(`${REVERSE_CACHE_PREFIX}${slug}`, reverseJson);
             localStorage.setItem(`${ALIAS_CACHE_PREFIX}latest`, aliasJson);
-            localStorage.setItem(`${REVERSE_CACHE_PREFIX}latest`, reverseJson);
         } catch (e) {
             console.warn('Failed to persist route aliases to localStorage:', e);
         }
@@ -293,9 +235,8 @@ export function clearTenantRouteAliases(slug?: string | null): void {
     if (typeof window !== 'undefined') {
         try {
             localStorage.removeItem(`${ALIAS_CACHE_PREFIX}${targetSlug}`);
-            localStorage.removeItem(`${REVERSE_CACHE_PREFIX}${targetSlug}`);
             localStorage.removeItem(`${ALIAS_CACHE_PREFIX}latest`);
-            localStorage.removeItem(`${REVERSE_CACHE_PREFIX}latest`);
+            localStorage.removeItem(`${ALIAS_CACHE_PREFIX}default`);
         } catch (e) {
             console.warn('Failed to clear tenant route aliases from localStorage:', e);
         }

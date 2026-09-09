@@ -1,6 +1,7 @@
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
 import type { CompanySettingsFormData } from '@app/schema/frontend';
+import type { CompanySettingsBodyType } from '@app/schema/backend';
 import type { CropCoordinates } from '@app/schema/dto';
 
 /**
@@ -44,13 +45,13 @@ export const brandingApi = {
             body.loginBgUrl instanceof File ? brandingApi.uploadLoginBg(body.loginBgUrl, loginBgCrop) : Promise.resolve(body.loginBgUrl),
         ]);
 
-        const finalBody = {
-            ...body,
-            ...(logoUrl !== undefined ? { logoUrl } : {}),
-            ...(loginBgUrl !== undefined ? { loginBgUrl } : {}),
+        const finalBody: CompanySettingsBodyType = {
+            ...(body as CompanySettingsBodyType),
+            ...(logoUrl !== undefined ? { logoUrl: typeof logoUrl === 'string' ? logoUrl : null } : {}),
+            ...(loginBgUrl !== undefined ? { loginBgUrl: typeof loginBgUrl === 'string' ? loginBgUrl : null } : {}),
         };
 
-        const { data, error } = await api.settings.company.patch(finalBody as any);
+        const { data, error } = await api.settings.company.patch(finalBody);
         if (error) throwApiError(error);
         return data as CompanySettingsFormData;
     },

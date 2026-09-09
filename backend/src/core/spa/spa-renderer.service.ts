@@ -238,19 +238,11 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                 try {
                     const aliasMap = await getRouteAliases(company.id);
                     if (Object.keys(aliasMap).length > 0) {
-                        const reverseMap: Record<string, string> = {};
-                        for (const [alias, real] of Object.entries(aliasMap)) {
-                            reverseMap[real] = alias;
-                        }
-
                         const safeAliasJson = JSON.stringify(aliasMap)
-                            .replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
-                        const safeReverseJson = JSON.stringify(reverseMap)
                             .replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
 
                         headInjections += `
 <script id="route-aliases" type="application/json">${safeAliasJson}</script>
-<script id="route-reverse-aliases" type="application/json">${safeReverseJson}</script>
 `;
                     }
                 } catch (aliasErr) {

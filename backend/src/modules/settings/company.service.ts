@@ -10,90 +10,64 @@ import { RealtimeEvents } from '@app/schema/realtime-events';
 
 
 /**
- * Maps camelCase form field names → snake_case DB column setters.
- * Only fields present in the input are included in the UPDATE SET clause,
- * avoiding unnecessary writes and reducing last-write-wins conflicts.
+ * Standard projection for company branding & fiscal settings.
+ * Shared between queries and mutations to ensure DRY and 100% type alignment.
  */
-const FIELD_MAP: Record<keyof CompanySettingsBodyType, (data: CompanySettingsBodyType) => any> = {
-  logoUrl: (d) => d.logoUrl,
-  loginBgUrl: (d) => d.loginBgUrl,
-  primaryColor: (d) => d.primaryColor,
-  themeColor: (d) => d.themeColor,
-  businessName: (d) => d.businessName,
-  tradeName: (d) => d.tradeName || null,
-  ruc: (d) => d.ruc,
-  mainAddress: (d) => d.mainAddress,
-  businessType: (d) => d.businessType || null,
-  email: (d) => d.email || null,
-  phone: (d) => d.phone || null,
-  obligadoContabilidad: (d) => d.obligadoContabilidad,
-  contribuyenteEspecial: (d) => d.contribuyenteEspecial || null,
-  agenteRetencion: (d) => d.agenteRetencion || null,
-  rimpeType: (d) => d.rimpeType || null,
-  sriEnvironment: (d) => d.sriEnvironment,
-};
-
-const CAMEL_TO_COLUMN: Record<string, keyof typeof companies> = {
-  logoUrl: 'logo_url',
-  loginBgUrl: 'login_bg_url',
-  primaryColor: 'primary_color',
-  themeColor: 'theme_color',
-  businessName: 'business_name',
-  tradeName: 'trade_name',
-  ruc: 'ruc',
-  mainAddress: 'main_address',
-  businessType: 'business_type',
-  email: 'email',
-  phone: 'phone',
-  obligadoContabilidad: 'obligado_contabilidad',
-  contribuyenteEspecial: 'contribuyente_especial',
-  agenteRetencion: 'agente_retencion',
-  rimpeType: 'rimpe_type',
-  sriEnvironment: 'sri_environment',
+const companyProjection = {
+  id: companies.id,
+  slug: companies.slug,
+  businessName: companies.business_name,
+  tradeName: companies.trade_name,
+  logoUrl: companies.logo_url,
+  primaryColor: companies.primary_color,
+  themeColor: companies.theme_color,
+  loginBgUrl: companies.login_bg_url,
+  ruc: companies.ruc,
+  mainAddress: companies.main_address,
+  businessType: companies.business_type,
+  email: companies.email,
+  phone: companies.phone,
+  obligadoContabilidad: companies.obligado_contabilidad,
+  contribuyenteEspecial: companies.contribuyente_especial,
+  agenteRetencion: companies.agente_retencion,
+  taxRegimeType: companies.rimpe_type,
+  sriEnvironment: companies.sri_environment,
 };
 
 /**
- * Builds a partial Drizzle `.set()` object from only the fields present in the input.
- * Fields with `undefined` value are skipped — only explicit values are written.
+ * Strictly-typed partial builder for Drizzle UPDATE.
+ * Only writes fields explicitly passed in the request body (skipping undefined).
+ * Completely eliminates manual runtime reflection and `any` casting.
  */
-function buildPartialSet(data: CompanySettingsBodyType): Record<string, any> {
-  const set: Record<string, any> = {};
-  for (const [camelKey, resolver] of Object.entries(FIELD_MAP)) {
-    const value = (data as any)[camelKey];
-    if (value !== undefined) {
-      const columnKey = CAMEL_TO_COLUMN[camelKey];
-      if (columnKey) {
-        set[columnKey as string] = resolver(data);
-      }
-    }
-  }
-  set.updated_at = new Date();
-  return set;
+function toCompanyUpdateData(data: CompanySettingsBodyType): Partial<typeof companies.$inferInsert> {
+  const update: Partial<typeof companies.$inferInsert> = {
+    updated_at: new Date(),
+  };
+
+  if (data.logoUrl !== undefined) update.logo_url = data.logoUrl;
+  if (data.loginBgUrl !== undefined) update.login_bg_url = data.loginBgUrl;
+  if (data.primaryColor !== undefined) update.primary_color = data.primaryColor;
+  if (data.themeColor !== undefined) update.theme_color = data.themeColor;
+  if (data.businessName !== undefined) update.business_name = data.businessName;
+  if (data.tradeName !== undefined) update.trade_name = data.tradeName;
+  if (data.ruc !== undefined) update.ruc = data.ruc;
+  if (data.mainAddress !== undefined) update.main_address = data.mainAddress;
+  if (data.businessType !== undefined) update.business_type = data.businessType;
+  if (data.email !== undefined) update.email = data.email;
+  if (data.phone !== undefined) update.phone = data.phone;
+  if (data.obligadoContabilidad !== undefined) update.obligado_contabilidad = data.obligadoContabilidad;
+  if (data.contribuyenteEspecial !== undefined) update.contribuyente_especial = data.contribuyenteEspecial;
+  if (data.agenteRetencion !== undefined) update.agente_retencion = data.agenteRetencion;
+  if (data.taxRegimeType !== undefined) update.rimpe_type = data.taxRegimeType;
+  if (data.sriEnvironment !== undefined) update.sri_environment = data.sriEnvironment;
+
+  return update;
 }
 
 export const companyService = {
   getBranding: async (companyId: number) => {
     const [company] = await db
-      .select({
-        id: companies.id,
-        slug: companies.slug,
-        businessName: companies.business_name,
-        tradeName: companies.trade_name,
-        logoUrl: companies.logo_url,
-        primaryColor: companies.primary_color,
-        themeColor: companies.theme_color,
-        loginBgUrl: companies.login_bg_url,
-        ruc: companies.ruc,
-        mainAddress: companies.main_address,
-        businessType: companies.business_type,
-        email: companies.email,
-        phone: companies.phone,
-        obligadoContabilidad: companies.obligado_contabilidad,
-        contribuyenteEspecial: companies.contribuyente_especial,
-        agenteRetencion: companies.agente_retencion,
-        rimpeType: companies.rimpe_type,
-        sriEnvironment: companies.sri_environment,
-      })
+      .select(companyProjection)
       .from(companies)
       .where(eq(companies.id, companyId))
       .limit(1);
@@ -107,35 +81,38 @@ export const companyService = {
 
   updateBranding: async (companyId: number, data: CompanySettingsBodyType) => {
     // Fetch current image URLs for deferred delete comparison
-    const [currentImages] = await db.select({
+    const [currentImages] = await db
+      .select({
         logoUrl: companies.logo_url,
         loginBgUrl: companies.login_bg_url,
-    }).from(companies).where(eq(companies.id, companyId)).limit(1);
-
-    // Build partial SET — only changed fields are written to the DB
-    const partialSet = buildPartialSet(data);
+      })
+      .from(companies)
+      .where(eq(companies.id, companyId))
+      .limit(1);
 
     const [updated] = await db
       .update(companies)
-      .set(partialSet as any)
+      .set(toCompanyUpdateData(data))
       .where(eq(companies.id, companyId))
-      .returning();
+      .returning(companyProjection);
+
+    if (!updated) {
+      throw new NotFoundError('Empresa no encontrada para actualizar');
+    }
 
     // Deferred delete: only cleanup R2 objects when explicitly removed (set to null).
-    // When replacing an image, PutObject already overwrites the same static key —
-    // calling deleteObject here would DELETE the file that was just uploaded.
     if (currentImages) {
-        if (currentImages.logoUrl && data.logoUrl === null) {
-            publicStorageService.deleteObject(currentImages.logoUrl).catch((err) =>
-                console.warn('[R2] Deferred logo delete failed:', err)
-            );
-        }
+      if (currentImages.logoUrl && data.logoUrl === null) {
+        publicStorageService.deleteObject(currentImages.logoUrl).catch((err) =>
+          console.warn('[R2] Deferred logo delete failed:', err)
+        );
+      }
 
-        if (currentImages.loginBgUrl && data.loginBgUrl === null) {
-            publicStorageService.deleteObject(currentImages.loginBgUrl).catch((err) =>
-                console.warn('[R2] Deferred login-bg delete failed:', err)
-            );
-        }
+      if (currentImages.loginBgUrl && data.loginBgUrl === null) {
+        publicStorageService.deleteObject(currentImages.loginBgUrl).catch((err) =>
+          console.warn('[R2] Deferred login-bg delete failed:', err)
+        );
+      }
     }
 
     // Invalidate backend SPA cache for this tenant
@@ -143,29 +120,8 @@ export const companyService = {
       invalidateTenantCache(updated.slug);
     }
 
-    const result = {
-      id: updated.id,
-      slug: updated.slug,
-      logoUrl: updated.logo_url,
-      loginBgUrl: updated.login_bg_url,
-      primaryColor: updated.primary_color,
-      themeColor: updated.theme_color,
-      businessName: updated.business_name,
-      tradeName: updated.trade_name,
-      ruc: updated.ruc,
-      mainAddress: updated.main_address,
-      businessType: updated.business_type,
-      email: updated.email,
-      phone: updated.phone,
-      obligadoContabilidad: updated.obligado_contabilidad,
-      contribuyenteEspecial: updated.contribuyente_especial,
-      agenteRetencion: updated.agente_retencion,
-      rimpeType: updated.rimpe_type,
-      sriEnvironment: updated.sri_environment,
-    };
+    broadcastToTenant(companyId, RealtimeEvents.COMPANY.BRANDING_UPDATED, updated);
 
-    broadcastToTenant(companyId, RealtimeEvents.COMPANY.BRANDING_UPDATED, result);
-
-    return result;
+    return updated;
   },
 };

@@ -26,7 +26,7 @@ export const RegisterStep2Schema = object({
     tradeName: optional(string()),
     businessType: pipe(string(), minLength(1, 'Seleccione tipo de negocio')),
     mainAddress: optional(string()),
-    taxRegime: optional(picklist(TAX_REGIME_TYPES, 'Seleccione régimen tributario')),
+    taxRegimeType: optional(picklist(TAX_REGIME_TYPES, 'Seleccione régimen tributario')),
     obligadoContabilidad: optional(boolean()),
     contribuyenteEspecial: optional(string()),
 });

@@ -13,7 +13,17 @@ export const ProfileEntityResponseSchema = Type.Object({
     isEmployee: Type.Boolean(),
 });
 
-export const ModuleConfigSchema: any = Type.Recursive((Self) =>
+export interface ModuleConfigItem {
+    key: string;
+    label: string;
+    icon?: string | null;
+    path?: string | null;
+    permission?: string | null;
+    status?: string | null;
+    children?: ModuleConfigItem[];
+}
+
+export const ModuleConfigSchema = Type.Recursive((Self) =>
     Type.Object({
         key: Type.String(),
         label: Type.String(),

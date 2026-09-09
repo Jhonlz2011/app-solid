@@ -7,4 +7,5 @@ export type { PgTable, PgTableWithColumns, PgColumn, AnyPgColumn } from 'drizzle
 export { alias } from 'drizzle-orm/pg-core';
 export { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js';
 export { migrate } from 'drizzle-orm/postgres-js/migrator';
+export * from './routes';
 

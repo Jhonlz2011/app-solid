@@ -2,6 +2,16 @@
 // FORM TYPES - Shared types for TanStack Form integration
 // ============================================================================
 
+import type { JSX } from 'solid-js';
+
+/** Universal structural form instance for TanStack Solid Form */
+export interface AnyFormApi {
+    useStore: <T = any>(selector: (state: any) => T) => () => T;
+    Field: any;
+    setFieldValue: (field: any, updater: any, opts?: any) => void;
+    [key: string]: any;
+}
+
 /**
  * Minimal field state interface compatible with TanStack Form's FieldApi
  * This abstraction allows components to work without importing TanStack directly

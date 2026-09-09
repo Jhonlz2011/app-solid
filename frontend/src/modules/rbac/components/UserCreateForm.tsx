@@ -91,6 +91,15 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
         (usernameCheck.status() === 'taken' || usernameCheck.isChecking())
     );
 
+    const validateDirectPassword = ({ value }: { value: string | undefined }) => {
+        if (onboardingMode() === 'direct' && !isExistingUser()) {
+            if (!value || value.trim().length < 8) {
+                return 'La contraseña es obligatoria (mínimo 8 caracteres)';
+            }
+        }
+        return undefined;
+    };
+
     createEffect(() => {
         props.onStateChange?.({
             mode: onboardingMode(),
@@ -118,23 +127,28 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                     <form.Field name="email">
                         {(field) => (
                             <TextField.Root field={field()} disabled={props.isSubmitting}>
-                                <div class="flex items-center justify-between gap-2">
-                                    <TextField.Label>Correo electrónico *</TextField.Label>
-                                    {/* Non-intrusive live user detection */}
-                                    <Show when={!checkQuery.isFetching && isExistingUser()}>
-                                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 animate-in fade-in">
-                                            <SparklesIcon class="size-3" />
-                                            Usuario (@{checkQuery.data?.username})
-                                        </span>
-                                    </Show>
+                                <TextField.Label
+                                    badge={
+                                        <>
+                                            {/* Non-intrusive live user detection */}
+                                            <Show when={!checkQuery.isFetching && isExistingUser()}>
+                                                <span class="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 animate-in fade-in">
+                                                    <SparklesIcon class="size-3" />
+                                                    Usuario (@{checkQuery.data?.username})
+                                                </span>
+                                            </Show>
 
-                                    <Show when={!checkQuery.isFetching && isAlreadyMember()}>
-                                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 animate-in fade-in">
-                                            <AlertTriangleIcon class="size-3" />
-                                            Ya es miembro en esta empresa
-                                        </span>
-                                    </Show>
-                                </div>
+                                            <Show when={!checkQuery.isFetching && isAlreadyMember()}>
+                                                <span class="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 animate-in fade-in">
+                                                    <AlertTriangleIcon class="size-3" />
+                                                    Ya es miembro en esta empresa
+                                                </span>
+                                            </Show>
+                                        </>
+                                    }
+                                >
+                                    Correo electrónico *
+                                </TextField.Label>
 
                                 <TextField.Input
                                     type="email"
@@ -185,14 +199,18 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                     <form.Field name="username">
                                         {(field) => (
                                             <TextField.Root field={field()} disabled={props.isSubmitting}>
-                                                <div class="flex items-center justify-between gap-2">
-                                                    <TextField.Label optional>Nombre de usuario</TextField.Label>
-                                                    <AvailabilityBadge
-                                                        status={usernameCheck.status}
-                                                        availableLabel="Disponible"
-                                                        takenLabel="En uso"
-                                                    />
-                                                </div>
+                                                <TextField.Label
+                                                    optional
+                                                    badge={
+                                                        <AvailabilityBadge
+                                                            status={usernameCheck.status}
+                                                            availableLabel="Disponible"
+                                                            takenLabel="En uso"
+                                                        />
+                                                    }
+                                                >
+                                                    Nombre de usuario
+                                                </TextField.Label>
                                                 <TextField.Input
                                                     placeholder="Se generará del correo si se deja vacío"
                                                     autocomplete="username"
@@ -206,22 +224,8 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                     <form.Field
                                         name="password"
                                         validators={{
-                                            onChange: ({ value }) => {
-                                                if (onboardingMode() === 'direct' && !isExistingUser()) {
-                                                    if (!value || value.trim().length < 8) {
-                                                        return 'La contraseña es obligatoria (mínimo 8 caracteres)';
-                                                    }
-                                                }
-                                                return undefined;
-                                            },
-                                            onSubmit: ({ value }) => {
-                                                if (onboardingMode() === 'direct' && !isExistingUser()) {
-                                                    if (!value || value.trim().length < 8) {
-                                                        return 'La contraseña es obligatoria (mínimo 8 caracteres)';
-                                                    }
-                                                }
-                                                return undefined;
-                                            },
+                                            onChange: validateDirectPassword,
+                                            onSubmit: validateDirectPassword,
                                         }}
                                     >
                                         {(field) => (

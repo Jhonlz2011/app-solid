@@ -30,7 +30,7 @@ function snapshotFields(source: CompanySettingsFormData): string {
         obligadoContabilidad: source.obligadoContabilidad,
         contribuyenteEspecial: source.contribuyenteEspecial,
         agenteRetencion: source.agenteRetencion,
-        rimpeType: source.rimpeType,
+        taxRegimeType: source.taxRegimeType,
         sriEnvironment: source.sriEnvironment,
     });
 }
@@ -71,7 +71,7 @@ export function useCompanySettingsForm(options?: UseCompanySettingsFormOptions) 
             obligadoContabilidad: false,
             contribuyenteEspecial: '',
             agenteRetencion: '',
-            rimpeType: 'GENERAL',
+            taxRegimeType: 'GENERAL',
             sriEnvironment: '2',
         } as CompanySettingsFormData,
         validators: {
@@ -119,7 +119,7 @@ export function useCompanySettingsForm(options?: UseCompanySettingsFormOptions) 
                 form.setFieldValue('obligadoContabilidad', data.obligadoContabilidad);
                 form.setFieldValue('contribuyenteEspecial', data.contribuyenteEspecial);
                 form.setFieldValue('agenteRetencion', data.agenteRetencion);
-                form.setFieldValue('rimpeType', data.rimpeType);
+                form.setFieldValue('taxRegimeType', data.taxRegimeType);
                 form.setFieldValue('sriEnvironment', data.sriEnvironment);
 
                 setServerBaseline(snapshotFields(data as CompanySettingsFormData));
@@ -129,25 +129,30 @@ export function useCompanySettingsForm(options?: UseCompanySettingsFormOptions) 
 
     const formValues = form.useStore((s) => s.values);
 
-    const isFormDirty = createMemo(() => {
+    const parsedBaseline = createMemo<Record<string, any> | null>(() => {
         const baseline = serverBaseline();
-        if (!baseline) return false;
+        if (!baseline) return null;
+        try {
+            return JSON.parse(baseline);
+        } catch {
+            return null;
+        }
+    });
+
+    const isFormDirty = createMemo(() => {
+        const baselineObj = parsedBaseline();
+        if (!baselineObj) return false;
         const v = formValues();
 
         if (options?.fieldsSubset) {
-            try {
-                const baselineParsed = JSON.parse(baseline);
-                return options.fieldsSubset.some((key) => {
-                    if (v[key] instanceof File) return true;
-                    return v[key] !== baselineParsed[key];
-                });
-            } catch {
-                return false;
-            }
+            return options.fieldsSubset.some((key) => {
+                if (v[key] instanceof File) return true;
+                return v[key] !== baselineObj[key];
+            });
         }
 
         if (v.logoUrl instanceof File || v.loginBgUrl instanceof File) return true;
-        return snapshotFields(v) !== baseline;
+        return snapshotFields(v) !== serverBaseline();
     });
 
     // Logo preview URL (File object or string URL)

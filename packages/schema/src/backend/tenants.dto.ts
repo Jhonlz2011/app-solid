@@ -1,5 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { ProfileEntityResponseSchema } from './profile.dto';
+import { TaxRegimeTypeSchema } from './entities.dto';
 
 // ============================================================================
 // TENANTS & SAAS PROVISIONING SCHEMAS (TypeBox for Elysia routes & Eden Treaty)
@@ -19,7 +20,7 @@ const CompanyDataSchema = Type.Object({
     mainAddress: Type.Optional(Type.String()),
     obligadoContabilidad: Type.Optional(Type.Boolean()),
     contribuyenteEspecial: Type.Optional(Type.String()),
-    taxRegime: Type.Optional(Type.String()),
+    taxRegimeType: Type.Optional(TaxRegimeTypeSchema),
     phone: Type.Optional(Type.String()),
     cedula: Type.Optional(Type.String()),
     turnstileToken: Type.Optional(Type.String()),

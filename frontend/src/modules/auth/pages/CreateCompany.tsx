@@ -41,7 +41,7 @@ export const CreateCompany: Component = () => {
             tradeName: undefined as string | undefined,
             businessType: '',
             mainAddress: undefined as string | undefined,
-            taxRegime: 'GENERAL' as const,
+            taxRegimeType: 'GENERAL' as const,
             obligadoContabilidad: false,
             contribuyenteEspecial: undefined as string | undefined,
         },
@@ -64,7 +64,7 @@ export const CreateCompany: Component = () => {
                 mainAddress: values.mainAddress || undefined,
                 obligadoContabilidad: values.obligadoContabilidad || undefined,
                 contribuyenteEspecial: values.contribuyenteEspecial || undefined,
-                taxRegime: values.taxRegime || undefined,
+                taxRegimeType: values.taxRegimeType || undefined,
                 turnstileToken: turnstileToken() ?? undefined,
             });
 

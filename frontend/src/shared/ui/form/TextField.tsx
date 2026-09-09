@@ -1,4 +1,4 @@
-import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext } from 'solid-js';
+import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext, children } from 'solid-js';
 import { cn } from '@shared/lib/utils';
 import type { FieldLike } from '@form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
@@ -44,7 +44,9 @@ export interface TextFieldLabelProps {
     tooltip?: string | JSX.Element;
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
     optional?: boolean;
-    badge?: JSX.Element;
+    badge?: JSX.Element | (() => JSX.Element);
+    /** If true, aligns badge to the right via justify-between. Default: true when badge is present. */
+    alignBadgeRight?: boolean;
 }
 
 export interface FieldLabelProps {
@@ -54,7 +56,9 @@ export interface FieldLabelProps {
     tooltip?: string | JSX.Element;
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
     optional?: boolean;
-    badge?: JSX.Element;
+    badge?: JSX.Element | (() => JSX.Element);
+    /** If true, aligns badge to the right via justify-between. Default: true when badge is present. */
+    alignBadgeRight?: boolean;
 }
 
 export interface TextFieldInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
@@ -62,6 +66,7 @@ export interface TextFieldInputProps extends Omit<JSX.InputHTMLAttributes<HTMLIn
     loading?: boolean;
     rightIcon?: JSX.Element;
     leftIcon?: JSX.Element;
+    onInput?: JSX.EventHandlerUnion<HTMLInputElement, InputEvent>;
 }
 
 interface TextFieldTextAreaProps extends Omit<JSX.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange' | 'value'> {
@@ -71,6 +76,7 @@ interface TextFieldTextAreaProps extends Omit<JSX.TextareaHTMLAttributes<HTMLTex
 interface TextFieldPasswordInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type'> {
     class?: string;
     loading?: boolean;
+    leftIcon?: JSX.Element;
 }
 
 interface TextFieldNumericInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type' | 'inputMode'> {
@@ -212,6 +218,9 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
         errorMessage,
     };
 
+    // Memoize children to immunize DOM nodes from being recreated on reactive updates
+    const resolvedChildren = children(() => local.children);
+
     return (
         <TextFieldContext.Provider value={contextValue}>
             <div
@@ -220,7 +229,7 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
                 data-invalid={contextValue.isInvalid()}
                 {...others}
             >
-                {local.children}
+                {resolvedChildren()}
             </div>
         </TextFieldContext.Provider>
     );
@@ -229,33 +238,48 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
 /** Label for the field */
 const Label = (props: TextFieldLabelProps) => {
     const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'labelClass', 'children', 'tooltip', 'tooltipPlacement', 'optional', 'badge']);
+    const [local, others] = splitProps(props, [
+        'class', 'labelClass', 'children', 'tooltip',
+        'tooltipPlacement', 'optional', 'badge', 'alignBadgeRight'
+    ]);
+    const resolvedLabelChildren = children(() => local.children);
+    const shouldAlignRight = () => local.alignBadgeRight ?? Boolean(local.badge);
 
     return (
-        <div class={cn("flex items-center gap-1.5 ml-1 w-fit", local.class)}>
-            <label
-                for={context.id}
-                class={cn("text-sm font-medium text-muted block", local.labelClass)}
-                {...others}
-            >
-                {local.children}
-            </label>
-            <Show when={local.optional}>
-                <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
-                    Opcional
-                </Badge>
-            </Show>
-            <Show when={local.badge}>
-                {local.badge}
-            </Show>
-            <Show when={local.tooltip}>
-                <Tooltip
-                    content={local.tooltip!}
-                    placement={local.tooltipPlacement ?? 'right'}
-                    delay={0}
+        <div class={cn(
+            "flex items-center gap-1.5 ml-1",
+            shouldAlignRight() ? "justify-between w-full" : "w-fit",
+            local.class
+        )}>
+            <div class="flex items-center gap-1.5 min-w-0">
+                <label
+                    for={context.id}
+                    class={cn("text-sm font-medium text-muted block select-none", local.labelClass)}
+                    {...others}
                 >
-                    <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
-                </Tooltip>
+                    {resolvedLabelChildren()}
+                </label>
+                <Show when={local.optional}>
+                    <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
+                        Opcional
+                    </Badge>
+                </Show>
+                <Show when={local.tooltip}>
+                    <Tooltip
+                        content={local.tooltip!}
+                        placement={local.tooltipPlacement ?? 'right'}
+                        delay={0}
+                    >
+                        <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
+                    </Tooltip>
+                </Show>
+            </div>
+            <Show when={local.badge}>
+                {(b) => (
+                    <div class="shrink-0 flex items-center">
+                        {typeof b() === 'function' ? (b() as any)() : b()}
+                    </div>
+                )}
             </Show>
         </div>
     );
@@ -263,31 +287,47 @@ const Label = (props: TextFieldLabelProps) => {
 
 /** Standalone label for non-TextField contexts (Select, SegmentedControl, etc.) */
 export const FieldLabel = (props: FieldLabelProps) => {
-    const [local, others] = splitProps(props, ['class', 'labelClass', 'children', 'tooltip', 'tooltipPlacement', 'optional', 'badge']);
+    const [local, others] = splitProps(props, [
+        'class', 'labelClass', 'children', 'tooltip',
+        'tooltipPlacement', 'optional', 'badge', 'alignBadgeRight'
+    ]);
+    const resolvedLabelChildren = children(() => local.children);
+    const shouldAlignRight = () => local.alignBadgeRight ?? Boolean(local.badge);
+
     return (
-        <div class={cn("flex items-center gap-1.5 ml-1 w-fit", local.class)}>
-            <label
-                class={cn("text-sm font-medium text-muted block", local.labelClass)}
-                {...others}
-            >
-                {local.children}
-            </label>
-            <Show when={local.optional}>
-                <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
-                    Opcional
-                </Badge>
-            </Show>
-            <Show when={local.badge}>
-                {local.badge}
-            </Show>
-            <Show when={local.tooltip}>
-                <Tooltip
-                    content={local.tooltip!}
-                    placement={local.tooltipPlacement ?? 'right'}
-                    delay={0}
+        <div class={cn(
+            "flex items-center gap-1.5 ml-1",
+            shouldAlignRight() ? "justify-between w-full" : "w-fit",
+            local.class
+        )}>
+            <div class="flex items-center gap-1.5 min-w-0">
+                <label
+                    class={cn("text-sm font-medium text-muted block select-none", local.labelClass)}
+                    {...others}
                 >
-                    <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
-                </Tooltip>
+                    {resolvedLabelChildren()}
+                </label>
+                <Show when={local.optional}>
+                    <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
+                        Opcional
+                    </Badge>
+                </Show>
+                <Show when={local.tooltip}>
+                    <Tooltip
+                        content={local.tooltip!}
+                        placement={local.tooltipPlacement ?? 'right'}
+                        delay={0}
+                    >
+                        <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
+                    </Tooltip>
+                </Show>
+            </div>
+            <Show when={local.badge}>
+                {(b) => (
+                    <div class="shrink-0 flex items-center">
+                        {typeof b() === 'function' ? (b() as any)() : b()}
+                    </div>
+                )}
             </Show>
         </div>
     );
@@ -296,7 +336,7 @@ export const FieldLabel = (props: FieldLabelProps) => {
 /** Text input — coerces to number when type="number" for TanStack Form compatibility */
 const Input = (props: TextFieldInputProps) => {
     const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'type', 'loading', 'rightIcon', 'leftIcon']);
+    const [local, others] = splitProps(props, ['class', 'type', 'loading', 'rightIcon', 'leftIcon', 'onInput']);
 
     const handleInput = (e: InputEvent & { currentTarget: HTMLInputElement }) => {
         const raw = e.currentTarget.value;
@@ -310,6 +350,11 @@ const Input = (props: TextFieldInputProps) => {
             }
         } else {
             context.onChange(raw);
+        }
+
+        // Safely invoke chained onInput if provided
+        if (typeof local.onInput === 'function') {
+            (local.onInput as any)(e);
         }
     };
 
@@ -361,12 +406,17 @@ const Input = (props: TextFieldInputProps) => {
 /** Text password input with toggle */
 const PasswordInput = (props: TextFieldPasswordInputProps) => {
     const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'loading']);
+    const [local, others] = splitProps(props, ['class', 'loading', 'leftIcon']);
     const [showPassword, setShowPassword] = createSignal(false);
     const isLoading = () => (local.loading !== undefined ? local.loading : context.loading());
 
     return (
         <div class="relative w-full">
+            <Show when={local.leftIcon}>
+                <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+                    {local.leftIcon}
+                </div>
+            </Show>
             <input
                 id={context.id}
                 type={showPassword() ? 'text' : 'password'}
@@ -376,7 +426,7 @@ const PasswordInput = (props: TextFieldPasswordInputProps) => {
                 disabled={context.disabled()}
                 readOnly={context.readOnly()}
                 data-invalid={context.isInvalid()}
-                class={cn(inputBaseStyles, "pr-12", local.class)}
+                class={cn(inputBaseStyles, local.leftIcon && "pl-9", "pr-12", local.class)}
                 {...others}
             />
             <Show when={isLoading()} fallback={

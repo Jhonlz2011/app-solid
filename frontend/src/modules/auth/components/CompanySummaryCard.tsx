@@ -10,7 +10,7 @@ export interface CompanySummaryData {
     tradeName?: string | null;
     businessType?: string | null;
     mainAddress?: string | null;
-    taxRegime?: string | null;
+    taxRegimeType?: TaxRegimeType | string | null;
     obligadoContabilidad?: boolean | null;
     contribuyenteEspecial?: string | null;
 }
@@ -27,9 +27,21 @@ export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) =>
     };
 
     const taxRegimeLabel = () => {
-        const tr = props.data.taxRegime;
+        const tr = props.data.taxRegimeType;
         if (!tr) return null;
         return taxRegimeTypeLabels[tr as TaxRegimeType] || tr;
+    };
+
+    const domainHost = () => {
+        if (typeof window !== 'undefined') {
+            const h = window.location.hostname;
+            if (h.endsWith('zelys.app')) return `${props.data.slug}.zelys.app`;
+            if (h === 'localhost' || h === '127.0.0.1') {
+                return `${props.data.slug}.localhost${window.location.port ? `:${window.location.port}` : ''}`;
+            }
+            return `${props.data.slug}.${h}`;
+        }
+        return `${props.data.slug}.zelys.app`;
     };
 
     return (
@@ -44,7 +56,7 @@ export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) =>
                 <span class="text-muted">Subdominio / Slug:</span>
                 <div>
                     <Badge variant="primary" class="font-mono text-[10px] px-2 py-0.5">
-                        {props.data.slug}.zelys.app
+                        {domainHost()}
                     </Badge>
                 </div>
 
