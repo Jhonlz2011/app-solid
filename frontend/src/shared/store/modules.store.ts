@@ -2,7 +2,7 @@ import { createStore } from "solid-js/store";
 import { api } from "../lib/eden";
 import { useAuth } from "@modules/auth/store/auth.store";
 import type { MenuItemStatus } from "@app/schema/enums";
-import { setRouteAliases } from "@shared/utils/route-alias";
+import { setRouteAliases, resetRouteAliases } from "@shared/utils/route-alias";
 import { RealtimeEvents } from "@app/schema/realtime-events";
 
 function notifyRouterOfAliasChange(): void {
@@ -137,6 +137,7 @@ export const actions = {
     // Clear modules cache (for logout and tenant switch)
     clearModules: () => {
         fetchPromise = null;  // Reset any pending promise
+        resetRouteAliases();
         setState({
             modules: [],
             error: null,

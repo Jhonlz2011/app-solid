@@ -107,6 +107,16 @@ function initAliases(): void {
     cachedAliases = { ...CANONICAL_DEFAULT_ALIASES, ...injectedAliases, ...storedAliases };
     cachedReverseAliases = { ...CANONICAL_DEFAULT_REVERSE, ...injectedReverse, ...storedReverse };
 
+    // Guaranteed bidirectional synchronization:
+    // Any active custom alias (e.g. '/pacientes' -> '/clients') must strictly override
+    // the reverse display mapping (e.g. '/clients' -> '/pacientes') so the URL never reverts.
+    for (const [alias, real] of Object.entries(injectedAliases)) {
+        if (alias && real) cachedReverseAliases[real] = alias;
+    }
+    for (const [alias, real] of Object.entries(storedAliases)) {
+        if (alias && real) cachedReverseAliases[real] = alias;
+    }
+
     // Sort descending by length so deeper prefix paths match before shallower ones
     // (e.g., '/ventas/clientes' must match before '/ventas')
     sortedAliasKeys = Object.keys(cachedAliases).sort((a, b) => b.length - a.length);
@@ -251,4 +261,14 @@ export function setRouteAliases(tenantAliases: Record<string, string>): void {
  */
 export function updateRouteAliases(aliasMap: Record<string, string>): void {
     setRouteAliases(aliasMap);
+}
+
+/**
+ * Resets cached alias state in memory (for tenant switch or logout).
+ */
+export function resetRouteAliases(): void {
+    cachedAliases = null;
+    cachedReverseAliases = null;
+    sortedAliasKeys = [];
+    sortedReverseKeys = [];
 }

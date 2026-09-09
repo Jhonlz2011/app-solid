@@ -39,7 +39,7 @@ registerRoute(
   ({ request }) => request.mode === 'navigate' && !new URL(request.url).pathname.startsWith('/api'),
   new NetworkFirst({
     cacheName: 'branded-navigation',
-    networkTimeoutSeconds: 3,
+    networkTimeoutSeconds: 5,
   })
 );
 
