@@ -17,6 +17,7 @@ export const MenuItemUpdateBodySchema = Type.Object({
     path_alias: Type.Optional(Type.Union([Type.String({ minLength: 1, maxLength: 120 }), Type.Null()])),
     icon: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     sort_order: Type.Optional(Type.Number()),
+    parent_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     status: Type.Optional(MenuItemStatusSchema),
 });
 
@@ -37,6 +38,7 @@ export const MenuItemResponseSchema = Type.Object({
 export const MenuItemReorderItemSchema = Type.Object({
     id: Type.Number(),
     sort_order: Type.Number(),
+    parent_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
 });
 
 export const MenuItemReorderBodySchema = Type.Object({

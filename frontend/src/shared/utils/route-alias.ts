@@ -177,15 +177,33 @@ export function toAliasPath(rawUrl: string): string {
 }
 
 /**
- * Dynamically updates the route alias map at runtime (e.g. on menu fetch or tenant switch).
+ * Deterministically sets and rebuilds the route alias map at runtime (e.g. on menu fetch, tenant switch or SSE update).
+ * Completely resets and replaces active tenant aliases over canonical defaults without accumulating deleted or stale aliases.
  */
-export function updateRouteAliases(aliasMap: Record<string, string>): void {
-    cachedAliases = { ...(cachedAliases || {}), ...aliasMap };
-    const reverse: Record<string, string> = { ...(cachedReverseAliases || {}) };
-    for (const [alias, real] of Object.entries(cachedAliases)) {
+export function setRouteAliases(tenantAliases: Record<string, string>): void {
+    const aliases: Record<string, string> = { ...CANONICAL_DEFAULT_ALIASES };
+    const reverse: Record<string, string> = { ...CANONICAL_DEFAULT_REVERSE };
+
+    for (const [alias, real] of Object.entries(tenantAliases)) {
+        if (!alias || !real) continue;
+        // If a default alias existed for this real route, remove the old default alias key
+        const oldDefaultAlias = reverse[real];
+        if (oldDefaultAlias && oldDefaultAlias !== alias) {
+            delete aliases[oldDefaultAlias];
+        }
+        aliases[alias] = real;
         reverse[real] = alias;
     }
+
+    cachedAliases = aliases;
     cachedReverseAliases = reverse;
     sortedAliasKeys = Object.keys(cachedAliases).sort((a, b) => b.length - a.length);
     sortedReverseKeys = Object.keys(cachedReverseAliases).sort((a, b) => b.length - a.length);
+}
+
+/**
+ * Dynamically updates the route alias map at runtime (e.g. on menu fetch or tenant switch).
+ */
+export function updateRouteAliases(aliasMap: Record<string, string>): void {
+    setRouteAliases(aliasMap);
 }

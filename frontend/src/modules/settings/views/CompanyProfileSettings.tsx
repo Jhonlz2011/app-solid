@@ -3,7 +3,7 @@ import { cn } from '@shared/lib/utils';
 import { CompanyProfileFormSchema } from '@app/schema/frontend';
 import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
 import { FileUploadDropzone } from '@/shared/ui/overlay/FileUpload';
-import TextField from '@form/TextField';
+import CompanyGeneralFields from '@shared/ui/form/company/CompanyGeneralFields';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { SkeletonLoader } from '@display/SkeletonLoader';
@@ -63,78 +63,13 @@ const CompanyProfileSettings: Component = () => {
                                 {/* Datos de Empresa Form */}
                                 <div class="lg:col-span-7 bg-card-alt/50 border border-border/80 rounded-2xl p-6 space-y-5">
                                     <h3 class="text-base font-bold text-heading border-b border-border/60 pb-2">Datos de la Organización</h3>
-                                    
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                        <form.Field name="businessName">
-                                            {(field) => (
-                                                <TextField.Root field={field()}>
-                                                    <TextField.Label>Razón Social *</TextField.Label>
-                                                    <TextField.Input type="text" placeholder="Mi Empresa S.A." />
-                                                    <TextField.ErrorMessage />
-                                                </TextField.Root>
-                                            )}
-                                        </form.Field>
-
-                                        <form.Field name="tradeName">
-                                            {(field) => (
-                                                <TextField.Root field={field()}>
-                                                    <TextField.Label>Nombre Comercial</TextField.Label>
-                                                    <TextField.Input type="text" placeholder="Mi Marca" />
-                                                    <TextField.ErrorMessage />
-                                                </TextField.Root>
-                                            )}
-                                        </form.Field>
-
-                                        <form.Field name="ruc">
-                                            {(field) => (
-                                                <TextField.Root field={field()}>
-                                                    <TextField.Label>RUC (13 dígitos) *</TextField.Label>
-                                                    <TextField.Input type="text" placeholder="1792345678001" maxLength={13} />
-                                                    <TextField.ErrorMessage />
-                                                </TextField.Root>
-                                            )}
-                                        </form.Field>
-
-                                        <form.Field name="businessType">
-                                            {(field) => (
-                                                <TextField.Root field={field()}>
-                                                    <TextField.Label>Actividad Económica / Negocio</TextField.Label>
-                                                    <TextField.Input type="text" placeholder="COMERCIO, OPTICA, CLINICA, etc." />
-                                                    <TextField.ErrorMessage />
-                                                </TextField.Root>
-                                            )}
-                                        </form.Field>
-
-                                        <form.Field name="phone">
-                                            {(field) => (
-                                                <TextField.Root field={field()}>
-                                                    <TextField.Label>Teléfono de Contacto</TextField.Label>
-                                                    <TextField.Input type="text" placeholder="0987654321" />
-                                                    <TextField.ErrorMessage />
-                                                </TextField.Root>
-                                            )}
-                                        </form.Field>
-
-                                        <form.Field name="email">
-                                            {(field) => (
-                                                <TextField.Root field={field()}>
-                                                    <TextField.Label>Correo Electrónico</TextField.Label>
-                                                    <TextField.Input type="text" placeholder="contacto@empresa.com" />
-                                                    <TextField.ErrorMessage />
-                                                </TextField.Root>
-                                            )}
-                                        </form.Field>
-                                    </div>
-
-                                    <form.Field name="mainAddress">
-                                        {(field) => (
-                                            <TextField.Root field={field()}>
-                                                <TextField.Label>Dirección Matriz *</TextField.Label>
-                                                <TextField.Input type="text" placeholder="Dirección física autorizada por el SRI" />
-                                                <TextField.ErrorMessage />
-                                            </TextField.Root>
-                                        )}
-                                    </form.Field>
+                                    <CompanyGeneralFields
+                                        form={form}
+                                        showSlug={false}
+                                        showContact={true}
+                                        isMatrizRequired={true}
+                                        checkRucAvailability={false}
+                                    />
                                 </div>
 
                                 {/* Logo Upload */}

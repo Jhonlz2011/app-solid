@@ -74,6 +74,7 @@ export const connect = (token?: string | null) => {
             RealtimeEvents.COMPANY,
             RealtimeEvents.VEHICLE,
             RealtimeEvents.WAREHOUSE,
+            RealtimeEvents.MENU,
         ];
         for (const category of activeCategories) {
             for (const eventName of Object.values(category as Record<string, string>)) {

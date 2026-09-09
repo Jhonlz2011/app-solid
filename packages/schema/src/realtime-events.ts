@@ -35,6 +35,9 @@ export const RealtimeEvents = {
         UPDATED: 'warehouse:updated',
         DELETED: 'warehouse:deleted',
     },
+    MENU: {
+        UPDATED: 'menu:updated',
+    },
     ROOMS: {
         SUPPLIERS: 'suppliers',
         CLIENTS: 'clients',
@@ -51,6 +54,7 @@ export const RealtimeEvents = {
         WAREHOUSES: 'warehouses',
         INVENTORY: 'inventory',
         TOOLS: 'tools',
+        MENU: 'menu',
     },
 } as const;
 
@@ -61,6 +65,7 @@ export type UserEvent = typeof RealtimeEvents.USER[keyof typeof RealtimeEvents.U
 export type CompanyEvent = typeof RealtimeEvents.COMPANY[keyof typeof RealtimeEvents.COMPANY];
 export type VehicleEvent = typeof RealtimeEvents.VEHICLE[keyof typeof RealtimeEvents.VEHICLE];
 export type WarehouseEvent = typeof RealtimeEvents.WAREHOUSE[keyof typeof RealtimeEvents.WAREHOUSE];
+export type MenuEvent = typeof RealtimeEvents.MENU[keyof typeof RealtimeEvents.MENU];
 export type RoomName = typeof RealtimeEvents.ROOMS[keyof typeof RealtimeEvents.ROOMS];
 
 // Payload types

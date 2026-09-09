@@ -6,6 +6,8 @@ import { getUserPermissions, getUserRoles } from '../rbac/rbac.permission.servic
 import { cacheService } from '../../core/cache';
 import { DomainError, NotFoundError } from '../../core/errors';
 import { seedCompanyMenus } from '../auth/provisioning.service';
+import { RealtimeEvents } from '@app/schema/realtime-events';
+import { broadcastToTenant } from '../../core/sse/events';
 
 // Keep backward-compatible interface
 export interface ModuleConfig {
@@ -45,14 +47,16 @@ const RESERVED_ALIASES = new Set([
 ]);
 
 /**
- * Invalidate Redis caches for menus and route aliases
+ * Invalidate Redis caches for menus and route aliases and broadcast SSE event
  */
 async function invalidateMenuCaches(companyId?: number | null) {
     await cacheService.invalidate('menus:*');
     await cacheService.invalidate('aliases:*');
     if (companyId) {
-        await cacheService.invalidate(`menus:${companyId}`);
-        await cacheService.invalidate(`aliases:${companyId}`);
+        await cacheService.del(`menus:${companyId}`, `menus:${companyId}:global`, `aliases:${companyId}`);
+        broadcastToTenant(companyId, RealtimeEvents.MENU.UPDATED, { companyId }, RealtimeEvents.ROOMS.MENU).catch((err) => {
+            console.error('Failed to broadcast MENU.UPDATED event:', err);
+        });
     }
 }
 
@@ -169,6 +173,7 @@ export async function updateTenantMenuItem(
         path_alias?: string | null;
         icon?: string | null;
         sort_order?: number;
+        parent_id?: number | null;
         status?: MenuItemStatus;
     }
 ) {
@@ -198,6 +203,7 @@ export async function updateTenantMenuItem(
     if (cleanAlias !== undefined) updatePayload.path_alias = cleanAlias;
     if (data.icon !== undefined) updatePayload.icon = data.icon;
     if (data.sort_order !== undefined) updatePayload.sort_order = data.sort_order;
+    if (data.parent_id !== undefined) updatePayload.parent_id = data.parent_id;
     if (data.status !== undefined) updatePayload.status = data.status;
 
     let targetId = id;
@@ -265,42 +271,74 @@ export async function updateTenantMenuItem(
  */
 export async function updateMenuItem(
     id: number,
-    data: { label?: string; path_alias?: string | null; icon?: string | null; sort_order?: number; status?: MenuItemStatus },
+    data: { label?: string; path_alias?: string | null; icon?: string | null; sort_order?: number; parent_id?: number | null; status?: MenuItemStatus },
     companyId?: number | null
 ) {
     return updateTenantMenuItem(id, companyId, data);
 }
 
 /**
- * Reorder multiple menu items for a tenant
+ * Reorder multiple menu items for a tenant (and optionally reparent)
  */
 export async function reorderTenantMenuItems(
     companyId: number | null | undefined,
-    items: { id: number; sort_order: number }[]
+    items: { id: number; sort_order: number; parent_id?: number | null }[]
 ) {
     if (items.length === 0) return [];
 
-    const cases = items.map(i => sql`WHEN ${i.id} THEN ${i.sort_order}`);
+    const hasParentId = items.some(i => i.parent_id !== undefined);
+    const sortCases = items.map(i => sql`WHEN ${i.id} THEN ${i.sort_order}`);
+    const parentCases = hasParentId
+        ? items.map(i => i.parent_id !== undefined ? sql`WHEN ${i.id} THEN ${i.parent_id}` : sql`WHEN ${i.id} THEN parent_id`)
+        : [];
     const ids = items.map(i => i.id);
 
     if (companyId) {
-        await adminDb.execute(sql`
-            UPDATE auth_menu_items SET
-                sort_order = CASE id
-                    ${sql.join(cases, sql` `)}
-                END
-            WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
-              AND company_id = ${companyId}
-        `);
+        if (hasParentId) {
+            await adminDb.execute(sql`
+                UPDATE auth_menu_items SET
+                    sort_order = CASE id
+                        ${sql.join(sortCases, sql` `)}
+                    END,
+                    parent_id = CASE id
+                        ${sql.join(parentCases, sql` `)}
+                    END
+                WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+                  AND company_id = ${companyId}
+            `);
+        } else {
+            await adminDb.execute(sql`
+                UPDATE auth_menu_items SET
+                    sort_order = CASE id
+                        ${sql.join(sortCases, sql` `)}
+                    END
+                WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+                  AND company_id = ${companyId}
+            `);
+        }
     } else {
-        await adminDb.execute(sql`
-            UPDATE auth_menu_items SET
-                sort_order = CASE id
-                    ${sql.join(cases, sql` `)}
-                END
-            WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
-              AND company_id IS NULL
-        `);
+        if (hasParentId) {
+            await adminDb.execute(sql`
+                UPDATE auth_menu_items SET
+                    sort_order = CASE id
+                        ${sql.join(sortCases, sql` `)}
+                    END,
+                    parent_id = CASE id
+                        ${sql.join(parentCases, sql` `)}
+                    END
+                WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+                  AND company_id IS NULL
+            `);
+        } else {
+            await adminDb.execute(sql`
+                UPDATE auth_menu_items SET
+                    sort_order = CASE id
+                        ${sql.join(sortCases, sql` `)}
+                    END
+                WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+                  AND company_id IS NULL
+            `);
+        }
     }
 
     await invalidateMenuCaches(companyId);
@@ -310,7 +348,7 @@ export async function reorderTenantMenuItems(
 /**
  * Backward compatibility alias
  */
-export async function reorderMenuItems(items: { id: number; sort_order: number }[], companyId?: number | null) {
+export async function reorderMenuItems(items: { id: number; sort_order: number; parent_id?: number | null }[], companyId?: number | null) {
     return reorderTenantMenuItems(companyId, items);
 }
 
@@ -438,23 +476,9 @@ function buildMenuTree(menus: DbMenuItem[]): ModuleConfig[] {
  * Used by SPA Renderer to inject pre-boot script for 100% alias mitigation.
  */
 export async function getRouteAliases(companyId: number): Promise<Record<string, string>> {
-    const menus = await cacheService.getOrSet(`aliases:${companyId}`, async () => {
-        // 1. Check for tenant-specific custom aliases
-        const tenantAliases = await adminDb
-            .select({ path: authMenuItems.path, path_alias: authMenuItems.path_alias })
-            .from(authMenuItems)
-            .where(and(
-                eq(authMenuItems.company_id, companyId),
-                isNotNull(authMenuItems.path),
-                isNotNull(authMenuItems.path_alias),
-            ));
-
-        if (tenantAliases.length > 0) {
-            return tenantAliases;
-        }
-
-        // 2. Fallback to global template aliases (company_id IS NULL)
-        return adminDb
+    return cacheService.getOrSet(`aliases:${companyId}`, async () => {
+        // 1. Query global template defaults
+        const globalAliases = await adminDb
             .select({ path: authMenuItems.path, path_alias: authMenuItems.path_alias })
             .from(authMenuItems)
             .where(and(
@@ -462,13 +486,39 @@ export async function getRouteAliases(companyId: number): Promise<Record<string,
                 isNotNull(authMenuItems.path),
                 isNotNull(authMenuItems.path_alias),
             ));
-    }, 86400);
 
-    const aliasMap: Record<string, string> = {};
-    for (const m of menus) {
-        if (m.path && m.path_alias && m.path !== m.path_alias) {
-            aliasMap[m.path_alias] = m.path;  // alias → real
+        const aliasMap: Record<string, string> = {};
+        for (const m of globalAliases) {
+            if (m.path && m.path_alias && m.path !== m.path_alias) {
+                aliasMap[m.path_alias] = m.path;
+            }
         }
-    }
-    return aliasMap;
+
+        // 2. Query tenant-specific items to overlay customizations
+        const tenantAliases = await adminDb
+            .select({ path: authMenuItems.path, path_alias: authMenuItems.path_alias })
+            .from(authMenuItems)
+            .where(and(
+                eq(authMenuItems.company_id, companyId),
+                isNotNull(authMenuItems.path),
+            ));
+
+        if (tenantAliases.length > 0) {
+            for (const t of tenantAliases) {
+                if (!t.path) continue;
+                // Remove any existing alias pointing to this path (if tenant cleared or changed it)
+                for (const [alias, real] of Object.entries(aliasMap)) {
+                    if (real === t.path) {
+                        delete aliasMap[alias];
+                    }
+                }
+                // Apply new custom alias if set and differs from real canonical path
+                if (t.path_alias && t.path !== t.path_alias) {
+                    aliasMap[t.path_alias] = t.path;
+                }
+            }
+        }
+
+        return aliasMap;
+    }, 86400);
 }

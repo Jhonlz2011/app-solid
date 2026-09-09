@@ -2,24 +2,11 @@ import { Component, Show } from 'solid-js';
 import { cn } from '@shared/lib/utils';
 import { FiscalSettingsFormSchema } from '@app/schema/frontend';
 import { useCompanySettingsForm } from '../data/useCompanySettingsForm';
-import TextField from '@form/TextField';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
-import Switch from '@/shared/ui/form/Switch';
+import CompanyFiscalFields from '@shared/ui/form/company/CompanyFiscalFields';
 import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { SkeletonLoader } from '@display/SkeletonLoader';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-
-const RIMPE_OPTIONS = [
-    { value: 'GENERAL', label: 'No aplica (Régimen General)' },
-    { value: 'RIMPE_NEGOCIO_POPULAR', label: 'Rimpe - Negocio Popular' },
-    { value: 'RIMPE_EMPRENDEDOR', label: 'Rimpe - Emprendedor' },
-];
-
-const SRI_ENV_OPTIONS = [
-    { value: '1', label: 'Pruebas (Ambiente 1)' },
-    { value: '2', label: 'Producción (Ambiente 2)' },
-];
 
 const FiscalSettings: Component = () => {
     const {
@@ -73,110 +60,13 @@ const FiscalSettings: Component = () => {
                         <div class="flex-1 min-h-0 overflow-y-auto pr-1 space-y-6">
                             <div class="max-w-3xl bg-card-alt/50 border border-border/80 rounded-2xl p-6 space-y-5">
                                 <h3 class="text-base font-bold text-heading border-b border-border/60 pb-2">Información Fiscal Tributaria</h3>
-
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                    {/* Rimpe type select */}
-                                    <form.Field name="rimpeType">
-                                        {(field) => (
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="text-sm font-medium text-muted ml-1">Régimen RIMPE</label>
-                                                <Select
-                                                    value={RIMPE_OPTIONS.find(o => o.value === field().state.value)}
-                                                    onChange={(opt: any) => field().handleChange(opt ? opt.value : 'GENERAL')}
-                                                    options={RIMPE_OPTIONS}
-                                                    optionValue="value"
-                                                    optionTextValue="label"
-                                                    placeholder="Seleccionar régimen..."
-                                                    itemComponent={(itemProps: any) => (
-                                                        <SelectItem item={itemProps.item}>
-                                                            {itemProps.item.rawValue.label}
-                                                        </SelectItem>
-                                                    )}
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue>
-                                                            {(state: any) => {
-                                                                const opt = state.selectedOption();
-                                                                return opt ? opt.label : <span class="text-muted">No aplica (Régimen General)</span>;
-                                                            }}
-                                                        </SelectValue>
-                                                    </SelectTrigger>
-                                                    <SelectContent />
-                                                </Select>
-                                            </div>
-                                        )}
-                                    </form.Field>
-
-                                    {/* SRI environment select */}
-                                    <form.Field name="sriEnvironment">
-                                        {(field) => (
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="text-sm font-medium text-muted ml-1">Ambiente de Emisión SRI *</label>
-                                                <Select
-                                                    value={SRI_ENV_OPTIONS.find(o => o.value === field().state.value)}
-                                                    onChange={(opt: any) => field().handleChange(opt ? opt.value : '2')}
-                                                    options={SRI_ENV_OPTIONS}
-                                                    optionValue="value"
-                                                    optionTextValue="label"
-                                                    placeholder="Seleccionar ambiente..."
-                                                    itemComponent={(itemProps: any) => (
-                                                        <SelectItem item={itemProps.item}>
-                                                            {itemProps.item.rawValue.label}
-                                                        </SelectItem>
-                                                    )}
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue>
-                                                            {(state: any) => {
-                                                                const opt = state.selectedOption();
-                                                                return opt ? opt.label : <span class="text-muted">Producción (Ambiente 2)</span>;
-                                                            }}
-                                                        </SelectValue>
-                                                    </SelectTrigger>
-                                                    <SelectContent />
-                                                </Select>
-                                            </div>
-                                        )}
-                                    </form.Field>
-
-                                    <form.Field name="contribuyenteEspecial">
-                                        {(field) => (
-                                            <TextField.Root field={field()}>
-                                                <TextField.Label>Resolución Contribuyente Especial</TextField.Label>
-                                                <TextField.Input type="text" placeholder="Resolución SRI nro..." />
-                                                <TextField.ErrorMessage />
-                                            </TextField.Root>
-                                        )}
-                                    </form.Field>
-
-                                    <form.Field name="agenteRetencion">
-                                        {(field) => (
-                                            <TextField.Root field={field()}>
-                                                <TextField.Label>Resolución Agente de Retención</TextField.Label>
-                                                <TextField.Input type="text" placeholder="Resolución SRI nro..." />
-                                                <TextField.ErrorMessage />
-                                            </TextField.Root>
-                                        )}
-                                    </form.Field>
-                                </div>
-
-                                {/* Obligado a llevar contabilidad Switch */}
-                                <div class="border-t border-border/40 pt-4">
-                                    <form.Field name="obligadoContabilidad">
-                                        {(field) => (
-                                            <div class="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-                                                <div>
-                                                    <span class="text-sm font-bold text-heading block">Obligado a Llevar Contabilidad</span>
-                                                    <span class="text-xs text-muted mt-0.5">Activa esta casilla si tu empresa está registrada ante el SRI como obligada a llevar contabilidad.</span>
-                                                </div>
-                                                <Switch
-                                                    checked={field().state.value}
-                                                    onChange={(val) => field().handleChange(val)}
-                                                />
-                                            </div>
-                                        )}
-                                    </form.Field>
-                                </div>
+                                <CompanyFiscalFields
+                                    form={form}
+                                    regimeFieldName="rimpeType"
+                                    obligadoControlType="switch"
+                                    showAdvancedSri={true}
+                                    alwaysShowContribuyenteEspecial={true}
+                                />
                             </div>
                         </div>
                     </form>

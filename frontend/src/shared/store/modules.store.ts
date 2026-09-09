@@ -2,7 +2,17 @@ import { createStore } from "solid-js/store";
 import { api } from "../lib/eden";
 import { useAuth } from "@modules/auth/store/auth.store";
 import type { MenuItemStatus } from "@app/schema/enums";
-import { updateRouteAliases } from "@shared/utils/route-alias";
+import { setRouteAliases } from "@shared/utils/route-alias";
+import { RealtimeEvents } from "@app/schema/realtime-events";
+
+function notifyRouterOfAliasChange(): void {
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('route-aliases:updated'));
+        import('@/router').then(m => {
+            m.router?.invalidate();
+        }).catch(() => {});
+    }
+}
 
 function syncRouteAliases(modules: ModuleConfig[]): void {
     const aliasMap: Record<string, string> = {};
@@ -17,9 +27,14 @@ function syncRouteAliases(modules: ModuleConfig[]): void {
         }
     };
     traverse(modules);
-    if (Object.keys(aliasMap).length > 0) {
-        updateRouteAliases(aliasMap);
-    }
+    setRouteAliases(aliasMap);
+    notifyRouterOfAliasChange();
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener(RealtimeEvents.MENU.UPDATED, () => {
+        actions.refreshModules();
+    });
 }
 
 export interface ModuleConfig {
