@@ -4,11 +4,13 @@ import { rbac } from '../../plugins/rbac';
 import {
     getMenuForUser,
     getFullMenuTree,
-    getAllMenuItems,
-    updateMenuItem,
-    reorderMenuItems
+    getTenantMenuItems,
+    updateTenantMenuItem,
+    reorderTenantMenuItems,
+    resetTenantMenuToDefault,
 } from './menu.service';
 import { MenuItemUpdateBodySchema, MenuItemReorderBodySchema, IdParamSchema } from '@app/schema/backend';
+import { DomainError } from '../../core/errors';
 
 export const modulesRoutes = new Elysia({ prefix: '/modules' })
     .use(tenantGuard)
@@ -25,16 +27,16 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
     /**
      * Get full menu tree (admin / system management, no filtering)
      */
-    .get('/tree-full', async () => {
-        return getFullMenuTree();
+    .get('/tree-full', async ({ currentCompanyId }) => {
+        return getFullMenuTree(currentCompanyId);
     }, {
         permission: 'menu.read',
     })
     /**
-     * Get all menu items as flat list
+     * Get all menu items as flat list scoped to tenant
      */
-    .get('/items', async () => {
-        return getAllMenuItems();
+    .get('/items', async ({ currentCompanyId }) => {
+        return getTenantMenuItems(currentCompanyId);
     }, {
         permission: 'menu.read',
     })
@@ -43,8 +45,8 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
      */
     .put(
         '/:id',
-        async ({ params, body }) => {
-            const [updated] = await updateMenuItem(Number(params.id), body);
+        async ({ params, body, currentCompanyId }) => {
+            const [updated] = await updateTenantMenuItem(Number(params.id), currentCompanyId, body);
             return updated;
         },
         {
@@ -58,8 +60,8 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
      */
     .put(
         '/reorder',
-        async ({ body }) => {
-            const results = await reorderMenuItems(body.items);
+        async ({ body, currentCompanyId }) => {
+            const results = await reorderTenantMenuItems(currentCompanyId, body.items);
             return { updated: results.length };
         },
         {
@@ -68,13 +70,33 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
         }
     )
     /**
+     * Reset menu back to default template
+     */
+    .post(
+        '/reset-defaults',
+        async ({ currentCompanyId }) => {
+            if (!currentCompanyId) {
+                throw new DomainError('Empresa requerida para restaurar el menú.', 400);
+            }
+            await resetTenantMenuToDefault(currentCompanyId);
+            return { success: true, message: 'Menú restaurado exitosamente a los valores por defecto.' };
+        },
+        {
+            permission: 'menu.update',
+        }
+    )
+    /**
      * Invalidate menu cache — forces DB reload on next request
      */
-    .post('/refresh-cache', async () => {
+    .post('/refresh-cache', async ({ currentCompanyId }) => {
         const { cacheService } = await import('../../core/cache');
         await cacheService.invalidate('menus:*');
+        await cacheService.invalidate('aliases:*');
+        if (currentCompanyId) {
+            await cacheService.invalidate(`menus:${currentCompanyId}`);
+            await cacheService.invalidate(`aliases:${currentCompanyId}`);
+        }
         return { success: true, message: 'Caché de menús invalidado. Se recargará en el próximo request.' };
     }, {
         permission: 'menu.update',
     });
-

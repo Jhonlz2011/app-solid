@@ -12,6 +12,9 @@ import { brandingKeys } from './data/branding.keys';
 import { vehiclesApi } from './data/vehicles.api';
 import { vehicleKeys } from './data/vehicles.keys';
 
+import { menuApi } from './data/menu.api';
+import { menuKeys } from './data/menu.keys';
+
 // Lazy-loaded views
 const SettingsPage = lazyRouteComponent(() => import('./views/SettingsPage'));
 const WarehouseList = lazyRouteComponent(() => import('./components/warehouses/WarehouseList'));
@@ -186,6 +189,43 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         ]),
     ]);
 
+    // ── Modules / Navigation ──
+    const modulesRoute = createRoute({
+        getParentRoute: () => settingsRoute,
+        path: 'modules',
+        loader: async () => {
+            await queryClient.ensureQueryData({
+                queryKey: menuKeys.list(),
+                queryFn: () => menuApi.list(),
+                staleTime: STALE_TIME.MEDIUM,
+            });
+        },
+        component: lazyRouteComponent(() => import('./views/ModulesSettings')),
+    });
+
+    const moduleBaseRoute = createRoute({
+        getParentRoute: () => modulesRoute,
+        path: '$moduleId',
+    });
+
+    const moduleEditRoute = createRoute({
+        getParentRoute: () => moduleBaseRoute,
+        path: 'edit',
+        beforeLoad: async () => {
+            const { useAuth } = await import('@modules/auth/store/auth.store');
+            if (!useAuth().canEdit('menu') && !useAuth().canEdit('config')) {
+                throw redirect({ to: '/settings/modules' });
+            }
+        },
+        component: lazyRouteComponent(() => import('./components/navigation/MenuItemEditSheet')),
+    });
+
+    modulesRoute.addChildren([
+        moduleBaseRoute.addChildren([
+            moduleEditRoute,
+        ]),
+    ]);
+
     // ── Return single parent with children ──
     return settingsRoute.addChildren([
         attributesRedirectRoute,
@@ -194,5 +234,6 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         brandingRoute,
         fiscalRoute,
         vehiclesRoute,
+        modulesRoute,
     ]);
 };

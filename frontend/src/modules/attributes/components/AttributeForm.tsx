@@ -369,7 +369,6 @@ const AttributeForm: Component<AttributeFormProps> = (props) => {
                                         size="md"
                                         onClick={handleAddOption}
                                         disabled={!newOption().trim()}
-                                        class="h-10 px-4 rounded-lg font-medium shadow-sm shrink-0"
                                         icon={<PlusIcon class="size-4" />}
                                     >
                                         Agregar

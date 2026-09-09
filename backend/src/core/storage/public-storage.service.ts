@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
 import { env } from '../../config/env';
+import { DomainError } from '../errors';
 
 const r2Client = new S3Client({
   endpoint: env.R2_ENDPOINT_PUBLIC,
@@ -18,7 +19,7 @@ const MAX_BG_SIZE = 10 * 1024 * 1024; // 10MB
 export const publicStorageService = {
   optimizeAndUploadLogo: async ({ slug, rawFileBuffer }: { slug: string; rawFileBuffer: Buffer }) => {
     if (rawFileBuffer.length > MAX_LOGO_SIZE) {
-      throw new Error('El archivo del logo excede el límite de 5MB');
+      throw new DomainError('El archivo del logo excede el límite de 5MB', 400, { code: 'VALIDATION_ERROR' });
     }
 
     const optimizedBuffer = await sharp(rawFileBuffer)
@@ -54,7 +55,7 @@ export const publicStorageService = {
     transforms?: { rotate?: number; flipX?: boolean; flipY?: boolean };
   }) => {
     if (rawFileBuffer.length > MAX_BG_SIZE) {
-      throw new Error('La imagen de fondo excede el límite de 10MB');
+      throw new DomainError('La imagen de fondo excede el límite de 10MB', 400, { code: 'VALIDATION_ERROR' });
     }
 
     const metadata = await sharp(rawFileBuffer).metadata();
@@ -107,7 +108,7 @@ export const publicStorageService = {
 
   optimizeAndUploadProductImage: async ({ slug, rawFileBuffer }: { slug: string; rawFileBuffer: Buffer }) => {
     if (rawFileBuffer.length > MAX_BG_SIZE) {
-      throw new Error('La imagen excede el límite de 10MB');
+      throw new DomainError('La imagen excede el límite de 10MB', 400, { code: 'VALIDATION_ERROR' });
     }
 
     const optimizedBuffer = await sharp(rawFileBuffer)

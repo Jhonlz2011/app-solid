@@ -239,10 +239,46 @@ export type BankAccountType = typeof BANK_ACCOUNT_TYPES[number];
 
 export type RbacAction = typeof RBAC_ACTIONS[number];
 
+/** Valid actions specifically available for a given module M */
+export type ActionsForModule<M extends RbacModule> = ModuleActionsMap[M][number];
+
+/** Modules that implement a specific action A */
+export type ModulesWithAction<A extends RbacAction> = {
+    [M in RbacModule]: A extends ModuleActionsMap[M][number] ? M : never;
+}[RbacModule];
+
+/** Entity/Catalog modules that have soft-delete (recycle bin) actions */
+export type DestroyableModule = ModulesWithAction<'destroy'>;
+export type RestorableModule = ModulesWithAction<'restore'>;
+export type DeletableModule = ModulesWithAction<'delete'>;
+export type CreatableModule = ModulesWithAction<'create'>;
+export type UpdatableModule = ModulesWithAction<'update'>;
+
 /** Compile-time strictly safe permission slug derived from MODULE_ACTIONS_MAP */
 export type PermissionSlug = {
     [M in RbacModule]: `${M}.${ModuleActionsMap[M][number]}`
 }[RbacModule];
+
+/** Resilient permission type that autocompletes PermissionSlug but accepts dynamic strings */
+export type AnyPermissionSlug = PermissionSlug | (string & {});
+
+/** Type-safe constructor to build a valid PermissionSlug from module and action */
+export function toPermissionSlug<M extends RbacModule>(
+    module: M,
+    action: ActionsForModule<M>
+): `${M}.${ActionsForModule<M>}` {
+    return `${module}.${action}`;
+}
+
+/** Type guard checking if an arbitrary string is a valid compile-time PermissionSlug */
+export function isValidPermissionSlug(slug: string): slug is PermissionSlug {
+    const dotIndex = slug.indexOf('.');
+    if (dotIndex === -1) return false;
+    const mod = slug.slice(0, dotIndex) as RbacModule;
+    const act = slug.slice(dotIndex + 1);
+    const validActions = MODULE_ACTIONS_MAP[mod];
+    return Array.isArray(validActions) && (validActions as readonly string[]).includes(act);
+}
 
 // ============================================================================
 // PG ENUMS - For Drizzle schema definitions

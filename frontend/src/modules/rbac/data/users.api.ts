@@ -8,6 +8,7 @@ import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
 import type { RoleBody } from '../models/users.types';
 import { UsersFilters } from '@app/schema/dto';
+import type { PermissionSlug } from '@app/schema/enums';
 
 export const usersApi = {
     // ─── Roles ───────────────────────────────────────────────────
@@ -54,7 +55,7 @@ export const usersApi = {
         return data!;
     },
 
-    updateRolePermissions: async (roleId: number, permissionSlugs: string[]) => {
+    updateRolePermissions: async (roleId: number, permissionSlugs: PermissionSlug[]) => {
         const { data, error } = await api.rbac.roles({ id: roleId }).permissions.put({ permissionSlugs });
         if (error) throwApiError(error);
         return data!;

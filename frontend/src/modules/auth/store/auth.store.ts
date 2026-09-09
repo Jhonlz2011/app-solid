@@ -3,7 +3,7 @@ import { batch } from "solid-js";
 import { authClient } from "@shared/lib/auth-client";
 import { profileApi } from "@modules/profile/data/profile.api";
 import type { ProfileType } from '@app/schema/dto';
-import { type RbacModule, type PermissionSlug, SYSTEM_ROLES } from '@app/schema/enums';
+import { type RbacModule, type PermissionSlug, type AnyPermissionSlug, type ActionsForModule, SYSTEM_ROLES } from '@app/schema/enums';
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
 import { brandingActions } from "./branding.store";
@@ -433,7 +433,7 @@ export const useAuth = () => {
         user: () => state.user,
         isAuthenticated: () => state.status === 'authenticated',
         isLoading: () => state.status === 'loading',
-        hasPermission: (perm: PermissionSlug) => {
+        hasPermission: (perm: AnyPermissionSlug) => {
             const u = state.user;
             if (!u?.permissions) return false;
             if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
@@ -464,6 +464,24 @@ export const useAuth = () => {
             if (!u) return false;
             if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.delete`) || false;
+        },
+        canRestore: (module: RbacModule) => {
+            const u = state.user;
+            if (!u) return false;
+            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
+            return u.permissions?.includes(`${module}.restore`) || false;
+        },
+        canDestroy: (module: RbacModule) => {
+            const u = state.user;
+            if (!u) return false;
+            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
+            return u.permissions?.includes(`${module}.destroy`) || false;
+        },
+        can: <M extends RbacModule>(module: M, action: ActionsForModule<M>) => {
+            const u = state.user;
+            if (!u) return false;
+            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
+            return u.permissions?.includes(`${module}.${action}`) || false;
         },
     };
 };

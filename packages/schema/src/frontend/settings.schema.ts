@@ -40,3 +40,13 @@ export const CompanySettingsFormSchema = object({
 });
 
 export type CompanySettingsFormData = InferInput<typeof CompanySettingsFormSchema>;
+
+// --- 5. MENU & NAVIGATION FORM SCHEMA ---
+export const MenuItemFormSchema = object({
+    label: pipe(string(), minLength(1, 'El nombre o etiqueta es requerido')),
+    path_alias: optional(nullable(string())),
+    status: picklist(['active', 'development', 'deprecated'] as const),
+});
+
+export type MenuItemFormData = InferInput<typeof MenuItemFormSchema>;
+

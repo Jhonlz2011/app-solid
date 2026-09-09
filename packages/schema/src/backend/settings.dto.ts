@@ -6,15 +6,32 @@ import { MENU_ITEM_STATUSES } from '../enums';
 // MODULES & NAVIGATION
 // ============================================================================
 
-export const MenuItemStatusSchema = Type.Union(
-    MENU_ITEM_STATUSES.map(s => Type.Literal(s))
-);
+export const MenuItemStatusSchema = Type.Union([
+    Type.Literal('active'),
+    Type.Literal('development'),
+    Type.Literal('deprecated'),
+]);
 
 export const MenuItemUpdateBodySchema = Type.Object({
-    label: Type.Optional(Type.String()),
-    icon: Type.Optional(Type.String()),
+    label: Type.Optional(Type.String({ minLength: 1, maxLength: 60 })),
+    path_alias: Type.Optional(Type.Union([Type.String({ minLength: 1, maxLength: 120 }), Type.Null()])),
+    icon: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     sort_order: Type.Optional(Type.Number()),
     status: Type.Optional(MenuItemStatusSchema),
+});
+
+export const MenuItemResponseSchema = Type.Object({
+    id: Type.Number(),
+    company_id: Type.Union([Type.Number(), Type.Null()]),
+    key: Type.String(),
+    label: Type.String(),
+    icon: Type.Union([Type.String(), Type.Null()]),
+    path: Type.Union([Type.String(), Type.Null()]),
+    path_alias: Type.Union([Type.String(), Type.Null()]),
+    parent_id: Type.Union([Type.Number(), Type.Null()]),
+    sort_order: Type.Number(),
+    permission_prefix: Type.Union([Type.String(), Type.Null()]),
+    status: MenuItemStatusSchema,
 });
 
 export const MenuItemReorderItemSchema = Type.Object({
@@ -87,6 +104,7 @@ export const CompanyVehicleResponseSchema = Type.Object({
 // ============================================================================
 
 export type MenuItemUpdateType = Static<typeof MenuItemUpdateBodySchema>;
+export type MenuItemResponseType = Static<typeof MenuItemResponseSchema>;
 export type MenuItemReorderItemType = Static<typeof MenuItemReorderItemSchema>;
 export type MenuItemReorderType = Static<typeof MenuItemReorderBodySchema>;
 export type CompanySettingsBodyType = Static<typeof CompanySettingsBodySchema>;

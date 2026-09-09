@@ -8,7 +8,7 @@ import { resolveSlugFromHost } from '@app/schema/utils';
 import { getTenantBySlug } from '../core/spa/spa-renderer.service';
 import { cacheService } from '../core/cache/cache.service';
 import { getIpAndUserAgent } from './ip';
-import { getUserRoles, getUserPermissions } from '../modules/rbac/rbac.permission.service';
+import { getUserAuthContext } from '../modules/rbac/rbac.permission.service';
 
 // ============================================================================
 // Type for Better Auth user with application-level denormalized fields
@@ -125,10 +125,7 @@ export const authGuard = (app: Elysia) => app
         ipAddress: ipAddress || undefined,
       });
 
-      const [roles, permissions] = await Promise.all([
-        getUserRoles(user.id, resolvedCompanyId),
-        getUserPermissions(user.id, resolvedCompanyId),
-      ]);
+      const { roles, permissions } = await getUserAuthContext(user.id, resolvedCompanyId);
 
       return {
         currentUserId: user.id,

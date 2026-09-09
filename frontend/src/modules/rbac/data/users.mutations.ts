@@ -13,6 +13,7 @@ import type {
     RoleType,
     RoleUserType,
 } from '@app/schema/dto';
+import type { PermissionSlug } from '@app/schema/enums';
 
 // =============================================================================
 // Shared Mutation Helpers
@@ -118,7 +119,7 @@ export function useUpdateRolePermissions() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ roleId, permissionSlugs }: { roleId: number; permissionSlugs: string[] }) =>
+        mutationFn: ({ roleId, permissionSlugs }: { roleId: number; permissionSlugs: PermissionSlug[] }) =>
             usersApi.updateRolePermissions(roleId, permissionSlugs),
         onSettled: (_data, _err, variables) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.rolePermissions(variables.roleId) });

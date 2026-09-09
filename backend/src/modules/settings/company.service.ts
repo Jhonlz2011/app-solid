@@ -2,6 +2,7 @@ import { db } from '../../core/db';
 import { companies } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { invalidateTenantCache } from '../../core/spa';
+import { NotFoundError } from '../../core/errors';
 import type { CompanySettingsBodyType } from '@app/schema/backend';
 import { publicStorageService } from '../../core/storage';
 import { broadcastToTenant } from '../../core/sse/events';
@@ -98,7 +99,7 @@ export const companyService = {
       .limit(1);
 
     if (!company) {
-      throw new Error('Empresa no encontrada');
+      throw new NotFoundError('Empresa no encontrada');
     }
 
     return company;

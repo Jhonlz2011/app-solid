@@ -25,8 +25,8 @@ export interface EntityDeleteDialogProps {
 
 export const EntityDeleteDialog: Component<EntityDeleteDialogProps> = (props) => {
     const auth = useAuth();
-    const canDestroy = () => auth.hasPermission(`${props.permissionKey}.destroy`);
-
+    const canDestroy = () => auth.canDestroy(props.permissionKey);
+    
     const [mode, setMode] = createSignal<'soft' | 'hard'>('soft');
 
     const checkEnabled = () => canDestroy() && mode() === 'hard' && props.entity !== null;

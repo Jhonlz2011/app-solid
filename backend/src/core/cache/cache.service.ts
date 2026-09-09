@@ -34,12 +34,35 @@ export const cacheService = {
     },
 
     /**
+     * Delete one or more specific cache keys directly (O(1) per key).
+     * Use this when the exact key is known instead of scanning patterns.
+     * @param keys One or more exact cache keys
+     */
+    async del(...keys: string[]): Promise<void> {
+        const validKeys = keys.filter(Boolean);
+        if (!validKeys.length) return;
+        try {
+            await redis.del(...validKeys);
+        } catch (error) {
+            console.error('Cache del error:', error);
+        }
+    },
+
+    /**
      * Invalidate cache keys matching a pattern.
      * Properly awaitable — resolves only after ALL keys are deleted.
      * Uses SCAN to avoid blocking Redis with KEYS command.
-     * @param pattern Pattern to match (e.g. "products:*")
+     * Fast-paths directly to DEL (O(1)) when pattern has no wildcards.
+     * @param pattern Pattern to match (e.g. "products:*") or exact key
      */
     async invalidate(pattern: string): Promise<void> {
+        if (!pattern) return;
+
+        // Fast-path: If pattern contains no glob wildcards, execute O(1) DEL directly
+        if (!pattern.includes('*') && !pattern.includes('?') && !pattern.includes('[')) {
+            return cacheService.del(pattern);
+        }
+
         try {
             return new Promise<void>((resolve, reject) => {
                 const stream = redis.scanStream({

@@ -15,6 +15,7 @@ import { PaintBrushIcon } from '@icons/PaintBrushIcon';
 import { BriefcaseIcon } from '@icons/BriefcaseIcon';
 import { ShieldIcon } from '@icons/ShieldIcon';
 import { TruckIcon } from '@icons/TruckIcon';
+import { LayoutIcon } from '@icons/LayoutIcon';
 
 
 // ── Page header icon ──
@@ -51,6 +52,13 @@ const SECTION_GROUPS: SectionGroup[] = [
             { key: 'company', path: '/settings/company', label: 'Datos Generales', icon: BriefcaseIcon, available: true },
             { key: 'fiscal_settings', path: '/settings/fiscal', label: 'Datos Fiscales', icon: ShieldIcon, available: true },
             { key: 'vehicles', path: '/settings/vehicles', label: 'Vehículos', icon: TruckIcon, available: true, newAction: '/settings/vehicles/new', newLabel: 'Nuevo Vehículo' },
+        ],
+    },
+    {
+        key: 'modules_group',
+        label: 'Módulos',
+        sections: [
+            { key: 'modules', path: '/settings/modules', label: 'Módulos', icon: LayoutIcon, available: true },
         ],
     },
     {

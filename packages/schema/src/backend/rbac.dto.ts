@@ -12,11 +12,10 @@ export interface UsersFilters extends BaseFilters {
     roles?: string[];
 }
 
-export const PermissionSlugSchema = Type.Union(
-    (Object.entries(MODULE_ACTIONS_MAP) as [RbacModule, readonly RbacAction[]][]).flatMap(([mod, actions]) =>
-        actions.map(act => Type.Literal(`${mod}.${act}` as PermissionSlug))
-    )
-);
+export const PermissionSlugSchema = Type.Unsafe<PermissionSlug>({
+    type: 'string',
+    description: 'A valid RBAC permission slug (e.g. clients.read)',
+});
 
 export const PermissionSchema = Type.Object({
     slug: Type.String(),

@@ -15,6 +15,7 @@ import {
     useCreateRole, useUpdateRole, useUpdateRolePermissions,
 } from '../data/users.mutations';
 import { ShieldIcon } from '@/shared/ui/icons';
+import type { PermissionSlug } from '@app/schema/enums';
 
 // =============================================================================
 // Types
@@ -57,7 +58,7 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
     const [roleDescription, setRoleDescription] = createSignal('');
 
     // ── Permission selection state ───────────────────────────────────────────
-    const [selectedPermSlugs, setSelectedPermSlugs] = createSignal<string[]>([]);
+    const [selectedPermSlugs, setSelectedPermSlugs] = createSignal<PermissionSlug[]>([]);
 
     // Sync form fields from server when editing — keyed to roleId to prevent stale data
     createEffect(on(
@@ -79,7 +80,7 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
         () => rolePermsQuery.data,
         (perms) => {
             if (isEdit() && perms) {
-                setSelectedPermSlugs(perms.map(p => p.slug));
+                setSelectedPermSlugs(perms.map(p => p.slug as PermissionSlug));
             }
         }
     ));
@@ -126,15 +127,16 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
     // ── Handlers ─────────────────────────────────────────────────────────────
     const handleToggle = (slug: string) => {
         if (isSystem()) return;
+        const permSlug = slug as PermissionSlug;
         setSelectedPermSlugs(prev =>
-            prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug]
+            prev.includes(permSlug) ? prev.filter(s => s !== permSlug) : [...prev, permSlug]
         );
     };
 
     const handleModuleToggle = (prefix: string, selected: boolean) => {
         if (isSystem()) return;
         const perms = allPermsQuery.data?.all ?? [];
-        const moduleSlugs = perms.filter(p => p.slug.startsWith(prefix + '.')).map(p => p.slug);
+        const moduleSlugs = perms.filter(p => p.slug.startsWith(prefix + '.')).map(p => p.slug as PermissionSlug);
         setSelectedPermSlugs(prev => {
             const set = new Set(prev);
             moduleSlugs.forEach(slug => selected ? set.add(slug) : set.delete(slug));
@@ -202,7 +204,7 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
                         <RoleBadge name={roleData()!.name} />
                         <Show when={isPermissionsOnly()}>
                             <span class="text-xs text-muted tabular-nums">
-                                {selectedPermIds().length}/{allPermsQuery.data?.all?.length ?? 0}
+                                {selectedPermSlugs().length}/{allPermsQuery.data?.all?.length ?? 0}
                             </span>
                         </Show>
                     </div>

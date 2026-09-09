@@ -94,7 +94,7 @@ export const ActionButtons: Component<ActionButtonsProps> = (props) => {
 
     const canDestroy = () => {
         if (props.canDestroy !== undefined) return props.canDestroy;
-        if (props.module) return auth.hasPermission(`${props.module}.destroy`);
+        if (props.module) return auth.canDestroy(props.module);
         return false;
     };
 
@@ -102,7 +102,7 @@ export const ActionButtons: Component<ActionButtonsProps> = (props) => {
         const active = props.isActive ?? true;
         if (active) return false;
         if (props.canRestore !== undefined) return props.canRestore;
-        if (props.module) return auth.hasPermission(`${props.module}.restore`);
+        if (props.module) return auth.canRestore(props.module);
         return true;
     };
 

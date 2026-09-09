@@ -85,6 +85,33 @@ export async function getUserPermissions(userId: string | number, companyId?: nu
 }
 
 /**
+ * User Auth Context (Roles + Permissions combined in a single cached payload).
+ * Reduces Redis roundtrips from 2 to 1 on every authenticated request.
+ */
+export interface UserAuthContext {
+    roles: string[];
+    permissions: string[];
+}
+
+export async function getUserAuthContext(userId: string | number, companyId?: number | null): Promise<UserAuthContext> {
+    const userIdStr = String(userId);
+    const cacheKey = companyId ? `rbac:auth_ctx:${userIdStr}:${companyId}` : `rbac:auth_ctx:${userIdStr}`;
+
+    return cacheService.getOrSet(cacheKey, async () => {
+        const roles = await getUserRoles(userId, companyId);
+        
+        let permissions: string[] = [];
+        if (roles.includes(SYSTEM_ROLES.SUPERADMIN)) {
+            permissions = ['*'];
+        } else {
+            permissions = await getUserPermissions(userId, companyId);
+        }
+
+        return { roles, permissions };
+    }, 300);
+}
+
+/**
  * Invalidate RBAC cache for a user — direct DEL (O(1) vs SCAN O(N))
  */
 export async function invalidateUserRbacCache(userId: string | number, companyId?: number | null): Promise<void> {
@@ -93,11 +120,22 @@ export async function invalidateUserRbacCache(userId: string | number, companyId
         const keysToDelete = [
             `rbac:roles:${userIdStr}`,
             `rbac:permissions:${userIdStr}`,
+            `rbac:auth_ctx:${userIdStr}`,
         ];
         if (companyId) {
-            keysToDelete.push(`rbac:roles:${userIdStr}:${companyId}`, `rbac:permissions:${userIdStr}:${companyId}`);
+            keysToDelete.push(
+                `rbac:roles:${userIdStr}:${companyId}`,
+                `rbac:permissions:${userIdStr}:${companyId}`,
+                `rbac:auth_ctx:${userIdStr}:${companyId}`,
+            );
         }
         await redis.del(...keysToDelete);
+
+        // If companyId is not provided (e.g. user bulk deactivation),
+        // also invalidate all tenant-scoped entries for this user
+        if (!companyId) {
+            await cacheService.invalidate(`rbac:*:${userIdStr}:*`);
+        }
 
         // Usar adminDb — sessions de Better-Auth no tienen RLS, pero esta es una operación
         // administrativa que debe funcionar independientemente del contexto de tenant activo

@@ -80,7 +80,7 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
         <Dialog.Root open={props.isOpen} onOpenChange={handleOpenChange}>
             <Dialog.Portal>
                 <Dialog.Overlay
-                    class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150 data-closed:animate-out data-closed:fade-out-0 data-closed:duration-150"
+                    class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:duration-150"
                 />
                 <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
                     <Dialog.Content
@@ -89,7 +89,7 @@ export const DeleteDialog: Component<DeleteDialogProps> = (rawProps) => {
                             'rounded-t-2xl sm:rounded-2xl shadow-2xl',
                             'w-full sm:max-w-md',
                             'animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 fade-in duration-150',
-                            'data-closed:animate-out data-closed:slide-out-to-bottom sm:data-closed:slide-out-to-bottom-0 data-closed:zoom-out-95 data-closed:fade-out-0 data-closed:duration-150',
+                            'data-[closed]:animate-out data-[closed]:slide-out-to-bottom sm:data-[closed]:slide-out-to-bottom-0 data-[closed]:zoom-out-95 data-[closed]:fade-out-0 data-[closed]:duration-150',
                             'overflow-hidden outline-none'
                         )}
                     >

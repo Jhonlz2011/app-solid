@@ -1,9 +1,11 @@
-import { db, adminDb } from '../../core/db';
+import { adminDb } from '../../core/db';
 import { authMenuItems } from '@app/schema/tables';
 import { eq, asc, sql, isNull, and, isNotNull } from '@app/schema';
 import type { MenuItemStatus } from '@app/schema/enums';
 import { getUserPermissions, getUserRoles } from '../rbac/rbac.permission.service';
 import { cacheService } from '../../core/cache';
+import { DomainError, NotFoundError } from '../../core/errors';
+import { seedCompanyMenus } from '../auth/provisioning.service';
 
 // Keep backward-compatible interface
 export interface ModuleConfig {
@@ -17,8 +19,9 @@ export interface ModuleConfig {
     children?: ModuleConfig[];
 }
 
-interface DbMenuItem {
+export interface DbMenuItem {
     id: number;
+    company_id: number | null;
     key: string;
     label: string;
     icon: string | null;
@@ -28,6 +31,29 @@ interface DbMenuItem {
     sort_order: number | null;
     permission_prefix: string | null;
     status: MenuItemStatus | null;
+}
+
+const RESERVED_ALIASES = new Set([
+    '/api',
+    '/login',
+    '/register',
+    '/verify-email',
+    '/reset-password',
+    '/forgot-password',
+    '/auth',
+    '/settings',
+]);
+
+/**
+ * Invalidate Redis caches for menus and route aliases
+ */
+async function invalidateMenuCaches(companyId?: number | null) {
+    await cacheService.invalidate('menus:*');
+    await cacheService.invalidate('aliases:*');
+    if (companyId) {
+        await cacheService.invalidate(`menus:${companyId}`);
+        await cacheService.invalidate(`aliases:${companyId}`);
+    }
 }
 
 /**
@@ -61,76 +87,248 @@ export async function getMenuForUser(userId: string | number, companyId?: number
     ]);
 
     const isAdmin = roles.includes('superadmin');
-    if (isAdmin) return buildMenuTree(allMenus);
+    if (isAdmin) return buildMenuTree(allMenus as DbMenuItem[]);
 
-    return buildMenuTree(filterByPermissions(allMenus, permissions));
+    return buildMenuTree(filterByPermissions(allMenus as DbMenuItem[], permissions));
 }
 
 /**
  * Get full menu tree for admin panel (no permission filtering)
  */
-export async function getFullMenuTree(): Promise<ModuleConfig[]> {
-    const allMenus = await cacheService.getOrSet('menus:all', async () => {
+export async function getFullMenuTree(companyId?: number | null): Promise<ModuleConfig[]> {
+    const cacheKey = `menus:all:${companyId ?? 'global'}`;
+    const allMenus = await cacheService.getOrSet(cacheKey, async () => {
+        if (companyId) {
+            const tenantMenus = await adminDb.select()
+                .from(authMenuItems)
+                .where(eq(authMenuItems.company_id, companyId))
+                .orderBy(asc(authMenuItems.sort_order));
+
+            if (tenantMenus.length > 0) {
+                return tenantMenus;
+            }
+        }
+
         return adminDb.select()
             .from(authMenuItems)
+            .where(isNull(authMenuItems.company_id))
             .orderBy(asc(authMenuItems.sort_order));
     }, 86400);
 
-    return buildMenuTree(allMenus);
+    return buildMenuTree(allMenus as DbMenuItem[]);
 }
 
 /**
- * Get all menu items as flat list (for admin editing)
+ * Get all menu items as flat list for a specific tenant (for admin editing)
+ * Auto-seeds from default if companyId has no items yet.
  */
-export async function getAllMenuItems() {
-    return db
+export async function getTenantMenuItems(companyId?: number | null): Promise<DbMenuItem[]> {
+    if (companyId) {
+        let tenantMenus = await adminDb
+            .select()
+            .from(authMenuItems)
+            .where(eq(authMenuItems.company_id, companyId))
+            .orderBy(asc(authMenuItems.parent_id), asc(authMenuItems.sort_order));
+
+        if (tenantMenus.length === 0) {
+            // Auto-provision tenant menu copies from global template
+            await seedCompanyMenus(adminDb as any, companyId);
+            tenantMenus = await adminDb
+                .select()
+                .from(authMenuItems)
+                .where(eq(authMenuItems.company_id, companyId))
+                .orderBy(asc(authMenuItems.parent_id), asc(authMenuItems.sort_order));
+        }
+
+        return tenantMenus as DbMenuItem[];
+    }
+
+    // Global template items
+    return adminDb
         .select()
         .from(authMenuItems)
-        .orderBy(asc(authMenuItems.parent_id), asc(authMenuItems.sort_order));
+        .where(isNull(authMenuItems.company_id))
+        .orderBy(asc(authMenuItems.parent_id), asc(authMenuItems.sort_order)) as Promise<DbMenuItem[]>;
 }
 
 /**
- * Update a menu item (label, icon, sort_order, status)
+ * Backward compatibility alias for getAllMenuItems
  */
-export async function updateMenuItem(
+export async function getAllMenuItems(companyId?: number | null) {
+    return getTenantMenuItems(companyId);
+}
+
+/**
+ * Update a tenant-scoped menu item (label, path_alias, icon, sort_order, status)
+ */
+export async function updateTenantMenuItem(
     id: number,
-    data: { label?: string; icon?: string; sort_order?: number; status?: MenuItemStatus }
+    companyId: number | null | undefined,
+    data: {
+        label?: string;
+        path_alias?: string | null;
+        icon?: string | null;
+        sort_order?: number;
+        status?: MenuItemStatus;
+    }
 ) {
-    const result = await db
+    // Validate path_alias if provided
+    let cleanAlias: string | null | undefined = undefined;
+    if (data.path_alias !== undefined) {
+        if (data.path_alias === null || data.path_alias.trim() === '') {
+            cleanAlias = null;
+        } else {
+            let alias = data.path_alias.trim();
+            if (!alias.startsWith('/')) {
+                alias = `/${alias}`;
+            }
+            if (alias.length > 1 && alias.endsWith('/')) {
+                alias = alias.slice(0, -1);
+            }
+            const lower = alias.toLowerCase();
+            if (RESERVED_ALIASES.has(lower)) {
+                throw new DomainError(`El alias "${alias}" es una ruta reservada del sistema y no puede ser utilizada.`, 400, { code: 'VALIDATION_ERROR' });
+            }
+            cleanAlias = alias;
+        }
+    }
+
+    const updatePayload: Record<string, any> = {};
+    if (data.label !== undefined) updatePayload.label = data.label.trim();
+    if (cleanAlias !== undefined) updatePayload.path_alias = cleanAlias;
+    if (data.icon !== undefined) updatePayload.icon = data.icon;
+    if (data.sort_order !== undefined) updatePayload.sort_order = data.sort_order;
+    if (data.status !== undefined) updatePayload.status = data.status;
+
+    let targetId = id;
+
+    // Handle tenant-scoped update
+    if (companyId) {
+        // Ensure tenant has their own menu rows provisioned
+        const existing = await adminDb
+            .select()
+            .from(authMenuItems)
+            .where(and(eq(authMenuItems.id, id), eq(authMenuItems.company_id, companyId)))
+            .limit(1);
+
+        if (existing.length === 0) {
+            // Check if user is referencing a global template ID before tenant was seeded
+            const globalRow = await adminDb
+                .select()
+                .from(authMenuItems)
+                .where(and(eq(authMenuItems.id, id), isNull(authMenuItems.company_id)))
+                .limit(1);
+
+            if (globalRow.length > 0) {
+                // Seed tenant items first
+                await seedCompanyMenus(adminDb as any, companyId);
+                // Find corresponding tenant item by key
+                const [tenantRow] = await adminDb
+                    .select()
+                    .from(authMenuItems)
+                    .where(and(eq(authMenuItems.key, globalRow[0].key), eq(authMenuItems.company_id, companyId)))
+                    .limit(1);
+
+                if (tenantRow) {
+                    targetId = tenantRow.id;
+                } else {
+                    throw new NotFoundError('Elemento de menú no encontrado para esta empresa');
+                }
+            } else {
+                throw new NotFoundError('Elemento de menú no encontrado');
+            }
+        }
+
+        const result = await adminDb
+            .update(authMenuItems)
+            .set(updatePayload)
+            .where(and(eq(authMenuItems.id, targetId), eq(authMenuItems.company_id, companyId)))
+            .returning();
+
+        await invalidateMenuCaches(companyId);
+        return result;
+    }
+
+    // Superadmin editing global template
+    const result = await adminDb
         .update(authMenuItems)
-        .set({ ...data })
-        .where(eq(authMenuItems.id, id))
+        .set(updatePayload)
+        .where(and(eq(authMenuItems.id, targetId), isNull(authMenuItems.company_id)))
         .returning();
-        
-    cacheService.invalidate('menus:*');
+
+    await invalidateMenuCaches(null);
     return result;
 }
 
 /**
- * Reorder multiple menu items
+ * Backward compatibility alias
  */
-export async function reorderMenuItems(items: { id: number; sort_order: number }[]) {
+export async function updateMenuItem(
+    id: number,
+    data: { label?: string; path_alias?: string | null; icon?: string | null; sort_order?: number; status?: MenuItemStatus },
+    companyId?: number | null
+) {
+    return updateTenantMenuItem(id, companyId, data);
+}
+
+/**
+ * Reorder multiple menu items for a tenant
+ */
+export async function reorderTenantMenuItems(
+    companyId: number | null | undefined,
+    items: { id: number; sort_order: number }[]
+) {
     if (items.length === 0) return [];
 
-    // Single query with CASE WHEN instead of N individual updates
     const cases = items.map(i => sql`WHEN ${i.id} THEN ${i.sort_order}`);
     const ids = items.map(i => i.id);
 
-    await db.execute(sql`
-        UPDATE auth_menu_items SET
-            sort_order = CASE id
-                ${sql.join(cases, sql` `)}
-            END
-        WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
-    `);
+    if (companyId) {
+        await adminDb.execute(sql`
+            UPDATE auth_menu_items SET
+                sort_order = CASE id
+                    ${sql.join(cases, sql` `)}
+                END
+            WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+              AND company_id = ${companyId}
+        `);
+    } else {
+        await adminDb.execute(sql`
+            UPDATE auth_menu_items SET
+                sort_order = CASE id
+                    ${sql.join(cases, sql` `)}
+                END
+            WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+              AND company_id IS NULL
+        `);
+    }
 
-    cacheService.invalidate('menus:*');
+    await invalidateMenuCaches(companyId);
     return items;
 }
 
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
+/**
+ * Backward compatibility alias
+ */
+export async function reorderMenuItems(items: { id: number; sort_order: number }[], companyId?: number | null) {
+    return reorderTenantMenuItems(companyId, items);
+}
+
+/**
+ * Reset tenant menu back to system default template
+ */
+export async function resetTenantMenuToDefault(companyId: number) {
+    await adminDb.transaction(async (tx) => {
+        await tx
+            .delete(authMenuItems)
+            .where(eq(authMenuItems.company_id, companyId));
+
+        await seedCompanyMenus(tx, companyId);
+    });
+
+    await invalidateMenuCaches(companyId);
+    return { success: true };
+}
 
 /**
  * Filter menus based on user permissions using permission_prefix.

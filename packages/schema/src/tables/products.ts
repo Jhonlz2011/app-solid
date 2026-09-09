@@ -66,9 +66,9 @@ export const products = pgTableV2("products", {
     unique("unq_product_id_company").on(t.id, t.company_id),
     index("idx_products_company").on(t.company_id),
     index("idx_products_shared_attrs").using("gin", t.shared_attributes),
-    index("idx_products_category").on(t.category_id),
-    index("idx_products_brand").on(t.brand_id),
-    index("idx_products_cat_active").on(t.category_id, t.is_active),
+    index("idx_products_company_category").on(t.company_id, t.category_id),
+    index("idx_products_company_brand").on(t.company_id, t.brand_id),
+    index("idx_products_company_cat_active").on(t.company_id, t.category_id, t.is_active),
     check("chk_iva_rate_code", sql`iva_rate_code IN (0, 2, 3, 4, 6, 7)`),
     tenantPolicy(),
 ]).enableRLS();

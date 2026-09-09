@@ -38,7 +38,6 @@ export const entities = pgTableV2("entities", {
 }, (t) => [
     uniqueIndex("idx_entities_company_tax_id").on(t.company_id, t.tax_id),
     index("idx_entities_company").on(t.company_id),
-    index("idx_entities_roles").on(t.is_client, t.is_supplier, t.is_employee, t.is_carrier),
     // Partial indexes for active entities per role with business_name for sorted scans
     index("idx_active_clients").on(t.company_id, t.business_name, t.id).where(sql`${t.is_client} = true`),
     index("idx_active_suppliers").on(t.company_id, t.business_name, t.id).where(sql`${t.is_supplier} = true`),
