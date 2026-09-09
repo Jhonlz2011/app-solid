@@ -87,25 +87,25 @@ function initAliases(): void {
         if (el?.textContent) injectedReverse = JSON.parse(el.textContent);
     } catch {}
 
-    // Fallback: Synchronous localStorage cache for F5 reloads, direct navigation, and Vite dev
+    // Synchronous localStorage cache for F5 reloads, direct navigation, and Vite dev
+    // Client-side stored aliases take precedence over stale server/SW HTML
     const slug = getTenantSlug();
-    if (Object.keys(injectedAliases).length === 0 && typeof window !== 'undefined') {
+    let storedAliases: Record<string, string> = {};
+    let storedReverse: Record<string, string> = {};
+    if (typeof window !== 'undefined') {
         try {
             const stored = localStorage.getItem(`${ALIAS_CACHE_PREFIX}${slug}`);
-            if (stored) injectedAliases = JSON.parse(stored);
+            if (stored) storedAliases = JSON.parse(stored);
         } catch {}
-    }
-
-    if (Object.keys(injectedReverse).length === 0 && typeof window !== 'undefined') {
         try {
-            const stored = localStorage.getItem(`${REVERSE_CACHE_PREFIX}${slug}`);
-            if (stored) injectedReverse = JSON.parse(stored);
+            const storedRev = localStorage.getItem(`${REVERSE_CACHE_PREFIX}${slug}`);
+            if (storedRev) storedReverse = JSON.parse(storedRev);
         } catch {}
     }
 
-    // Injected tenant custom aliases override canonical defaults
-    cachedAliases = { ...CANONICAL_DEFAULT_ALIASES, ...injectedAliases };
-    cachedReverseAliases = { ...CANONICAL_DEFAULT_REVERSE, ...injectedReverse };
+    // Precedence: Canonical defaults < DOM Injected < LocalStorage client-updated
+    cachedAliases = { ...CANONICAL_DEFAULT_ALIASES, ...injectedAliases, ...storedAliases };
+    cachedReverseAliases = { ...CANONICAL_DEFAULT_REVERSE, ...injectedReverse, ...storedReverse };
 
     // Sort descending by length so deeper prefix paths match before shallower ones
     // (e.g., '/ventas/clientes' must match before '/ventas')
@@ -153,9 +153,14 @@ export function toRealPath(rawUrl: string): string {
         return rawUrl;
     }
 
-    // 1. Exact match
+    const normalizedPath = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+
+    // 1. Exact match (exact or stripped trailing slash)
     if (cachedAliases[pathname]) {
         return `${cachedAliases[pathname]}${search}${hash}`;
+    }
+    if (cachedAliases[normalizedPath]) {
+        return `${cachedAliases[normalizedPath]}${search}${hash}`;
     }
 
     // 2. Prefix match for sub-routes and modals (sorted by length descending)
@@ -186,9 +191,14 @@ export function toAliasPath(rawUrl: string): string {
         return rawUrl;
     }
 
-    // 1. Exact match
+    const normalizedPath = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+
+    // 1. Exact match (exact or stripped trailing slash)
     if (cachedReverseAliases[pathname]) {
         return `${cachedReverseAliases[pathname]}${search}${hash}`;
+    }
+    if (cachedReverseAliases[normalizedPath]) {
+        return `${cachedReverseAliases[normalizedPath]}${search}${hash}`;
     }
 
     // 2. Prefix match for sub-routes and modals
