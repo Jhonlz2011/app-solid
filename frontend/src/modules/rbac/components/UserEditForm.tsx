@@ -66,11 +66,6 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                             Identidad de la cuenta
                         </FieldLabel>
                         <div class="flex items-center gap-1.5">
-                            <Show when={props.isSuperadmin}>
-                                <span class="text-[11px] text-primary font-semibold bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
-                                    Superadmin
-                                </span>
-                            </Show>
                             <Show when={props.isSelf}>
                                 <span class="text-[11px] text-info font-semibold bg-info/10 px-2 py-0.5 rounded-md border border-info/20">
                                     Tu cuenta

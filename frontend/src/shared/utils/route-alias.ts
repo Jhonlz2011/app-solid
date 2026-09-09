@@ -10,6 +10,17 @@
  * - `<script id="route-reverse-aliases" type="application/json">` (real -> alias)
  */
 
+import { resolveSlugFromHost } from '@app/schema/utils';
+
+/** Storage prefixes for client-side synchronous alias hydration */
+const ALIAS_CACHE_PREFIX = 'zelys_route_aliases:';
+const REVERSE_CACHE_PREFIX = 'zelys_route_reverse:';
+
+function getTenantSlug(): string {
+    if (typeof window === 'undefined') return 'default';
+    return resolveSlugFromHost(window.location.hostname) || 'default';
+}
+
 /** Canonical fallback map for standard ERP modules */
 const CANONICAL_DEFAULT_ALIASES: Record<string, string> = {
     '/clientes': '/clients',
@@ -75,6 +86,22 @@ function initAliases(): void {
         const el = typeof document !== 'undefined' ? document.getElementById('route-reverse-aliases') : null;
         if (el?.textContent) injectedReverse = JSON.parse(el.textContent);
     } catch {}
+
+    // Fallback: Synchronous localStorage cache for F5 reloads, direct navigation, and Vite dev
+    const slug = getTenantSlug();
+    if (Object.keys(injectedAliases).length === 0 && typeof window !== 'undefined') {
+        try {
+            const stored = localStorage.getItem(`${ALIAS_CACHE_PREFIX}${slug}`);
+            if (stored) injectedAliases = JSON.parse(stored);
+        } catch {}
+    }
+
+    if (Object.keys(injectedReverse).length === 0 && typeof window !== 'undefined') {
+        try {
+            const stored = localStorage.getItem(`${REVERSE_CACHE_PREFIX}${slug}`);
+            if (stored) injectedReverse = JSON.parse(stored);
+        } catch {}
+    }
 
     // Injected tenant custom aliases override canonical defaults
     cachedAliases = { ...CANONICAL_DEFAULT_ALIASES, ...injectedAliases };
@@ -186,11 +213,8 @@ export function setRouteAliases(tenantAliases: Record<string, string>): void {
 
     for (const [alias, real] of Object.entries(tenantAliases)) {
         if (!alias || !real) continue;
-        // If a default alias existed for this real route, remove the old default alias key
-        const oldDefaultAlias = reverse[real];
-        if (oldDefaultAlias && oldDefaultAlias !== alias) {
-            delete aliases[oldDefaultAlias];
-        }
+        // Never delete canonical default aliases: incoming requests for /configuracion, /clientes, etc.
+        // must always be successfully resolved even if a tenant has customized their path alias.
         aliases[alias] = real;
         reverse[real] = alias;
     }
@@ -199,6 +223,17 @@ export function setRouteAliases(tenantAliases: Record<string, string>): void {
     cachedReverseAliases = reverse;
     sortedAliasKeys = Object.keys(cachedAliases).sort((a, b) => b.length - a.length);
     sortedReverseKeys = Object.keys(cachedReverseAliases).sort((a, b) => b.length - a.length);
+
+    // Persist to localStorage for synchronous hydration on F5 / direct navigation
+    const slug = getTenantSlug();
+    if (typeof window !== 'undefined') {
+        try {
+            localStorage.setItem(`${ALIAS_CACHE_PREFIX}${slug}`, JSON.stringify(tenantAliases));
+            localStorage.setItem(`${REVERSE_CACHE_PREFIX}${slug}`, JSON.stringify(reverse));
+        } catch (e) {
+            console.warn('Failed to persist route aliases to localStorage:', e);
+        }
+    }
 }
 
 /**
