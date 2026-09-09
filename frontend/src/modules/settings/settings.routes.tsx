@@ -203,14 +203,9 @@ export const createSettingsRoutes = (layoutRoute: any) => {
         component: lazyRouteComponent(() => import('./views/ModulesSettings')),
     });
 
-    const moduleBaseRoute = createRoute({
-        getParentRoute: () => modulesRoute,
-        path: '$moduleId',
-    });
-
     const moduleEditRoute = createRoute({
-        getParentRoute: () => moduleBaseRoute,
-        path: 'edit',
+        getParentRoute: () => modulesRoute,
+        path: '$moduleId/edit',
         beforeLoad: async () => {
             const { useAuth } = await import('@modules/auth/store/auth.store');
             if (!useAuth().canEdit('menu') && !useAuth().canEdit('config')) {
@@ -221,9 +216,7 @@ export const createSettingsRoutes = (layoutRoute: any) => {
     });
 
     modulesRoute.addChildren([
-        moduleBaseRoute.addChildren([
-            moduleEditRoute,
-        ]),
+        moduleEditRoute,
     ]);
 
     // ── Return single parent with children ──

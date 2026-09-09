@@ -209,24 +209,51 @@ export const authUserRoles = pgTableV2("auth_user_roles", {
 ]).enableRLS();
 
 // ============================================================================
-// 3. MENU SYSTEM (Dynamic Menus) — Per-tenant with global template
+// 3. MENU SYSTEM (Dynamic Menus) — Two-Table Enterprise Architecture
 // ============================================================================
 
+/**
+ * 3.1 Global Master Catalog (Single Source of Truth for Platform Modules)
+ * Module status (active, development, deprecated) and canonical routes are global.
+ */
 export const authMenuItems = pgTableV2("auth_menu_items", {
     id: smallint("id").generatedAlwaysAsIdentity().primaryKey(),
-    company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }),  // NULL = global template
+    company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }),  // Legacy/Deprecated: NULL = global template
     key: text("key").notNull(),                        // 'inventory', 'products'
-    label: text("label").notNull(),                    // 'Inventario' (editable by admin)
-    icon: text("icon"),                                // SVG path data
+    label: text("label").notNull(),                    // Default system label ('Inventario')
+    icon: text("icon"),                                // Default SVG path data
     path: text("path"),                                // '/products' (null for parent categories)
-    path_alias: text("path_alias"),                    // '/catalogo/productos' (visible URL alias per tenant)
+    path_alias: text("path_alias"),                    // Default URL alias
     parent_id: smallint("parent_id"),                   // Self-reference for tree hierarchy
-    sort_order: smallint("sort_order").default(0),      // For custom ordering
+    sort_order: smallint("sort_order").default(0),      // System default ordering
     permission_prefix: text("permission_prefix"),      // 'products' -> maps to authPermissions.module
-    status: menuItemStatusEnum("status").default('active'),
+    status: menuItemStatusEnum("status").default('active'), // GLOBAL system-wide status
 }, (t) => [
     foreignKey({ columns: [t.parent_id], foreignColumns: [t.id] }),
     unique("idx_menu_company_key").on(t.company_id, t.key).nullsNotDistinct(),
     index("idx_menu_order").on(t.company_id, t.parent_id, t.sort_order),
     index("idx_menu_active").on(t.status),
 ]);
+
+/**
+ * 3.2 Tenant Menu Customizations (Overrides per Tenant)
+ * Tenants can only override: label, icon, path_alias, and custom ordering (sort_order, parent_id).
+ * Status is NOT editable per tenant (governed globally by authMenuItems.status).
+ */
+export const tenantMenuCustomizations = pgTableV2("tenant_menu_customizations", {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }).notNull(),
+    menu_item_id: smallint("menu_item_id").references(() => authMenuItems.id, { onDelete: 'cascade' }).notNull(),
+    label: text("label"),                               // Custom label override (null = fallback to default)
+    icon: text("icon"),                                // Custom icon override (null = fallback to default)
+    path_alias: text("path_alias"),                    // Custom path alias override (null = fallback to default)
+    parent_id: smallint("parent_id").references(() => authMenuItems.id, { onDelete: 'set null' }), // Custom hierarchy
+    sort_order: smallint("sort_order"),                 // Custom sorting order
+    createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", TZ).defaultNow().notNull(),
+}, (t) => [
+    unique("idx_tenant_menu_company_item").on(t.company_id, t.menu_item_id),
+    index("idx_tenant_menu_company").on(t.company_id),
+    tenantPolicy(),
+]).enableRLS();
+

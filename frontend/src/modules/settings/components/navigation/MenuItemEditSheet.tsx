@@ -2,7 +2,6 @@ import { Component, createSignal, Show, createEffect, createMemo } from 'solid-j
 import { useParams } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { MenuItemFormSchema, type MenuItemFormData } from '@app/schema/frontend';
-import type { MenuItemStatus } from '@app/schema/enums';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { executeFormMutation, handleFormApiErrors } from '@shared/utils/form.utils';
 import { useTenantMenuItems } from '../../data/menu.queries';
@@ -16,13 +15,6 @@ import { SkeletonLoader } from '@display/SkeletonLoader';
 import TextField from '@form/TextField';
 import Sheet from '@overlay/Sheet';
 import Button from '@form/Button';
-import {
-    SegmentedControl,
-    SegmentedControlIndicator,
-    SegmentedControlItem,
-    SegmentedControlItemInput,
-    SegmentedControlItemLabel,
-} from '@form/SegmentedControl';
 
 interface MenuItemEditSheetProps {
     moduleId?: number;
@@ -48,7 +40,6 @@ const MenuItemEditSheet: Component<MenuItemEditSheetProps> = (props) => {
         defaultValues: {
             label: currentItem()?.label ?? '',
             path_alias: currentItem()?.path_alias ?? '',
-            status: (currentItem()?.status ?? 'active') as MenuItemStatus,
         } as MenuItemFormData,
         validators: {
             onChange: MenuItemFormSchema,
@@ -71,7 +62,6 @@ const MenuItemEditSheet: Component<MenuItemEditSheetProps> = (props) => {
                         data: {
                             label: value.label.trim(),
                             path_alias: cleanAlias,
-                            status: value.status,
                         },
                     },
                     successMessage: 'Módulo actualizado correctamente',
@@ -88,7 +78,6 @@ const MenuItemEditSheet: Component<MenuItemEditSheetProps> = (props) => {
         if (item) {
             form.setFieldValue('label', item.label);
             form.setFieldValue('path_alias', item.path_alias ?? '');
-            form.setFieldValue('status', (item.status ?? 'active') as MenuItemStatus);
         }
     });
 
@@ -220,42 +209,6 @@ const MenuItemEditSheet: Component<MenuItemEditSheetProps> = (props) => {
                                     )}
                                 </form.Field>
                             </Show>
-
-                            {/* Status Field */}
-                            <form.Field name="status">
-                                {(field) => (
-                                    <div class="space-y-1.5 pt-1">
-                                        <label class="text-xs font-medium text-text block">
-                                            Estado del Módulo
-                                        </label>
-                                        <SegmentedControl
-                                            value={field().state.value}
-                                            onChange={(val) => val && field().handleChange(val as MenuItemStatus)}
-                                            class="w-full text-xs"
-                                        >
-                                            <SegmentedControlIndicator />
-                                            <SegmentedControlItem value="active">
-                                                <SegmentedControlItemInput />
-                                                <SegmentedControlItemLabel class="text-xs! py-1.5! flex-1 text-center">
-                                                    Activo
-                                                </SegmentedControlItemLabel>
-                                            </SegmentedControlItem>
-                                            <SegmentedControlItem value="development">
-                                                <SegmentedControlItemInput />
-                                                <SegmentedControlItemLabel class="text-xs! py-1.5! flex-1 text-center">
-                                                    En Desarrollo
-                                                </SegmentedControlItemLabel>
-                                            </SegmentedControlItem>
-                                            <SegmentedControlItem value="deprecated">
-                                                <SegmentedControlItemInput />
-                                                <SegmentedControlItemLabel class="text-xs! py-1.5! flex-1 text-center">
-                                                    Oculto
-                                                </SegmentedControlItemLabel>
-                                            </SegmentedControlItem>
-                                        </SegmentedControl>
-                                    </div>
-                                )}
-                            </form.Field>
                         </form>
                     </FormSubmissionContext.Provider>
                 </Show>

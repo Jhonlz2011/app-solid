@@ -18,7 +18,6 @@ export const MenuItemUpdateBodySchema = Type.Object({
     icon: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     sort_order: Type.Optional(Type.Number()),
     parent_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
-    status: Type.Optional(MenuItemStatusSchema),
 });
 
 export const MenuItemResponseSchema = Type.Object({

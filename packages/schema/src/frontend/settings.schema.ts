@@ -45,7 +45,7 @@ export type CompanySettingsFormData = InferInput<typeof CompanySettingsFormSchem
 export const MenuItemFormSchema = object({
     label: pipe(string(), minLength(1, 'El nombre o etiqueta es requerido')),
     path_alias: optional(nullable(string())),
-    status: picklist(['active', 'development', 'deprecated'] as const),
+    icon: optional(nullable(string())),
 });
 
 export type MenuItemFormData = InferInput<typeof MenuItemFormSchema>;

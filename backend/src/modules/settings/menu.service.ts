@@ -1,5 +1,5 @@
 import { adminDb } from '../../core/db';
-import { authMenuItems } from '@app/schema/tables';
+import { authMenuItems, tenantMenuCustomizations } from '@app/schema/tables';
 import { eq, asc, sql, isNull, and, isNotNull } from '@app/schema';
 import type { MenuItemStatus } from '@app/schema/enums';
 import { getUserPermissions, getUserRoles } from '../rbac/rbac.permission.service';
@@ -64,29 +64,57 @@ async function invalidateMenuCaches(companyId?: number | null) {
  * Get menu tree for a specific user, filtered by their permissions.
  * Queries tenant-specific rows (company_id = N), falls back to global template (company_id IS NULL).
  */
+export async function getTenantMenuItems(companyId?: number | null): Promise<DbMenuItem[]> {
+    if (companyId) {
+        const rows = await adminDb
+            .select({
+                id: authMenuItems.id,
+                company_id: sql<number | null>`${companyId}`,
+                key: authMenuItems.key,
+                label: sql<string>`COALESCE(${tenantMenuCustomizations.label}, ${authMenuItems.label})`,
+                icon: sql<string | null>`COALESCE(${tenantMenuCustomizations.icon}, ${authMenuItems.icon})`,
+                path: authMenuItems.path,
+                path_alias: sql<string | null>`COALESCE(${tenantMenuCustomizations.path_alias}, ${authMenuItems.path_alias})`,
+                parent_id: sql<number | null>`COALESCE(${tenantMenuCustomizations.parent_id}, ${authMenuItems.parent_id})`,
+                sort_order: sql<number | null>`COALESCE(${tenantMenuCustomizations.sort_order}, ${authMenuItems.sort_order})`,
+                permission_prefix: authMenuItems.permission_prefix,
+                status: authMenuItems.status,
+            })
+            .from(authMenuItems)
+            .leftJoin(
+                tenantMenuCustomizations,
+                and(
+                    eq(tenantMenuCustomizations.menu_item_id, authMenuItems.id),
+                    eq(tenantMenuCustomizations.company_id, companyId)
+                )
+            )
+            .where(isNull(authMenuItems.company_id))
+            .orderBy(
+                asc(sql`COALESCE(${tenantMenuCustomizations.parent_id}, ${authMenuItems.parent_id})`),
+                asc(sql`COALESCE(${tenantMenuCustomizations.sort_order}, ${authMenuItems.sort_order})`)
+            );
+
+        return rows as DbMenuItem[];
+    }
+
+    // Global template items
+    return adminDb
+        .select()
+        .from(authMenuItems)
+        .where(isNull(authMenuItems.company_id))
+        .orderBy(asc(authMenuItems.parent_id), asc(authMenuItems.sort_order)) as Promise<DbMenuItem[]>;
+}
+
+/**
+ * Get menu tree for a specific user, filtered by their permissions.
+ * Integrates tenant customizations over global system catalog.
+ */
 export async function getMenuForUser(userId: string | number, companyId?: number | null): Promise<ModuleConfig[]> {
-    // Parallel: Redis + DB at the same time — eliminates serial waterfall
     const [roles, permissions, allMenus] = await Promise.all([
         getUserRoles(userId, companyId),
         getUserPermissions(userId, companyId),
         cacheService.getOrSet(`menus:${companyId ?? 'global'}`, async () => {
-            // 1. If companyId is provided, check for tenant-specific custom menus
-            if (companyId) {
-                const tenantMenus = await adminDb.select()
-                    .from(authMenuItems)
-                    .where(eq(authMenuItems.company_id, companyId))
-                    .orderBy(asc(authMenuItems.sort_order));
-
-                if (tenantMenus.length > 0) {
-                    return tenantMenus;
-                }
-            }
-
-            // 2. Fallback to global template (company_id IS NULL)
-            return adminDb.select()
-                .from(authMenuItems)
-                .where(isNull(authMenuItems.company_id))
-                .orderBy(asc(authMenuItems.sort_order));
+            return getTenantMenuItems(companyId);
         }, 86400),
     ]);
 
@@ -102,57 +130,10 @@ export async function getMenuForUser(userId: string | number, companyId?: number
 export async function getFullMenuTree(companyId?: number | null): Promise<ModuleConfig[]> {
     const cacheKey = `menus:all:${companyId ?? 'global'}`;
     const allMenus = await cacheService.getOrSet(cacheKey, async () => {
-        if (companyId) {
-            const tenantMenus = await adminDb.select()
-                .from(authMenuItems)
-                .where(eq(authMenuItems.company_id, companyId))
-                .orderBy(asc(authMenuItems.sort_order));
-
-            if (tenantMenus.length > 0) {
-                return tenantMenus;
-            }
-        }
-
-        return adminDb.select()
-            .from(authMenuItems)
-            .where(isNull(authMenuItems.company_id))
-            .orderBy(asc(authMenuItems.sort_order));
+        return getTenantMenuItems(companyId);
     }, 86400);
 
     return buildMenuTree(allMenus as DbMenuItem[]);
-}
-
-/**
- * Get all menu items as flat list for a specific tenant (for admin editing)
- * Auto-seeds from default if companyId has no items yet.
- */
-export async function getTenantMenuItems(companyId?: number | null): Promise<DbMenuItem[]> {
-    if (companyId) {
-        let tenantMenus = await adminDb
-            .select()
-            .from(authMenuItems)
-            .where(eq(authMenuItems.company_id, companyId))
-            .orderBy(asc(authMenuItems.parent_id), asc(authMenuItems.sort_order));
-
-        if (tenantMenus.length === 0) {
-            // Auto-provision tenant menu copies from global template
-            await seedCompanyMenus(adminDb as any, companyId);
-            tenantMenus = await adminDb
-                .select()
-                .from(authMenuItems)
-                .where(eq(authMenuItems.company_id, companyId))
-                .orderBy(asc(authMenuItems.parent_id), asc(authMenuItems.sort_order));
-        }
-
-        return tenantMenus as DbMenuItem[];
-    }
-
-    // Global template items
-    return adminDb
-        .select()
-        .from(authMenuItems)
-        .where(isNull(authMenuItems.company_id))
-        .orderBy(asc(authMenuItems.parent_id), asc(authMenuItems.sort_order)) as Promise<DbMenuItem[]>;
 }
 
 /**
@@ -198,72 +179,66 @@ export async function updateTenantMenuItem(
         }
     }
 
-    const updatePayload: Record<string, any> = {};
-    if (data.label !== undefined) updatePayload.label = data.label.trim();
-    if (cleanAlias !== undefined) updatePayload.path_alias = cleanAlias;
-    if (data.icon !== undefined) updatePayload.icon = data.icon;
-    if (data.sort_order !== undefined) updatePayload.sort_order = data.sort_order;
-    if (data.parent_id !== undefined) updatePayload.parent_id = data.parent_id;
-    if (data.status !== undefined) updatePayload.status = data.status;
-
-    let targetId = id;
-
-    // Handle tenant-scoped update
+    // Handle tenant-scoped update (UPSERT in tenantMenuCustomizations)
     if (companyId) {
-        // Ensure tenant has their own menu rows provisioned
-        const existing = await adminDb
+        // Verify master item exists
+        const masterItem = await adminDb
             .select()
             .from(authMenuItems)
-            .where(and(eq(authMenuItems.id, id), eq(authMenuItems.company_id, companyId)))
+            .where(eq(authMenuItems.id, id))
             .limit(1);
 
-        if (existing.length === 0) {
-            // Check if user is referencing a global template ID before tenant was seeded
-            const globalRow = await adminDb
-                .select()
-                .from(authMenuItems)
-                .where(and(eq(authMenuItems.id, id), isNull(authMenuItems.company_id)))
-                .limit(1);
-
-            if (globalRow.length > 0) {
-                // Seed tenant items first
-                await seedCompanyMenus(adminDb as any, companyId);
-                // Find corresponding tenant item by key
-                const [tenantRow] = await adminDb
-                    .select()
-                    .from(authMenuItems)
-                    .where(and(eq(authMenuItems.key, globalRow[0].key), eq(authMenuItems.company_id, companyId)))
-                    .limit(1);
-
-                if (tenantRow) {
-                    targetId = tenantRow.id;
-                } else {
-                    throw new NotFoundError('Elemento de menú no encontrado para esta empresa');
-                }
-            } else {
-                throw new NotFoundError('Elemento de menú no encontrado');
-            }
+        if (masterItem.length === 0) {
+            throw new NotFoundError('Elemento de menú no encontrado en el catálogo maestro');
         }
 
-        const result = await adminDb
-            .update(authMenuItems)
-            .set(updatePayload)
-            .where(and(eq(authMenuItems.id, targetId), eq(authMenuItems.company_id, companyId)))
-            .returning();
+        const cleanLabel = data.label !== undefined ? data.label.trim() : null;
+
+        await adminDb
+            .insert(tenantMenuCustomizations)
+            .values({
+                company_id: companyId,
+                menu_item_id: id,
+                label: cleanLabel,
+                icon: data.icon !== undefined ? data.icon : null,
+                path_alias: cleanAlias !== undefined ? cleanAlias : null,
+                sort_order: data.sort_order !== undefined ? data.sort_order : null,
+                parent_id: data.parent_id !== undefined ? data.parent_id : null,
+            })
+            .onConflictDoUpdate({
+                target: [tenantMenuCustomizations.company_id, tenantMenuCustomizations.menu_item_id],
+                set: {
+                    ...(data.label !== undefined ? { label: cleanLabel } : {}),
+                    ...(cleanAlias !== undefined ? { path_alias: cleanAlias } : {}),
+                    ...(data.icon !== undefined ? { icon: data.icon } : {}),
+                    ...(data.sort_order !== undefined ? { sort_order: data.sort_order } : {}),
+                    ...(data.parent_id !== undefined ? { parent_id: data.parent_id } : {}),
+                    updatedAt: new Date(),
+                },
+            });
 
         await invalidateMenuCaches(companyId);
-        return result;
+        const allItems = await getTenantMenuItems(companyId);
+        return allItems.filter(m => m.id === id);
     }
 
     // Superadmin editing global template
+    const globalPayload: Record<string, any> = {};
+    if (data.label !== undefined) globalPayload.label = data.label.trim();
+    if (cleanAlias !== undefined) globalPayload.path_alias = cleanAlias;
+    if (data.icon !== undefined) globalPayload.icon = data.icon;
+    if (data.sort_order !== undefined) globalPayload.sort_order = data.sort_order;
+    if (data.parent_id !== undefined) globalPayload.parent_id = data.parent_id;
+    if (data.status !== undefined) globalPayload.status = data.status;
+
     const result = await adminDb
         .update(authMenuItems)
-        .set(updatePayload)
-        .where(and(eq(authMenuItems.id, targetId), isNull(authMenuItems.company_id)))
+        .set(globalPayload)
+        .where(and(eq(authMenuItems.id, id), isNull(authMenuItems.company_id)))
         .returning();
 
     await invalidateMenuCaches(null);
-    return result;
+    return result as DbMenuItem[];
 }
 
 /**
@@ -286,59 +261,42 @@ export async function reorderTenantMenuItems(
 ) {
     if (items.length === 0) return [];
 
-    const hasParentId = items.some(i => i.parent_id !== undefined);
-    const sortCases = items.map(i => sql`WHEN ${i.id} THEN ${i.sort_order}`);
-    const parentCases = hasParentId
-        ? items.map(i => i.parent_id !== undefined ? sql`WHEN ${i.id} THEN ${i.parent_id}` : sql`WHEN ${i.id} THEN parent_id`)
-        : [];
-    const ids = items.map(i => i.id);
-
     if (companyId) {
-        if (hasParentId) {
-            await adminDb.execute(sql`
-                UPDATE auth_menu_items SET
-                    sort_order = CASE id
-                        ${sql.join(sortCases, sql` `)}
-                    END,
-                    parent_id = CASE id
-                        ${sql.join(parentCases, sql` `)}
-                    END
-                WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
-                  AND company_id = ${companyId}
-            `);
-        } else {
-            await adminDb.execute(sql`
-                UPDATE auth_menu_items SET
-                    sort_order = CASE id
-                        ${sql.join(sortCases, sql` `)}
-                    END
-                WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
-                  AND company_id = ${companyId}
-            `);
+        for (const item of items) {
+            await adminDb
+                .insert(tenantMenuCustomizations)
+                .values({
+                    company_id: companyId,
+                    menu_item_id: item.id,
+                    sort_order: item.sort_order,
+                    parent_id: item.parent_id ?? null,
+                })
+                .onConflictDoUpdate({
+                    target: [tenantMenuCustomizations.company_id, tenantMenuCustomizations.menu_item_id],
+                    set: {
+                        sort_order: item.sort_order,
+                        ...(item.parent_id !== undefined ? { parent_id: item.parent_id } : {}),
+                        updatedAt: new Date(),
+                    },
+                });
         }
     } else {
-        if (hasParentId) {
-            await adminDb.execute(sql`
-                UPDATE auth_menu_items SET
-                    sort_order = CASE id
-                        ${sql.join(sortCases, sql` `)}
-                    END,
-                    parent_id = CASE id
-                        ${sql.join(parentCases, sql` `)}
-                    END
-                WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
-                  AND company_id IS NULL
-            `);
-        } else {
-            await adminDb.execute(sql`
-                UPDATE auth_menu_items SET
-                    sort_order = CASE id
-                        ${sql.join(sortCases, sql` `)}
-                    END
-                WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
-                  AND company_id IS NULL
-            `);
-        }
+        const hasParentId = items.some(i => i.parent_id !== undefined);
+        const sortCases = items.map(i => sql`WHEN ${i.id} THEN ${i.sort_order}`);
+        const parentCases = hasParentId
+            ? items.map(i => i.parent_id !== undefined ? sql`WHEN ${i.id} THEN ${i.parent_id}` : sql`WHEN ${i.id} THEN parent_id`)
+            : [];
+        const ids = items.map(i => i.id);
+
+        await adminDb.execute(sql`
+            UPDATE auth_menu_items SET
+                sort_order = CASE id
+                    ${sql.join(sortCases, sql` `)}
+                END
+                ${hasParentId ? sql`, parent_id = CASE id ${sql.join(parentCases, sql` `)} END` : sql``}
+            WHERE id IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+              AND company_id IS NULL
+        `);
     }
 
     await invalidateMenuCaches(companyId);
@@ -353,16 +311,12 @@ export async function reorderMenuItems(items: { id: number; sort_order: number; 
 }
 
 /**
- * Reset tenant menu back to system default template
+ * Reset tenant menu back to system default template (atomic DELETE)
  */
 export async function resetTenantMenuToDefault(companyId: number) {
-    await adminDb.transaction(async (tx) => {
-        await tx
-            .delete(authMenuItems)
-            .where(eq(authMenuItems.company_id, companyId));
-
-        await seedCompanyMenus(tx, companyId);
-    });
+    await adminDb
+        .delete(tenantMenuCustomizations)
+        .where(eq(tenantMenuCustomizations.company_id, companyId));
 
     await invalidateMenuCaches(companyId);
     return { success: true };
@@ -477,45 +431,28 @@ function buildMenuTree(menus: DbMenuItem[]): ModuleConfig[] {
  */
 export async function getRouteAliases(companyId: number): Promise<Record<string, string>> {
     return cacheService.getOrSet(`aliases:${companyId}`, async () => {
-        // 1. Query global template defaults
-        const globalAliases = await adminDb
-            .select({ path: authMenuItems.path, path_alias: authMenuItems.path_alias })
+        const items = await adminDb
+            .select({
+                path: authMenuItems.path,
+                path_alias: sql<string | null>`COALESCE(${tenantMenuCustomizations.path_alias}, ${authMenuItems.path_alias})`,
+            })
             .from(authMenuItems)
+            .leftJoin(
+                tenantMenuCustomizations,
+                and(
+                    eq(tenantMenuCustomizations.menu_item_id, authMenuItems.id),
+                    eq(tenantMenuCustomizations.company_id, companyId)
+                )
+            )
             .where(and(
                 isNull(authMenuItems.company_id),
-                isNotNull(authMenuItems.path),
-                isNotNull(authMenuItems.path_alias),
+                isNotNull(authMenuItems.path)
             ));
 
         const aliasMap: Record<string, string> = {};
-        for (const m of globalAliases) {
+        for (const m of items) {
             if (m.path && m.path_alias && m.path !== m.path_alias) {
                 aliasMap[m.path_alias] = m.path;
-            }
-        }
-
-        // 2. Query tenant-specific items to overlay customizations
-        const tenantAliases = await adminDb
-            .select({ path: authMenuItems.path, path_alias: authMenuItems.path_alias })
-            .from(authMenuItems)
-            .where(and(
-                eq(authMenuItems.company_id, companyId),
-                isNotNull(authMenuItems.path),
-            ));
-
-        if (tenantAliases.length > 0) {
-            for (const t of tenantAliases) {
-                if (!t.path) continue;
-                // Remove any existing alias pointing to this path (if tenant cleared or changed it)
-                for (const [alias, real] of Object.entries(aliasMap)) {
-                    if (real === t.path) {
-                        delete aliasMap[alias];
-                    }
-                }
-                // Apply new custom alias if set and differs from real canonical path
-                if (t.path_alias && t.path !== t.path_alias) {
-                    aliasMap[t.path_alias] = t.path;
-                }
             }
         }
 

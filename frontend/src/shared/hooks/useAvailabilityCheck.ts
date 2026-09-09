@@ -30,7 +30,7 @@ export interface UseAvailabilityCheckReturn {
  */
 export function useAvailabilityCheck(options: UseAvailabilityCheckOptions): UseAvailabilityCheckReturn {
     const delay = options.debounceMs ?? 350;
-    const rawValue = () => options.value().trim();
+    const rawValue = () => (options.value?.() ?? '').trim();
 
     // 1. Reactive debounce signal with automatic timer cleanup
     const [debouncedValue, setDebouncedValue] = createSignal(rawValue());
@@ -38,7 +38,7 @@ export function useAvailabilityCheck(options: UseAvailabilityCheckOptions): UseA
 
     createEffect(() => {
         const val = rawValue();
-        const current = options.currentValue?.()?.trim();
+        const current = (options.currentValue?.() ?? '').trim();
 
         // If empty or identical to current value, reset debounce immediately
         if (!val || (current && val.toLowerCase() === current.toLowerCase())) {
@@ -81,7 +81,7 @@ export function useAvailabilityCheck(options: UseAvailabilityCheckOptions): UseA
 
     // 3. Current user / company value exemption
     const isCurrent = createMemo(() => {
-        const current = options.currentValue?.()?.trim().toLowerCase();
+        const current = (options.currentValue?.() ?? '').trim().toLowerCase();
         const input = rawValue().toLowerCase();
         return Boolean(current && input && current === input);
     });

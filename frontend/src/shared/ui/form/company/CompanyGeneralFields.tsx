@@ -29,13 +29,13 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
     // Availability checks (conditionally enabled via props)
     const slugCheck = useAvailabilityCheck({
         type: 'slug',
-        value: () => props.form.useStore((s: any) => s.values.slug)(),
+        value: () => props.form.useStore((s: any) => s.values?.slug ?? '')(),
         enabled: () => !!props.showSlug && (props.checkSlugAvailability ?? true),
     });
 
     const rucCheck = useAvailabilityCheck({
         type: 'ruc',
-        value: () => props.form.useStore((s: any) => s.values.ruc)(),
+        value: () => props.form.useStore((s: any) => s.values?.ruc ?? '')(),
         enabled: () => props.checkRucAvailability ?? false,
     });
 

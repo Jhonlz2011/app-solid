@@ -231,11 +231,11 @@ export const ModulesTreeTable: Component<ModulesTreeTableProps> = (props) => {
         return mostIntersecting(draggable, droppables, context);
     };
 
-    // Columns Definition
+    // Columns Definition (Estado removed — status is strictly global)
     const columns: ColumnDef<MenuItemResponseType>[] = [
         {
             id: 'label',
-            header: () => <span>Módulo / Menú</span>,
+            header: () => <span class="pl-2">Módulo / Menú</span>,
             cell: ({ row }) => {
                 const item = row.original;
                 const canExpand = row.getCanExpand();
@@ -262,23 +262,23 @@ export const ModulesTreeTable: Component<ModulesTreeTableProps> = (props) => {
                         </Show>
 
                         {/* Module icon */}
-                        <div class="size-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                        <div class="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
                             <Show
                                 when={item.icon && item.icon.startsWith('M')}
-                                fallback={<LayoutIcon class="size-3.5 text-primary" />}
+                                fallback={<LayoutIcon class="size-4 text-primary" />}
                             >
-                                <svg class="size-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg class="size-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d={item.icon!} />
                                 </svg>
                             </Show>
                         </div>
 
                         {/* Labels */}
-                        <div class="min-w-0 flex flex-col">
-                            <span class="text-sm font-semibold text-text truncate">
+                        <div class="min-w-0 flex flex-col justify-center">
+                            <span class="text-sm font-semibold text-text leading-tight group-hover:text-primary transition-colors">
                                 {item.label}
                             </span>
-                            <span class="text-[10px] text-muted font-mono truncate">
+                            <span class="text-[11px] text-muted font-mono leading-tight mt-0.5">
                                 {item.key}
                             </span>
                         </div>
@@ -290,7 +290,7 @@ export const ModulesTreeTable: Component<ModulesTreeTableProps> = (props) => {
             id: 'path',
             header: () => <span>Ruta Interna</span>,
             cell: ({ row }) => (
-                <code class="text-xs font-mono px-2 py-0.5 rounded bg-surface/80 border border-border/50 text-muted">
+                <code class="text-xs font-mono px-2.5 py-1 rounded-md bg-surface/80 border border-border/60 text-muted inline-block">
                     {row.original.path || '— (Agrupador)'}
                 </code>
             ),
@@ -301,11 +301,11 @@ export const ModulesTreeTable: Component<ModulesTreeTableProps> = (props) => {
             cell: ({ row }) => {
                 const item = row.original;
                 return item.path_alias ? (
-                    <div class="flex items-center gap-1.5">
-                        <span class="px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs font-mono font-semibold">
+                    <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                        <span class="px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs font-mono font-semibold whitespace-nowrap">
                             {item.path_alias}
                         </span>
-                        <span class="text-[10px] text-emerald-500 font-medium bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                        <span class="text-[10px] text-emerald-500 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 whitespace-nowrap shrink-0">
                             Personalizada
                         </span>
                     </div>
@@ -317,38 +317,10 @@ export const ModulesTreeTable: Component<ModulesTreeTableProps> = (props) => {
             },
         },
         {
-            id: 'status',
-            header: () => <span class="text-center block w-full">Estado</span>,
-            cell: ({ row }) => {
-                const status = row.original.status;
-                switch (status) {
-                    case 'active':
-                        return (
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                                Activo
-                            </span>
-                        );
-                    case 'development':
-                        return (
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                                En Desarrollo
-                            </span>
-                        );
-                    case 'deprecated':
-                    default:
-                        return (
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-                                Oculto
-                            </span>
-                        );
-                }
-            },
-        },
-        {
             id: 'actions',
-            header: () => <span class="text-right block w-full">Acciones</span>,
+            header: () => <span class="text-right block w-full pr-2">Acciones</span>,
             cell: ({ row }) => (
-                <div class="flex items-center justify-end gap-1">
+                <div class="flex items-center justify-end gap-1 pr-1">
                     <button
                         type="button"
                         class="size-8 flex items-center justify-center rounded-lg hover:bg-primary/10 text-muted hover:text-primary transition-colors cursor-pointer"
@@ -431,7 +403,15 @@ export const ModulesTreeTable: Component<ModulesTreeTableProps> = (props) => {
                                         <TableRow>
                                             <For each={headerGroup.headers}>
                                                 {(header) => (
-                                                    <TableHead class="text-xs tracking-wider text-muted font-semibold py-3">
+                                                    <TableHead
+                                                        class={cn(
+                                                            "text-xs tracking-wider text-muted font-semibold py-3",
+                                                            header.column.id === 'label' && "min-w-[280px] pl-4",
+                                                            header.column.id === 'path' && "w-[180px] min-w-[160px]",
+                                                            header.column.id === 'path_alias' && "min-w-[240px]",
+                                                            header.column.id === 'actions' && "w-[90px] text-right pr-4"
+                                                        )}
+                                                    >
                                                         <Show when={!header.isPlaceholder}>
                                                             {flexRender(
                                                                 header.column.columnDef.header,
@@ -453,7 +433,7 @@ export const ModulesTreeTable: Component<ModulesTreeTableProps> = (props) => {
                                         <For each={Array(5).fill(0)}>
                                             {() => (
                                                 <TableRow>
-                                                    <TableCell colSpan={5} class="py-3">
+                                                    <TableCell colSpan={4} class="py-3">
                                                         <Skeleton class="h-6 w-full rounded-md" />
                                                     </TableCell>
                                                 </TableRow>
@@ -465,7 +445,7 @@ export const ModulesTreeTable: Component<ModulesTreeTableProps> = (props) => {
                                         when={rows().length > 0}
                                         fallback={
                                             <TableRow>
-                                                <TableCell colSpan={5} class="h-40">
+                                                <TableCell colSpan={4} class="h-40">
                                                     <EmptyState
                                                         icon={<LayoutIcon class="size-8" />}
                                                         message="No se encontraron módulos"
