@@ -3,6 +3,7 @@ import { toast } from 'solid-sonner';
 import { menuApi } from './menu.api';
 import { menuKeys } from './menu.keys';
 import { actions } from '@shared/store/modules.store';
+import { clearTenantRouteAliases } from '@shared/utils/route-alias';
 import type { MenuItemUpdateType, MenuItemReorderItemType } from '@app/schema/backend';
 
 export function useUpdateMenuItem() {
@@ -41,6 +42,7 @@ export function useResetMenuDefaults() {
     return createMutation(() => ({
         mutationFn: () => menuApi.resetDefaults(),
         onSuccess: async (res) => {
+            clearTenantRouteAliases();
             queryClient.invalidateQueries({ queryKey: menuKeys.all });
             await actions.refreshModules();
             toast.success(res?.message || 'Menú restaurado a los valores por defecto');

@@ -14,7 +14,7 @@ function notifyRouterOfAliasChange(): void {
     }
 }
 
-function syncRouteAliases(modules: ModuleConfig[]): void {
+function syncRouteAliases(modules: ModuleConfig[], tenantSlug?: string | null): void {
     const aliasMap: Record<string, string> = {};
     const traverse = (items: ModuleConfig[]) => {
         for (const item of items) {
@@ -27,8 +27,10 @@ function syncRouteAliases(modules: ModuleConfig[]): void {
         }
     };
     traverse(modules);
-    setRouteAliases(aliasMap);
-    notifyRouterOfAliasChange();
+    if (Object.keys(aliasMap).length > 0) {
+        setRouteAliases(aliasMap, tenantSlug);
+        notifyRouterOfAliasChange();
+    }
 }
 
 if (typeof window !== 'undefined') {
@@ -94,7 +96,7 @@ export const actions = {
                 const { data, error } = await api.modules.tree.get();
                 if (error) throw new Error(String(error.value));
                 const modulesList = Array.isArray(data) ? data as ModuleConfig[] : [];
-                syncRouteAliases(modulesList);
+                syncRouteAliases(modulesList, currentTenant);
                 setState({
                     modules: modulesList,
                     error: null,
@@ -123,7 +125,7 @@ export const actions = {
         const cacheKey = currentUserId ? `${currentUserId}:${currentTenant || 'global'}` : null;
 
         const modulesList = Array.isArray(modules) ? modules : [];
-        syncRouteAliases(modulesList);
+        syncRouteAliases(modulesList, currentTenant);
 
         fetchPromise = null;
         setState({

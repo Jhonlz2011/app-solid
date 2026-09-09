@@ -94,11 +94,15 @@ function initAliases(): void {
     let storedReverse: Record<string, string> = {};
     if (typeof window !== 'undefined') {
         try {
-            const stored = localStorage.getItem(`${ALIAS_CACHE_PREFIX}${slug}`);
+            const stored = localStorage.getItem(`${ALIAS_CACHE_PREFIX}${slug}`)
+                || localStorage.getItem(`${ALIAS_CACHE_PREFIX}latest`)
+                || localStorage.getItem(`${ALIAS_CACHE_PREFIX}default`);
             if (stored) storedAliases = JSON.parse(stored);
         } catch {}
         try {
-            const storedRev = localStorage.getItem(`${REVERSE_CACHE_PREFIX}${slug}`);
+            const storedRev = localStorage.getItem(`${REVERSE_CACHE_PREFIX}${slug}`)
+                || localStorage.getItem(`${REVERSE_CACHE_PREFIX}latest`)
+                || localStorage.getItem(`${REVERSE_CACHE_PREFIX}default`);
             if (storedRev) storedReverse = JSON.parse(storedRev);
         } catch {}
     }
@@ -227,7 +231,11 @@ export function toAliasPath(rawUrl: string): string {
  * Deterministically sets and rebuilds the route alias map at runtime (e.g. on menu fetch, tenant switch or SSE update).
  * Completely resets and replaces active tenant aliases over canonical defaults without accumulating deleted or stale aliases.
  */
-export function setRouteAliases(tenantAliases: Record<string, string>): void {
+export function setRouteAliases(tenantAliases: Record<string, string>, tenantSlug?: string | null): void {
+    if (!tenantAliases || Object.keys(tenantAliases).length === 0) {
+        return;
+    }
+
     const aliases: Record<string, string> = { ...CANONICAL_DEFAULT_ALIASES };
     const reverse: Record<string, string> = { ...CANONICAL_DEFAULT_REVERSE };
 
@@ -245,11 +253,15 @@ export function setRouteAliases(tenantAliases: Record<string, string>): void {
     sortedReverseKeys = Object.keys(cachedReverseAliases).sort((a, b) => b.length - a.length);
 
     // Persist to localStorage for synchronous hydration on F5 / direct navigation
-    const slug = getTenantSlug();
+    const slug = tenantSlug || getTenantSlug();
     if (typeof window !== 'undefined') {
         try {
-            localStorage.setItem(`${ALIAS_CACHE_PREFIX}${slug}`, JSON.stringify(tenantAliases));
-            localStorage.setItem(`${REVERSE_CACHE_PREFIX}${slug}`, JSON.stringify(reverse));
+            const aliasJson = JSON.stringify(tenantAliases);
+            const reverseJson = JSON.stringify(reverse);
+            localStorage.setItem(`${ALIAS_CACHE_PREFIX}${slug}`, aliasJson);
+            localStorage.setItem(`${REVERSE_CACHE_PREFIX}${slug}`, reverseJson);
+            localStorage.setItem(`${ALIAS_CACHE_PREFIX}latest`, aliasJson);
+            localStorage.setItem(`${REVERSE_CACHE_PREFIX}latest`, reverseJson);
         } catch (e) {
             console.warn('Failed to persist route aliases to localStorage:', e);
         }
@@ -259,8 +271,8 @@ export function setRouteAliases(tenantAliases: Record<string, string>): void {
 /**
  * Dynamically updates the route alias map at runtime (e.g. on menu fetch or tenant switch).
  */
-export function updateRouteAliases(aliasMap: Record<string, string>): void {
-    setRouteAliases(aliasMap);
+export function updateRouteAliases(aliasMap: Record<string, string>, tenantSlug?: string | null): void {
+    setRouteAliases(aliasMap, tenantSlug);
 }
 
 /**
@@ -271,4 +283,22 @@ export function resetRouteAliases(): void {
     cachedReverseAliases = null;
     sortedAliasKeys = [];
     sortedReverseKeys = [];
+}
+
+/**
+ * Clears cached aliases in localStorage and resets memory state (for menu default resets).
+ */
+export function clearTenantRouteAliases(slug?: string | null): void {
+    const targetSlug = slug || getTenantSlug();
+    if (typeof window !== 'undefined') {
+        try {
+            localStorage.removeItem(`${ALIAS_CACHE_PREFIX}${targetSlug}`);
+            localStorage.removeItem(`${REVERSE_CACHE_PREFIX}${targetSlug}`);
+            localStorage.removeItem(`${ALIAS_CACHE_PREFIX}latest`);
+            localStorage.removeItem(`${REVERSE_CACHE_PREFIX}latest`);
+        } catch (e) {
+            console.warn('Failed to clear tenant route aliases from localStorage:', e);
+        }
+    }
+    resetRouteAliases();
 }

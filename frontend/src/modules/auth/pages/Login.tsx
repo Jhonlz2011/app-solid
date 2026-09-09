@@ -9,6 +9,7 @@ import { useBranding, getSubdomain } from '../store/branding.store';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import { buildTenantUrl, isGlobalPortalHost, resolveSlugFromHost } from '@app/schema/utils';
 import { resolvePostAuthRouting } from '../utils/resolve-routing';
+import { toRealPath } from '@shared/utils/route-alias';
 import Input from '@/shared/ui/form/Input';
 import Button from '@form/Button';
 import Turnstile from '@shared/ui/Turnstile';
@@ -179,7 +180,8 @@ const Login: Component = () => {
             if (decision.organizationId) {
               await actions.switchOrganization(decision.organizationId);
             }
-            navigate({ to: safePath, replace: true });
+            const canonicalPath = toRealPath(safePath);
+            navigate({ href: safePath, to: canonicalPath as any, replace: true });
             return;
         }
       } catch (err) {
