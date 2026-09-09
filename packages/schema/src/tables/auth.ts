@@ -240,7 +240,7 @@ export const authMenuItems = pgTableV2("auth_menu_items", {
  * Tenants can only override: label, icon, path_alias, and custom ordering (sort_order, parent_id).
  * Status is NOT editable per tenant (governed globally by authMenuItems.status).
  */
-export const tenantMenuCustomizations = pgTableV2("tenant_menu_customizations", {
+export const authMenuCustom = pgTableV2("auth_menu_custom", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }).notNull(),
     menu_item_id: smallint("menu_item_id").references(() => authMenuItems.id, { onDelete: 'cascade' }).notNull(),
@@ -252,8 +252,8 @@ export const tenantMenuCustomizations = pgTableV2("tenant_menu_customizations", 
     createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
-    unique("idx_tenant_menu_company_item").on(t.company_id, t.menu_item_id),
-    index("idx_tenant_menu_company").on(t.company_id),
+    unique("idx_auth_menu_company_item").on(t.company_id, t.menu_item_id),
+    index("idx_auth_menu_company").on(t.company_id),
     tenantPolicy(),
 ]).enableRLS();
 

@@ -1,5 +1,5 @@
 import { adminDb } from '../../core/db';
-import { authMenuItems, tenantMenuCustomizations } from '@app/schema/tables';
+import { authMenuItems, authMenuCustom } from '@app/schema/tables';
 import { eq, asc, sql, isNull, and, isNotNull } from '@app/schema';
 import type { MenuItemStatus } from '@app/schema/enums';
 import { getUserPermissions, getUserRoles } from '../rbac/rbac.permission.service';
@@ -71,27 +71,27 @@ export async function getTenantMenuItems(companyId?: number | null): Promise<DbM
                 id: authMenuItems.id,
                 company_id: sql<number | null>`${companyId}`,
                 key: authMenuItems.key,
-                label: sql<string>`COALESCE(${tenantMenuCustomizations.label}, ${authMenuItems.label})`,
-                icon: sql<string | null>`COALESCE(${tenantMenuCustomizations.icon}, ${authMenuItems.icon})`,
+                label: sql<string>`COALESCE(${authMenuCustom.label}, ${authMenuItems.label})`,
+                icon: sql<string | null>`COALESCE(${authMenuCustom.icon}, ${authMenuItems.icon})`,
                 path: authMenuItems.path,
-                path_alias: sql<string | null>`COALESCE(${tenantMenuCustomizations.path_alias}, ${authMenuItems.path_alias})`,
-                parent_id: sql<number | null>`COALESCE(${tenantMenuCustomizations.parent_id}, ${authMenuItems.parent_id})`,
-                sort_order: sql<number | null>`COALESCE(${tenantMenuCustomizations.sort_order}, ${authMenuItems.sort_order})`,
+                path_alias: sql<string | null>`COALESCE(${authMenuCustom.path_alias}, ${authMenuItems.path_alias})`,
+                parent_id: sql<number | null>`COALESCE(${authMenuCustom.parent_id}, ${authMenuItems.parent_id})`,
+                sort_order: sql<number | null>`COALESCE(${authMenuCustom.sort_order}, ${authMenuItems.sort_order})`,
                 permission_prefix: authMenuItems.permission_prefix,
                 status: authMenuItems.status,
             })
             .from(authMenuItems)
             .leftJoin(
-                tenantMenuCustomizations,
+                authMenuCustom,
                 and(
-                    eq(tenantMenuCustomizations.menu_item_id, authMenuItems.id),
-                    eq(tenantMenuCustomizations.company_id, companyId)
+                    eq(authMenuCustom.menu_item_id, authMenuItems.id),
+                    eq(authMenuCustom.company_id, companyId)
                 )
             )
             .where(isNull(authMenuItems.company_id))
             .orderBy(
-                asc(sql`COALESCE(${tenantMenuCustomizations.parent_id}, ${authMenuItems.parent_id})`),
-                asc(sql`COALESCE(${tenantMenuCustomizations.sort_order}, ${authMenuItems.sort_order})`)
+                asc(sql`COALESCE(${authMenuCustom.parent_id}, ${authMenuItems.parent_id})`),
+                asc(sql`COALESCE(${authMenuCustom.sort_order}, ${authMenuItems.sort_order})`)
             );
 
         return rows as DbMenuItem[];
@@ -179,7 +179,7 @@ export async function updateTenantMenuItem(
         }
     }
 
-    // Handle tenant-scoped update (UPSERT in tenantMenuCustomizations)
+    // Handle tenant-scoped update (UPSERT in authMenuCustom)
     if (companyId) {
         // Verify master item exists
         const masterItem = await adminDb
@@ -195,7 +195,7 @@ export async function updateTenantMenuItem(
         const cleanLabel = data.label !== undefined ? data.label.trim() : null;
 
         await adminDb
-            .insert(tenantMenuCustomizations)
+            .insert(authMenuCustom)
             .values({
                 company_id: companyId,
                 menu_item_id: id,
@@ -206,7 +206,7 @@ export async function updateTenantMenuItem(
                 parent_id: data.parent_id !== undefined ? data.parent_id : null,
             })
             .onConflictDoUpdate({
-                target: [tenantMenuCustomizations.company_id, tenantMenuCustomizations.menu_item_id],
+                target: [authMenuCustom.company_id, authMenuCustom.menu_item_id],
                 set: {
                     ...(data.label !== undefined ? { label: cleanLabel } : {}),
                     ...(cleanAlias !== undefined ? { path_alias: cleanAlias } : {}),
@@ -264,7 +264,7 @@ export async function reorderTenantMenuItems(
     if (companyId) {
         for (const item of items) {
             await adminDb
-                .insert(tenantMenuCustomizations)
+                .insert(authMenuCustom)
                 .values({
                     company_id: companyId,
                     menu_item_id: item.id,
@@ -272,7 +272,7 @@ export async function reorderTenantMenuItems(
                     parent_id: item.parent_id ?? null,
                 })
                 .onConflictDoUpdate({
-                    target: [tenantMenuCustomizations.company_id, tenantMenuCustomizations.menu_item_id],
+                    target: [authMenuCustom.company_id, authMenuCustom.menu_item_id],
                     set: {
                         sort_order: item.sort_order,
                         ...(item.parent_id !== undefined ? { parent_id: item.parent_id } : {}),
@@ -315,8 +315,8 @@ export async function reorderMenuItems(items: { id: number; sort_order: number; 
  */
 export async function resetTenantMenuToDefault(companyId: number) {
     await adminDb
-        .delete(tenantMenuCustomizations)
-        .where(eq(tenantMenuCustomizations.company_id, companyId));
+        .delete(authMenuCustom)
+        .where(eq(authMenuCustom.company_id, companyId));
 
     await invalidateMenuCaches(companyId);
     return { success: true };
@@ -434,14 +434,14 @@ export async function getRouteAliases(companyId: number): Promise<Record<string,
         const items = await adminDb
             .select({
                 path: authMenuItems.path,
-                path_alias: sql<string | null>`COALESCE(${tenantMenuCustomizations.path_alias}, ${authMenuItems.path_alias})`,
+                path_alias: sql<string | null>`COALESCE(${authMenuCustom.path_alias}, ${authMenuItems.path_alias})`,
             })
             .from(authMenuItems)
             .leftJoin(
-                tenantMenuCustomizations,
+                authMenuCustom,
                 and(
-                    eq(tenantMenuCustomizations.menu_item_id, authMenuItems.id),
-                    eq(tenantMenuCustomizations.company_id, companyId)
+                    eq(authMenuCustom.menu_item_id, authMenuItems.id),
+                    eq(authMenuCustom.company_id, companyId)
                 )
             )
             .where(and(
