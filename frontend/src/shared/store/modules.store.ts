@@ -41,11 +41,11 @@ if (typeof window !== 'undefined') {
 export interface ModuleConfig {
     key: string;
     label: string;
-    icon?: string;
-    path?: string;
-    pathAlias?: string;
-    permission?: string;
-    status?: MenuItemStatus;
+    icon?: string | null;
+    path?: string | null;
+    pathAlias?: string | null;
+    permission?: string | null;
+    status?: MenuItemStatus | string | null;
     children?: ModuleConfig[];
 }
 

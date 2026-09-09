@@ -11,7 +11,7 @@
  */
 
 import { resolveSlugFromHost } from '@app/schema/utils';
-import { CANONICAL_DEFAULT_ALIASES, CANONICAL_DEFAULT_REVERSE } from '@app/schema';
+import { CANONICAL_DEFAULT_ALIASES, CANONICAL_DEFAULT_REVERSE } from '@app/schema/routes';
 
 /** Storage prefix for client-side synchronous alias hydration */
 const ALIAS_CACHE_PREFIX = 'zelys_route_aliases:';

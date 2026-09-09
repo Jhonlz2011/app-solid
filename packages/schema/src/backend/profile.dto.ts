@@ -18,17 +18,19 @@ export interface ModuleConfigItem {
     label: string;
     icon?: string | null;
     path?: string | null;
+    pathAlias?: string | null;
     permission?: string | null;
     status?: string | null;
     children?: ModuleConfigItem[];
 }
 
-export const ModuleConfigSchema = Type.Recursive((Self) =>
+export const ModuleConfigSchema: any = Type.Recursive((Self) =>
     Type.Object({
         key: Type.String(),
         label: Type.String(),
         icon: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         path: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        pathAlias: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         permission: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         status: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         children: Type.Optional(Type.Array(Self)),

@@ -9,7 +9,7 @@ import { SidebarFooter } from './SidebarFooter';
 import { SidebarProvider } from './SidebarContext';
 import { useMediaQuery } from '@shared/hooks/useMediaQuery';
 import { useMobileSidebar } from '@shared/store/layout.store';
-import type { MenuItem } from './types';
+import type { MenuItem, MenuItemStatus } from './types';
 
 export const Sidebar: Component = () => {
     const navigate = useNavigate();
@@ -54,9 +54,9 @@ export const Sidebar: Component = () => {
             id: m.key,
             label: m.label,
             icon: m.icon || '',
-            path: m.path,
-            pathAlias: m.pathAlias,
-            status: m.status,
+            path: m.path ?? undefined,
+            pathAlias: m.pathAlias ?? undefined,
+            status: (m.status as MenuItemStatus) ?? undefined,
             children: m.children?.map(mapItem)
         });
         const raw = modules();
