@@ -1,4 +1,4 @@
-import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext } from 'solid-js';
+import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext, children } from 'solid-js';
 import { cn } from '@shared/lib/utils';
 import type { FieldLike } from '@form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
@@ -217,6 +217,8 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
         loading: () => local.loading ?? false,
         errorMessage,
     };
+    const resolvedChildren = children(() => local.children);
+
     return (
         <TextFieldContext.Provider value={contextValue}>
             <div
@@ -225,7 +227,7 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
                 data-invalid={contextValue.isInvalid()}
                 {...others}
             >
-                {local.children}
+                {resolvedChildren()}
             </div>
         </TextFieldContext.Provider>
     );
@@ -382,17 +384,16 @@ const Input = (props: TextFieldInputProps) => {
                 {...others}
             />
 
-            <Show when={isLoading()}>
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+            <div
+                class={cn(
+                    "absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-muted",
+                    (!local.rightIcon || isLoading()) && "pointer-events-none"
+                )}
+            >
+                <Show when={isLoading()} fallback={local.rightIcon}>
                     <SpinnerIcon class="size-4 animate-spin text-primary" />
-                </div>
-            </Show>
-
-            <Show when={!isLoading() && local.rightIcon}>
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
-                    {local.rightIcon}
-                </div>
-            </Show>
+                </Show>
+            </div>
         </div>
     );
 };
@@ -423,23 +424,25 @@ const PasswordInput = (props: TextFieldPasswordInputProps) => {
                 class={cn(inputBaseStyles, local.leftIcon && "pl-9", "pr-12", local.class)}
                 {...others}
             />
-            <Show when={isLoading()} fallback={
-                <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword())}
-                    disabled={context.disabled()}
-                    class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-heading transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                    tabIndex={-1}
-                >
-                    <Show when={showPassword()} fallback={<EyeIcon class="size-5" />}>
-                        <EyeOffIcon class="size-5" />
-                    </Show>
-                </button>
-            }>
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
-                    <SpinnerIcon class="size-4 animate-spin text-primary" />
-                </div>
-            </Show>
+            <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
+                <Show when={isLoading()} fallback={
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword())}
+                        disabled={context.disabled()}
+                        class="p-1 text-muted hover:text-heading transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                        tabIndex={-1}
+                    >
+                        <Show when={showPassword()} fallback={<EyeIcon class="size-5" />}>
+                            <EyeOffIcon class="size-5" />
+                        </Show>
+                    </button>
+                }>
+                    <div class="pointer-events-none flex items-center justify-center text-muted">
+                        <SpinnerIcon class="size-4 animate-spin text-primary" />
+                    </div>
+                </Show>
+            </div>
         </div>
     );
 };
@@ -570,17 +573,16 @@ const NumericInput = (props: TextFieldNumericInputProps) => {
                 {...others}
             />
 
-            <Show when={isLoading()}>
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+            <div
+                class={cn(
+                    "absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-muted",
+                    (!local.rightIcon || isLoading()) && "pointer-events-none"
+                )}
+            >
+                <Show when={isLoading()} fallback={local.rightIcon}>
                     <SpinnerIcon class="size-4 animate-spin text-primary" />
-                </div>
-            </Show>
-
-            <Show when={!isLoading() && local.rightIcon}>
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
-                    {local.rightIcon}
-                </div>
-            </Show>
+                </Show>
+            </div>
         </div>
     );
 };
