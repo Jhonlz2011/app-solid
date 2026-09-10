@@ -139,9 +139,28 @@ const inputBaseStyles = `
     data-[invalid=true]:border-red-500/50 data-[invalid=true]:focus:ring-red-500/25
 `;
 
-// ============================================================================
-// COMPONENTS
-// ============================================================================
+interface RootContainerProps {
+    class?: string;
+    isInvalid: () => boolean;
+    others: Record<string, any>;
+    children: JSX.Element;
+}
+
+/** Internal container rendered inside Provider so context is accessible during children memoization */
+const RootContainer = (cProps: RootContainerProps) => {
+    // Memoize children under Provider context to guarantee 100% stable DOM node identity without breaking context
+    const resolvedChildren = children(() => cProps.children);
+    return (
+        <div
+            class={cn("relative flex flex-col gap-1", cProps.class)}
+            data-valid={!cProps.isInvalid()}
+            data-invalid={cProps.isInvalid()}
+            {...cProps.others}
+        >
+            {resolvedChildren()}
+        </div>
+    );
+};
 
 /** Root container - provides context to children */
 const Root = <TValue extends string | number | undefined | null = string | number | undefined | null>(
@@ -230,19 +249,15 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
         errorMessage,
     };
 
-    // Memoize children to guarantee 100% stable DOM node identity (preserves input focus during real-time checks)
-    const resolvedChildren = children(() => local.children);
-
     return (
         <TextFieldContext.Provider value={contextValue}>
-            <div
-                class={cn("relative flex flex-col gap-1", local.class)}
-                data-valid={!contextValue.isInvalid()}
-                data-invalid={contextValue.isInvalid()}
-                {...others}
+            <RootContainer
+                class={local.class}
+                isInvalid={contextValue.isInvalid}
+                others={others}
             >
-                {resolvedChildren()}
-            </div>
+                {local.children}
+            </RootContainer>
         </TextFieldContext.Provider>
     );
 };
