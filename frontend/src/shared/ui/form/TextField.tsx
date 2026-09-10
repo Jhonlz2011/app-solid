@@ -1,4 +1,4 @@
-import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext, children } from 'solid-js';
+import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext } from 'solid-js';
 import { cn } from '@shared/lib/utils';
 import type { FieldLike } from '@form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
@@ -217,8 +217,6 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
         loading: () => local.loading ?? false,
         errorMessage,
     };
-    const resolvedChildren = children(() => local.children);
-
     return (
         <TextFieldContext.Provider value={contextValue}>
             <div
@@ -227,7 +225,7 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
                 data-invalid={contextValue.isInvalid()}
                 {...others}
             >
-                {resolvedChildren()}
+                {local.children}
             </div>
         </TextFieldContext.Provider>
     );
