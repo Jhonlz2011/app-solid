@@ -215,7 +215,7 @@ const Login: Component = () => {
         </div>
 
         {/* Title + subtitle */}
-        <div class="text-center sm:text-left min-w-0">
+        <div class="text-center @sm:text-left min-w-0">
           <h1 class="text-xl sm:text-2xl font-bold text-heading tracking-tight">
             {branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Iniciar sesión'}
           </h1>
