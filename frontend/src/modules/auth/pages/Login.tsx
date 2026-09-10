@@ -8,8 +8,7 @@ import { actions } from '@modules/auth/store/auth.store';
 import { useBranding, getSubdomain } from '../store/branding.store';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import { buildTenantUrl, isGlobalPortalHost, resolveSlugFromHost } from '@app/schema/utils';
-import { resolvePostAuthRouting } from '../utils/resolve-routing';
-import { navigateSafely } from '@shared/utils/navigation';
+import { resolvePostAuthRouting, getSafeRedirectPath, executeAuthNavigation, fetchUserOrganizations, mapOrgToTenant } from '../utils/resolve-routing';
 import TextField from '@form/TextField';
 import Button from '@form/Button';
 import Turnstile from '@shared/ui/Turnstile';
@@ -24,7 +23,6 @@ const Login: Component = () => {
   const branding = useBranding();
 
   const subdomain = getSubdomain();
-  const isGlobalLogin = !subdomain || subdomain === 'in';
 
   // UI state
   const [showTenants, setShowTenants] = createSignal(false);
@@ -41,72 +39,31 @@ const Login: Component = () => {
       toast.error(getFriendlyErrorMessage(errorParam, 'Error al autenticar con el proveedor social'));
     }
 
-    // Check for active session (e.g. OAuth return or previously authenticated)
-    const hasSession = localStorage.getItem('hasSession') || params.get('session') === 'true';
-    if (hasSession) {
-      try {
-        const auth = (await import('@modules/auth/store/auth.store')).useAuth();
-        let user = auth.user();
-        if (!user) {
-          const restored = await actions.initSession();
-          if (restored) user = auth.user();
-        }
-
+    // If authenticated user enters portal login -> show tenant selector
+    const { useAuth } = await import('@modules/auth/store/auth.store');
+    const auth = useAuth();
+    if (auth.isAuthenticated()) {
+      const orgs = await fetchUserOrganizations();
+      if (orgs.length > 0) {
         const isGlobal = isGlobalPortalHost(window.location.hostname);
         const currentSlug = resolveSlugFromHost(window.location.hostname);
-        const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, '/dashboard');
-
-        switch (decision.action) {
-          case 'redirect-tenant':
-            handleRedirect(decision.slug, decision.path);
-            return;
-          case 'show-selector':
-          case 'no-access':
-            if (decision.action === 'no-access') {
-              toast.error(`Tu cuenta no tiene acceso a ${decision.currentSlug}. Puedes acceder a tus empresas:`);
-            }
-            setDiscoveredTenants(decision.tenants);
-            setShowTenants(true);
-            return;
-          case 'onboard':
-            navigate({ to: '/register', replace: true });
-            return;
-          case 'stay':
-            if (decision.organizationId) {
-              await actions.switchOrganization(decision.organizationId);
-            }
-            navigate({ to: '/dashboard', replace: true });
-            return;
+        if (!isGlobal && currentSlug && !orgs.some(o => o.slug === currentSlug)) {
+          toast.error(`No tienes acceso a ${currentSlug}. Selecciona una de tus empresas:`);
         }
-      } catch (err) {
-        console.warn('[Login] Error resolving post-auth routing in onMount:', err);
+        setDiscoveredTenants(orgs.map(mapOrgToTenant));
+        setShowTenants(true);
       }
     }
   });
-
-  /** Computes a safe redirect path from URL search params */
-  const getSafeRedirectPath = (): string => {
-    const searchParams = typeof search === 'function' ? search() : search;
-    const redirectTo = (searchParams as any)?.redirect
-      ?? new URLSearchParams(window.location.search).get('redirect');
-    const rawPath = typeof redirectTo === 'string' && redirectTo.startsWith('/')
-      ? new URL(redirectTo, window.location.origin).pathname
-      : '/dashboard';
-    return (!rawPath || rawPath === '/verify-email' || rawPath.startsWith('/login') || rawPath.startsWith('/register') || rawPath.startsWith('/verify-email'))
-      ? '/dashboard'
-      : rawPath;
-  };
-
-  const handleRedirect = (slug: string, path: string) => {
-    window.location.href = buildTenantUrl(slug, path, { queryParams: { session: 'true' } });
-  };
 
   const handleSelectTenant = async (tenant: DiscoverTenantItemType) => {
     setLoadingTenants(true);
     try {
       await actions.switchOrganization(tenant.organizationId);
-      const safePath = getSafeRedirectPath();
-      handleRedirect(tenant.slug, safePath);
+      const safePath = getSafeRedirectPath(search);
+      window.location.href = buildTenantUrl(tenant.slug, safePath, {
+        queryParams: { session: 'true' },
+      });
     } catch (err: any) {
       toast.error(err?.message || 'Error al seleccionar empresa');
     } finally {
@@ -133,34 +90,24 @@ const Login: Component = () => {
           password: value.password,
         });
 
-        const { user } = res;
-        const safePath = getSafeRedirectPath();
+        const safePath = getSafeRedirectPath(search);
         const isGlobal = isGlobalPortalHost(window.location.hostname);
         const currentSlug = resolveSlugFromHost(window.location.hostname);
-        const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, safePath);
+        const decision = await resolvePostAuthRouting(res.user, isGlobal, currentSlug, safePath);
 
-        switch (decision.action) {
-          case 'redirect-tenant':
-            handleRedirect(decision.slug, decision.path);
-            return;
-          case 'show-selector':
-          case 'no-access':
-            if (decision.action === 'no-access') {
-              toast.error(`No tienes acceso a ${decision.currentSlug}. Selecciona una de tus empresas:`);
-            }
+        const navigated = await executeAuthNavigation(decision, {
+          safePath,
+          switchOrg: actions.switchOrganization,
+        });
+
+        if (!navigated) {
+          if (decision.action === 'no-access') {
+            toast.error(`No tienes acceso a ${decision.currentSlug}. Selecciona una de tus empresas:`);
+          }
+          if ('tenants' in decision) {
             setDiscoveredTenants(decision.tenants);
             setShowTenants(true);
-            return;
-          case 'onboard':
-            toast.info('Completa los datos de tu empresa para comenzar');
-            navigate({ to: '/register', replace: true });
-            return;
-          case 'stay':
-            if (decision.organizationId) {
-              await actions.switchOrganization(decision.organizationId);
-            }
-            await navigateSafely(safePath, { replace: true });
-            return;
+          }
         }
       } catch (err) {
         setShowTenants(false);

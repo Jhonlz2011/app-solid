@@ -91,69 +91,35 @@ const layoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'layout',
   beforeLoad: async ({ location }) => {
-    const { actions, useAuth } = await import('./modules/auth/store/auth.store');
-    const { isGlobalPortalHost, buildTenantUrl, resolveSlugFromHost } = await import('@app/schema/utils');
-    const { resolvePostAuthRouting } = await import('./modules/auth/utils/resolve-routing');
-    const auth = useAuth();
+    const { actions } = await import('./modules/auth/store/auth.store');
+    const user = await actions.ensureSession();
+
+    const { getSafeRedirectPath, resolvePostAuthRouting, executeAuthGuard } = await import('./modules/auth/utils/resolve-routing');
+    const safeTarget = getSafeRedirectPath(location.href);
+
+    if (!user) {
+      throw redirect({
+        to: '/login',
+        search: { redirect: safeTarget !== '/dashboard' ? safeTarget : undefined },
+      });
+    }
+
+    if (!isEmailVerified(user)) {
+      throw redirect({ to: '/verify-email', search: {} });
+    }
+
+    const { isGlobalPortalHost, resolveSlugFromHost } = await import('@app/schema/utils');
 
     const isGlobal = isGlobalPortalHost(window.location.hostname);
     const currentSlug = resolveSlugFromHost(window.location.hostname);
+    const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, safeTarget);
 
-    const getSafeRedirect = () => {
-      const p = location.pathname;
-      if (!p || p === '/' || p === '/dashboard' || p.startsWith('/login') || p.startsWith('/register') || p === '/verify-email' || p === '/create-company') {
-        return undefined;
-      }
-      return p;
-    };
-
-    const handleProtectedRouting = async (u: any) => {
-      if (u && !isEmailVerified(u)) {
-        throw redirect({ to: '/verify-email', search: {} });
-      }
-
-      const decision = await resolvePostAuthRouting(u, isGlobal, currentSlug, location.pathname);
-
-      switch (decision.action) {
-        case 'onboard':
-          throw redirect({ to: '/register' });
-        case 'show-selector':
-        case 'no-access':
-          throw redirect({ to: '/login' });
-        case 'redirect-tenant':
-          window.location.href = buildTenantUrl(decision.slug, decision.path, {
-            queryParams: { session: 'true' },
-          });
-          return;
-        case 'stay':
-          if (decision.organizationId) {
-            await actions.switchOrganization(decision.organizationId);
-          }
-          return;
-      }
-    };
-
-    // FAST PATH: Already authenticated in memory
-    if (auth.isAuthenticated() && auth.user()) {
-      await handleProtectedRouting(auth.user());
-      return;
-    }
-
-    // COLD PATH: Check session flag before hitting server
-    const hasSessionFlag = localStorage.getItem('hasSession');
-    const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
-    if (!hasSessionFlag && !hasSessionParam) {
-      throw redirect({ to: '/login', search: { redirect: getSafeRedirect() } });
-    }
-
-    // Restore session from server (cookie-based)
-    const restored = await actions.initSession();
-    if (restored && auth.user()) {
-      await handleProtectedRouting(auth.user());
-      return;
-    }
-
-    throw redirect({ to: '/login', search: { redirect: getSafeRedirect() } });
+    await executeAuthGuard(decision, {
+      targetPath: safeTarget,
+      currentPathname: location.pathname,
+      isAuthPage: false,
+      switchOrg: actions.switchOrganization,
+    });
   },
   loader: async () => {
     const { actions } = await import('./shared/store/modules.store');
@@ -163,62 +129,15 @@ const layoutRoute = createRoute({
   component: ProtectedLayout,
 });
 
-// --- ROOT INDEX ROUTE (Despacho limpio de la raíz "/" sin montar layout protegido) ---
+// --- ROOT INDEX ROUTE (Despacha la raíz "/" hacia /dashboard de forma protegida) ---
 const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => layoutRoute,
   path: '/',
-  beforeLoad: async () => {
-    const { actions, useAuth } = await import('./modules/auth/store/auth.store');
-    const { isGlobalPortalHost, buildTenantUrl, resolveSlugFromHost } = await import('@app/schema/utils');
-    const { resolvePostAuthRouting } = await import('./modules/auth/utils/resolve-routing');
-    const auth = useAuth();
-
-    const isGlobal = isGlobalPortalHost(window.location.hostname);
-    const currentSlug = resolveSlugFromHost(window.location.hostname);
-
-    const handleRouting = async (user: any) => {
-      const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug);
-
-      switch (decision.action) {
-        case 'onboard':
-          throw redirect({ to: '/register' });
-        case 'show-selector':
-          throw redirect({ to: '/login' });
-        case 'no-access':
-          throw redirect({ to: '/login' });
-        case 'redirect-tenant':
-          window.location.href = buildTenantUrl(decision.slug, '/dashboard', {
-            queryParams: { session: 'true' },
-          });
-          return;
-        case 'stay':
-          if (decision.organizationId) {
-            await actions.switchOrganization(decision.organizationId);
-          }
-          throw redirect({ to: '/dashboard' });
-      }
-    };
-
-    // Fast path: usuario ya autenticado en memoria
-    if (auth.isAuthenticated() && auth.user()) {
-      await handleRouting(auth.user());
-      return;
-    }
-
-    // Comprobar si hay sesión activa antes de consultar al backend
-    const hasSessionFlag = localStorage.getItem('hasSession');
-    const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
-    if (hasSessionFlag || hasSessionParam) {
-      const restored = await actions.initSession();
-      if (restored && auth.user()) {
-        await handleRouting(auth.user());
-      }
-    }
-
-    // Usuario no autenticado → ir a /login
-    throw redirect({ to: '/login' });
+  beforeLoad: () => {
+    throw redirect({ to: '/dashboard' });
   },
 });
+
 
 const dashboardRoute = createRoute({
   getParentRoute: () => layoutRoute,
@@ -266,10 +185,10 @@ const createCompanyRoute = createRoute({
 const crudLayout = createCrudLayout(layoutRoute);
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
   authRoute,
   verifyEmailRoute,
   layoutRoute.addChildren([
+    indexRoute,
     dashboardRoute,
     createCompanyRoute,
     createSettingsRoutes(layoutRoute),

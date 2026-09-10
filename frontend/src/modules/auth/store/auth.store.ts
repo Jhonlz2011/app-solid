@@ -287,6 +287,34 @@ export const actions = {
         return initSessionPromise;
     },
 
+    /**
+     * Ensures an authenticated session is active.
+     * Fast-paths if already authenticated in memory; checks session hints (localStorage or URL)
+     * before performing a network call to initSession.
+     * Returns the authenticated user or null.
+     */
+    ensureSession: async (): Promise<ProfileType | null> => {
+        if (state.status === 'authenticated' && state.user) {
+            return state.user;
+        }
+        const hasSessionFlag = localStorage.getItem(SESSION_FLAG_KEY);
+        const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
+        if (!hasSessionFlag && !hasSessionParam) {
+            return null;
+        }
+        const restored = await actions.initSession();
+        if (restored && typeof window !== 'undefined' && window.location.search.includes('session=true')) {
+            try {
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('session');
+                const newSearch = cleanUrl.searchParams.toString();
+                const newPath = cleanUrl.pathname + (newSearch ? `?${newSearch}` : '') + cleanUrl.hash;
+                window.history.replaceState(window.history.state, '', newPath);
+            } catch {}
+        }
+        return restored ? state.user : null;
+    },
+
     // Refresh user session/profile data from server (silently in background)
     refreshSession: async (): Promise<boolean> => {
         try {

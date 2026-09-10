@@ -1,5 +1,9 @@
 import { authClient } from '@shared/lib/auth-client';
 import type { DiscoverTenantItemType } from '@app/schema/dto';
+import { buildTenantUrl } from '@app/schema/utils';
+import { redirect } from '@tanstack/solid-router';
+import { toRealPath } from '@shared/utils/route-alias';
+import { redirectSafely, navigateSafely } from '@shared/utils/navigation';
 
 // ============================================================================
 // Organization → Tenant Mapper (M-01: single typed implementation)
@@ -81,6 +85,131 @@ export function invalidateOrgCache(): void {
     cachedOrgs = null;
     cacheTimestamp = 0;
 }
+
+/**
+ * Safely extracts and validates a redirect path, always normalizing to the canonical route.
+ * Prevents open redirects, infinite auth loops, and invalid destinations.
+ * Defaults to '/dashboard' if the candidate path is missing or unsafe.
+ */
+export function getSafeRedirectPath(
+    candidate?: string | Record<string, unknown> | (() => Record<string, unknown>) | null
+): string {
+    let raw: string | null = null;
+
+    if (typeof candidate === 'function') {
+        try {
+            const res = candidate();
+            if (res && typeof res === 'object' && 'redirect' in res && typeof (res as Record<string, unknown>).redirect === 'string') {
+                raw = (res as Record<string, unknown>).redirect as string;
+            }
+        } catch {}
+    } else if (typeof candidate === 'string') {
+        raw = candidate;
+    } else if (candidate && typeof candidate === 'object') {
+        const fromObj = (candidate as Record<string, unknown>).redirect;
+        if (typeof fromObj === 'string') raw = fromObj;
+    }
+
+    if (!raw && typeof window !== 'undefined') {
+        raw = new URLSearchParams(window.location.search).get('redirect');
+    }
+
+    if (!raw || !raw.startsWith('/') || raw.startsWith('//')) {
+        return '/dashboard';
+    }
+
+    try {
+        const url = new URL(raw, 'http://dummy.local');
+        const pathOnly = url.pathname;
+        const unsafePrefixes = ['/login', '/register', '/verify-email', '/create-company'];
+        if (!pathOnly || pathOnly === '/' || unsafePrefixes.some(prefix => pathOnly.startsWith(prefix))) {
+            return '/dashboard';
+        }
+
+        // Always resolve to the canonical route (e.g. /clientes or /pacientes -> /clients)
+        const canonical = toRealPath(pathOnly);
+        return `${canonical}${url.search}${url.hash}`;
+    } catch {
+        return '/dashboard';
+    }
+}
+
+/**
+ * Executes a routing decision within a TanStack Router beforeLoad guard.
+ * Handles cross-tenant URL transitions, org switching, and route redirects in a single place.
+ */
+export async function executeAuthGuard(
+    decision: RoutingDecision,
+    options: {
+        targetPath: string;
+        currentPathname: string;
+        isAuthPage?: boolean;
+        switchOrg: (orgId: string) => Promise<any>;
+    }
+): Promise<void> {
+    switch (decision.action) {
+        case 'onboard':
+            if (options.currentPathname.includes('/register')) return;
+            throw redirect({ to: '/register' });
+
+        case 'show-selector':
+        case 'no-access':
+            if (options.isAuthPage) return; // Allow /login to render tenant selector
+            throw redirect({ to: '/login' });
+
+        case 'redirect-tenant':
+            window.location.href = buildTenantUrl(decision.slug, decision.path, {
+                queryParams: { session: 'true' },
+            });
+            return;
+
+        case 'stay':
+            if (decision.organizationId) {
+                await options.switchOrg(decision.organizationId);
+            }
+            if (options.isAuthPage) {
+                if (options.currentPathname.includes('/register')) return;
+                throw redirectSafely(options.targetPath);
+            }
+            return;
+    }
+}
+
+/**
+ * Executes post-auth navigation from a UI handler (e.g. Login form onSubmit).
+ * Returns true if navigation occurred, or false if tenant selector should remain visible in the UI.
+ */
+export async function executeAuthNavigation(
+    decision: RoutingDecision,
+    options: {
+        safePath: string;
+        switchOrg: (orgId: string) => Promise<any>;
+    }
+): Promise<boolean> {
+    switch (decision.action) {
+        case 'redirect-tenant':
+            window.location.href = buildTenantUrl(decision.slug, decision.path, {
+                queryParams: { session: 'true' },
+            });
+            return true;
+
+        case 'onboard':
+            await navigateSafely('/register', { replace: true });
+            return true;
+
+        case 'stay':
+            if (decision.organizationId) {
+                await options.switchOrg(decision.organizationId);
+            }
+            await navigateSafely(options.safePath, { replace: true });
+            return true;
+
+        case 'show-selector':
+        case 'no-access':
+            return false;
+    }
+}
+
 
 // ============================================================================
 // Post-Auth Routing Decision (H-05: single implementation)
