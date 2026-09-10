@@ -109,7 +109,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 {/* Username Field with Live Availability */}
                 <form.Field name="username">
                     {(field) => (
-                        <TextField.Root field={field} disabled={isPending()}>
+                        <TextField.Root field={field} disabled={isPending}>
                             <TextField.Label
                                 badge={
                                     <AvailabilityBadge
@@ -125,7 +125,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                             <TextField.Input
                                 placeholder="nombredeusuario"
                                 leftIcon={<span class="text-sm font-medium text-muted">@</span>}
-                                loading={usernameCheck.isChecking()}
+                                loading={usernameCheck.isChecking}
                             />
                             <TextField.ErrorMessage />
                         </TextField.Root>
@@ -135,7 +135,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 {/* Email Field with Live Availability */}
                 <form.Field name="email">
                     {(field) => (
-                        <TextField.Root field={field} disabled={isPending()}>
+                        <TextField.Root field={field} disabled={isPending}>
                             <TextField.Label
                                 badge={
                                     <AvailabilityBadge
@@ -151,7 +151,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                             <TextField.Input
                                 type="email"
                                 placeholder="tu@email.com"
-                                loading={emailCheck.isChecking()}
+                                loading={emailCheck.isChecking}
                             />
                             <TextField.ErrorMessage />
                         </TextField.Root>

@@ -1,4 +1,4 @@
-import { Component, createSignal, Show, For, createEffect } from 'solid-js';
+import { Component, createSignal, Show, For, createEffect, untrack } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useNavigate } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
@@ -302,7 +302,7 @@ const Register: Component = () => {
                                     type="text"
                                     placeholder="ej: juan.perez"
                                     autocomplete="username"
-                                    loading={usernameCheck.isChecking()}
+                                    loading={usernameCheck.isChecking}
                                     onInput={(e) => {
                                         const raw = e.currentTarget.value;
                                         const v = raw.toLowerCase().replace(/[^a-z0-9._-]/g, '');
@@ -352,13 +352,13 @@ const Register: Component = () => {
                                         placeholder="correo@ejemplo.com"
                                         autocomplete="email"
                                         disabled={isOAuthUser()}
-                                        loading={emailCheck.isChecking()}
+                                        loading={emailCheck.isChecking}
                                     />
                                     <TextField.ErrorMessage />
                                 </TextField.Root>
                             )} />
                             <Show when={!isOAuthUser()}>
-                                <step1Form.Field name="password" children={(f) => (
+                                <step1Form.Field name="password" children={(f) => untrack(() => (
                                     <div class="flex flex-col gap-1">
                                         <TextField.Root field={f}>
                                             <TextField.Label>Contraseña *</TextField.Label>
@@ -367,7 +367,7 @@ const Register: Component = () => {
                                         </TextField.Root>
                                         <PasswordStrength password={f().state.value} />
                                     </div>
-                                )} />
+                                ))} />
                             </Show>
                         </div>
                         <step1Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting, isDirty: s.isDirty })}

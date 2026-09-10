@@ -214,7 +214,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                                 <TextField.Input
                                                     placeholder="Se generará del correo si se deja vacío"
                                                     autocomplete="username"
-                                                    loading={usernameCheck.isChecking()}
+                                                    loading={usernameCheck.isChecking}
                                                 />
                                                 <TextField.ErrorMessage />
                                             </TextField.Root>

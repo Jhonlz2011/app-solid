@@ -1,4 +1,4 @@
-import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext, children, type Accessor } from 'solid-js';
+import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext, untrack, type Accessor } from 'solid-js';
 import { cn } from '@shared/lib/utils';
 import type { FieldLike } from '@form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
@@ -26,11 +26,11 @@ export interface TextFieldRootProps<TValue extends string | number | undefined |
     /** Validation state for styling - auto-detected from field if provided */
     validationState?: ValidationState;
     /** Disable the field */
-    disabled?: boolean;
+    disabled?: boolean | Accessor<boolean>;
     /** Read-only mode */
-    readOnly?: boolean;
+    readOnly?: boolean | Accessor<boolean>;
     /** Loading state */
-    loading?: boolean;
+    loading?: boolean | Accessor<boolean>;
     /** Additional classes */
     class?: string;
     /** Children (Label, Input, ErrorMessage) */
@@ -63,7 +63,7 @@ export interface FieldLabelProps {
 
 export interface TextFieldInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
     class?: string;
-    loading?: boolean;
+    loading?: boolean | Accessor<boolean>;
     rightIcon?: JSX.Element;
     leftIcon?: JSX.Element;
     onInput?: JSX.EventHandlerUnion<HTMLInputElement, InputEvent>;
@@ -75,7 +75,7 @@ interface TextFieldTextAreaProps extends Omit<JSX.TextareaHTMLAttributes<HTMLTex
 
 interface TextFieldPasswordInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type'> {
     class?: string;
-    loading?: boolean;
+    loading?: boolean | Accessor<boolean>;
     leftIcon?: JSX.Element;
 }
 
@@ -85,7 +85,7 @@ interface TextFieldNumericInputProps extends Omit<JSX.InputHTMLAttributes<HTMLIn
     allowNegative?: boolean;
     /** Whether to allow decimals. Default: true */
     allowDecimal?: boolean;
-    loading?: boolean;
+    loading?: boolean | Accessor<boolean>;
     rightIcon?: JSX.Element;
     leftIcon?: JSX.Element;
 }
@@ -146,10 +146,11 @@ interface RootContainerProps {
     children: JSX.Element;
 }
 
-/** Internal container rendered inside Provider so context is accessible during children memoization */
+/** Internal container rendered inside Provider so context is accessible during initial render */
 const RootContainer = (cProps: RootContainerProps) => {
-    // Memoize children under Provider context to guarantee 100% stable DOM node identity without breaking context
-    const resolvedChildren = children(() => cProps.children);
+    // Resolve children once under untrack to prevent parent memos (e.g. TanStack Form Field)
+    // from subscribing to reactive signals read inside children (like isChecking or status)
+    const resolvedChildren = untrack(() => cProps.children);
     return (
         <div
             class={cn("relative flex flex-col gap-1", cProps.class)}
@@ -157,7 +158,7 @@ const RootContainer = (cProps: RootContainerProps) => {
             data-invalid={cProps.isInvalid()}
             {...cProps.others}
         >
-            {resolvedChildren()}
+            {resolvedChildren}
         </div>
     );
 };
@@ -166,100 +167,102 @@ const RootContainer = (cProps: RootContainerProps) => {
 const Root = <TValue extends string | number | undefined | null = string | number | undefined | null>(
     props: TextFieldRootProps<TValue>
 ) => {
-    const [local, others] = splitProps(props, [
-        'field',
-        'value',
-        'defaultValue',
-        'onChange',
-        'validationState',
-        'disabled',
-        'readOnly',
-        'loading',
-        'class',
-        'children',
-    ]);
+    return untrack(() => {
+        const [local, others] = splitProps(props, [
+            'field',
+            'value',
+            'defaultValue',
+            'onChange',
+            'validationState',
+            'disabled',
+            'readOnly',
+            'loading',
+            'class',
+            'children',
+        ]);
 
-    const id = createUniqueId();
-    const [uncontrolledValue, setUncontrolledValue] = createSignal(
-        local.defaultValue != null ? String(local.defaultValue) : ''
-    );
-    
-    // Track form submission state explicitly
-    const isFormSubmitted = useContext(FormSubmissionContext);
+        const id = createUniqueId();
+        const [uncontrolledValue, setUncontrolledValue] = createSignal(
+            local.defaultValue != null ? String(local.defaultValue) : ''
+        );
+        
+        // Track form submission state explicitly
+        const isFormSubmitted = useContext(FormSubmissionContext);
 
-    // Resolves field whether provided as raw FieldLike object or Accessor<FieldLike>
-    const getField = (): FieldLike<TValue> | undefined => {
-        if (!local.field) return undefined;
-        return typeof local.field === 'function'
-            ? (local.field as Accessor<FieldLike<TValue> | undefined>)()
-            : local.field;
-    };
+        // Resolves field whether provided as raw FieldLike object or Accessor<FieldLike>
+        const getField = (): FieldLike<TValue> | undefined => {
+            if (!local.field) return undefined;
+            return typeof local.field === 'function'
+                ? (local.field as Accessor<FieldLike<TValue> | undefined>)()
+                : local.field;
+        };
 
-    const hasField = () => !!getField();
+        const hasField = () => !!getField();
 
-    // Reactive value: from field, controlled prop, or internal uncontrolled signal
-    const value = createMemo(() => {
-        const f = getField();
-        if (f) {
-            const v = f.state.value;
-            return v == null ? '' : String(v);
-        }
-        return local.value !== undefined 
-            ? (local.value == null ? '' : String(local.value)) 
-            : uncontrolledValue();
-    });
-
-    // Validation state: from field or props
-    const validationState = createMemo((): ValidationState => {
-        const f = getField();
-        if (f && hasFieldError(f, isFormSubmitted())) return 'invalid';
-        return local.validationState ?? 'valid';
-    });
-
-    // Error message (only from field)
-    const errorMessage = createMemo(() => {
-        const f = getField();
-        if (f) return getFieldError(f);
-        return '';
-    });
-
-    const contextValue: TextFieldContextValue = {
-        id,
-        value,
-        onChange: (newValue: any) => {
+        // Reactive value: from field, controlled prop, or internal uncontrolled signal
+        const value = createMemo(() => {
             const f = getField();
             if (f) {
-                f.handleChange(newValue as any);
-            } else {
-                setUncontrolledValue(newValue == null ? '' : String(newValue));
-                local.onChange?.(newValue);
+                const v = f.state.value;
+                return v == null ? '' : String(v);
             }
-        },
-        onBlur: () => {
-            const f = getField();
-            if (f) {
-                f.handleBlur();
-            }
-        },
-        validationState,
-        isInvalid: () => validationState() === 'invalid',
-        disabled: () => local.disabled ?? false,
-        readOnly: () => local.readOnly ?? false,
-        loading: () => local.loading ?? false,
-        errorMessage,
-    };
+            return local.value !== undefined 
+                ? (local.value == null ? '' : String(local.value)) 
+                : uncontrolledValue();
+        });
 
-    return (
-        <TextFieldContext.Provider value={contextValue}>
-            <RootContainer
-                class={local.class}
-                isInvalid={contextValue.isInvalid}
-                others={others}
-            >
-                {local.children}
-            </RootContainer>
-        </TextFieldContext.Provider>
-    );
+        // Validation state: from field or props
+        const validationState = createMemo((): ValidationState => {
+            const f = getField();
+            if (f && hasFieldError(f, isFormSubmitted())) return 'invalid';
+            return local.validationState ?? 'valid';
+        });
+
+        // Error message (only from field)
+        const errorMessage = createMemo(() => {
+            const f = getField();
+            if (f) return getFieldError(f);
+            return '';
+        });
+
+        const contextValue: TextFieldContextValue = {
+            id,
+            value,
+            onChange: (newValue: any) => {
+                const f = getField();
+                if (f) {
+                    f.handleChange(newValue as any);
+                } else {
+                    setUncontrolledValue(newValue == null ? '' : String(newValue));
+                    local.onChange?.(newValue);
+                }
+            },
+            onBlur: () => {
+                const f = getField();
+                if (f) {
+                    f.handleBlur();
+                }
+            },
+            validationState,
+            isInvalid: () => validationState() === 'invalid',
+            disabled: () => typeof local.disabled === 'function' ? (local.disabled as any)() : (local.disabled ?? false),
+            readOnly: () => typeof local.readOnly === 'function' ? (local.readOnly as any)() : (local.readOnly ?? false),
+            loading: () => typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : (local.loading ?? false),
+            errorMessage,
+        };
+
+        return (
+            <TextFieldContext.Provider value={contextValue}>
+                <RootContainer
+                    class={local.class}
+                    isInvalid={contextValue.isInvalid}
+                    others={others}
+                >
+                    {local.children}
+                </RootContainer>
+            </TextFieldContext.Provider>
+        );
+    });
 };
 
 /** Label for the field */
@@ -379,7 +382,12 @@ const Input = (props: TextFieldInputProps) => {
         }
     };
 
-    const isLoading = () => (local.loading !== undefined ? local.loading : context.loading());
+    const isLoading = () => {
+        if (local.loading !== undefined) {
+            return typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : local.loading;
+        }
+        return context.loading();
+    };
     const hasRightAdornment = () => Boolean(isLoading() || local.rightIcon);
     const hasLeftAdornment = () => Boolean(local.leftIcon);
 
@@ -428,7 +436,12 @@ const PasswordInput = (props: TextFieldPasswordInputProps) => {
     const context = useTextFieldContext();
     const [local, others] = splitProps(props, ['class', 'loading', 'leftIcon']);
     const [showPassword, setShowPassword] = createSignal(false);
-    const isLoading = () => (local.loading !== undefined ? local.loading : context.loading());
+    const isLoading = () => {
+        if (local.loading !== undefined) {
+            return typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : local.loading;
+        }
+        return context.loading();
+    };
 
     return (
         <div class="relative w-full">
@@ -481,7 +494,12 @@ const NumericInput = (props: TextFieldNumericInputProps) => {
     const [local, others] = splitProps(props, ['class', 'allowNegative', 'allowDecimal', 'loading', 'rightIcon', 'leftIcon']);
     const [inputValue, setInputValue] = createSignal("");
     const [isTyping, setIsTyping] = createSignal(false);
-    const isLoading = () => (local.loading !== undefined ? local.loading : context.loading());
+    const isLoading = () => {
+        if (local.loading !== undefined) {
+            return typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : local.loading;
+        }
+        return context.loading();
+    };
     const hasRightAdornment = () => Boolean(isLoading() || local.rightIcon);
     const hasLeftAdornment = () => Boolean(local.leftIcon);
 

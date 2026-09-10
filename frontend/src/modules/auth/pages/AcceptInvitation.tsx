@@ -179,7 +179,7 @@ export const AcceptInvitation: Component = () => {
                         >
                             {(f) => (
                                 <div class="flex flex-col gap-1">
-                                    <TextField.Root field={f()} disabled={submitting()}>
+                                    <TextField.Root field={f} disabled={submitting()}>
                                         <TextField.Label>Nueva contraseña *</TextField.Label>
                                         <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
                                         <TextField.ErrorMessage />
@@ -201,7 +201,7 @@ export const AcceptInvitation: Component = () => {
                             }}
                         >
                             {(f) => (
-                                <TextField.Root field={f()} disabled={submitting()}>
+                                <TextField.Root field={f} disabled={submitting()}>
                                     <TextField.Label>Confirmar contraseña *</TextField.Label>
                                     <TextField.PasswordInput placeholder="Repite tu contraseña" autocomplete="new-password" />
                                     <TextField.ErrorMessage />

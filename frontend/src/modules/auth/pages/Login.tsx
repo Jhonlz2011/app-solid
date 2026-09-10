@@ -194,7 +194,7 @@ const Login: Component = () => {
           {/* Email */}
           <form.Field name="email">
             {(field) => (
-              <TextField.Root field={field()} class="pb-1">
+              <TextField.Root field={field} class="pb-1">
                 <TextField.Label>Usuario o correo electrónico *</TextField.Label>
                 <TextField.Input
                   id="login-email"
@@ -213,7 +213,7 @@ const Login: Component = () => {
           {/* Password with "¿Olvidaste tu contraseña?" on the label row */}
           <form.Field name="password">
             {(field) => (
-              <TextField.Root field={field()} class="pb-1">
+              <TextField.Root field={field} class="pb-1">
                 <TextField.Label
                   badge={
                     <a

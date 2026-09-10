@@ -97,7 +97,7 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
                         <TextField.Input
                             type="text"
                             placeholder="mi-empresa"
-                            loading={slugCheck.isChecking()}
+                            loading={slugCheck.isChecking}
                             onInput={(e) => {
                                 const raw = e.currentTarget.value;
                                 const v = raw.toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -134,7 +134,7 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
                             type="text"
                             placeholder="1792345678001"
                             maxLength={13}
-                            loading={rucCheck.isChecking()}
+                            loading={rucCheck.isChecking}
                             onInput={(e) => {
                                 const raw = e.currentTarget.value;
                                 const v = raw.replace(/\D/g, '');
@@ -182,7 +182,7 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
             {/* ─── Fila: Razón Social + Nombre Comercial ─── */}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <props.form.Field name="businessName" children={(f: any) => (
-                    <TextField.Root field={f()}>
+                    <TextField.Root field={f}>
                         <TextField.Label>Razón Social *</TextField.Label>
                         <TextField.Input type="text" placeholder="Ej: CORPORACION EJEMPLO CIA. LTDA." />
                         <TextField.ErrorMessage />
@@ -190,7 +190,7 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
                 )} />
 
                 <props.form.Field name="tradeName" children={(f: any) => (
-                    <TextField.Root field={f()}>
+                    <TextField.Root field={f}>
                         <TextField.Label optional>Nombre Comercial</TextField.Label>
                         <TextField.Input type="text" placeholder="Nombre visible al público" />
                         <TextField.ErrorMessage />
@@ -202,7 +202,7 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
             <Show when={props.showContact}>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <props.form.Field name="phone" children={(f: any) => (
-                        <TextField.Root field={f()}>
+                        <TextField.Root field={f}>
                             <TextField.Label optional>Teléfono de Contacto</TextField.Label>
                             <TextField.Input type="text" placeholder="0987654321" />
                             <TextField.ErrorMessage />
@@ -210,7 +210,7 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
                     )} />
 
                     <props.form.Field name="email" children={(f: any) => (
-                        <TextField.Root field={f()}>
+                        <TextField.Root field={f}>
                             <TextField.Label optional>Correo Electrónico</TextField.Label>
                             <TextField.Input type="text" placeholder="contacto@empresa.com" />
                             <TextField.ErrorMessage />
@@ -221,7 +221,7 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
 
             {/* ─── Fila: Dirección Matriz ─── */}
             <props.form.Field name="mainAddress" children={(f: any) => (
-                <TextField.Root field={f()}>
+                <TextField.Root field={f}>
                     <TextField.Label optional={!props.isMatrizRequired}>Dirección Matriz {props.isMatrizRequired ? '*' : ''}</TextField.Label>
                     <TextField.Input type="text" placeholder="Av. Principal y Calle Secundaria, Edificio / Local" />
                     <TextField.ErrorMessage />
