@@ -305,9 +305,7 @@ export const ModulesTreeTable: Component<ModulesTreeTableProps> = (props) => {
                         <span class="px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs font-mono font-semibold whitespace-nowrap">
                             {item.path_alias}
                         </span>
-                        <span class="text-[10px] text-emerald-500 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 whitespace-nowrap shrink-0">
-                            Personalizada
-                        </span>
+    
                     </div>
                 ) : (
                     <span class="text-xs text-muted/50 italic font-mono">

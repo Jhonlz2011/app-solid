@@ -172,14 +172,14 @@ const Login: Component = () => {
 
   return (
     <div
-      class="w-full max-w-md mx-auto p-6 sm:p-8 rounded-2xl transition-all duration-300"
+      class="@container w-full p-6 sm:p-8 rounded-2xl transition-all duration-300"
       classList={{
         "bg-card/80 backdrop-blur-md shadow-2xl ring-1 ring-white/10": !!branding.tenant()?.loginBgUrl,
         "bg-card border border-border shadow-card": !branding.tenant()?.loginBgUrl,
       }}
     >
       {/* ── Logo / Brand ── */}
-      <div class="flex flex-col items-center sm:flex-row gap-4 mb-6">
+      <div class="flex flex-col items-center @sm:flex-row gap-4 mb-6">
         <div class="shrink-0">
           <Show
             when={branding.tenant()?.logoUrl}
@@ -187,7 +187,7 @@ const Login: Component = () => {
               <Show
                 when={branding.tenant()}
                 fallback={
-                  <div class="size-14 rounded-2xl overflow-hidden ring-1 ring-border/50 bg-primary/5 flex items-center justify-center p-2.5 transition-transform hover:scale-105 duration-300">
+                  <div class="size-16 rounded-2xl overflow-hidden ring-1 ring-border/50 bg-primary/5 flex items-center justify-center p-2.5 transition-transform hover:scale-105 duration-300">
                     <img
                       src="/icons/logo-blank-192x192.png"
                       alt="Zelys"
@@ -196,7 +196,7 @@ const Login: Component = () => {
                   </div>
                 }
               >
-                <div class="size-14 rounded-2xl flex items-center justify-center shadow-md bg-primary transition-transform hover:scale-105 duration-300">
+                <div class="size-16 rounded-2xl flex items-center justify-center shadow-md bg-primary transition-transform hover:scale-105 duration-300">
                   <span class="text-white font-bold text-2xl drop-shadow-sm">
                     {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Z').charAt(0).toUpperCase()}
                   </span>
@@ -290,7 +290,7 @@ const Login: Component = () => {
 
           {/* Cloudflare Turnstile */}
           <Turnstile
-            class="my-1"
+            class="-mt-5"
             action="login"
             onToken={(token) => setTurnstileToken(token)}
             onExpire={() => setTurnstileToken(null)}
