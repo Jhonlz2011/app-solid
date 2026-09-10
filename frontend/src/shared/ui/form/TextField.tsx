@@ -1,4 +1,4 @@
-import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext, children } from 'solid-js';
+import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext } from 'solid-js';
 import { cn } from '@shared/lib/utils';
 import type { FieldLike } from '@form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
@@ -217,10 +217,6 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
         loading: () => local.loading ?? false,
         errorMessage,
     };
-
-    // Memoize children to immunize DOM nodes from being recreated on reactive updates
-    const resolvedChildren = children(() => local.children);
-
     return (
         <TextFieldContext.Provider value={contextValue}>
             <div
@@ -229,7 +225,7 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
                 data-invalid={contextValue.isInvalid()}
                 {...others}
             >
-                {resolvedChildren()}
+                {local.children}
             </div>
         </TextFieldContext.Provider>
     );
@@ -242,7 +238,6 @@ const Label = (props: TextFieldLabelProps) => {
         'class', 'labelClass', 'children', 'tooltip',
         'tooltipPlacement', 'optional', 'badge', 'alignBadgeRight'
     ]);
-    const resolvedLabelChildren = children(() => local.children);
     const shouldAlignRight = () => local.alignBadgeRight ?? Boolean(local.badge);
 
     return (
@@ -257,7 +252,7 @@ const Label = (props: TextFieldLabelProps) => {
                     class={cn("text-sm font-medium text-muted block select-none", local.labelClass)}
                     {...others}
                 >
-                    {resolvedLabelChildren()}
+                    {local.children}
                 </label>
                 <Show when={local.optional}>
                     <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
@@ -291,7 +286,6 @@ export const FieldLabel = (props: FieldLabelProps) => {
         'class', 'labelClass', 'children', 'tooltip',
         'tooltipPlacement', 'optional', 'badge', 'alignBadgeRight'
     ]);
-    const resolvedLabelChildren = children(() => local.children);
     const shouldAlignRight = () => local.alignBadgeRight ?? Boolean(local.badge);
 
     return (
@@ -305,7 +299,7 @@ export const FieldLabel = (props: FieldLabelProps) => {
                     class={cn("text-sm font-medium text-muted block select-none", local.labelClass)}
                     {...others}
                 >
-                    {resolvedLabelChildren()}
+                    {local.children}
                 </label>
                 <Show when={local.optional}>
                     <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
@@ -652,7 +646,7 @@ const Description = (props: TextFieldDescriptionProps) => {
 // ============================================================================
 // EXPORTS (compound component pattern)
 // ============================================================================
-export const TextField = {
+export const TextField = Object.assign(Root, {
     Root,
     Label,
     Input,
@@ -661,6 +655,6 @@ export const TextField = {
     TextArea,
     ErrorMessage,
     Description,
-};
+});
 
 export default TextField;
