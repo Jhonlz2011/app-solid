@@ -13,28 +13,34 @@ export const ProfileEntityResponseSchema = Type.Object({
     isEmployee: Type.Boolean(),
 });
 
-export interface ModuleConfigItem {
+import type { MenuItemStatus } from '../enums';
+import { MenuItemStatusSchema } from './settings.dto';
+
+export interface ModuleConfig {
     key: string;
     label: string;
-    icon?: string | null;
-    path?: string | null;
-    pathAlias?: string | null;
-    permission?: string | null;
-    status?: string | null;
-    children?: ModuleConfigItem[];
+    icon?: string;
+    path?: string;
+    pathAlias?: string;
+    permission?: string;
+    status?: MenuItemStatus;
+    children?: ModuleConfig[];
 }
 
-export const ModuleConfigSchema: any = Type.Recursive((Self) =>
-    Type.Object({
-        key: Type.String(),
-        label: Type.String(),
-        icon: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-        path: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-        pathAlias: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-        permission: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-        status: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-        children: Type.Optional(Type.Array(Self)),
-    })
+export const ModuleConfigSchema = Type.Unsafe<ModuleConfig>(
+    Type.Recursive((Self) =>
+        Type.Object({
+            key: Type.String(),
+            label: Type.String(),
+            icon: Type.Optional(Type.String()),
+            path: Type.Optional(Type.String()),
+            pathAlias: Type.Optional(Type.String()),
+            permission: Type.Optional(Type.String()),
+            status: Type.Optional(MenuItemStatusSchema),
+            children: Type.Optional(Type.Array(Self)),
+        }),
+        { $id: 'ModuleConfig' }
+    )
 );
 
 export const ProfileResponseSchema = Type.Object({

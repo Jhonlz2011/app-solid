@@ -56,7 +56,7 @@ export const Sidebar: Component = () => {
             icon: m.icon || '',
             path: m.path ?? undefined,
             pathAlias: m.pathAlias ?? undefined,
-            status: (m.status as MenuItemStatus) ?? undefined,
+            status: m.status,
             children: m.children?.map(mapItem)
         });
         const raw = modules();

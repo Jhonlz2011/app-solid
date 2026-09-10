@@ -1,4 +1,5 @@
 import type { MenuItemStatus } from '@app/schema/enums';
+export type { MenuItemStatus };
 
 // Sidebar Types
 export interface MenuItem {

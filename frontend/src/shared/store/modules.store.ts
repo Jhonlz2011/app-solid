@@ -1,7 +1,7 @@
 import { createStore } from "solid-js/store";
 import { api } from "../lib/eden";
 import { useAuth } from "@modules/auth/store/auth.store";
-import type { MenuItemStatus } from "@app/schema/enums";
+import type { ModuleConfig } from "@app/schema/backend";
 import { setRouteAliases, resetRouteAliases } from "@shared/utils/route-alias";
 import { RealtimeEvents } from "@app/schema/realtime-events";
 
@@ -38,16 +38,7 @@ if (typeof window !== 'undefined') {
     });
 }
 
-export interface ModuleConfig {
-    key: string;
-    label: string;
-    icon?: string | null;
-    path?: string | null;
-    pathAlias?: string | null;
-    permission?: string | null;
-    status?: MenuItemStatus | string | null;
-    children?: ModuleConfig[];
-}
+export type { ModuleConfig } from "@app/schema/backend";
 
 interface ModulesState {
     modules: ModuleConfig[];

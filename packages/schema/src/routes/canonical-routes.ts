@@ -10,7 +10,7 @@ export interface CanonicalRouteDef {
     readonly secondaryAliases?: readonly string[];
 }
 
-export const CANONICAL_ERP_ROUTES = [
+export const CANONICAL_ERP_ROUTES: readonly CanonicalRouteDef[] = [
     { path: '/dashboard', defaultAlias: '/panel' },
     { path: '/clients', defaultAlias: '/clientes', secondaryAliases: ['/ventas/clientes'] },
     { path: '/visits', defaultAlias: '/visitas' },
@@ -43,15 +43,15 @@ export const CANONICAL_ERP_ROUTES = [
     { path: '/users', defaultAlias: '/usuarios', secondaryAliases: ['/sistema/usuarios'] },
     { path: '/employees', defaultAlias: '/empleados', secondaryAliases: ['/rrhh/empleados'] },
     { path: '/settings', defaultAlias: '/configuracion', secondaryAliases: ['/sistema/configuracion'] },
-] as const;
+];
 
 /** Canonical forward map: { '/clientes': '/clients', '/ventas/clientes': '/clients', ... } */
 export const CANONICAL_DEFAULT_ALIASES: Record<string, string> = (() => {
     const map: Record<string, string> = {};
     for (const route of CANONICAL_ERP_ROUTES) {
         map[route.defaultAlias] = route.path;
-        if ('secondaryAliases' in route && Array.isArray(route.secondaryAliases)) {
-            for (const secondary of (route as any).secondaryAliases) {
+        if (route.secondaryAliases) {
+            for (const secondary of route.secondaryAliases) {
                 map[secondary] = route.path;
             }
         }
