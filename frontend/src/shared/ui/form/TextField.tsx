@@ -1,4 +1,4 @@
-import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext, untrack, type Accessor } from 'solid-js';
+import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createRenderEffect, createContext, useContext, untrack, type Accessor } from 'solid-js';
 import { cn } from '@shared/lib/utils';
 import type { FieldLike } from '@form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
@@ -146,21 +146,24 @@ interface RootContainerProps {
     children: JSX.Element;
 }
 
-/** Internal container rendered inside Provider so context is accessible during initial render */
 const RootContainer = (cProps: RootContainerProps) => {
-    // Resolve children once under untrack to prevent parent memos (e.g. TanStack Form Field)
-    // from subscribing to reactive signals read inside children (like isChecking or status)
-    const resolvedChildren = untrack(() => cProps.children);
-    return (
-        <div
-            class={cn("relative flex flex-col gap-1", cProps.class)}
-            data-valid={!cProps.isInvalid()}
-            data-invalid={cProps.isInvalid()}
-            {...cProps.others}
-        >
-            {resolvedChildren}
-        </div>
-    );
+    return untrack(() => {
+        return (
+            <div
+                ref={(el) => {
+                    createRenderEffect(() => {
+                        const invalid = cProps.isInvalid();
+                        el.setAttribute('data-invalid', String(invalid));
+                        el.setAttribute('data-valid', String(!invalid));
+                    });
+                }}
+                class={cn("relative flex flex-col gap-1", cProps.class)}
+                {...cProps.others}
+            >
+                {cProps.children}
+            </div>
+        );
+    });
 };
 
 /** Root container - provides context to children */
@@ -267,222 +270,230 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
 
 /** Label for the field */
 const Label = (props: TextFieldLabelProps) => {
-    const context = useTextFieldContext();
-    const [local, others] = splitProps(props, [
-        'class', 'labelClass', 'children', 'tooltip',
-        'tooltipPlacement', 'optional', 'badge', 'alignBadgeRight'
-    ]);
-    const shouldAlignRight = () => local.alignBadgeRight ?? Boolean(local.badge);
+    return untrack(() => {
+        const context = useTextFieldContext();
+        const [local, others] = splitProps(props, [
+            'class', 'labelClass', 'children', 'tooltip',
+            'tooltipPlacement', 'optional', 'badge', 'alignBadgeRight'
+        ]);
+        const shouldAlignRight = () => local.alignBadgeRight ?? Boolean(local.badge);
 
-    return (
-        <div class={cn(
-            "flex items-center gap-1.5 ml-1",
-            shouldAlignRight() ? "justify-between w-full" : "w-fit",
-            local.class
-        )}>
-            <div class="flex items-center gap-1.5 min-w-0">
-                <label
-                    for={context.id}
-                    class={cn("text-sm font-medium text-muted block select-none", local.labelClass)}
-                    {...others}
-                >
-                    {local.children}
-                </label>
-                <Show when={local.optional}>
-                    <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
-                        Opcional
-                    </Badge>
-                </Show>
-                <Show when={local.tooltip}>
-                    <Tooltip
-                        content={local.tooltip!}
-                        placement={local.tooltipPlacement ?? 'right'}
-                        delay={0}
+        return (
+            <div class={cn(
+                "flex items-center gap-1.5 ml-1",
+                shouldAlignRight() ? "justify-between w-full" : "w-fit",
+                local.class
+            )}>
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <label
+                        for={context.id}
+                        class={cn("text-sm font-medium text-muted block select-none", local.labelClass)}
+                        {...others}
                     >
-                        <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
-                    </Tooltip>
+                        {local.children}
+                    </label>
+                    <Show when={local.optional}>
+                        <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
+                            Opcional
+                        </Badge>
+                    </Show>
+                    <Show when={local.tooltip}>
+                        <Tooltip
+                            content={local.tooltip!}
+                            placement={local.tooltipPlacement ?? 'right'}
+                            delay={0}
+                        >
+                            <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
+                        </Tooltip>
+                    </Show>
+                </div>
+                <Show when={local.badge}>
+                    <div class="shrink-0 flex items-center min-h-[20px]">
+                        {typeof local.badge === 'function' ? (local.badge as any)() : local.badge}
+                    </div>
                 </Show>
             </div>
-            <Show when={local.badge}>
-                <div class="shrink-0 flex items-center min-h-[20px]">
-                    {typeof local.badge === 'function' ? (local.badge as any)() : local.badge}
-                </div>
-            </Show>
-        </div>
-    );
+        );
+    });
 };
 
 /** Standalone label for non-TextField contexts (Select, SegmentedControl, etc.) */
 export const FieldLabel = (props: FieldLabelProps) => {
-    const [local, others] = splitProps(props, [
-        'class', 'labelClass', 'children', 'tooltip',
-        'tooltipPlacement', 'optional', 'badge', 'alignBadgeRight'
-    ]);
-    const shouldAlignRight = () => local.alignBadgeRight ?? Boolean(local.badge);
+    return untrack(() => {
+        const [local, others] = splitProps(props, [
+            'class', 'labelClass', 'children', 'tooltip',
+            'tooltipPlacement', 'optional', 'badge', 'alignBadgeRight'
+        ]);
+        const shouldAlignRight = () => local.alignBadgeRight ?? Boolean(local.badge);
 
-    return (
-        <div class={cn(
-            "flex items-center gap-1.5 ml-1",
-            shouldAlignRight() ? "justify-between w-full" : "w-fit",
-            local.class
-        )}>
-            <div class="flex items-center gap-1.5 min-w-0">
-                <label
-                    class={cn("text-sm font-medium text-muted block select-none", local.labelClass)}
-                    {...others}
-                >
-                    {local.children}
-                </label>
-                <Show when={local.optional}>
-                    <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
-                        Opcional
-                    </Badge>
-                </Show>
-                <Show when={local.tooltip}>
-                    <Tooltip
-                        content={local.tooltip!}
-                        placement={local.tooltipPlacement ?? 'right'}
-                        delay={0}
+        return (
+            <div class={cn(
+                "flex items-center gap-1.5 ml-1",
+                shouldAlignRight() ? "justify-between w-full" : "w-fit",
+                local.class
+            )}>
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <label
+                        class={cn("text-sm font-medium text-muted block select-none", local.labelClass)}
+                        {...others}
                     >
-                        <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
-                    </Tooltip>
+                        {local.children}
+                    </label>
+                    <Show when={local.optional}>
+                        <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
+                            Opcional
+                        </Badge>
+                    </Show>
+                    <Show when={local.tooltip}>
+                        <Tooltip
+                            content={local.tooltip!}
+                            placement={local.tooltipPlacement ?? 'right'}
+                            delay={0}
+                        >
+                            <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
+                        </Tooltip>
+                    </Show>
+                </div>
+                <Show when={local.badge}>
+                    <div class="shrink-0 flex items-center min-h-[20px]">
+                        {typeof local.badge === 'function' ? (local.badge as any)() : local.badge}
+                    </div>
                 </Show>
             </div>
-            <Show when={local.badge}>
-                <div class="shrink-0 flex items-center min-h-[20px]">
-                    {typeof local.badge === 'function' ? (local.badge as any)() : local.badge}
-                </div>
-            </Show>
-        </div>
-    );
+        );
+    });
 };
 
 /** Text input — coerces to number when type="number" for TanStack Form compatibility */
 const Input = (props: TextFieldInputProps) => {
-    const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'type', 'loading', 'rightIcon', 'leftIcon', 'onInput']);
+    return untrack(() => {
+        const context = useTextFieldContext();
+        const [local, others] = splitProps(props, ['class', 'type', 'loading', 'rightIcon', 'leftIcon', 'onInput']);
 
-    const handleInput = (e: InputEvent & { currentTarget: HTMLInputElement }) => {
-        const raw = e.currentTarget.value;
-        if (local.type === 'number') {
-            // For number inputs: pass actual number (or null for empty) to TanStack Form
-            if (raw === '' || raw == null) {
-                context.onChange(null as any);
+        const handleInput = (e: InputEvent & { currentTarget: HTMLInputElement }) => {
+            const raw = e.currentTarget.value;
+            if (local.type === 'number') {
+                // For number inputs: pass actual number (or null for empty) to TanStack Form
+                if (raw === '' || raw == null) {
+                    context.onChange(null as any);
+                } else {
+                    const num = Number(raw);
+                    context.onChange(isNaN(num) ? raw : num);
+                }
             } else {
-                const num = Number(raw);
-                context.onChange(isNaN(num) ? raw : num);
+                context.onChange(raw);
             }
-        } else {
-            context.onChange(raw);
-        }
 
-        // Safely invoke chained onInput if provided
-        if (typeof local.onInput === 'function') {
-            (local.onInput as any)(e);
-        }
-    };
+            // Safely invoke chained onInput if provided
+            if (typeof local.onInput === 'function') {
+                (local.onInput as any)(e);
+            }
+        };
 
-    const isLoading = () => {
-        if (local.loading !== undefined) {
-            return typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : local.loading;
-        }
-        return context.loading();
-    };
-    const hasRightAdornment = () => Boolean(isLoading() || local.rightIcon);
-    const hasLeftAdornment = () => Boolean(local.leftIcon);
+        const isLoading = () => {
+            if (local.loading !== undefined) {
+                return typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : local.loading;
+            }
+            return context.loading();
+        };
+        const hasRightAdornment = () => Boolean(isLoading() || local.rightIcon);
+        const hasLeftAdornment = () => Boolean(local.leftIcon);
 
-    return (
-        <div class="relative w-full">
-            <Show when={local.leftIcon}>
-                <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
-                    {local.leftIcon}
-                </div>
-            </Show>
-
-            <input
-                id={context.id}
-                type={local.type}
-                value={context.value()}
-                onInput={handleInput}
-                onBlur={() => context.onBlur()}
-                disabled={context.disabled()}
-                readOnly={context.readOnly()}
-                data-invalid={context.isInvalid()}
-                class={cn(
-                    inputBaseStyles,
-                    hasLeftAdornment() && 'pl-9',
-                    hasRightAdornment() && 'pr-9',
-                    local.class
-                )}
-                {...others}
-            />
-
-            <div
-                class={cn(
-                    "absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-muted",
-                    (!local.rightIcon || isLoading()) && "pointer-events-none"
-                )}
-            >
-                <Show when={isLoading()} fallback={local.rightIcon}>
-                    <SpinnerIcon class="size-4 animate-spin text-primary" />
+        return (
+            <div class="relative w-full">
+                <Show when={local.leftIcon}>
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+                        {local.leftIcon}
+                    </div>
                 </Show>
+
+                <input
+                    id={context.id}
+                    type={local.type}
+                    value={context.value()}
+                    onInput={handleInput}
+                    onBlur={() => context.onBlur()}
+                    disabled={context.disabled()}
+                    readOnly={context.readOnly()}
+                    data-invalid={context.isInvalid()}
+                    class={cn(
+                        inputBaseStyles,
+                        hasLeftAdornment() && 'pl-9',
+                        hasRightAdornment() && 'pr-9',
+                        local.class
+                    )}
+                    {...others}
+                />
+
+                <div
+                    class={cn(
+                        "absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-muted",
+                        (!local.rightIcon || isLoading()) && "pointer-events-none"
+                    )}
+                >
+                    <Show when={isLoading()} fallback={local.rightIcon}>
+                        <SpinnerIcon class="size-4 animate-spin text-primary" />
+                    </Show>
+                </div>
             </div>
-        </div>
-    );
+        );
+    });
 };
 
 /** Text password input with toggle */
 const PasswordInput = (props: TextFieldPasswordInputProps) => {
-    const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'loading', 'leftIcon']);
-    const [showPassword, setShowPassword] = createSignal(false);
-    const isLoading = () => {
-        if (local.loading !== undefined) {
-            return typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : local.loading;
-        }
-        return context.loading();
-    };
+    return untrack(() => {
+        const context = useTextFieldContext();
+        const [local, others] = splitProps(props, ['class', 'loading', 'leftIcon']);
+        const [showPassword, setShowPassword] = createSignal(false);
+        const isLoading = () => {
+            if (local.loading !== undefined) {
+                return typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : local.loading;
+            }
+            return context.loading();
+        };
 
-    return (
-        <div class="relative w-full">
-            <Show when={local.leftIcon}>
-                <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
-                    {local.leftIcon}
-                </div>
-            </Show>
-            <input
-                id={context.id}
-                type={showPassword() ? 'text' : 'password'}
-                value={context.value()}
-                onInput={(e) => context.onChange(e.currentTarget.value)}
-                onBlur={() => context.onBlur()}
-                disabled={context.disabled()}
-                readOnly={context.readOnly()}
-                data-invalid={context.isInvalid()}
-                class={cn(inputBaseStyles, local.leftIcon && "pl-9", "pr-12", local.class)}
-                {...others}
-            />
-            <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                <Show when={isLoading()} fallback={
-                    <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword())}
-                        disabled={context.disabled()}
-                        class="p-1 text-muted hover:text-heading transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                        tabIndex={-1}
-                    >
-                        <Show when={showPassword()} fallback={<EyeIcon class="size-5" />}>
-                            <EyeOffIcon class="size-5" />
-                        </Show>
-                    </button>
-                }>
-                    <div class="pointer-events-none flex items-center justify-center text-muted">
-                        <SpinnerIcon class="size-4 animate-spin text-primary" />
+        return (
+            <div class="relative w-full">
+                <Show when={local.leftIcon}>
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+                        {local.leftIcon}
                     </div>
                 </Show>
+                <input
+                    id={context.id}
+                    type={showPassword() ? 'text' : 'password'}
+                    value={context.value()}
+                    onInput={(e) => context.onChange(e.currentTarget.value)}
+                    onBlur={() => context.onBlur()}
+                    disabled={context.disabled()}
+                    readOnly={context.readOnly()}
+                    data-invalid={context.isInvalid()}
+                    class={cn(inputBaseStyles, local.leftIcon && "pl-9", "pr-12", local.class)}
+                    {...others}
+                />
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
+                    <Show when={isLoading()} fallback={
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword())}
+                            disabled={context.disabled()}
+                            class="p-1 text-muted hover:text-heading transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                            tabIndex={-1}
+                        >
+                            <Show when={showPassword()} fallback={<EyeIcon class="size-5" />}>
+                                <EyeOffIcon class="size-5" />
+                            </Show>
+                        </button>
+                    }>
+                        <div class="pointer-events-none flex items-center justify-center text-muted">
+                            <SpinnerIcon class="size-4 animate-spin text-primary" />
+                        </div>
+                    </Show>
+                </div>
             </div>
-        </div>
-    );
+        );
+    });
 };
 
 /** 
@@ -490,202 +501,210 @@ const PasswordInput = (props: TextFieldPasswordInputProps) => {
  * Robustly prevents typing letters and normalizes output to numbers.
  */
 const NumericInput = (props: TextFieldNumericInputProps) => {
-    const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'allowNegative', 'allowDecimal', 'loading', 'rightIcon', 'leftIcon']);
-    const [inputValue, setInputValue] = createSignal("");
-    const [isTyping, setIsTyping] = createSignal(false);
-    const isLoading = () => {
-        if (local.loading !== undefined) {
-            return typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : local.loading;
-        }
-        return context.loading();
-    };
-    const hasRightAdornment = () => Boolean(isLoading() || local.rightIcon);
-    const hasLeftAdornment = () => Boolean(local.leftIcon);
+    return untrack(() => {
+        const context = useTextFieldContext();
+        const [local, others] = splitProps(props, ['class', 'allowNegative', 'allowDecimal', 'loading', 'rightIcon', 'leftIcon']);
+        const [inputValue, setInputValue] = createSignal("");
+        const [isTyping, setIsTyping] = createSignal(false);
+        const isLoading = () => {
+            if (local.loading !== undefined) {
+                return typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : local.loading;
+            }
+            return context.loading();
+        };
+        const hasRightAdornment = () => Boolean(isLoading() || local.rightIcon);
+        const hasLeftAdornment = () => Boolean(local.leftIcon);
 
-    // Sync from context to local input ONLY when not typing
-    createEffect(() => {
-        const val = context.value();
-        if (!isTyping()) {
-            setInputValue(val == null ? '' : String(val));
-        }
-    });
+        // Sync from context to local input ONLY when not typing
+        createEffect(() => {
+            const val = context.value();
+            if (!isTyping()) {
+                setInputValue(val == null ? '' : String(val));
+            }
+        });
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if (
-            ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) ||
-            e.ctrlKey || e.metaKey || e.altKey
-        ) {
-            return;
-        }
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (
+                ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) ||
+                e.ctrlKey || e.metaKey || e.altKey
+            ) {
+                return;
+            }
 
-        const allowDecimal = local.allowDecimal !== false;
-        const allowNegative = local.allowNegative === true;
+            const allowDecimal = local.allowDecimal !== false;
+            const allowNegative = local.allowNegative === true;
 
-        const isNumber = /^[0-9]$/.test(e.key);
-        const isDecimal = allowDecimal && (e.key === '.' || e.key === ',');
-        const isNegative = allowNegative && e.key === '-';
+            const isNumber = /^[0-9]$/.test(e.key);
+            const isDecimal = allowDecimal && (e.key === '.' || e.key === ',');
+            const isNegative = allowNegative && e.key === '-';
 
-        if (!isNumber && !isDecimal && !isNegative) {
-            e.preventDefault();
-            return;
-        }
+            if (!isNumber && !isDecimal && !isNegative) {
+                e.preventDefault();
+                return;
+            }
 
-        if (isDecimal) {
-            const el = e.currentTarget as HTMLInputElement;
-            const val = el.value;
-            const hasDecimal = val.includes('.') || val.includes(',');
-            if (hasDecimal) {
-                // Permitir si se está sobreescribiendo el decimal existente
-                const selected = val.substring(el.selectionStart || 0, el.selectionEnd || 0);
-                if (!selected.includes('.') && !selected.includes(',')) {
-                    e.preventDefault();
+            if (isDecimal) {
+                const el = e.currentTarget as HTMLInputElement;
+                const val = el.value;
+                const hasDecimal = val.includes('.') || val.includes(',');
+                if (hasDecimal) {
+                    // Permitir si se está sobreescribiendo el decimal existente
+                    const selected = val.substring(el.selectionStart || 0, el.selectionEnd || 0);
+                    if (!selected.includes('.') && !selected.includes(',')) {
+                        e.preventDefault();
+                    }
                 }
             }
-        }
-    };
+        };
 
-    const handleInput = (e: InputEvent & { currentTarget: HTMLInputElement }) => {
-        let raw = e.currentTarget.value;
-        
-        // Strip out invalid characters on paste
-        const allowDecimal = local.allowDecimal !== false;
-        const allowNegative = local.allowNegative === true;
-        
-        let pattern = '[^0-9';
-        if (allowDecimal) pattern += '\\.,';
-        if (allowNegative) pattern += '\\-';
-        pattern += ']';
-        
-        const regex = new RegExp(pattern, 'g');
-        raw = raw.replace(regex, '');
+        const handleInput = (e: InputEvent & { currentTarget: HTMLInputElement }) => {
+            let raw = e.currentTarget.value;
+            
+            // Strip out invalid characters on paste
+            const allowDecimal = local.allowDecimal !== false;
+            const allowNegative = local.allowNegative === true;
+            
+            let pattern = '[^0-9';
+            if (allowDecimal) pattern += '\\.,';
+            if (allowNegative) pattern += '\\-';
+            pattern += ']';
+            
+            const regex = new RegExp(pattern, 'g');
+            raw = raw.replace(regex, '');
 
-        if (allowDecimal) {
-            // Unificar temporalmente y asegurar un solo separador
-            const parts = raw.split(/[\.,]/);
-            if (parts.length > 2) {
-                // Si hay múltiples, conservar solo el primer separador que el usuario escribió
-                const firstSep = raw.match(/[\.,]/)?.[0] || '.';
-                raw = parts[0] + firstSep + parts.slice(1).join('');
+            if (allowDecimal) {
+                // Unificar temporalmente y asegurar un solo separador
+                const parts = raw.split(/[\.,]/);
+                if (parts.length > 2) {
+                    // Si hay múltiples, conservar solo el primer separador que el usuario escribió
+                    const firstSep = raw.match(/[\.,]/)?.[0] || '.';
+                    raw = parts[0] + firstSep + parts.slice(1).join('');
+                }
             }
-        }
 
-        // Normalize comma to dot for parsing
-        const normalized = raw.replace(',', '.');
-        setInputValue(raw);
-        
-        if (normalized === '' || normalized === '-' || normalized === '.') {
-            context.onChange(null as any);
-        } else {
-            const num = parseFloat(normalized);
-            // Si el usuario pone "1.", parseFloat da "1". Devolvemos raw para no perder el punto.
-            context.onChange(isNaN(num) || raw.endsWith('.') || raw.endsWith(',') ? normalized : num);
-        }
-    };
+            // Normalize comma to dot for parsing
+            const normalized = raw.replace(',', '.');
+            setInputValue(raw);
+            
+            if (normalized === '' || normalized === '-' || normalized === '.') {
+                context.onChange(null as any);
+            } else {
+                const num = parseFloat(normalized);
+                // Si el usuario pone "1.", parseFloat da "1". Devolvemos raw para no perder el punto.
+                context.onChange(isNaN(num) || raw.endsWith('.') || raw.endsWith(',') ? normalized : num);
+            }
+        };
 
-    return (
-        <div class="relative w-full">
-            <Show when={local.leftIcon}>
-                <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
-                    {local.leftIcon}
-                </div>
-            </Show>
-
-            <input
-                id={context.id}
-                type="text"
-                inputMode="decimal"
-                value={inputValue()}
-                onKeyDown={handleKeyDown}
-                onInput={handleInput}
-                onFocus={() => setIsTyping(true)}
-                onBlur={() => {
-                    setIsTyping(false);
-                    context.onBlur();
-                }}
-                disabled={context.disabled()}
-                readOnly={context.readOnly()}
-                data-invalid={context.isInvalid()}
-                class={cn(
-                    inputBaseStyles,
-                    "font-mono",
-                    hasLeftAdornment() && 'pl-9',
-                    hasRightAdornment() && 'pr-9',
-                    local.class
-                )}
-                {...others}
-            />
-
-            <div
-                class={cn(
-                    "absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-muted",
-                    (!local.rightIcon || isLoading()) && "pointer-events-none"
-                )}
-            >
-                <Show when={isLoading()} fallback={local.rightIcon}>
-                    <SpinnerIcon class="size-4 animate-spin text-primary" />
+        return (
+            <div class="relative w-full">
+                <Show when={local.leftIcon}>
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
+                        {local.leftIcon}
+                    </div>
                 </Show>
+
+                <input
+                    id={context.id}
+                    type="text"
+                    inputMode="decimal"
+                    value={inputValue()}
+                    onKeyDown={handleKeyDown}
+                    onInput={handleInput}
+                    onFocus={() => setIsTyping(true)}
+                    onBlur={() => {
+                        setIsTyping(false);
+                        context.onBlur();
+                    }}
+                    disabled={context.disabled()}
+                    readOnly={context.readOnly()}
+                    data-invalid={context.isInvalid()}
+                    class={cn(
+                        inputBaseStyles,
+                        "font-mono",
+                        hasLeftAdornment() && 'pl-9',
+                        hasRightAdornment() && 'pr-9',
+                        local.class
+                    )}
+                    {...others}
+                />
+
+                <div
+                    class={cn(
+                        "absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-muted",
+                        (!local.rightIcon || isLoading()) && "pointer-events-none"
+                    )}
+                >
+                    <Show when={isLoading()} fallback={local.rightIcon}>
+                        <SpinnerIcon class="size-4 animate-spin text-primary" />
+                    </Show>
+                </div>
             </div>
-        </div>
-    );
+        );
+    });
 };
 
 /** Textarea for multi-line input */
 const TextArea = (props: TextFieldTextAreaProps) => {
-    const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class']);
+    return untrack(() => {
+        const context = useTextFieldContext();
+        const [local, others] = splitProps(props, ['class']);
 
-    return (
-        <textarea
-            id={context.id}
-            value={context.value()}
-            onInput={(e) => context.onChange(e.currentTarget.value)}
-            onBlur={() => context.onBlur()}
-            disabled={context.disabled()}
-            readOnly={context.readOnly()}
-            data-invalid={context.isInvalid()}
-            class={cn(inputBaseStyles, "resize-y py-3", local.class)}
-            {...others}
-        />
-    );
+        return (
+            <textarea
+                id={context.id}
+                value={context.value()}
+                onInput={(e) => context.onChange(e.currentTarget.value)}
+                onBlur={() => context.onBlur()}
+                disabled={context.disabled()}
+                readOnly={context.readOnly()}
+                data-invalid={context.isInvalid()}
+                class={cn(inputBaseStyles, "resize-y py-3", local.class)}
+                {...others}
+            />
+        );
+    });
 };
 
 /** Error message - shows from field or children */
 const ErrorMessage = (props: TextFieldErrorMessageProps) => {
-    const context = useTextFieldContext();
-    const [local, others] = splitProps(props, ['class', 'children']);
+    return untrack(() => {
+        const context = useTextFieldContext();
+        const [local, others] = splitProps(props, ['class', 'children']);
 
-    // Use field error if available, otherwise use children
-    const message = () => context.errorMessage() || local.children;
+        // Use field error if available, otherwise use children
+        const message = () => context.errorMessage() || local.children;
 
-    return (
-        <Show when={context.isInvalid() && message()}>
-            <small
-                class={cn(
-                    "absolute -bottom-3.5 left-1 text-xs leading-none text-danger font-medium animate-in fade-in slide-in-from-top-1",
-                    local.class
-                )}
-                role="alert"
-                {...others}
-            >
-                {message()}
-            </small>
-        </Show>
-    );
+        return (
+            <Show when={context.isInvalid() && message()}>
+                <small
+                    class={cn(
+                        "absolute -bottom-3.5 left-1 text-xs leading-none text-danger font-medium animate-in fade-in slide-in-from-top-1",
+                        local.class
+                    )}
+                    role="alert"
+                    {...others}
+                >
+                    {message()}
+                </small>
+            </Show>
+        );
+    });
 };
 
 /** Description/helper text */
 const Description = (props: TextFieldDescriptionProps) => {
-    const [local, others] = splitProps(props, ['class', 'children']);
+    return untrack(() => {
+        const [local, others] = splitProps(props, ['class', 'children']);
 
-    return (
-        <span
-            class={cn("text-xs text-muted mt-0.5", local.class)}
-            {...others}
-        >
-            {local.children}
-        </span>
-    );
+        return (
+            <span
+                class={cn("text-xs text-muted mt-0.5", local.class)}
+                {...others}
+            >
+                {local.children}
+            </span>
+        );
+    });
 };
 
 // ============================================================================
