@@ -1,4 +1,4 @@
-import { Component, onMount, Show, createSignal, For, type JSX } from 'solid-js';
+import { Component, onMount, Show, createSignal, For } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useNavigate, useSearch } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
@@ -17,12 +17,6 @@ import OAuthButtons from '../components/OAuthButtons';
 import { MailIcon } from '@icons/MailIcon';
 import { LockIcon } from '@icons/LockIcon';
 import { BuildingIcon } from '@icons/BuildingIcon';
-
-/** Progressive stagger delay for entrance animations */
-const stagger = (index: number): JSX.CSSProperties => ({
-  "animation-delay": `${index * 65}ms`,
-  "animation-fill-mode": "both",
-});
 
 const Login: Component = () => {
   const navigate = useNavigate();
@@ -177,74 +171,64 @@ const Login: Component = () => {
   }));
 
   return (
-    <div classList={{
-      "w-full p-8 rounded-2xl": true,
-      "bg-card/80 backdrop-blur-sm shadow-2xl ring-1 ring-white/10": !!branding.tenant()?.loginBgUrl,
-      "bg-card border border-border shadow-lg": !branding.tenant()?.loginBgUrl,
-    }}>
+    <div
+      class="w-full max-w-md mx-auto p-6 sm:p-8 rounded-2xl transition-all duration-300"
+      classList={{
+        "bg-card/80 backdrop-blur-md shadow-2xl ring-1 ring-white/10": !!branding.tenant()?.loginBgUrl,
+        "bg-card border border-border shadow-card": !branding.tenant()?.loginBgUrl,
+      }}
+    >
       {/* ── Logo / Brand ── */}
-      <div class="@container mb-4">
-        <div class="flex flex-col items-center @sm:flex-row @sm:items-center gap-4">
-          {/* Logo */}
-          <div class="shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(0)}>
-            <Show
-              when={branding.tenant()?.logoUrl}
-              fallback={
-                <Show
-                  when={branding.tenant()}
-                  fallback={
-                    <div class="w-16 h-16 rounded-2xl overflow-hidden shadow-lg transition-transform duration-300 hover:scale-105 ring-1 ring-border/50 bg-primary/5 flex items-center justify-center p-2">
-                      <img
-                        src="/icons/logo-blank-192x192.png"
-                        alt="Zelys"
-                        class="w-full h-full object-contain"
-                      />
-                    </div>
-                  }
-                >
-                  <div
-                    class="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-transform duration-300 hover:scale-105"
-                    style={{
-                      "background": "linear-gradient(135deg, var(--primary, #1f86c2), color-mix(in srgb, var(--primary, #1f86c2) 65%, #000))",
-                    }}
-                  >
-                    <span class="text-white font-bold text-2xl drop-shadow-sm">
-                      {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Z').charAt(0).toUpperCase()}
-                    </span>
+      <div class="flex flex-col items-center sm:flex-row gap-4 mb-6">
+        <div class="shrink-0">
+          <Show
+            when={branding.tenant()?.logoUrl}
+            fallback={
+              <Show
+                when={branding.tenant()}
+                fallback={
+                  <div class="size-14 rounded-2xl overflow-hidden ring-1 ring-border/50 bg-primary/5 flex items-center justify-center p-2.5 transition-transform hover:scale-105 duration-300">
+                    <img
+                      src="/icons/logo-blank-192x192.png"
+                      alt="Zelys"
+                      class="size-full object-contain"
+                    />
                   </div>
-                </Show>
-              }
-            >
-              <div class="w-16 h-16 rounded-2xl overflow-hidden shadow-lg transition-transform duration-300 hover:scale-105 ring-1 ring-border/50">
-                <img
-                  src={branding.tenant()?.logoUrl!}
-                  alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}`}
-                  class="w-full h-full object-contain"
-                />
-              </div>
-            </Show>
-          </div>
+                }
+              >
+                <div class="size-14 rounded-2xl flex items-center justify-center shadow-md bg-primary transition-transform hover:scale-105 duration-300">
+                  <span class="text-white font-bold text-2xl drop-shadow-sm">
+                    {(branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Z').charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              </Show>
+            }
+          >
+            <div class="size-14 rounded-2xl overflow-hidden shadow-md ring-1 ring-border/50 p-1 bg-card-alt flex items-center justify-center transition-transform hover:scale-105 duration-300">
+              <img
+                src={branding.tenant()?.logoUrl!}
+                alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}`}
+                class="size-full object-contain"
+              />
+            </div>
+          </Show>
+        </div>
 
-          {/* Title + subtitle */}
-          <div class="flex flex-col items-center @sm:items-start min-w-0">
-            <h2 class="text-2xl font-bold text-heading text-center @sm:text-left animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(1)}>
-              <Show when={branding.tenant()} fallback="Iniciar sesión">
-                {branding.tenant()?.tradeName || branding.tenant()?.businessName}
-              </Show>
-            </h2>
-            <p class="text-muted text-sm text-center @sm:text-left mt-1 animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(2)}>
-              <Show when={branding.tenant()} fallback="Ingresa tus credenciales para continuar">
-                Portal Corporativo de Acceso
-              </Show>
-            </p>
-          </div>
+        {/* Title + subtitle */}
+        <div class="text-center sm:text-left min-w-0">
+          <h1 class="text-xl sm:text-2xl font-bold text-heading tracking-tight">
+            {branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Iniciar sesión'}
+          </h1>
+          <p class="text-xs sm:text-sm text-muted mt-0.5">
+            {branding.tenant() ? 'Portal Corporativo de Acceso' : 'Ingresa tus credenciales para continuar'}
+          </p>
         </div>
       </div>
 
       {/* ── Decorative separator ── */}
-      <div class="flex items-center gap-3 mb-4 animate-in fade-in duration-700" style={stagger(3)}>
+      <div class="flex items-center gap-3 mb-6">
         <div class="flex-1 h-px bg-linear-to-r from-transparent to-border" />
-        <div class="w-1 h-1 rounded-full bg-border-strong" />
+        <div class="size-1 rounded-full bg-border-strong" />
         <div class="flex-1 h-px bg-linear-to-l from-transparent to-border" />
       </div>
 
@@ -257,61 +241,56 @@ const Login: Component = () => {
             e.stopPropagation();
             form.handleSubmit();
           }}
-          class="flex flex-col gap-1"
+          class="flex flex-col gap-5"
           novalidate
         >
-          <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(4)}>
-            <form.Field
-              name="email"
-              children={(field) => (
-                <TextField.Root field={field()}>
-                  <TextField.Label>Usuario o correo electrónico *</TextField.Label>
-                  <TextField.Input
-                    id="login-email"
-                    type="text"
-                    required
-                    placeholder="nombre@empresa.com"
-                    autocomplete="username"
-                    leftIcon={<MailIcon class="size-4.5" />}
-                  />
-                  <TextField.ErrorMessage />
-                </TextField.Root>
-              )}
-            />
-          </div>
+          {/* Email */}
+          <form.Field name="email">
+            {(field) => (
+              <TextField.Root field={field()} class="pb-1">
+                <TextField.Label>Usuario o correo electrónico *</TextField.Label>
+                <TextField.Input
+                  id="login-email"
+                  type="text"
+                  required
+                  placeholder="nombre@empresa.com"
+                  autocomplete="username"
+                  leftIcon={<MailIcon class="size-4 text-muted" />}
+                />
+                <TextField.ErrorMessage />
+              </TextField.Root>
+            )}
+          </form.Field>
 
-          <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(5)}>
-            <form.Field
-              name="password"
-              children={(field) => (
-                <TextField.Root field={field()}>
+          {/* Password with "¿Olvidaste tu contraseña?" on the label row */}
+          <form.Field name="password">
+            {(field) => (
+              <TextField.Root field={field()} class="pb-1">
+                <div class="flex items-center justify-between">
                   <TextField.Label>Contraseña *</TextField.Label>
-                  <TextField.PasswordInput
-                    id="login-password"
-                    required
-                    placeholder="••••••••"
-                    autocomplete="current-password"
-                    leftIcon={<LockIcon class="size-4.5" />}
-                  />
-                  <TextField.ErrorMessage />
-                </TextField.Root>
-              )}
-            />
-          </div>
+                  <a
+                    href="/forgot-password"
+                    class="text-xs text-muted hover:text-primary transition-colors select-none"
+                    onClick={(e) => { e.preventDefault(); navigate({ to: '/forgot-password' }); }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </a>
+                </div>
+                <TextField.PasswordInput
+                  id="login-password"
+                  required
+                  placeholder="••••••••"
+                  autocomplete="current-password"
+                  leftIcon={<LockIcon class="size-4 text-muted" />}
+                />
+                <TextField.ErrorMessage />
+              </TextField.Root>
+            )}
+          </form.Field>
 
-          {/* Forgot password placeholder */}
-          <div class="flex justify-end -mt-2 mb-1 animate-in fade-in duration-500" style={stagger(6)}>
-            <a
-              href="/forgot-password"
-              class="text-xs text-muted hover:text-primary transition-colors duration-200"
-              onClick={(e) => { e.preventDefault(); navigate({ to: '/forgot-password' }); }}
-            >
-              ¿Olvidaste tu contraseña?
-            </a>
-          </div>
-
-          {/* Cloudflare Turnstile widget */}
+          {/* Cloudflare Turnstile */}
           <Turnstile
+            class="my-1"
             action="login"
             onToken={(token) => setTurnstileToken(token)}
             onExpire={() => setTurnstileToken(null)}
@@ -322,49 +301,48 @@ const Login: Component = () => {
             }}
           />
 
-          <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(7)}>
-            <form.Subscribe
-              selector={(state) => ({ isSubmitting: state.isSubmitting })}
-              children={(state) => (
-                <Button
-                  class="mt-1 w-full font-bold"
-                  type="submit"
-                  disabled={state().isSubmitting || !turnstileToken()}
-                  loading={state().isSubmitting || !turnstileToken()}
-                  loadingText={!turnstileToken() ? "Verificando seguridad…" : "Accediendo…"}
-                >
-                  Iniciar sesión
-                </Button>
-              )}
-            />
-          </div>
+          {/* Submit Button */}
+          <form.Subscribe
+            selector={(state) => ({ isSubmitting: state.isSubmitting })}
+            children={(state) => (
+              <Button
+                type="submit"
+                fullWidth
+                size="md"
+                class="font-semibold cursor-pointer"
+                disabled={state().isSubmitting || !turnstileToken()}
+                loading={state().isSubmitting || !turnstileToken()}
+                loadingText={!turnstileToken() ? "Verificando seguridad…" : "Accediendo…"}
+              >
+                Iniciar sesión
+              </Button>
+            )}
+          />
 
           {/* ── OAuth Social Providers ── */}
-          <div class="relative flex items-center justify-center my-3 animate-in fade-in duration-500" style={stagger(8)}>
+          <div class="relative flex items-center justify-center my-1">
             <div class="grow border-t border-border" />
             <span class="px-3 text-xs text-muted font-medium uppercase tracking-wider bg-card">o continúa con</span>
             <div class="grow border-t border-border" />
           </div>
 
-          <div class="animate-in fade-in slide-in-from-bottom-2 duration-500" style={stagger(9)}>
-            <OAuthButtons
-              redirectPath={
-                (() => {
-                  const searchParams = typeof search === 'function' ? search() : search;
-                  const redirectTo = (searchParams as any)?.redirect
-                    ?? new URLSearchParams(window.location.search).get('redirect');
-                  return typeof redirectTo === 'string' && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
-                })()
-              }
-            />
-          </div>
+          <OAuthButtons
+            redirectPath={
+              (() => {
+                const searchParams = typeof search === 'function' ? search() : search;
+                const redirectTo = (searchParams as any)?.redirect
+                  ?? new URLSearchParams(window.location.search).get('redirect');
+                return typeof redirectTo === 'string' && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
+              })()
+            }
+          />
 
           <Show when={!branding.tenant()}>
-            <p class="text-sm text-muted text-center mt-3 animate-in fade-in duration-500" style={stagger(10)}>
+            <p class="text-xs sm:text-sm text-muted text-center pt-2">
               ¿No tienes cuenta?{' '}
               <a
                 href="/register"
-                class="text-primary hover:text-primary-strong hover:underline font-medium transition-colors duration-200"
+                class="text-primary hover:text-primary-strong hover:underline font-medium transition-colors"
                 onClick={(e) => { e.preventDefault(); navigate({ to: '/register' }); }}
               >
                 Regístrate
@@ -376,21 +354,25 @@ const Login: Component = () => {
 
       {/* ── Tenant Selector (post-auth multi-empresa) ── */}
       <Show when={showTenants()}>
-        <div class="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-3 duration-500">
-          <p class="text-sm text-muted font-medium mb-1">
-            Tu usuario pertenece a varias empresas. Selecciona para continuar:
-          </p>
-          <div class="flex flex-col gap-2 max-h-64 overflow-y-auto p-1">
+        <div class="flex flex-col gap-4 animate-in fade-in duration-300">
+          <div>
+            <h3 class="text-base font-semibold text-heading">Selecciona una empresa</h3>
+            <p class="text-xs text-muted mt-0.5">
+              Tu usuario pertenece a varias organizaciones. Selecciona para continuar:
+            </p>
+          </div>
+
+          <div class="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
             <For each={discoveredTenants()}>
               {(tenant) => (
                 <button
                   type="button"
                   disabled={loadingTenants()}
                   onClick={() => handleSelectTenant(tenant)}
-                  class="flex items-center gap-4 p-3 rounded-xl border border-border bg-card hover:bg-card-alt hover:border-primary/50 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="flex items-center gap-3.5 p-3 rounded-xl border border-border bg-card-alt hover:bg-card hover:border-primary/50 text-left transition-all duration-200 hover:shadow-sm cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div
-                    class="w-11 h-11 rounded-lg flex items-center justify-center overflow-hidden shrink-0 transition-colors duration-300"
+                    class="size-10 rounded-lg flex items-center justify-center overflow-hidden shrink-0 transition-colors"
                     classList={{
                       "bg-primary/10 group-hover:bg-primary/20": !tenant.logoUrl,
                     }}
@@ -399,16 +381,16 @@ const Login: Component = () => {
                       when={tenant.logoUrl}
                       fallback={<BuildingIcon class="size-5 text-primary" />}
                     >
-                      <img src={tenant.logoUrl!} alt="Logo" class="w-full h-full object-contain" />
+                      <img src={tenant.logoUrl!} alt="Logo" class="size-full object-contain" />
                     </Show>
                   </div>
                   <div class="grow min-w-0">
-                    <h4 class="font-semibold text-heading truncate group-hover:text-primary transition-colors duration-300">
+                    <h4 class="text-sm font-semibold text-heading truncate group-hover:text-primary transition-colors">
                       {tenant.tradeName || tenant.businessName}
                     </h4>
                     <p class="text-xs text-muted truncate">{tenant.slug}.zelys.app</p>
                   </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-muted group-hover:text-primary transition-colors duration-300 shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 text-muted group-hover:text-primary transition-colors shrink-0">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
                 </button>
@@ -417,8 +399,8 @@ const Login: Component = () => {
           </div>
 
           <Button
-            class="w-full mt-1"
             variant="outline"
+            fullWidth
             type="button"
             onClick={() => {
               setShowTenants(false);
