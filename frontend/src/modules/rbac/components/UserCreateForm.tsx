@@ -126,10 +126,10 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                 <div class="space-y-4">
                     <form.Field name="email">
                         {(field) => (
-                            <TextField.Root field={field()} disabled={props.isSubmitting}>
+                            <TextField.Root field={field} disabled={props.isSubmitting}>
                                 <TextField.Label
                                     badge={
-                                        <>
+                                        <div class="flex items-center gap-1.5 min-h-[20px]">
                                             {/* Non-intrusive live user detection */}
                                             <Show when={!checkQuery.isFetching && isExistingUser()}>
                                                 <span class="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 animate-in fade-in">
@@ -144,7 +144,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                                     Ya es miembro en esta empresa
                                                 </span>
                                             </Show>
-                                        </>
+                                        </div>
                                     }
                                 >
                                     Correo electrónico *
@@ -198,7 +198,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                 <div class="p-4 bg-surface/40 rounded-xl border border-border/60 space-y-4 mt-2">
                                     <form.Field name="username">
                                         {(field) => (
-                                            <TextField.Root field={field()} disabled={props.isSubmitting}>
+                                            <TextField.Root field={field} disabled={props.isSubmitting}>
                                                 <TextField.Label
                                                     optional
                                                     badge={
@@ -229,7 +229,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                         }}
                                     >
                                         {(field) => (
-                                            <TextField.Root field={field()} disabled={props.isSubmitting}>
+                                            <TextField.Root field={field} disabled={props.isSubmitting}>
                                                 <TextField.Label>Contraseña *</TextField.Label>
                                                 <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
                                                 <TextField.ErrorMessage />

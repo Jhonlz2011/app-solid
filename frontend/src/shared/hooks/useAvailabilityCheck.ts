@@ -40,22 +40,28 @@ export function useAvailabilityCheck(options: UseAvailabilityCheckOptions): UseA
         const val = rawValue();
         const current = (options.currentValue?.() ?? '').trim();
 
-        // If empty or identical to current value, reset debounce immediately
+        // If empty or identical to current value, reset debounce without redundant signal emissions
         if (!val || (current && val.toLowerCase() === current.toLowerCase())) {
-            setDebouncedValue(val);
-            setIsDebouncing(false);
+            if (debouncedValue() !== val) {
+                setDebouncedValue(val);
+            }
+            if (isDebouncing()) {
+                setIsDebouncing(false);
+            }
             return;
         }
 
         if (val !== debouncedValue()) {
-            setIsDebouncing(true);
+            if (!isDebouncing()) {
+                setIsDebouncing(true);
+            }
             const timer = setTimeout(() => {
                 setDebouncedValue(val);
                 setIsDebouncing(false);
             }, delay);
 
             onCleanup(() => clearTimeout(timer));
-        } else {
+        } else if (isDebouncing()) {
             setIsDebouncing(false);
         }
     });

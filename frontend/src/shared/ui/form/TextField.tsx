@@ -1,4 +1,4 @@
-import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext } from 'solid-js';
+import { splitProps, Show, JSX, createUniqueId, createMemo, createSignal, createEffect, createContext, useContext, children, type Accessor } from 'solid-js';
 import { cn } from '@shared/lib/utils';
 import type { FieldLike } from '@form/form.types';
 import { hasFieldError, getFieldError, FormSubmissionContext } from '@form/form.types';
@@ -15,8 +15,8 @@ import { Badge } from '@shared/ui/display/Badge';
 type ValidationState = 'valid' | 'invalid';
 
 export interface TextFieldRootProps<TValue extends string | number | undefined | null = string | number | undefined | null> {
-    /** TanStack Form field - 100% type-safe generic binding */
-    field?: FieldLike<TValue>;
+    /** TanStack Form field - 100% type-safe generic binding (accepts field object or accessor) */
+    field?: FieldLike<TValue> | Accessor<FieldLike<TValue> | undefined>;
     /** Current value (controlled) - ignored if field is provided */
     value?: string | number | null;
     /** Default value (uncontrolled) */
@@ -168,13 +168,21 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
     // Track form submission state explicitly
     const isFormSubmitted = useContext(FormSubmissionContext);
 
-    // Determine if controlled by TanStack Form field
-    const hasField = () => !!local.field;
+    // Resolves field whether provided as raw FieldLike object or Accessor<FieldLike>
+    const getField = (): FieldLike<TValue> | undefined => {
+        if (!local.field) return undefined;
+        return typeof local.field === 'function'
+            ? (local.field as Accessor<FieldLike<TValue> | undefined>)()
+            : local.field;
+    };
+
+    const hasField = () => !!getField();
 
     // Reactive value: from field, controlled prop, or internal uncontrolled signal
     const value = createMemo(() => {
-        if (hasField()) {
-            const v = local.field!.state.value;
+        const f = getField();
+        if (f) {
+            const v = f.state.value;
             return v == null ? '' : String(v);
         }
         return local.value !== undefined 
@@ -184,13 +192,15 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
 
     // Validation state: from field or props
     const validationState = createMemo((): ValidationState => {
-        if (hasField() && hasFieldError(local.field!, isFormSubmitted())) return 'invalid';
+        const f = getField();
+        if (f && hasFieldError(f, isFormSubmitted())) return 'invalid';
         return local.validationState ?? 'valid';
     });
 
     // Error message (only from field)
     const errorMessage = createMemo(() => {
-        if (hasField()) return getFieldError(local.field!);
+        const f = getField();
+        if (f) return getFieldError(f);
         return '';
     });
 
@@ -198,16 +208,18 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
         id,
         value,
         onChange: (newValue: any) => {
-            if (hasField()) {
-                local.field!.handleChange(newValue as any);
+            const f = getField();
+            if (f) {
+                f.handleChange(newValue as any);
             } else {
                 setUncontrolledValue(newValue == null ? '' : String(newValue));
                 local.onChange?.(newValue);
             }
         },
         onBlur: () => {
-            if (hasField()) {
-                local.field!.handleBlur();
+            const f = getField();
+            if (f) {
+                f.handleBlur();
             }
         },
         validationState,
@@ -217,6 +229,10 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
         loading: () => local.loading ?? false,
         errorMessage,
     };
+
+    // Memoize children to guarantee 100% stable DOM node identity (preserves input focus during real-time checks)
+    const resolvedChildren = children(() => local.children);
+
     return (
         <TextFieldContext.Provider value={contextValue}>
             <div
@@ -225,7 +241,7 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
                 data-invalid={contextValue.isInvalid()}
                 {...others}
             >
-                {local.children}
+                {resolvedChildren()}
             </div>
         </TextFieldContext.Provider>
     );
@@ -270,11 +286,9 @@ const Label = (props: TextFieldLabelProps) => {
                 </Show>
             </div>
             <Show when={local.badge}>
-                {(b) => (
-                    <div class="shrink-0 flex items-center">
-                        {typeof b() === 'function' ? (b() as any)() : b()}
-                    </div>
-                )}
+                <div class="shrink-0 flex items-center min-h-[20px]">
+                    {typeof local.badge === 'function' ? (local.badge as any)() : local.badge}
+                </div>
             </Show>
         </div>
     );
@@ -317,11 +331,9 @@ export const FieldLabel = (props: FieldLabelProps) => {
                 </Show>
             </div>
             <Show when={local.badge}>
-                {(b) => (
-                    <div class="shrink-0 flex items-center">
-                        {typeof b() === 'function' ? (b() as any)() : b()}
-                    </div>
-                )}
+                <div class="shrink-0 flex items-center min-h-[20px]">
+                    {typeof local.badge === 'function' ? (local.badge as any)() : local.badge}
+                </div>
             </Show>
         </div>
     );

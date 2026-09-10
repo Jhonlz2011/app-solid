@@ -109,7 +109,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 {/* Username Field with Live Availability */}
                 <form.Field name="username">
                     {(field) => (
-                        <TextField.Root field={field()} disabled={isPending()}>
+                        <TextField.Root field={field} disabled={isPending()}>
                             <TextField.Label
                                 badge={
                                     <AvailabilityBadge
@@ -135,7 +135,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 {/* Email Field with Live Availability */}
                 <form.Field name="email">
                     {(field) => (
-                        <TextField.Root field={field()} disabled={isPending()}>
+                        <TextField.Root field={field} disabled={isPending()}>
                             <TextField.Label
                                 badge={
                                     <AvailabilityBadge

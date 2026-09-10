@@ -1,4 +1,4 @@
-import { Component, Show, type Accessor } from 'solid-js';
+import { Component, Show, createEffect, type Accessor } from 'solid-js';
 import TextField, { FieldLabel } from '@form/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
 import { businessTypeSelectOptions, type SelectOption } from '@shared/constants/entity-labels';
@@ -64,22 +64,23 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
         return true;
     };
 
-    if (props.onStatusChange) {
-        props.onStatusChange({
+    // Propagate status asynchronously to avoid mutating parent state during child render
+    createEffect(() => {
+        props.onStatusChange?.({
             slugAvailable: slugCheck.isAvailable,
             slugChecking: slugCheck.isChecking,
             rucAvailable: rucCheck.isAvailable,
             rucChecking: rucCheck.isChecking,
             isValidForSubmit,
         });
-    }
+    });
 
     return (
         <div class="flex flex-col gap-4">
             {/* ─── Fila Opcional: Slug (Subdominio) ─── */}
             <Show when={props.showSlug}>
                 <props.form.Field name="slug" children={(f: any) => (
-                    <TextField.Root field={f()}>
+                    <TextField.Root field={f}>
                         <TextField.Label
                             badge={
                                 <Show when={props.checkSlugAvailability ?? true}>
@@ -98,9 +99,12 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
                             placeholder="mi-empresa"
                             loading={slugCheck.isChecking()}
                             onInput={(e) => {
-                                const v = e.currentTarget.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-                                e.currentTarget.value = v;
-                                f().handleChange(v);
+                                const raw = e.currentTarget.value;
+                                const v = raw.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                                if (v !== raw) {
+                                    e.currentTarget.value = v;
+                                    f().handleChange(v);
+                                }
                             }}
                         />
                         <TextField.ErrorMessage />
@@ -112,7 +116,7 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* RUC */}
                 <props.form.Field name="ruc" children={(f: any) => (
-                    <TextField.Root field={f()}>
+                    <TextField.Root field={f}>
                         <TextField.Label
                             badge={
                                 <Show when={props.checkRucAvailability}>
@@ -132,9 +136,12 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
                             maxLength={13}
                             loading={rucCheck.isChecking()}
                             onInput={(e) => {
-                                const v = e.currentTarget.value.replace(/\D/g, '');
-                                e.currentTarget.value = v;
-                                f().handleChange(v);
+                                const raw = e.currentTarget.value;
+                                const v = raw.replace(/\D/g, '');
+                                if (v !== raw) {
+                                    e.currentTarget.value = v;
+                                    f().handleChange(v);
+                                }
                             }}
                         />
                         <TextField.ErrorMessage />

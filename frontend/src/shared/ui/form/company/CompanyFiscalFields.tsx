@@ -152,7 +152,7 @@ export const CompanyFiscalFields: Component<CompanyFiscalFieldsProps> = (props) 
             <Show when={props.showAdvancedSri}>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <props.form.Field name="contribuyenteEspecial" children={(f: any) => (
-                        <TextField.Root field={f()}>
+                        <TextField.Root field={f}>
                             <TextField.Label optional tooltip="Número de resolución emitido por el SRI">
                                 Resolución Contribuyente Especial
                             </TextField.Label>
@@ -162,7 +162,7 @@ export const CompanyFiscalFields: Component<CompanyFiscalFieldsProps> = (props) 
                     )} />
 
                     <props.form.Field name="agenteRetencion" children={(f: any) => (
-                        <TextField.Root field={f()}>
+                        <TextField.Root field={f}>
                             <TextField.Label optional tooltip="Número de resolución de designación como agente de retención">
                                 Resolución Agente de Retención
                             </TextField.Label>
@@ -177,7 +177,7 @@ export const CompanyFiscalFields: Component<CompanyFiscalFieldsProps> = (props) 
             <Show when={!props.showAdvancedSri && (props.alwaysShowContribuyenteEspecial || (currentRegime() === 'GENERAL' && isObligado() === true))}>
                 <div class="animate-in fade-in duration-200">
                     <props.form.Field name="contribuyenteEspecial" children={(f: any) => (
-                        <TextField.Root field={f()}>
+                        <TextField.Root field={f}>
                             <TextField.Label
                                 optional
                                 tooltip="Número de resolución emitido por el SRI si tu empresa ha sido designada como Contribuyente Especial"

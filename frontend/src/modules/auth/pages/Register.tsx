@@ -277,14 +277,14 @@ const Register: Component = () => {
                 <FormSubmissionContext.Provider value={step1Submitted}>
                     <form onSubmit={(e) => { e.preventDefault(); setStep1Submitted(true); step1Form.handleSubmit(); }} class="flex flex-col gap-4" novalidate>
                         <step1Form.Field name="fullName" children={(f) => (
-                            <TextField.Root field={f()}>
+                            <TextField.Root field={f}>
                                 <TextField.Label>Nombre completo *</TextField.Label>
                                 <TextField.Input type="text" placeholder="Ej: Juan Pérez" autocomplete="name" />
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )} />
                         <step1Form.Field name="username" children={(f) => (
-                            <TextField.Root field={f()}>
+                            <TextField.Root field={f}>
                                 <TextField.Label
                                     badge={
                                         <Show when={!isOAuthUser()}>
@@ -304,9 +304,12 @@ const Register: Component = () => {
                                     autocomplete="username"
                                     loading={usernameCheck.isChecking()}
                                     onInput={(e) => {
-                                        const v = e.currentTarget.value.toLowerCase().replace(/[^a-z0-9._-]/g, '');
-                                        e.currentTarget.value = v;
-                                        f().handleChange(v);
+                                        const raw = e.currentTarget.value;
+                                        const v = raw.toLowerCase().replace(/[^a-z0-9._-]/g, '');
+                                        if (v !== raw) {
+                                            e.currentTarget.value = v;
+                                            f().handleChange(v);
+                                        }
                                     }}
                                 />
                                 <TextField.ErrorMessage />
@@ -314,14 +317,14 @@ const Register: Component = () => {
                         )} />
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <step1Form.Field name="phone" children={(f) => (
-                                <TextField.Root field={f()}>
+                                <TextField.Root field={f}>
                                     <TextField.Label optional>Teléfono</TextField.Label>
                                     <TextField.Input type="tel" placeholder="0999999999" />
                                     <TextField.ErrorMessage />
                                 </TextField.Root>
                             )} />
                             <step1Form.Field name="cedula" children={(f) => (
-                                <TextField.Root field={f()}>
+                                <TextField.Root field={f}>
                                     <TextField.Label optional>Cédula</TextField.Label>
                                     <TextField.Input type="text" placeholder="0912345678" />
                                     <TextField.ErrorMessage />
@@ -330,7 +333,7 @@ const Register: Component = () => {
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                             <step1Form.Field name="email" children={(f) => (
-                                <TextField.Root field={f()}>
+                                <TextField.Root field={f}>
                                     <TextField.Label
                                         badge={
                                             <Show when={!isOAuthUser()}>
@@ -357,7 +360,7 @@ const Register: Component = () => {
                             <Show when={!isOAuthUser()}>
                                 <step1Form.Field name="password" children={(f) => (
                                     <div class="flex flex-col gap-1">
-                                        <TextField.Root field={f()}>
+                                        <TextField.Root field={f}>
                                             <TextField.Label>Contraseña *</TextField.Label>
                                             <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
                                             <TextField.ErrorMessage />
