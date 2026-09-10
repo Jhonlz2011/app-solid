@@ -48,7 +48,7 @@ const AuthLayout: ParentComponent = () => {
             </Show>
 
             {/* Main content */}
-            <div class="w-full max-w-xl px-4 py-8 relative z-10">
+            <div class="w-full max-w-xl p-8 relative z-10">
                 <Outlet />
             </div>
 
