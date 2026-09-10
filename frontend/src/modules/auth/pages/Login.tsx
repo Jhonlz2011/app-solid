@@ -154,7 +154,7 @@ const Login: Component = () => {
             <div class="size-14 rounded-2xl overflow-hidden shadow-md ring-1 ring-border/50 p-1 bg-card-alt flex items-center justify-center transition-transform hover:scale-105 duration-300">
               <img
                 src={branding.tenant()?.logoUrl!}
-                alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}`}
+                alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zely'}`}
                 class="size-full object-contain"
               />
             </div>
