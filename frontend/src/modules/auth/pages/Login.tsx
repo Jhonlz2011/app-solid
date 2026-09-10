@@ -154,7 +154,7 @@ const Login: Component = () => {
             <div class="size-14 rounded-2xl overflow-hidden shadow-md ring-1 ring-border/50 p-1 bg-card-alt flex items-center justify-center transition-transform hover:scale-105 duration-300">
               <img
                 src={branding.tenant()?.logoUrl!}
-                alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zely'}`}
+                alt={`Logo de ${branding.tenant()?.tradeName || branding.tenant()?.businessName || 'Zelys'}`}
                 class="size-full object-contain"
               />
             </div>
@@ -214,16 +214,19 @@ const Login: Component = () => {
           <form.Field name="password">
             {(field) => (
               <TextField.Root field={field()} class="pb-1">
-                <div class="flex items-center justify-between">
-                  <TextField.Label>Contraseña *</TextField.Label>
-                  <a
-                    href="/forgot-password"
-                    class="text-xs text-muted hover:text-primary transition-colors select-none"
-                    onClick={(e) => { e.preventDefault(); navigate({ to: '/forgot-password' }); }}
-                  >
-                    ¿Olvidaste tu contraseña?
-                  </a>
-                </div>
+                <TextField.Label
+                  badge={
+                    <a
+                      href="/forgot-password"
+                      class="text-xs text-muted hover:text-primary transition-colors select-none"
+                      onClick={(e) => { e.preventDefault(); navigate({ to: '/forgot-password' }); }}
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </a>
+                  }
+                >
+                  Contraseña *
+                </TextField.Label>
                 <TextField.PasswordInput
                   id="login-password"
                   class="py-2"
