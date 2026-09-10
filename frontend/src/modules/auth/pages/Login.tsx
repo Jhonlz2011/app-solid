@@ -252,6 +252,7 @@ const Login: Component = () => {
                 <TextField.Input
                   id="login-email"
                   type="text"
+                  class="py-2"
                   required
                   placeholder="nombre@empresa.com"
                   autocomplete="username"
@@ -278,6 +279,7 @@ const Login: Component = () => {
                 </div>
                 <TextField.PasswordInput
                   id="login-password"
+                  class="py-2"
                   required
                   placeholder="••••••••"
                   autocomplete="current-password"
@@ -290,7 +292,7 @@ const Login: Component = () => {
 
           {/* Cloudflare Turnstile */}
           <Turnstile
-            class="-mt-5"
+            class="-mt-5 pt-5"
             action="login"
             onToken={(token) => setTurnstileToken(token)}
             onExpire={() => setTurnstileToken(null)}
@@ -338,7 +340,7 @@ const Login: Component = () => {
           />
 
           <Show when={!branding.tenant()}>
-            <p class="text-xs sm:text-sm text-muted text-center pt-2">
+            <p class="text-xs @sm:text-sm text-muted text-center pt-2">
               ¿No tienes cuenta?{' '}
               <a
                 href="/register"
