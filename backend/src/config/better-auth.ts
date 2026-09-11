@@ -12,6 +12,7 @@ import { emailService } from '../core/email';
 import { env } from './env';
 import { hashPassword, verifyPassword } from '../core/security';
 import { extractIpFromHeaders } from '../plugins/ip';
+import { buildTenantUrl } from '@app/schema/utils';
 
 // ============================================================================
 // 1. TENANT URL RESOLVER
@@ -21,9 +22,10 @@ const BASE_DOMAIN = 'zelys.app';
 
 /**
  * Construye la URL canónica del tenant para emails y redirecciones en producción (*.zelys.app).
+ * Delega a la función canónica compartida buildTenantUrl.
  */
 export function resolveTenantUrl(slug?: string | null): string {
-    return slug ? `https://${slug}.${BASE_DOMAIN}` : `https://${BASE_DOMAIN}`;
+    return buildTenantUrl(slug ?? '', '');
 }
 
 /**

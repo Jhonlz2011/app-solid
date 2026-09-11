@@ -68,12 +68,11 @@ export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: st
 }
 
 /**
- * Seeds all menu items for a company (parents + children).
- * company_id = null → global template; company_id = N → tenant-specific copy.
+ * Seeds global master catalog menu items (company_id = null).
+ * In our 2-table architecture, tenant customizations are created on demand;
+ * tenants inherit the global master catalog with zero overhead during onboarding.
  */
 export async function seedCompanyMenus(tx: Tx, companyId: number | null = null) {
-    // In our 2-table architecture, tenant customizations are created on demand.
-    // Tenant onboarding zero-overhead: inherits the global master catalog immediately.
     if (companyId !== null) return;
 
     const parentMap = new Map<string, number>();

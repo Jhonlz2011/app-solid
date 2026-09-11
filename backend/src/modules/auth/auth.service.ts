@@ -5,7 +5,6 @@ import type { TaxRegimeType } from '@app/schema/enums';
 import { DomainError } from '../../core/errors';
 import {
   seedCompanyRBAC,
-  seedCompanyMenus,
   seedCompanyUOMs,
   seedCompanyVirtualLocations,
   seedCompanyWarehouse,
@@ -155,7 +154,6 @@ async function provisionTenant(
 
   // 9. Seed initial system data
   await seedCompanyRBAC(tx, company.id, ownerInfo.userId);
-  await seedCompanyMenus(tx, company.id);
   await seedCompanyUOMs(tx, company.id);
   await seedCompanyVirtualLocations(tx, company.id);
   await seedCompanyWarehouse(tx, company.id, company.main_address, ownerEntity.id);

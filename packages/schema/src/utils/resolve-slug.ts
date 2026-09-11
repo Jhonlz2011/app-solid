@@ -5,6 +5,8 @@
  */
 
 const RESERVED_SUBDOMAINS = new Set(['api', 'in', 'www', 'cdn', 'admin', 'static']);
+const PORTAL_HOSTS = new Set(['zelys.app', 'in.zelys.app', 'www.zelys.app']);
+const SLUG_REGEX = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 
 /**
  * Normalizes any host or URL string to a clean lowercase domain name without protocol, path, or port.
@@ -22,6 +24,9 @@ export function normalizeHost(host: string): string {
 
 /**
  * Resolves the tenant slug for production domain (*.zelys.app).
+ * Strict Host Header Spoofing protection: only exactly 3 segments ({slug}.zelys.app)
+ * matching valid slug syntax and excluding reserved subdomains.
+ *
  * e.g. "acme.zelys.app" -> "acme"
  *      "in.zelys.app"   -> null (portal)
  *      "api.zelys.app"  -> null (api)
@@ -37,14 +42,11 @@ export function resolveSlugFromHost(host: string, querySlug?: string | null): st
 
     const cleanHost = normalizeHost(host);
 
-    if (cleanHost.endsWith('zelys.app')) {
-        const parts = cleanHost.split('.');
-        // acme.zelys.app -> parts = ['acme', 'zelys', 'app']
-        if (parts.length > 2) {
-            const sub = parts[0];
-            if (!RESERVED_SUBDOMAINS.has(sub)) {
-                return sub;
-            }
+    const parts = cleanHost.split('.');
+    if (parts.length === 3 && parts[1] === 'zelys' && parts[2] === 'app') {
+        const sub = parts[0];
+        if (!RESERVED_SUBDOMAINS.has(sub) && SLUG_REGEX.test(sub)) {
+            return sub;
         }
     }
 
@@ -53,17 +55,12 @@ export function resolveSlugFromHost(host: string, querySlug?: string | null): st
 
 /**
  * Checks if the given hostname is the global portal/entry domain (in.zelys.app, zelys.app, www.zelys.app).
+ * Uses exact O(1) set lookup to eliminate Host Header Spoofing or multi-subdomain bypasses.
  */
 export function isGlobalPortalHost(host: string): boolean {
     if (!host) return false;
     const cleanHost = normalizeHost(host);
-
-    if (cleanHost.endsWith('zelys.app')) {
-        const parts = cleanHost.split('.');
-        return parts.length <= 2 || parts[0] === 'in' || parts[0] === 'www';
-    }
-
-    return false;
+    return PORTAL_HOSTS.has(cleanHost);
 }
 
 /**
@@ -77,7 +74,7 @@ export function buildTenantUrl(
         [key: string]: any;
     }
 ): string {
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const cleanPath = !path ? '' : (path.startsWith('/') ? path : `/${path}`);
     const baseUrl = slug ? `https://${slug}.zelys.app${cleanPath}` : `https://in.zelys.app${cleanPath}`;
 
     if (options?.queryParams) {
