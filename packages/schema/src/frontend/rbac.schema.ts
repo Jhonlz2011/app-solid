@@ -1,4 +1,4 @@
-import { pipe, string, minLength, object, boolean, array, number, optional, nullable, union, literal, type InferInput } from 'valibot';
+import { pipe, email, string, minLength, object, boolean, array, number, optional, nullable, union, literal, type InferInput } from 'valibot';
 import { EmailFormatSchema, UsernameFormatSchema } from './auth.schema';
 
 export const UserCreateSchema = object({
