@@ -8,7 +8,7 @@ import { AlertCircleIcon } from '@icons/AlertCircleIcon';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { MailIcon } from '@icons/MailIcon';
 import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
-import { useAvailabilityCheck } from '@shared/hooks/useAvailabilityCheck';
+import { createUsernameAvailabilityValidator, createEmailAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
 
 interface AccountSectionProps {
     profile: ProfileType;
@@ -37,44 +37,16 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
 
             // 1. Manejo de cambio de username (Inmediato vía Better-Auth)
             if (hasUsernameChanged) {
-                if (isBlockedByUsername()) {
-                    return;
-                }
                 await props.onUpdateProfile({ username: value.username });
             }
 
             // 2. Manejo de cambio de correo (Seguro con verificación vía Better-Auth)
             if (hasEmailChanged) {
-                if (isBlockedByEmail()) {
-                    return;
-                }
                 await props.onChangeEmail(value.email);
                 setPendingNewEmail(value.email);
             }
         },
     }));
-
-    const usernameValue = form.useStore((s) => s.values.username);
-    const emailValue = form.useStore((s) => s.values.email);
-
-    // Real-time debounced availability checks
-    const usernameCheck = useAvailabilityCheck({
-        type: 'username',
-        value: usernameValue,
-        currentValue: profileUsername,
-    });
-
-    const emailCheck = useAvailabilityCheck({
-        type: 'email',
-        value: emailValue,
-        currentValue: profileEmail,
-    });
-
-    const isBlockedByUsername = () =>
-        usernameCheck.status() === 'taken' || !usernameCheck.isValidFormat() || usernameCheck.isChecking();
-
-    const isBlockedByEmail = () =>
-        emailCheck.status() === 'taken' || !emailCheck.isValidFormat() || emailCheck.isChecking();
 
     const isPending = () => props.isUpdatingProfile || props.isChangingEmail;
 
@@ -107,13 +79,22 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 class="space-y-4"
             >
                 {/* Username Field with Live Availability */}
-                <form.Field name="username">
+                <form.Field
+                    name="username"
+                    asyncDebounceMs={350}
+                    validators={{
+                        onChangeAsync: createUsernameAvailabilityValidator({
+                            currentValue: profileUsername,
+                        }),
+                    }}
+                >
                     {(field) => (
                         <TextField.Root field={field} disabled={isPending}>
                             <TextField.Label
                                 badge={
                                     <AvailabilityBadge
-                                        status={usernameCheck.status}
+                                        field={field}
+                                        currentValue={profileUsername}
                                         currentLabel="Tu usuario actual"
                                         availableLabel="Disponible"
                                         takenLabel="Ya en uso"
@@ -125,7 +106,6 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                             <TextField.Input
                                 placeholder="nombredeusuario"
                                 leftIcon={<span class="text-sm font-medium text-muted">@</span>}
-                                loading={usernameCheck.isChecking}
                             />
                             <TextField.ErrorMessage />
                         </TextField.Root>
@@ -133,13 +113,22 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 </form.Field>
 
                 {/* Email Field with Live Availability */}
-                <form.Field name="email">
+                <form.Field
+                    name="email"
+                    asyncDebounceMs={350}
+                    validators={{
+                        onChangeAsync: createEmailAvailabilityValidator({
+                            currentValue: profileEmail,
+                        }),
+                    }}
+                >
                     {(field) => (
                         <TextField.Root field={field} disabled={isPending}>
                             <TextField.Label
                                 badge={
                                     <AvailabilityBadge
-                                        status={emailCheck.status}
+                                        field={field}
+                                        currentValue={profileEmail}
                                         currentLabel="Tu correo actual"
                                         availableLabel="Disponible"
                                         takenLabel="Ya registrado"
@@ -151,7 +140,6 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                             <TextField.Input
                                 type="email"
                                 placeholder="tu@email.com"
-                                loading={emailCheck.isChecking}
                             />
                             <TextField.ErrorMessage />
                         </TextField.Root>
@@ -170,6 +158,8 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 <form.Subscribe selector={(state) => ({
                     values: state.values,
                     isSubmitting: state.isSubmitting,
+                    canSubmit: state.canSubmit,
+                    isValidating: state.isValidating,
                 })}>
                     {(state) => {
                         const hasUsernameChange = () => state().values.username !== profileUsername();
@@ -180,14 +170,13 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                             !hasChanges() ||
                             isPending() ||
                             state().isSubmitting ||
-                            (hasUsernameChange() && isBlockedByUsername()) ||
-                            (hasEmailChange() && isBlockedByEmail());
+                            !state().canSubmit;
 
                         return (
                             <Button
                                 type="submit"
                                 disabled={isSubmitDisabled()}
-                                loading={isPending() || state().isSubmitting}
+                                loading={isPending() || state().isSubmitting || state().isValidating}
                                 loadingText="Guardando..."
                                 size="lg"
                                 icon={<FloppyDiskIcon class="size-4" />}

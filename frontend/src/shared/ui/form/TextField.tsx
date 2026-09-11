@@ -37,18 +37,6 @@ export interface TextFieldRootProps<TValue extends string | number | undefined |
     children: JSX.Element;
 }
 
-export interface TextFieldLabelProps {
-    class?: string;
-    labelClass?: string;
-    children: JSX.Element;
-    tooltip?: string | JSX.Element;
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
-    optional?: boolean;
-    badge?: JSX.Element | (() => JSX.Element);
-    /** If true, aligns badge to the right via justify-between. Default: true when badge is present. */
-    alignBadgeRight?: boolean;
-}
-
 export interface FieldLabelProps {
     class?: string;
     labelClass?: string;
@@ -60,6 +48,8 @@ export interface FieldLabelProps {
     /** If true, aligns badge to the right via justify-between. Default: true when badge is present. */
     alignBadgeRight?: boolean;
 }
+
+export type TextFieldLabelProps = FieldLabelProps;
 
 export interface TextFieldInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
     class?: string;
@@ -115,11 +105,13 @@ interface TextFieldContextValue {
     readOnly: () => boolean;
     loading: () => boolean;
     errorMessage: () => string;
+    field: () => FieldLike<any> | undefined;
+    isValidating: () => boolean;
 }
 
-const TextFieldContext = createContext<TextFieldContextValue>();
+export const TextFieldContext = createContext<TextFieldContextValue>();
 
-const useTextFieldContext = () => {
+export const useTextFieldContext = () => {
     const context = useContext(TextFieldContext);
     if (!context) {
         throw new Error('TextField components must be used within TextField.Root');
@@ -228,6 +220,11 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
             return '';
         });
 
+        const isValidating = createMemo(() => {
+            const f = getField();
+            return f?.state.meta.isValidating ?? false;
+        });
+
         const contextValue: TextFieldContextValue = {
             id,
             value,
@@ -250,8 +247,15 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
             isInvalid: () => validationState() === 'invalid',
             disabled: () => typeof local.disabled === 'function' ? (local.disabled as any)() : (local.disabled ?? false),
             readOnly: () => typeof local.readOnly === 'function' ? (local.readOnly as any)() : (local.readOnly ?? false),
-            loading: () => typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : (local.loading ?? false),
+            loading: () => {
+                if (local.loading !== undefined) {
+                    return typeof local.loading === 'function' ? (local.loading as Accessor<boolean>)() : local.loading;
+                }
+                return isValidating();
+            },
             errorMessage,
+            field: getField,
+            isValidating,
         };
 
         return (
@@ -268,100 +272,66 @@ const Root = <TValue extends string | number | undefined | null = string | numbe
     });
 };
 
+interface BaseLabelProps extends FieldLabelProps {
+    forId?: string;
+}
+
+const BaseLabel = (props: BaseLabelProps) => {
+    const [local, others] = splitProps(props, [
+        'class', 'labelClass', 'children', 'tooltip',
+        'tooltipPlacement', 'optional', 'badge', 'alignBadgeRight', 'forId'
+    ]);
+    const shouldAlignRight = () => local.alignBadgeRight ?? Boolean(local.badge);
+
+    return (
+        <div class={cn(
+            "flex items-center gap-1.5 ml-1",
+            shouldAlignRight() ? "justify-between w-full" : "w-fit",
+            local.class
+        )}>
+            <div class="flex items-center gap-1.5 min-w-0">
+                <label
+                    for={local.forId}
+                    class={cn("text-sm font-medium text-muted block select-none", local.labelClass)}
+                    {...others}
+                >
+                    {local.children}
+                </label>
+                <Show when={local.optional}>
+                    <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
+                        Opcional
+                    </Badge>
+                </Show>
+                <Show when={local.tooltip}>
+                    <Tooltip
+                        content={local.tooltip!}
+                        placement={local.tooltipPlacement ?? 'right'}
+                        delay={0}
+                    >
+                        <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
+                    </Tooltip>
+                </Show>
+            </div>
+            <Show when={local.badge}>
+                <div class="shrink-0 flex items-center min-h-[20px]">
+                    {typeof local.badge === 'function' ? (local.badge as any)() : local.badge}
+                </div>
+            </Show>
+        </div>
+    );
+};
+
 /** Label for the field */
 const Label = (props: TextFieldLabelProps) => {
     return untrack(() => {
         const context = useTextFieldContext();
-        const [local, others] = splitProps(props, [
-            'class', 'labelClass', 'children', 'tooltip',
-            'tooltipPlacement', 'optional', 'badge', 'alignBadgeRight'
-        ]);
-        const shouldAlignRight = () => local.alignBadgeRight ?? Boolean(local.badge);
-
-        return (
-            <div class={cn(
-                "flex items-center gap-1.5 ml-1",
-                shouldAlignRight() ? "justify-between w-full" : "w-fit",
-                local.class
-            )}>
-                <div class="flex items-center gap-1.5 min-w-0">
-                    <label
-                        for={context.id}
-                        class={cn("text-sm font-medium text-muted block select-none", local.labelClass)}
-                        {...others}
-                    >
-                        {local.children}
-                    </label>
-                    <Show when={local.optional}>
-                        <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
-                            Opcional
-                        </Badge>
-                    </Show>
-                    <Show when={local.tooltip}>
-                        <Tooltip
-                            content={local.tooltip!}
-                            placement={local.tooltipPlacement ?? 'right'}
-                            delay={0}
-                        >
-                            <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
-                        </Tooltip>
-                    </Show>
-                </div>
-                <Show when={local.badge}>
-                    <div class="shrink-0 flex items-center min-h-[20px]">
-                        {typeof local.badge === 'function' ? (local.badge as any)() : local.badge}
-                    </div>
-                </Show>
-            </div>
-        );
+        return <BaseLabel forId={context.id} {...props} />;
     });
 };
 
 /** Standalone label for non-TextField contexts (Select, SegmentedControl, etc.) */
 export const FieldLabel = (props: FieldLabelProps) => {
-    return untrack(() => {
-        const [local, others] = splitProps(props, [
-            'class', 'labelClass', 'children', 'tooltip',
-            'tooltipPlacement', 'optional', 'badge', 'alignBadgeRight'
-        ]);
-        const shouldAlignRight = () => local.alignBadgeRight ?? Boolean(local.badge);
-
-        return (
-            <div class={cn(
-                "flex items-center gap-1.5 ml-1",
-                shouldAlignRight() ? "justify-between w-full" : "w-fit",
-                local.class
-            )}>
-                <div class="flex items-center gap-1.5 min-w-0">
-                    <label
-                        class={cn("text-sm font-medium text-muted block select-none", local.labelClass)}
-                        {...others}
-                    >
-                        {local.children}
-                    </label>
-                    <Show when={local.optional}>
-                        <Badge variant="default" class="text-[10px] px-1.5 py-0 font-normal">
-                            Opcional
-                        </Badge>
-                    </Show>
-                    <Show when={local.tooltip}>
-                        <Tooltip
-                            content={local.tooltip!}
-                            placement={local.tooltipPlacement ?? 'right'}
-                            delay={0}
-                        >
-                            <InfoIcon class="size-3.5 text-primary-strong hover:text-primary-strong/80 cursor-help transition-colors shrink-0" />
-                        </Tooltip>
-                    </Show>
-                </div>
-                <Show when={local.badge}>
-                    <div class="shrink-0 flex items-center min-h-[20px]">
-                        {typeof local.badge === 'function' ? (local.badge as any)() : local.badge}
-                    </div>
-                </Show>
-            </div>
-        );
-    });
+    return untrack(() => <BaseLabel {...props} />);
 };
 
 /** Text input — coerces to number when type="number" for TanStack Form compatibility */

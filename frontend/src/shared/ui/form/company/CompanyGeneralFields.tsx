@@ -1,29 +1,10 @@
-import { Component, Show, createEffect, type Accessor } from 'solid-js';
+import { Component, Show, type Accessor } from 'solid-js';
 import TextField, { FieldLabel } from '@form/TextField';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@form/Select';
 import { businessTypeSelectOptions, type SelectOption } from '@shared/constants/entity-labels';
 import { hasFieldError, getFieldError, type AnyFormApi } from '@shared/ui/form/form.types';
-import { useAvailabilityCheck } from '@shared/hooks/useAvailabilityCheck';
+import { createSlugAvailabilityValidator, createRucAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
 import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
-
-export interface CompanyGeneralFieldsStatus {
-    slugAvailable?: Accessor<boolean | null>;
-    slugChecking?: Accessor<boolean>;
-    rucAvailable?: Accessor<boolean | null>;
-    rucChecking?: Accessor<boolean>;
-    isValidForSubmit: Accessor<boolean>;
-}
-
-export interface CompanyGeneralFormValues {
-    slug?: string;
-    ruc?: string;
-    businessName?: string;
-    tradeName?: string;
-    businessType?: string;
-    email?: string;
-    phone?: string;
-    mainAddress?: string;
-}
 
 export interface CompanyGeneralFieldsProps {
     form: AnyFormApi;
@@ -33,120 +14,99 @@ export interface CompanyGeneralFieldsProps {
     checkSlugAvailability?: boolean;
     checkRucAvailability?: boolean;
     isMatrizRequired?: boolean;
-    onStatusChange?: (status: CompanyGeneralFieldsStatus) => void;
 }
 
 export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props) => {
-    // Single-instance store accessors at component level with typed selectors
-    const slugValue = props.form.useStore((s: { values?: CompanyGeneralFormValues }) => s.values?.slug ?? '');
-    const rucValue = props.form.useStore((s: { values?: CompanyGeneralFormValues }) => s.values?.ruc ?? '');
-
-    // Availability checks (conditionally enabled via props)
-    const slugCheck = useAvailabilityCheck({
-        type: 'slug',
-        value: slugValue,
-        enabled: () => !!props.showSlug && (props.checkSlugAvailability ?? true),
-    });
-
-    const rucCheck = useAvailabilityCheck({
-        type: 'ruc',
-        value: rucValue,
-        enabled: () => props.checkRucAvailability ?? false,
-    });
-
-    const isValidForSubmit = () => {
-        if (props.showSlug && (props.checkSlugAvailability ?? true)) {
-            if (slugCheck.status() === 'taken' || slugCheck.isChecking()) return false;
-        }
-        if (props.checkRucAvailability) {
-            if (rucCheck.status() === 'taken' || rucCheck.isChecking()) return false;
-        }
-        return true;
-    };
-
-    // Propagate status asynchronously to avoid mutating parent state during child render
-    createEffect(() => {
-        props.onStatusChange?.({
-            slugAvailable: slugCheck.isAvailable,
-            slugChecking: slugCheck.isChecking,
-            rucAvailable: rucCheck.isAvailable,
-            rucChecking: rucCheck.isChecking,
-            isValidForSubmit,
-        });
-    });
 
     return (
         <div class="flex flex-col gap-4">
             {/* ─── Fila Opcional: Slug (Subdominio) ─── */}
             <Show when={props.showSlug}>
-                <props.form.Field name="slug" children={(f: any) => (
-                    <TextField.Root field={f}>
-                        <TextField.Label
-                            badge={
-                                <Show when={props.checkSlugAvailability ?? true}>
-                                    <AvailabilityBadge
-                                        status={slugCheck.status}
-                                        availableLabel="Disponible"
-                                        takenLabel="En uso"
-                                    />
-                                </Show>
-                            }
-                        >
-                            Subdominio (slug) *
-                        </TextField.Label>
-                        <TextField.Input
-                            type="text"
-                            placeholder="mi-empresa"
-                            loading={slugCheck.isChecking}
-                            onInput={(e) => {
-                                const raw = e.currentTarget.value;
-                                const v = raw.toLowerCase().replace(/[^a-z0-9-]/g, '');
-                                if (v !== raw) {
-                                    e.currentTarget.value = v;
-                                    f().handleChange(v);
+                <props.form.Field
+                    name="slug"
+                    asyncDebounceMs={350}
+                    validators={{
+                        onChangeAsync: (props.checkSlugAvailability ?? true)
+                            ? createSlugAvailabilityValidator()
+                            : undefined,
+                    }}
+                    children={(f: any) => (
+                        <TextField.Root field={f}>
+                            <TextField.Label
+                                badge={
+                                    <Show when={props.checkSlugAvailability ?? true}>
+                                        <AvailabilityBadge
+                                            field={f}
+                                            availableLabel="Disponible"
+                                            takenLabel="En uso"
+                                        />
+                                    </Show>
                                 }
-                            }}
-                        />
-                        <TextField.ErrorMessage />
-                    </TextField.Root>
-                )} />
+                            >
+                                Subdominio (slug) *
+                            </TextField.Label>
+                            <TextField.Input
+                                type="text"
+                                placeholder="mi-empresa"
+                                onInput={(e) => {
+                                    const raw = e.currentTarget.value;
+                                    const v = raw.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                                    if (v !== raw) {
+                                        e.currentTarget.value = v;
+                                        f().handleChange(v);
+                                    }
+                                }}
+                            />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
+                    )}
+                />
             </Show>
 
             {/* ─── Fila: RUC + Tipo de Negocio ─── */}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* RUC */}
-                <props.form.Field name="ruc" children={(f: any) => (
-                    <TextField.Root field={f}>
-                        <TextField.Label
-                            badge={
-                                <Show when={props.checkRucAvailability}>
-                                    <AvailabilityBadge
-                                        status={rucCheck.status}
-                                        availableLabel="Válido"
-                                        takenLabel="Registrado"
-                                    />
-                                </Show>
-                            }
-                        >
-                            RUC (13 dígitos) *
-                        </TextField.Label>
-                        <TextField.Input
-                            type="text"
-                            placeholder="1792345678001"
-                            maxLength={13}
-                            loading={rucCheck.isChecking}
-                            onInput={(e) => {
-                                const raw = e.currentTarget.value;
-                                const v = raw.replace(/\D/g, '');
-                                if (v !== raw) {
-                                    e.currentTarget.value = v;
-                                    f().handleChange(v);
+                <props.form.Field
+                    name="ruc"
+                    asyncDebounceMs={350}
+                    validators={{
+                        onChangeAsync: props.checkRucAvailability
+                            ? createRucAvailabilityValidator()
+                            : undefined,
+                    }}
+                    children={(f: any) => (
+                        <TextField.Root field={f}>
+                            <TextField.Label
+                                badge={
+                                    <Show when={props.checkRucAvailability}>
+                                        <AvailabilityBadge
+                                            field={f}
+                                            minLength={13}
+                                            availableLabel="Válido"
+                                            takenLabel="Registrado"
+                                        />
+                                    </Show>
                                 }
-                            }}
-                        />
-                        <TextField.ErrorMessage />
-                    </TextField.Root>
-                )} />
+                            >
+                                RUC (13 dígitos) *
+                            </TextField.Label>
+                            <TextField.Input
+                                type="text"
+                                placeholder="1792345678001"
+                                maxLength={13}
+                                onInput={(e) => {
+                                    const raw = e.currentTarget.value;
+                                    const v = raw.replace(/\D/g, '');
+                                    if (v !== raw) {
+                                        e.currentTarget.value = v;
+                                        f().handleChange(v);
+                                    }
+                                }}
+                            />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
+                    )}
+                />
 
                 {/* Tipo de Negocio */}
                 <props.form.Field name="businessType" children={(f: any) => (

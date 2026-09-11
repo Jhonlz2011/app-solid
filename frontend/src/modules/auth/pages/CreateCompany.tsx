@@ -12,7 +12,7 @@ import Button from '@form/Button';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import Turnstile from '@shared/ui/Turnstile';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
-import CompanyFields, { type CompanyFieldsStatus } from '../components/CompanyFields';
+import CompanyFields from '../components/CompanyFields';
 import CompanySummaryCard from '../components/CompanySummaryCard';
 import AuthStepper from '../components/AuthStepper';
 import { ScrollArea } from '@/layout/components/ScrollArea';
@@ -29,9 +29,6 @@ export const CreateCompany: Component = () => {
     // Turnstile
     const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
     let turnstileActions: { reset: () => void } | undefined;
-
-    // Status from CompanyFields
-    let fieldsStatus: CompanyFieldsStatus | undefined;
 
     const form = createForm(() => ({
         defaultValues: {
@@ -90,11 +87,6 @@ export const CreateCompany: Component = () => {
         }
     };
 
-    const isNextDisabled = () => {
-        if (!fieldsStatus) return false;
-        return !fieldsStatus.isValidForSubmit();
-    };
-
     return (
         <ScrollArea resetKey={step()}>
             <div class="max-w-2xl mx-auto py-8 px-4 sm:px-6">
@@ -134,7 +126,6 @@ export const CreateCompany: Component = () => {
                                 <CompanyFields
                                     form={form}
                                     stepSubmitted={stepSubmitted}
-                                    onStatusChange={(status) => { fieldsStatus = status; }}
                                 />
 
                                 <div class="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-border">
@@ -146,12 +137,16 @@ export const CreateCompany: Component = () => {
                                         Cancelar
                                     </Button>
                                     <form.Subscribe
-                                        selector={(s) => ({ isSubmitting: s.isSubmitting })}
+                                        selector={(s) => ({
+                                            isSubmitting: s.isSubmitting,
+                                            isValidating: s.isValidating,
+                                            canSubmit: s.canSubmit,
+                                        })}
                                         children={(s) => (
                                             <Button
                                                 type="submit"
-                                                disabled={isNextDisabled() || s().isSubmitting}
-                                                loading={s().isSubmitting}
+                                                disabled={!s().canSubmit || s().isSubmitting}
+                                                loading={s().isSubmitting || s().isValidating}
                                                 loadingText="Validando…"
                                             >
                                                 Continuar

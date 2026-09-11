@@ -12,13 +12,11 @@ import TextField from '@form/TextField';
 import Button from '@form/Button';
 import OAuthButtons from '../components/OAuthButtons';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import Turnstile from '@shared/ui/Turnstile';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
-import CompanyFields, { type CompanyFieldsStatus } from '../components/CompanyFields';
-import CompanySummaryCard from '../components/CompanySummaryCard';
+import CompanyFields from '../components/CompanyFields';
 import AuthStepper from '../components/AuthStepper';
 import { Badge } from '@shared/ui/display/Badge';
-import { useAvailabilityCheck } from '@shared/hooks/useAvailabilityCheck';
+import { createUsernameAvailabilityValidator, createEmailAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
 import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
 
 // ─── Password Strength Meter ───
@@ -65,9 +63,6 @@ const Register: Component = () => {
 
     const [submitting, setSubmitting] = createSignal(false);
 
-    // Status from CompanyFields
-    const [step2FieldsStatus, setStep2FieldsStatus] = createSignal<CompanyFieldsStatus | null>(null);
-
     // ─── STEP 1 FORM ───
     const step1Form = createForm(() => ({
         defaultValues: {
@@ -83,22 +78,6 @@ const Register: Component = () => {
             setStep(1);
         },
     }));
-
-    // Single-instance store accessors at component level (no recreation in effects)
-    const usernameValue = step1Form.useStore((s) => s.values.username);
-    const emailValue = step1Form.useStore((s) => s.values.email);
-
-    const usernameCheck = useAvailabilityCheck({
-        type: 'username',
-        value: usernameValue,
-        enabled: () => !isOAuthUser(),
-    });
-
-    const emailCheck = useAvailabilityCheck({
-        type: 'email',
-        value: emailValue,
-        enabled: () => !isOAuthUser(),
-    });
 
     // Auto-redirect authenticated users with existing companies to /create-company
     createEffect(() => {
@@ -254,12 +233,6 @@ const Register: Component = () => {
         }
     };
 
-    const isStep2NextDisabled = () => {
-        const s = step2FieldsStatus();
-        if (!s) return false;
-        return !s.isValidForSubmit();
-    };
-
     const stepperSteps = () => isOAuthUser() ? ['Empresa', 'Confirmar'] : ['Usuario', 'Empresa', 'Confirmar'];
     const currentStepIndex = () => isOAuthUser() ? Math.max(0, step() - 1) : step();
 
@@ -283,38 +256,46 @@ const Register: Component = () => {
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )} />
-                        <step1Form.Field name="username" children={(f) => (
-                            <TextField.Root field={f}>
-                                <TextField.Label
-                                    badge={
-                                        <Show when={!isOAuthUser()}>
-                                            <AvailabilityBadge
-                                                status={usernameCheck.status}
-                                                availableLabel="Disponible"
-                                                takenLabel="En uso"
-                                            />
-                                        </Show>
-                                    }
-                                >
-                                    Nombre de usuario *
-                                </TextField.Label>
-                                <TextField.Input
-                                    type="text"
-                                    placeholder="ej: juan.perez"
-                                    autocomplete="username"
-                                    loading={usernameCheck.isChecking}
-                                    onInput={(e) => {
-                                        const raw = e.currentTarget.value;
-                                        const v = raw.toLowerCase().replace(/[^a-z0-9._-]/g, '');
-                                        if (v !== raw) {
-                                            e.currentTarget.value = v;
-                                            f().handleChange(v);
+                        <step1Form.Field
+                            name="username"
+                            asyncDebounceMs={350}
+                            validators={{
+                                onChangeAsync: createUsernameAvailabilityValidator({
+                                    enabled: () => !isOAuthUser(),
+                                }),
+                            }}
+                            children={(f) => (
+                                <TextField.Root field={f}>
+                                    <TextField.Label
+                                        badge={
+                                            <Show when={!isOAuthUser()}>
+                                                <AvailabilityBadge
+                                                    field={f}
+                                                    availableLabel="Disponible"
+                                                    takenLabel="En uso"
+                                                />
+                                            </Show>
                                         }
-                                    }}
-                                />
-                                <TextField.ErrorMessage />
-                            </TextField.Root>
-                        )} />
+                                    >
+                                        Nombre de usuario *
+                                    </TextField.Label>
+                                    <TextField.Input
+                                        type="text"
+                                        placeholder="ej: juan.perez"
+                                        autocomplete="username"
+                                        onInput={(e) => {
+                                            const raw = e.currentTarget.value;
+                                            const v = raw.toLowerCase().replace(/[^a-z0-9._-]/g, '');
+                                            if (v !== raw) {
+                                                e.currentTarget.value = v;
+                                                f().handleChange(v);
+                                            }
+                                        }}
+                                    />
+                                    <TextField.ErrorMessage />
+                                </TextField.Root>
+                            )}
+                        />
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <step1Form.Field name="phone" children={(f) => (
                                 <TextField.Root field={f}>
@@ -332,31 +313,39 @@ const Register: Component = () => {
                             )} />
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-                            <step1Form.Field name="email" children={(f) => (
-                                <TextField.Root field={f}>
-                                    <TextField.Label
-                                        badge={
-                                            <Show when={!isOAuthUser()}>
-                                                <AvailabilityBadge
-                                                    status={emailCheck.status}
-                                                    availableLabel="Disponible"
-                                                    takenLabel="Ya registrado"
-                                                />
-                                            </Show>
-                                        }
-                                    >
-                                        Correo electrónico *
-                                    </TextField.Label>
-                                    <TextField.Input
-                                        type="email"
-                                        placeholder="correo@ejemplo.com"
-                                        autocomplete="email"
-                                        disabled={isOAuthUser()}
-                                        loading={emailCheck.isChecking}
-                                    />
-                                    <TextField.ErrorMessage />
-                                </TextField.Root>
-                            )} />
+                            <step1Form.Field
+                                name="email"
+                                asyncDebounceMs={350}
+                                validators={{
+                                    onChangeAsync: createEmailAvailabilityValidator({
+                                        enabled: () => !isOAuthUser(),
+                                    }),
+                                }}
+                                children={(f) => (
+                                    <TextField.Root field={f}>
+                                        <TextField.Label
+                                            badge={
+                                                <Show when={!isOAuthUser()}>
+                                                    <AvailabilityBadge
+                                                        field={f}
+                                                        availableLabel="Disponible"
+                                                        takenLabel="Ya registrado"
+                                                    />
+                                                </Show>
+                                            }
+                                        >
+                                            Correo electrónico *
+                                        </TextField.Label>
+                                        <TextField.Input
+                                            type="email"
+                                            placeholder="correo@ejemplo.com"
+                                            autocomplete="email"
+                                            disabled={isOAuthUser()}
+                                        />
+                                        <TextField.ErrorMessage />
+                                    </TextField.Root>
+                                )}
+                            />
                             <Show when={!isOAuthUser()}>
                                 <step1Form.Field name="password" children={(f) => untrack(() => (
                                     <div class="flex flex-col gap-1">
@@ -370,25 +359,26 @@ const Register: Component = () => {
                                 ))} />
                             </Show>
                         </div>
-                        <step1Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting, isDirty: s.isDirty })}
-                            children={(s) => {
-                                const isBlocked = () =>
-                                    !isOAuthUser() && (
-                                        usernameCheck.status() === 'taken' ||
-                                        emailCheck.status() === 'taken' ||
-                                        usernameCheck.isChecking() ||
-                                        emailCheck.isChecking()
-                                    );
-
-                                return (
-                                    <Button class="mt-2" type="submit" fullWidth
-                                        disabled={(!isOAuthUser() && !s().isDirty) || s().isSubmitting || isBlocked()}
-                                        loading={s().isSubmitting || usernameCheck.isChecking() || emailCheck.isChecking()}
-                                        loadingText="Validando…">
-                                        Siguiente
-                                    </Button>
-                                );
-                            }} />
+                        <step1Form.Subscribe
+                            selector={(s) => ({
+                                isSubmitting: s.isSubmitting,
+                                isDirty: s.isDirty,
+                                canSubmit: s.canSubmit,
+                                isValidating: s.isValidating,
+                            })}
+                            children={(s) => (
+                                <Button
+                                    class="mt-2"
+                                    type="submit"
+                                    fullWidth
+                                    disabled={(!isOAuthUser() && !s().isDirty) || s().isSubmitting || !s().canSubmit}
+                                    loading={s().isSubmitting || s().isValidating}
+                                    loadingText="Validando…"
+                                >
+                                    Siguiente
+                                </Button>
+                            )}
+                        />
 
                         {/* ── OAuth Social Providers ── */}
                         <Show when={!isOAuthUser()}>
@@ -435,7 +425,6 @@ const Register: Component = () => {
                         <CompanyFields
                             form={step2Form}
                             stepSubmitted={step2Submitted}
-                            onStatusChange={(s) => setStep2FieldsStatus(s)}
                         />
 
                         <div class="flex items-center gap-3 mt-4 pt-4 border-t border-border">
@@ -451,14 +440,24 @@ const Register: Component = () => {
                                     Atrás
                                 </Button>
                             </Show>
-                            <step2Form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting })}
+                            <step2Form.Subscribe
+                                selector={(s) => ({
+                                    isSubmitting: s.isSubmitting,
+                                    isValidating: s.isValidating,
+                                    canSubmit: s.canSubmit,
+                                })}
                                 children={(s) => (
-                                    <Button type="submit" fullWidth
-                                        disabled={isStep2NextDisabled() || s().isSubmitting}
-                                        loading={s().isSubmitting} loadingText="Validando…">
+                                    <Button
+                                        type="submit"
+                                        fullWidth
+                                        disabled={!s().canSubmit || s().isSubmitting}
+                                        loading={s().isSubmitting || s().isValidating}
+                                        loadingText="Validando…"
+                                    >
                                         Siguiente
                                     </Button>
-                                )} />
+                                )}
+                            />
                         </div>
                     </form>
                 </FormSubmissionContext.Provider>

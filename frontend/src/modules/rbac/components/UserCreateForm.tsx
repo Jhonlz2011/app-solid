@@ -13,7 +13,7 @@ import { SparklesIcon } from '@icons/SparklesIcon';
 import { AlertTriangleIcon } from '@icons/AlertTriangleIcon';
 import { UserRolePicker } from './shared/UserRolePicker';
 import { useCheckUserEmail } from '../data/users.queries';
-import { useAvailabilityCheck } from '@shared/hooks/useAvailabilityCheck';
+import { createUsernameAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
 import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
 
 export type UserOnboardingMode = 'invite' | 'direct';
@@ -70,26 +70,12 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
     }));
 
     const emailValue = form.useStore((s) => s.values.email);
-    const usernameValue = form.useStore((s) => s.values.username);
-    const selectedRoleIds = form.useStore((s) => s.values.roleIds);
 
     // Live email check query
     const checkQuery = useCheckUserEmail(() => emailValue());
 
-    // Live username check query for direct onboarding
-    const usernameCheck = useAvailabilityCheck({
-        type: 'username',
-        value: () => usernameValue() || '',
-        enabled: () => onboardingMode() === 'direct' && Boolean(usernameValue()?.trim()),
-    });
-
     const isAlreadyMember = createMemo(() => Boolean(checkQuery.data?.isAlreadyMember));
     const isExistingUser = createMemo(() => Boolean(checkQuery.data?.exists && !checkQuery.data?.isAlreadyMember));
-    const isBlockedByUsername = createMemo(() =>
-        onboardingMode() === 'direct' &&
-        Boolean(usernameValue()?.trim()) &&
-        (usernameCheck.status() === 'taken' || usernameCheck.isChecking())
-    );
 
     const validateDirectPassword = ({ value }: { value: string | undefined }) => {
         if (onboardingMode() === 'direct' && !isExistingUser()) {
@@ -105,7 +91,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
             mode: onboardingMode(),
             isExistingUser: isExistingUser(),
             isAlreadyMember: isAlreadyMember(),
-            canSubmit: !isAlreadyMember() && !isBlockedByUsername(),
+            canSubmit: !isAlreadyMember() && form.state.canSubmit && !form.state.isValidating,
         });
     });
 
@@ -117,7 +103,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                     e.preventDefault();
                     e.stopPropagation();
                     setHasAttemptedSubmit(true);
-                    if (isAlreadyMember() || isBlockedByUsername()) return;
+                    if (isAlreadyMember() || !form.state.canSubmit || form.state.isValidating) return;
                     form.handleSubmit();
                 }}
                 class="flex flex-col gap-4 py-4"
@@ -196,14 +182,22 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                             {/* ── Direct credential fields (only when direct mode selected) ── */}
                             <Show when={onboardingMode() === 'direct'}>
                                 <div class="p-4 bg-surface/40 rounded-xl border border-border/60 space-y-4 mt-2">
-                                    <form.Field name="username">
+                                    <form.Field
+                                        name="username"
+                                        asyncDebounceMs={350}
+                                        validators={{
+                                            onChangeAsync: createUsernameAvailabilityValidator({
+                                                enabled: () => onboardingMode() === 'direct',
+                                            }),
+                                        }}
+                                    >
                                         {(field) => (
                                             <TextField.Root field={field} disabled={props.isSubmitting}>
                                                 <TextField.Label
                                                     optional
                                                     badge={
                                                         <AvailabilityBadge
-                                                            status={usernameCheck.status}
+                                                            field={field}
                                                             availableLabel="Disponible"
                                                             takenLabel="En uso"
                                                         />
@@ -214,7 +208,6 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                                 <TextField.Input
                                                     placeholder="Se generará del correo si se deja vacío"
                                                     autocomplete="username"
-                                                    loading={usernameCheck.isChecking}
                                                 />
                                                 <TextField.ErrorMessage />
                                             </TextField.Root>
