@@ -88,7 +88,7 @@ const RootDropzone: Component<{ active: boolean }> = (props) => {
                         ? "translate-y-0 opacity-100"
                         : "-translate-y-2 opacity-0",
                     rootDroppable.isActiveDroppable
-                        ? "bg-linear-to-r from-primary/10 via-primary/[0.18] to-primary/10 border-primary text-primary shadow-[inset_0_-12px_32px_rgba(99,102,241,0.08),0_4px_24px_rgba(99,102,241,0.12)]"
+                        ? "bg-linear-to-r from-primary/10 via-primary/18 to-primary/10 border-primary text-primary shadow-[inset_0_-12px_32px_rgba(99,102,241,0.08),0_4px_24px_rgba(99,102,241,0.12)]"
                         : "bg-surface/90 border-primary/20 text-muted-foreground hover:border-primary/40 animate-pulse"
                 )}
             >

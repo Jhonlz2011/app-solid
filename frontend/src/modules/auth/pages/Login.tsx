@@ -129,7 +129,7 @@ const Login: Component = () => {
       }}
     >
       {/* ── Logo / Brand ── */}
-      <div class="flex flex-col items-center @sm:flex-row gap-4 mb-6">
+      <div class="flex flex-col items-center @sm:flex-row gap-4 mb-3">
         <div class="shrink-0">
           <Show
             when={branding.tenant()?.logoUrl}
@@ -176,7 +176,7 @@ const Login: Component = () => {
       </div>
 
       {/* ── Decorative separator ── */}
-      <div class="flex items-center gap-3 mb-6">
+      <div class="flex items-center gap-3 mb-3">
         <div class="flex-1 h-px bg-linear-to-r from-transparent to-border" />
         <div class="size-1 rounded-full bg-border-strong" />
         <div class="flex-1 h-px bg-linear-to-l from-transparent to-border" />
@@ -245,7 +245,7 @@ const Login: Component = () => {
 
           {/* Cloudflare Turnstile */}
           <Turnstile
-            class="-mt-5 pt-5"
+            class="-mt-5 pt-4"
             action="login"
             onToken={(token) => setTurnstileToken(token)}
             onExpire={() => setTurnstileToken(null)}
@@ -293,7 +293,7 @@ const Login: Component = () => {
           />
 
           <Show when={!branding.tenant()}>
-            <p class="text-xs @sm:text-sm text-muted text-center pt-2">
+            <p class="text-xs @sm:text-sm text-muted text-center">
               ¿No tienes cuenta?{' '}
               <a
                 href="/register"

@@ -94,7 +94,7 @@ export const AvailabilityBadge: Component<AvailabilityBadgeProps> = (props) => {
         return (
             <div
                 class={cn(
-                    "inline-flex items-center min-h-[20px] transition-opacity duration-200",
+                    "inline-flex items-center min-h-5 transition-opacity duration-200",
                     props.class
                 )}
                 classList={{

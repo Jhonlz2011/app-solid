@@ -118,7 +118,7 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
                             options={businessTypeSelectOptions}
                             optionValue="value"
                             optionTextValue="label"
-                            placeholder="Seleccione giro..."
+                            placeholder="Seleccione..."
                             itemComponent={(itemProps) => (
                                 <SelectItem item={itemProps.item}>
                                     {itemProps.item.rawValue.label}

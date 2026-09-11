@@ -313,7 +313,7 @@ const BaseLabel = (props: BaseLabelProps) => {
                 </Show>
             </div>
             <Show when={local.badge}>
-                <div class="shrink-0 flex items-center min-h-[20px]">
+                <div class="shrink-0 flex items-center min-h-5">
                     {typeof local.badge === 'function' ? (local.badge as any)() : local.badge}
                 </div>
             </Show>
