@@ -1,5 +1,12 @@
+import { safeParse } from 'valibot';
 import { authClient } from '@shared/lib/auth-client';
 import { authApi } from '@modules/auth/api/auth.api';
+import {
+    UsernameFormatSchema,
+    EmailFormatSchema,
+    SlugFormatSchema,
+    RucFormatSchema,
+} from '@app/schema/frontend';
 import type { Accessor } from 'solid-js';
 
 export interface AvailabilityValidatorOptions {
@@ -22,26 +29,31 @@ const resolveBoolean = (b?: boolean | Accessor<boolean>): boolean => {
 
 /**
  * Validates username availability via Better-Auth client.
- * Respects currentValue exemption (e.g. profile editing) and format constraints.
+ * Uses Valibot safeParse pre-flight check to prevent unnecessary network calls.
+ * Respects currentValue exemption (e.g. profile editing).
  */
 export const createUsernameAvailabilityValidator = (options?: AvailabilityValidatorOptions) => {
     return async ({ value, signal }: { value: unknown; signal: AbortSignal }): Promise<string | undefined> => {
         if (!resolveBoolean(options?.enabled)) return undefined;
 
-        const val = typeof value === 'string' ? value.trim() : '';
-        // Pre-flight check: minimum 3 chars, valid characters
-        if (val.length < 3 || val.length > 30 || !/^[a-zA-Z0-9._-]+$/.test(val)) {
-            return undefined; // Format errors are handled by synchronous schema
+        const val = typeof value === 'string' ? value.trim().toLowerCase() : '';
+        
+        // 1. Synchronous Valibot validation check — prevents unnecessary network calls!
+        const parsed = safeParse(UsernameFormatSchema, val);
+        if (!parsed.success) {
+            return undefined; // Format errors are handled by synchronous schema on onChange
         }
 
+        // 2. Exemption check for unchanged current value
         const current = resolveValue(options?.currentValue);
-        if (current && val.toLowerCase() === current) {
+        if (current && val === current) {
             return undefined;
         }
 
+        // 3. Network availability check
         try {
             const res = await authClient.isUsernameAvailable(
-                { username: val.toLowerCase() },
+                { username: val },
                 { fetchOptions: { signal } }
             );
             if (signal.aborted) return undefined;
@@ -58,23 +70,29 @@ export const createUsernameAvailabilityValidator = (options?: AvailabilityValida
 
 /**
  * Validates email availability via tenant check endpoint.
+ * Uses Valibot safeParse pre-flight check to prevent unnecessary network calls.
  */
 export const createEmailAvailabilityValidator = (options?: AvailabilityValidatorOptions) => {
     return async ({ value, signal }: { value: unknown; signal: AbortSignal }): Promise<string | undefined> => {
         if (!resolveBoolean(options?.enabled)) return undefined;
 
-        const val = typeof value === 'string' ? value.trim() : '';
-        if (!val || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+        const val = typeof value === 'string' ? value.trim().toLowerCase() : '';
+        
+        // 1. Synchronous Valibot validation check — prevents unnecessary network calls!
+        const parsed = safeParse(EmailFormatSchema, val);
+        if (!parsed.success) {
             return undefined;
         }
 
+        // 2. Exemption check for unchanged current value
         const current = resolveValue(options?.currentValue);
-        if (current && val.toLowerCase() === current) {
+        if (current && val === current) {
             return undefined;
         }
 
+        // 3. Network availability check
         try {
-            const res = await authApi.checkEmail(val.toLowerCase());
+            const res = await authApi.checkEmail(val);
             if (signal.aborted) return undefined;
             if (!res.available) {
                 return options?.customMessage || 'El correo electrónico ya está registrado';
@@ -88,23 +106,29 @@ export const createEmailAvailabilityValidator = (options?: AvailabilityValidator
 
 /**
  * Validates subdomain (slug) availability via tenant check endpoint.
+ * Uses Valibot safeParse pre-flight check to prevent unnecessary network calls.
  */
 export const createSlugAvailabilityValidator = (options?: AvailabilityValidatorOptions) => {
     return async ({ value, signal }: { value: unknown; signal: AbortSignal }): Promise<string | undefined> => {
         if (!resolveBoolean(options?.enabled)) return undefined;
 
-        const val = typeof value === 'string' ? value.trim() : '';
-        if (val.length < 3 || val.length > 50 || !/^[a-z0-9-]+$/.test(val)) {
+        const val = typeof value === 'string' ? value.trim().toLowerCase() : '';
+        
+        // 1. Synchronous Valibot validation check — prevents unnecessary network calls!
+        const parsed = safeParse(SlugFormatSchema, val);
+        if (!parsed.success) {
             return undefined;
         }
 
+        // 2. Exemption check for unchanged current value
         const current = resolveValue(options?.currentValue);
-        if (current && val.toLowerCase() === current) {
+        if (current && val === current) {
             return undefined;
         }
 
+        // 3. Network availability check
         try {
-            const res = await authApi.checkSlug(val.toLowerCase());
+            const res = await authApi.checkSlug(val);
             if (signal.aborted) return undefined;
             if (!res.available) {
                 return options?.customMessage || 'El subdominio ya está en uso';
@@ -118,21 +142,27 @@ export const createSlugAvailabilityValidator = (options?: AvailabilityValidatorO
 
 /**
  * Validates RUC (13 numeric digits) availability via tenant check endpoint.
+ * Uses Valibot safeParse pre-flight check to prevent unnecessary network calls.
  */
 export const createRucAvailabilityValidator = (options?: AvailabilityValidatorOptions) => {
     return async ({ value, signal }: { value: unknown; signal: AbortSignal }): Promise<string | undefined> => {
         if (!resolveBoolean(options?.enabled)) return undefined;
 
         const val = typeof value === 'string' ? value.trim() : '';
-        if (!/^\d{13}$/.test(val)) {
+        
+        // 1. Synchronous Valibot validation check — prevents unnecessary network calls!
+        const parsed = safeParse(RucFormatSchema, val);
+        if (!parsed.success) {
             return undefined;
         }
 
+        // 2. Exemption check for unchanged current value
         const current = resolveValue(options?.currentValue);
         if (current && val.toLowerCase() === current) {
             return undefined;
         }
 
+        // 3. Network availability check
         try {
             const res = await authApi.checkRuc(val);
             if (signal.aborted) return undefined;

@@ -1,5 +1,6 @@
 import { pipe, string, minLength, object, email, picklist, boolean, union, literal, optional, nullable, regex, custom, type InferInput } from 'valibot';
 import { TaxRegimeTypeSchema } from './entities.schema';
+import { RucFormatSchema, EmailFormatSchema } from './auth.schema';
 
 /** Accepts a remote image URL string or a local File upload instance */
 export const ImageSourceSchema = optional(
@@ -23,10 +24,10 @@ export type BrandingSettingsFormData = InferInput<typeof BrandingSettingsFormSch
 export const CompanyProfileFormSchema = object({
     businessName: pipe(string(), minLength(3, 'Razón social requerida')),
     tradeName: optional(nullable(string())),
-    ruc: pipe(string(), regex(/^\d{13}$/, 'RUC debe tener 13 dígitos numéricos')),
+    ruc: RucFormatSchema,
     mainAddress: pipe(string(), minLength(5, 'Dirección matriz requerida')),
     businessType: optional(nullable(string())),
-    email: optional(nullable(union([pipe(string(), email('Correo inválido')), literal('')]))),
+    email: optional(nullable(union([EmailFormatSchema, literal('')]))),
     phone: optional(nullable(string())),
     logoUrl: ImageSourceSchema,
 });

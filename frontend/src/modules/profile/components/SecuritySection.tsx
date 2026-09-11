@@ -21,6 +21,7 @@ export const SecuritySection: Component<SecuritySectionProps> = (props) => {
             confirmPassword: '',
         },
         validators: {
+            onChange: ChangePasswordSchema,
             onSubmit: ChangePasswordSchema,
         },
         onSubmit: async ({ value }) => {

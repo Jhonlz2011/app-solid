@@ -49,6 +49,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
             mode: onboardingMode(),
         } as UserCreateData,
         validators: {
+            onChange: UserCreateSchema,
             onSubmit: UserCreateSchema,
         },
         onSubmit: async ({ value }) => {
@@ -208,6 +209,14 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                                 <TextField.Input
                                                     placeholder="Se generará del correo si se deja vacío"
                                                     autocomplete="username"
+                                                    onInput={(e) => {
+                                                        const raw = e.currentTarget.value;
+                                                        const v = raw.toLowerCase().replace(/[^a-z0-9._-]/g, '');
+                                                        if (v !== raw) {
+                                                            e.currentTarget.value = v;
+                                                            field().handleChange(v);
+                                                        }
+                                                    }}
                                                 />
                                                 <TextField.ErrorMessage />
                                             </TextField.Root>

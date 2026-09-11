@@ -14,8 +14,6 @@ export interface AvailabilityBadgeProps {
     currentValue?: string | Accessor<string | undefined | null>;
     /** Minimum length required to mark as 'available'. Default: 3 */
     minLength?: number;
-    /** Direct status accessor for backward compatibility */
-    status?: Accessor<AvailabilityBadgeStatus> | AvailabilityBadgeStatus;
     availableLabel?: string;
     takenLabel?: string;
     currentLabel?: string;
@@ -47,14 +45,6 @@ export const AvailabilityBadge: Component<AvailabilityBadgeProps> = (props) => {
         };
 
         const currentStatus = createMemo<AvailabilityBadgeStatus>(() => {
-            // 1. Direct explicit status takes priority if passed
-            if (props.status !== undefined) {
-                return typeof props.status === 'function'
-                    ? (props.status as Accessor<AvailabilityBadgeStatus>)()
-                    : props.status;
-            }
-
-            // 2. Native TanStack Form field state resolution
             const f = getField();
             if (!f) return 'idle';
 
@@ -75,6 +65,20 @@ export const AvailabilityBadge: Component<AvailabilityBadgeProps> = (props) => {
                 return 'idle';
             }
 
+            const errorMap = f.state.meta.errorMap as Record<string, unknown> | undefined;
+
+            // Synchronous format errors (from onChange / onBlur) belong to TextField.ErrorMessage
+            // The availability badge must stay idle and NOT report 'taken' for format syntax errors.
+            if (errorMap?.onChange || errorMap?.onBlur) {
+                return 'idle';
+            }
+
+            // Asynchronous check failure (from onChangeAsync) indicates value is already taken
+            if (errorMap?.onChangeAsync || errorMap?.onSubmitAsync) {
+                return 'taken';
+            }
+
+            // Fallback for flat error lists without errorMap partitioning
             if (f.state.meta.errors.length > 0) {
                 return 'taken';
             }

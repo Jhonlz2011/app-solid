@@ -33,6 +33,7 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
             entityId: props.defaultValues.entityId ?? null,
         } as UserUpdateData,
         validators: {
+            onChange: UserUpdateSchema,
             onSubmit: UserUpdateSchema,
         },
         onSubmit: async ({ value }) => {

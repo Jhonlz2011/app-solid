@@ -1,14 +1,11 @@
-import { pipe, string, minLength, email, object, boolean, array, number, optional, nullable, union, literal, type InferInput } from 'valibot';
+import { pipe, string, minLength, object, boolean, array, number, optional, nullable, union, literal, type InferInput } from 'valibot';
+import { EmailFormatSchema, UsernameFormatSchema } from './auth.schema';
 
 export const UserCreateSchema = object({
-    email: pipe(
-        string('El correo electrónico es requerido'),
-        minLength(1, 'El correo electrónico es requerido'),
-        email('Ingresa un correo electrónico válido')
-    ),
+    email: EmailFormatSchema,
     roleIds: pipe(array(number()), minLength(1, 'Debes asignar al menos un rol al usuario')),
     entityId: optional(nullable(string())),
-    username: optional(union([pipe(string(), minLength(3, 'El usuario debe tener al menos 3 caracteres')), literal('')])),
+    username: optional(union([UsernameFormatSchema, literal('')])),
     password: optional(union([pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres')), literal('')])),
     mode: optional(union([literal('invite'), literal('direct')])),
     sendEmail: optional(boolean()),

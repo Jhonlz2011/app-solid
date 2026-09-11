@@ -82,7 +82,10 @@ const Login: Component = () => {
       email: initialEmail(),
       password: '',
     } as AuthLoginFormData,
-    validators: { onSubmit: AuthLoginSchema },
+    validators: {
+      onChange: AuthLoginSchema,
+      onSubmit: AuthLoginSchema,
+    },
     onSubmit: async ({ value }) => {
       try {
         const res = await actions.login({

@@ -2,6 +2,7 @@
 import { Component, Show, createMemo, createSignal } from 'solid-js';
 import { createForm } from '@tanstack/solid-form';
 import type { ProfileType } from '@app/schema/dto';
+import { UpdateProfileSchema } from '@app/schema/frontend';
 import { TextField } from '@form/TextField';
 import Button from '@form/Button';
 import { AlertCircleIcon } from '@icons/AlertCircleIcon';
@@ -30,6 +31,10 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
         defaultValues: {
             username: profileUsername(),
             email: profileEmail(),
+        },
+        validators: {
+            onChange: UpdateProfileSchema,
+            onSubmit: UpdateProfileSchema,
         },
         onSubmit: async ({ value }) => {
             const hasUsernameChanged = value.username !== profileUsername();
@@ -106,6 +111,14 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                             <TextField.Input
                                 placeholder="nombredeusuario"
                                 leftIcon={<span class="text-sm font-medium text-muted">@</span>}
+                                onInput={(e) => {
+                                    const raw = e.currentTarget.value;
+                                    const v = raw.toLowerCase().replace(/[^a-z0-9._-]/g, '');
+                                    if (v !== raw) {
+                                        e.currentTarget.value = v;
+                                        field().handleChange(v);
+                                    }
+                                }}
                             />
                             <TextField.ErrorMessage />
                         </TextField.Root>

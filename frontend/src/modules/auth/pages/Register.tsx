@@ -73,7 +73,10 @@ const Register: Component = () => {
             phone: undefined as string | undefined,
             cedula: undefined as string | undefined,
         },
-        validators: { onSubmit: RegisterStep1Schema as any },
+        validators: {
+            onChange: RegisterStep1Schema as any,
+            onSubmit: RegisterStep1Schema as any,
+        },
         onSubmit: async () => {
             setStep(1);
         },
@@ -123,7 +126,10 @@ const Register: Component = () => {
             obligadoContabilidad: false,
             contribuyenteEspecial: undefined as string | undefined,
         },
-        validators: { onSubmit: RegisterStep2Schema as any },
+        validators: {
+            onChange: RegisterStep2Schema as any,
+            onSubmit: RegisterStep2Schema as any,
+        },
         onSubmit: async () => {
             setStep(2);
         },

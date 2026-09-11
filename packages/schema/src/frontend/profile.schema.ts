@@ -1,18 +1,10 @@
-import { pipe, string, minLength, maxLength, trim, email, object, forward, partialCheck, type InferInput } from 'valibot';
+import { pipe, string, minLength, object, forward, partialCheck, type InferInput } from 'valibot';
+import { UsernameFormatSchema, EmailFormatSchema } from './auth.schema';
 
 // --- PROFILE FORM SCHEMAS ---
 export const UpdateProfileSchema = object({
-    username: pipe(
-        string(),
-        trim(),
-        minLength(3, 'El nombre de usuario debe tener al menos 3 caracteres'),
-        maxLength(25, 'El nombre de usuario no puede exceder 25 caracteres')
-    ),
-    email: pipe(
-        string(),
-        trim(),
-        email('Ingresa un email válido')
-    ),
+    username: UsernameFormatSchema,
+    email: EmailFormatSchema,
 });
 
 export const ChangePasswordSchema = pipe(

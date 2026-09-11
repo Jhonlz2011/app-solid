@@ -42,7 +42,10 @@ export const CreateCompany: Component = () => {
             obligadoContabilidad: false,
             contribuyenteEspecial: undefined as string | undefined,
         },
-        validators: { onSubmit: RegisterStep2Schema as any },
+        validators: {
+            onChange: RegisterStep2Schema as any,
+            onSubmit: RegisterStep2Schema as any,
+        },
         onSubmit: async () => {
             setStep(1);
         },
