@@ -40,7 +40,7 @@ export function redirectSafely(targetPath: string) {
     const { canonical, search, hash } = resolveRouteParts(targetPath);
     return redirect({
         to: canonical as any,
-        search,
+        search: search ? (prev: any) => ({ ...prev, ...search }) : undefined,
         hash,
     });
 }

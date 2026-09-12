@@ -15,7 +15,9 @@ import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import CompanyFields from '../components/CompanyFields';
 import AuthStepper from '../components/AuthStepper';
+import Turnstile from '@shared/ui/Turnstile';
 import { Badge } from '@shared/ui/display/Badge';
+import CompanySummaryCard from '../components/CompanySummaryCard';
 import { createUsernameAvailabilityValidator, createEmailAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
 import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
 

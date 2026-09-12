@@ -33,6 +33,7 @@ const AttributesPage: Component = () => {
                     icon={<LayoutIcon />}
                     iconBg="linear-gradient(135deg, #8b5cf6, #7c3aed)"
                     title="Atributos"
+                    moduleKey="attributes"
                     count={state.totalRows()}
                     info="Atributos para clasificar productos."
                     actions={

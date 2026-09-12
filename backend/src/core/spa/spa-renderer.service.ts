@@ -4,7 +4,7 @@ import { eq } from '@app/schema';
 import type { TenantBrandingType } from '@app/schema/backend';
 import { env } from '../../config/env';
 import { resolveSlugFromHost, getContrastColor, isHexColor, THEME_PRESETS, BRANDING_DEFAULTS } from '@app/schema/utils';
-import { getRouteAliases } from '../../modules/settings/menu.service';
+import { getTenantRouteMetadata } from '../../modules/settings/menu.service';
 
 // Cache in-memory in production with a TTL (e.g., 5 minutes)
 let cachedHtml: string | null = null;
@@ -83,52 +83,27 @@ function escapeHtml(str: string): string {
         .replace(/'/g, '&#039;');
 }
 
-// Fetch index.html from frontend server (decoupled, zero disk volume sharing needed)
-async function getRawHtml(requestHost?: string): Promise<string> {
+// Fetch index.html from frontend server (internal Docker network: http://frontend:80)
+async function getRawHtml(): Promise<string> {
     const now = Date.now();
     if (cachedHtml && env.NODE_ENV === 'production' && (now - lastHtmlFetchTime < HTML_CACHE_TTL_MS)) {
         return cachedHtml;
     }
 
-    let baseUrl = env.FRONTEND_INTERNAL_URL;
+    const baseUrl = env.FRONTEND_INTERNAL_URL;
 
-    if (!baseUrl && requestHost) {
-        const hostWithoutPort = requestHost.split(':')[0];
-        const protocol = hostWithoutPort.includes('localhost') || /^[0-9.]+$/.test(hostWithoutPort) ? 'http' : 'https';
-        baseUrl = `${protocol}://${requestHost}`;
+    const response = await fetch(`${baseUrl}/index.html`, {
+        headers: { 'X-Raw-Request': 'true' }
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to fetch raw index.html from ${baseUrl}/index.html: ${response.statusText}`);
     }
-
-    if (!baseUrl) {
-        baseUrl = env.FRONTEND_URL || 'http://localhost:5173';
+    const html = await response.text();
+    if (env.NODE_ENV === 'production') {
+        cachedHtml = html;
+        lastHtmlFetchTime = now;
     }
-
-    try {
-        const response = await fetch(`${baseUrl}/index.html`, {
-            headers: { 'X-Raw-Request': 'true' }
-        });
-        if (!response.ok) {
-            throw new Error(`Failed to fetch raw index.html from ${baseUrl}/index.html: ${response.statusText}`);
-        }
-        const html = await response.text();
-        if (env.NODE_ENV === 'production') {
-            cachedHtml = html;
-            lastHtmlFetchTime = now;
-        }
-        return html;
-    } catch (err: any) {
-        console.error('❌ Error fetching index.html template from frontend:', err);
-        // Serve a minimal emergency fallback HTML with descriptive debug details
-        return `<!DOCTYPE html><html><head><title>Zelys - Error de Conexión</title></head><body style="font-family: sans-serif; padding: 2rem; background: #0f172a; color: #f1f5f9;">
-            <div style="max-width: 600px; margin: 0 auto; background: #1e293b; padding: 2rem; border-radius: 8px; border: 1px solid #334155;">
-                <h1 style="color: #ef4444; margin-top: 0; font-size: 1.5rem;">Error de conexión con el frontend</h1>
-                <p>El backend de Elysia no pudo descargar el template <code>index.html</code> original.</p>
-                <hr style="border: 0; border-top: 1px solid #334155; margin: 1.5rem 0;" />
-                <p><strong>Intentando conectar a:</strong> <code style="background: #0f172a; padding: 0.2rem 0.4rem; border-radius: 4px; color: #38bdf8; font-size: 0.9rem;">${baseUrl}/index.html</code></p>
-                <p><strong>Detalle del error:</strong> <code style="color: #fca5a5; font-size: 0.9rem;">${err.message || err}</code></p>
-                <p style="font-size: 0.875rem; color: #94a3b8; margin-top: 1.5rem; margin-bottom: 0;">Tip: Verifica si configuraste correctamente la variable <code>FRONTEND_INTERNAL_URL</code> en Coolify (ej: <code>http://&lt;uuid&gt;:80</code>) y que ambos contenedores estén en la misma red de Docker.</p>
-            </div>
-        </body></html>`;
-    }
+    return html;
 }
 
 // Helper: inject app-config JSON (deduplicated — was repeated 3x)
@@ -151,7 +126,15 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
     const originalHost = request.headers.get('x-original-host') || request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
     const slug = resolveSlugFromHost(originalHost, query.slug);
 
-    let html = await getRawHtml(originalHost);
+    let html: string;
+    try {
+        html = await getRawHtml();
+    } catch (fetchErr: any) {
+        console.error('❌ Failed to fetch index.html template from frontend container:', fetchErr?.message || fetchErr);
+        // Si el frontend no responde, devolvemos 502 para que Caddy active su handle_response y sirva el index.html local
+        set.status = 502;
+        return '502 Bad Gateway - Frontend template unavailable';
+    }
 
     // Resolve API URL dynamically from env (no hardcoding)
     const apiUrl = env.API_PUBLIC_URL || `https://api.zelys.app`;
@@ -234,20 +217,28 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                     headInjections += `\n<link rel="shortcut icon" href="/favicon.ico">`;
                 }
 
-                // 7. Route Aliases — Pre-boot script for 100% alias mitigation
+                // 7. Route Metadata (Aliases & Dynamic Labels) — Pre-boot script for 0ms mitigation
                 try {
-                    const aliasMap = await getRouteAliases(company.id);
-                    if (Object.keys(aliasMap).length > 0) {
-                        const safeAliasJson = JSON.stringify(aliasMap)
+                    const { aliases, labels } = await getTenantRouteMetadata(company.id);
+                    if (Object.keys(aliases).length > 0) {
+                        const safeAliasJson = JSON.stringify(aliases)
                             .replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
 
                         headInjections += `
 <script id="route-aliases" type="application/json">${safeAliasJson}</script>
 `;
                     }
-                } catch (aliasErr) {
-                    // Non-critical: if aliases fail, the app works normally without masking
-                    console.error('⚠️ Route aliases injection skipped:', aliasErr);
+                    if (Object.keys(labels).length > 0) {
+                        const safeLabelsJson = JSON.stringify(labels)
+                            .replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+
+                        headInjections += `
+<script id="route-labels" type="application/json">${safeLabelsJson}</script>
+`;
+                    }
+                } catch (metaErr) {
+                    // Non-critical: if metadata fails, the app works normally without masking
+                    console.error('⚠️ Route metadata injection skipped:', metaErr);
                 }
 
                 // Remove existing static favicon tags to avoid duplicates

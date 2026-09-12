@@ -15,6 +15,7 @@ import { UserRolePicker } from './shared/UserRolePicker';
 import { useCheckUserEmail } from '../data/users.queries';
 import { createUsernameAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
 import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
+import { Badge } from '@display/Badge';
 
 export type UserOnboardingMode = 'invite' | 'direct';
 
@@ -119,17 +120,17 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                         <div class="flex items-center gap-1.5 min-h-5">
                                             {/* Non-intrusive live user detection */}
                                             <Show when={!checkQuery.isFetching && isExistingUser()}>
-                                                <span class="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 animate-in fade-in">
+                                                <Badge size="sm" variant="success" class="animate-in fade-in">
                                                     <SparklesIcon class="size-3" />
                                                     Usuario (@{checkQuery.data?.username})
-                                                </span>
+                                                </Badge>
                                             </Show>
 
                                             <Show when={!checkQuery.isFetching && isAlreadyMember()}>
-                                                <span class="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 animate-in fade-in">
+                                                <Badge size="sm" variant="warning" class="animate-in fade-in">
                                                     <AlertTriangleIcon class="size-3" />
                                                     Ya es miembro en esta empresa
-                                                </span>
+                                                </Badge>
                                             </Show>
                                         </div>
                                     }

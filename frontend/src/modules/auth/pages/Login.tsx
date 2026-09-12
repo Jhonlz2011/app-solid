@@ -238,7 +238,7 @@ const Login: Component = () => {
                   autocomplete="current-password"
                   leftIcon={<LockIcon class="size-4 text-muted" />}
                 />
-                <TextField.ErrorMessage />
+                <TextField.ErrorMessage/>
               </TextField.Root>
             )}
           </form.Field>

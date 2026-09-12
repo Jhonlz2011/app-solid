@@ -8,9 +8,9 @@ import {
   ButtonContent,
   type ButtonVariant,
   type ButtonSize,
-  type ButtonRadius,
   type SharedButtonProps 
 } from '@form/button-shared';
+import type { UiRadius } from '../tokens';
 
 export interface LinkButtonProps extends LinkProps, SharedButtonProps {
   class?: string;
@@ -23,7 +23,7 @@ export default function LinkButton(props: LinkButtonProps) {
   const merged = mergeProps({ 
     variant: 'primary' as ButtonVariant, 
     size: 'md' as ButtonSize, 
-    radius: 'lg' as ButtonRadius 
+    radius: 'lg' as UiRadius 
   }, props);
 
   // Separamos las propiedades exclusivas del botón de las del Link / Anchor HTML

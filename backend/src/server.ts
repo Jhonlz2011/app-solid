@@ -137,6 +137,7 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
 // ============================================================================
 
 const app = new Elysia()
+  .get('/health', () => ({ status: 'ok', ts: Date.now() }))
   .use(apiApp)
   .get('*', serveSpa);
 

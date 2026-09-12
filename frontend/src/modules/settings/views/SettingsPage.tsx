@@ -110,6 +110,7 @@ const SettingsPage: Component = () => {
                     icon={<GearIcon />}
                     iconBg="linear-gradient(135deg, #6366f1, #4f46e5)"
                     title="Configuración General"
+                    moduleKey="general_config"
                     info="Gestiona las bodegas, ubicaciones y demás configuraciones del sistema."
                     actions={
                         <Show when={currentNewAction()}>

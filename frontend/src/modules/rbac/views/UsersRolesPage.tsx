@@ -53,6 +53,7 @@ const UsersRolesPage: Component = () => {
                     icon={<UserKeyIcon />}
                     iconBg="linear-gradient(135deg, #6366f1, #9477d6ff)"
                     title="Usuarios y Roles"
+                    moduleKey="users_roles"
                     count={state.activeTab() === 'users' ? state.totalUsers() : state.roles().length}
                     info="Gestiona usuarios, roles y permisos de acceso al sistema."
                     actions={

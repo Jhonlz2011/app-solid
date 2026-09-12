@@ -40,6 +40,7 @@ const BrandsPage: Component = () => {
                     icon={<BookmarkIcon />}
                     iconBg="linear-gradient(135deg, #e11d48, #be123c)"
                     title="Marcas"
+                    moduleKey="brands"
                     count={state.totalRows()}
                     info="Gestiona las marcas de tus productos. Puedes agregar, editar, desactivar y restaurar marcas."
                     actions={

@@ -2,6 +2,7 @@ import { Component, Switch, Match, untrack, createMemo, useContext, type Accesso
 import { cn } from '@shared/lib/utils';
 import { SparklesIcon } from '@icons/SparklesIcon';
 import { AlertTriangleIcon } from '@icons/AlertTriangleIcon';
+import { Badge } from '@display/Badge';
 import { TextFieldContext } from './TextField';
 import type { FieldLike } from './form.types';
 
@@ -105,26 +106,26 @@ export const AvailabilityBadge: Component<AvailabilityBadgeProps> = (props) => {
                 <Switch>
                     {/* Current value exemption */}
                     <Match when={currentStatus() === 'current'}>
-                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20 animate-in fade-in">
+                        <Badge size="sm" variant="primary" class="animate-in fade-in">
                             <SparklesIcon class="size-3 shrink-0" />
                             <span>{props.currentLabel || 'Actual'}</span>
-                        </span>
+                        </Badge>
                     </Match>
 
                     {/* Available */}
                     <Match when={currentStatus() === 'available'}>
-                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 animate-in fade-in">
+                        <Badge size="sm" variant="success" class="animate-in fade-in">
                             <SparklesIcon class="size-3 shrink-0" />
                             <span>{props.availableLabel || 'Disponible'}</span>
-                        </span>
+                        </Badge>
                     </Match>
 
                     {/* Already taken */}
                     <Match when={currentStatus() === 'taken'}>
-                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 animate-in fade-in">
+                        <Badge size="sm" variant="warning" class="animate-in fade-in">
                             <AlertTriangleIcon class="size-3 shrink-0" />
                             <span>{props.takenLabel || 'Ya está en uso'}</span>
-                        </span>
+                        </Badge>
                     </Match>
                 </Switch>
             </div>

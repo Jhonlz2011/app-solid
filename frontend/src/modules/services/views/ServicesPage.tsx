@@ -71,6 +71,7 @@ const ServicesPage: Component = () => {
                     icon={<WrenchIcon />}
                     iconBg="linear-gradient(135deg, #f59e0b, #ef4444)"
                     title="Servicios"
+                    moduleKey="services"
                     count={state.totalRows()}
                     info="Gestiona los servicios de tu negocio."
                     actions={

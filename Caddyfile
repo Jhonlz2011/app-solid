@@ -47,19 +47,41 @@
         }
     }
 
-    # 5. Redirigir navegación SPA al Backend para branding dinámico
-    handle {
-        reverse_proxy {$BACKEND_URL:https://api.zelys.app} {
-            header_up Host {$BACKEND_HOST:api.zelys.app}
-            header_up X-Original-Host {host}
-            header_up X-Real-IP {remote_host}
+    # 5. Navegación SPA directa para el Portal Global (in.zelys.app, zelys.app, www.zelys.app)
+    # Entrega instantánea en 1ms desde disco local, eliminando cualquier bucle o bloqueo de Cloudflare
+    @portal host in.zelys.app zelys.app www.zelys.app
+    handle @portal {
+        try_files {path} /index.html
+        file_server {
+            precompressed br gzip
         }
     }
 
-    # 6. Fallback de emergencia: servir index.html local si el backend no responde
+    # 6. Navegación SPA para Tenants (*.zelys.app) con inyección SSR de alias y branding vía red interna
+    handle {
+        reverse_proxy {$BACKEND_URL:http://backend:3000} {
+            header_up Host {$BACKEND_HOST:backend:3000}
+            header_up X-Original-Host {host}
+            header_up X-Real-IP {remote_host}
+
+            # Salvavidas de alta disponibilidad: si el backend no responde o da error (4xx/5xx),
+            # servir inmediatamente el index.html local para que la app cargue sin interrupciones
+            @backend_error status 400 401 403 404 500 502 503 504
+            handle_response @backend_error {
+                rewrite * /index.html
+                file_server {
+                    precompressed br gzip
+                }
+            }
+        }
+    }
+
+    # 7. Fallback de emergencia a nivel de servidor
     handle_errors {
         rewrite * /index.html
-        file_server
+        file_server {
+            precompressed br gzip
+        }
     }
 
     # Cabeceras de Seguridad y CSP

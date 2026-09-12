@@ -7,9 +7,9 @@ import {
   ButtonContent,
   type ButtonVariant, 
   type ButtonSize, 
-  type ButtonRadius, 
   type SharedButtonProps,
 } from '@form/button-shared';
+import type { UiRadius } from '../tokens';
 
 export interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement>, SharedButtonProps {}
 
@@ -17,7 +17,7 @@ export default function Button(props: ButtonProps) {
   const merged = mergeProps({ 
     variant: 'primary' as ButtonVariant, 
     size: 'md' as ButtonSize, 
-    radius: 'lg' as ButtonRadius, 
+    radius: 'lg' as UiRadius, 
     type: "button" as const 
   }, props);
 

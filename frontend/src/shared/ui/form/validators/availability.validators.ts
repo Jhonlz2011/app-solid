@@ -54,7 +54,7 @@ export const createUsernameAvailabilityValidator = (options?: AvailabilityValida
         try {
             const res = await authClient.isUsernameAvailable(
                 { username: val },
-                { fetchOptions: { signal } }
+                { signal }
             );
             if (signal.aborted) return undefined;
             if (res.error) return undefined;

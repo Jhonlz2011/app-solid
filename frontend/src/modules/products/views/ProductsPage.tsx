@@ -68,6 +68,7 @@ const ProductsPage: Component = () => {
                     icon={<PackageIcon />}
                     iconBg="linear-gradient(135deg, #0ea5e9, #6366f1)"
                     title="Productos"
+                    moduleKey="products"
                     count={state.totalRows()}
                     info="Gestiona los productos y servicios de tu negocio. Puedes agregar, editar, eliminar y buscar."
                     actions={

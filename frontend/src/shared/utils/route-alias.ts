@@ -15,6 +15,8 @@ import { CANONICAL_DEFAULT_ALIASES, CANONICAL_DEFAULT_REVERSE } from '@app/schem
 
 /** Storage prefix for client-side synchronous alias hydration */
 const ALIAS_CACHE_PREFIX = 'zelys_route_aliases:';
+/** Storage prefix for client-side synchronous route label hydration */
+const LABELS_CACHE_PREFIX = 'zelys_route_labels:';
 
 function getTenantSlug(): string {
     if (typeof window === 'undefined') return 'default';
@@ -23,6 +25,7 @@ function getTenantSlug(): string {
 
 let cachedAliases: Record<string, string> | null = null;
 let cachedReverseAliases: Record<string, string> | null = null;
+let cachedRouteLabels: Record<string, string> | null = null;
 let sortedAliasKeys: string[] = [];
 let sortedReverseKeys: string[] = [];
 
@@ -218,17 +221,101 @@ export function updateRouteAliases(aliasMap: Record<string, string>, tenantSlug?
 }
 
 /**
- * Resets cached alias state in memory (for tenant switch or logout).
+ * Initializes route labels from pre-injected DOM script tags and synchronous localStorage.
+ */
+function initRouteLabels(): void {
+    if (cachedRouteLabels !== null) return;
+
+    // 1. Injected labels from Elysia SPA pre-boot script
+    let injectedLabels: Record<string, string> = {};
+    try {
+        const el = typeof document !== 'undefined' ? document.getElementById('route-labels') : null;
+        if (el?.textContent) injectedLabels = JSON.parse(el.textContent);
+    } catch {}
+
+    // 2. Synchronous localStorage cache for F5 reloads, direct navigation, and Vite dev
+    const slug = getTenantSlug();
+    let storedLabels: Record<string, string> = {};
+    if (typeof window !== 'undefined') {
+        try {
+            const stored = localStorage.getItem(`${LABELS_CACHE_PREFIX}${slug}`)
+                || localStorage.getItem(`${LABELS_CACHE_PREFIX}latest`)
+                || localStorage.getItem(`${LABELS_CACHE_PREFIX}default`);
+            if (stored) storedLabels = JSON.parse(stored);
+        } catch {}
+    }
+
+    cachedRouteLabels = { ...injectedLabels, ...storedLabels };
+}
+
+/**
+ * Returns preloaded route label for a canonical or alias path (synchronous O(1) lookup at t=0).
+ */
+export function getPreloadedRouteLabel(rawUrl: string): string | undefined {
+    initRouteLabels();
+    if (!cachedRouteLabels) return undefined;
+
+    const { pathname } = parseUrlParts(rawUrl);
+    const normalized = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+
+    if (cachedRouteLabels[pathname]) {
+        return cachedRouteLabels[pathname];
+    }
+    if (cachedRouteLabels[normalized]) {
+        return cachedRouteLabels[normalized];
+    }
+
+    // Try translating to real path if an alias path was passed
+    const real = toRealPath(rawUrl);
+    const { pathname: realPathname } = parseUrlParts(real);
+    const realNormalized = realPathname.length > 1 && realPathname.endsWith('/') ? realPathname.slice(0, -1) : realPathname;
+
+    if (cachedRouteLabels[realPathname]) {
+        return cachedRouteLabels[realPathname];
+    }
+    if (cachedRouteLabels[realNormalized]) {
+        return cachedRouteLabels[realNormalized];
+    }
+
+    return undefined;
+}
+
+/**
+ * Deterministically sets and stores the route label map at runtime (e.g. on menu fetch, tenant switch or SSE update).
+ */
+export function setRouteLabels(tenantLabels: Record<string, string>, tenantSlug?: string | null): void {
+    if (!tenantLabels || Object.keys(tenantLabels).length === 0) {
+        return;
+    }
+
+    initRouteLabels();
+    cachedRouteLabels = { ...cachedRouteLabels, ...tenantLabels };
+
+    const slug = tenantSlug || getTenantSlug();
+    if (typeof window !== 'undefined') {
+        try {
+            const labelsJson = JSON.stringify(cachedRouteLabels);
+            localStorage.setItem(`${LABELS_CACHE_PREFIX}${slug}`, labelsJson);
+            localStorage.setItem(`${LABELS_CACHE_PREFIX}latest`, labelsJson);
+        } catch (e) {
+            console.warn('Failed to persist route labels to localStorage:', e);
+        }
+    }
+}
+
+/**
+ * Resets cached alias and label state in memory (for tenant switch or logout).
  */
 export function resetRouteAliases(): void {
     cachedAliases = null;
     cachedReverseAliases = null;
+    cachedRouteLabels = null;
     sortedAliasKeys = [];
     sortedReverseKeys = [];
 }
 
 /**
- * Clears cached aliases in localStorage and resets memory state (for menu default resets).
+ * Clears cached aliases and labels in localStorage and resets memory state (for menu default resets).
  */
 export function clearTenantRouteAliases(slug?: string | null): void {
     const targetSlug = slug || getTenantSlug();
@@ -237,8 +324,11 @@ export function clearTenantRouteAliases(slug?: string | null): void {
             localStorage.removeItem(`${ALIAS_CACHE_PREFIX}${targetSlug}`);
             localStorage.removeItem(`${ALIAS_CACHE_PREFIX}latest`);
             localStorage.removeItem(`${ALIAS_CACHE_PREFIX}default`);
+            localStorage.removeItem(`${LABELS_CACHE_PREFIX}${targetSlug}`);
+            localStorage.removeItem(`${LABELS_CACHE_PREFIX}latest`);
+            localStorage.removeItem(`${LABELS_CACHE_PREFIX}default`);
         } catch (e) {
-            console.warn('Failed to clear tenant route aliases from localStorage:', e);
+            console.warn('Failed to clear tenant route aliases and labels from localStorage:', e);
         }
     }
     resetRouteAliases();

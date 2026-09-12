@@ -5,7 +5,6 @@ import type { MenuItemStatus } from '@app/schema/enums';
 import { getUserPermissions, getUserRoles } from '../rbac/rbac.permission.service';
 import { cacheService } from '../../core/cache';
 import { DomainError, NotFoundError } from '../../core/errors';
-import { seedCompanyMenus } from '../auth/provisioning.service';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { broadcastToTenant } from '../../core/sse/events';
 
@@ -46,14 +45,25 @@ const RESERVED_ALIASES = new Set([
     '/settings',
 ]);
 
+export interface TenantRouteMetadata {
+    aliases: Record<string, string>;
+    labels: Record<string, string>;
+}
+
 /**
  * Invalidate Redis caches for menus and route aliases and broadcast SSE event
  */
 async function invalidateMenuCaches(companyId?: number | null) {
     await cacheService.invalidate('menus:*');
     await cacheService.invalidate('aliases:*');
+    await cacheService.invalidate('route_meta:*');
     if (companyId) {
-        await cacheService.del(`menus:${companyId}`, `menus:${companyId}:global`, `aliases:${companyId}`);
+        await cacheService.del(
+            `menus:${companyId}`,
+            `menus:${companyId}:global`,
+            `aliases:${companyId}`,
+            `route_meta:${companyId}`
+        );
         broadcastToTenant(companyId, RealtimeEvents.MENU.UPDATED, { companyId }, RealtimeEvents.ROOMS.MENU).catch((err) => {
             console.error('Failed to broadcast MENU.UPDATED event:', err);
         });
@@ -426,15 +436,16 @@ function buildMenuTree(menus: DbMenuItem[]): ModuleConfig[] {
 }
 
 /**
- * Returns the route alias map for a tenant (alias → real path).
- * Used by SPA Renderer to inject pre-boot script for 100% alias mitigation.
+ * Returns route metadata (aliases and dynamic labels) for a tenant.
+ * Used by SPA Renderer to pre-inject route-aliases and route-labels for 0ms cold start.
  */
-export async function getRouteAliases(companyId: number): Promise<Record<string, string>> {
-    return cacheService.getOrSet(`aliases:${companyId}`, async () => {
+export async function getTenantRouteMetadata(companyId: number): Promise<TenantRouteMetadata> {
+    return cacheService.getOrSet(`route_meta:${companyId}`, async () => {
         const items = await adminDb
             .select({
                 path: authMenuItems.path,
                 path_alias: sql<string | null>`COALESCE(${authMenuCustom.path_alias}, ${authMenuItems.path_alias})`,
+                label: sql<string>`COALESCE(${authMenuCustom.label}, ${authMenuItems.label})`,
             })
             .from(authMenuItems)
             .leftJoin(
@@ -449,13 +460,32 @@ export async function getRouteAliases(companyId: number): Promise<Record<string,
                 isNotNull(authMenuItems.path)
             ));
 
-        const aliasMap: Record<string, string> = {};
+        const aliases: Record<string, string> = {};
+        const labels: Record<string, string> = {};
+
         for (const m of items) {
-            if (m.path && m.path_alias && m.path !== m.path_alias) {
-                aliasMap[m.path_alias] = m.path;
+            if (m.path) {
+                if (m.label) {
+                    labels[m.path] = m.label;
+                }
+                if (m.path_alias && m.path !== m.path_alias) {
+                    aliases[m.path_alias] = m.path;
+                    if (m.label) {
+                        labels[m.path_alias] = m.label;
+                    }
+                }
             }
         }
 
-        return aliasMap;
+        return { aliases, labels };
     }, 86400);
+}
+
+/**
+ * Returns the route alias map for a tenant (alias → real path).
+ * Used by SPA Renderer to inject pre-boot script for 100% alias mitigation.
+ */
+export async function getRouteAliases(companyId: number): Promise<Record<string, string>> {
+    const meta = await getTenantRouteMetadata(companyId);
+    return meta.aliases;
 }

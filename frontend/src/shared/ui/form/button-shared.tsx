@@ -1,6 +1,7 @@
 import { JSX, Show } from 'solid-js';
 import { cn } from '../../lib/utils';
 import { SpinnerIcon } from '@icons/SpinnerIcon';
+import { UI_RADII, type UiRadius } from '../tokens';
 
 export const TACTILE_3D_VARIANTS: Set<string> = new Set([
   'primary',
@@ -53,23 +54,13 @@ export const BUTTON_SIZES = {
   none: ""  
 };
 
-export const BUTTON_RADII = {
-  sm: "rounded-sm",
-  md: "rounded-md",
-  lg: "rounded-lg",
-  xl: "rounded-xl",
-  full: "rounded-full",
-  none: ""
-};
-
 export type ButtonVariant = keyof typeof BUTTON_SURFACE_VARIANTS;
 export type ButtonSize = keyof typeof BUTTON_SIZES;
-export type ButtonRadius = keyof typeof BUTTON_RADII;
 
 export interface SharedButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  radius?: ButtonRadius;
+  radius?: UiRadius;
   /** Explicitly enables or disables 3D tactile mode with pedestal and extrusion */
   tactile?: boolean;
   /** Syntactic sugar for `tactile={false}` (renders as clean single-layer flat button) */
@@ -105,7 +96,7 @@ export function buttonBaseClasses(options?: ButtonVariantOptions): string {
     "outline-hidden focus-visible:outline-none",
     "disabled:opacity-50 disabled:cursor-not-allowed",
     is3D ? BUTTON_BASE_VARIANTS[variant] : "bg-transparent",
-    BUTTON_RADII[radius],
+    UI_RADII[radius],
     fullWidth && 'w-full',
     options?.className,
     options?.class
@@ -125,7 +116,7 @@ export function buttonSurfaceClasses(options?: ButtonVariantOptions): string {
   return cn(
     "w-full h-full inline-flex items-center justify-center gap-2 font-semibold select-none",
     "focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
-    BUTTON_RADII[radius],
+    UI_RADII[radius],
     BUTTON_SIZES[size],
     BUTTON_SURFACE_VARIANTS[variant],
     is3D && [
@@ -155,7 +146,7 @@ export function buttonVariants(options?: ButtonVariantOptions): string {
       "disabled:opacity-50 disabled:cursor-not-allowed",
       BUTTON_SURFACE_VARIANTS[variant],
       BUTTON_SIZES[size],
-      BUTTON_RADII[radius],
+      UI_RADII[radius],
       fullWidth && 'w-full',
       options?.className,
       options?.class

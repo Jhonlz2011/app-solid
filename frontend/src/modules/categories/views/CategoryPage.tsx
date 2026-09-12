@@ -53,12 +53,13 @@ const CategoryPage: Component = () => {
                     icon={<TagIcon />}
                     iconBg="linear-gradient(135deg, #f59e0b, #d97706)"
                     title="Categorías"
+                    moduleKey="categories"
                     count={state.filteredCount()}
                     info="Organiza las categorías de tus productos y define la estructura de tu catálogo."
                     actions={
                         <Show when={state.canCreate()}>
                             <LinkButton to="/categories/new" preload="intent" icon={<PlusIcon />}>
-                                <span class="hidden @sm:inline">Nueva Categoría</span>
+                                <span class="hidden @sm:inline">Nuevo</span>
                             </LinkButton>
                         </Show>
                     }
@@ -170,7 +171,7 @@ const CategoryPage: Component = () => {
                                 <span>Acciones</span>
                                 <ChevronsUpDownIcon class="size-3.5" />
                             </DropdownMenu.Trigger>
-                            <DropdownMenu.Content class="min-w-[180px]">
+                            <DropdownMenu.Content class="min-w-45">
                                 <DropdownMenu.Item onSelect={state.handleBulkDelete} destructive>
                                     <TrashIcon class="size-4 mr-2" />
                                     <span class="flex-1 font-medium">Desactivar Activos</span>

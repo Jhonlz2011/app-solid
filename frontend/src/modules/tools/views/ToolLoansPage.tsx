@@ -65,6 +65,7 @@ export const ToolLoansPage: Component = () => {
                     icon={<WrenchIcon class="size-5" />}
                     iconBg="linear-gradient(135deg, #0284c7, #0369a1)"
                     title="Pañol de Herramientas"
+                    moduleKey="tool_loans"
                     count={totalCount()}
                     info="Control de custodia, vales de salida de herramientas y recepción técnica de devolución con inspección de condición."
                     actions={

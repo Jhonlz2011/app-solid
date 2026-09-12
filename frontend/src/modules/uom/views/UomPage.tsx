@@ -36,6 +36,7 @@ const UomPage: Component = () => {
                     icon={<RulerIcon />}
                     iconBg="linear-gradient(135deg, #0ea5e9, #0284c7)"
                     title="Unidades de Medida"
+                    moduleKey="uom"
                     count={state.totalRows()}
                     info="Unidades de medidas."
                     actions={

@@ -1,12 +1,28 @@
 import { Component, JSX, splitProps, Show } from 'solid-js';
 import { cn } from '../../lib/utils';
+import { UI_RADII, type UiRadius } from '../tokens';
+import { EntityType } from '@app/schema/enums';
 
-export type BadgeVariant = 'success' | 'warning' | 'danger' | 'destructive' | 'info' | 'default' | 'primary' | 'secondary' | 'purple' | 'pink' | 'orange' | 'teal' | 'cyan' | 'indigo';
+export const BADGE_SIZES = {
+    sm: "text-[10px] px-1.5 py-0.5 gap-1",
+    md: "text-xs px-2 py-0.5 gap-1",
+    lg: "text-sm px-2.5 py-1 gap-1.5",
+    none: "",
+} as const;
+
+export const BADGE_RADII = UI_RADII;
+
+export type BadgeSize = keyof typeof BADGE_SIZES;
+export type BadgeRadius = UiRadius;
+
+export type BadgeVariant = 'success' | 'warning' | 'danger' | 'destructive' | 'info' | 'default' | 'primary' | 'secondary' | 'purple' | 'pink' | 'orange' | 'teal' | 'cyan' | 'indigo' | 'none';
 
 // 1. OPTIMIZACIÓN: Extender atributos HTML nativos para mayor flexibilidad
-interface BadgeProps extends JSX.HTMLAttributes<HTMLSpanElement> {
+export interface BadgeProps extends JSX.HTMLAttributes<HTMLSpanElement> {
     variant?: BadgeVariant;
-    children: JSX.Element | string;
+    size?: BadgeSize;
+    radius?: BadgeRadius;
+    children?: JSX.Element | string;
     class?: string;
 }
 
@@ -25,10 +41,11 @@ const variantStyles: Record<BadgeVariant, string> = {
     cyan: 'bg-cyan-500/15 text-cyan-600 border-cyan-500/30',
     indigo: 'bg-indigo-500/15 text-indigo-600 border-indigo-500/30',
     default: 'bg-surface text-muted border-border',
+    none: '',
 };
 
 export const Badge: Component<BadgeProps> = (props) => {
-    const [local, rest] = splitProps(props, ['variant', 'children', 'onClick', 'class']);
+    const [local, rest] = splitProps(props, ['variant', 'size', 'radius', 'children', 'onClick', 'class']);
 
     // 2. OPTIMIZACIÓN: Manejador de eventos más limpio
     const handleClick: JSX.EventHandlerUnion<HTMLSpanElement, MouseEvent> = (e) => {
@@ -41,7 +58,9 @@ export const Badge: Component<BadgeProps> = (props) => {
     return (
         <span
             class={cn(
-                "px-2 py-0.5 text-xs font-medium rounded-full border inline-flex items-center gap-1",
+                "font-medium border inline-flex items-center select-none",
+                BADGE_SIZES[local.size ?? 'md'],
+                BADGE_RADII[local.radius ?? 'full'],
                 variantStyles[local.variant ?? 'default'], // Reactivo automáticamente dentro del JSX
                 local.onClick && "cursor-pointer hover:opacity-80 transition-opacity",
                 local.class
@@ -140,9 +159,6 @@ export const ActionBadge: Component<{ action: string }> = (props) => {
     return <Badge variant={variant()}>{label()}</Badge>;
 };
 
-// ── Entity Type Badge ──
-export type EntityType = 'employee' | 'client' | 'supplier' | 'carrier';
-
 const ENTITY_TYPE_CONFIG: Record<EntityType, { label: string; colors: string }> = {
     employee: { label: 'Empleado', colors: 'bg-primary/10 text-primary' },
     client: { label: 'Cliente', colors: 'bg-emerald-500/10 text-emerald-600' },
@@ -153,9 +169,9 @@ const ENTITY_TYPE_CONFIG: Record<EntityType, { label: string; colors: string }> 
 export const EntityTypeBadge: Component<{ type: EntityType; class?: string }> = (props) => {
     const cfg = () => ENTITY_TYPE_CONFIG[props.type];
     return (
-        <span class={cn('text-[10px] px-1.5 py-0.5 rounded font-medium', cfg().colors, props.class)}>
+        <Badge size="sm" radius="md" variant="none" class={cn('border-transparent font-medium', cfg().colors, props.class)}>
             {cfg().label}
-        </span>
+        </Badge>
     );
 };
 

@@ -62,6 +62,7 @@ export const EntityPage: Component<EntityPageProps> = (props) => {
                     icon={props.icon}
                     iconBg={props.iconBg || "linear-gradient(135deg, #0072ff, #00c6ff)"}
                     title={props.title}
+                    moduleKey={props.permissionKey}
                     count={state.totalRows()}
                     info={props.description}
                     actions={

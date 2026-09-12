@@ -53,6 +53,7 @@ const LocationPage: Component = () => {
                     icon={<ShelvesIcon />}
                     iconBg="linear-gradient(135deg, #8b5cf6, #7c3aed)"
                     title="Ubicaciones"
+                    moduleKey="locations"
                     count={state.filteredCount()}
                     info="Organiza las ubicaciones de tus bodegas y zonas de almacenamiento."
                     actions={

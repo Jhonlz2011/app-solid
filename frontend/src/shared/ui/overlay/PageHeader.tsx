@@ -1,11 +1,14 @@
 import { Component, JSX, Show } from 'solid-js';
 import { Tooltip } from '@overlay/Tooltip';
 import { InfoIcon } from '@icons/InfoIcon';
+import { useModuleTitle } from '@shared/store/modules.store';
 
 interface PageHeaderProps {
     icon: JSX.Element;
     iconBg?: string;
     title: string;
+    /** Key or permission prefix of the module to resolve tenant-customized title */
+    moduleKey?: string;
     /** Total count to display in a pill badge */
     count?: number;
     /** Info tooltip content */
@@ -13,55 +16,59 @@ interface PageHeaderProps {
     actions?: JSX.Element;
 }
 
-export const PageHeader: Component<PageHeaderProps> = (props) => (
-    <div class="@container flex flex-row items-center justify-between gap-3 sm:gap-4">
-        <div class="flex-1 min-w-0">
-            <h1 class="text-xl @lg:text-3xl font-bold flex items-center gap-2 @md:gap-3 truncate">
-                {/* Icon container with hover info overlay */}
-                <Show
-                    when={props.info}
-                    fallback={
-                        <div
-                            class="size-8 sm:size-10 rounded-xl flex items-center justify-center shrink-0"
-                            style={{ background: props.iconBg ?? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))' }}
-                        >
-                            {props.icon}
-                        </div>
-                    }
-                >
-                    <Tooltip content={props.info} placement="bottom-start">
-                        <div
-                            class="group relative size-8 sm:size-10 rounded-xl flex items-center justify-center shrink-0 cursor-help"
-                            style={{ background: props.iconBg ?? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))' }}
-                        >
-                            {/* Main icon - visible by default, hidden on hover */}
-                            <span class="transition-opacity duration-200 group-hover:opacity-0">
+export const PageHeader: Component<PageHeaderProps> = (props) => {
+    const pageTitle = useModuleTitle(() => props.title, () => props.moduleKey);
+
+    return (
+        <div class="@container flex flex-row items-center justify-between gap-3 sm:gap-4">
+            <div class="flex-1 min-w-0">
+                <h1 class="text-xl @lg:text-3xl font-bold flex items-center gap-2 @md:gap-3 truncate">
+                    {/* Icon container with hover info overlay */}
+                    <Show
+                        when={props.info}
+                        fallback={
+                            <div
+                                class="size-8 sm:size-10 rounded-xl flex items-center justify-center shrink-0"
+                                style={{ background: props.iconBg ?? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))' }}
+                            >
                                 {props.icon}
-                            </span>
-                            {/* Info icon - hidden by default, visible on hover */}
-                            <span class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-white">
-                                <InfoIcon />
-                            </span>
-                        </div>
-                    </Tooltip>
-                </Show>
+                            </div>
+                        }
+                    >
+                        <Tooltip content={props.info} placement="bottom-start">
+                            <div
+                                class="group relative size-8 sm:size-10 rounded-xl flex items-center justify-center shrink-0 cursor-help"
+                                style={{ background: props.iconBg ?? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))' }}
+                            >
+                                {/* Main icon - visible by default, hidden on hover */}
+                                <span class="transition-opacity duration-200 group-hover:opacity-0">
+                                    {props.icon}
+                                </span>
+                                {/* Info icon - hidden by default, visible on hover */}
+                                <span class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-white">
+                                    <InfoIcon />
+                                </span>
+                            </div>
+                        </Tooltip>
+                    </Show>
 
-                <span>{props.title}</span>
+                    <span>{pageTitle()}</span>
 
-                {/* Count pill */}
-                <Show when={props.count !== undefined}>
-                    <span class="px-2.5 py-0.5 text-sm font-semibold rounded-full bg-primary/15 text-primary">
-                        {props.count?.toLocaleString()}
-                    </span>
-                </Show>
-            </h1>
-        </div>
-        {props.actions && (
-            <div class="flex items-center gap-2">
-                {props.actions}
+                    {/* Count pill */}
+                    <Show when={props.count !== undefined}>
+                        <span class="px-2.5 py-0.5 text-sm font-semibold rounded-full bg-primary/15 text-primary">
+                            {props.count?.toLocaleString()}
+                        </span>
+                    </Show>
+                </h1>
             </div>
-        )}
-    </div>
-);
+            {props.actions && (
+                <div class="flex items-center gap-2">
+                    {props.actions}
+                </div>
+            )}
+        </div>
+    );
+};
 
 export default PageHeader;

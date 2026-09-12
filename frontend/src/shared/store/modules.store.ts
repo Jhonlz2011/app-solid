@@ -1,8 +1,10 @@
 import { createStore } from "solid-js/store";
+import { createMemo, type Accessor } from "solid-js";
+import { useLocation } from "@tanstack/solid-router";
 import { api } from "../lib/eden";
 import { useAuth } from "@modules/auth/store/auth.store";
 import type { ModuleConfig } from "@app/schema/backend";
-import { setRouteAliases, resetRouteAliases } from "@shared/utils/route-alias";
+import { setRouteAliases, setRouteLabels, getPreloadedRouteLabel, toRealPath, resetRouteAliases } from "@shared/utils/route-alias";
 import { RealtimeEvents } from "@app/schema/realtime-events";
 
 function notifyRouterOfAliasChange(): void {
@@ -13,12 +15,20 @@ function notifyRouterOfAliasChange(): void {
     }
 }
 
-function syncRouteAliases(modules: ModuleConfig[], tenantSlug?: string | null): void {
+function syncRouteMetadata(modules: ModuleConfig[], tenantSlug?: string | null): void {
     const aliasMap: Record<string, string> = {};
+    const labelMap: Record<string, string> = {};
+
     const traverse = (items: ModuleConfig[]) => {
         for (const item of items) {
+            if (item.path && item.label) {
+                labelMap[item.path] = item.label;
+            }
             if (item.path && item.pathAlias && item.path !== item.pathAlias) {
                 aliasMap[item.pathAlias] = item.path;
+                if (item.label) {
+                    labelMap[item.pathAlias] = item.label;
+                }
             }
             if (item.children?.length) {
                 traverse(item.children);
@@ -29,6 +39,9 @@ function syncRouteAliases(modules: ModuleConfig[], tenantSlug?: string | null): 
     if (Object.keys(aliasMap).length > 0) {
         setRouteAliases(aliasMap, tenantSlug);
         notifyRouterOfAliasChange();
+    }
+    if (Object.keys(labelMap).length > 0) {
+        setRouteLabels(labelMap, tenantSlug);
     }
 }
 
@@ -86,7 +99,7 @@ export const actions = {
                 const { data, error } = await api.modules.tree.get();
                 if (error) throw new Error(String(error.value));
                 const modulesList = Array.isArray(data) ? data as ModuleConfig[] : [];
-                syncRouteAliases(modulesList, currentTenant);
+                syncRouteMetadata(modulesList, currentTenant);
                 setState({
                     modules: modulesList,
                     error: null,
@@ -115,7 +128,7 @@ export const actions = {
         const cacheKey = currentUserId ? `${currentUserId}:${currentTenant || 'global'}` : null;
 
         const modulesList = Array.isArray(modules) ? modules : [];
-        syncRouteAliases(modulesList, currentTenant);
+        syncRouteMetadata(modulesList, currentTenant);
 
         fetchPromise = null;
         setState({
@@ -154,3 +167,121 @@ export const useModules = () => {
         refreshModules: actions.refreshModules
     };
 };
+
+/**
+ * Recursively search a module by key or permission across the module tree.
+ */
+export function findModuleByKey(items: ModuleConfig[], key: string): ModuleConfig | undefined {
+    for (const item of items) {
+        if (item.key === key || item.permission === key) {
+            return item;
+        }
+        if (item.children?.length) {
+            const found = findModuleByKey(item.children, key);
+            if (found) return found;
+        }
+    }
+    return undefined;
+}
+
+/**
+ * Recursively search a module by URL path (canonical or alias) across the module tree.
+ */
+export function findModuleByPath(items: ModuleConfig[], rawPath: string): ModuleConfig | undefined {
+    const canonical = toRealPath(rawPath);
+    const cleanPath = canonical.split('?')[0].split('#')[0];
+    const normalized = cleanPath.length > 1 && cleanPath.endsWith('/') ? cleanPath.slice(0, -1) : cleanPath;
+
+    for (const item of items) {
+        if (item.path) {
+            const itemClean = item.path.split('?')[0].split('#')[0];
+            const itemNormalized = itemClean.length > 1 && itemClean.endsWith('/') ? itemClean.slice(0, -1) : itemClean;
+            if (normalized === itemNormalized || normalized.startsWith(`${itemNormalized}/`)) {
+                return item;
+            }
+        }
+        if (item.children?.length) {
+            const found = findModuleByPath(item.children, rawPath);
+            if (found) return found;
+        }
+    }
+    return undefined;
+}
+
+/**
+ * Resolves the currently active module config based on moduleKey or the current route.
+ */
+export function useCurrentModule(moduleKey?: string | (() => string | undefined)): Accessor<ModuleConfig | undefined> {
+    const { modules } = useModules();
+    let location: ReturnType<typeof useLocation> | null = null;
+    try {
+        location = useLocation();
+    } catch {
+        // Outside router context
+    }
+
+    return createMemo(() => {
+        const allModules = modules();
+        if (allModules.length === 0) return undefined;
+
+        const key = typeof moduleKey === 'function' ? moduleKey() : moduleKey;
+        if (key) {
+            const found = findModuleByKey(allModules, key);
+            if (found) return found;
+        }
+
+        const currentPath = (location ? location().pathname : undefined) || (typeof window !== 'undefined' ? window.location.pathname : '');
+        if (currentPath) {
+            return findModuleByPath(allModules, currentPath);
+        }
+
+        return undefined;
+    });
+}
+
+/**
+ * Universally resolves the dynamic tenant page title with 3-tier precedence:
+ * 1. Live reactive module label from SolidJS store (real-time SSE updates)
+ * 2. Pre-injected DOM script tag / LocalStorage cache (0ms Frame 1 FCP on F5 reload)
+ * 3. Static fallback title provided by component
+ */
+export function useModuleTitle(
+    fallbackTitle: string | (() => string),
+    moduleKey?: string | (() => string | undefined)
+): Accessor<string> {
+    const { modules } = useModules();
+    let location: ReturnType<typeof useLocation> | null = null;
+    try {
+        location = useLocation();
+    } catch {
+        // Outside router context
+    }
+
+    return createMemo(() => {
+        const fallback = typeof fallbackTitle === 'function' ? fallbackTitle() : fallbackTitle;
+        const key = typeof moduleKey === 'function' ? moduleKey() : moduleKey;
+        const currentPath = (location ? location().pathname : undefined) || (typeof window !== 'undefined' ? window.location.pathname : '');
+
+        // Tier 1: Active loaded modules in reactive Solid store
+        const allModules = modules();
+        if (allModules.length > 0) {
+            if (key) {
+                const foundByKey = findModuleByKey(allModules, key);
+                if (foundByKey?.label) return foundByKey.label;
+            }
+            if (currentPath) {
+                const foundByPath = findModuleByPath(allModules, currentPath);
+                if (foundByPath?.label) return foundByPath.label;
+            }
+        }
+
+        // Tier 2: Pre-boot injected route label (0ms on F5 hard refresh before getMe resolves)
+        if (currentPath) {
+            const preloaded = getPreloadedRouteLabel(currentPath);
+            if (preloaded) return preloaded;
+        }
+
+        // Tier 3: Static fallback title
+        return fallback;
+    });
+}

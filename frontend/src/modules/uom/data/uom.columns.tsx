@@ -15,7 +15,8 @@ import { UOM_GROUP_META, formatBaseFactor } from './uom.constants';
 import type { UomGroup } from '@app/schema/enums';
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 import Checkbox from '@form/Checkbox';
-import { StatusBadge } from '@display/Badge';
+import { StatusBadge, Badge } from '@display/Badge';
+import { cn } from '@shared/lib/utils';
 import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeader';
 import { Tooltip } from '@/shared/ui/overlay/Tooltip';
 import { ActionButtons } from '@/shared/ui/overlay/ActionButtons';
@@ -136,10 +137,10 @@ export function createUomColumns(handlers: UomColumnHandlers): ColumnDef<UomItem
                 if (!meta) return <span class="text-sm text-muted">{groupKey}</span>;
                 const Icon = meta.icon;
                 return (
-                    <span class={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${meta.color}`}>
+                    <Badge size="md" variant="none" class={cn("border-transparent gap-1.5", meta.color)}>
                         <Icon class="size-3" />
                         {meta.label}
-                    </span>
+                    </Badge>
                 );
             },
         },
