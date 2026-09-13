@@ -96,10 +96,13 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(errorHandlerPlugin)
   .get('/health', () => ({ status: 'ok', ts: Date.now() }))
 
-  // Better-Auth handler (Mapeo omni-método para autenticación)
-  .all('/auth/*', ({ request }) => auth.handler(request))
-  .all('/auth', ({ request }) => auth.handler(request))
-
+  .get('/auth/*', ({ request }) => auth.handler(request))
+  .post('/auth/*', ({ request }) => auth.handler(request))
+  .put('/auth/*', ({ request }) => auth.handler(request))
+  .patch('/auth/*', ({ request }) => auth.handler(request))
+  .delete('/auth/*', ({ request }) => auth.handler(request))
+  .get('/auth', ({ request }) => auth.handler(request))
+  .post('/auth', ({ request }) => auth.handler(request))
   // Domain routes
   .use(tenantRoutes)
   .use(profileRoutes)
