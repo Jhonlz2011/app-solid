@@ -19,7 +19,6 @@ import Turnstile from '@shared/ui/Turnstile';
 import { Badge } from '@shared/ui/display/Badge';
 import CompanySummaryCard from '../components/CompanySummaryCard';
 import { createUsernameAvailabilityValidator, createEmailAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
-import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
 
 // ─── Password Strength Meter ───
 const PasswordStrength: Component<{ password: string }> = (props) => {
@@ -274,17 +273,7 @@ const Register: Component = () => {
                             }}
                             children={(f) => (
                                 <TextField.Root field={f}>
-                                    <TextField.Label
-                                        badge={
-                                            <Show when={!isOAuthUser()}>
-                                                <AvailabilityBadge
-                                                    field={f}
-                                                    availableLabel="Disponible"
-                                                    takenLabel="En uso"
-                                                />
-                                            </Show>
-                                        }
-                                    >
+                                    <TextField.Label>
                                         Nombre de usuario *
                                     </TextField.Label>
                                     <TextField.Input
@@ -331,17 +320,7 @@ const Register: Component = () => {
                                 }}
                                 children={(f) => (
                                     <TextField.Root field={f}>
-                                        <TextField.Label
-                                            badge={
-                                                <Show when={!isOAuthUser()}>
-                                                    <AvailabilityBadge
-                                                        field={f}
-                                                        availableLabel="Disponible"
-                                                        takenLabel="Ya registrado"
-                                                    />
-                                                </Show>
-                                            }
-                                        >
+                                        <TextField.Label>
                                             Correo electrónico *
                                         </TextField.Label>
                                         <TextField.Input

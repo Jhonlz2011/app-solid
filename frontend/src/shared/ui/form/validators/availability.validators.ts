@@ -1,6 +1,8 @@
 import { safeParse } from 'valibot';
 import { authClient } from '@shared/lib/auth-client';
 import { authApi } from '@modules/auth/api/auth.api';
+import { ApiError } from '@shared/utils/api-errors';
+import { API_ERROR_CODES, ERROR_MESSAGES_ES } from '@app/schema/errors';
 import {
     UsernameFormatSchema,
     EmailFormatSchema,
@@ -28,6 +30,26 @@ const resolveBoolean = (b?: boolean | Accessor<boolean>): boolean => {
 };
 
 /**
+ * Handles API errors strictly and type-safely.
+ * - Silent return for abort signals (user typed newer input).
+ * - Explicit error message for 429 rate limit or server errors.
+ */
+const handleAvailabilityError = (err: unknown, signal: AbortSignal): string | undefined => {
+    if (signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) {
+        return undefined;
+    }
+
+    if (err instanceof ApiError) {
+        if (err.code === API_ERROR_CODES.TOO_MANY_REQUESTS) {
+            return err.message || ERROR_MESSAGES_ES.TOO_MANY_REQUESTS;
+        }
+        return err.message;
+    }
+
+    return undefined;
+};
+
+/**
  * Validates username availability via Better-Auth client.
  * Uses Valibot safeParse pre-flight check to prevent unnecessary network calls.
  * Respects currentValue exemption (e.g. profile editing).
@@ -37,7 +59,7 @@ export const createUsernameAvailabilityValidator = (options?: AvailabilityValida
         if (!resolveBoolean(options?.enabled)) return undefined;
 
         const val = typeof value === 'string' ? value.trim().toLowerCase() : '';
-        
+
         // 1. Synchronous Valibot validation check — prevents unnecessary network calls!
         const parsed = safeParse(UsernameFormatSchema, val);
         if (!parsed.success) {
@@ -57,13 +79,18 @@ export const createUsernameAvailabilityValidator = (options?: AvailabilityValida
                 { signal }
             );
             if (signal.aborted) return undefined;
-            if (res.error) return undefined;
+            if (res.error) {
+                if (res.error.status === 429) {
+                    return ERROR_MESSAGES_ES.TOO_MANY_REQUESTS;
+                }
+                return undefined;
+            }
             if (res.data && !res.data.available) {
                 return options?.customMessage || 'El nombre de usuario ya está en uso';
             }
             return undefined;
-        } catch {
-            return undefined;
+        } catch (err: unknown) {
+            return handleAvailabilityError(err, signal);
         }
     };
 };
@@ -77,7 +104,7 @@ export const createEmailAvailabilityValidator = (options?: AvailabilityValidator
         if (!resolveBoolean(options?.enabled)) return undefined;
 
         const val = typeof value === 'string' ? value.trim().toLowerCase() : '';
-        
+
         // 1. Synchronous Valibot validation check — prevents unnecessary network calls!
         const parsed = safeParse(EmailFormatSchema, val);
         if (!parsed.success) {
@@ -92,14 +119,14 @@ export const createEmailAvailabilityValidator = (options?: AvailabilityValidator
 
         // 3. Network availability check
         try {
-            const res = await authApi.checkEmail(val);
+            const res = await authApi.checkEmail(val, signal);
             if (signal.aborted) return undefined;
             if (!res.available) {
                 return options?.customMessage || 'El correo electrónico ya está registrado';
             }
             return undefined;
-        } catch {
-            return undefined;
+        } catch (err) {
+            return handleAvailabilityError(err, signal);
         }
     };
 };
@@ -113,7 +140,7 @@ export const createSlugAvailabilityValidator = (options?: AvailabilityValidatorO
         if (!resolveBoolean(options?.enabled)) return undefined;
 
         const val = typeof value === 'string' ? value.trim().toLowerCase() : '';
-        
+
         // 1. Synchronous Valibot validation check — prevents unnecessary network calls!
         const parsed = safeParse(SlugFormatSchema, val);
         if (!parsed.success) {
@@ -128,14 +155,14 @@ export const createSlugAvailabilityValidator = (options?: AvailabilityValidatorO
 
         // 3. Network availability check
         try {
-            const res = await authApi.checkSlug(val);
+            const res = await authApi.checkSlug(val, signal);
             if (signal.aborted) return undefined;
             if (!res.available) {
                 return options?.customMessage || 'El subdominio ya está en uso';
             }
             return undefined;
-        } catch {
-            return undefined;
+        } catch (err) {
+            return handleAvailabilityError(err, signal);
         }
     };
 };
@@ -149,7 +176,7 @@ export const createRucAvailabilityValidator = (options?: AvailabilityValidatorOp
         if (!resolveBoolean(options?.enabled)) return undefined;
 
         const val = typeof value === 'string' ? value.trim() : '';
-        
+
         // 1. Synchronous Valibot validation check — prevents unnecessary network calls!
         const parsed = safeParse(RucFormatSchema, val);
         if (!parsed.success) {
@@ -164,14 +191,14 @@ export const createRucAvailabilityValidator = (options?: AvailabilityValidatorOp
 
         // 3. Network availability check
         try {
-            const res = await authApi.checkRuc(val);
+            const res = await authApi.checkRuc(val, signal);
             if (signal.aborted) return undefined;
             if (!res.available) {
                 return options?.customMessage || 'El RUC ya está registrado';
             }
             return undefined;
-        } catch {
-            return undefined;
+        } catch (err) {
+            return handleAvailabilityError(err, signal);
         }
     };
 };

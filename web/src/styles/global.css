@@ -2,10 +2,19 @@
    Zelys ERP — Estilos Globales (Light & Dark System 2026)
    ═══════════════════════════════════════════════════════════ */
 
-/* Imports */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
 @import './tokens.css';
 @import './typography.css';
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-accent-primary: #00C0E8;
+  --color-accent-secondary: #1E72D4;
+  --color-accent-deep: #11315D;
+  --color-accent-mint: #00E8CC;
+}
 
 /* Reset */
 *, *::before, *::after {

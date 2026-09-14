@@ -36,7 +36,14 @@ const Login: Component = () => {
     const params = new URLSearchParams(window.location.search);
     const errorParam = params.get('error');
     if (errorParam) {
-      toast.error(getFriendlyErrorMessage(errorParam, 'Error al autenticar con el proveedor social'));
+      toast.error(getFriendlyErrorMessage(errorParam, 'Acceso denegado a este inquilino.'));
+      try {
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('error');
+        cleanUrl.searchParams.delete('error_description');
+        const newSearch = cleanUrl.searchParams.toString();
+        window.history.replaceState({}, document.title, cleanUrl.pathname + (newSearch ? `?${newSearch}` : ''));
+      } catch {}
     }
 
     // If authenticated user enters portal login -> show tenant selector
@@ -44,14 +51,19 @@ const Login: Component = () => {
     const auth = useAuth();
     if (auth.isAuthenticated()) {
       const orgs = await fetchUserOrganizations();
+      const isGlobal = isGlobalPortalHost(window.location.hostname);
+      const currentSlug = resolveSlugFromHost(window.location.hostname);
+
       if (orgs.length > 0) {
-        const isGlobal = isGlobalPortalHost(window.location.hostname);
-        const currentSlug = resolveSlugFromHost(window.location.hostname);
         if (!isGlobal && currentSlug && !orgs.some(o => o.slug === currentSlug)) {
-          toast.error(`No tienes acceso a ${currentSlug}. Selecciona una de tus empresas:`);
+          toast.error('Acceso denegado a este inquilino.');
         }
         setDiscoveredTenants(orgs.map(mapOrgToTenant));
         setShowTenants(true);
+      } else {
+        if (!isGlobal && currentSlug) {
+          toast.error('Acceso denegado a este inquilino.');
+        }
       }
     }
   });
@@ -105,9 +117,9 @@ const Login: Component = () => {
 
         if (!navigated) {
           if (decision.action === 'no-access') {
-            toast.error(`No tienes acceso a ${decision.currentSlug}. Selecciona una de tus empresas:`);
+            toast.error('Acceso denegado a este inquilino.');
           }
-          if ('tenants' in decision) {
+          if ('tenants' in decision && decision.tenants.length > 0) {
             setDiscoveredTenants(decision.tenants);
             setShowTenants(true);
           }

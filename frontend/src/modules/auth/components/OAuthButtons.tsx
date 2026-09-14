@@ -77,10 +77,12 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
 
       localStorage.setItem('hasSession', 'true');
 
-      const res = await authClient.signIn.social({
+      const isRegister = props.mode === 'register';
+      const res = await (authClient.signIn.social as any)({
         provider,
         callbackURL,
         errorCallbackURL,
+        ...(isRegister ? { requestSignUp: true } : {}),
       });
 
       if (res?.error) {

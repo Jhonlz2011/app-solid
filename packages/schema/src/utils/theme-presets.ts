@@ -3,7 +3,7 @@
  * Maps secondary color hex to background/surface/card/border CSS variable values.
  */
 
-export interface ThemePreset {
+interface ThemePreset {
     bgLight: string;
     bgDark: string;
     surfaceLight: string;
@@ -25,7 +25,7 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
         cardLight: '#fff',
         cardDark: '#0f172a',      // ← antes #111827
         cardAltLight: '#eef2ff',
-        cardAltDark: '#070a0e',
+        cardAltDark: '#060d1c',
         borderLight: '#e7eff8',
         borderDark: '#1f2533',
     },
@@ -61,12 +61,10 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
         cardLight: '#fff',
         cardDark: '#111827',      // ← antes #111827
         cardAltLight: '#eef2ff',
-        cardAltDark: '#070a0e',
+        cardAltDark: '#060d1c',
         borderLight: '#e7eff8',
         borderDark: '#1f2533',
     },
 } as const;
 
 export const DEFAULT_THEME_KEY = '#64748b';
-
-export type ThemePresetKey = keyof typeof THEME_PRESETS;

@@ -250,13 +250,8 @@ export async function resolvePostAuthRouting(
 
     const orgs = await fetchUserOrganizations();
 
-    // Case 0: No organizations → onboarding required
-    if (orgs.length === 0 && (!user?.companySlug && (!user?.companyId || user.companyId === 0))) {
-        return { action: 'onboard' };
-    }
-
     // ══════════════════════════════════════════════════════════════════════
-    // TENANT SUBDOMAIN (e.g. acme.zelys.app) — strict membership enforcement
+    // TENANT SUBDOMAIN (e.g. dev.zelys.app) — strict membership enforcement
     // ══════════════════════════════════════════════════════════════════════
     if (!isGlobalPortal && currentSlug) {
         const matchingOrg = orgs.find(o => o.slug === currentSlug);
@@ -283,13 +278,22 @@ export async function resolvePostAuthRouting(
             };
         }
 
-        // Case: User has no organizations → onboarding
-        return { action: 'onboard' };
+        // Case: User has no organizations or does not belong to this tenant → access denied (never onboard on a tenant domain)
+        return {
+            action: 'no-access',
+            currentSlug,
+            tenants: [],
+        };
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // GLOBAL PORTAL (in.zelys.app, localhost) — show selector or fast-path
+    // GLOBAL PORTAL (in.zelys.app, localhost) — show selector, fast-path or onboarding
     // ══════════════════════════════════════════════════════════════════════
+
+    // Case 0: No organizations on global portal → onboarding required
+    if (orgs.length === 0 && (!user?.companySlug && (!user?.companyId || user.companyId === 0))) {
+        return { action: 'onboard' };
+    }
 
     // Case 2: Multiple orgs → show selector
     if (isGlobalPortal && orgs.length > 1) {

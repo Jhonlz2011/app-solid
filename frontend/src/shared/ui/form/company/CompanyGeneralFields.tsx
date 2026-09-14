@@ -4,7 +4,6 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { businessTypeSelectOptions, type SelectOption } from '@shared/constants/entity-labels';
 import { hasFieldError, getFieldError, type AnyFormApi } from '@shared/ui/form/form.types';
 import { createSlugAvailabilityValidator, createRucAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
-import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
 
 export interface CompanyGeneralFieldsProps {
     form: AnyFormApi;
@@ -32,17 +31,7 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
                     }}
                     children={(f: any) => (
                         <TextField.Root field={f}>
-                            <TextField.Label
-                                badge={
-                                    <Show when={props.checkSlugAvailability ?? true}>
-                                        <AvailabilityBadge
-                                            field={f}
-                                            availableLabel="Disponible"
-                                            takenLabel="En uso"
-                                        />
-                                    </Show>
-                                }
-                            >
+                            <TextField.Label>
                                 Subdominio (slug) *
                             </TextField.Label>
                             <TextField.Input
@@ -76,18 +65,7 @@ export const CompanyGeneralFields: Component<CompanyGeneralFieldsProps> = (props
                     }}
                     children={(f: any) => (
                         <TextField.Root field={f}>
-                            <TextField.Label
-                                badge={
-                                    <Show when={props.checkRucAvailability}>
-                                        <AvailabilityBadge
-                                            field={f}
-                                            minLength={13}
-                                            availableLabel="Válido"
-                                            takenLabel="Registrado"
-                                        />
-                                    </Show>
-                                }
-                            >
+                            <TextField.Label>
                                 RUC (13 dígitos) *
                             </TextField.Label>
                             <TextField.Input

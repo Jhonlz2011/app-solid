@@ -68,8 +68,17 @@ const numSize = typeof size === 'number' ? `${size}px` : size;
     </g>
   </svg>
   {showText && (
-    <span class={`font-extrabold tracking-tight text-slate-900 dark:text-slate-100 ${textClass}`}>
-      Zelys<span class="text-cyan-500 dark:text-cyan-400">.</span>
+    <span class={`font-extrabold tracking-tight text-slate-900 dark:text-slate-100 logo-brand-title ${textClass}`}>
+      Zelys<span class="text-cyan-500 dark:text-cyan-400 logo-brand-dot">.</span>
     </span>
   )}
 </div>
+
+<style>
+  .logo-brand-title {
+    color: var(--text-primary);
+  }
+  .logo-brand-dot {
+    color: var(--accent-primary, #00c0e8);
+  }
+</style>

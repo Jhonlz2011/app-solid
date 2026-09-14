@@ -112,8 +112,16 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(rateLimit({
     max: env.NODE_ENV === 'production' ? 100 : 1000,
     windowMs: 60 * 1000,
-    message: 'Demasiadas peticiones, intenta más tarde',
-    skipIf: (request: Request) => request.url.includes('/swagger'),
+    message: 'Demasiadas peticiones. Por favor, intenta más tarde.',
+    skipIf: (request: Request) => {
+      const url = request.url;
+      return (
+        url.includes('/swagger') ||
+        url.includes('/health') ||
+        url.includes('/sse') ||
+        url.includes('/webhooks')
+      );
+    },
   }))
   .use(clientRoutes)
   .use(supplierRoutes)

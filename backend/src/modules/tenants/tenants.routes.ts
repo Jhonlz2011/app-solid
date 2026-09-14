@@ -8,7 +8,7 @@ import {
   TenantBrandingResponseSchema,
   RbacAcceptInvitationBodySchema,
 } from '@app/schema/backend';
-import { registerRateLimit } from '../../plugins/register-rate-limit';
+import { registerRateLimit, checkRateLimit } from '../../plugins/rate-limit';
 import { ipPlugin, getIpAndUserAgent } from '../../plugins/ip';
 import { adminDb } from '../../core/db';
 import { companies, user } from '@app/schema/tables';
@@ -100,7 +100,7 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   }, {
     params: t.Object({ slug: t.String() }),
     response: t.Object({ available: t.Boolean() }),
-    beforeHandle: registerRateLimit as any,
+    beforeHandle: checkRateLimit as any,
   })
 
   // =========================================================================
@@ -116,7 +116,7 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   }, {
     params: t.Object({ ruc: t.String() }),
     response: t.Object({ available: t.Boolean() }),
-    beforeHandle: registerRateLimit as any,
+    beforeHandle: checkRateLimit as any,
   })
 
   // =========================================================================
@@ -133,7 +133,7 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   }, {
     params: t.Object({ email: t.String() }),
     response: t.Object({ available: t.Boolean() }),
-    beforeHandle: registerRateLimit as any,
+    beforeHandle: checkRateLimit as any,
   })
 
   // =========================================================================
@@ -166,7 +166,7 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   }, {
     query: t.Object({ domain: t.String() }),
     response: t.Object({ status: t.String() }),
-    beforeHandle: registerRateLimit as any,
+    beforeHandle: checkRateLimit as any,
   })
 
   // =========================================================================

@@ -309,6 +309,7 @@ export const auth = betterAuth({
                 clientSecret: env.GOOGLE_CLIENT_SECRET,
                 accessType: 'offline',
                 prompt: 'select_account',
+                disableImplicitSignUp: true,
                 mapProfileToUser: (profile) => {
                     const username = generateUsername(profile.email, profile.name);
                     return {
@@ -327,6 +328,7 @@ export const auth = betterAuth({
                 clientId: env.MICROSOFT_CLIENT_ID,
                 clientSecret: env.MICROSOFT_CLIENT_SECRET,
                 tenantId: env.MICROSOFT_TENANT_ID || 'common',
+                disableImplicitSignUp: true,
                 mapProfileToUser: (profile) => {
                     const rawEmail = profile.email || (profile as any).userPrincipalName || (profile as any).mail || '';
                     const rawName = profile.name || (profile as any).displayName || '';

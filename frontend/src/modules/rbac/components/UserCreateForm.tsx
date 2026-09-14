@@ -11,10 +11,9 @@ import { MailIcon } from '@icons/MailIcon';
 import { KeyIcon } from '@icons/KeyIcon';
 import { SparklesIcon } from '@icons/SparklesIcon';
 import { AlertTriangleIcon } from '@icons/AlertTriangleIcon';
-import { UserRolePicker } from './shared/UserRolePicker';
 import { useCheckUserEmail } from '../data/users.queries';
+import { UserRolePicker } from './shared/UserRolePicker';
 import { createUsernameAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
-import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
 import { Badge } from '@display/Badge';
 
 export type UserOnboardingMode = 'invite' | 'direct';
@@ -195,16 +194,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                     >
                                         {(field) => (
                                             <TextField.Root field={field} disabled={props.isSubmitting}>
-                                                <TextField.Label
-                                                    optional
-                                                    badge={
-                                                        <AvailabilityBadge
-                                                            field={field}
-                                                            availableLabel="Disponible"
-                                                            takenLabel="En uso"
-                                                        />
-                                                    }
-                                                >
+                                                <TextField.Label optional>
                                                     Nombre de usuario
                                                 </TextField.Label>
                                                 <TextField.Input
@@ -277,7 +267,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                     roles={props.roles}
                                     rolesLoading={props.rolesLoading}
                                     selectedRoleIds={field().state.value ?? []}
-                                    onChange={(ids) => {
+                                    onChange={(ids: number[]) => {
                                         field().handleChange(ids);
                                         field().handleBlur();
                                     }}

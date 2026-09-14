@@ -11,6 +11,7 @@ export const API_ERROR_CODES = {
     FORBIDDEN: 'FORBIDDEN',
     UNAUTHORIZED: 'UNAUTHORIZED',
     CONFLICT: 'CONFLICT',
+    TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
     INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const;
 
@@ -48,8 +49,10 @@ export const ERROR_MESSAGES_ES: Record<string, string> = {
     FAILED_TO_CREATE_SESSION: 'No se pudo iniciar la sesión',
     ORGANIZATION_NOT_FOUND: 'La empresa solicitada no existe o no tienes acceso',
     ORGANIZATION_ALREADY_EXISTS: 'Ya existe una empresa registrada con estos datos',
-    USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION: 'No perteneces a la empresa seleccionada',
+    USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION: 'Acceso denegado a este inquilino.',
     USER_ALREADY_MEMBER: 'El usuario ya es miembro de esta empresa',
+    SIGNUP_DISABLED: 'Acceso denegado a este inquilino.',
+    TENANT_ACCESS_DENIED: 'Acceso denegado a este inquilino.',
     YOU_ARE_NOT_ALLOWED_TO_INVITE_USER: 'No tienes permisos para invitar a otros usuarios',
     INVITATION_EXPIRED: 'La invitación ha expirado',
     INVALID_INVITATION: 'La invitación es inválida',

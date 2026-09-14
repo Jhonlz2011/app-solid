@@ -114,7 +114,9 @@
       "version": "0.0.1",
       "dependencies": {
         "@app/schema": "workspace:*",
+        "@tailwindcss/vite": "^4.1.17",
         "astro": "^6.4.4",
+        "tailwindcss": "^4.1.17",
       },
     },
   },

@@ -8,7 +8,6 @@ import Button from '@form/Button';
 import { AlertCircleIcon } from '@icons/AlertCircleIcon';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { MailIcon } from '@icons/MailIcon';
-import { AvailabilityBadge } from '@shared/ui/form/AvailabilityBadge';
 import { createUsernameAvailabilityValidator, createEmailAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
 
 interface AccountSectionProps {
@@ -95,17 +94,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 >
                     {(field) => (
                         <TextField.Root field={field} disabled={isPending}>
-                            <TextField.Label
-                                badge={
-                                    <AvailabilityBadge
-                                        field={field}
-                                        currentValue={profileUsername}
-                                        currentLabel="Tu usuario actual"
-                                        availableLabel="Disponible"
-                                        takenLabel="Ya en uso"
-                                    />
-                                }
-                            >
+                            <TextField.Label>
                                 Nombre de usuario
                             </TextField.Label>
                             <TextField.Input
@@ -137,17 +126,7 @@ export const AccountSection: Component<AccountSectionProps> = (props) => {
                 >
                     {(field) => (
                         <TextField.Root field={field} disabled={isPending}>
-                            <TextField.Label
-                                badge={
-                                    <AvailabilityBadge
-                                        field={field}
-                                        currentValue={profileEmail}
-                                        currentLabel="Tu correo actual"
-                                        availableLabel="Disponible"
-                                        takenLabel="Ya registrado"
-                                    />
-                                }
-                            >
+                            <TextField.Label>
                                 Correo electrónico
                             </TextField.Label>
                             <TextField.Input
