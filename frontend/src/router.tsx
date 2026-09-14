@@ -92,7 +92,7 @@ const layoutRoute = createRoute({
   id: 'layout',
   beforeLoad: async ({ location }) => {
     const { actions } = await import('./modules/auth/store/auth.store');
-    const user = await actions.ensureSession();
+    const user = await actions.ensureSession({ forceCheck: true });
 
     const { getSafeRedirectPath, resolvePostAuthRouting, executeAuthGuard } = await import('./modules/auth/utils/resolve-routing');
     const safeTarget = getSafeRedirectPath(location.href);

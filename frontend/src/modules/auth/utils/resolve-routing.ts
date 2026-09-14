@@ -264,13 +264,8 @@ export async function resolvePostAuthRouting(
             };
         }
 
-        // Case: User belongs to exactly 1 other tenant → seamless canonical auto-redirect
-        if (orgs.length === 1 && orgs[0].slug) {
-            return { action: 'redirect-tenant', slug: orgs[0].slug, path: targetPath };
-        }
-
-        // Case: User belongs to >1 other tenants (none matches current subdomain) → show denial & selector
-        if (orgs.length > 1) {
+        // Case: User belongs to other tenant(s) (none matches current subdomain) → show denial & selector
+        if (orgs.length > 0) {
             return {
                 action: 'no-access',
                 currentSlug,

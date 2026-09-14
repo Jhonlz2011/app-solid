@@ -1,6 +1,6 @@
 import { Component, onMount, Show, createSignal, For } from 'solid-js';
 import { toast } from 'solid-sonner';
-import { useNavigate, useSearch } from '@tanstack/solid-router';
+import { useNavigate, useSearch, useRouteContext } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { AuthLoginSchema, type AuthLoginFormData } from '@app/schema/frontend';
 import type { DiscoverTenantItemType } from '@app/schema/dto';
@@ -8,7 +8,7 @@ import { actions } from '@modules/auth/store/auth.store';
 import { useBranding, getSubdomain } from '../store/branding.store';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import { buildTenantUrl, isGlobalPortalHost, resolveSlugFromHost } from '@app/schema/utils';
-import { resolvePostAuthRouting, getSafeRedirectPath, executeAuthNavigation, fetchUserOrganizations, mapOrgToTenant } from '../utils/resolve-routing';
+import { resolvePostAuthRouting, getSafeRedirectPath, executeAuthNavigation } from '../utils/resolve-routing';
 import TextField from '@form/TextField';
 import Button from '@form/Button';
 import Turnstile from '@shared/ui/Turnstile';
@@ -20,6 +20,7 @@ import { BuildingIcon } from '@icons/BuildingIcon';
 const Login: Component = () => {
   const navigate = useNavigate();
   const search = useSearch({ from: '/auth-layout/login' });
+  const context = useRouteContext({ from: '/auth-layout/login' });
   const branding = useBranding();
 
   const subdomain = getSubdomain();
@@ -32,38 +33,35 @@ const Login: Component = () => {
   // Turnstile token state
   const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
 
-  onMount(async () => {
-    const params = new URLSearchParams(window.location.search);
-    const errorParam = params.get('error');
+  onMount(() => {
+    // 1. Reactive check for OAuth error passed in search params (H-01)
+    const searchParams = typeof search === 'function' ? search() : search;
+    const errorParam = (searchParams as any)?.error;
     if (errorParam) {
       toast.error(getFriendlyErrorMessage(errorParam, 'Acceso denegado a este inquilino.'));
-      try {
-        const cleanUrl = new URL(window.location.href);
-        cleanUrl.searchParams.delete('error');
-        cleanUrl.searchParams.delete('error_description');
-        const newSearch = cleanUrl.searchParams.toString();
-        window.history.replaceState({}, document.title, cleanUrl.pathname + (newSearch ? `?${newSearch}` : ''));
-      } catch {}
+      navigate({
+        to: '/login',
+        search: (prev: any) => {
+          const next = { ...prev };
+          delete next.error;
+          delete next.error_description;
+          return next;
+        },
+        replace: true,
+      });
     }
 
-    // If authenticated user enters portal login -> show tenant selector
-    const { useAuth } = await import('@modules/auth/store/auth.store');
-    const auth = useAuth();
-    if (auth.isAuthenticated()) {
-      const orgs = await fetchUserOrganizations();
-      const isGlobal = isGlobalPortalHost(window.location.hostname);
-      const currentSlug = resolveSlugFromHost(window.location.hostname);
+    // 2. Consume postAuthDecision evaluated by authRoute.beforeLoad (H-02 deduplication)
+    const ctx = typeof context === 'function' ? context() : context;
+    const postAuth = (ctx as any)?.postAuthDecision;
 
-      if (orgs.length > 0) {
-        if (!isGlobal && currentSlug && !orgs.some(o => o.slug === currentSlug)) {
-          toast.error('Acceso denegado a este inquilino.');
-        }
-        setDiscoveredTenants(orgs.map(mapOrgToTenant));
+    if (postAuth) {
+      if (postAuth.action === 'no-access') {
+        toast.error('Acceso denegado a este inquilino.');
+      }
+      if ('tenants' in postAuth && Array.isArray(postAuth.tenants) && postAuth.tenants.length > 0) {
+        setDiscoveredTenants(postAuth.tenants);
         setShowTenants(true);
-      } else {
-        if (!isGlobal && currentSlug) {
-          toast.error('Acceso denegado a este inquilino.');
-        }
       }
     }
   });
@@ -85,8 +83,7 @@ const Login: Component = () => {
 
   const initialEmail = () => {
     const searchParams = typeof search === 'function' ? search() : search;
-    return (searchParams as any)?.email
-      || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('email') || '' : '');
+    return (searchParams as any)?.email || '';
   };
 
   const form = createForm(() => ({
@@ -297,8 +294,7 @@ const Login: Component = () => {
             redirectPath={
               (() => {
                 const searchParams = typeof search === 'function' ? search() : search;
-                const redirectTo = (searchParams as any)?.redirect
-                  ?? new URLSearchParams(window.location.search).get('redirect');
+                const redirectTo = (searchParams as any)?.redirect;
                 return typeof redirectTo === 'string' && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
               })()
             }

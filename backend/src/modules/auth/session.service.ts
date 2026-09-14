@@ -35,49 +35,10 @@ function resolveLocation(ipAddress: string | null): string | null {
 
 export async function getActiveSessions(
   userId: string | number,
-  currentSessionId?: string,
-  currentSession?: {
-    id: string;
-    token?: string;
-    userId?: string;
-    expiresAt?: Date | string;
-    createdAt?: Date | string;
-    updatedAt?: Date | string;
-    ipAddress?: string | null;
-    userAgent?: string | null;
-    activeOrganizationId?: string | null;
-  }
+  currentSessionId?: string
 ) {
   const userIdStr = String(userId);
 
-  // Resilient Session Sync: Ensure active Better-Auth session is persisted to Postgres
-  if (currentSession?.id) {
-    try {
-      await adminDb
-        .insert(sessions)
-        .values({
-          id: currentSession.id,
-          token: currentSession.token || currentSession.id,
-          userId: userIdStr,
-          expiresAt: currentSession.expiresAt ? new Date(currentSession.expiresAt) : new Date(Date.now() + 7 * 24 * 3600 * 1000),
-          createdAt: currentSession.createdAt ? new Date(currentSession.createdAt) : new Date(),
-          updatedAt: new Date(),
-          ipAddress: currentSession.ipAddress ?? null,
-          userAgent: currentSession.userAgent ?? null,
-          activeOrganizationId: currentSession.activeOrganizationId ?? null,
-        })
-        .onConflictDoUpdate({
-          target: sessions.id,
-          set: {
-            updatedAt: new Date(),
-            ipAddress: currentSession.ipAddress ?? sql`${sessions.ipAddress}`,
-            userAgent: currentSession.userAgent ?? sql`${sessions.userAgent}`,
-          },
-        });
-    } catch (err) {
-      console.warn('[SessionService] Current session persistence best-effort:', err);
-    }
-  }
   const activeSessions = await adminDb
     .select({
       id: sessions.id,

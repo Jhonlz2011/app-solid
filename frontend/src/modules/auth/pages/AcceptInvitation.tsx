@@ -6,7 +6,7 @@ import { authApi } from '../api/auth.api';
 import { actions } from '../store/auth.store';
 import { authClient } from '@shared/lib/auth-client';
 import { fetchUserOrganizations, invalidateOrgCache } from '../utils/resolve-routing';
-import { resolveSlugFromHost } from '@app/schema/utils';
+import { resolveSlugFromHost, isGlobalPortalHost, buildTenantUrl } from '@app/schema/utils';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import TextField from '@form/TextField';
 import Button from '@form/Button';
@@ -44,10 +44,11 @@ const PasswordStrength: Component<{ password: string }> = (props) => {
 
 export const AcceptInvitation: Component = () => {
     const navigate = useNavigate();
-    const search = useSearch({ strict: false });
+    const search = useSearch({ from: '/auth-layout/accept-invitation' });
 
-    const token = () => (search() as { token?: string })?.token || new URLSearchParams(window.location.search).get('token') || '';
-    const email = () => (search() as { email?: string })?.email || new URLSearchParams(window.location.search).get('email') || '';
+    const searchParams = () => typeof search === 'function' ? search() : search;
+    const token = () => searchParams()?.token || '';
+    const email = () => searchParams()?.email || '';
 
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const [submitting, setSubmitting] = createSignal(false);
@@ -101,7 +102,12 @@ export const AcceptInvitation: Component = () => {
                 await actions.initSession();
 
                 toast.success('¡Cuenta activada exitosamente!');
-                navigate({ to: '/dashboard', replace: true });
+                const isGlobal = isGlobalPortalHost(window.location.hostname);
+                if (isGlobal && matchingOrg?.slug) {
+                    window.location.href = buildTenantUrl(matchingOrg.slug, '/dashboard', { queryParams: { session: 'true' } });
+                } else {
+                    navigate({ to: '/dashboard', replace: true });
+                }
             } catch (err: any) {
                 toast.error(getFriendlyErrorMessage(err, 'Error al activar la cuenta'));
             } finally {

@@ -293,13 +293,13 @@ export const actions = {
      * before performing a network call to initSession.
      * Returns the authenticated user or null.
      */
-    ensureSession: async (): Promise<ProfileType | null> => {
+    ensureSession: async (options?: { forceCheck?: boolean }): Promise<ProfileType | null> => {
         if (state.status === 'authenticated' && state.user) {
             return state.user;
         }
         const hasSessionFlag = localStorage.getItem(SESSION_FLAG_KEY);
         const hasSessionParam = typeof window !== 'undefined' && window.location.search.includes('session=true');
-        if (!hasSessionFlag && !hasSessionParam) {
+        if (!options?.forceCheck && !hasSessionFlag && !hasSessionParam) {
             return null;
         }
         const restored = await actions.initSession();

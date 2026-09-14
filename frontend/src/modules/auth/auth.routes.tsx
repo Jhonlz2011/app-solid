@@ -1,15 +1,16 @@
 import { createRoute, redirect, lazyRouteComponent } from '@tanstack/solid-router';
 import AuthLayout from '@layout/AuthLayout';
 import Login from './pages/Login';
+import type { RoutingDecision } from './utils/resolve-routing';
 
 export const createAuthRoutes = (rootRoute: any) => {
     const authRoute = createRoute({
         getParentRoute: () => rootRoute,
         id: 'auth-layout',
-        beforeLoad: async ({ location }) => {
+        beforeLoad: async ({ location }): Promise<{ postAuthDecision?: RoutingDecision }> => {
             const { actions } = await import('./store/auth.store');
             const user = await actions.ensureSession();
-            if (!user) return; // Unauthenticated -> allow rendering auth pages
+            if (!user) return { postAuthDecision: undefined };
 
             // If an authenticated user with an existing company visits /register, route to /create-company
             if (location.pathname.includes('/register') && (user.companySlug || (user.companyId && user.companyId !== 0))) {
@@ -30,6 +31,8 @@ export const createAuthRoutes = (rootRoute: any) => {
                 isAuthPage: true,
                 switchOrg: actions.switchOrganization,
             });
+
+            return { postAuthDecision: decision };
         },
         component: AuthLayout,
     });
@@ -42,6 +45,8 @@ export const createAuthRoutes = (rootRoute: any) => {
                 redirect: (search.redirect as string) || undefined,
                 email: (search.email as string) || undefined,
                 showSelector: search.showSelector === 'true' || search.showSelector === true || undefined,
+                error: (search.error as string) || undefined,
+                error_description: (search.error_description as string) || undefined,
             };
         },
         component: Login,

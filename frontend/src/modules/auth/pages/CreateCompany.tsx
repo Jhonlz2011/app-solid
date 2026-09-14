@@ -55,7 +55,7 @@ export const CreateCompany: Component = () => {
         const values = form.state.values;
         setSubmitting(true);
         try {
-            const res = await authApi.onboard({
+            const res = await authApi.createCompany({
                 slug: values.slug,
                 ruc: values.ruc,
                 businessName: values.businessName,

@@ -18,6 +18,11 @@ export const authApi = {
         if (error) throwApiError(error);
         return data!;
     },
+    createCompany: async (payload: TenantOnboardType, signal?: AbortSignal) => {
+        const { data, error } = await api.tenants['create-company'].post(payload, { fetch: { signal } });
+        if (error) throwApiError(error);
+        return data!;
+    },
     acceptInvitation: async (payload: RbacAcceptInvitationType, signal?: AbortSignal) => {
         const { data, error } = await api.tenants['accept-invitation'].post(payload, { fetch: { signal } });
         if (error) throwApiError(error);

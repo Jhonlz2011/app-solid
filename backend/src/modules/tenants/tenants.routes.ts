@@ -88,6 +88,33 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   )
 
   // =========================================================================
+  // POST /create-company — Authenticated user creating an additional company
+  // =========================================================================
+  .post(
+    '/create-company',
+    async ({ body, request, set }) => {
+      const sessionData = await auth.api.getSession({
+        headers: request.headers,
+      });
+
+      if (!sessionData?.user) {
+        set.status = 401;
+        throw new UnauthorizedError('Debes haber iniciado sesión para registrar una empresa');
+      }
+
+      const { ipAddress } = getIpAndUserAgent(request);
+      const result = await onboardTenant(sessionData.user.id, body, ipAddress);
+      set.status = 201;
+      return result;
+    },
+    {
+      body: TenantOnboardBodySchema,
+      response: { 201: TenantRegisterResponseSchema },
+      beforeHandle: registerRateLimit as any,
+    }
+  )
+
+  // =========================================================================
   // GET /check-slug/:slug — Slug availability check (global scope)
   // =========================================================================
   .get('/check-slug/:slug', async ({ params }) => {
