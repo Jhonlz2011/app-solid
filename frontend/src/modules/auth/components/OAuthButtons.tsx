@@ -1,4 +1,4 @@
-import { Component, createSignal } from 'solid-js';
+import { Component, createSignal, onMount, onCleanup } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { authClient } from '@shared/lib/auth-client';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
@@ -44,10 +44,37 @@ export const MicrosoftIcon: Component<{ class?: string }> = (props) => (
 export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
   const [loadingProvider, setLoadingProvider] = createSignal<'google' | 'microsoft' | null>(null);
 
+  // Industry Standard: Reset loading state on mount, Back/Forward browser navigation (BFCache), or tab visibility
+  onMount(() => {
+    const handleReset = () => setLoadingProvider(null);
+
+    // 1. Reset immediately on component mount
+    handleReset();
+
+    // 2. Reset on pageshow (handles BFCache restore when user presses Back button from Google/Microsoft)
+    window.addEventListener('pageshow', handleReset);
+
+    // 3. Reset on visibilitychange (handles user returning to the tab)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleReset();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    onCleanup(() => {
+      window.removeEventListener('pageshow', handleReset);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    });
+  });
+
   const handleOAuthSignIn = async (provider: 'google' | 'microsoft') => {
     if (loadingProvider()) return;
 
     setLoadingProvider(provider);
+    const timeoutId = setTimeout(() => {
+      setLoadingProvider(null);
+    }, 15000);
     try {
       // OAuth callback should ALWAYS return to the global portal (/login) so the
       // tenant selector can resolve multi-org membership. If the user only has 1 org,
@@ -75,20 +102,17 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
       const currentPath = window.location.pathname;
       const errorCallbackURL = `${callbackOrigin}${currentPath === '/' ? '/login' : currentPath}`;
 
-      localStorage.setItem('hasSession', 'true');
-
-      const isRegister = props.mode === 'register';
-      const res = await (authClient.signIn.social as any)({
+      const res = await authClient.signIn.social({
         provider,
         callbackURL,
         errorCallbackURL,
-        ...(isRegister ? { requestSignUp: true } : {}),
       });
 
       if (res?.error) {
         throw new Error(getFriendlyErrorMessage(res.error, `Error al iniciar sesión con ${provider}`));
       }
     } catch (err) {
+      clearTimeout(timeoutId);
       setLoadingProvider(null);
       toast.error(getFriendlyErrorMessage(err, `No se pudo conectar con ${provider === 'google' ? 'Google' : 'Microsoft'}`));
     }

@@ -28,7 +28,7 @@ export const SlugFormatSchema = pipe(
 export const RucFormatSchema = pipe(
     string('El RUC es requerido'),
     trim(),
-    regex(/^\d{13}$/, 'El RUC debe tener 13 dígitos numéricos')
+    regex(/^\d{13}$/, 'El RUC debe tener 13 dígitos')
 );
 
 // --- AUTH LOGIN ---

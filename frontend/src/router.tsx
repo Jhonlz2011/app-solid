@@ -129,15 +129,36 @@ const layoutRoute = createRoute({
   component: ProtectedLayout,
 });
 
-// --- ROOT INDEX ROUTE (Despacha la raíz "/" hacia /dashboard de forma protegida) ---
+// --- ROOT INDEX ROUTE (Despacha la raíz "/" limpiamente sin montar el LayoutSkeleton del ERP) ---
 const indexRoute = createRoute({
-  getParentRoute: () => layoutRoute,
+  getParentRoute: () => rootRoute,
   path: '/',
-  beforeLoad: () => {
+  beforeLoad: async ({ location }) => {
+    const { actions } = await import('./modules/auth/store/auth.store');
+    const user = await actions.ensureSession();
+
+    if (!user) {
+      throw redirect({ to: '/login' });
+    }
+
+    const { isGlobalPortalHost, resolveSlugFromHost } = await import('@app/schema/utils');
+    const { resolvePostAuthRouting, executeAuthGuard, getSafeRedirectPath } = await import('./modules/auth/utils/resolve-routing');
+
+    const isGlobal = isGlobalPortalHost(window.location.hostname);
+    const currentSlug = resolveSlugFromHost(window.location.hostname);
+    const safeTarget = getSafeRedirectPath(location.href);
+
+    const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, safeTarget);
+    await executeAuthGuard(decision, {
+      targetPath: safeTarget,
+      currentPathname: location.pathname,
+      isAuthPage: false,
+      switchOrg: actions.switchOrganization,
+    });
+
     throw redirect({ to: '/dashboard' });
   },
 });
-
 
 const dashboardRoute = createRoute({
   getParentRoute: () => layoutRoute,
@@ -185,10 +206,10 @@ const createCompanyRoute = createRoute({
 const crudLayout = createCrudLayout(layoutRoute);
 
 const routeTree = rootRoute.addChildren([
+  indexRoute,
   authRoute,
   verifyEmailRoute,
   layoutRoute.addChildren([
-    indexRoute,
     dashboardRoute,
     createCompanyRoute,
     createSettingsRoutes(layoutRoute),

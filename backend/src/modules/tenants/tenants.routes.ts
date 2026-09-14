@@ -61,33 +61,6 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   )
 
   // =========================================================================
-  // POST /onboard — Existing OAuth user → new tenant
-  // =========================================================================
-  .post(
-    '/onboard',
-    async ({ body, request, set }) => {
-      const sessionData = await auth.api.getSession({
-        headers: request.headers,
-      });
-
-      if (!sessionData?.user) {
-        set.status = 401;
-        throw new UnauthorizedError('Debes haber iniciado sesión para completar el registro de tu empresa');
-      }
-
-      const { ipAddress } = getIpAndUserAgent(request);
-      const result = await onboardTenant(sessionData.user.id, body, ipAddress);
-      set.status = 201;
-      return result;
-    },
-    {
-      body: TenantOnboardBodySchema,
-      response: { 201: TenantRegisterResponseSchema },
-      beforeHandle: registerRateLimit as any,
-    }
-  )
-
-  // =========================================================================
   // POST /create-company — Authenticated user creating an additional company
   // =========================================================================
   .post(

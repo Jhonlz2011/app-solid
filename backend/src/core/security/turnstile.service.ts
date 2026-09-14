@@ -25,6 +25,11 @@ export async function verifyTurnstileToken(
     return;
   }
 
+  // Defense-in-depth: reject hardcoded dev bypass token in production
+  if (token === 'dev_bypass_token') {
+    throw new DomainError('Verificación de seguridad inválida', 403);
+  }
+
   if (!token) {
     throw new DomainError('Verificación de seguridad requerida', 400);
   }

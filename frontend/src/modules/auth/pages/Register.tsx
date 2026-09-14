@@ -2,11 +2,10 @@ import { Component, createSignal, Show, For, createEffect, untrack } from 'solid
 import { toast } from 'solid-sonner';
 import { useNavigate } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
-import { RegisterStep1Schema, RegisterStep2Schema } from '@app/schema/frontend';
-import { isGlobalPortalHost, buildTenantUrl } from '@app/schema/utils';
+import { RegisterStep1Schema, RegisterStep2Schema, type RegisterStep1Data, type RegisterStep2Data } from '@app/schema/frontend';
 import { authApi } from '@modules/auth/api/auth.api';
 import { authClient } from '@shared/lib/auth-client';
-import { fetchUserOrganizations, invalidateOrgCache } from '../utils/resolve-routing';
+import { activateNewTenantAndRedirect } from '../utils/resolve-routing';
 import { actions, useAuth } from '@modules/auth/store/auth.store';
 import TextField from '@form/TextField';
 import Button from '@form/Button';
@@ -71,12 +70,12 @@ const Register: Component = () => {
             username: auth.user()?.username || '',
             email: auth.user()?.email || '',
             password: '',
-            phone: undefined as string | undefined,
-            cedula: undefined as string | undefined,
-        },
+            phone: undefined,
+            cedula: undefined,
+        } as RegisterStep1Data,
         validators: {
-            onChange: RegisterStep1Schema as any,
-            onSubmit: RegisterStep1Schema as any,
+            onChange: RegisterStep1Schema,
+            onSubmit: RegisterStep1Schema,
         },
         onSubmit: async () => {
             setStep(1);
@@ -120,16 +119,16 @@ const Register: Component = () => {
             slug: '',
             ruc: '',
             businessName: '',
-            tradeName: undefined as string | undefined,
+            tradeName: undefined,
             businessType: '',
-            mainAddress: undefined as string | undefined,
+            mainAddress: undefined,
             taxRegimeType: 'GENERAL' as const,
             obligadoContabilidad: false,
-            contribuyenteEspecial: undefined as string | undefined,
-        },
+            contribuyenteEspecial: undefined,
+        } as RegisterStep2Data,
         validators: {
-            onChange: RegisterStep2Schema as any,
-            onSubmit: RegisterStep2Schema as any,
+            onChange: RegisterStep2Schema,
+            onSubmit: RegisterStep2Schema,
         },
         onSubmit: async () => {
             setStep(2);
@@ -144,7 +143,7 @@ const Register: Component = () => {
         try {
             if (isOAuthUser()) {
                 // Caso Onboarding: el usuario ya está autenticado con Google/Microsoft
-                const res = await authApi.onboard({
+                const res = await authApi.createCompany({
                     slug: s2.slug,
                     ruc: s2.ruc,
                     businessName: s2.businessName,
@@ -159,21 +158,10 @@ const Register: Component = () => {
                     turnstileToken: turnstileToken() ?? undefined,
                 });
 
-                // Set active organization in Better-Auth session (force refresh to pick up new org)
-                invalidateOrgCache();
-                const orgs = await fetchUserOrganizations(true);
-                const matchingOrg = orgs.find(o => o.slug === s2.slug) || orgs[0];
-                if (matchingOrg) {
-                    await authClient.organization.setActive({ organizationId: matchingOrg.id });
-                }
-
-                await actions.initSession();
                 toast.success('¡Empresa creada exitosamente!');
 
-                const isGlobal = isGlobalPortalHost(window.location.hostname);
-                if (isGlobal && s2.slug) {
-                    window.location.href = buildTenantUrl(s2.slug, '/dashboard', { queryParams: { session: 'true' } });
-                } else {
+                const navigatedLocally = await activateNewTenantAndRedirect(s2.slug);
+                if (navigatedLocally) {
                     navigate({ to: '/dashboard', replace: true });
                 }
                 return;
@@ -212,23 +200,13 @@ const Register: Component = () => {
             }
 
             // Set active organization in Better-Auth session (force refresh to pick up new org)
-            invalidateOrgCache();
-            const orgs = await fetchUserOrganizations(true);
-            const matchingOrgStd = orgs.find(o => o.slug === s2.slug) || orgs[0];
-            if (matchingOrgStd) {
-                await authClient.organization.setActive({ organizationId: matchingOrgStd.id });
-            }
-
-            await actions.initSession();
+            const navigatedLocally = await activateNewTenantAndRedirect(s2.slug);
 
             // Verification email is already dispatched atomically by the backend register endpoint
             sessionStorage.setItem('resend_cooldown_until', String(Date.now() + 60000));
             toast.success('¡Cuenta creada exitosamente!');
 
-            const isGlobal = isGlobalPortalHost(window.location.hostname);
-            if (isGlobal && s2.slug) {
-                window.location.href = buildTenantUrl(s2.slug, '/dashboard', { queryParams: { session: 'true' } });
-            } else {
+            if (navigatedLocally) {
                 navigate({ to: '/dashboard', replace: true });
             }
         } catch (err: any) {

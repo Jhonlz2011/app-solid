@@ -308,3 +308,43 @@ export async function resolvePostAuthRouting(
     // Default: stay on current page
     return { action: 'stay' };
 }
+
+// ============================================================================
+// Activate New Tenant & Redirect (A-03: centralized, replaces 3 duplicates)
+// ============================================================================
+
+/**
+ * Centralizes the post-company-creation flow:
+ * 1. Invalidates and re-fetches org cache
+ * 2. Finds the matching org by slug
+ * 3. Sets it active in Better Auth
+ * 4. Initializes session
+ * 5. Redirects to the tenant subdomain (or navigates locally)
+ *
+ * @returns true if navigation was handled locally (non-global portal)
+ */
+export async function activateNewTenantAndRedirect(
+    slug: string,
+    targetPath = '/dashboard',
+): Promise<boolean> {
+    const { isGlobalPortalHost } = await import('@app/schema/utils');
+
+    invalidateOrgCache();
+    const orgs = await fetchUserOrganizations(true);
+    const matchingOrg = orgs.find(o => o.slug === slug) || orgs[0];
+
+    if (matchingOrg) {
+        await authClient.organization.setActive({ organizationId: matchingOrg.id });
+    }
+
+    const { actions } = await import('@modules/auth/store/auth.store');
+    await actions.initSession();
+
+    const isGlobal = isGlobalPortalHost(window.location.hostname);
+    if (isGlobal && slug) {
+        window.location.href = buildTenantUrl(slug, targetPath, { queryParams: { session: 'true' } });
+        return false; // navigation via full redirect
+    }
+
+    return true; // caller should navigate locally
+}

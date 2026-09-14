@@ -79,21 +79,24 @@ export const authGuard = (app: Elysia) => app
             );
 
             if (!isAuthorizedMember) {
-              set.status = 403;
-              throw new UnauthorizedError('Acceso denegado a este inquilino');
+              // User is authenticated but does not belong to this specific tenant subdomain.
+              // Leave resolvedCompanyId null so /profile/me can return the user info and frontend
+              // can inspect user.organizations and show the tenant denial/selector.
+              // Business routes remain strictly protected by tenantGuard (which requires resolvedCompanyId).
+              resolvedCompanyId = null;
+            } else {
+              // User is a valid member: activate this company context for the request
+              resolvedCompanyId = hostCompany.id;
             }
-
-            // User is a valid member: activate this company context for the request
-            resolvedCompanyId = hostCompany.id;
           }
         }
       }
 
-      // 4. Final fallback: resolve from user.company_id ONLY if user belongs to a single org.
-      // If the user is a member of multiple organizations and no activeOrganizationId is set
-      // (e.g. fresh OAuth login), leave resolvedCompanyId null so the frontend shows the
-      // tenant selector instead of auto-routing to the first company.
-      if (!resolvedCompanyId) {
+      // 4. Final fallback: resolve from user.company_id ONLY if user belongs to a single org and no slug was requested.
+      // If a specific tenant slug was requested but user is not a member, or if the user is a member of multiple
+      // organizations and no activeOrganizationId is set, leave resolvedCompanyId null so the frontend shows the
+      // tenant selector instead of auto-routing to the wrong company.
+      if (!resolvedCompanyId && !slug) {
         const userCompanyId = rawUser.companyId ?? rawUser.company_id ?? null;
 
         if (userCompanyId) {

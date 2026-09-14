@@ -35,8 +35,8 @@ const Login: Component = () => {
 
   onMount(() => {
     // 1. Reactive check for OAuth error passed in search params (H-01)
-    const searchParams = typeof search === 'function' ? search() : search;
-    const errorParam = (searchParams as any)?.error;
+    const searchParams = search();
+    const errorParam = searchParams?.error;
     if (errorParam) {
       toast.error(getFriendlyErrorMessage(errorParam, 'Acceso denegado a este inquilino.'));
       navigate({
@@ -52,8 +52,7 @@ const Login: Component = () => {
     }
 
     // 2. Consume postAuthDecision evaluated by authRoute.beforeLoad (H-02 deduplication)
-    const ctx = typeof context === 'function' ? context() : context;
-    const postAuth = (ctx as any)?.postAuthDecision;
+    const postAuth = context()?.postAuthDecision;
 
     if (postAuth) {
       if (postAuth.action === 'no-access') {
@@ -70,7 +69,7 @@ const Login: Component = () => {
     setLoadingTenants(true);
     try {
       await actions.switchOrganization(tenant.organizationId);
-      const safePath = getSafeRedirectPath(search);
+      const safePath = getSafeRedirectPath(search());
       window.location.href = buildTenantUrl(tenant.slug, safePath, {
         queryParams: { session: 'true' },
       });
@@ -82,8 +81,7 @@ const Login: Component = () => {
   };
 
   const initialEmail = () => {
-    const searchParams = typeof search === 'function' ? search() : search;
-    return (searchParams as any)?.email || '';
+    return search()?.email || '';
   };
 
   const form = createForm(() => ({
@@ -102,7 +100,7 @@ const Login: Component = () => {
           password: value.password,
         });
 
-        const safePath = getSafeRedirectPath(search);
+        const safePath = getSafeRedirectPath(search());
         const isGlobal = isGlobalPortalHost(window.location.hostname);
         const currentSlug = resolveSlugFromHost(window.location.hostname);
         const decision = await resolvePostAuthRouting(res.user, isGlobal, currentSlug, safePath);
@@ -293,8 +291,7 @@ const Login: Component = () => {
           <OAuthButtons
             redirectPath={
               (() => {
-                const searchParams = typeof search === 'function' ? search() : search;
-                const redirectTo = (searchParams as any)?.redirect;
+              const redirectTo = search()?.redirect;
                 return typeof redirectTo === 'string' && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
               })()
             }

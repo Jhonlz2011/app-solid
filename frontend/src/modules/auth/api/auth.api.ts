@@ -13,11 +13,6 @@ export const authApi = {
         if (error) throwApiError(error);
         return data!;
     },
-    onboard: async (payload: TenantOnboardType, signal?: AbortSignal) => {
-        const { data, error } = await api.tenants.onboard.post(payload, { fetch: { signal } });
-        if (error) throwApiError(error);
-        return data!;
-    },
     createCompany: async (payload: TenantOnboardType, signal?: AbortSignal) => {
         const { data, error } = await api.tenants['create-company'].post(payload, { fetch: { signal } });
         if (error) throwApiError(error);

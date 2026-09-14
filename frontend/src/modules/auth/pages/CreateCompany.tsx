@@ -2,12 +2,10 @@ import { Component, createSignal, Show } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { useNavigate } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
-import { RegisterStep2Schema } from '@app/schema/frontend';
-import { buildTenantUrl } from '@app/schema/utils';
+import { RegisterStep2Schema, type RegisterStep2Data } from '@app/schema/frontend';
 import { authApi } from '@modules/auth/api/auth.api';
-import { authClient } from '@shared/lib/auth-client';
-import { fetchUserOrganizations, invalidateOrgCache } from '../utils/resolve-routing';
-import { actions, useAuth } from '@modules/auth/store/auth.store';
+import { activateNewTenantAndRedirect } from '../utils/resolve-routing';
+import { useAuth } from '@modules/auth/store/auth.store';
 import Button from '@form/Button';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import Turnstile from '@shared/ui/Turnstile';
@@ -35,16 +33,16 @@ export const CreateCompany: Component = () => {
             slug: '',
             ruc: '',
             businessName: '',
-            tradeName: undefined as string | undefined,
+            tradeName: undefined,
             businessType: '',
-            mainAddress: undefined as string | undefined,
+            mainAddress: undefined,
             taxRegimeType: 'GENERAL' as const,
             obligadoContabilidad: false,
-            contribuyenteEspecial: undefined as string | undefined,
-        },
+            contribuyenteEspecial: undefined,
+        } as RegisterStep2Data,
         validators: {
-            onChange: RegisterStep2Schema as any,
-            onSubmit: RegisterStep2Schema as any,
+            onChange: RegisterStep2Schema,
+            onSubmit: RegisterStep2Schema,
         },
         onSubmit: async () => {
             setStep(1);
@@ -68,19 +66,13 @@ export const CreateCompany: Component = () => {
                 turnstileToken: turnstileToken() ?? undefined,
             });
 
-            // Force refresh cached organizations and activate the new organization in session
-            invalidateOrgCache();
-            const orgs = await fetchUserOrganizations(true);
-            const matchingOrg = orgs.find(o => o.slug === values.slug) || (res.company?.organizationId ? orgs.find(o => o.id === res.company.organizationId) : orgs[0]);
-
-            if (matchingOrg) {
-                await authClient.organization.setActive({ organizationId: matchingOrg.id });
-            }
-
-            await actions.initSession();
+            // Force refresh cached organizations, activate, and redirect
             toast.success(`¡Empresa "${values.businessName}" creada exitosamente!`);
 
-            window.location.href = buildTenantUrl(values.slug, '/dashboard', { queryParams: { session: 'true' } });
+            const navigatedLocally = await activateNewTenantAndRedirect(values.slug);
+            if (navigatedLocally) {
+                navigate({ to: '/dashboard', replace: true });
+            }
         } catch (err: any) {
             setTurnstileToken(null);
             turnstileActions?.reset();

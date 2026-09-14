@@ -274,7 +274,8 @@ export const actions = {
                 }
 
                 return true;
-            } catch {
+            } catch (err) {
+                console.warn('[auth.store] initSession failed:', err);
                 currentSessionId = null;
                 setState('status', 'unauthenticated');
                 setSessionFlag(false);
