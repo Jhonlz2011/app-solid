@@ -658,6 +658,10 @@ export const companiesRelations = relations(tables.companies, ({ one, many }) =>
     receivables: many(tables.accountsReceivable),
     payables: many(tables.accountsPayable),
     purchaseQuotes: many(tables.purchaseQuotes),
+    subscription: one(tables.saasTenantSubscriptions),
+    addons: many(tables.saasTenantAddons),
+    documentPacks: many(tables.saasTenantDocumentPacks),
+    usage: many(tables.saasTenantUsage),
 }));
 
 export const sriEstablishmentsRelations = relations(tables.sriEstablishments, ({ one }) => ({
@@ -787,5 +791,50 @@ export const toolReturnsRelations = relations(tables.toolReturns, ({ one, many }
 export const toolReturnItemsRelations = relations(tables.toolReturnItems, ({ one }) => ({
     returnReceipt: one(tables.toolReturns, { fields: [tables.toolReturnItems.return_id], references: [tables.toolReturns.id] }),
     loanItem: one(tables.toolLoanItems, { fields: [tables.toolReturnItems.loan_item_id], references: [tables.toolLoanItems.id] }),
+}));
+
+// =============================================================================
+// 19. SaaS Plans, Features, Subscriptions & Add-ons
+// =============================================================================
+
+export const saasPlansRelations = relations(tables.saasPlans, ({ many }) => ({
+    features: many(tables.saasPlanFeatures),
+    subscriptions: many(tables.saasTenantSubscriptions),
+}));
+
+export const saasFeaturesRelations = relations(tables.saasFeatures, ({ many }) => ({
+    plans: many(tables.saasPlanFeatures),
+}));
+
+export const saasPlanFeaturesRelations = relations(tables.saasPlanFeatures, ({ one }) => ({
+    plan: one(tables.saasPlans, { fields: [tables.saasPlanFeatures.plan_id], references: [tables.saasPlans.id] }),
+    feature: one(tables.saasFeatures, { fields: [tables.saasPlanFeatures.feature_code], references: [tables.saasFeatures.code] }),
+}));
+
+export const saasAddonsRelations = relations(tables.saasAddons, ({ many }) => ({
+    tenantAddons: many(tables.saasTenantAddons),
+}));
+
+export const saasDocumentPackagesRelations = relations(tables.saasDocumentPackages, ({ many }) => ({
+    tenantPacks: many(tables.saasTenantDocumentPacks),
+}));
+
+export const saasTenantSubscriptionsRelations = relations(tables.saasTenantSubscriptions, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.saasTenantSubscriptions.company_id], references: [tables.companies.id] }),
+    plan: one(tables.saasPlans, { fields: [tables.saasTenantSubscriptions.plan_id], references: [tables.saasPlans.id] }),
+}));
+
+export const saasTenantAddonsRelations = relations(tables.saasTenantAddons, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.saasTenantAddons.company_id], references: [tables.companies.id] }),
+    addon: one(tables.saasAddons, { fields: [tables.saasTenantAddons.addon_id], references: [tables.saasAddons.id] }),
+}));
+
+export const saasTenantDocumentPacksRelations = relations(tables.saasTenantDocumentPacks, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.saasTenantDocumentPacks.company_id], references: [tables.companies.id] }),
+    package: one(tables.saasDocumentPackages, { fields: [tables.saasTenantDocumentPacks.package_id], references: [tables.saasDocumentPackages.id] }),
+}));
+
+export const saasTenantUsageRelations = relations(tables.saasTenantUsage, ({ one }) => ({
+    company: one(tables.companies, { fields: [tables.saasTenantUsage.company_id], references: [tables.companies.id] }),
 }));
 

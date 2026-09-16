@@ -109,6 +109,7 @@ export const PERMISSIONS: PermissionDef[] = (
 export const ROLES = [
     { name: 'superadmin', description: 'Super Administrador con acceso total al sistema', is_system: true },
     { name: 'admin', description: 'Administrador del sistema' },
+    { name: 'contador', description: 'Contador Externo Certificado (Asiento Gratuito)', is_system: true },
     { name: 'gerente', description: 'Gerente con acceso a reportes y aprobaciones' },
     { name: 'ventas', description: 'Equipo de ventas y CRM' },
     { name: 'produccion', description: 'Equipo de producción y manufactura' },
@@ -123,6 +124,19 @@ export const ROLE_PERMISSIONS: Record<string, (slug: string) => boolean> = {
     admin: (slug) => {
         const blocked = ['system.delete', 'config.delete', 'users.delete', 'roles.delete', 'permissions.delete'];
         return !blocked.includes(slug) && !slug.endsWith('.delete');
+    },
+
+    contador: (slug) => {
+        return slug === 'dashboard.read' ||
+            slug.startsWith('invoices.') ||
+            slug.startsWith('documents.') ||
+            slug.startsWith('retentions.') ||
+            slug.startsWith('receivable.') ||
+            slug.startsWith('payable.') ||
+            slug.startsWith('suppliers.') ||
+            slug.startsWith('purchase_orders.') ||
+            slug.startsWith('purchase_invoices.') ||
+            slug === 'audit.read';
     },
 
     gerente: (slug) => {

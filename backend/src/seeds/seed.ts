@@ -14,10 +14,16 @@ import {
     companies,
     sriEstablishments,
     authMenuItems,
+    saasPlans,
+    saasFeatures,
+    saasPlanFeatures,
+    saasAddons,
+    saasDocumentPackages,
 } from '@app/schema/tables';
 import { sql, eq, and } from '@app/schema';
 import {
     seedCompanyRBAC,
+    seedCompanySubscription,
     seedCompanyMenus,
     seedCompanyUOMs,
     seedCompanyVirtualLocations,
@@ -25,16 +31,187 @@ import {
 } from '../modules/auth/provisioning.service';
 import { hashPassword } from '../core/security';
 import { UOM_DATA } from './seed-data';
+import {
+    SAAS_FEATURES,
+    SAAS_PLANS,
+    SAAS_PLAN_FEATURES,
+    SAAS_ADDONS,
+    DOCUMENT_PACKAGES,
+} from './saas-seed-data';
 import { v7 as uuidv7 } from 'uuid';
 
+/**
+ * Sembrado de Catálogos Maestros de SaaS (Planes, Features, Add-ons, Packs Prepago)
+ */
+async function seedSaasCatalogs(database: typeof db) {
+    console.log('\n📦 Sembrando Catálogos Maestros SaaS...');
+
+    // 1. Features maestras
+    console.log(`   ⚙️ Insertando ${SAAS_FEATURES.length} features y límites...`);
+    for (const f of SAAS_FEATURES) {
+        await database
+            .insert(saasFeatures)
+            .values({
+                code: f.code,
+                name: f.name,
+                description: f.description,
+                type: f.type,
+                category: f.category,
+                unit_label: f.unitLabel || null,
+            })
+            .onConflictDoUpdate({
+                target: saasFeatures.code,
+                set: {
+                    name: f.name,
+                    description: f.description,
+                    type: f.type,
+                    category: f.category,
+                    unit_label: f.unitLabel || null,
+                },
+            });
+    }
+
+    // 2. Planes SaaS
+    console.log(`   🏷️ Insertando ${SAAS_PLANS.length} planes comerciales...`);
+    for (const p of SAAS_PLANS) {
+        await database
+            .insert(saasPlans)
+            .values({
+                id: p.id,
+                name: p.name,
+                description: p.description,
+                interval: p.interval,
+                price_usd: p.priceUsd.toFixed(2),
+                annual_discount_percent: p.annualDiscountPercent || 0,
+                trial_days: p.trialDays,
+                is_popular: p.isPopular ?? false,
+                sort_order: p.sortOrder,
+                is_active: true,
+                updated_at: new Date(),
+            })
+            .onConflictDoUpdate({
+                target: saasPlans.id,
+                set: {
+                    name: p.name,
+                    description: p.description,
+                    interval: p.interval,
+                    price_usd: p.priceUsd.toFixed(2),
+                    annual_discount_percent: p.annualDiscountPercent || 0,
+                    trial_days: p.trialDays,
+                    is_popular: p.isPopular ?? false,
+                    sort_order: p.sortOrder,
+                    is_active: true,
+                    updated_at: new Date(),
+                },
+            });
+    }
+
+    // 3. Matriz Plan - Features
+    console.log(`   🔗 Insertando ${SAAS_PLAN_FEATURES.length} relaciones plan-feature...`);
+    for (const pf of SAAS_PLAN_FEATURES) {
+        await database
+            .insert(saasPlanFeatures)
+            .values({
+                plan_id: pf.planId,
+                feature_code: pf.featureCode,
+                value_boolean: pf.valueBoolean ?? null,
+                value_numeric: pf.valueNumeric ?? null,
+            })
+            .onConflictDoUpdate({
+                target: [saasPlanFeatures.plan_id, saasPlanFeatures.feature_code],
+                set: {
+                    value_boolean: pf.valueBoolean ?? null,
+                    value_numeric: pf.valueNumeric ?? null,
+                },
+            });
+    }
+
+    // 4. Catálogo de Add-ons recurrentes
+    console.log(`   🧩 Insertando ${SAAS_ADDONS.length} add-ons...`);
+    for (const a of SAAS_ADDONS) {
+        await database
+            .insert(saasAddons)
+            .values({
+                id: a.id,
+                name: a.name,
+                description: a.description,
+                addon_type: a.addonType,
+                billing_type: a.billingType,
+                price_usd: a.priceUsd.toFixed(2),
+                quantity: a.quantity,
+                unit_label: a.unitLabel,
+                validity_days: a.validityDays ?? null,
+                is_popular: a.isPopular ?? false,
+                sort_order: a.sortOrder,
+                is_active: true,
+            })
+            .onConflictDoUpdate({
+                target: saasAddons.id,
+                set: {
+                    name: a.name,
+                    description: a.description,
+                    addon_type: a.addonType,
+                    billing_type: a.billingType,
+                    price_usd: a.priceUsd.toFixed(2),
+                    quantity: a.quantity,
+                    unit_label: a.unitLabel,
+                    validity_days: a.validityDays ?? null,
+                    is_popular: a.isPopular ?? false,
+                    sort_order: a.sortOrder,
+                    is_active: true,
+                },
+            });
+    }
+
+    // 5. Catálogo de Paquetes de Documentos Prepago SRI
+    console.log(`   📄 Insertando ${DOCUMENT_PACKAGES.length} paquetes de comprobantes SRI...`);
+    for (const dp of DOCUMENT_PACKAGES) {
+        await database
+            .insert(saasDocumentPackages)
+            .values({
+                id: dp.id,
+                name: dp.name,
+                description: dp.description,
+                document_count: dp.documentCount,
+                price_usd: dp.priceUsd.toFixed(2),
+                unit_cost_usd: dp.unitCostUsd.toFixed(4),
+                validity_days: dp.validityDays ?? null,
+                is_popular: dp.isPopular ?? false,
+                sort_order: dp.sortOrder,
+                is_active: true,
+            })
+            .onConflictDoUpdate({
+                target: saasDocumentPackages.id,
+                set: {
+                    name: dp.name,
+                    description: dp.description,
+                    document_count: dp.documentCount,
+                    price_usd: dp.priceUsd.toFixed(2),
+                    unit_cost_usd: dp.unitCostUsd.toFixed(4),
+                    validity_days: dp.validityDays ?? null,
+                    is_popular: dp.isPopular ?? false,
+                    sort_order: dp.sortOrder,
+                    is_active: true,
+                },
+            });
+    }
+
+    console.log('   ✅ Catálogos maestros SaaS sembrados exitosamente.');
+}
+
 async function seed() {
-    console.log('🌱 Starting Complete System & Better-Auth Seed...\n');
+    console.log('🌱 Iniciando Sembrado Completo del Sistema Zelys ERP...\n');
 
     try {
         // =========================================================================
-        // 0. CREATE / VERIFY DEFAULT DEV COMPANY & BETTER-AUTH ORGANIZATION
+        // 0. SEED SAAS MASTER CATALOGS (Planes, Features, Add-ons, Packs)
         // =========================================================================
-        console.log('🏢 Creating / verifying default dev company...');
+        await seedSaasCatalogs(db as any);
+
+        // =========================================================================
+        // 0.1 CREATE / VERIFY DEFAULT DEV COMPANY & BETTER-AUTH ORGANIZATION
+        // =========================================================================
+        console.log('\n🏢 Creating / verifying default dev company...');
         const [devCompany] = await db
             .insert(companies)
             .values({
@@ -44,10 +221,11 @@ async function seed() {
                 trade_name: 'DevCo',
                 main_address: 'Dirección de prueba',
                 business_type: 'COMERCIO',
+                plan: 'enterprise_yearly',
             })
             .onConflictDoUpdate({
                 target: companies.ruc,
-                set: { business_name: 'Empresa de Desarrollo', slug: 'dev' },
+                set: { business_name: 'Empresa de Desarrollo', slug: 'dev', plan: 'enterprise_yearly' },
             })
             .returning();
         console.log(`   ✅ Company verified: ${devCompany.business_name} (id: ${devCompany.id}, slug: ${devCompany.slug})`);
@@ -238,12 +416,13 @@ async function seed() {
             }
 
             // =====================================================================
-            // 5. SEED RBAC ROLES & PERMISSIONS FOR DEV COMPANY
+            // 5. SEED RBAC ROLES & PERMISSIONS FOR DEV COMPANY (Plan-Aware)
             // =====================================================================
             console.log('\n🛡️ Seeding company RBAC roles & permissions...');
             const superadminId = userIds.get('superadmin') || '';
-            const roleMap = await seedCompanyRBAC(db as any, devCompany.id, superadminId);
-            console.log(`   ✅ Roles & permissions linked (owner assigned to superadmin)`);
+            const roleMap = await seedCompanyRBAC(db as any, devCompany.id, superadminId, 'enterprise_yearly');
+            await seedCompanySubscription(db as any, devCompany.id, 'enterprise_yearly');
+            console.log(`   ✅ Roles, permissions & SaaS subscription linked (owner assigned to superadmin)`);
 
             // Assign admin role to admin user
             const adminId = userIds.get('admin');
@@ -266,6 +445,10 @@ async function seed() {
             // =====================================================================
             // 6. SUMMARY & VERIFICATION
             // =====================================================================
+            const planCount = await db.select({ count: sql<number>`count(*)` }).from(saasPlans);
+            const featureCount = await db.select({ count: sql<number>`count(*)` }).from(saasFeatures);
+            const addonCount = await db.select({ count: sql<number>`count(*)` }).from(saasAddons);
+            const packCount = await db.select({ count: sql<number>`count(*)` }).from(saasDocumentPackages);
             const permCount = await db.select({ count: sql<number>`count(*)` }).from(authPermissions);
             const roleCount = await db.select({ count: sql<number>`count(*)` }).from(authRoles);
             const userCount = await db.select({ count: sql<number>`count(*)` }).from(authUsers);
@@ -277,7 +460,12 @@ async function seed() {
             console.log('\n=============================================================');
             console.log('🎉 SEED COMPLETED SUCCESSFULLY!');
             console.log('=============================================================');
-            console.log(`📊 Statistics:`);
+            console.log(`📊 SaaS Master Catalogs:`);
+            console.log(`   - Plans:                    ${planCount[0].count}`);
+            console.log(`   - Features & Limits:        ${featureCount[0].count}`);
+            console.log(`   - Add-ons:                  ${addonCount[0].count}`);
+            console.log(`   - Document Packages (SRI):  ${packCount[0].count}`);
+            console.log(`📊 Tenant & System Statistics:`);
             console.log(`   - Companies:                ${companyCount[0].count}`);
             console.log(`   - Total Users:              ${userCount[0].count}`);
             console.log(`   - Better-Auth Accounts:     ${accountCount[0].count}`);

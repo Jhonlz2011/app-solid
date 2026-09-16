@@ -649,3 +649,72 @@ export async function bulkRestoreCategories(ids: number[], companyId: number, au
         return { success: true, count: existingIds.length, restoredIds: existingIds };
     });
 }
+
+// =============================================================================
+// Local Override Pattern — Demand Ingestion from Shopify Taxonomy
+// =============================================================================
+
+export async function resolveOrCreateLocalCategory(
+    tx: any,
+    companyId: number,
+    standardCategory: {
+        name: string;
+        fullPath?: string;
+        attributes?: Array<{
+            name: string;
+            handle: string;
+            dataType: string;
+            values?: Array<{ name: string }>;
+        }>;
+    }
+): Promise<number> {
+    // 1. Buscar si ya existe localmente por nombre en el tenant
+    const [existing] = await tx
+        .select({ id: categories.id })
+        .from(categories)
+        .where(and(eq(categories.company_id, companyId), eq(categories.name, standardCategory.name)))
+        .limit(1);
+
+    if (existing) return existing.id;
+
+    // 2. Crear categoría localmente con path ltree
+    const slugifiedSegment = slugifyPath(standardCategory.name);
+    const [newCat] = await tx.insert(categories).values({
+        company_id: companyId,
+        name: standardCategory.name,
+        description: standardCategory.fullPath ? `Importada de catálogo estándar: ${standardCategory.fullPath}` : undefined,
+        path: slugifiedSegment,
+        depth: 0,
+    }).returning();
+
+    // 3. Clonar metacampos sugeridos en attribute_definitions y category_attributes
+    if (standardCategory.attributes && standardCategory.attributes.length > 0) {
+        for (const attr of standardCategory.attributes) {
+            let [attrDef] = await tx
+                .select({ id: attributeDefinitions.id })
+                .from(attributeDefinitions)
+                .where(and(eq(attributeDefinitions.company_id, companyId), eq(attributeDefinitions.key, attr.handle)))
+                .limit(1);
+
+            if (!attrDef) {
+                const defaultOptions = attr.values?.map((v: { name: string }) => v.name) ?? null;
+                [attrDef] = await tx.insert(attributeDefinitions).values({
+                    company_id: companyId,
+                    key: attr.handle,
+                    label: attr.name,
+                    type: attr.dataType as any,
+                    default_options: defaultOptions,
+                }).returning();
+            }
+
+            await tx.insert(categoryAttributes).values({
+                company_id: companyId,
+                category_id: newCat.id,
+                attribute_def_id: attrDef.id,
+                required: false,
+            }).onConflictDoNothing();
+        }
+    }
+
+    return newCat.id;
+}

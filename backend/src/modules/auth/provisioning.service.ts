@@ -11,19 +11,28 @@ import type { Tx } from '../../core/db';
 import {
     authRoles, authPermissions, authRolePermissions, authUserRoles,
     authMenuItems, warehouses, warehouseLocations, uom,
+    saasTenantSubscriptions,
 } from '@app/schema/tables';
-import type { MenuItemStatus } from '@app/schema/enums';
+import type { MenuItemStatus, RbacModule } from '@app/schema/enums';
+import { resolveAllowedModulesForPlan } from '@app/schema/backend';
 import { cacheService } from '../../core/cache';
 
 // @ts-ignore — relative path to seeds is valid at runtime
 import { PERMISSIONS, ROLES, ROLE_PERMISSIONS, MENU_ITEMS, DERIVED_UOM_DATA } from '../../seeds/seed-data';
 
 /**
- * Seeds all RBAC roles + permissions for a company, then assigns the owner to superadmin.
+ * Seeds all RBAC roles + permissions for a company filtered by its SaaS plan,
+ * then assigns the owner to superadmin in a single optimized batch insert.
  */
-export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: string | number) {
+export async function seedCompanyRBAC(
+    tx: Tx,
+    companyId: number,
+    ownerUserId: string | number,
+    planId: string = 'free'
+) {
     const ownerUserIdStr = String(ownerUserId);
-    // 1. Insert permissions (global)
+
+    // 1. Insert permissions (global master catalog)
     await tx
         .insert(authPermissions)
         .values(PERMISSIONS)
@@ -40,19 +49,34 @@ export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: st
         if (result) roleMap.set(result.name, result.id);
     }
 
-    // 3. Assign permissions to roles directly by slug (zero round-trip query needed)
+    // 3. Resolve allowed modules for this tenant's plan
+    const allowedModules = resolveAllowedModulesForPlan(planId);
+
+    // 4. Batch-assign role permissions in ONE single insert query
+    const rolePermValues: { role_id: number; permission_slug: string; company_id: number }[] = [];
+
     for (const [roleName, checkFn] of Object.entries(ROLE_PERMISSIONS) as [string, (slug: string) => boolean][]) {
         const roleId = roleMap.get(roleName);
         if (!roleId) continue;
 
-        const matchingPerms = PERMISSIONS.filter((p: { slug: string }) => checkFn(p.slug));
+        const matchingPerms = (PERMISSIONS as { slug: string; module: RbacModule }[]).filter(
+            p => allowedModules.has(p.module) && checkFn(p.slug)
+        );
 
-        if (matchingPerms.length > 0) {
-            await tx
-                .insert(authRolePermissions)
-                .values(matchingPerms.map(p => ({ role_id: roleId, permission_slug: p.slug, company_id: companyId })))
-                .onConflictDoNothing();
+        for (const p of matchingPerms) {
+            rolePermValues.push({
+                role_id: roleId,
+                permission_slug: p.slug,
+                company_id: companyId,
+            });
         }
+    }
+
+    if (rolePermValues.length > 0) {
+        await tx
+            .insert(authRolePermissions)
+            .values(rolePermValues)
+            .onConflictDoNothing();
     }
 
     // 5. Assign owner user to superadmin role
@@ -65,6 +89,29 @@ export async function seedCompanyRBAC(tx: Tx, companyId: number, ownerUserId: st
     }
 
     return roleMap;
+}
+
+/**
+ * Seeds the initial SaaS subscription for a new company tenant.
+ */
+export async function seedCompanySubscription(
+    tx: Tx,
+    companyId: number,
+    planId: string = 'free',
+    paymentMethod: string = 'FREE'
+) {
+    const normalizedPlanId = planId.toLowerCase().trim();
+
+    await tx
+        .insert(saasTenantSubscriptions)
+        .values({
+            company_id: companyId,
+            plan_id: normalizedPlanId,
+            status: 'ACTIVE',
+            payment_method_type: paymentMethod,
+            current_period_start: new Date(),
+        })
+        .onConflictDoNothing();
 }
 
 /**
@@ -92,10 +139,9 @@ export async function seedCompanyMenus(tx: Tx, companyId: number | null = null) 
                 sort_order: item.sort_order,
                 permission_prefix: item.permission_prefix || null,
                 status: itemStatus,
-                company_id: companyId,
             })
             .onConflictDoUpdate({
-                target: [authMenuItems.company_id, authMenuItems.key],
+                target: [authMenuItems.key],
                 set: {
                     label: item.label,
                     icon: item.icon,
@@ -131,10 +177,9 @@ export async function seedCompanyMenus(tx: Tx, companyId: number | null = null) 
                     sort_order: child.sort_order,
                     permission_prefix: child.permission_prefix || null,
                     status: childStatus,
-                    company_id: companyId,
                 })
                 .onConflictDoUpdate({
-                    target: [authMenuItems.company_id, authMenuItems.key],
+                    target: [authMenuItems.key],
                     set: {
                         label: child.label,
                         icon: child.icon,

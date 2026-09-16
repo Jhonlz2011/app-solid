@@ -4,6 +4,7 @@ import { authClient } from "@shared/lib/auth-client";
 import { profileApi } from "@modules/profile/data/profile.api";
 import type { ProfileType } from '@app/schema/dto';
 import { type RbacModule, type PermissionSlug, type AnyPermissionSlug, type ActionsForModule, SYSTEM_ROLES } from '@app/schema/enums';
+import { resolveAllowedModulesFromFeatures } from '@app/schema/backend';
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
 import { brandingActions } from "./branding.store";
@@ -462,6 +463,23 @@ export const useAuth = () => {
         user: () => state.user,
         isAuthenticated: () => state.status === 'authenticated',
         isLoading: () => state.status === 'loading',
+        plan: () => state.user?.plan || 'free',
+        planStatus: () => state.user?.planStatus || 'ACTIVE',
+        features: () => state.user?.features || {},
+        hasFeature: (featureCode: string): boolean => {
+            const val = state.user?.features?.[featureCode];
+            if (typeof val === 'boolean') return val;
+            if (typeof val === 'number') return val > 0 || val === -1;
+            return false;
+        },
+        canAccessModule: (module: RbacModule): boolean => {
+            const u = state.user;
+            if (!u) return false;
+            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
+            if (!allowedModules.has(module)) return false;
+            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
+            return Boolean(u.permissions?.some(p => p.startsWith(`${module}.`)));
+        },
         hasPermission: (perm: AnyPermissionSlug) => {
             const u = state.user;
             if (!u?.permissions) return false;
@@ -473,42 +491,56 @@ export const useAuth = () => {
         canRead: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
+            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
+            if (!allowedModules.has(module)) return false;
             if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.read`) || false;
         },
         canAdd: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
+            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
+            if (!allowedModules.has(module)) return false;
             if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.create`) || false;
         },
         canEdit: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
+            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
+            if (!allowedModules.has(module)) return false;
             if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.update`) || false;
         },
         canDelete: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
+            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
+            if (!allowedModules.has(module)) return false;
             if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.delete`) || false;
         },
         canRestore: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
+            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
+            if (!allowedModules.has(module)) return false;
             if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.restore`) || false;
         },
         canDestroy: (module: RbacModule) => {
             const u = state.user;
             if (!u) return false;
+            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
+            if (!allowedModules.has(module)) return false;
             if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.destroy`) || false;
         },
         can: <M extends RbacModule>(module: M, action: ActionsForModule<M>) => {
             const u = state.user;
             if (!u) return false;
+            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
+            if (!allowedModules.has(module)) return false;
             if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
             return u.permissions?.includes(`${module}.${action}`) || false;
         },

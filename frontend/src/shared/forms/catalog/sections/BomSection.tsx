@@ -26,13 +26,14 @@ export const BomSection: Component<BomSectionProps> = (props) => {
     // Name lookup for BOM components — populated from loaded data + new additions
     const [componentNames, setComponentNames] = createSignal<Record<number, string>>({});
 
-    // Populate names from server data (edit mode: components[].componentProduct.name)
+    // Populate names from server data (edit mode: components[].componentProduct.title)
     createMemo(() => {
         const comps = components();
         const names: Record<number, string> = {};
         for (const c of comps) {
-            if ((c).componentProduct?.name) {
-                names[c.component_product_id] = (c).componentProduct.name;
+            const compProd = (c as any).componentProduct;
+            if (compProd?.title || compProd?.name) {
+                names[c.component_product_id] = compProd.title || compProd.name;
             }
         }
         if (Object.keys(names).length > 0) {
@@ -68,7 +69,7 @@ export const BomSection: Component<BomSectionProps> = (props) => {
         props.form.setFieldValue('components', [...current, newEntry]);
 
         // Store the name for display
-        setComponentNames(prev => ({ ...prev, [prod.id]: prod.name }));
+        setComponentNames(prev => ({ ...prev, [prod.id]: prod.title || (prod as any).name }));
 
         // Reset draft
         setSelectedProduct(null);

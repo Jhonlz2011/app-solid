@@ -5,6 +5,8 @@ import type { CompanySettingsFormData } from '@app/schema/frontend';
 import type { CropCoordinates } from '@app/schema/dto';
 import { applyBranding, getSubdomain } from '@modules/auth/store/branding.store';
 import { toast } from 'solid-sonner';
+import { invalidateOrgCache } from '@modules/auth/utils/resolve-routing';
+import { organizationKeys } from '@modules/auth/data/organizations.queries';
 
 /**
  * Optimistic mutation for settings branding updates.
@@ -92,6 +94,8 @@ export function useUpdateSettingsBranding() {
 
             // Invalidate to ensure fresh data on next read
             qc.invalidateQueries({ queryKey: brandingKeys.branding });
+            invalidateOrgCache();
+            qc.invalidateQueries({ queryKey: organizationKeys.all });
         },
     }));
 }

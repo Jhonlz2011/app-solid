@@ -23,13 +23,13 @@ const IdentificationSection: Component<IdentificationSectionProps> = (props) => 
         <fieldset class="space-y-5 bg-surface/30 p-5 rounded-2xl border border-border/40">
             <FormSectionHeader color="success" title="Identificación" />
 
-            {/* Name */}
-            <props.form.Field name="name">
+            {/* Title */}
+            <props.form.Field name="title">
                 {(field) => (
-                    <TextField.Root field={field()}>
+                    <TextField.Root field={field() as any}>
                         <TextField.Label>
                             <span class="flex items-center gap-2">
-                                Nombre del Producto *
+                                Título del Producto *
                                 <Show when={props.hasTemplate()}>
                                     <Badge variant="info" class="text-[10px] px-1.5 py-0">Auto-generado</Badge>
                                 </Show>
@@ -37,7 +37,7 @@ const IdentificationSection: Component<IdentificationSectionProps> = (props) => 
                         </TextField.Label>
                         <TextField.Input
                             type="text"
-                            placeholder={props.hasTemplate() ? 'Se genera automáticamente desde los atributos...' : 'Nombre del producto'}
+                            placeholder={props.hasTemplate() ? 'Se genera automáticamente desde los atributos...' : 'Título del producto'}
                             readOnly={props.hasTemplate() && !props.manualNameOverride()}
                             class={props.hasTemplate() && !props.manualNameOverride() ? 'bg-surface/60 cursor-default' : ''}
                         />

@@ -106,8 +106,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     })
 
     // Permissions (read-only)
-    .get('/permissions', async () => {
-        return await getAllPermissions();
+    .get('/permissions', async ({ currentCompanyId }) => {
+        return await getAllPermissions(currentCompanyId);
     }, { permission: 'permissions.read' })
 
     // Role users

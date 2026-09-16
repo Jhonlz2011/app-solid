@@ -40,8 +40,8 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
             bindDismiss={bindDismiss}
             isOpen={true}
             onClose={navigateAway}
-            title={product()?.name ?? 'Producto'}
-            description={`Slug: ${(product() as any)?.slug ?? ''}`}
+            title={product()?.title ?? 'Producto'}
+            description={product()?.handle ? `Handle: ${product()?.handle}` : ''}
             size="xxxl"
             footer={
                 <div class="flex items-center gap-2 w-full justify-end">
@@ -82,20 +82,20 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
 
                                     {/* Info Grid */}
                                     <div class="bg-surface/30 rounded-xl border border-border divide-y divide-border">
-                                        <InfoRow label="Slug" value={(p as any).slug} />
-                                        <InfoRow label="Nombre" value={p.name} />
+                                        <InfoRow label="Handle" value={p.handle || '—'} />
+                                        <InfoRow label="Título" value={p.title} />
                                         <InfoRow label="Descripción" value={p.description || '—'} />
                                         <InfoRow label="Categoría" value={(p as any).category?.name || '—'} />
                                         <InfoRow label="Marca" value={(p as any).brand?.name || '—'} />
                                         <InfoRow label="UOM" value={(p as any).uom_code || (p as any).uom_name || ((p as any).uom_inventory_id ? `#${(p as any).uom_inventory_id}` : '—')} />
                                     </div>
 
-                                    {/* Shared Attributes (JSONB) */}
-                                    <Show when={Object.keys((p as any).shared_attributes ?? {}).length > 0}>
+                                    {/* Attributes (JSONB) */}
+                                    <Show when={Object.keys((p as any).attributes ?? {}).length > 0}>
                                         <div class="bg-surface/30 rounded-xl border border-border p-4 space-y-3">
                                             <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">Atributos</h4>
                                             <div class="grid grid-cols-2 gap-3">
-                                                <For each={Object.entries((p as any).shared_attributes ?? {})}>
+                                                <For each={Object.entries((p as any).attributes ?? {})}>
                                                     {([key, val]) => (
                                                         <div class="flex items-center justify-between bg-card rounded-lg px-3 py-2 border border-border/50">
                                                             <span class="text-xs text-muted font-medium">{key}</span>
@@ -112,8 +112,8 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
                                         <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">Precios</h4>
                                         <div class="grid grid-cols-3 gap-4">
                                             <div>
-                                                <span class="text-xs text-muted block">Precio Base por Defecto</span>
-                                                <span class="text-lg font-bold font-mono">{formatPrice((p as any).default_base_price)}</span>
+                                                <span class="text-xs text-muted block">Precio Unitario por Defecto</span>
+                                                <span class="text-lg font-bold font-mono">{formatPrice((p as any).default_unit_price ?? (p as any).default_base_price)}</span>
                                             </div>
                                             <div>
                                                 <span class="text-xs text-muted block">Último Costo</span>
@@ -168,7 +168,7 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
                                                     </div>
                                                     <div>
                                                         <span class="text-muted block">Precio</span>
-                                                        <span class="font-mono font-semibold">{v.base_price ? formatPrice(v.base_price) : 'Hereda'}</span>
+                                                        <span class="font-mono font-semibold">{v.unit_price ? formatPrice(v.unit_price) : (v.base_price ? formatPrice(v.base_price) : 'Hereda')}</span>
                                                     </div>
                                                     <Show when={v.sale_uom_id}>
                                                         <div>
@@ -179,7 +179,12 @@ const ProductShowPanel: Component<ProductShowPanelProps> = (props) => {
                                                     <Show when={v.barcode}>
                                                         <div>
                                                             <span class="text-muted block">Barcode</span>
-                                                            <span class="font-mono text-[10px]">{v.barcode}</span>
+                                                            <span class="font-mono text-[10px]">
+                                                                <Show when={v.barcode_type}>
+                                                                    <span class="text-muted mr-1">[{v.barcode_type}]</span>
+                                                                </Show>
+                                                                {v.barcode}
+                                                            </span>
                                                         </div>
                                                     </Show>
                                                 </div>

@@ -28,6 +28,8 @@ import { PlusIcon } from '@icons/PlusIcon';
 import { TrashIcon } from '@icons/TrashIcon';
 import { GripVerticalIcon } from '@icons/GripVerticalIcon';
 import { CopyIcon } from '@icons/CopyIcon';
+import { SparklesIcon } from '@icons/SparklesIcon';
+import BulkVariantEditorModal from '../components/BulkVariantEditorModal';
 
 interface VariantsSectionProps {
     form: CatalogFormApi;
@@ -35,16 +37,17 @@ interface VariantsSectionProps {
     categoryAttributes: Accessor<Array<{ key: string; label: string; type: string; options?: string[] }>>;
 }
 
-const emptyVariant = (sortOrder: number, productName?: string, sharedAttrs?: Record<string, unknown>): ProductVariantFormData => ({
+const emptyVariant = (sortOrder: number, productTitle?: string, productAttrs?: Record<string, unknown>): ProductVariantFormData => ({
     id: null,
     sku: '',
-    variant_name: productName ?? null,
-    variant_attributes: sharedAttrs ? { ...sharedAttrs } : {},
+    variant_name: productTitle ?? null,
+    variant_attributes: productAttrs ? { ...productAttrs } : {},
     content_quantity: 1,
     sale_uom_id: null,
-    base_price: null,
+    unit_price: null,
     last_cost: null,
     barcode: null,
+    barcode_type: 'CUSTOM',
     image_urls: null,
     std_length_cm: null,
     std_width_cm: null,
@@ -61,6 +64,7 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
 
     // Inner tab state
     const [activeTab, setActiveTab] = createSignal<'list' | 'add'>('list');
+    const [isBulkModalOpen, setIsBulkModalOpen] = createSignal(false);
 
     // Toggle state
     const [hasVariants, setHasVariants] = createSignal(false);
@@ -109,9 +113,9 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
     const addVariant = () => {
         const current = props.form.getFieldValue('variants') as ProductVariantFormData[];
         const maxSort = current.reduce((max, v) => Math.max(max, v.sort_order ?? 0), 0);
-        const productName = props.form.getFieldValue('name') as string;
-        const sharedAttrs = props.form.getFieldValue('shared_attributes') as Record<string, unknown>;
-        props.form.setFieldValue('variants', [...current, emptyVariant(maxSort + 1, productName, sharedAttrs)]);
+        const productTitle = props.form.getFieldValue('title') as string;
+        const productAttrs = props.form.getFieldValue('attributes') as Record<string, unknown>;
+        props.form.setFieldValue('variants', [...current, emptyVariant(maxSort + 1, productTitle, productAttrs)]);
         if (!hasVariants()) setHasVariants(true);
     };
 
@@ -138,17 +142,17 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
     const addVariantFromForm = () => {
         const current = props.form.getFieldValue('variants') as ProductVariantFormData[];
         const maxSort = current.reduce((max, v) => Math.max(max, v.sort_order ?? 0), 0);
-        const productName = props.form.getFieldValue('name') as string;
-        const sharedAttrs = props.form.getFieldValue('shared_attributes') as Record<string, unknown>;
+        const productTitle = props.form.getFieldValue('title') as string;
+        const productAttrs = props.form.getFieldValue('attributes') as Record<string, unknown>;
 
-        const variant = emptyVariant(maxSort + 1, productName, sharedAttrs);
+        const variant = emptyVariant(maxSort + 1, productTitle, productAttrs);
         const attrs = newAttrValues();
         if (Object.keys(attrs).length > 0) {
             variant.variant_attributes = { ...variant.variant_attributes, ...attrs };
         }
         const price = parseFloat(newPrice());
         if (!isNaN(price) && price > 0) {
-            variant.base_price = price;
+            variant.unit_price = price;
         }
         variant.is_active = newIsActive();
 
@@ -215,6 +219,14 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                         }}
                     >
                         Agregar Nueva
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setIsBulkModalOpen(true)}
+                        class="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-card hover:bg-card-alt text-text transition-colors cursor-pointer"
+                    >
+                        <SparklesIcon class="w-3.5 h-3.5 text-primary" />
+                        <span>Editor Masivo</span>
                     </button>
                 </div>
             </div>
@@ -366,15 +378,15 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                                                             }}
                                                         </For>
 
-                                                        {/* Base Price Override — native input for focus stability */}
-                                                        <props.form.Field name={`variants[${formIndex()}].base_price`}>
+                                                        {/* Unit Price Override — native input for focus stability */}
+                                                        <props.form.Field name={`variants[${formIndex()}].unit_price` as any}>
                                                             {(field) => (
                                                                 <input
                                                                     type="text"
                                                                     value={field().state.value != null ? String(field().state.value) : ''}
                                                                     onInput={(e) => {
                                                                         const val = e.currentTarget.value;
-                                                                        field().handleChange(val === '' ? null : parseFloat(val));
+                                                                        (field() as any).handleChange(val === '' ? null : parseFloat(val));
                                                                     }}
                                                                     onBlur={() => field().handleBlur()}
                                                                     placeholder="Hereda"
@@ -569,6 +581,13 @@ const VariantsSection: Component<VariantsSectionProps> = (props) => {
                     </div>
                 </Show>
             </div>
+
+            <BulkVariantEditorModal
+                isOpen={isBulkModalOpen()}
+                variants={(props.form.getFieldValue('variants') as ProductVariantFormData[]) ?? []}
+                onClose={() => setIsBulkModalOpen(false)}
+                onSave={(updated) => props.form.setFieldValue('variants', updated)}
+            />
         </fieldset>
     );
 };

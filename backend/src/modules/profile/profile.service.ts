@@ -7,6 +7,7 @@ import { getMenuForUser } from '../settings/menu.service';
 import { broadcastToUser } from '../../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { AuthError } from '../auth/session.service';
+import { getTenantEntitlements } from '../saas/entitlements.service';
 
 export function mapEntity(entity: { id: string; business_name: string; is_client: boolean | null; is_supplier: boolean | null; is_employee: boolean | null } | null | undefined): ProfileEntityType | undefined {
   if (!entity) return undefined;
@@ -86,12 +87,12 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     }
   }
 
-  const [roles, permissions, [company], modules] = await Promise.all([
+  const [roles, permissions, [company], modules, entitlements] = await Promise.all([
     getUserRoles(user.id, resolvedCompanyId),
     getUserPermissions(user.id, resolvedCompanyId),
     resolvedCompanyId
       ? adminDb
-          .select({ slug: companies.slug })
+          .select({ slug: companies.slug, plan: companies.plan })
           .from(companies)
           .where(eq(companies.id, resolvedCompanyId))
           .limit(1)
@@ -99,6 +100,9 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     resolvedCompanyId
       ? getMenuForUser(user.id, resolvedCompanyId)
       : Promise.resolve([]),
+    resolvedCompanyId
+      ? getTenantEntitlements(resolvedCompanyId)
+      : Promise.resolve(null),
   ]);
 
   return {
@@ -118,6 +122,9 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     permissions,
     entity: mapEntity(resolvedEntity),
     modules,
+    plan: entitlements?.planId ?? company?.plan ?? 'free',
+    planStatus: entitlements?.status ?? 'ACTIVE',
+    features: entitlements?.features ?? {},
   };
 }
 

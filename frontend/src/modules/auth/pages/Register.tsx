@@ -15,9 +15,10 @@ import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import CompanyFields from '../components/CompanyFields';
 import AuthStepper from '../components/AuthStepper';
 import Turnstile from '@shared/ui/Turnstile';
-import { Badge } from '@shared/ui/display/Badge';
 import CompanySummaryCard from '../components/CompanySummaryCard';
 import { createUsernameAvailabilityValidator, createEmailAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
+import { PlanSelector } from '../components/PlanSelector';
+import { Badge } from '@shared/ui/display/Badge';
 
 // ─── Password Strength Meter ───
 const PasswordStrength: Component<{ password: string }> = (props) => {
@@ -61,6 +62,7 @@ const Register: Component = () => {
     const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
     let turnstileActions: { reset: () => void } | undefined;
 
+    const [selectedPlanId, setSelectedPlanId] = createSignal<string>('starter_yearly');
     const [submitting, setSubmitting] = createSignal(false);
 
     // ─── STEP 1 FORM ───
@@ -155,6 +157,7 @@ const Register: Component = () => {
                     taxRegimeType: s2.taxRegimeType || undefined,
                     phone: s1.phone || undefined,
                     cedula: s1.cedula || undefined,
+                    planId: selectedPlanId(),
                     turnstileToken: turnstileToken() ?? undefined,
                 });
 
@@ -184,6 +187,7 @@ const Register: Component = () => {
                 obligadoContabilidad: s2.obligadoContabilidad || undefined,
                 contribuyenteEspecial: s2.contribuyenteEspecial || undefined,
                 taxRegimeType: s2.taxRegimeType || undefined,
+                planId: selectedPlanId(),
                 turnstileToken: turnstileToken() ?? undefined,
             });
 
@@ -391,6 +395,13 @@ const Register: Component = () => {
                             form={step2Form}
                             stepSubmitted={step2Submitted}
                         />
+
+                        <div class="mt-2 pt-4 border-t border-border">
+                            <PlanSelector
+                                selectedPlanId={selectedPlanId()}
+                                onPlanChange={setSelectedPlanId}
+                            />
+                        </div>
 
                         <div class="flex items-center gap-3 mt-4 pt-4 border-t border-border">
                             <Show

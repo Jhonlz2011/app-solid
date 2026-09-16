@@ -19,7 +19,8 @@
         "./enums": "./src/enums.ts",
         "./realtime-events": "./src/realtime-events.ts",
         "./sri": "./src/tables/sri.ts",
-        "./localidades": "./src/tables/localidades.ts"
+        "./localidades": "./src/tables/localidades.ts",
+        "./taxonomy": "./src/tables/taxonomy.ts"
     },
     "typesVersions": {
         "*": {
@@ -64,6 +65,9 @@
             ],
             "localidades": [
                 "./src/tables/localidades.ts"
+            ],
+            "taxonomy": [
+                "./src/tables/taxonomy.ts"
             ]
         }
     },

@@ -16,7 +16,7 @@ export interface ProductSelectProps {
     field?: any;
 }
 
-const getProductLabel = (p: Product) => `${p.name}${p.slug ? ` (${p.slug})` : ''}`;
+const getProductLabel = (p: Product) => `${p.title}${p.handle ? ` (${p.handle})` : ''}`;
 
 export const ProductSelect: Component<ProductSelectProps> = (props) => {
     const [localQuery, setLocalQuery] = createSignal('');

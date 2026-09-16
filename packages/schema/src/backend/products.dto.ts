@@ -5,6 +5,12 @@ import { Type, type Static } from './typebox';
 // Standard: Request Bodies -> *BodySchema, Responses -> *ResponseSchema
 // ============================================================================
 
+export const ProductOptionBodySchema = Type.Object({
+    id: Type.String(),
+    name: Type.String({ minLength: 1 }),
+    values: Type.Array(Type.String()),
+});
+
 export const ProductVariantBodySchema = Type.Object({
     id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     sku: Type.String({ minLength: 1 }),
@@ -12,9 +18,18 @@ export const ProductVariantBodySchema = Type.Object({
     variant_attributes: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
     content_quantity: Type.Number(),
     sale_uom_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
-    base_price: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+    unit_price: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     last_cost: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     barcode: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    barcode_type: Type.Optional(Type.Union([
+        Type.Literal('GTIN'),
+        Type.Literal('UPC'),
+        Type.Literal('EAN'),
+        Type.Literal('ISBN'),
+        Type.Literal('ASIN'),
+        Type.Literal('CUSTOM'),
+        Type.Null(),
+    ])),
     image_urls: Type.Optional(Type.Union([Type.Array(Type.String()), Type.Null()])),
     std_length_cm: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
     std_width_cm: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
@@ -36,15 +51,17 @@ export const ProductBodySchema = Type.Object({
     product_subtype: Type.Optional(Type.Union([Type.Literal('SIMPLE'), Type.Literal('COMPUESTO'), Type.Literal('FABRICADO'), Type.Null()])),
     category_id: Type.Number(),
     brand_id: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
-    slug: Type.String({ minLength: 1 }),
-    name: Type.String({ minLength: 1 }),
+    title: Type.String({ minLength: 1 }),
+    handle: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     description: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-    shared_attributes: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    attributes: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    options: Type.Optional(Type.Array(ProductOptionBodySchema)),
+    has_variants: Type.Optional(Type.Boolean()),
     image_urls: Type.Optional(Type.Array(Type.String())),
     uom_inventory_id: Type.Number(),
     has_dimensional_tracking: Type.Boolean(),
     min_stock_alert: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
-    default_base_price: Type.Number(),
+    default_unit_price: Type.Number(),
     iva_rate_code: Type.Number(),
     is_active: Type.Boolean(),
     variants: Type.Array(ProductVariantBodySchema),
@@ -92,6 +109,7 @@ export const GenerateSkuQuerySchema = Type.Object({
 // CANONICAL INFERRED TYPES (Single Source of Truth)
 // ============================================================================
 
+export type ProductOptionBodyType = Static<typeof ProductOptionBodySchema>;
 export type ProductBodyType = Static<typeof ProductBodySchema>;
 export type ProductVariantBodyType = Static<typeof ProductVariantBodySchema>;
 export type ProductComponentBodyType = Static<typeof ProductComponentBodySchema>;

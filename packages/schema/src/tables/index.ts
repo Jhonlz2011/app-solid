@@ -16,3 +16,5 @@ export * from './inventory_defaults';
 export * from './email_logs';
 export * from './pricing';
 export * from './tools';
+export * from './saas';
+export * from './taxonomy';

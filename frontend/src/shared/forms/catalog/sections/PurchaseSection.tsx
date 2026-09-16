@@ -12,7 +12,7 @@ interface PurchaseSectionProps {
 
 const PurchaseSection: Component<PurchaseSectionProps> = (props) => {
     const variants = props.form.useStore((s) => s.values.variants) as () => ProductVariantFormData[];
-    const defaultBasePrice = props.form.useStore((s) => s.values.default_base_price) as () => number;
+    const defaultUnitPrice = props.form.useStore((s) => s.values.default_unit_price) as () => number;
     const additionalVariants = () => props.additionalVariants();
 
     // Calculated margin for the default variant
@@ -21,7 +21,7 @@ const PurchaseSection: Component<PurchaseSectionProps> = (props) => {
         return v0?.last_cost != null ? Number(v0.last_cost) : 0;
     });
     const defaultMargin = createMemo(() => {
-        const price = Number(defaultBasePrice()) || 0;
+        const price = Number(defaultUnitPrice()) || 0;
         const cost = defaultCost();
         if (cost <= 0 || price <= 0) return null;
         return ((price - cost) / cost * 100).toFixed(1);
@@ -107,7 +107,7 @@ const PurchaseSection: Component<PurchaseSectionProps> = (props) => {
                                 const formIndex = () => index() + 1;
                                 const variantPrice = () => {
                                     const v = variants()[formIndex()];
-                                    return v?.base_price != null ? Number(v.base_price) : Number(defaultBasePrice()) || 0;
+                                    return v?.unit_price != null ? Number(v.unit_price) : Number(defaultUnitPrice()) || 0;
                                 };
                                 const variantCost = () => {
                                     const v = variants()[formIndex()];

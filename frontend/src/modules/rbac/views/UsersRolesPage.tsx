@@ -9,6 +9,7 @@ import { toast } from 'solid-sonner';
 import { Outlet } from '@tanstack/solid-router';
 // import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { useUsersState } from '../hooks/useUsersState';
+import { useTenantSubscription } from '@modules/saas/data/saas.queries';
 
 // Shared UI
 import { DataTable } from '@shared/ui/DataTable';
@@ -41,6 +42,7 @@ const UsersRolesPage: Component = () => {
     // const isMobile = useIsMobile();
     // const navigate = useNavigate();
     const state = useUsersState();
+    const subscriptionQuery = useTenantSubscription();
 
     return (
         <div class="h-full flex flex-col bg-linear-to-br from-background via-background to-surface/20">
@@ -95,6 +97,41 @@ const UsersRolesPage: Component = () => {
                             class="flex-1 min-w-37.5 max-w-md"
                         />
                         <DataTableColumnVisibility table={state.tableInstance()} />
+
+                        <Show when={subscriptionQuery.data}>
+                            {(sub) => (
+                                <div class="flex flex-wrap items-center gap-2 text-xs font-medium ml-auto">
+                                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border bg-surface/50 text-foreground">
+                                        <span
+                                            class="size-2 rounded-full"
+                                            classList={{
+                                                'bg-emerald-500': sub().users.active < sub().users.max,
+                                                'bg-amber-500': sub().users.active === sub().users.max,
+                                                'bg-rose-500': sub().users.active > sub().users.max,
+                                            }}
+                                        />
+                                        <span>Asientos: <strong>{sub().users.active}</strong> / {sub().users.max}</span>
+                                    </div>
+
+                                    <Show when={sub().users.hasFreeAccountantSeat}>
+                                        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-primary/20 bg-primary/5 text-primary">
+                                            <span>Contador: {sub().users.accountantAssigned ? 'Asignado' : 'Slot Libre'}</span>
+                                        </div>
+                                    </Show>
+
+                                    <Show when={sub().users.hasFreeAccountantSeat && !sub().users.accountantAssigned && state.auth.canAdd('users')}>
+                                        <LinkButton
+                                            to="/users/new"
+                                            search={(prev: any) => ({ ...prev, tab: 'users', role: 'contador' })}
+                                            preload="intent"
+                                            class="text-xs h-7 px-2.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30"
+                                        >
+                                            + Invitar Contador
+                                        </LinkButton>
+                                    </Show>
+                                </div>
+                            )}
+                        </Show>
                     </div>
                 </Show>
 

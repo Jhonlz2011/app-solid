@@ -34,6 +34,7 @@ export interface PermissionItem {
     module?: string;
     action?: string;
     description?: string | null;
+    planAllowed?: boolean;
 }
 
 export interface PermissionMatrixProps {
@@ -69,10 +70,11 @@ export const PermissionMatrix: Component<PermissionMatrixProps> = (props) => {
 
     const search = () => props.search ?? internalSearch();
 
-    // Group permissions by module
+    // Group permissions by module (completely omitting uncontracted modules)
     const grouped = createMemo(() => {
         const map = new Map<string, PermissionItem[]>();
         for (const perm of props.allPermissions) {
+            if (perm.planAllowed === false) continue;
             const moduleName = perm.module || perm.slug.split('.')[0];
             if (!map.has(moduleName)) map.set(moduleName, []);
             map.get(moduleName)!.push(perm);

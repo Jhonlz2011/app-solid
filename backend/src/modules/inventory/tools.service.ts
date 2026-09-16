@@ -191,7 +191,7 @@ export const toolsService = {
                 notes: toolLoanItems.notes,
                 variant_name: productVariants.variant_name,
                 sku: productVariants.sku,
-                product_name: products.name,
+                product_name: products.title,
                 tool_item_code: toolItems.internal_code,
             })
             .from(toolLoanItems)
@@ -489,9 +489,9 @@ export const toolsService = {
                 expectedReturnDate: toolLoans.expected_return_date,
                 status: toolLoans.status,
                 variantId: productVariants.id,
-                variantName: sql<string>`COALESCE(${productVariants.variant_name}, ${products.name})`,
+                variantName: sql<string>`COALESCE(${productVariants.variant_name}, ${products.title})`,
                 sku: productVariants.sku,
-                productName: products.name,
+                productName: products.title,
                 quantityLoaned: toolLoanItems.quantity_loaned,
                 quantityReturned: toolLoanItems.quantity_returned,
             })

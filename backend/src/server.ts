@@ -16,11 +16,12 @@ import {
 } from './modules/entities';
 import { brandRoutes, uomRoutes, categoryRoutes, attributeRoutes } from './modules/catalog';
 import { modulesRoutes } from './modules/settings';
-import { sriRoutes, geonamesRoutes } from './modules/references';
+import { sriRoutes, geonamesRoutes, taxonomyRoutes } from './modules/references';
 import { rbacRoutes } from './modules/rbac';
 import { locationsRoutes, toolLoansRoutes } from './modules/inventory';
 import { companyRoutes, vehiclesRoutes, warehousesRoutes } from './modules/settings';
 import { webhooksRoutes } from './modules/webhooks';
+import { saasRoutes } from './modules/saas';
 
 // Plugins
 import { rateLimit } from './plugins/rate-limit';
@@ -135,12 +136,14 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(rbacRoutes)
   .use(entityRoutes)
   .use(sriRoutes)
+  .use(taxonomyRoutes)
   .use(geonamesRoutes)
   .use(locationsRoutes)
   .use(toolLoansRoutes)
   .use(companyRoutes)
   .use(vehiclesRoutes)
   .use(warehousesRoutes)
+  .use(saasRoutes)
   .use(staticPlugin({ assets: 'public', prefix: '/' }));
 
 // ============================================================================

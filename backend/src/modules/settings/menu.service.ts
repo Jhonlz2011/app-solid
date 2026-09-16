@@ -1,12 +1,15 @@
 import { adminDb } from '../../core/db';
 import { authMenuItems, authMenuCustom } from '@app/schema/tables';
 import { eq, asc, sql, isNull, and, isNotNull } from '@app/schema';
-import type { MenuItemStatus } from '@app/schema/enums';
+import type { MenuItemStatus, RbacModule } from '@app/schema/enums';
 import { getUserPermissions, getUserRoles } from '../rbac/rbac.permission.service';
 import { cacheService } from '../../core/cache';
 import { DomainError, NotFoundError } from '../../core/errors';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { broadcastToTenant } from '../../core/sse/events';
+import { getTenantEntitlements } from '../saas/entitlements.service';
+import { resolveAllowedModulesFromFeatures, FEATURE_TO_MODULES_MAP} from '@app/schema/backend';
+
 
 // Keep backward-compatible interface
 export interface ModuleConfig {
@@ -22,7 +25,6 @@ export interface ModuleConfig {
 
 export interface DbMenuItem {
     id: number;
-    company_id: number | null;
     key: string;
     label: string;
     icon: string | null;
@@ -53,7 +55,7 @@ export interface TenantRouteMetadata {
 /**
  * Invalidate Redis caches for menus and route aliases and broadcast SSE event
  */
-async function invalidateMenuCaches(companyId?: number | null) {
+export async function invalidateMenuCaches(companyId?: number | null) {
     await cacheService.invalidate('menus:*');
     await cacheService.invalidate('aliases:*');
     await cacheService.invalidate('route_meta:*');
@@ -98,7 +100,6 @@ export async function getTenantMenuItems(companyId?: number | null): Promise<DbM
                     eq(authMenuCustom.company_id, companyId)
                 )
             )
-            .where(isNull(authMenuItems.company_id))
             .orderBy(
                 asc(sql`COALESCE(${authMenuCustom.parent_id}, ${authMenuItems.parent_id})`),
                 asc(sql`COALESCE(${authMenuCustom.sort_order}, ${authMenuItems.sort_order})`)
@@ -111,39 +112,101 @@ export async function getTenantMenuItems(companyId?: number | null): Promise<DbM
     return adminDb
         .select()
         .from(authMenuItems)
-        .where(isNull(authMenuItems.company_id))
         .orderBy(asc(authMenuItems.parent_id), asc(authMenuItems.sort_order)) as Promise<DbMenuItem[]>;
 }
 
 /**
- * Get menu tree for a specific user, filtered by their permissions.
+ * Filters flat menu items by the modules allowed in the tenant's plan.
+ * Retains ancestors (folders) only if they contain at least one accessible module.
+ */
+function filterMenusByPlan(menus: DbMenuItem[], allowedModules: Set<RbacModule>): DbMenuItem[] {
+    const allowedMenuIds = new Set<number>();
+
+    for (const menu of menus) {
+        if (menu.status && menu.status !== 'active') continue;
+
+        if (menu.permission_prefix) {
+            if (allowedModules.has(menu.permission_prefix as RbacModule)) {
+                allowedMenuIds.add(menu.id);
+            }
+        } else if (menu.path) {
+            const isDisallowed = Object.entries(FEATURE_TO_MODULES_MAP).some(([_, mods]) => {
+                return mods.includes(menu.key as RbacModule) && !mods.some(m => allowedModules.has(m));
+            });
+            if (!isDisallowed) {
+                allowedMenuIds.add(menu.id);
+            }
+        }
+    }
+
+    // Retain ancestors of allowed items
+    const menuMap = new Map(menus.map(m => [m.id, m]));
+    const finalIds = new Set<number>(allowedMenuIds);
+    for (const id of allowedMenuIds) {
+        let currentParentId = menuMap.get(id)?.parent_id;
+        while (currentParentId) {
+            finalIds.add(currentParentId);
+            currentParentId = menuMap.get(currentParentId)?.parent_id;
+        }
+    }
+
+    const filtered = menus.filter(m => finalIds.has(m.id));
+
+    // Remove empty parents with no path
+    return filtered.filter(menu => {
+        if (menu.path) return true;
+        return filtered.some(m => m.parent_id === menu.id);
+    });
+}
+
+/**
+ * Get menu tree for a specific user, filtered by their permissions and company plan.
  * Integrates tenant customizations over global system catalog.
  */
 export async function getMenuForUser(userId: string | number, companyId?: number | null): Promise<ModuleConfig[]> {
-    const [roles, permissions, allMenus] = await Promise.all([
+    const [roles, permissions, allMenus, entitlements] = await Promise.all([
         getUserRoles(userId, companyId),
         getUserPermissions(userId, companyId),
         cacheService.getOrSet(`menus:${companyId ?? 'global'}`, async () => {
             return getTenantMenuItems(companyId);
         }, 86400),
+        companyId ? getTenantEntitlements(companyId) : null,
     ]);
 
-    const isAdmin = roles.includes('superadmin');
-    if (isAdmin) return buildMenuTree(allMenus as DbMenuItem[]);
+    // Step 1: Filter by company's plan features (Tenant Entitlement)
+    let planFilteredMenus = allMenus as DbMenuItem[];
+    if (entitlements) {
+        const allowedModules = resolveAllowedModulesFromFeatures(entitlements.features);
+        planFilteredMenus = filterMenusByPlan(planFilteredMenus, allowedModules);
+    }
 
-    return buildMenuTree(filterByPermissions(allMenus as DbMenuItem[], permissions));
+    // Step 2: Superadmin bypasses user RBAC, but strictly respects company plan entitlements
+    const isAdmin = roles.includes('superadmin');
+    if (isAdmin) return buildMenuTree(planFilteredMenus);
+
+    // Step 3: Regular users are filtered by their role permissions within allowed modules
+    return buildMenuTree(filterByPermissions(planFilteredMenus, permissions));
 }
 
 /**
- * Get full menu tree for admin panel (no permission filtering)
+ * Get full menu tree for admin panel (filtered by plan if companyId is provided)
  */
 export async function getFullMenuTree(companyId?: number | null): Promise<ModuleConfig[]> {
     const cacheKey = `menus:all:${companyId ?? 'global'}`;
-    const allMenus = await cacheService.getOrSet(cacheKey, async () => {
-        return getTenantMenuItems(companyId);
-    }, 86400);
+    const [allMenus, entitlements] = await Promise.all([
+        cacheService.getOrSet(cacheKey, async () => {
+            return getTenantMenuItems(companyId);
+        }, 86400),
+        companyId ? getTenantEntitlements(companyId) : null,
+    ]);
 
-    return buildMenuTree(allMenus as DbMenuItem[]);
+    let planFilteredMenus = allMenus as DbMenuItem[];
+    if (entitlements) {
+        const allowedModules = resolveAllowedModulesFromFeatures(entitlements.features);
+        planFilteredMenus = filterMenusByPlan(planFilteredMenus, allowedModules);
+    }
+
+    return buildMenuTree(planFilteredMenus);
 }
 
 /**
@@ -244,7 +307,7 @@ export async function updateTenantMenuItem(
     const result = await adminDb
         .update(authMenuItems)
         .set(globalPayload)
-        .where(and(eq(authMenuItems.id, id), isNull(authMenuItems.company_id)))
+        .where(eq(authMenuItems.id, id))
         .returning();
 
     await invalidateMenuCaches(null);
@@ -455,10 +518,7 @@ export async function getTenantRouteMetadata(companyId: number): Promise<TenantR
                     eq(authMenuCustom.company_id, companyId)
                 )
             )
-            .where(and(
-                isNull(authMenuItems.company_id),
-                isNotNull(authMenuItems.path)
-            ));
+            .where(isNotNull(authMenuItems.path));
 
         const aliases: Record<string, string> = {};
         const labels: Record<string, string> = {};

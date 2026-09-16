@@ -1,8 +1,14 @@
 import { pipe, string, minLength, minValue, object, picklist, boolean, array, number, optional, nullable, record, unknown, type InferInput } from 'valibot';
-import { PRODUCT_TYPES, PRODUCT_SUBTYPES } from '../enums';
+import { PRODUCT_TYPES, PRODUCT_SUBTYPES, BARCODE_TYPES } from '../enums';
 import type { ProductBodyType } from '../backend/products.dto';
 
 // --- PRODUCT FORM SCHEMAS (Valibot) ---
+
+export const ProductOptionFormSchema = object({
+    id: string(),
+    name: pipe(string(), minLength(1, 'Nombre de opción requerido')),
+    values: array(string()),
+});
 
 export const ProductVariantFormSchema = object({
     id: optional(nullable(number())),
@@ -11,9 +17,10 @@ export const ProductVariantFormSchema = object({
     variant_attributes: optional(record(string(), unknown())),
     content_quantity: number('Cantidad de contenido requerida'),
     sale_uom_id: optional(nullable(number())),
-    base_price: optional(nullable(number())),
+    unit_price: optional(nullable(number())),
     last_cost: optional(nullable(number())),
     barcode: optional(nullable(string())),
+    barcode_type: optional(nullable(picklist(BARCODE_TYPES))),
     image_urls: optional(nullable(array(string()))),
     std_length_cm: optional(nullable(number())),
     std_width_cm: optional(nullable(number())),
@@ -35,15 +42,17 @@ export const ProductFormSchema = object({
     product_subtype: optional(nullable(picklist(PRODUCT_SUBTYPES))),
     category_id: pipe(number('Categoría es requerida'), minValue(1, 'Selecciona una categoría')),
     brand_id: optional(nullable(number())),
-    slug: string(),
-    name: pipe(string(), minLength(1, 'Nombre es requerido')),
+    title: pipe(string(), minLength(1, 'Título es requerido')),
+    handle: optional(nullable(string())),
     description: optional(nullable(string())),
-    shared_attributes: optional(record(string(), unknown())),
+    attributes: optional(record(string(), unknown())),
+    options: optional(array(ProductOptionFormSchema)),
+    has_variants: optional(boolean()),
     image_urls: optional(array(string())),
     uom_inventory_id: number('UOM de inventario es requerida'),
     has_dimensional_tracking: boolean(),
     min_stock_alert: optional(nullable(number())),
-    default_base_price: number('Precio base requerido'),
+    default_unit_price: number('Precio unitario requerido'),
     iva_rate_code: number(),
     is_active: boolean(),
     variants: array(ProductVariantFormSchema),
@@ -52,6 +61,7 @@ export const ProductFormSchema = object({
 
 export type ProductFormData = InferInput<typeof ProductFormSchema>;
 export type ProductVariantFormData = InferInput<typeof ProductVariantFormSchema>;
+export type ProductOptionFormData = InferInput<typeof ProductOptionFormSchema>;
 export type ProductComponentFormData = InferInput<typeof ProductComponentFormSchema>;
 
 // Compile-Time Assertion: Ensures Valibot schema matches exactly the E2E contract interface

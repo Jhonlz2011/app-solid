@@ -193,7 +193,7 @@ export const authRolePermissions = pgTableV2("auth_role_permissions", {
 }, (t) => [
     primaryKey({ columns: [t.role_id, t.permission_slug] }),
     index("idx_role_perms_slug").on(t.permission_slug),
-    index("idx_role_perms_company").on(t.company_id),
+    index("idx_role_perms_company_role").on(t.company_id, t.role_id),
     tenantPolicy(),
 ]).enableRLS();
 
@@ -202,9 +202,9 @@ export const authUserRoles = pgTableV2("auth_user_roles", {
     role_id: integer("role_id").references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
     company_id: integer("company_id").references(() => companies.id).notNull(),
 }, (t) => [
-    primaryKey({ columns: [t.user_id, t.role_id, t.company_id] }),
+    primaryKey({ columns: [t.company_id, t.user_id, t.role_id] }),
+    index("idx_user_roles_user").on(t.user_id),
     index("idx_user_roles_by_role").on(t.role_id),
-    index("idx_user_roles_company").on(t.company_id),
     tenantPolicy(),
 ]).enableRLS();
 
@@ -218,7 +218,6 @@ export const authUserRoles = pgTableV2("auth_user_roles", {
  */
 export const authMenuItems = pgTableV2("auth_menu_items", {
     id: smallint("id").generatedAlwaysAsIdentity().primaryKey(),
-    company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }),  // Legacy/Deprecated: NULL = global template
     key: text("key").notNull(),                        // 'inventory', 'products'
     label: text("label").notNull(),                    // Default system label ('Inventario')
     icon: text("icon"),                                // Default SVG path data
@@ -230,8 +229,8 @@ export const authMenuItems = pgTableV2("auth_menu_items", {
     status: menuItemStatusEnum("status").default('active'), // GLOBAL system-wide status
 }, (t) => [
     foreignKey({ columns: [t.parent_id], foreignColumns: [t.id] }),
-    unique("idx_menu_company_key").on(t.company_id, t.key).nullsNotDistinct(),
-    index("idx_menu_order").on(t.company_id, t.parent_id, t.sort_order),
+    unique("idx_menu_key").on(t.key),
+    index("idx_menu_order").on(t.parent_id, t.sort_order),
     index("idx_menu_active").on(t.status),
 ]);
 

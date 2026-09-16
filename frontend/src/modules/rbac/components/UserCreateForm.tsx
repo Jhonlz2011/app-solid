@@ -30,6 +30,7 @@ export interface UserCreateFormProps {
     roles: RoleType[];
     rolesLoading?: boolean;
     initialEntity?: { id: string; businessName: string; taxId: string } | null;
+    initialRoleName?: string;
     onSubmit: (values: UserCreateData) => void | Promise<void>;
     isSubmitting?: boolean;
     onStateChange?: (state: UserCreateFormState) => void;
@@ -94,6 +95,16 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
             isAlreadyMember: isAlreadyMember(),
             canSubmit: !isAlreadyMember() && form.state.canSubmit && !form.state.isValidating,
         });
+    });
+
+    createEffect(() => {
+        if (props.initialRoleName && props.roles && props.roles.length > 0) {
+            const target = props.roles.find(r => r.name.toLowerCase() === props.initialRoleName?.toLowerCase());
+            const currentRoles = form.getFieldValue('roleIds') ?? [];
+            if (target && currentRoles.length === 0) {
+                form.setFieldValue('roleIds', [target.id]);
+            }
+        }
     });
 
     return (
@@ -261,6 +272,11 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                     {(field) => {
                         const hasError = () => hasFieldError(field(), hasAttemptedSubmit());
                         const errorMsg = () => getFieldError(field()) || 'Debes asignar al menos un rol al usuario';
+                        const isAccountantSelected = () => {
+                            const selectedIds = field().state.value ?? [];
+                            return props.roles.some(r => r.name.toLowerCase() === 'contador' && selectedIds.includes(r.id));
+                        };
+
                         return (
                             <div class="space-y-1">
                                 <UserRolePicker
@@ -273,6 +289,17 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                     }}
                                     disabled={props.isSubmitting || isAlreadyMember()}
                                 />
+
+                                <Show when={isAccountantSelected()}>
+                                    <div class="p-3 bg-primary/10 border border-primary/25 rounded-xl flex items-start gap-2.5 text-xs text-primary animate-in fade-in slide-in-from-top-1 duration-200 mt-2">
+                                        <SparklesIcon class="size-4 shrink-0 mt-0.5 text-primary" />
+                                        <div>
+                                            <strong class="font-semibold block">Asiento Gratuito de Contador Externo</strong>
+                                            <span>Este usuario ocupará el slot de cortesía incluido en tu plan para tu contador externo y no consumirá asientos operativos regulares.</span>
+                                        </div>
+                                    </div>
+                                </Show>
+
                                 <Show when={hasError()}>
                                     <p class="text-xs text-danger font-medium mt-1 animate-in fade-in duration-150" role="alert">
                                         {String(errorMsg())}

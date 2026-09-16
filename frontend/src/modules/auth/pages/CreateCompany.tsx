@@ -15,6 +15,7 @@ import CompanySummaryCard from '../components/CompanySummaryCard';
 import AuthStepper from '../components/AuthStepper';
 import { ScrollArea } from '@/layout/components/ScrollArea';
 import { Badge } from '@shared/ui/display/Badge';
+import { PlanSelector } from '../components/PlanSelector';
 
 export const CreateCompany: Component = () => {
     const navigate = useNavigate();
@@ -27,6 +28,8 @@ export const CreateCompany: Component = () => {
     // Turnstile
     const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
     let turnstileActions: { reset: () => void } | undefined;
+
+    const [selectedPlanId, setSelectedPlanId] = createSignal<string>('starter_yearly');
 
     const form = createForm(() => ({
         defaultValues: {
@@ -63,6 +66,7 @@ export const CreateCompany: Component = () => {
                 obligadoContabilidad: values.obligadoContabilidad || undefined,
                 contribuyenteEspecial: values.contribuyenteEspecial || undefined,
                 taxRegimeType: values.taxRegimeType || undefined,
+                planId: selectedPlanId(),
                 turnstileToken: turnstileToken() ?? undefined,
             });
 
@@ -122,6 +126,13 @@ export const CreateCompany: Component = () => {
                                     form={form}
                                     stepSubmitted={stepSubmitted}
                                 />
+
+                                <div class="mt-2 pt-4 border-t border-border">
+                                    <PlanSelector
+                                        selectedPlanId={selectedPlanId()}
+                                        onPlanChange={setSelectedPlanId}
+                                    />
+                                </div>
 
                                 <div class="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-border">
                                     <Button

@@ -70,7 +70,17 @@ export const PRODUCT_SUBTYPES = ['SIMPLE', 'COMPUESTO', 'FABRICADO'] as const;
 export const IVA_RATE_CODES = [0, 2, 3, 4, 6, 7] as const;
 
 // Attribute definition type enum
-export const ATTRIBUTE_DATA_TYPES = ['TEXT', 'NUMBER', 'SELECT', 'BOOLEAN'] as const;
+export const ATTRIBUTE_DATA_TYPES = ['TEXT', 'NUMBER', 'SELECT', 'BOOLEAN', 'COLOR'] as const;
+
+// Barcode Standards (GS1 / International)
+export const BARCODE_TYPES = ['GTIN', 'UPC', 'EAN', 'ISBN', 'ASIN', 'CUSTOM'] as const;
+export type BarcodeType = typeof BARCODE_TYPES[number];
+
+// Inventory adjustment reasons (Shopify / ERP standard)
+export const INVENTORY_ADJUSTMENT_REASONS = [
+    'CORRECTION', 'COUNT', 'RECEIVED', 'RETURN_RESTOCK', 'DAMAGED', 'THEFT_LOSS', 'PROMOTION_DONATION'
+] as const;
+export type InventoryAdjustmentReason = typeof INVENTORY_ADJUSTMENT_REASONS[number];
 
 // UOM Groups (Physical Dimensions)
 export const UOM_GROUPS = ['VOLUMEN', 'LONGITUD', 'PESO', 'AREA', 'CANTIDAD', 'TIEMPO', 'DATA'] as const;
@@ -109,6 +119,7 @@ export const TOOL_TRACKING_MODES = ['BY_QUANTITY', 'SERIALIZED'] as const;
 export const SYSTEM_ROLES = {
     SUPERADMIN: 'superadmin',
     ADMIN: 'admin',
+    CONTADOR: 'contador',
 } as const;
 
 /**

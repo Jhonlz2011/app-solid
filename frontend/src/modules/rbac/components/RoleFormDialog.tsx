@@ -127,6 +127,8 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
     // ── Handlers ─────────────────────────────────────────────────────────────
     const handleToggle = (slug: string) => {
         if (isSystem()) return;
+        const target = allPermsQuery.data?.all?.find(p => p.slug === slug);
+        if (target && target.planAllowed === false) return;
         const permSlug = slug as PermissionSlug;
         setSelectedPermSlugs(prev =>
             prev.includes(permSlug) ? prev.filter(s => s !== permSlug) : [...prev, permSlug]
@@ -136,7 +138,9 @@ export const RoleFormDialog: Component<RoleFormDialogProps> = (props) => {
     const handleModuleToggle = (prefix: string, selected: boolean) => {
         if (isSystem()) return;
         const perms = allPermsQuery.data?.all ?? [];
-        const moduleSlugs = perms.filter(p => p.slug.startsWith(prefix + '.')).map(p => p.slug as PermissionSlug);
+        const moduleSlugs = perms
+            .filter(p => p.slug.startsWith(prefix + '.') && p.planAllowed !== false)
+            .map(p => p.slug as PermissionSlug);
         setSelectedPermSlugs(prev => {
             const set = new Set(prev);
             moduleSlugs.forEach(slug => selected ? set.add(slug) : set.delete(slug));

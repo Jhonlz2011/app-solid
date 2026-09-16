@@ -9,6 +9,7 @@ import { FileTextIcon } from '@icons/FileTextIcon';
 import { HashIcon } from '@icons/HashIcon';
 import { SlidersIcon } from '@icons/SlidersIcon';
 import { CheckIcon } from '@icons/CheckIcon';
+import { PaintBrushIcon } from '@icons/PaintBrushIcon';
 
 export type AttributeSemanticColor = 'primary' | 'info' | 'warning' | 'success';
 
@@ -18,6 +19,7 @@ export const ATTRIBUTE_TYPE_COLORS: Record<AttributeDataType, AttributeSemanticC
     NUMBER: 'info',
     SELECT: 'warning',
     BOOLEAN: 'success',
+    COLOR: 'primary',
 };
 
 /** Human-readable labels for attribute data types */
@@ -26,6 +28,7 @@ export const ATTRIBUTE_TYPE_LABELS: Record<AttributeDataType, string> = {
     NUMBER: 'Número',
     SELECT: 'Selección',
     BOOLEAN: 'Sí/No',
+    COLOR: 'Color',
 };
 
 /** Shared Tailwind CSS classes for badges across columns & panels */
@@ -34,6 +37,7 @@ export const ATTRIBUTE_TYPE_BADGE_CLASSES: Record<AttributeDataType, string> = {
     NUMBER: 'text-info bg-info/10 border-info/20',
     SELECT: 'text-warning bg-warning/10 border-warning/20',
     BOOLEAN: 'text-success bg-success/10 border-success/20',
+    COLOR: 'text-primary bg-primary/10 border-primary/20',
 };
 
 /** Rich type metadata for the type picker cards */
@@ -73,5 +77,12 @@ export const ATTRIBUTE_TYPE_OPTIONS: AttributeTypeOption[] = [
         description: 'Valor verdadero o falso',
         icon: CheckIcon,
         color: ATTRIBUTE_TYPE_COLORS.BOOLEAN,
+    },
+    {
+        value: 'COLOR',
+        label: ATTRIBUTE_TYPE_LABELS.COLOR,
+        description: 'Selector de color hexadecimal',
+        icon: PaintBrushIcon,
+        color: ATTRIBUTE_TYPE_COLORS.COLOR,
     },
 ];

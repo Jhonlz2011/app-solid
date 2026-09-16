@@ -6,6 +6,8 @@ import { broadcastToUser } from '../../core/sse';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { SYSTEM_ROLES } from '@app/schema/enums';
 import { invalidateUserRbacCache } from './rbac.permission.service';
+import { getTenantEntitlements } from '../saas/entitlements.service';
+import { resolveAllowedModulesForPlan } from '@app/schema/backend';
 
 /**
  * Log an audit entry — fire-and-forget
@@ -88,8 +90,9 @@ export async function getRoleById(roleId: number, companyId?: number) {
  */
 export async function createRole(name: string, description?: string | null, currentUserId?: string | number, companyId?: number) {
     const trimmedName = name.trim();
-    if (trimmedName.toLowerCase() === SYSTEM_ROLES.SUPERADMIN) {
-        throw new DomainError('No se puede crear un rol con el nombre reservado superadmin', 400);
+    const reservedNames = Object.values(SYSTEM_ROLES).map(r => r.toLowerCase());
+    if (reservedNames.includes(trimmedName.toLowerCase())) {
+        throw new DomainError(`No se puede crear un rol con el nombre reservado '${trimmedName}'`, 400);
     }
 
     const existing = await db.query.authRoles.findFirst({
@@ -120,12 +123,13 @@ export async function updateRole(id: number, name: string, description?: string 
     }
 
     const trimmedName = name.trim();
-    if (oldRole.name === SYSTEM_ROLES.SUPERADMIN && trimmedName.toLowerCase() !== SYSTEM_ROLES.SUPERADMIN) {
-        throw new DomainError('No se puede cambiar el nombre del rol superadmin', 403);
+    if (oldRole.is_system && trimmedName.toLowerCase() !== oldRole.name.toLowerCase()) {
+        throw new DomainError('No se puede cambiar el nombre de un rol de sistema', 403);
     }
 
-    if (oldRole.name !== SYSTEM_ROLES.SUPERADMIN && trimmedName.toLowerCase() === SYSTEM_ROLES.SUPERADMIN) {
-        throw new DomainError('No se puede renombrar un rol al nombre reservado superadmin', 400);
+    const reservedNames = Object.values(SYSTEM_ROLES).map(r => r.toLowerCase());
+    if (!oldRole.is_system && reservedNames.includes(trimmedName.toLowerCase())) {
+        throw new DomainError(`No se puede renombrar un rol al nombre reservado '${trimmedName}'`, 400);
     }
 
     const [updated] = await db
@@ -174,16 +178,31 @@ export async function deleteRole(id: number, currentUserId?: string | number) {
 }
 
 /**
- * Get all permissions
+ * Get all permissions, filtered by SaaS plan availability for a company
  */
-export async function getAllPermissions() {
+export async function getAllPermissions(companyId?: number) {
     const permissions = await db
         .select()
         .from(authPermissions)
         .orderBy(authPermissions.slug);
 
-    const grouped: Record<string, typeof permissions> = {};
-    for (const perm of permissions) {
+    let allowedModules: Set<string> | null = null;
+    if (companyId) {
+        const ent = await getTenantEntitlements(companyId);
+        allowedModules = resolveAllowedModulesForPlan(ent.planId);
+    }
+
+    const filteredPermissions = allowedModules
+        ? permissions.filter(p => allowedModules.has(p.module))
+        : permissions;
+
+    const resultPermissions = filteredPermissions.map(p => ({
+        ...p,
+        planAllowed: true,
+    }));
+
+    const grouped: Record<string, typeof resultPermissions> = {};
+    for (const perm of resultPermissions) {
         const moduleName = perm.module;
         if (!grouped[moduleName]) {
             grouped[moduleName] = [];
@@ -192,7 +211,7 @@ export async function getAllPermissions() {
     }
 
     return {
-        all: permissions,
+        all: resultPermissions,
         grouped,
     };
 }
@@ -225,6 +244,22 @@ export async function updateRolePermissions(roleId: number, permissionSlugs: str
         throw new DomainError('Rol no encontrado', 404);
     }
 
+    // Validate that the role cannot receive permissions from unpurchased modules
+    if (role.company_id && permissionSlugs.length > 0) {
+        const ent = await getTenantEntitlements(role.company_id);
+        const allowedModules = resolveAllowedModulesForPlan(ent.planId);
+        for (const slug of permissionSlugs) {
+            const moduleName = slug.split('.')[0];
+            if (!allowedModules.has(moduleName as any)) {
+                throw new DomainError(
+                    `El módulo '${moduleName}' no está contratado en el plan actual de la empresa. Actualiza tu plan para habilitar este módulo.`,
+                    403,
+                    { code: 'FEATURE_NOT_IN_PLAN' }
+                );
+            }
+        }
+    }
+
     const oldPerms = await db.select({ slug: authRolePermissions.permission_slug }).from(authRolePermissions).where(eq(authRolePermissions.role_id, roleId));
     const oldPermSlugs = oldPerms.map(p => p.slug);
 
@@ -247,7 +282,7 @@ export async function updateRolePermissions(roleId: number, permissionSlugs: str
         .from(authUserRoles)
         .where(eq(authUserRoles.role_id, roleId));
 
-    await Promise.all(usersWithRole.map(({ userId }) => invalidateUserRbacCache(userId, role.company_id )));
+    await Promise.all(usersWithRole.map(({ userId }) => invalidateUserRbacCache(userId, role.company_id)));
 
     for (const { userId } of usersWithRole) {
         broadcastToUser(userId, RealtimeEvents.USER.RBAC_CHANGED, { userId });

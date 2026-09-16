@@ -169,7 +169,8 @@ ul, ol {
   justify-content: center;
   gap: 0.5rem;
   background: var(--gradient-brand);
-  color: #ffffff;
+  color: #ffffff !important;
+  text-shadow: 1px 1px 2px #000;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: var(--text-sm);

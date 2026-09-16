@@ -56,3 +56,47 @@ export const GeoNameSearchQuerySchema = Type.Object({
 
 export type GeoNameCityType = Static<typeof GeoNameCitySchema>;
 export type GeoNameSearchQueryType = Static<typeof GeoNameSearchQuerySchema>;
+
+// ============================================================================
+// TAXONOMY (Shopify Standard Global Dictionary in referenceDb)
+// ============================================================================
+
+export const TaxonomyCategoryResponseSchema = Type.Object({
+    id: Type.Number(),
+    code: Type.String(),
+    name: Type.String(),
+    fullPath: Type.String(),
+    depth: Type.Number(),
+});
+
+export const TaxonomyCategorySearchQuerySchema = Type.Object({
+    q: Type.String({ minLength: 1 }),
+    limit: Type.Optional(Type.Number()),
+});
+
+export const TaxonomyAttributeValueSchema = Type.Object({
+    id: Type.Number(),
+    name: Type.String(),
+    handle: Type.String(),
+    metadata: Type.Optional(Type.Union([
+        Type.Object({
+            hex: Type.Optional(Type.String()),
+            icon: Type.Optional(Type.String()),
+        }),
+        Type.Null(),
+    ])),
+});
+
+export const TaxonomyAttributeResponseSchema = Type.Object({
+    id: Type.Number(),
+    name: Type.String(),
+    handle: Type.String(),
+    dataType: Type.String(),
+    values: Type.Array(TaxonomyAttributeValueSchema),
+});
+
+export type TaxonomyCategoryResponseType = Static<typeof TaxonomyCategoryResponseSchema>;
+export type TaxonomyCategorySearchQueryType = Static<typeof TaxonomyCategorySearchQuerySchema>;
+export type TaxonomyAttributeResponseType = Static<typeof TaxonomyAttributeResponseSchema>;
+export type TaxonomyAttributeValueType = Static<typeof TaxonomyAttributeValueSchema>;
+

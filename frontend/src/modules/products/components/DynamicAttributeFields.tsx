@@ -104,6 +104,7 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
                             const isSelect = () => attr.type === 'SELECT';
                             const isNumber = () => attr.type === 'NUMBER';
                             const isBoolean = () => attr.type === 'BOOLEAN';
+                            const isColor = () => attr.type === 'COLOR';
                             const options = createMemo((): SelectOption[] =>
                                 (attr.options ?? []).map(o => ({ value: o, label: o }))
                             );
@@ -207,8 +208,35 @@ const DynamicAttributeFields: Component<DynamicAttributeFieldsProps> = (props) =
                                         </div>
                                     </Show>
 
+                                    {/* Color type */}
+                                    <Show when={isColor()}>
+                                        <div class="space-y-1">
+                                            <AttributeLabel />
+                                            <div class="flex items-center gap-2">
+                                                <input
+                                                    type="color"
+                                                    value={getValue(attr.key).startsWith('#') ? getValue(attr.key) : '#3B82F6'}
+                                                    onInput={(e) => updateValue(attr.key, e.currentTarget.value, false)}
+                                                    class="w-8 h-8 p-0.5 rounded-lg border border-border cursor-pointer bg-card shrink-0"
+                                                />
+                                                <div class="flex-1">
+                                                    <TextField.Root
+                                                        value={getValue(attr.key)}
+                                                        onChange={(val) => updateValue(attr.key, val, false)}
+                                                    >
+                                                        <TextField.Input
+                                                            type="text"
+                                                            placeholder="Ej: Negro, #000000"
+                                                            class="font-mono text-xs"
+                                                        />
+                                                    </TextField.Root>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Show>
+
                                     {/* Text type (default) */}
-                                    <Show when={!isSelect() && !isNumber() && !isBoolean()}>
+                                    <Show when={!isSelect() && !isNumber() && !isBoolean() && !isColor()}>
                                         {(() => {
                                             const textOptions = createMemo(() =>
                                                 ((attr.options ?? []) as string[]).filter(o =>

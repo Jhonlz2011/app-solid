@@ -65,26 +65,20 @@ async function checkVariantReferences(tx: Tx, variantId: number): Promise<boolea
 }
 
 // =============================================================================
+// =============================================================================
 // Create Product
 // =============================================================================
 
 export async function createProduct(payload: ProductBodyType, userId: string, companyId: number) {
     validateProductPayload(payload);
 
-    const existing = await db
-        .select({ id: products.id })
-        .from(products)
-        .where(and(eq(products.company_id, companyId), eq(products.slug, payload.slug)));
+    const effectiveHandle = payload.handle || payload.title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-    if (existing.length) {
-        throw new DomainError('El slug ya está registrado', 409);
-    }
-
-    return db.transaction(async (tx: Tx) => {
+    const created = await db.transaction(async (tx: Tx) => {
         try {
             const { variants, image_urls, components, ...productData } = payload;
 
-            const [created] = await tx
+            const [newProduct] = await tx
                 .insert(products)
                 .values({
                     company_id: companyId,
@@ -92,15 +86,17 @@ export async function createProduct(payload: ProductBodyType, userId: string, co
                     product_subtype: productData.product_subtype ?? null,
                     category_id: productData.category_id,
                     brand_id: productData.brand_id ?? null,
-                    slug: productData.slug,
-                    name: productData.name,
+                    title: productData.title,
+                    handle: effectiveHandle,
                     description: productData.description ?? null,
-                    shared_attributes: productData.shared_attributes ?? {},
+                    attributes: productData.attributes ?? {},
+                    options: productData.options ?? [],
+                    has_variants: productData.has_variants ?? (variants && variants.length > 1),
                     image_urls: image_urls ?? [],
                     uom_inventory_id: productData.uom_inventory_id,
                     has_dimensional_tracking: productData.has_dimensional_tracking,
                     min_stock_alert: productData.min_stock_alert?.toString() ?? '0',
-                    default_base_price: productData.default_base_price.toString(),
+                    default_unit_price: productData.default_unit_price.toString(),
                     iva_rate_code: productData.iva_rate_code,
                     is_active: productData.is_active,
                     created_by: userId,
@@ -112,15 +108,16 @@ export async function createProduct(payload: ProductBodyType, userId: string, co
                 await tx.insert(productVariants).values(
                     variants.map((v, idx) => ({
                         company_id: companyId,
-                        product_id: created.id,
+                        product_id: newProduct.id,
                         sku: v.sku,
                         variant_name: v.variant_name ?? null,
                         variant_attributes: v.variant_attributes ?? {},
                         content_quantity: v.content_quantity.toString(),
                         sale_uom_id: v.sale_uom_id ?? null,
-                        base_price: v.base_price?.toString() ?? null,
+                        unit_price: v.unit_price?.toString() ?? null,
                         last_cost: v.last_cost?.toString() ?? '0',
                         barcode: v.barcode ?? null,
+                        barcode_type: v.barcode_type ?? 'CUSTOM',
                         image_urls: v.image_urls ?? null,
                         std_length_cm: v.std_length_cm?.toString() ?? null,
                         std_width_cm: v.std_width_cm?.toString() ?? null,
@@ -132,13 +129,13 @@ export async function createProduct(payload: ProductBodyType, userId: string, co
             }
 
             if (components && components.length > 0) {
-                if (components.some(c => c.component_product_id === created.id)) {
+                if (components.some(c => c.component_product_id === newProduct.id)) {
                     throw new DomainError('Un producto no puede contenerse a sí mismo como componente', 400);
                 }
                 await tx.insert(productComponents).values(
                     components.map(c => ({
                         company_id: companyId,
-                        parent_product_id: created.id,
+                        parent_product_id: newProduct.id,
                         component_product_id: c.component_product_id,
                         quantity_per_parent: c.quantity_per_parent.toString(),
                         is_reversible: c.is_reversible ?? true,
@@ -147,22 +144,25 @@ export async function createProduct(payload: ProductBodyType, userId: string, co
                 );
             }
 
-            cacheService.invalidate(`products:c${companyId}:*`);
-            broadcastToTenant(companyId, RealtimeEvents.ENTITY.CREATED, { type: 'product', id: created.id, entity: created }, 'products');
-
-            return created;
+            return newProduct;
         } catch (err: any) {
             if (err.code === '23505') {
-                if (err.constraint === 'unq_product_slug_company')
-                    throw new DomainError('El slug ya está registrado para esta empresa', 409);
                 if (err.constraint === 'unq_variant_sku_company')
                     throw new DomainError(`SKU duplicado: ${extractSkuFromDetail(err.detail)}`, 409);
+                if (err.constraint === 'unq_variant_default')
+                    throw new DomainError('Debe haber solo una variante predeterminada por producto', 409);
                 if (err.constraint === 'unq_prod_component')
                     throw new DomainError('Componente duplicado en la lista de materiales', 409);
             }
             throw err;
         }
     });
+
+    // POST-COMMIT HOOKS
+    await cacheService.invalidate(`products:c${companyId}:*`);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.CREATED, { type: 'product', id: created.id, entity: created }, 'products');
+
+    return created;
 }
 
 // =============================================================================
@@ -174,10 +174,11 @@ export async function updateProduct(productId: number, payload: Partial<ProductB
         validateProductPayload(payload as ProductBodyType, productId);
     }
 
-    return db.transaction(async (tx: Tx) => {
-        try {
-            const { variants, image_urls, components, ...productData } = payload;
+    const { variants, image_urls, components, ...productData } = payload;
+    let oldImageUrls: string[] = [];
 
+    const updated = await db.transaction(async (tx: Tx) => {
+        try {
             const updateValues: Partial<typeof products.$inferInsert> = {
                 updated_at: new Date(),
                 updated_by: userId,
@@ -187,15 +188,17 @@ export async function updateProduct(productId: number, payload: Partial<ProductB
             if (productData.product_subtype !== undefined) updateValues.product_subtype = productData.product_subtype;
             if (productData.category_id !== undefined) updateValues.category_id = productData.category_id;
             if (productData.brand_id !== undefined) updateValues.brand_id = productData.brand_id;
-            if (productData.slug !== undefined) updateValues.slug = productData.slug;
-            if (productData.name !== undefined) updateValues.name = productData.name;
+            if (productData.title !== undefined) updateValues.title = productData.title;
+            if (productData.handle !== undefined) updateValues.handle = productData.handle;
             if (productData.description !== undefined) updateValues.description = productData.description;
-            if (productData.shared_attributes !== undefined) updateValues.shared_attributes = productData.shared_attributes;
+            if (productData.attributes !== undefined) updateValues.attributes = productData.attributes;
+            if (productData.options !== undefined) updateValues.options = productData.options;
+            if (productData.has_variants !== undefined) updateValues.has_variants = productData.has_variants;
             if (image_urls !== undefined) updateValues.image_urls = image_urls;
             if (productData.uom_inventory_id !== undefined) updateValues.uom_inventory_id = productData.uom_inventory_id;
             if (productData.has_dimensional_tracking !== undefined) updateValues.has_dimensional_tracking = productData.has_dimensional_tracking;
             if (productData.min_stock_alert !== undefined) updateValues.min_stock_alert = productData.min_stock_alert?.toString();
-            if (productData.default_base_price !== undefined) updateValues.default_base_price = productData.default_base_price.toString();
+            if (productData.default_unit_price !== undefined) updateValues.default_unit_price = productData.default_unit_price.toString();
             if (productData.iva_rate_code !== undefined) updateValues.iva_rate_code = productData.iva_rate_code;
             if (productData.is_active !== undefined) updateValues.is_active = productData.is_active;
 
@@ -203,15 +206,15 @@ export async function updateProduct(productId: number, payload: Partial<ProductB
                 .select({ image_urls: products.image_urls })
                 .from(products)
                 .where(eq(products.id, productId));
-            const oldImageUrls = (currentProduct?.image_urls as string[] | null) ?? [];
+            oldImageUrls = (currentProduct?.image_urls as string[] | null) ?? [];
 
-            const [updated] = await tx
+            const [updatedProduct] = await tx
                 .update(products)
                 .set(updateValues)
                 .where(and(eq(products.id, productId), eq(products.company_id, companyId)))
                 .returning();
 
-            if (!updated) throw new DomainError('Producto no encontrado', 404);
+            if (!updatedProduct) throw new DomainError('Producto no encontrado', 404);
 
             if (variants !== undefined) {
                 const existingVariants = await tx
@@ -252,9 +255,10 @@ export async function updateProduct(productId: number, payload: Partial<ProductB
                         variant_attributes: v.variant_attributes ?? {},
                         content_quantity: v.content_quantity.toString(),
                         sale_uom_id: v.sale_uom_id ?? null,
-                        base_price: v.base_price?.toString() ?? null,
+                        unit_price: v.unit_price?.toString() ?? null,
                         last_cost: v.last_cost?.toString() ?? '0',
                         barcode: v.barcode ?? null,
+                        barcode_type: v.barcode_type ?? 'CUSTOM',
                         image_urls: v.image_urls ?? null,
                         std_length_cm: v.std_length_cm?.toString() ?? null,
                         std_width_cm: v.std_width_cm?.toString() ?? null,
@@ -298,32 +302,35 @@ export async function updateProduct(productId: number, payload: Partial<ProductB
                 }
             }
 
-            cacheService.invalidate(`products:c${companyId}:*`);
-            broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'product', id: updated.id, entity: updated }, 'products');
-
-            if (image_urls !== undefined && oldImageUrls.length > 0) {
-                const newUrls = new Set(image_urls ?? []);
-                const removedUrls = oldImageUrls.filter(url => !newUrls.has(url));
-                if (removedUrls.length > 0) {
-                    Promise.allSettled(
-                        removedUrls.map(url => publicStorageService.deleteObject(url))
-                    ).catch(err => console.warn('[R2] Deferred image cleanup on update failed:', err));
-                }
-            }
-
-            return updated;
+            return updatedProduct;
         } catch (err: any) {
             if (err.code === '23505') {
-                if (err.constraint === 'unq_product_slug_company')
-                    throw new DomainError('El slug ya está registrado para esta empresa', 409);
                 if (err.constraint === 'unq_variant_sku_company')
                     throw new DomainError(`SKU duplicado: ${extractSkuFromDetail(err.detail)}`, 409);
+                if (err.constraint === 'unq_variant_default')
+                    throw new DomainError('Debe haber solo una variante predeterminada por producto', 409);
                 if (err.constraint === 'unq_prod_component')
                     throw new DomainError('Componente duplicado en la lista de materiales', 409);
             }
             throw err;
         }
     });
+
+    // POST-COMMIT HOOKS
+    await cacheService.invalidate(`products:c${companyId}:*`);
+    broadcastToTenant(companyId, RealtimeEvents.ENTITY.UPDATED, { type: 'product', id: updated.id, entity: updated }, 'products');
+
+    if (image_urls !== undefined && oldImageUrls.length > 0) {
+        const newUrls = new Set(image_urls ?? []);
+        const removedUrls = oldImageUrls.filter(url => !newUrls.has(url));
+        if (removedUrls.length > 0) {
+            Promise.allSettled(
+                removedUrls.map(url => publicStorageService.deleteObject(url))
+            ).catch(err => console.warn('[R2] Deferred image cleanup on update failed:', err));
+        }
+    }
+
+    return updated;
 }
 
 // =============================================================================

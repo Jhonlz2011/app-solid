@@ -58,10 +58,13 @@ export function useCreateProduct() {
                 if (!old) return old;
                 const optimistic = {
                     id: -Date.now(),
-                    name: newProduct.name,
-                    slug: newProduct.slug,
+                    name: newProduct.title,
+                    title: newProduct.title,
+                    slug: newProduct.handle,
+                    handle: newProduct.handle,
                     product_type: newProduct.product_type,
-                    default_base_price: String(newProduct.default_base_price),
+                    default_unit_price: String(newProduct.default_unit_price),
+                    default_base_price: String(newProduct.default_unit_price),
                     is_active: true,
                     _optimistic: true,
                 } as unknown as ProductListItem;

@@ -5,6 +5,7 @@ import type { TaxRegimeType } from '@app/schema/enums';
 import { DomainError } from '../../core/errors';
 import {
   seedCompanyRBAC,
+  seedCompanySubscription,
   seedCompanyUOMs,
   seedCompanyVirtualLocations,
   seedCompanyWarehouse,
@@ -32,6 +33,7 @@ interface CompanyData {
   taxRegimeType?: TaxRegimeType;
   cedula?: string;
   phone?: string;
+  planId?: string;
 }
 
 interface ProvisionResult {
@@ -85,13 +87,18 @@ async function provisionTenant(
 
   // 2. Create Better Auth Organization (UUIDv7)
   const orgId = uuidv7();
+  const orgDisplayName = (data.tradeName && data.tradeName.trim().length > 0)
+    ? data.tradeName.trim()
+    : data.businessName;
+
   await tx.insert(organization).values({
     id: orgId,
-    name: data.businessName,
+    name: orgDisplayName,
     slug: data.slug,
   });
 
   // 3. Create company with organization_id link
+  const companyPlan = (data.planId || 'free').toLowerCase().trim();
   const [company] = await tx
     .insert(companies)
     .values({
@@ -105,6 +112,7 @@ async function provisionTenant(
       obligado_contabilidad: data.obligadoContabilidad ?? false,
       contribuyente_especial: data.contribuyenteEspecial || null,
       rimpe_type: data.taxRegimeType || 'GENERAL',
+      plan: companyPlan,
     })
     .returning();
 
@@ -152,8 +160,9 @@ async function provisionTenant(
     entityId: ownerEntity.id,
   });
 
-  // 9. Seed initial system data
-  await seedCompanyRBAC(tx, company.id, ownerInfo.userId);
+  // 9. Seed initial system data (Plan-aware RBAC + Subscription)
+  await seedCompanyRBAC(tx, company.id, ownerInfo.userId, companyPlan);
+  await seedCompanySubscription(tx, company.id, companyPlan);
   await seedCompanyUOMs(tx, company.id);
   await seedCompanyVirtualLocations(tx, company.id);
   await seedCompanyWarehouse(tx, company.id, company.main_address, ownerEntity.id);

@@ -57,6 +57,7 @@ export const RegisterStep2Schema = object({
     taxRegimeType: optional(picklist(TAX_REGIME_TYPES, 'Seleccione régimen tributario')),
     obligadoContabilidad: optional(boolean()),
     contribuyenteEspecial: optional(string()),
+    planId: optional(string()),
 });
 
 export type AuthLoginFormData = InferInput<typeof AuthLoginSchema>;

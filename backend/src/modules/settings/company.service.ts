@@ -1,5 +1,5 @@
 import { db } from '../../core/db';
-import { companies } from '@app/schema/tables';
+import { companies, organization } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import { invalidateTenantCache } from '../../core/spa';
 import { NotFoundError } from '../../core/errors';
@@ -80,39 +80,75 @@ export const companyService = {
   },
 
   updateBranding: async (companyId: number, data: CompanySettingsBodyType) => {
-    // Fetch current image URLs for deferred delete comparison
-    const [currentImages] = await db
+    // Fetch current image URLs for deferred delete comparison and organizationId/names for sync
+    const [currentCompany] = await db
       .select({
         logoUrl: companies.logo_url,
         loginBgUrl: companies.login_bg_url,
+        organizationId: companies.organization_id,
+        tradeName: companies.trade_name,
+        businessName: companies.business_name,
       })
       .from(companies)
       .where(eq(companies.id, companyId))
       .limit(1);
 
-    const [updated] = await db
-      .update(companies)
-      .set(toCompanyUpdateData(data))
-      .where(eq(companies.id, companyId))
-      .returning(companyProjection);
-
-    if (!updated) {
-      throw new NotFoundError('Empresa no encontrada para actualizar');
+    if (!currentCompany) {
+      throw new NotFoundError('Empresa no encontrada');
     }
 
-    // Deferred delete: only cleanup R2 objects when explicitly removed (set to null).
-    if (currentImages) {
-      if (currentImages.logoUrl && data.logoUrl === null) {
-        publicStorageService.deleteObject(currentImages.logoUrl).catch((err) =>
-          console.warn('[R2] Deferred logo delete failed:', err)
-        );
+    const updated = await db.transaction(async (tx) => {
+      const [updatedCompany] = await tx
+        .update(companies)
+        .set(toCompanyUpdateData(data))
+        .where(eq(companies.id, companyId))
+        .returning(companyProjection);
+
+      if (!updatedCompany) {
+        throw new NotFoundError('Empresa no encontrada para actualizar');
       }
 
-      if (currentImages.loginBgUrl && data.loginBgUrl === null) {
-        publicStorageService.deleteObject(currentImages.loginBgUrl).catch((err) =>
-          console.warn('[R2] Deferred login-bg delete failed:', err)
-        );
+      // Sincronización atómica con Better-Auth:
+      // organization.name DEBE coincidir con Nombre Comercial (trade_name).
+      // Si no existe trade_name, fallback a Razón Social (business_name).
+      if (currentCompany.organizationId) {
+        const orgUpdateData: Partial<typeof organization.$inferInsert> = {};
+
+        if (data.tradeName !== undefined || data.businessName !== undefined) {
+          const effectiveTradeName = data.tradeName !== undefined ? data.tradeName : currentCompany.tradeName;
+          const effectiveBusinessName = data.businessName !== undefined ? data.businessName : currentCompany.businessName;
+
+          orgUpdateData.name = (effectiveTradeName && effectiveTradeName.trim().length > 0)
+            ? effectiveTradeName.trim()
+            : (effectiveBusinessName || updatedCompany.businessName);
+        }
+
+        if (data.logoUrl !== undefined) {
+          orgUpdateData.logo = data.logoUrl;
+        }
+
+        if (Object.keys(orgUpdateData).length > 0) {
+          await tx
+            .update(organization)
+            .set(orgUpdateData)
+            .where(eq(organization.id, currentCompany.organizationId));
+        }
       }
+
+      return updatedCompany;
+    });
+
+    // Deferred delete: only cleanup R2 objects when explicitly removed (set to null).
+    if (currentCompany.logoUrl && data.logoUrl === null) {
+      publicStorageService.deleteObject(currentCompany.logoUrl).catch((err) =>
+        console.warn('[R2] Deferred logo delete failed:', err)
+      );
+    }
+
+    if (currentCompany.loginBgUrl && data.loginBgUrl === null) {
+      publicStorageService.deleteObject(currentCompany.loginBgUrl).catch((err) =>
+        console.warn('[R2] Deferred login-bg delete failed:', err)
+      );
     }
 
     // Invalidate backend SPA cache for this tenant

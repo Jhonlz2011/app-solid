@@ -26,9 +26,11 @@ export interface ProductFilters extends ProductColumnFilters {
 
 export const SORTABLE_COLUMNS: Record<string, AnyColumn> = {
     id: products.id,
-    name: products.name,
-    slug: products.slug,
-    default_base_price: products.default_base_price,
+    title: products.title,
+    name: products.title,
+    handle: products.handle,
+    default_unit_price: products.default_unit_price,
+    default_base_price: products.default_unit_price,
     product_type: products.product_type,
     is_active: products.is_active,
     created_at: products.created_at,
@@ -72,15 +74,15 @@ export function buildWhereConditions(opts: FilterBuildOptions): SQL[] {
     if (opts.search) {
         const pattern = `%${opts.search}%`;
         const searchCondition = or(
-            ilike(products.name, pattern),
-            ilike(products.slug, pattern),
+            ilike(products.title, pattern),
+            ilike(products.handle, pattern),
             ilike(products.description, pattern),
-            // Search in variants (SKU + barcode) — essential for hardware catalogs
+            // Search in variants (SKU + barcode + name)
             sql`EXISTS (
                 SELECT 1 FROM product_variants pv
                 WHERE pv.product_id = ${products.id}
                 AND pv.company_id = ${opts.companyId}
-                AND (pv.sku ILIKE ${pattern} OR pv.barcode ILIKE ${pattern})
+                AND (pv.sku ILIKE ${pattern} OR pv.barcode ILIKE ${pattern} OR pv.variant_name ILIKE ${pattern})
             )`
         );
         if (searchCondition) conditions.push(searchCondition);
@@ -121,10 +123,16 @@ export async function fetchProductRows(ids: number[], companyId: number) {
             id: products.id,
             product_type: products.product_type,
             product_subtype: products.product_subtype,
-            slug: products.slug,
-            name: products.name,
+            title: products.title,
+            name: products.title, // alias for backwards compatibility
+            handle: products.handle,
+            slug: products.handle, // alias for backwards compatibility
             description: products.description,
-            default_base_price: products.default_base_price,
+            default_unit_price: products.default_unit_price,
+            default_base_price: products.default_unit_price, // alias
+            attributes: products.attributes,
+            options: products.options,
+            has_variants: products.has_variants,
             uom_inventory_id: products.uom_inventory_id,
             uom_code: uom.code,
             uom_name: uom.name,
@@ -167,7 +175,7 @@ export const productPaginator = new CursorPaginator<typeof products, ProductColu
     idColumn: products.id,
     companyIdColumn: products.company_id,
     sortableColumns: SORTABLE_COLUMNS,
-    defaultSortBy: 'name',
+    defaultSortBy: 'title',
     cacheNamespace: 'products',
     ttl: 120,
     buildConditions: (opts) => buildWhereConditions(opts),

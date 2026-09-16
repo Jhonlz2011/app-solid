@@ -18,6 +18,7 @@ import {
 } from './rbac.permission.service';
 import { logAudit } from './rbac.roles.service';
 import { hashPassword } from '../../core/security';
+import { canCreateUser } from '../saas/entitlements.service';
 import type { RbacUserCreateType } from '@app/schema/backend';
 
 export interface UsersListFilters {
@@ -521,6 +522,67 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
 }
 
 /**
+ * Validates tenant seat quota before user creation or activation.
+ * The external accountant role occupies a dedicated free seat and does not consume regular user quotas.
+ */
+export async function checkCompanySeatQuota(companyId: number, roleIds?: number[]): Promise<void> {
+    // 1. Check if user is being assigned accountant role
+    let isAccountant = false;
+    if (roleIds && roleIds.length > 0) {
+        const accountantRole = await db.query.authRoles.findFirst({
+            where: and(eq(authRoles.company_id, companyId), eq(authRoles.name, SYSTEM_ROLES.CONTADOR)),
+        });
+        if (accountantRole && roleIds.includes(accountantRole.id)) {
+            isAccountant = true;
+            // Check if another active accountant already exists in this tenant
+            const [existingAccountant] = await adminDb
+                .select({ count: sql<number>`count(*)::int` })
+                .from(authUserRoles)
+                .innerJoin(authUsers, eq(authUsers.id, authUserRoles.user_id))
+                .where(and(
+                    eq(authUserRoles.company_id, companyId),
+                    eq(authUserRoles.role_id, accountantRole.id),
+                    eq(authUsers.is_active, true)
+                ));
+            if ((existingAccountant?.count ?? 0) > 0) {
+                // Already used the free accountant seat -> falls back to standard user seat
+                isAccountant = false;
+            }
+        }
+    }
+
+    // 2. Count active users in company
+    const [companyOrg] = await adminDb
+        .select({ organization_id: companies.organization_id })
+        .from(companies)
+        .where(eq(companies.id, companyId))
+        .limit(1);
+
+    let currentActiveUsers = 1;
+    if (companyOrg?.organization_id) {
+        const [countRow] = await adminDb
+            .select({ count: sql<number>`count(distinct ${member.userId})::int` })
+            .from(member)
+            .innerJoin(authUsers, eq(authUsers.id, member.userId))
+            .where(and(
+                eq(member.organizationId, companyOrg.organization_id),
+                eq(authUsers.is_active, true)
+            ));
+        currentActiveUsers = countRow?.count ?? 1;
+    }
+
+    // 3. Check entitlements
+    const check = await canCreateUser(companyId, currentActiveUsers, isAccountant);
+    if (!check.allowed) {
+        throw new DomainError(
+            check.reason || 'Límite de usuarios alcanzado para tu plan actual. Actualiza tu plan para agregar más usuarios.',
+            403,
+            { code: 'PLAN_LIMIT_EXCEEDED' }
+        );
+    }
+}
+
+/**
  * Create a new user (admin function with Better-Auth credential account creation & organization member sync)
  */
 export async function createUser(
@@ -583,6 +645,11 @@ export async function createUser(
         if (superadminRole && data.roleIds.includes(superadminRole.id)) {
             throw new DomainError('El rol superadmin es exclusivo del propietario de la empresa y no puede ser asignado', 403);
         }
+    }
+
+    // 4. Quota enforcement: check if tenant has available seats in their SaaS plan
+    if (companyId) {
+        await checkCompanySeatQuota(companyId, data.roleIds);
     }
 
     const rawPassword = isDirect ? data.password!.trim() : (Math.random().toString(36).slice(-10) + 'A1!');
@@ -987,6 +1054,16 @@ export async function updateUser(
                 if (effectiveCompanyId) {
                     await assertNotSuperadmin(userIdStr, effectiveCompanyId, 'desactivar');
                 }
+            } else if (data.isActive === true && !user.is_active && effectiveCompanyId) {
+                const userRolesRows = await db
+                    .select({ roleId: authUserRoles.role_id })
+                    .from(authUserRoles)
+                    .where(and(
+                        eq(authUserRoles.user_id, userIdStr),
+                        eq(authUserRoles.company_id, effectiveCompanyId)
+                    ));
+                const roleIds = data.roleIds ?? userRolesRows.map(r => r.roleId);
+                await checkCompanySeatQuota(effectiveCompanyId, roleIds);
             }
             await tx.update(authUsers)
                 .set({ is_active: data.isActive })
@@ -1068,6 +1145,18 @@ export async function restoreUser(userId: string | number, currentUserId: string
     }
 
     const effectiveCompanyId = companyId || targetUser.company_id!;
+
+    if (effectiveCompanyId) {
+        const userRolesRows = await db
+            .select({ roleId: authUserRoles.role_id })
+            .from(authUserRoles)
+            .where(and(
+                eq(authUserRoles.user_id, userIdStr),
+                eq(authUserRoles.company_id, effectiveCompanyId)
+            ));
+        const roleIds = userRolesRows.map(r => r.roleId);
+        await checkCompanySeatQuota(effectiveCompanyId, roleIds);
+    }
 
     const [updated] = await db
         .update(authUsers)

@@ -1,5 +1,5 @@
 import { Component, createSignal } from 'solid-js';
-import { Outlet } from '@tanstack/solid-router';
+import { Outlet, useSearch } from '@tanstack/solid-router';
 import { useSheetNavigation } from '@shared/hooks/useSheetNavigation';
 import { executeFormMutation } from '@shared/utils/form.utils';
 import type { UserCreateData } from '@app/schema/frontend';
@@ -17,6 +17,8 @@ interface UserNewSheetProps {
 
 const UserNewSheet: Component<UserNewSheetProps> = (props) => {
     const { bindDismiss, close, navigateAway } = useSheetNavigation(props);
+    const search = useSearch({ strict: false });
+    const initialRoleName = () => (search() as any)?.role as string | undefined;
     const createMutation = useCreateUser();
     const rolesQuery = useRoles();
     const setEntityMutation = useSetUserEntity();
@@ -85,6 +87,7 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
                 formId="user-create-form"
                 roles={rolesQuery.data ?? []}
                 rolesLoading={rolesQuery.isPending}
+                initialRoleName={initialRoleName()}
                 onSubmit={handleSubmit}
                 isSubmitting={isPending()}
                 onStateChange={setFormState}

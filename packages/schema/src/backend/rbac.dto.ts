@@ -22,6 +22,7 @@ export const PermissionSchema = Type.Object({
     module: Type.String(),
     action: Type.String(),
     description: Type.Union([Type.String(), Type.Null()]),
+    planAllowed: Type.Optional(Type.Boolean()),
 });
 
 export const PermissionsResponseSchema = Type.Object({

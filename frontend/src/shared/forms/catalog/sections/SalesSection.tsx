@@ -32,10 +32,10 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {/* Precio Base */}
-                    <props.form.Field name="default_base_price">
+                    <props.form.Field name="default_unit_price">
                         {(field) => (
-                            <TextField.Root field={field()}>
-                                <TextField.Label>Precio de Venta *</TextField.Label>
+                            <TextField.Root field={field() as any}>
+                                <TextField.Label>Precio Unitario de Venta *</TextField.Label>
                                 <TextField.Input
                                     type="number"
                                     step="0.01"
@@ -43,7 +43,7 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
                                     class="font-mono"
                                     placeholder="0.00"
                                 />
-                                <TextField.Description>Precio base que heredan las variantes</TextField.Description>
+                                <TextField.Description>Precio unitario que heredan las variantes</TextField.Description>
                                 <TextField.ErrorMessage />
                             </TextField.Root>
                         )}
@@ -125,16 +125,16 @@ const SalesSection: Component<SalesSectionProps> = (props) => {
                                         </div>
 
                                         {/* Price override */}
-                                        <props.form.Field name={`variants[${formIndex()}].base_price`}>
+                                        <props.form.Field name={`variants[${formIndex()}].unit_price` as any}>
                                             {(field) => (
                                                 <input
                                                     type="number"
                                                     step="0.01"
                                                     min="0"
-                                                    value={field().state.value ?? ''}
+                                                    value={(field().state.value as number) ?? ''}
                                                     onInput={(e) => {
                                                         const val = e.currentTarget.value;
-                                                        field().handleChange(val === '' ? null : parseFloat(val));
+                                                        (field() as any).handleChange(val === '' ? null : parseFloat(val));
                                                     }}
                                                     placeholder="Hereda"
                                                     class="w-full bg-card-alt border border-border rounded-lg px-2.5 py-2 text-sm font-mono text-text placeholder:text-muted/40 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/25 transition-all"

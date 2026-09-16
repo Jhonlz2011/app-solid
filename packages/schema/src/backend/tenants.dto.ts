@@ -23,6 +23,7 @@ const CompanyDataSchema = Type.Object({
     taxRegimeType: Type.Optional(TaxRegimeTypeSchema),
     phone: Type.Optional(Type.String()),
     cedula: Type.Optional(Type.String()),
+    planId: Type.Optional(Type.String()),
     turnstileToken: Type.Optional(Type.String()),
 });
 
