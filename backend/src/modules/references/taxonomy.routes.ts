@@ -5,6 +5,7 @@ import {
     TaxonomyCategoryResponseSchema,
     TaxonomyCategorySearchQuerySchema,
     TaxonomyAttributeResponseSchema,
+    TaxonomyEnsureCategoryResponseSchema,
 } from '@app/schema/backend';
 
 export const taxonomyRoutes = new Elysia({ prefix: '/references/taxonomy' })
@@ -24,4 +25,19 @@ export const taxonomyRoutes = new Elysia({ prefix: '/references/taxonomy' })
             params: t.Object({ id: t.Numeric() }),
             response: { 200: t.Array(TaxonomyAttributeResponseSchema) },
         }
+    )
+    .post(
+        '/categories/:id/ensure',
+        async ({ params, currentCompanyId }) => {
+            if (!currentCompanyId) {
+                throw new Error('Organización no seleccionada');
+            }
+            return taxonomyService.ensureCategoryInTenant(Number(params.id), currentCompanyId);
+        },
+        {
+            params: t.Object({ id: t.Numeric() }),
+            response: { 200: TaxonomyEnsureCategoryResponseSchema },
+        }
     );
+
+

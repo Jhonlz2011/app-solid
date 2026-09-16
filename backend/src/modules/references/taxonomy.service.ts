@@ -1,6 +1,18 @@
-import { sql, ilike, or } from '@app/schema';
-import { referenceDb } from '../../core/db';
-import { taxonomyCategories, taxonomyAttributes, taxonomyAttributeValues, taxonomyCategoryAttributes } from '@app/schema/tables';
+import { sql, ilike, or, eq, and } from '@app/schema';
+import { db, referenceDb } from '../../core/db';
+import { taxonomyCategories, taxonomyAttributes, taxonomyAttributeValues, taxonomyCategoryAttributes, categories } from '@app/schema/tables';
+import { DomainError } from '../../core/errors';
+import { cacheService } from '../../core/cache';
+
+function slugify(name: string): string {
+    return name
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        || 'cat';
+}
 
 export const taxonomyService = {
     /**
@@ -66,5 +78,58 @@ export const taxonomyService = {
         }));
 
         return attributesWithValues;
+    },
+
+    /**
+     * Sincroniza o asegura que una categoría de la taxonomía estándar exista en la tabla categories del tenant
+     */
+    async ensureCategoryInTenant(taxonomyCategoryId: number, companyId: number) {
+        const [taxCat] = await referenceDb
+            .select()
+            .from(taxonomyCategories)
+            .where(eq(taxonomyCategories.id, taxonomyCategoryId));
+
+        if (!taxCat) {
+            throw new DomainError('Categoría de taxonomía no encontrada', 404);
+        }
+
+        // Verificar si ya existe una categoría con el mismo nombre en la empresa
+        const [existing] = await db
+            .select({ id: categories.id, name: categories.name })
+            .from(categories)
+            .where(and(eq(categories.company_id, companyId), eq(categories.name, taxCat.name)));
+
+        if (existing) {
+            return {
+                id: existing.id,
+                name: existing.name,
+                fullPath: taxCat.full_path,
+                taxonomyCategoryId: taxCat.id,
+            };
+        }
+
+        const segment = slugify(taxCat.name);
+        const [created] = await db
+            .insert(categories)
+            .values({
+                company_id: companyId,
+                name: taxCat.name,
+                description: taxCat.full_path,
+                path: segment,
+                depth: 0,
+                sort_order: 0,
+                is_active: true,
+            })
+            .returning({ id: categories.id, name: categories.name });
+
+        await cacheService.invalidate(`categories:c${companyId}:*`);
+
+        return {
+            id: created.id,
+            name: created.name,
+            fullPath: taxCat.full_path,
+            taxonomyCategoryId: taxCat.id,
+        };
     }
 };
+

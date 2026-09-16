@@ -34,6 +34,7 @@ import SalesSection from '@/shared/forms/catalog/sections/SalesSection';
 import PurchaseSection from '@/shared/forms/catalog/sections/PurchaseSection';
 import InventorySection from '@/shared/forms/catalog/sections/InventorySection';
 import VariantsSection from '@/shared/forms/catalog/sections/VariantsSection';
+import CategoryMetacamposCard from '@/shared/forms/catalog/sections/CategoryMetacamposCard';
 import BomSection from '@/shared/forms/catalog/sections/BomSection';
 import DynamicAttributeFields from '@/modules/products/components/DynamicAttributeFields';
 import NameTemplatePreview from '@shared/forms/catalog/sections/NameTemplatePreview';
@@ -310,7 +311,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                             {(field) => {
                                 const f = field();
                                 return (
-                                    <div class="flex items-center gap-2 px-3 py-1.5 bg-surface/30 rounded-lg border border-border/40">
+                                    <div class="flex items-center gap-2 px-3 py-1.5 bg-card rounded-lg border border-border/80 shadow-2xs">
                                         <Switch field={f}>
                                             <span class="text-xs font-medium">{props.mode.label} Activo</span>
                                         </Switch>
@@ -369,7 +370,6 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                                 <SalesSection
                                     form={form}
                                     hasAttemptedSubmit={hasAttemptedSubmit}
-                                    additionalVariants={additionalVariants}
                                 />
                             </section>
                         </Show>
@@ -396,12 +396,22 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                         </Show>
 
                         {/* 5. Variants Section */}
-                        <section id="section-variants" class="scroll-mt-24">
+                        <section id="section-variants" class="scroll-mt-24 flex flex-col gap-5">
                             <VariantsSection
                                 form={form}
                                 hasAttemptedSubmit={hasAttemptedSubmit}
                                 categoryAttributes={categoryAttributes}
+                                categoryId={categoryId}
                             />
+
+                            {/* Category Metacampos Card (Shopify Pattern) */}
+                            <Show when={categoryId() > 0}>
+                                <CategoryMetacamposCard
+                                    form={form}
+                                    categoryId={categoryId}
+                                    categoryName={() => categorySchemaQuery.data?.category?.name}
+                                />
+                            </Show>
                         </section>
 
                         {/* 6. BOM Section (Conditional on COMPUESTO or FABRICADO) */}
@@ -415,7 +425,7 @@ export const CatalogForm: Component<CatalogFormProps> = (props) => {
                     {/* ══════ RIGHT: Images + Attributes (sticky sidebar) ══════ */}
                     <div class="order-1 lg:order-2 lg:sticky lg:top-16 lg:self-start flex flex-col gap-4">
                         {/* Images */}
-                        <div class="bg-surface/30 rounded-2xl border border-border/40 p-4 flex flex-col gap-3">
+                        <div class="bg-card rounded-xl border border-border/90 p-4 shadow-2xs flex flex-col gap-3">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2">
                                     <div class="w-1 h-4 rounded-full bg-info" />

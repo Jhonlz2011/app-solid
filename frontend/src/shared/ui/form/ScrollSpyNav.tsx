@@ -59,7 +59,7 @@ export const ScrollSpyNav: Component<ScrollSpyNavProps> = (props) => {
     return (
         <nav
             aria-label="Navegación de secciones"
-            class={`sticky top-0 z-20 backdrop-blur-md bg-white/90 dark:bg-zinc-900/90 border-b border-zinc-200 dark:border-zinc-800 px-4 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-xs transition-colors ${props.class ?? ''}`}
+            class={`sticky top-0 z-20 backdrop-blur-md bg-surface/85 border border-border/80 px-2 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-2xs rounded-xl transition-all ${props.class ?? ''}`}
         >
             <For each={props.tabs}>
                 {(tab) => {
@@ -68,32 +68,33 @@ export const ScrollSpyNav: Component<ScrollSpyNavProps> = (props) => {
                         <button
                             type="button"
                             onClick={() => scrollToSection(tab.id)}
-                            class={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer select-none whitespace-nowrap ${
-                                isActive()
-                                    ? 'bg-primary-600 text-white shadow-xs font-semibold'
-                                    : 'text-zinc-650 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
-                            } ${tab.hasError ? 'ring-1 ring-rose-500 text-rose-600 dark:text-rose-400' : ''}`}
+                            class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer select-none whitespace-nowrap"
+                            classList={{
+                                'bg-card text-primary font-semibold border border-border/80 shadow-2xs': isActive(),
+                                'text-muted hover:text-text hover:bg-surface-hover/80': !isActive(),
+                                'border-destructive/40 text-destructive': !!tab.hasError && !isActive(),
+                            }}
                         >
                             <Show when={tab.icon}>
                                 {(Icon) => {
                                     const ComponentIcon = Icon();
-                                    return <ComponentIcon class="w-3.5 h-3.5" />;
+                                    return <ComponentIcon class="w-3.5 h-3.5 shrink-0" />;
                                 }}
                             </Show>
                             <span>{tab.label}</span>
                             <Show when={tab.badge !== undefined}>
                                 <span
-                                    class={`px-1.5 py-0.2 rounded-full text-[10px] font-semibold ${
-                                        isActive()
-                                            ? 'bg-white/20 text-white'
-                                            : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300'
-                                    }`}
+                                    class="px-1.5 py-0.2 rounded-full text-[10px] font-semibold"
+                                    classList={{
+                                        'bg-primary/10 text-primary': isActive(),
+                                        'bg-surface border border-border text-muted': !isActive(),
+                                    }}
                                 >
                                     {tab.badge}
                                 </span>
                             </Show>
                             <Show when={tab.hasError}>
-                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                                <span class="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
                             </Show>
                         </button>
                     );
