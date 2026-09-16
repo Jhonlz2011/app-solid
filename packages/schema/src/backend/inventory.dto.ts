@@ -1,5 +1,6 @@
 import { Type, type Static } from './typebox';
 import type { LocationType } from '../enums';
+import { LOCATION_TYPES } from '../enums';
 
 // ============================================================================
 // WAREHOUSES & LOCATIONS

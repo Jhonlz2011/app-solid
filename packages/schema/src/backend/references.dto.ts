@@ -95,16 +95,8 @@ export const TaxonomyAttributeResponseSchema = Type.Object({
     values: Type.Array(TaxonomyAttributeValueSchema),
 });
 
-export const TaxonomyEnsureCategoryResponseSchema = Type.Object({
-    id: Type.Number(),
-    name: Type.String(),
-    fullPath: Type.String(),
-    taxonomyCategoryId: Type.Number(),
-});
-
 export type TaxonomyCategoryResponseType = Static<typeof TaxonomyCategoryResponseSchema>;
 export type TaxonomyCategorySearchQueryType = Static<typeof TaxonomyCategorySearchQuerySchema>;
 export type TaxonomyAttributeResponseType = Static<typeof TaxonomyAttributeResponseSchema>;
 export type TaxonomyAttributeValueType = Static<typeof TaxonomyAttributeValueSchema>;
-export type TaxonomyEnsureCategoryResponseType = Static<typeof TaxonomyEnsureCategoryResponseSchema>;
 

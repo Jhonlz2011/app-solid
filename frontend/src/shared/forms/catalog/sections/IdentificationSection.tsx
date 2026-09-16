@@ -1,6 +1,7 @@
 /**
- * IdentificationSection — Clean Shopify-style Title & Description card.
- * Elevated bg-card with crisp borders.
+ * IdentificationSection — Name (with template support), SKU, Barcode, Description.
+ * Slug is auto-generated on submit and never shown to the user.
+ * SKU and Barcode come from variants[0] (default variant).
  */
 import { Component, Show } from 'solid-js';
 import type { CatalogFormApi } from '../catalog-form.types';
@@ -8,6 +9,7 @@ import TextField from '@form/TextField';
 import { Badge } from '@display/Badge';
 import { EditIcon } from '@icons/EditIcon';
 import { RotateCcwIcon } from '@icons/RotateCcwIcon';
+import FormSectionHeader from '@form/FormSectionHeader';
 
 interface IdentificationSectionProps {
     form: CatalogFormApi;
@@ -16,12 +18,10 @@ interface IdentificationSectionProps {
     setManualNameOverride: (v: boolean) => void;
 }
 
-export const IdentificationSection: Component<IdentificationSectionProps> = (props) => {
+const IdentificationSection: Component<IdentificationSectionProps> = (props) => {
     return (
-        <fieldset class="bg-card border border-border/90 rounded-xl p-4 sm:p-5 shadow-2xs flex flex-col gap-4">
-            <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-text">Título y Descripción</h3>
-            </div>
+        <fieldset class="space-y-5 bg-surface/30 p-5 rounded-2xl border border-border/40">
+            <FormSectionHeader color="success" title="Identificación" />
 
             {/* Title */}
             <props.form.Field name="title">
@@ -37,30 +37,28 @@ export const IdentificationSection: Component<IdentificationSectionProps> = (pro
                         </TextField.Label>
                         <TextField.Input
                             type="text"
-                            placeholder={props.hasTemplate() ? 'Se genera automáticamente desde los atributos...' : 'Título del producto (ej: Cable de Acero 1/2 pulgada)'}
+                            placeholder={props.hasTemplate() ? 'Se genera automáticamente desde los atributos...' : 'Título del producto'}
                             readOnly={props.hasTemplate() && !props.manualNameOverride()}
-                            class={`h-9 bg-surface border-border text-sm ${props.hasTemplate() && !props.manualNameOverride() ? 'bg-surface/60 cursor-default' : ''}`}
+                            class={props.hasTemplate() && !props.manualNameOverride() ? 'bg-surface/60 cursor-default' : ''}
                         />
                         <TextField.ErrorMessage />
                     </TextField.Root>
                 )}
             </props.form.Field>
-
             <Show when={props.hasTemplate() && !props.manualNameOverride()}>
                 <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary-strong transition-colors -mt-2 cursor-pointer w-fit"
+                    class="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors -mt-3 cursor-pointer"
                     onClick={() => props.setManualNameOverride(true)}
                 >
                     <EditIcon class="size-3.5" />
                     <span>Editar nombre manualmente</span>
                 </button>
             </Show>
-
             <Show when={props.hasTemplate() && props.manualNameOverride()}>
                 <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary-strong transition-colors -mt-2 cursor-pointer w-fit"
+                    class="inline-flex items-center gap-1.5 text-xs text-info hover:text-info/80 transition-colors -mt-3 cursor-pointer"
                     onClick={() => props.setManualNameOverride(false)}
                 >
                     <RotateCcwIcon class="size-3.5" />
@@ -68,15 +66,36 @@ export const IdentificationSection: Component<IdentificationSectionProps> = (pro
                 </button>
             </Show>
 
+            {/* SKU + Barcode (from default variant variants[0]) */}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <props.form.Field name={"variants[0].sku" }>
+                    {(field) => (
+                        <TextField.Root field={field()}>
+                            <TextField.Label>SKU *</TextField.Label>
+                            <TextField.Input type="text" placeholder="Auto-generado al guardar" class="font-mono" />
+                            <TextField.ErrorMessage />
+                        </TextField.Root>
+                    )}
+                </props.form.Field>
+
+                <props.form.Field name={"variants[0].barcode" }>
+                    {(field) => (
+                        <TextField.Root field={field()}>
+                            <TextField.Label>Código de Barras</TextField.Label>
+                            <TextField.Input type="text" class="font-mono" placeholder="EAN/UPC" />
+                        </TextField.Root>
+                    )}
+                </props.form.Field>
+            </div>
+
             {/* Description */}
             <props.form.Field name="description">
                 {(field) => (
                     <TextField.Root field={field()}>
                         <TextField.Label optional>Descripción</TextField.Label>
                         <TextField.TextArea
-                            placeholder="Descripción técnica o comercial del producto..."
+                            placeholder="Descripción del producto..."
                             rows={3}
-                            class="bg-surface border-border text-sm"
                         />
                     </TextField.Root>
                 )}
