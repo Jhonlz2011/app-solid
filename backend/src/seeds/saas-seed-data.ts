@@ -324,6 +324,20 @@ export const SAAS_FEATURES: SaasFeatureDef[] = [
         type: 'BOOLEAN',
         category: 'integrations',
     },
+    {
+        code: 'modules.tools',
+        name: 'Gestión de Herramientas y Custodia',
+        description: 'Control de herramientas, equipos y préstamos de custodia con seguimiento serializado o por cantidad',
+        type: 'BOOLEAN',
+        category: 'modules',
+    },
+    {
+        code: 'modules.crm',
+        name: 'CRM y Visitas Técnicas',
+        description: 'Gestión de relaciones comerciales, visitas técnicas programadas y presupuestos de obra',
+        type: 'BOOLEAN',
+        category: 'modules',
+    },
 ];
 
 // ============================================================================
@@ -443,6 +457,8 @@ export const SAAS_PLAN_FEATURES: SaasPlanFeatureDef[] = [
     { planId: 'free', featureCode: 'integrations.custom_smtp', valueBoolean: false },
     { planId: 'free', featureCode: 'modules.custom_domain', valueBoolean: false },
     { planId: 'free', featureCode: 'modules.api_access', valueBoolean: false },
+    { planId: 'free', featureCode: 'modules.tools', valueBoolean: false },
+    { planId: 'free', featureCode: 'modules.crm', valueBoolean: false },
 
     // -------------------------------------------------------------
     // PLAN EMPRENDEDOR ($9.99/mes o $99/año):
@@ -472,6 +488,8 @@ export const SAAS_PLAN_FEATURES: SaasPlanFeatureDef[] = [
         { planId, featureCode: 'integrations.custom_smtp', valueBoolean: false },
         { planId, featureCode: 'modules.custom_domain', valueBoolean: false },
         { planId, featureCode: 'modules.api_access', valueBoolean: false },
+        { planId, featureCode: 'modules.tools', valueBoolean: false },
+        { planId, featureCode: 'modules.crm', valueBoolean: false },
     ]),
 
     // -------------------------------------------------------------
@@ -502,6 +520,8 @@ export const SAAS_PLAN_FEATURES: SaasPlanFeatureDef[] = [
         { planId, featureCode: 'integrations.custom_smtp', valueBoolean: true },
         { planId, featureCode: 'modules.custom_domain', valueBoolean: true },
         { planId, featureCode: 'modules.api_access', valueBoolean: true },
+        { planId, featureCode: 'modules.tools', valueBoolean: false },
+        { planId, featureCode: 'modules.crm', valueBoolean: false },
     ]),
 
     // -------------------------------------------------------------
@@ -532,6 +552,8 @@ export const SAAS_PLAN_FEATURES: SaasPlanFeatureDef[] = [
         { planId, featureCode: 'integrations.custom_smtp', valueBoolean: true },
         { planId, featureCode: 'modules.custom_domain', valueBoolean: true },
         { planId, featureCode: 'modules.api_access', valueBoolean: true },
+        { planId, featureCode: 'modules.tools', valueBoolean: true },
+        { planId, featureCode: 'modules.crm', valueBoolean: true },
     ]),
 ];
 

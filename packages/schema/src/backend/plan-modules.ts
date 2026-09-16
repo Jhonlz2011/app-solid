@@ -38,6 +38,9 @@ export const FEATURE_TO_MODULES_MAP: Record<string, readonly RbacModule[]> = {
     'modules.manufacturing': ['manufacturing', 'bom', 'work_orders', 'materials', 'production'],
     'modules.tools': ['tools', 'tool_loans'],
     'modules.crm': ['crm', 'visits', 'budgets'],
+    // sri_received_sync no mapea a módulos RBAC directos — es un feature flag de sistema
+    // que habilita el cron de sincronización. Se incluye aquí para que resolveAllowedModulesFromFeatures
+    // lo reconozca aunque no agregue módulos adicionales al set.
 } as const;
 
 /**
@@ -66,6 +69,7 @@ export const PLAN_DEFAULT_ENABLED_FEATURES: Record<string, readonly string[]> = 
         'modules.pos',
         'modules.accounting',
         'modules.hr_payroll',
+        'modules.sri_received_sync',
     ],
     pro_yearly: [
         'modules.invoicing_sri',
@@ -74,6 +78,7 @@ export const PLAN_DEFAULT_ENABLED_FEATURES: Record<string, readonly string[]> = 
         'modules.pos',
         'modules.accounting',
         'modules.hr_payroll',
+        'modules.sri_received_sync',
     ],
     enterprise_monthly: [
         'modules.invoicing_sri',
@@ -85,6 +90,7 @@ export const PLAN_DEFAULT_ENABLED_FEATURES: Record<string, readonly string[]> = 
         'modules.manufacturing',
         'modules.tools',
         'modules.crm',
+        'modules.sri_received_sync',
     ],
     enterprise_yearly: [
         'modules.invoicing_sri',
@@ -96,6 +102,7 @@ export const PLAN_DEFAULT_ENABLED_FEATURES: Record<string, readonly string[]> = 
         'modules.manufacturing',
         'modules.tools',
         'modules.crm',
+        'modules.sri_received_sync',
     ],
 };
 

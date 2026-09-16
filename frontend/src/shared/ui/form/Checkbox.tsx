@@ -7,6 +7,8 @@ export interface CheckboxProps<TValue extends boolean | undefined | null = boole
     extends Omit<Parameters<typeof KCheckbox>[0], 'checked' | 'onChange'> {
     class?: string;
     children?: JSX.Element;
+    /** Whether the checkbox is in an indeterminate (partially selected) state */
+    indeterminate?: boolean;
     /** TanStack Form field - 100% type-safe generic binding */
     field?: FieldLike<TValue>;
     /** Controlled checked state - ignored if field is provided */
@@ -101,7 +103,7 @@ export function Checkbox<TValue extends boolean | undefined | null = boolean | u
                                 </svg>
                             }
                         >
-                            {/* Icono Check (✓) */}
+                            {/* Icono Check */}
                             <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5">
                                 <path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>

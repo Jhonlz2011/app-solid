@@ -69,12 +69,24 @@ interface TextFieldPasswordInputProps extends Omit<JSX.InputHTMLAttributes<HTMLI
     leftIcon?: JSX.Element;
 }
 
-interface TextFieldNumericInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type' | 'inputMode'> {
+export interface TextFieldNumericInputProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type' | 'inputMode' | 'prefix'> {
     class?: string;
     /** Whether to allow negative numbers. Default: false */
     allowNegative?: boolean;
     /** Whether to allow decimals. Default: true */
     allowDecimal?: boolean;
+    /** Whether to auto-select input text on focus. Default: true */
+    autoSelect?: boolean;
+    /** Step increment/decrement amount. Default: 1 (or 0.01 if allowDecimal) */
+    step?: number | string;
+    /** Minimum allowed value */
+    min?: number | string;
+    /** Maximum allowed value */
+    max?: number | string;
+    /** Prefix adornment (e.g. '$' or JSX.Element) */
+    prefix?: string | JSX.Element;
+    /** Suffix adornment (e.g. 'USD' or JSX.Element) */
+    suffix?: string | JSX.Element;
     loading?: boolean | Accessor<boolean>;
     rightIcon?: JSX.Element;
     leftIcon?: JSX.Element;
@@ -473,7 +485,24 @@ const PasswordInput = (props: TextFieldPasswordInputProps) => {
 const NumericInput = (props: TextFieldNumericInputProps) => {
     return untrack(() => {
         const context = useTextFieldContext();
-        const [local, others] = splitProps(props, ['class', 'allowNegative', 'allowDecimal', 'loading', 'rightIcon', 'leftIcon']);
+        const [local, others] = splitProps(props, [
+            'class',
+            'allowNegative',
+            'allowDecimal',
+            'autoSelect',
+            'step',
+            'min',
+            'max',
+            'prefix',
+            'suffix',
+            'loading',
+            'rightIcon',
+            'leftIcon',
+            'onFocus',
+            'onBlur',
+            'onKeyDown',
+            'onInput',
+        ]);
         const [inputValue, setInputValue] = createSignal("");
         const [isTyping, setIsTyping] = createSignal(false);
         const isLoading = () => {
@@ -482,8 +511,8 @@ const NumericInput = (props: TextFieldNumericInputProps) => {
             }
             return context.loading();
         };
-        const hasRightAdornment = () => Boolean(isLoading() || local.rightIcon);
-        const hasLeftAdornment = () => Boolean(local.leftIcon);
+        const hasRightAdornment = () => Boolean(isLoading() || local.rightIcon || local.suffix);
+        const hasLeftAdornment = () => Boolean(local.leftIcon || local.prefix);
 
         // Sync from context to local input ONLY when not typing
         createEffect(() => {
@@ -494,10 +523,76 @@ const NumericInput = (props: TextFieldNumericInputProps) => {
         });
 
         const handleKeyDown = (e: KeyboardEvent) => {
+            // ArrowUp / ArrowDown stepping
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                const allowDecimal = local.allowDecimal !== false;
+                const allowNegative = local.allowNegative === true;
+
+                // Determine step
+                let stepVal = 1;
+                if (local.step !== undefined) {
+                    const parsedStep = Number(local.step);
+                    stepVal = !isNaN(parsedStep) && parsedStep > 0 ? parsedStep : (allowDecimal ? 0.01 : 1);
+                } else {
+                    stepVal = allowDecimal ? 0.01 : 1;
+                }
+
+                // Current numeric value
+                const currentStr = inputValue().trim().replace(',', '.');
+                let currentNum = 0;
+                if (currentStr !== '' && currentStr !== '-' && currentStr !== '.') {
+                    const parsed = parseFloat(currentStr);
+                    if (!isNaN(parsed)) {
+                        currentNum = parsed;
+                    }
+                } else if (local.min !== undefined) {
+                    const minNum = Number(local.min);
+                    if (!isNaN(minNum)) currentNum = minNum;
+                }
+
+                // Calculate decimal precision to prevent floating point drift (e.g. 0.1 + 0.2)
+                const stepStr = stepVal.toString();
+                const stepDecimals = stepStr.includes('.') ? stepStr.split('.')[1].length : 0;
+                const valDecimals = currentStr.includes('.') ? currentStr.split('.')[1].length : 0;
+                const precision = Math.max(stepDecimals, valDecimals);
+
+                const nextNum = e.key === 'ArrowUp' ? currentNum + stepVal : currentNum - stepVal;
+                let roundedNum = Number(nextNum.toFixed(precision));
+
+                // Clamping
+                if (!allowNegative && roundedNum < 0) {
+                    roundedNum = 0;
+                }
+                if (local.min !== undefined) {
+                    const minNum = Number(local.min);
+                    if (!isNaN(minNum) && roundedNum < minNum) {
+                        roundedNum = minNum;
+                    }
+                }
+                if (local.max !== undefined) {
+                    const maxNum = Number(local.max);
+                    if (!isNaN(maxNum) && roundedNum > maxNum) {
+                        roundedNum = maxNum;
+                    }
+                }
+
+                setInputValue(String(roundedNum));
+                context.onChange(roundedNum);
+
+                if (typeof local.onKeyDown === 'function') {
+                    (local.onKeyDown as any)(e);
+                }
+                return;
+            }
+
             if (
-                ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) ||
+                ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) ||
                 e.ctrlKey || e.metaKey || e.altKey
             ) {
+                if (typeof local.onKeyDown === 'function') {
+                    (local.onKeyDown as any)(e);
+                }
                 return;
             }
 
@@ -522,8 +617,13 @@ const NumericInput = (props: TextFieldNumericInputProps) => {
                     const selected = val.substring(el.selectionStart || 0, el.selectionEnd || 0);
                     if (!selected.includes('.') && !selected.includes(',')) {
                         e.preventDefault();
+                        return;
                     }
                 }
+            }
+
+            if (typeof local.onKeyDown === 'function') {
+                (local.onKeyDown as any)(e);
             }
         };
 
@@ -560,16 +660,73 @@ const NumericInput = (props: TextFieldNumericInputProps) => {
                 context.onChange(null as any);
             } else {
                 const num = parseFloat(normalized);
-                // Si el usuario pone "1.", parseFloat da "1". Devolvemos raw para no perder el punto.
+                // Si el usuario pone "1.", parseFloat da "1". Devolvemos raw mientras escribe para no perder el punto.
                 context.onChange(isNaN(num) || raw.endsWith('.') || raw.endsWith(',') ? normalized : num);
             }
+
+            if (typeof local.onInput === 'function') {
+                (local.onInput as any)(e);
+            }
+        };
+
+        const handleFocus = (e: FocusEvent & { currentTarget: HTMLInputElement }) => {
+            setIsTyping(true);
+            if (local.autoSelect !== false) {
+                e.currentTarget.select();
+            }
+            if (typeof local.onFocus === 'function') {
+                (local.onFocus as any)(e);
+            }
+        };
+
+        const handleBlur = (e: FocusEvent & { currentTarget: HTMLInputElement }) => {
+            setIsTyping(false);
+
+            // Strict sanitization: ensure trailing dots/commas or partial inputs are coerced to number | null
+            const raw = inputValue().trim();
+            if (raw === '' || raw === '-' || raw === '.' || raw === ',') {
+                setInputValue('');
+                context.onChange(null);
+            } else {
+                const normalized = raw.replace(',', '.');
+                let num = parseFloat(normalized);
+                if (isNaN(num)) {
+                    setInputValue('');
+                    context.onChange(null);
+                } else {
+                    // Apply min / max / allowNegative clamping
+                    if (local.allowNegative !== true && num < 0) {
+                        num = 0;
+                    }
+                    if (local.min !== undefined) {
+                        const minVal = Number(local.min);
+                        if (!isNaN(minVal) && num < minVal) num = minVal;
+                    }
+                    if (local.max !== undefined) {
+                        const maxVal = Number(local.max);
+                        if (!isNaN(maxVal) && num > maxVal) num = maxVal;
+                    }
+
+                    // Format cleanly without trailing dots (e.g. "10." -> 10 -> "10")
+                    setInputValue(String(num));
+                    context.onChange(num);
+                }
+            }
+
+            if (typeof local.onBlur === 'function') {
+                (local.onBlur as any)(e);
+            }
+            context.onBlur();
         };
 
         return (
             <div class="relative w-full">
-                <Show when={local.leftIcon}>
-                    <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-muted">
-                        {local.leftIcon}
+                <Show when={local.leftIcon || local.prefix}>
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center gap-1.5 text-muted select-none">
+                        <Show when={local.leftIcon}>{local.leftIcon}</Show>
+                        <Show when={local.prefix}>
+                            <span class="text-xs font-semibold text-muted select-none">{local.prefix}</span>
+                        </Show>
                     </div>
                 </Show>
 
@@ -580,19 +737,22 @@ const NumericInput = (props: TextFieldNumericInputProps) => {
                     value={inputValue()}
                     onKeyDown={handleKeyDown}
                     onInput={handleInput}
-                    onFocus={() => setIsTyping(true)}
-                    onBlur={() => {
-                        setIsTyping(false);
-                        context.onBlur();
-                    }}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
                     disabled={context.disabled()}
                     readOnly={context.readOnly()}
                     data-invalid={context.isInvalid()}
                     class={cn(
                         inputBaseStyles,
                         "font-mono",
-                        hasLeftAdornment() && 'pl-9',
-                        hasRightAdornment() && 'pr-9',
+                        hasLeftAdornment() && (
+                            local.leftIcon && local.prefix ? 'pl-14' :
+                            (typeof local.prefix === 'string' && local.prefix.length > 2) ? 'pl-12' : 'pl-9'
+                        ),
+                        hasRightAdornment() && (
+                            (local.rightIcon || isLoading()) && local.suffix ? 'pr-14' :
+                            (typeof local.suffix === 'string' && local.suffix.length > 2) ? 'pr-12' : 'pr-9'
+                        ),
                         local.class
                     )}
                     {...others}
@@ -600,12 +760,15 @@ const NumericInput = (props: TextFieldNumericInputProps) => {
 
                 <div
                     class={cn(
-                        "absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-muted",
+                        "absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-muted",
                         (!local.rightIcon || isLoading()) && "pointer-events-none"
                     )}
                 >
+                    <Show when={local.suffix}>
+                        <span class="text-xs font-semibold text-muted pointer-events-none select-none">{local.suffix}</span>
+                    </Show>
                     <Show when={isLoading()} fallback={local.rightIcon}>
-                        <SpinnerIcon class="size-4 animate-spin text-primary" />
+                        <SpinnerIcon class="size-4 animate-spin text-primary pointer-events-none" />
                     </Show>
                 </div>
             </div>

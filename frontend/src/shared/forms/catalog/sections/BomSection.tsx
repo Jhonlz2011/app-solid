@@ -83,7 +83,7 @@ export const BomSection: Component<BomSectionProps> = (props) => {
     };
 
     return (
-        <fieldset class="space-y-4 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
+        <fieldset class="space-y-4 bg-surface/30 p-2.5 sm:p-4 rounded-2xl border border-border/40">
             <FormSectionHeader
                 color="accent"
                 title="Lista de Materiales / Componentes (BOM)"

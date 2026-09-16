@@ -18,11 +18,15 @@ import { CloseIcon } from '@icons/CloseIcon';
 import { ProductIcon } from '@icons/ProductIcon';
 import { LayersIcon } from '@icons/LayersIcon';
 import { BoxIcon } from '@icons/BoxIcon';
+import { SparklesIcon } from '@icons/SparklesIcon';
 import Button from '@form/Button';
+import { Badge } from '@display/Badge';
+import { Skeleton } from '@display/Skeleton';
 import type { CatalogModeConfig } from '@shared/forms/catalog';
 import type { ProductSubtype } from '@app/schema/enums';
 import { useCategoriesFlat } from '@/modules/categories/data/categories.queries';
 import { useBrandsList } from '@/modules/brands/data/brands.queries';
+import { useTaxonomyCategoriesSearch, useTaxonomyCategoryAttributes } from '@/modules/references/data/taxonomy.queries';
 import FormSectionHeader from '@form/FormSectionHeader';
 
 import type { JSX } from 'solid-js';
@@ -103,6 +107,23 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
         });
     });
 
+    // Reference taxonomy standard lookup
+    const taxonomySearch = useTaxonomyCategoriesSearch(
+        () => selectedCategory()?.name ?? '',
+        () => 5
+    );
+
+    const matchingTaxonomy = createMemo(() => {
+        const results = taxonomySearch.data ?? [];
+        if (results.length === 0) return null;
+        const catName = selectedCategory()?.name?.toLowerCase().trim();
+        return results.find(t => t.name.toLowerCase() === catName) ?? results[0];
+    });
+
+    const taxonomyAttributes = useTaxonomyCategoryAttributes(
+        () => matchingTaxonomy()?.id ?? null
+    );
+
     return (
         <fieldset class="space-y-4 bg-surface/30 p-4 sm:p-5 rounded-2xl border border-border/40">
             <FormSectionHeader 
@@ -131,9 +152,16 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                                         {(opt) => {
                                             const isSelected = () => currentValue() === opt.value;
                                             return (
-                                                <button
-                                                    type="button"
+                                                <div
+                                                    role="button"
+                                                    tabIndex={0}
                                                     onClick={() => field().handleChange(opt.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                            e.preventDefault();
+                                                            field().handleChange(opt.value);
+                                                        }
+                                                    }}
                                                     class="relative flex flex-col text-left p-3 rounded-xl border transition-all cursor-pointer outline-none group"
                                                     classList={{
                                                         'bg-primary/10 border-primary shadow-sm ring-1 ring-primary/30': isSelected(),
@@ -178,7 +206,7 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                                                             'opacity-0 scale-50': !isSelected(),
                                                         }}
                                                     />
-                                                </button>
+                                                </div>
                                             );
                                         }}
                                     </For>
@@ -257,6 +285,64 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                             );
                         }}
                     </props.form.Field>
+
+                    {/* Reference Taxonomy Integration Badge / Card */}
+                    <Show when={selectedCategory()}>
+                        <div class="p-2.5 rounded-xl bg-surface/50 border border-border/40 transition-all">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-1.5 min-w-0">
+                                    <SparklesIcon class="size-3.5 text-primary shrink-0" />
+                                    <span class="text-[11px] font-semibold text-text uppercase tracking-wider">
+                                        Taxonomía Estándar
+                                    </span>
+                                </div>
+                                <Show when={taxonomySearch.isLoading}>
+                                    <Skeleton class="h-4 w-16 rounded-full" />
+                                </Show>
+                                <Show when={!taxonomySearch.isLoading && matchingTaxonomy()}>
+                                    <Badge variant="primary" size="sm" class="gap-1 font-mono text-[10px]">
+                                        <span class="size-1.5 rounded-full bg-primary animate-pulse" />
+                                        {matchingTaxonomy()?.code}
+                                    </Badge>
+                                </Show>
+                            </div>
+
+                            <Show when={taxonomySearch.isLoading}>
+                                <div class="mt-2 space-y-1.5">
+                                    <Skeleton class="h-3 w-3/4 rounded" />
+                                    <Skeleton class="h-3 w-1/2 rounded" />
+                                </div>
+                            </Show>
+
+                            <Show when={!taxonomySearch.isLoading && matchingTaxonomy()}>
+                                {(tax) => (
+                                    <div class="mt-1.5 space-y-1.5">
+                                        <p class="text-xs font-medium text-primary-strong truncate" title={tax().fullPath}>
+                                            {tax().fullPath}
+                                        </p>
+                                        <Show when={taxonomyAttributes.data && taxonomyAttributes.data.length > 0}>
+                                            <div class="flex items-center gap-1 flex-wrap pt-0.5">
+                                                <span class="text-[10px] text-muted font-medium">Ejes sugeridos:</span>
+                                                <For each={taxonomyAttributes.data}>
+                                                    {(attr) => (
+                                                        <Badge variant="default" size="sm" class="text-[10px] py-0 px-1.5 bg-card">
+                                                            {attr.name}
+                                                        </Badge>
+                                                    )}
+                                                </For>
+                                            </div>
+                                        </Show>
+                                    </div>
+                                )}
+                            </Show>
+
+                            <Show when={!taxonomySearch.isLoading && !matchingTaxonomy()}>
+                                <p class="text-[11px] text-muted mt-1">
+                                    Categoría personalizada de la empresa (sin homologación directa en el estándar global).
+                                </p>
+                            </Show>
+                        </div>
+                    </Show>
                 </div>
 
                 {/* Brand Selector */}
@@ -324,3 +410,5 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
 };
 
 export default ClassificationSection;
+export { useTaxonomyCategoriesSearch, useTaxonomyCategoryAttributes } from '@/modules/references/data/taxonomy.queries';
+
