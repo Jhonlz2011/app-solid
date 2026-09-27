@@ -178,7 +178,8 @@ export const authRoles = pgTableV2("auth_roles", {
     createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
 }, (t) => [
     uniqueIndex("idx_auth_roles_name").on(t.company_id, t.name),
-    uniqueIndex("idx_auth_roles_id_company").on(t.id, t.company_id),
+    // Required target key for the tenant-scoped composite foreign keys below.
+    unique("auth_roles_id_company_unique").on(t.id, t.company_id),
     tenantPolicy(),
 ]).enableRLS();
 

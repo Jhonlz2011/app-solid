@@ -346,7 +346,6 @@ CREATE TABLE "auth_roles" (
 );
 --> statement-breakpoint
 ALTER TABLE "auth_roles" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-CREATE UNIQUE INDEX "idx_auth_roles_id_company" ON "auth_roles" USING btree ("id","company_id");--> statement-breakpoint
 CREATE TABLE "auth_user_roles" (
 	"user_id" uuid NOT NULL,
 	"role_id" integer NOT NULL,
@@ -1838,6 +1837,7 @@ CREATE INDEX "idx_role_perms_slug" ON "auth_role_permissions" USING btree ("perm
 CREATE INDEX "idx_role_perms_company_role" ON "auth_role_permissions" USING btree ("company_id","role_id");--> statement-breakpoint
 CREATE INDEX "idx_role_perms_company_role_permission" ON "auth_role_permissions" USING btree ("company_id","role_id","permission_slug");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_auth_roles_name" ON "auth_roles" USING btree ("company_id","name");--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_auth_roles_id_company" ON "auth_roles" USING btree ("id","company_id");--> statement-breakpoint
 CREATE INDEX "idx_user_roles_company_user" ON "auth_user_roles" USING btree ("company_id","user_id");--> statement-breakpoint
 CREATE INDEX "idx_user_roles_company_role" ON "auth_user_roles" USING btree ("company_id","role_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_user_email_unique" ON "user" USING btree ("email");--> statement-breakpoint
