@@ -23,7 +23,7 @@ const queryClient = postgres(env.DATABASE_URL, {
   ssl: env.NODE_ENV === 'production' ? 'require' : false,
 });
 
-const queryClientSri = postgres(env.SRI_DATABASE_URL, { 
+const queryClientSri = postgres(env.REF_DATABASE_URL, { 
     max: 10, // Límite estricto para proteger la RAM del Droplet
     idle_timeout: 20 // Cierra conexiones inactivas rápido
 });

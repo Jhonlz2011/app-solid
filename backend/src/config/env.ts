@@ -1,16 +1,13 @@
 const nodeEnv = process.env.NODE_ENV || 'development';
 const isProduction = nodeEnv === 'production';
 
-if (!process.env.DATABASE_URL || !process.env.FRONTEND_URL || !process.env.SRI_DATABASE_URL) {
-  throw new Error('Variables de entorno requeridas no encontradas (DATABASE_URL, FRONTEND_URL, SRI_DATABASE_URL)');
+if (!process.env.DATABASE_URL || !process.env.FRONTEND_URL || !process.env.REF_DATABASE_URL) {
+  throw new Error('Variables de entorno requeridas no encontradas (DATABASE_URL, FRONTEND_URL, REF_DATABASE_URL)');
 }
 
 if (isProduction) {
   if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 32) {
     throw new Error('BETTER_AUTH_SECRET debe existir y tener al menos 32 caracteres en producción');
-  }
-  if (!process.env.ADMIN_DATABASE_URL) {
-    throw new Error('ADMIN_DATABASE_URL debe apuntar a un pool administrativo separado en producción');
   }
   if (!process.env.TURNSTILE_SECRET_KEY || !process.env.TURNSTILE_SITE_KEY) {
     throw new Error('TURNSTILE_SECRET_KEY y TURNSTILE_SITE_KEY son obligatorios en producción');
@@ -25,8 +22,7 @@ if (isProduction) {
 
 export const env = {
   DATABASE_URL: process.env.DATABASE_URL,
-  ADMIN_DATABASE_URL: process.env.ADMIN_DATABASE_URL || (isProduction ? '' : process.env.DATABASE_URL),
-  SRI_DATABASE_URL: process.env.SRI_DATABASE_URL,
+  REF_DATABASE_URL: process.env.REF_DATABASE_URL,
   FRONTEND_URL: process.env.FRONTEND_URL,
   FRONTEND_INTERNAL_URL: process.env.FRONTEND_INTERNAL_URL || '',
   API_PUBLIC_URL: process.env.API_PUBLIC_URL || '',

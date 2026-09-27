@@ -5,7 +5,7 @@
  * Arquitectura 100% INTEGER (4 bytes) para Rendimiento Máximo en PostgreSQL
  *
  * Mapeo directo a: packages/schema/src/tables/taxonomy.ts
- * Destino: referenceDb (SRI_DATABASE_URL)
+ * Destino: referenceDb (REF_DATABASE_URL)
  *
  * Mejoras de Rendimiento:
  * 1. Claves primarias numéricas INTEGER para atributos y valores (IDs nativos Shopify).
