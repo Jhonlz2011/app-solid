@@ -6,9 +6,6 @@ if (!process.env.DATABASE_URL || !process.env.FRONTEND_URL || !process.env.REF_D
 }
 
 if (isProduction) {
-  if (!process.env.ADMIN_DATABASE_URL) {
-    throw new Error('ADMIN_DATABASE_URL es obligatorio en producción para los workers globales');
-  }
   if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 32) {
     throw new Error('BETTER_AUTH_SECRET debe existir y tener al menos 32 caracteres en producción');
   }
