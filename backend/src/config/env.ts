@@ -6,6 +6,9 @@ if (!process.env.DATABASE_URL || !process.env.FRONTEND_URL || !process.env.REF_D
 }
 
 if (isProduction) {
+  if (!process.env.ADMIN_DATABASE_URL) {
+    throw new Error('ADMIN_DATABASE_URL es obligatorio en producción para los workers globales');
+  }
   if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 32) {
     throw new Error('BETTER_AUTH_SECRET debe existir y tener al menos 32 caracteres en producción');
   }
@@ -22,6 +25,9 @@ if (isProduction) {
 
 export const env = {
   DATABASE_URL: process.env.DATABASE_URL,
+  // Keep a separate pool for global workers. Production validates that this
+  // URL is explicitly configured instead of silently connecting to localhost.
+  ADMIN_DATABASE_URL: process.env.ADMIN_DATABASE_URL || process.env.DATABASE_URL,
   REF_DATABASE_URL: process.env.REF_DATABASE_URL,
   FRONTEND_URL: process.env.FRONTEND_URL,
   FRONTEND_INTERNAL_URL: process.env.FRONTEND_INTERNAL_URL || '',
