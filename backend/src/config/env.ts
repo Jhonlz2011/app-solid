@@ -12,6 +12,12 @@ if (isProduction) {
   if (!process.env.TURNSTILE_SECRET_KEY || !process.env.TURNSTILE_SITE_KEY) {
     throw new Error('TURNSTILE_SECRET_KEY y TURNSTILE_SITE_KEY son obligatorios en producción');
   }
+  if (process.env.TRUSTED_PROXY_HEADERS !== 'true') {
+    throw new Error('TRUSTED_PROXY_HEADERS=true es obligatorio cuando la aplicación está detrás de un proxy confiable');
+  }
+  if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_TENANT_ID === 'common') {
+    throw new Error('MICROSOFT_TENANT_ID debe ser explícito en producción');
+  }
 }
 
 export const env = {
