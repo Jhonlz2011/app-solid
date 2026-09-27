@@ -1,4 +1,4 @@
-CREATE TYPE "public"."attribute_data_type" AS ENUM('TEXT', 'NUMBER', 'SELECT', 'BOOLEAN');--> statement-breakpoint
+CREATE TYPE "public"."attribute_data_type" AS ENUM('TEXT', 'NUMBER', 'SELECT', 'BOOLEAN', 'COLOR');--> statement-breakpoint
 CREATE TYPE "public"."bank_account_type" AS ENUM('AHORROS', 'CORRIENTE');--> statement-breakpoint
 CREATE TYPE "public"."bom_calculation_type" AS ENUM('FIXED', 'AREA', 'PERIMETER', 'VOLUMEN');--> statement-breakpoint
 CREATE TYPE "public"."condition" AS ENUM('GOOD', 'DAMAGED', 'UNUSABLE');--> statement-breakpoint
@@ -148,15 +148,13 @@ CREATE TABLE "job_titles" (
 ALTER TABLE "job_titles" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "companies" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "companies_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
-	"organization_id" text,
+	"organization_id" text NOT NULL,
 	"slug" text NOT NULL,
 	"ruc" text NOT NULL,
 	"business_name" text NOT NULL,
 	"trade_name" text,
 	"main_address" text NOT NULL,
 	"business_type" text,
-	"plan" text DEFAULT 'free' NOT NULL,
-	"plan_expires_at" timestamp with time zone,
 	"obligado_contabilidad" boolean DEFAULT false NOT NULL,
 	"contribuyente_especial" text,
 	"agente_retencion" text,
@@ -293,9 +291,23 @@ CREATE TABLE "account" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "auth_menu_custom" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "auth_menu_custom_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"company_id" integer NOT NULL,
+	"menu_item_id" smallint NOT NULL,
+	"label" text,
+	"icon" text,
+	"path_alias" text,
+	"parent_id" smallint,
+	"sort_order" smallint,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "idx_auth_menu_company_item" UNIQUE("company_id","menu_item_id")
+);
+--> statement-breakpoint
+ALTER TABLE "auth_menu_custom" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "auth_menu_items" (
 	"id" smallint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "auth_menu_items_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 32767 START WITH 1 CACHE 1),
-	"company_id" integer,
 	"key" text NOT NULL,
 	"label" text NOT NULL,
 	"icon" text,
@@ -305,7 +317,7 @@ CREATE TABLE "auth_menu_items" (
 	"sort_order" smallint DEFAULT 0,
 	"permission_prefix" text,
 	"status" "menu_item_status" DEFAULT 'active',
-	CONSTRAINT "idx_menu_company_key" UNIQUE NULLS NOT DISTINCT("company_id","key")
+	CONSTRAINT "idx_menu_key" UNIQUE("key")
 );
 --> statement-breakpoint
 CREATE TABLE "auth_permissions" (
@@ -334,11 +346,12 @@ CREATE TABLE "auth_roles" (
 );
 --> statement-breakpoint
 ALTER TABLE "auth_roles" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_auth_roles_id_company" ON "auth_roles" USING btree ("id","company_id");--> statement-breakpoint
 CREATE TABLE "auth_user_roles" (
 	"user_id" uuid NOT NULL,
 	"role_id" integer NOT NULL,
 	"company_id" integer NOT NULL,
-	CONSTRAINT "auth_user_roles_user_id_role_id_company_id_pk" PRIMARY KEY("user_id","role_id","company_id")
+	CONSTRAINT "auth_user_roles_company_id_user_id_role_id_pk" PRIMARY KEY("company_id","user_id","role_id")
 );
 --> statement-breakpoint
 ALTER TABLE "auth_user_roles" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -383,6 +396,9 @@ CREATE TABLE "member" (
 	"organization_id" text NOT NULL,
 	"user_id" uuid NOT NULL,
 	"role" text DEFAULT 'member' NOT NULL,
+	"status" text DEFAULT 'ACTIVE' NOT NULL,
+	"suspended_at" timestamp with time zone,
+	"suspended_by" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"entity_id" uuid
 );
@@ -465,7 +481,7 @@ CREATE TABLE "product_components" (
 	"company_id" integer NOT NULL,
 	"parent_product_id" integer NOT NULL,
 	"component_product_id" integer NOT NULL,
-	"quantity_per_parent" numeric(6, 2) NOT NULL,
+	"quantity_per_parent" numeric(12, 4) NOT NULL,
 	"is_reversible" boolean DEFAULT true,
 	"notes" text,
 	CONSTRAINT "unq_prod_component" UNIQUE("parent_product_id","component_product_id")
@@ -494,9 +510,10 @@ CREATE TABLE "product_variants" (
 	"variant_attributes" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"content_quantity" numeric(12, 4) DEFAULT '1' NOT NULL,
 	"sale_uom_id" integer,
-	"base_price" numeric(12, 4),
+	"unit_price" numeric(12, 4),
 	"last_cost" numeric(12, 4) DEFAULT '0',
 	"barcode" text,
+	"barcode_type" text DEFAULT 'CUSTOM' NOT NULL,
 	"image_urls" text[],
 	"std_length_cm" numeric(12, 4),
 	"std_width_cm" numeric(12, 4),
@@ -515,22 +532,23 @@ CREATE TABLE "products" (
 	"product_subtype" "product_subtype",
 	"category_id" integer NOT NULL,
 	"brand_id" integer,
-	"slug" text NOT NULL,
-	"name" text NOT NULL,
-	"shared_attributes" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"title" text NOT NULL,
 	"description" text,
+	"handle" text,
+	"attributes" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"options" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"has_variants" boolean DEFAULT false NOT NULL,
 	"image_urls" text[] DEFAULT ARRAY[]::text[],
 	"uom_inventory_id" integer NOT NULL,
 	"has_dimensional_tracking" boolean DEFAULT false,
 	"min_stock_alert" numeric(12, 4) DEFAULT '0',
-	"default_base_price" numeric(12, 4) DEFAULT '0',
+	"default_unit_price" numeric(12, 4) DEFAULT '0' NOT NULL,
 	"iva_rate_code" integer DEFAULT 4 NOT NULL,
 	"is_active" boolean DEFAULT true,
 	"created_by" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_by" uuid,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "unq_product_slug_company" UNIQUE("company_id","slug"),
 	CONSTRAINT "unq_product_id_company" UNIQUE("id","company_id"),
 	CONSTRAINT "chk_iva_rate_code" CHECK (iva_rate_code IN (0, 2, 3, 4, 6, 7))
 );
@@ -1375,6 +1393,153 @@ CREATE TABLE "tool_returns" (
 	"notes" text
 );
 --> statement-breakpoint
+CREATE TABLE "saas_addons" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"description" text NOT NULL,
+	"addon_type" text NOT NULL,
+	"billing_type" text NOT NULL,
+	"price_usd" numeric(10, 2) NOT NULL,
+	"quantity" integer NOT NULL,
+	"unit_label" text NOT NULL,
+	"validity_days" integer,
+	"is_popular" boolean DEFAULT false NOT NULL,
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "saas_document_packages" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"description" text NOT NULL,
+	"document_count" integer NOT NULL,
+	"price_usd" numeric(10, 2) NOT NULL,
+	"unit_cost_usd" numeric(10, 4) NOT NULL,
+	"validity_days" integer,
+	"is_popular" boolean DEFAULT false NOT NULL,
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "saas_features" (
+	"code" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"description" text NOT NULL,
+	"type" text NOT NULL,
+	"category" text NOT NULL,
+	"unit_label" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "saas_plan_features" (
+	"plan_id" text NOT NULL,
+	"feature_code" text NOT NULL,
+	"value_boolean" boolean,
+	"value_numeric" integer,
+	CONSTRAINT "saas_plan_features_plan_id_feature_code_pk" PRIMARY KEY("plan_id","feature_code")
+);
+--> statement-breakpoint
+CREATE TABLE "saas_plans" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"description" text NOT NULL,
+	"interval" text NOT NULL,
+	"price_usd" numeric(10, 2) DEFAULT '0.00' NOT NULL,
+	"annual_discount_percent" integer DEFAULT 0,
+	"trial_days" integer DEFAULT 0 NOT NULL,
+	"is_popular" boolean DEFAULT false NOT NULL,
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "saas_tenant_addons" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"company_id" integer NOT NULL,
+	"addon_id" text NOT NULL,
+	"quantity" integer DEFAULT 1 NOT NULL,
+	"status" text DEFAULT 'ACTIVE' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "saas_tenant_addons" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "saas_tenant_document_packs" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"company_id" integer NOT NULL,
+	"package_id" text NOT NULL,
+	"total_credits" integer NOT NULL,
+	"remaining_credits" integer NOT NULL,
+	"expires_at" timestamp with time zone,
+	"status" text DEFAULT 'ACTIVE' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "saas_tenant_document_packs" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "saas_tenant_subscriptions" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"company_id" integer NOT NULL,
+	"plan_id" text NOT NULL,
+	"status" text DEFAULT 'ACTIVE' NOT NULL,
+	"current_period_start" timestamp with time zone DEFAULT now() NOT NULL,
+	"current_period_end" timestamp with time zone,
+	"grace_period_ends_at" timestamp with time zone,
+	"cancel_at_period_end" boolean DEFAULT false NOT NULL,
+	"payment_method_type" text DEFAULT 'FREE' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "saas_tenant_subscriptions_company_id_unique" UNIQUE("company_id")
+);
+--> statement-breakpoint
+ALTER TABLE "saas_tenant_subscriptions" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "saas_tenant_usage" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"company_id" integer NOT NULL,
+	"period_key" text NOT NULL,
+	"sri_documents_used" integer DEFAULT 0 NOT NULL,
+	"storage_bytes_used" numeric(20, 0) DEFAULT '0' NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "unq_saas_tenant_usage_period" UNIQUE("company_id","period_key")
+);
+--> statement-breakpoint
+ALTER TABLE "saas_tenant_usage" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "taxonomy_attribute_values" (
+	"id" integer PRIMARY KEY NOT NULL,
+	"attribute_id" integer NOT NULL,
+	"name" text NOT NULL,
+	"handle" text NOT NULL,
+	"metadata" jsonb
+);
+--> statement-breakpoint
+CREATE TABLE "taxonomy_attributes" (
+	"id" integer PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"handle" text NOT NULL,
+	"data_type" text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "taxonomy_categories" (
+	"id" integer PRIMARY KEY NOT NULL,
+	"code" text NOT NULL,
+	"name" text NOT NULL,
+	"full_path" text NOT NULL,
+	"parent_id" integer,
+	"depth" integer DEFAULT 0 NOT NULL,
+	"path_ltree" "ltree",
+	"vector_busqueda" "tsvector",
+	CONSTRAINT "taxonomy_categories_code_unique" UNIQUE("code")
+);
+--> statement-breakpoint
+CREATE TABLE "taxonomy_category_attributes" (
+	"category_id" integer NOT NULL,
+	"attribute_id" integer NOT NULL,
+	"is_recommended" boolean DEFAULT true
+);
+--> statement-breakpoint
 ALTER TABLE "carrier_drivers" ADD CONSTRAINT "carrier_drivers_carrier_id_entities_id_fk" FOREIGN KEY ("carrier_id") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "carrier_vehicles" ADD CONSTRAINT "carrier_vehicles_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "carrier_vehicles" ADD CONSTRAINT "carrier_vehicles_carrier_id_entities_id_fk" FOREIGN KEY ("carrier_id") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1389,6 +1554,7 @@ ALTER TABLE "entity_addresses" ADD CONSTRAINT "entity_addresses_entity_id_entiti
 ALTER TABLE "entity_contacts" ADD CONSTRAINT "entity_contacts_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "job_titles" ADD CONSTRAINT "job_titles_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "job_titles" ADD CONSTRAINT "job_titles_department_id_departments_id_fk" FOREIGN KEY ("department_id") REFERENCES "public"."departments"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "companies" ADD CONSTRAINT "companies_organization_id_organization_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sri_certificates" ADD CONSTRAINT "sri_certificates_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sri_establishments" ADD CONSTRAINT "sri_establishments_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "attribute_definitions" ADD CONSTRAINT "attribute_definitions_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1400,20 +1566,23 @@ ALTER TABLE "category_attributes" ADD CONSTRAINT "category_attributes_category_i
 ALTER TABLE "category_attributes" ADD CONSTRAINT "category_attributes_attribute_def_id_attribute_definitions_id_fk" FOREIGN KEY ("attribute_def_id") REFERENCES "public"."attribute_definitions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "uom" ADD CONSTRAINT "uom_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "auth_menu_items" ADD CONSTRAINT "auth_menu_items_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "auth_menu_custom" ADD CONSTRAINT "auth_menu_custom_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "auth_menu_custom" ADD CONSTRAINT "auth_menu_custom_menu_item_id_auth_menu_items_id_fk" FOREIGN KEY ("menu_item_id") REFERENCES "public"."auth_menu_items"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "auth_menu_custom" ADD CONSTRAINT "auth_menu_custom_parent_id_auth_menu_items_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."auth_menu_items"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_menu_items" ADD CONSTRAINT "auth_menu_items_parent_id_auth_menu_items_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."auth_menu_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "auth_role_permissions" ADD CONSTRAINT "auth_role_permissions_role_id_auth_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."auth_roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_role_permissions" ADD CONSTRAINT "auth_role_permissions_permission_slug_auth_permissions_slug_fk" FOREIGN KEY ("permission_slug") REFERENCES "public"."auth_permissions"("slug") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "auth_role_permissions" ADD CONSTRAINT "auth_role_permissions_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "auth_role_permissions" ADD CONSTRAINT "auth_role_permissions_role_company_fk" FOREIGN KEY ("role_id","company_id") REFERENCES "public"."auth_roles"("id","company_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_roles" ADD CONSTRAINT "auth_roles_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_user_roles" ADD CONSTRAINT "auth_user_roles_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "auth_user_roles" ADD CONSTRAINT "auth_user_roles_role_id_auth_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."auth_roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_user_roles" ADD CONSTRAINT "auth_user_roles_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "auth_user_roles" ADD CONSTRAINT "auth_user_roles_role_company_fk" FOREIGN KEY ("role_id","company_id") REFERENCES "public"."auth_roles"("id","company_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user" ADD CONSTRAINT "user_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_inviter_id_user_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member" ADD CONSTRAINT "member_suspended_by_user_id_fk" FOREIGN KEY ("suspended_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "passkey" ADD CONSTRAINT "passkey_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1611,6 +1780,18 @@ ALTER TABLE "tool_return_items" ADD CONSTRAINT "tool_return_items_return_id_tool
 ALTER TABLE "tool_return_items" ADD CONSTRAINT "tool_return_items_loan_item_id_tool_loan_items_id_fk" FOREIGN KEY ("loan_item_id") REFERENCES "public"."tool_loan_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tool_returns" ADD CONSTRAINT "tool_returns_loan_id_tool_loans_id_fk" FOREIGN KEY ("loan_id") REFERENCES "public"."tool_loans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tool_returns" ADD CONSTRAINT "tool_returns_received_by_entities_id_fk" FOREIGN KEY ("received_by") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saas_plan_features" ADD CONSTRAINT "saas_plan_features_plan_id_saas_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."saas_plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saas_plan_features" ADD CONSTRAINT "saas_plan_features_feature_code_saas_features_code_fk" FOREIGN KEY ("feature_code") REFERENCES "public"."saas_features"("code") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saas_tenant_addons" ADD CONSTRAINT "saas_tenant_addons_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saas_tenant_addons" ADD CONSTRAINT "saas_tenant_addons_addon_id_saas_addons_id_fk" FOREIGN KEY ("addon_id") REFERENCES "public"."saas_addons"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saas_tenant_document_packs" ADD CONSTRAINT "saas_tenant_document_packs_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saas_tenant_document_packs" ADD CONSTRAINT "saas_tenant_document_packs_package_id_saas_document_packages_id_fk" FOREIGN KEY ("package_id") REFERENCES "public"."saas_document_packages"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saas_tenant_subscriptions" ADD CONSTRAINT "saas_tenant_subscriptions_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saas_tenant_subscriptions" ADD CONSTRAINT "saas_tenant_subscriptions_plan_id_saas_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."saas_plans"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saas_tenant_usage" ADD CONSTRAINT "saas_tenant_usage_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "taxonomy_attribute_values" ADD CONSTRAINT "taxonomy_attribute_values_attribute_id_taxonomy_attributes_id_fk" FOREIGN KEY ("attribute_id") REFERENCES "public"."taxonomy_attributes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "taxonomy_category_attributes" ADD CONSTRAINT "taxonomy_category_attributes_category_id_taxonomy_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."taxonomy_categories"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "taxonomy_category_attributes" ADD CONSTRAINT "taxonomy_category_attributes_attribute_id_taxonomy_attributes_id_fk" FOREIGN KEY ("attribute_id") REFERENCES "public"."taxonomy_attributes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idx_carrier_drivers_carrier_id" ON "carrier_drivers" USING btree ("carrier_id");--> statement-breakpoint
 CREATE INDEX "idx_carrier_vehicles_company_id" ON "carrier_vehicles" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_carrier_vehicles_carrier_id" ON "carrier_vehicles" USING btree ("carrier_id");--> statement-breakpoint
@@ -1634,7 +1815,6 @@ CREATE UNIQUE INDEX "idx_job_titles_company_name" ON "job_titles" USING btree ("
 CREATE INDEX "idx_job_titles_company" ON "job_titles" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_job_titles_department" ON "job_titles" USING btree ("department_id");--> statement-breakpoint
 CREATE INDEX "idx_companies_slug" ON "companies" USING btree ("slug");--> statement-breakpoint
-CREATE INDEX "idx_companies_plan" ON "companies" USING btree ("plan");--> statement-breakpoint
 CREATE INDEX "idx_companies_org_id" ON "companies" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "idx_sri_certs_company" ON "sri_certificates" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_sri_certs_active" ON "sri_certificates" USING btree ("company_id","is_active");--> statement-breakpoint
@@ -1650,14 +1830,16 @@ CREATE INDEX "idx_uom_company" ON "uom" USING btree ("company_id");--> statement
 CREATE INDEX "idx_uom_code" ON "uom" USING btree ("code");--> statement-breakpoint
 CREATE INDEX "idx_account_user" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_account_provider_unique" ON "account" USING btree ("provider_id","account_id");--> statement-breakpoint
-CREATE INDEX "idx_menu_order" ON "auth_menu_items" USING btree ("company_id","parent_id","sort_order");--> statement-breakpoint
+CREATE INDEX "idx_auth_menu_company" ON "auth_menu_custom" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_menu_order" ON "auth_menu_items" USING btree ("parent_id","sort_order");--> statement-breakpoint
 CREATE INDEX "idx_menu_active" ON "auth_menu_items" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "idx_perm_module" ON "auth_permissions" USING btree ("module");--> statement-breakpoint
 CREATE INDEX "idx_role_perms_slug" ON "auth_role_permissions" USING btree ("permission_slug");--> statement-breakpoint
-CREATE INDEX "idx_role_perms_company" ON "auth_role_permissions" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_role_perms_company_role" ON "auth_role_permissions" USING btree ("company_id","role_id");--> statement-breakpoint
+CREATE INDEX "idx_role_perms_company_role_permission" ON "auth_role_permissions" USING btree ("company_id","role_id","permission_slug");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_auth_roles_name" ON "auth_roles" USING btree ("company_id","name");--> statement-breakpoint
-CREATE INDEX "idx_user_roles_by_role" ON "auth_user_roles" USING btree ("role_id");--> statement-breakpoint
-CREATE INDEX "idx_user_roles_company" ON "auth_user_roles" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_user_roles_company_user" ON "auth_user_roles" USING btree ("company_id","user_id");--> statement-breakpoint
+CREATE INDEX "idx_user_roles_company_role" ON "auth_user_roles" USING btree ("company_id","role_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_user_email_unique" ON "user" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "idx_user_company" ON "user" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_verification_identifier" ON "verification" USING btree ("identifier");--> statement-breakpoint
@@ -1665,24 +1847,25 @@ CREATE INDEX "idx_invitation_org" ON "invitation" USING btree ("organization_id"
 CREATE INDEX "idx_invitation_email" ON "invitation" USING btree ("email");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_member_org_user" ON "member" USING btree ("organization_id","user_id");--> statement-breakpoint
 CREATE INDEX "idx_member_user" ON "member" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "idx_member_org_status" ON "member" USING btree ("organization_id","status");--> statement-breakpoint
 CREATE INDEX "idx_passkey_user" ON "passkey" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "idx_session_user" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "idx_session_expires" ON "session" USING btree ("expires_at");--> statement-breakpoint
-CREATE INDEX "idx_two_factor_user" ON "two_factor" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_two_factor_user_unique" ON "two_factor" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "idx_audit_target" ON "audit_logs" USING btree ("table_name","record_id");--> statement-breakpoint
 CREATE INDEX "idx_audit_user" ON "audit_logs" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "idx_audit_company" ON "audit_logs" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_prod_components_company" ON "product_components" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_prod_uom_conv_company" ON "product_uom_conversions" USING btree ("company_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "unq_variant_default" ON "product_variants" USING btree ("product_id") WHERE is_default = true;--> statement-breakpoint
 CREATE INDEX "idx_variants_product" ON "product_variants" USING btree ("product_id");--> statement-breakpoint
 CREATE INDEX "idx_variants_company" ON "product_variants" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_variants_barcode" ON "product_variants" USING btree ("barcode");--> statement-breakpoint
 CREATE INDEX "idx_variants_attrs" ON "product_variants" USING gin ("variant_attributes");--> statement-breakpoint
 CREATE INDEX "idx_products_company" ON "products" USING btree ("company_id");--> statement-breakpoint
-CREATE INDEX "idx_products_shared_attrs" ON "products" USING gin ("shared_attributes");--> statement-breakpoint
-CREATE INDEX "idx_products_company_category" ON "products" USING btree ("company_id","category_id");--> statement-breakpoint
-CREATE INDEX "idx_products_company_brand" ON "products" USING btree ("company_id","brand_id");--> statement-breakpoint
 CREATE INDEX "idx_products_company_cat_active" ON "products" USING btree ("company_id","category_id","is_active");--> statement-breakpoint
+CREATE INDEX "idx_products_company_brand" ON "products" USING btree ("company_id","brand_id");--> statement-breakpoint
+CREATE INDEX "idx_products_attributes" ON "products" USING gin ("attributes");--> statement-breakpoint
 CREATE INDEX "idx_vph_variant" ON "variant_price_history" USING btree ("variant_id");--> statement-breakpoint
 CREATE INDEX "idx_vph_variant_type" ON "variant_price_history" USING btree ("variant_id","price_type","created_at");--> statement-breakpoint
 CREATE INDEX "idx_vph_date" ON "variant_price_history" USING btree ("created_at");--> statement-breakpoint
@@ -1825,6 +2008,23 @@ CREATE INDEX "idx_tool_loans_company" ON "tool_loans" USING btree ("company_id")
 CREATE INDEX "idx_tri_return" ON "tool_return_items" USING btree ("return_id");--> statement-breakpoint
 CREATE INDEX "idx_tri_loan_item" ON "tool_return_items" USING btree ("loan_item_id");--> statement-breakpoint
 CREATE INDEX "idx_tool_returns_loan" ON "tool_returns" USING btree ("loan_id");--> statement-breakpoint
+CREATE INDEX "idx_saas_addons_type" ON "saas_addons" USING btree ("addon_type");--> statement-breakpoint
+CREATE INDEX "idx_saas_doc_packs_order" ON "saas_document_packages" USING btree ("sort_order");--> statement-breakpoint
+CREATE INDEX "idx_saas_features_category" ON "saas_features" USING btree ("category");--> statement-breakpoint
+CREATE INDEX "idx_saas_plan_features_code" ON "saas_plan_features" USING btree ("feature_code");--> statement-breakpoint
+CREATE INDEX "idx_saas_plans_order" ON "saas_plans" USING btree ("sort_order");--> statement-breakpoint
+CREATE INDEX "idx_saas_plans_interval" ON "saas_plans" USING btree ("interval");--> statement-breakpoint
+CREATE INDEX "idx_saas_tenant_addons_company" ON "saas_tenant_addons" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_saas_tenant_doc_packs_company" ON "saas_tenant_document_packs" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_saas_tenant_doc_packs_status" ON "saas_tenant_document_packs" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_saas_sub_company" ON "saas_tenant_subscriptions" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_saas_sub_status" ON "saas_tenant_subscriptions" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_saas_tenant_usage_company" ON "saas_tenant_usage" USING btree ("company_id");--> statement-breakpoint
+CREATE INDEX "idx_tax_val_attr" ON "taxonomy_attribute_values" USING btree ("attribute_id");--> statement-breakpoint
+CREATE INDEX "idx_tax_cat_parent" ON "taxonomy_categories" USING btree ("parent_id");--> statement-breakpoint
+CREATE INDEX "idx_tax_cat_code" ON "taxonomy_categories" USING btree ("code");--> statement-breakpoint
+CREATE INDEX "idx_tax_cat_vector" ON "taxonomy_categories" USING gin ("vector_busqueda");--> statement-breakpoint
+CREATE INDEX "idx_tax_cat_attr" ON "taxonomy_category_attributes" USING btree ("category_id","attribute_id");--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "carrier_vehicles" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "departments" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "entities" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
@@ -1837,6 +2037,7 @@ CREATE POLICY "tenant_isolation" ON "categories" AS PERMISSIVE FOR ALL TO public
 CREATE POLICY "tenant_isolation" ON "category_attributes" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "uom" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer
             OR (company_id IS NULL AND is_system = true)) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "auth_menu_custom" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "auth_role_permissions" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "auth_roles" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "auth_user_roles" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
@@ -1877,4 +2078,8 @@ CREATE POLICY "tenant_isolation" ON "purchase_quotes" AS PERMISSIVE FOR ALL TO p
 CREATE POLICY "tenant_isolation" ON "product_variant_warehouse_locations" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "price_lists" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "tool_items" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
-CREATE POLICY "tenant_isolation" ON "tool_loans" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);
+CREATE POLICY "tenant_isolation" ON "tool_loans" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "saas_tenant_addons" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "saas_tenant_document_packs" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "saas_tenant_subscriptions" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);--> statement-breakpoint
+CREATE POLICY "tenant_isolation" ON "saas_tenant_usage" AS PERMISSIVE FOR ALL TO public USING (company_id = current_setting('app.current_company_id', true)::integer) WITH CHECK (company_id = current_setting('app.current_company_id', true)::integer);
