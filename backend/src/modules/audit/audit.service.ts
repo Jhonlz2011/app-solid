@@ -123,28 +123,73 @@ export async function processAuditQueue() {
 }
 
 let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
+let listenerRetryTimeout: ReturnType<typeof setTimeout> | null = null;
+let listenerRetryAttempt = 0;
+let listenerConnecting = false;
+let auditWorkerStarted = false;
 
-export function startAuditWorker() {
-    // Escuchar notificaciones de Postgres para procesar la cola reactivamente (Wake-Up Pattern)
-    listener.listen('audit_queue_channel', () => {
+const LISTENER_RETRY_BASE_MS = 1_000;
+const LISTENER_RETRY_MAX_MS = 30_000;
+
+function connectAuditListener() {
+    if (listenerConnecting || listenerRetryTimeout) return;
+
+    listenerConnecting = true;
+    void listener.listen('audit_queue_channel', () => {
         // Debouncer para agrupar múltiples notificaciones rápidas en un solo procesamiento
         if (debounceTimeout) {
             clearTimeout(debounceTimeout);
         }
         debounceTimeout = setTimeout(() => {
-            processAuditQueue();
+            void processAuditQueue();
         }, 250);
-    });
+    }).then(() => {
+        listenerConnecting = false;
+        listenerRetryAttempt = 0;
+        console.log('✅ Audit Worker PostgreSQL listener connected');
 
-    console.log(`✅ Audit Worker Event Listener started in background (Wake-Up Pattern)`);
-    
+        // Procesa cualquier registro pendiente al recuperar la conexión.
+        void processAuditQueue();
+    }).catch((error: unknown) => {
+        listenerConnecting = false;
+        const retryDelay = Math.min(
+            LISTENER_RETRY_BASE_MS * 2 ** listenerRetryAttempt,
+            LISTENER_RETRY_MAX_MS,
+        );
+        listenerRetryAttempt += 1;
+
+        console.error(
+            `[Audit Worker] PostgreSQL listener unavailable; retrying in ${retryDelay}ms`,
+            error,
+        );
+
+        listenerRetryTimeout = setTimeout(() => {
+            listenerRetryTimeout = null;
+            connectAuditListener();
+        }, retryDelay);
+    });
+}
+
+export function startAuditWorker() {
+    if (auditWorkerStarted) return;
+    auditWorkerStarted = true;
+
+    // PostgreSQL is a dependency of the worker, not a reason to crash the API process.
+    connectAuditListener();
+
     // Procesar cualquier registro que haya quedado huérfano antes que reviviera el servidor
-    processAuditQueue();
+    void processAuditQueue();
 }
 
 export function stopAuditWorker() {
     if (debounceTimeout) {
         clearTimeout(debounceTimeout);
+        debounceTimeout = null;
     }
+    if (listenerRetryTimeout) {
+        clearTimeout(listenerRetryTimeout);
+        listenerRetryTimeout = null;
+    }
+    auditWorkerStarted = false;
     console.log("⏹️ Audit Worker suspended (connection closes with server)");
 }
