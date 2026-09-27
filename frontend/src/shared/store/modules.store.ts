@@ -75,7 +75,7 @@ export const actions = {
         const auth = useAuth();
         const user = auth.user();
         const currentUserId = user?.id ? String(user.id) : null;
-        const currentTenant = user?.companySlug || (user?.companyId ? String(user.companyId) : null);
+        const currentTenant = user?.companySlug || null;
         const cacheKey = currentUserId ? `${currentUserId}:${currentTenant || 'global'}` : null;
 
         // Reuse existing request if in progress
@@ -124,7 +124,7 @@ export const actions = {
     // Direct in-memory atomic hydration (from getMe() single-flight payload)
     setModules: (modules: ModuleConfig[], user?: { id?: string | number; companySlug?: string | null; companyId?: number | null }) => {
         const currentUserId = user?.id ? String(user.id) : null;
-        const currentTenant = user?.companySlug || (user?.companyId ? String(user.companyId) : null);
+        const currentTenant = user?.companySlug || null;
         const cacheKey = currentUserId ? `${currentUserId}:${currentTenant || 'global'}` : null;
 
         const modulesList = Array.isArray(modules) ? modules : [];

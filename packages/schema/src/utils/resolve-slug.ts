@@ -4,9 +4,20 @@
  * Pure function with no browser/Node API dependencies.
  */
 
-const RESERVED_SUBDOMAINS = new Set(['api', 'in', 'www', 'cdn', 'admin', 'static']);
+export const RESERVED_SUBDOMAINS = new Set(['api', 'in', 'www', 'cdn', 'admin', 'static']);
 const PORTAL_HOSTS = new Set(['zelys.app', 'in.zelys.app', 'www.zelys.app']);
-const SLUG_REGEX = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
+export const SLUG_REGEX = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/;
+
+export function normalizeTenantSlug(value: string | null | undefined): string | null {
+    if (!value) return null;
+    const slug = value.trim().toLowerCase();
+    if (!SLUG_REGEX.test(slug) || RESERVED_SUBDOMAINS.has(slug)) return null;
+    return slug;
+}
+
+export function isValidTenantSlug(value: string | null | undefined): value is string {
+    return normalizeTenantSlug(value) !== null;
+}
 
 /**
  * Normalizes any host or URL string to a clean lowercase domain name without protocol, path, or port.
@@ -37,7 +48,7 @@ export function normalizeHost(host: string): string {
  * @returns The resolved tenant slug, or null if no tenant identified
  */
 export function resolveSlugFromHost(host: string, querySlug?: string | null): string | null {
-    if (querySlug) return querySlug;
+    if (querySlug) return normalizeTenantSlug(querySlug);
     if (!host) return null;
 
     const cleanHost = normalizeHost(host);
@@ -45,7 +56,7 @@ export function resolveSlugFromHost(host: string, querySlug?: string | null): st
     const parts = cleanHost.split('.');
     if (parts.length === 3 && parts[1] === 'zelys' && parts[2] === 'app') {
         const sub = parts[0];
-        if (!RESERVED_SUBDOMAINS.has(sub) && SLUG_REGEX.test(sub)) {
+        if (!RESERVED_SUBDOMAINS.has(sub) && isValidTenantSlug(sub)) {
             return sub;
         }
     }
@@ -74,8 +85,12 @@ export function buildTenantUrl(
         [key: string]: any;
     }
 ): string {
+    const normalizedSlug = slug ? normalizeTenantSlug(slug) : '';
+    if (slug && !normalizedSlug) {
+        throw new Error('Invalid tenant slug');
+    }
     const cleanPath = !path ? '' : (path.startsWith('/') ? path : `/${path}`);
-    const baseUrl = slug ? `https://${slug}.zelys.app${cleanPath}` : `https://in.zelys.app${cleanPath}`;
+    const baseUrl = normalizedSlug ? `https://${normalizedSlug}.zelys.app${cleanPath}` : `https://in.zelys.app${cleanPath}`;
 
     if (options?.queryParams) {
         const searchParams = new URLSearchParams();

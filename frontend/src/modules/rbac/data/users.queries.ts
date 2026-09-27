@@ -91,6 +91,7 @@ export function useUser(id: () => string | null | undefined) {
                         email: found.email,
                         image: found.image,
                         isActive: found.isActive,
+                        membershipStatus: found.membershipStatus ?? 'ACTIVE',
                         lastLogin: found.lastLogin,
                         entityId: found.entityId,
                         entity: found.entity,

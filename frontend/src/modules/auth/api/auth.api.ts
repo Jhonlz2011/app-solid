@@ -18,6 +18,16 @@ export const authApi = {
         if (error) throwApiError(error);
         return data!;
     },
+    requestTenantHandoff: async (organizationId: string, destinationSlug: string) => {
+        const { data, error } = await api.tenants.handoff.request.post({ organizationId, destinationSlug });
+        if (error) throwApiError(error);
+        return data!;
+    },
+    consumeTenantHandoff: async (ticket: string) => {
+        const { data, error } = await api.tenants.handoff.consume.get({ query: { ticket } });
+        if (error) throwApiError(error);
+        return data!;
+    },
     acceptInvitation: async (payload: RbacAcceptInvitationType, signal?: AbortSignal) => {
         const { data, error } = await api.tenants['accept-invitation'].post(payload, { fetch: { signal } });
         if (error) throwApiError(error);

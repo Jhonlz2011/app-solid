@@ -77,8 +77,8 @@ export const ssePlugin = (app: Elysia) =>
             }
 
             // Align with host subdomain if present
-            const host = request.headers.get('x-original-host') || request.headers.get('origin') || request.headers.get('host') || '';
-            const slug = query.slug || request.headers.get('x-tenant-slug') || resolveSlugFromHost(host);
+            const host = request.headers.get('host') || '';
+            const slug = resolveSlugFromHost(host, process.env.NODE_ENV === 'production' ? null : query.slug);
             if (slug) {
                 const [hostCompany] = await adminDb
                     .select({ id: companies.id, organization_id: companies.organization_id })
@@ -92,18 +92,14 @@ export const ssePlugin = (app: Elysia) =>
                         .from(member)
                         .where(and(
                             eq(member.userId, userId),
-                            eq(member.organizationId, hostCompany.organization_id)
+                            eq(member.organizationId, hostCompany.organization_id),
+                            eq(member.status, 'ACTIVE'),
                         ))
                         .limit(1);
                     if (memberRow) {
                         companyId = hostCompany.id;
                     }
                 }
-            }
-
-            if (!companyId) {
-                const rawUser = sessionData.user as typeof sessionData.user & { companyId?: number; company_id?: number };
-                companyId = rawUser.companyId || rawUser.company_id || null;
             }
 
             const stream = new ReadableStream({

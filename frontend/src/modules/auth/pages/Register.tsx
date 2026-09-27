@@ -4,7 +4,6 @@ import { useNavigate } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { RegisterStep1Schema, RegisterStep2Schema, type RegisterStep1Data, type RegisterStep2Data } from '@app/schema/frontend';
 import { authApi } from '@modules/auth/api/auth.api';
-import { authClient } from '@shared/lib/auth-client';
 import { activateNewTenantAndRedirect } from '../utils/resolve-routing';
 import { actions, useAuth } from '@modules/auth/store/auth.store';
 import TextField from '@form/TextField';
@@ -19,6 +18,7 @@ import CompanySummaryCard from '../components/CompanySummaryCard';
 import { createUsernameAvailabilityValidator, createEmailAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
 import { PlanSelector } from '../components/PlanSelector';
 import { Badge } from '@shared/ui/display/Badge';
+import type { SaasPlanId } from '@app/schema/enums';
 
 // ─── Password Strength Meter ───
 const PasswordStrength: Component<{ password: string }> = (props) => {
@@ -52,7 +52,7 @@ const PasswordStrength: Component<{ password: string }> = (props) => {
 const Register: Component = () => {
     const navigate = useNavigate();
     const auth = useAuth();
-    const isOAuthUser = () => auth.isAuthenticated() && !auth.user()?.companySlug && (!auth.user()?.companyId || auth.user()?.companyId === 0);
+    const isOAuthUser = () => auth.isAuthenticated() && !auth.user()?.companySlug;
 
     const [step, setStep] = createSignal(0);
     const [step1Submitted, setStep1Submitted] = createSignal(false);
@@ -62,7 +62,7 @@ const Register: Component = () => {
     const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
     let turnstileActions: { reset: () => void } | undefined;
 
-    const [selectedPlanId, setSelectedPlanId] = createSignal<string>('starter_yearly');
+    const [selectedPlanId, setSelectedPlanId] = createSignal<SaasPlanId>('free');
     const [submitting, setSubmitting] = createSignal(false);
 
     // ─── STEP 1 FORM ───
@@ -191,28 +191,11 @@ const Register: Component = () => {
                 turnstileToken: turnstileToken() ?? undefined,
             });
 
-            // Automatic sign-in via Better-Auth
-            const signInRes = await authClient.signIn.email({
-                email: s1.email,
-                password: s1.password,
-            });
-
-            if (signInRes.error) {
-                toast.success('¡Empresa creada exitosamente! Por favor inicia sesión.');
-                navigate({ to: '/login', search: { redirect: undefined }, replace: true });
-                return;
-            }
-
-            // Set active organization in Better-Auth session (force refresh to pick up new org)
-            const navigatedLocally = await activateNewTenantAndRedirect(s2.slug);
-
-            // Verification email is already dispatched atomically by the backend register endpoint
+            // Email verification is mandatory. Do not create an authenticated
+            // session before the Better Auth verification flow completes.
             sessionStorage.setItem('resend_cooldown_until', String(Date.now() + 60000));
-            toast.success('¡Cuenta creada exitosamente!');
-
-            if (navigatedLocally) {
-                navigate({ to: '/dashboard', replace: true });
-            }
+            toast.success('Cuenta creada. Verifica tu correo para iniciar sesión.');
+            navigate({ to: '/login', search: { redirect: undefined }, replace: true });
         } catch (err: any) {
             setTurnstileToken(null);
             turnstileActions?.reset();

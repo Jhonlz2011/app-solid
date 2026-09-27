@@ -5,9 +5,10 @@ import { createForm } from '@tanstack/solid-form';
 import { AuthLoginSchema, type AuthLoginFormData } from '@app/schema/frontend';
 import type { DiscoverTenantItemType } from '@app/schema/dto';
 import { actions } from '@modules/auth/store/auth.store';
+import { authApi } from '../api/auth.api';
 import { useBranding, getSubdomain } from '../store/branding.store';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
-import { buildTenantUrl, isGlobalPortalHost, resolveSlugFromHost } from '@app/schema/utils';
+import { isGlobalPortalHost, resolveSlugFromHost } from '@app/schema/utils';
 import { resolvePostAuthRouting, getSafeRedirectPath, executeAuthNavigation } from '../utils/resolve-routing';
 import TextField from '@form/TextField';
 import Button from '@form/Button';
@@ -68,11 +69,9 @@ const Login: Component = () => {
   const handleSelectTenant = async (tenant: DiscoverTenantItemType) => {
     setLoadingTenants(true);
     try {
-      await actions.switchOrganization(tenant.organizationId);
       const safePath = getSafeRedirectPath(search());
-      window.location.href = buildTenantUrl(tenant.slug, safePath, {
-        queryParams: { session: 'true' },
-      });
+      const handoff = await authApi.requestTenantHandoff(tenant.organizationId, tenant.slug);
+      window.location.href = handoff.redirectUrl.replace('/dashboard', safePath);
     } catch (err: any) {
       toast.error(err?.message || 'Error al seleccionar empresa');
     } finally {
@@ -98,6 +97,7 @@ const Login: Component = () => {
         const res = await actions.login({
           email: value.email,
           password: value.password,
+          turnstileToken: turnstileToken(),
         });
 
         const safePath = getSafeRedirectPath(search());

@@ -13,7 +13,7 @@ export const createAuthRoutes = (rootRoute: any) => {
             if (!user) return { postAuthDecision: undefined };
 
             // If an authenticated user with an existing company visits /register, route to /create-company
-            if (location.pathname.includes('/register') && (user.companySlug || (user.companyId && user.companyId !== 0))) {
+            if (location.pathname.includes('/register') && user.companySlug) {
                 throw redirect({ to: '/create-company' });
             }
 

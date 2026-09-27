@@ -1,4 +1,4 @@
-import { db } from '../../core/db';
+import { db, tenantStorage } from '../../core/db';
 import { authRoles, authRolePermissions, authPermissions, authUserRoles, auditLogs } from '@app/schema/tables';
 import { eq, count, and } from '@app/schema';
 import { DomainError } from '../../core/errors';
@@ -21,6 +21,7 @@ export function logAudit(
     oldData?: Record<string, unknown>,
 ): void {
     db.insert(auditLogs).values({
+        company_id: tenantStorage.getStore()?.companyId ?? null,
         tableName,
         recordId: String(recordId),
         action,
@@ -69,13 +70,9 @@ export async function getAllRoles(companyId: number) {
 /**
  * Get single role by ID
  */
-export async function getRoleById(roleId: number, companyId?: number) {
-    const where = companyId
-        ? and(eq(authRoles.id, roleId), eq(authRoles.company_id, companyId))
-        : eq(authRoles.id, roleId);
-
+export async function getRoleById(roleId: number, companyId: number) {
     const role = await db.query.authRoles.findFirst({
-        where,
+        where: and(eq(authRoles.id, roleId), eq(authRoles.company_id, companyId)),
     });
 
     if (!role) {
@@ -88,7 +85,7 @@ export async function getRoleById(roleId: number, companyId?: number) {
 /**
  * Create a new role
  */
-export async function createRole(name: string, description?: string | null, currentUserId?: string | number, companyId?: number) {
+export async function createRole(name: string, description: string | null | undefined, currentUserId: string | number, companyId: number) {
     const trimmedName = name.trim();
     const reservedNames = Object.values(SYSTEM_ROLES).map(r => r.toLowerCase());
     if (reservedNames.includes(trimmedName.toLowerCase())) {
@@ -96,7 +93,7 @@ export async function createRole(name: string, description?: string | null, curr
     }
 
     const existing = await db.query.authRoles.findFirst({
-        where: and(eq(authRoles.company_id, companyId!), eq(authRoles.name, trimmedName)),
+        where: and(eq(authRoles.company_id, companyId), eq(authRoles.name, trimmedName)),
     });
 
     if (existing) {
@@ -105,7 +102,7 @@ export async function createRole(name: string, description?: string | null, curr
 
     const [role] = await db
         .insert(authRoles)
-        .values({ name: trimmedName, description, company_id: companyId! })
+        .values({ name: trimmedName, description, company_id: companyId })
         .returning();
 
     if (currentUserId) logAudit(currentUserId, 'INSERT', 'auth_roles', role.id, { name: trimmedName, description });
@@ -116,8 +113,10 @@ export async function createRole(name: string, description?: string | null, curr
 /**
  * Update a role
  */
-export async function updateRole(id: number, name: string, description?: string | null, currentUserId?: string | number) {
-    const oldRole = await db.query.authRoles.findFirst({ where: eq(authRoles.id, id) });
+export async function updateRole(id: number, name: string, description: string | null | undefined, currentUserId: string | number, companyId: number) {
+    const oldRole = await db.query.authRoles.findFirst({
+        where: and(eq(authRoles.id, id), eq(authRoles.company_id, companyId)),
+    });
     if (!oldRole) {
         throw new DomainError('Rol no encontrado', 404);
     }
@@ -135,7 +134,7 @@ export async function updateRole(id: number, name: string, description?: string 
     const [updated] = await db
         .update(authRoles)
         .set({ name: trimmedName, description })
-        .where(eq(authRoles.id, id))
+        .where(and(eq(authRoles.id, id), eq(authRoles.company_id, companyId)))
         .returning();
 
     if (currentUserId) logAudit(currentUserId, 'UPDATE', 'auth_roles', id, { name: trimmedName, description }, { name: oldRole.name, description: oldRole.description });
@@ -146,9 +145,9 @@ export async function updateRole(id: number, name: string, description?: string 
 /**
  * Delete a role (with protection for system roles)
  */
-export async function deleteRole(id: number, currentUserId?: string | number) {
+export async function deleteRole(id: number, currentUserId: string | number, companyId: number) {
     const role = await db.query.authRoles.findFirst({
-        where: eq(authRoles.id, id),
+        where: and(eq(authRoles.id, id), eq(authRoles.company_id, companyId)),
     });
 
     if (!role) {
@@ -162,9 +161,15 @@ export async function deleteRole(id: number, currentUserId?: string | number) {
     const usersWithRole = await db
         .select({ userId: authUserRoles.user_id })
         .from(authUserRoles)
-        .where(eq(authUserRoles.role_id, id));
+        .where(and(
+            eq(authUserRoles.role_id, id),
+            eq(authUserRoles.company_id, companyId),
+        ));
 
-    await db.delete(authRoles).where(eq(authRoles.id, id));
+    await db.delete(authRoles).where(and(
+        eq(authRoles.id, id),
+        eq(authRoles.company_id, companyId),
+    ));
 
     await Promise.all(usersWithRole.map(({ userId }) => invalidateUserRbacCache(userId, role.company_id)));
 
@@ -180,17 +185,14 @@ export async function deleteRole(id: number, currentUserId?: string | number) {
 /**
  * Get all permissions, filtered by SaaS plan availability for a company
  */
-export async function getAllPermissions(companyId?: number) {
+export async function getAllPermissions(companyId: number) {
     const permissions = await db
         .select()
         .from(authPermissions)
         .orderBy(authPermissions.slug);
 
-    let allowedModules: Set<string> | null = null;
-    if (companyId) {
-        const ent = await getTenantEntitlements(companyId);
-        allowedModules = resolveAllowedModulesForPlan(ent.planId);
-    }
+    const ent = await getTenantEntitlements(companyId);
+    const allowedModules: Set<string> = resolveAllowedModulesForPlan(ent.planId);
 
     const filteredPermissions = allowedModules
         ? permissions.filter(p => allowedModules.has(p.module))
@@ -219,7 +221,7 @@ export async function getAllPermissions(companyId?: number) {
 /**
  * Get permissions for a specific role
  */
-export async function getRolePermissions(roleId: number) {
+export async function getRolePermissions(roleId: number, companyId: number) {
     const permissions = await db
         .select({
             slug: authRolePermissions.permission_slug,
@@ -227,7 +229,10 @@ export async function getRolePermissions(roleId: number) {
         })
         .from(authRolePermissions)
         .leftJoin(authPermissions, eq(authRolePermissions.permission_slug, authPermissions.slug))
-        .where(eq(authRolePermissions.role_id, roleId));
+        .where(and(
+            eq(authRolePermissions.role_id, roleId),
+            eq(authRolePermissions.company_id, companyId),
+        ));
 
     return permissions;
 }
@@ -235,9 +240,9 @@ export async function getRolePermissions(roleId: number) {
 /**
  * Update permissions for a role
  */
-export async function updateRolePermissions(roleId: number, permissionSlugs: string[], currentUserId?: string | number) {
+export async function updateRolePermissions(roleId: number, companyId: number, permissionSlugs: string[], currentUserId: string | number) {
     const role = await db.query.authRoles.findFirst({
-        where: eq(authRoles.id, roleId),
+        where: and(eq(authRoles.id, roleId), eq(authRoles.company_id, companyId)),
     });
 
     if (!role) {
@@ -260,18 +265,27 @@ export async function updateRolePermissions(roleId: number, permissionSlugs: str
         }
     }
 
-    const oldPerms = await db.select({ slug: authRolePermissions.permission_slug }).from(authRolePermissions).where(eq(authRolePermissions.role_id, roleId));
+    const oldPerms = await db
+        .select({ slug: authRolePermissions.permission_slug })
+        .from(authRolePermissions)
+        .where(and(
+            eq(authRolePermissions.role_id, roleId),
+            eq(authRolePermissions.company_id, companyId),
+        ));
     const oldPermSlugs = oldPerms.map(p => p.slug);
 
     await db.transaction(async (tx) => {
-        await tx.delete(authRolePermissions).where(eq(authRolePermissions.role_id, roleId));
+        await tx.delete(authRolePermissions).where(and(
+            eq(authRolePermissions.role_id, roleId),
+            eq(authRolePermissions.company_id, companyId),
+        ));
 
         if (permissionSlugs.length > 0) {
             await tx.insert(authRolePermissions).values(
                 permissionSlugs.map(slug => ({
                     role_id: roleId,
                     permission_slug: slug,
-                    company_id: role.company_id,
+                    company_id: companyId,
                 }))
             );
         }
@@ -280,7 +294,10 @@ export async function updateRolePermissions(roleId: number, permissionSlugs: str
     const usersWithRole = await db
         .select({ userId: authUserRoles.user_id })
         .from(authUserRoles)
-        .where(eq(authUserRoles.role_id, roleId));
+        .where(and(
+            eq(authUserRoles.role_id, roleId),
+            eq(authUserRoles.company_id, companyId),
+        ));
 
     await Promise.all(usersWithRole.map(({ userId }) => invalidateUserRbacCache(userId, role.company_id)));
 

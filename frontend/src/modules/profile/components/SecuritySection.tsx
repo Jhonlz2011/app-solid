@@ -6,11 +6,13 @@ import { TextField } from '@form/TextField';
 import Button from '@form/Button';
 import { KeyIcon } from '@icons/KeyIcon';
 import { WarningIcon } from '@icons/WarningIcon';
+import { MfaSection } from './MfaSection';
 
 
 interface SecuritySectionProps {
     onChangePassword: (data: { currentPassword: string; newPassword: string }) => Promise<void>;
     isChanging: boolean;
+    twoFactorEnabled?: boolean | null;
 }
 
 export const SecuritySection: Component<SecuritySectionProps> = (props) => {
@@ -112,6 +114,7 @@ export const SecuritySection: Component<SecuritySectionProps> = (props) => {
                         )}
                     </form.Subscribe>
                 </form>
+            <MfaSection enabled={props.twoFactorEnabled === true} />
             </div>
     );
 };

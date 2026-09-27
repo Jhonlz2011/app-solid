@@ -54,6 +54,8 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
   // Resolve entity from member table (per-org entity mapping).
   let resolvedEntityId: string | null = null;
   let resolvedEntity: Parameters<typeof mapEntity>[0] = null;
+  let resolvedOrganizationId: string | null = null;
+  let membershipStatus: 'ACTIVE' | 'SUSPENDED' | 'REMOVED' | null = null;
 
   if (resolvedCompanyId) {
     const [memberRow] = await adminDb
@@ -63,6 +65,8 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
         entityIsClient: entities.is_client,
         entityIsSupplier: entities.is_supplier,
         entityIsEmployee: entities.is_employee,
+        organizationId: member.organizationId,
+        membershipStatus: member.status,
       })
       .from(member)
       .innerJoin(companies, eq(companies.organization_id, member.organizationId))
@@ -85,14 +89,22 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
         is_employee: memberRow.entityIsEmployee,
       };
     }
+    resolvedOrganizationId = memberRow?.organizationId ?? null;
+    membershipStatus = (memberRow?.membershipStatus as 'ACTIVE' | 'SUSPENDED' | 'REMOVED' | null) ?? null;
   }
 
-  const [roles, permissions, [company], modules, entitlements] = await Promise.all([
-    getUserRoles(user.id, resolvedCompanyId),
-    getUserPermissions(user.id, resolvedCompanyId),
+  const rbacContext = resolvedCompanyId
+    ? Promise.all([
+        getUserRoles(user.id, resolvedCompanyId),
+        getUserPermissions(user.id, resolvedCompanyId),
+      ]).then(([roles, permissions]) => ({ roles, permissions }))
+    : Promise.resolve({ roles: [] as string[], permissions: [] as string[] });
+
+  const [{ roles, permissions }, [company], modules, entitlements] = await Promise.all([
+    rbacContext,
     resolvedCompanyId
       ? adminDb
-          .select({ slug: companies.slug, plan: companies.plan })
+          .select({ slug: companies.slug })
           .from(companies)
           .where(eq(companies.id, resolvedCompanyId))
           .limit(1)
@@ -115,14 +127,16 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     image: user.image ?? null,
     twoFactorEnabled: user.twoFactorEnabled ?? false,
     entityId: resolvedEntityId,
-    isActive: user.is_active,
+    isActive: user.is_active && (membershipStatus === null || membershipStatus === 'ACTIVE'),
+    organizationId: resolvedOrganizationId,
+    membershipStatus,
     lastLogin: user.last_login,
     emailVerified: Boolean(user.emailVerified),
     roles,
     permissions,
     entity: mapEntity(resolvedEntity),
     modules,
-    plan: entitlements?.planId ?? company?.plan ?? 'free',
+    plan: entitlements?.planId ?? 'free',
     planStatus: entitlements?.status ?? 'ACTIVE',
     features: entitlements?.features ?? {},
   };

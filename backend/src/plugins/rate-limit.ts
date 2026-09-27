@@ -47,7 +47,9 @@ export interface RateLimitOptions {
 
 /**
  * Creates an enterprise-grade route guard for Elysia's beforeHandle hook.
- * Uses atomic Redis sliding window with zero TTL leak and fail-open tolerance.
+ * Uses atomic Redis sliding window with zero TTL leak. Redis failures are
+ * surfaced as a controlled 503 so public mutations do not silently lose
+ * their abuse protection.
  */
 export function createRateLimitGuard(options: RateLimitOptions) {
     const {
@@ -117,8 +119,22 @@ export function createRateLimitGuard(options: RateLimitOptions) {
                 }
             );
         } catch (error) {
-            console.warn(`[RateLimit] Redis unreachable on key "${key}", failing open:`, error);
-            return;
+            console.error(`[RateLimit] Redis unavailable for key "${key}":`, error);
+            set.status = 503;
+            set.headers['Retry-After'] = '5';
+            return new Response(
+                JSON.stringify({
+                    code: API_ERROR_CODES.INTERNAL_ERROR,
+                    message: 'El control anti-abuso no está disponible. Inténtalo de nuevo en unos segundos.',
+                }),
+                {
+                    status: 503,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Retry-After': '5',
+                    },
+                }
+            );
         }
     };
 }

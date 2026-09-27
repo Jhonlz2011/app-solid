@@ -35,6 +35,7 @@ import {
 import { broadcastToTenant } from '../../core/sse/events';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { DomainError } from '../../core/errors';
+import { mfaStepUp } from '../../plugins/mfa-step-up';
 
 // 1. PUBLIC ROUTES (Plans, Add-ons, Prepaid Packs)
 const publicSaasRoutes = new Elysia()
@@ -153,6 +154,7 @@ const publicSaasRoutes = new Elysia()
 // 2. PROTECTED TENANT ROUTES (Subscription status & upgrade)
 const protectedSaasRoutes = new Elysia()
     .use(tenantGuard)
+    .use(mfaStepUp)
     /**
      * Get subscription details, limits, and live usage for current tenant
      */
@@ -181,7 +183,8 @@ const protectedSaasRoutes = new Elysia()
                 .innerJoin(authUsers, eq(authUsers.id, member.userId))
                 .where(and(
                     eq(member.organizationId, companyOrg.organization_id),
-                    eq(authUsers.is_active, true)
+                    eq(authUsers.is_active, true),
+                    eq(member.status, 'ACTIVE')
                 ));
             activeUsersCount = countRow?.count ?? 1;
         }
@@ -201,10 +204,15 @@ const protectedSaasRoutes = new Elysia()
                 .select({ count: sql<number>`count(*)::int` })
                 .from(authUserRoles)
                 .innerJoin(authUsers, eq(authUsers.id, authUserRoles.user_id))
+                .innerJoin(member, and(
+                    eq(member.userId, authUserRoles.user_id),
+                    eq(member.organizationId, companyOrg.organization_id),
+                ))
                 .where(and(
                     eq(authUserRoles.company_id, currentCompanyId),
                     eq(authUserRoles.role_id, accountantRoles[0].id),
-                    eq(authUsers.is_active, true)
+                    eq(authUsers.is_active, true),
+                    eq(member.status, 'ACTIVE')
                 ));
             accountantAssigned = (accRow?.count ?? 0) > 0;
         }

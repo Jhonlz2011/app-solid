@@ -1,4 +1,4 @@
-import { MODULE_ACTIONS_MAP, type RbacModule } from '../enums';
+import { MODULE_ACTIONS_MAP, type RbacModule, type SaasPlanId } from '../enums';
 
 /**
  * Módulos Core disponibles en TODOS los planes (incluso Freemium)
@@ -133,8 +133,7 @@ export function resolveAllowedModulesFromFeatures(activeFeatures: string[] | Rec
 /**
  * Resuelve los módulos RBAC permitidos para un plan determinado (O(1), en memoria pura)
  */
-export function resolveAllowedModulesForPlan(planId: string = 'free'): Set<RbacModule> {
-    const normalizedPlanId = planId.toLowerCase().trim();
-    const features = PLAN_DEFAULT_ENABLED_FEATURES[normalizedPlanId] || PLAN_DEFAULT_ENABLED_FEATURES.free;
+export function resolveAllowedModulesForPlan(planId: SaasPlanId = 'free'): Set<RbacModule> {
+    const features = PLAN_DEFAULT_ENABLED_FEATURES[planId] || PLAN_DEFAULT_ENABLED_FEATURES.free;
     return resolveAllowedModulesFromFeatures(features as string[]);
 }

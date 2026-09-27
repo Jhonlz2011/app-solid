@@ -15,6 +15,7 @@ export const API_ERROR_CODES = {
     INTERNAL_ERROR: 'INTERNAL_ERROR',
     PLAN_LIMIT_EXCEEDED: 'PLAN_LIMIT_EXCEEDED',
     FEATURE_NOT_IN_PLAN: 'FEATURE_NOT_IN_PLAN',
+    MEMBERSHIP_SUSPENDED: 'MEMBERSHIP_SUSPENDED',
 } as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[keyof typeof API_ERROR_CODES];
@@ -55,6 +56,7 @@ export const ERROR_MESSAGES_ES: Record<string, string> = {
     USER_ALREADY_MEMBER: 'El usuario ya es miembro de esta empresa',
     SIGNUP_DISABLED: 'Acceso denegado a este inquilino.',
     TENANT_ACCESS_DENIED: 'Acceso denegado a este inquilino.',
+    MEMBERSHIP_SUSPENDED: 'La membresía de este usuario está suspendida en la empresa.',
     YOU_ARE_NOT_ALLOWED_TO_INVITE_USER: 'No tienes permisos para invitar a otros usuarios',
     INVITATION_EXPIRED: 'La invitación ha expirado',
     INVALID_INVITATION: 'La invitación es inválida',

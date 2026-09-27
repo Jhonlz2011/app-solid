@@ -102,7 +102,15 @@ export const TenantSubscriptionDetailResponseSchema = Type.Object({
 export type TenantSubscriptionDetailResponseType = Static<typeof TenantSubscriptionDetailResponseSchema>;
 
 export const UpgradePlanBodySchema = Type.Object({
-    planId: Type.String({ minLength: 1 }),
+    planId: Type.Union([
+        Type.Literal('free'),
+        Type.Literal('starter_monthly'),
+        Type.Literal('starter_yearly'),
+        Type.Literal('pro_monthly'),
+        Type.Literal('pro_yearly'),
+        Type.Literal('enterprise_monthly'),
+        Type.Literal('enterprise_yearly'),
+    ]),
     interval: Type.Optional(Type.Union([Type.Literal('monthly'), Type.Literal('yearly')])),
 });
 export type UpgradePlanBodyType = Static<typeof UpgradePlanBodySchema>;

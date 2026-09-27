@@ -47,6 +47,8 @@ export const ProfileResponseSchema = Type.Object({
     id: Type.String(),
     companyId: Type.Number(),
     companySlug: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    organizationId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    membershipStatus: Type.Optional(Type.Union([Type.Literal('ACTIVE'), Type.Literal('SUSPENDED'), Type.Literal('REMOVED'), Type.Null()])),
     email: Type.String({ format: 'email' }),
     name: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     username: Type.Optional(Type.Union([Type.String(), Type.Null()])),
@@ -91,6 +93,19 @@ export const UserSessionResponseSchema = Type.Object({
     location: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     created_at: Type.Union([Type.Date(), Type.String()]),
     is_current: Type.Boolean(),
+});
+
+export const MfaVerifyBodySchema = Type.Object({
+    code: Type.String({ minLength: 6, maxLength: 32 }),
+});
+
+export const MfaVerifyResponseSchema = Type.Object({
+    success: Type.Boolean(),
+});
+
+export const ChangePasswordBodySchema = Type.Object({
+    currentPassword: Type.String({ minLength: 1 }),
+    newPassword: Type.String({ minLength: 8 }),
 });
 
 // ============================================================================

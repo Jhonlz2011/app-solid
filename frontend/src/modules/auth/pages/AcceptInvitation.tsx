@@ -6,7 +6,7 @@ import { authApi } from '../api/auth.api';
 import { actions } from '../store/auth.store';
 import { authClient } from '@shared/lib/auth-client';
 import { fetchUserOrganizations, invalidateOrgCache } from '../utils/resolve-routing';
-import { resolveSlugFromHost, isGlobalPortalHost, buildTenantUrl } from '@app/schema/utils';
+import { isGlobalPortalHost } from '@app/schema/utils';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import TextField from '@form/TextField';
 import Button from '@form/Button';
@@ -78,7 +78,7 @@ export const AcceptInvitation: Component = () => {
             setSubmitting(true);
             try {
                 // 1. Set initial password & mark user as verified
-                await authApi.acceptInvitation({
+                const acceptedInvitation = await authApi.acceptInvitation({
                     token: token(),
                     email: email(),
                     password: value.password,
@@ -93,19 +93,18 @@ export const AcceptInvitation: Component = () => {
                 // 3. Resolve and activate tenant organization in Better-Auth session
                 invalidateOrgCache();
                 const orgs = await fetchUserOrganizations(true);
-                const currentSlug = resolveSlugFromHost(window.location.hostname);
-                const matchingOrg = (currentSlug ? orgs.find(o => o.slug === currentSlug) : null) || orgs[0];
-                if (matchingOrg) {
-                    await authClient.organization.setActive({ organizationId: matchingOrg.id });
-                }
+                const matchingOrg = orgs.find(o => o.id === acceptedInvitation.organizationId);
+                if (!matchingOrg?.slug) throw new Error('La organización de la invitación no está disponible');
 
                 await actions.initSession();
 
                 toast.success('¡Cuenta activada exitosamente!');
                 const isGlobal = isGlobalPortalHost(window.location.hostname);
-                if (isGlobal && matchingOrg?.slug) {
-                    window.location.href = buildTenantUrl(matchingOrg.slug, '/dashboard', { queryParams: { session: 'true' } });
+                if (isGlobal) {
+                    const handoff = await authApi.requestTenantHandoff(matchingOrg.id, matchingOrg.slug);
+                    window.location.href = handoff.redirectUrl;
                 } else {
+                    await authClient.organization.setActive({ organizationId: matchingOrg.id });
                     navigate({ to: '/dashboard', replace: true });
                 }
             } catch (err: any) {

@@ -123,8 +123,8 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
         return { error: 'Not Found', details: 'Endpoint not registered under /api' };
     }
 
-    const originalHost = request.headers.get('x-original-host') || request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
-    const slug = resolveSlugFromHost(originalHost, query.slug);
+    const originalHost = request.headers.get('host') || '';
+    const slug = resolveSlugFromHost(originalHost, env.NODE_ENV === 'production' ? null : query.slug);
 
     let html: string;
     try {

@@ -413,8 +413,8 @@ export function useAdminResetPassword() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: ({ userId, newPassword }: { userId: string; newPassword: string }) =>
-            usersApi.adminResetPassword(userId, newPassword),
+        mutationFn: ({ userId }: { userId: string }) =>
+            usersApi.adminResetPassword(userId),
         onSuccess: (_data, { userId }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.userSessions(userId) });
             queryClient.invalidateQueries({ queryKey: rbacKeys.user(userId) });

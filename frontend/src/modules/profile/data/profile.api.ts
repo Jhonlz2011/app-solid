@@ -33,15 +33,15 @@ export const profileApi = {
     },
 
     changePassword: async (body: { currentPassword: string; newPassword: string }) => {
-        const res = await authClient.changePassword({
-            currentPassword: body.currentPassword,
-            newPassword: body.newPassword,
-            revokeOtherSessions: true,
-        });
-        if (res.error) {
-            throw new Error(res.error.message || 'Error al cambiar la contraseña');
-        }
-        return { success: true };
+        const { data, error } = await api.profile.security.password.post(body);
+        if (error) throwApiError(error);
+        return data!;
+    },
+
+    verifyMfa: async (code: string) => {
+        const { data, error } = await api.profile.security.mfa.verify.post({ code });
+        if (error) throwApiError(error);
+        return data!;
     },
 
     getMySessions: async () => {

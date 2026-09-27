@@ -6,7 +6,10 @@ import { AsyncLocalStorage } from 'async_hooks';
 
 export interface TenantContext {
   companyId?: number;
+  organizationId?: string;
+  membershipStatus?: 'ACTIVE' | 'SUSPENDED' | 'REMOVED';
   userId?: string | number;
+  sessionId?: string;
   ipAddress?: string;
   tx?: any;
 }
@@ -17,7 +20,7 @@ const queryClient = postgres(env.DATABASE_URL, {
   max: 10,
   idle_timeout: 20,
   connect_timeout: 10,
-  ssl: false,
+  ssl: env.NODE_ENV === 'production' ? 'require' : false,
 });
 
 const queryClientSri = postgres(env.SRI_DATABASE_URL, { 
@@ -31,20 +34,19 @@ export const referenceDb = drizzle(queryClientSri, { logger: env.NODE_ENV === 'd
 export const listener = postgres(env.DATABASE_URL, {
   max: 1,
   idle_timeout: 0, // Keep connection alive for LISTEN
-  ssl: false,
+  ssl: env.NODE_ENV === 'production' ? 'require' : false,
 });
 
 // =============================================================================
 // Admin Database — Bypasses RLS for background workers (audit queue, etc.)
-// Uses a separate connection pool. Falls back to main DATABASE_URL if
-// ADMIN_DATABASE_URL is not configured.
+// Uses a separate connection pool. Production startup requires a dedicated URL.
 // =============================================================================
 
 const adminQueryClient = postgres(env.ADMIN_DATABASE_URL, {
   max: 3,
   idle_timeout: 20,
   connect_timeout: 10,
-  ssl: false,
+  ssl: env.NODE_ENV === 'production' ? 'require' : false,
 });
 
 export const adminDb = drizzle(adminQueryClient, {
@@ -142,8 +144,7 @@ export async function withTenant<T>(operation: () => Promise<T>): Promise<T> {
   const store = tenantStorage.getStore();
 
   if (!store?.companyId) {
-    // No tenant context — run without RLS (e.g., auth routes, system queries)
-    return await operation();
+    throw new Error('Tenant context is required for tenant-scoped database work');
   }
 
   if (store.tx) {

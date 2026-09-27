@@ -93,6 +93,7 @@ export const UserListItemResponseSchema = Type.Object({
     email: Type.String(),
     image: Type.Union([Type.String(), Type.Null()]),
     isActive: Type.Union([Type.Boolean(), Type.Null()]),
+    membershipStatus: Type.Union([Type.String(), Type.Null()]),
     lastLogin: Type.Union([Type.Date(), Type.Null()]),
     entityId: Type.Union([Type.String(), Type.Null()]),
     entity: Type.Union([UserEntityReferenceSchema, Type.Null()]),
@@ -105,6 +106,7 @@ export const UserDetailResponseSchema = Type.Object({
     email: Type.String(),
     image: Type.Union([Type.String(), Type.Null()]),
     isActive: Type.Union([Type.Boolean(), Type.Null()]),
+    membershipStatus: Type.String(),
     lastLogin: Type.Union([Type.Date(), Type.Null()]),
     entityId: Type.Union([Type.String(), Type.Null()]),
     entity: Type.Union([UserEntityReferenceSchema, Type.Null()]),
@@ -115,10 +117,9 @@ export const UserDetailResponseSchema = Type.Object({
 export const RbacUserCreateBodySchema = Type.Object({
     email: Type.String({ format: 'email' }),
     username: Type.Optional(Type.String({ minLength: 3 })),
-    password: Type.Optional(Type.String({ minLength: 8 })),
     roleIds: Type.Array(Type.Number(), { minItems: 1 }),
     entityId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-    mode: Type.Optional(Type.Union([Type.Literal('invite'), Type.Literal('direct')])),
+    mode: Type.Optional(Type.Literal('invite')),
     sendEmail: Type.Optional(Type.Boolean()),
 });
 
@@ -126,6 +127,12 @@ export const RbacAcceptInvitationBodySchema = Type.Object({
     token: Type.String({ minLength: 10 }),
     email: Type.String({ format: 'email' }),
     password: Type.String({ minLength: 8 }),
+});
+
+export const RbacAcceptInvitationResponseSchema = Type.Object({
+    success: Type.Boolean(),
+    email: Type.String({ format: 'email' }),
+    organizationId: Type.String(),
 });
 
 export const RbacUserUpdateBodySchema = Type.Object({
@@ -136,9 +143,9 @@ export const RbacUserUpdateBodySchema = Type.Object({
     email: Type.Optional(Type.String({ format: 'email' })),
 });
 
-export const RbacUserResetPasswordBodySchema = Type.Object({
-    newPassword: Type.String({ minLength: 8 }),
-});
+// Passwords are never supplied by tenant administrators. The endpoint only
+// requests Better Auth to send a single-use recovery email.
+export const RbacUserResetPasswordBodySchema = Type.Object({});
 
 export const RbacUserAssignEntityBodySchema = Type.Object({
     entityId: Type.Union([Type.String(), Type.Null()]),

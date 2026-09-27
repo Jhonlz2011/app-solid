@@ -7,7 +7,6 @@ import { EntitySelect } from '@shared/ui/selectors';
 import { FormSubmissionContext, hasFieldError, getFieldError } from '@shared/ui/form/form.types';
 import { handleFormApiErrors } from '@shared/utils/form.utils';
 import { UserRolePicker } from './shared/UserRolePicker';
-import { UserPasswordResetSection } from './shared/UserPasswordResetSection';
 
 export interface UserEditFormProps {
     formId?: string;
@@ -18,14 +17,12 @@ export interface UserEditFormProps {
     isGlobalUser?: boolean;
     isSelf?: boolean;
     isSuperadmin?: boolean;
-    onSubmit: (values: UserUpdateData & { newPassword?: string }) => void | Promise<void>;
+    onSubmit: (values: UserUpdateData) => void | Promise<void>;
     isSubmitting?: boolean;
 }
 
 export const UserEditForm: Component<UserEditFormProps> = (props) => {
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
-    const [newPassword, setNewPassword] = createSignal('');
-
     const form = createForm(() => ({
         defaultValues: {
             isActive: (props.isSelf || props.isSuperadmin) ? true : (props.defaultValues.isActive ?? true),
@@ -38,10 +35,7 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
         },
         onSubmit: async ({ value }) => {
             try {
-                await props.onSubmit({
-                    ...value,
-                    newPassword: newPassword().trim() || undefined,
-                });
+                await props.onSubmit(value);
             } catch (err) {
                 handleFormApiErrors(form, err, 'Error al actualizar el usuario', props.formId ?? 'user-edit-form');
             }
@@ -102,15 +96,6 @@ export const UserEditForm: Component<UserEditFormProps> = (props) => {
                         />
                     )}
                 </form.Field>
-
-                {/* ═══ Password change section (Only for company-local users) ═══ */}
-                <Show when={props.isGlobalUser === false}>
-                    <UserPasswordResetSection
-                        newPassword={newPassword}
-                        onPasswordChange={setNewPassword}
-                        disabled={props.isSubmitting}
-                    />
-                </Show>
 
                 {/* ═══ Role selection ═══ */}
                 <form.Field

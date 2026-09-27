@@ -59,7 +59,7 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(cors({
     origin: corsOriginValidator,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'X-Requested-With', 'x-client-id', 'x-tenant-slug', 'x-original-host', 'Authorization', 'Accept', 'Origin'],
+    allowedHeaders: ['Content-Type', 'X-Requested-With', 'x-client-id', 'x-turnstile-token', 'Authorization', 'Accept', 'Origin'],
     credentials: true,
     preflight: true,
     maxAge: 86400,

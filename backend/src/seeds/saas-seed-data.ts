@@ -15,6 +15,8 @@
 // 1. TIPOS Y ESTRUCTURAS DE DATOS SAAS
 // ============================================================================
 
+import type { SaasPlanId } from '@app/schema/enums';
+
 export type BillingInterval = 'MONTHLY' | 'YEARLY' | 'ONE_TIME';
 export type FeatureValueType = 'BOOLEAN' | 'NUMERIC';
 export type FeatureCategory = 'core' | 'modules' | 'limits' | 'storage' | 'integrations' | 'compliance';
@@ -31,7 +33,7 @@ export interface SaasFeatureDef {
 }
 
 export interface SaasPlanDef {
-    id: string;
+    id: SaasPlanId;
     name: string;
     description: string;
     interval: BillingInterval;
@@ -43,7 +45,7 @@ export interface SaasPlanDef {
 }
 
 export interface SaasPlanFeatureDef {
-    planId: string;
+    planId: SaasPlanId;
     featureCode: string;
     valueBoolean?: boolean;
     valueNumeric?: number; // -1 indica ILIMITADO
@@ -79,7 +81,7 @@ export interface DocumentPackageDef {
 export interface TenantEntitlementsExample {
     companyId: number;
     companySlug: string;
-    planId: string;
+    planId: SaasPlanId;
     planStatus: 'ACTIVE' | 'GRACE_PERIOD' | 'PAST_DUE' | 'SUSPENDED';
     gracePeriodEndsAt?: string | null; // Fecha límite para regularizar cobro antes de pasar a PAST_DUE
 
@@ -785,147 +787,8 @@ export const TENANT_ENTITLEMENTS_EXAMPLE: TenantEntitlementsExample = {
 };
 
 // ============================================================================
-// 8. FUNCIONES DE VALIDACIÓN Y RESOLUCIÓN PARA EL BACKEND (Elysia Guards)
+// ⚠️  Las funciones de validación de cuotas y entitlements (canCreateUser,
+//     canEmitSriDocument, canCreatePosRegister, canUploadFile) están en:
+//     backend/src/modules/saas/entitlements.service.ts
+//     Este archivo es exclusivamente para definiciones de datos de catálogo.
 // ============================================================================
-
-/**
- * Valida si el tenant puede crear o invitar a un nuevo usuario.
- * Si el usuario a invitar tiene el rol 'ACCOUNTANT' y el plan incluye asiento de contador
- * gratuito sin haberlo asignado aún, se le concede sin descontar de la cuota de usuarios operativos.
- */
-export function canCreateUser(
-    tenant: TenantEntitlementsExample,
-    isAccountantRole: boolean = false
-): { allowed: boolean; maxAllowed: number; current: number; isFreeAccountantSeat: boolean } {
-    if (isAccountantRole && tenant.hasFreeAccountantSeat && !tenant.accountantSeatAssigned) {
-        return {
-            allowed: true,
-            maxAllowed: tenant.basePlanUsers + tenant.addonUsers + 1,
-            current: tenant.activeUsersCount,
-            isFreeAccountantSeat: true,
-        };
-    }
-
-    const maxAllowed = tenant.basePlanUsers + tenant.addonUsers;
-    return {
-        allowed: tenant.activeUsersCount < maxAllowed,
-        maxAllowed,
-        current: tenant.activeUsersCount,
-        isFreeAccountantSeat: false,
-    };
-}
-
-/**
- * Valida si el tenant puede habilitar una nueva caja registradora POS
- */
-export function canCreatePosRegister(
-    tenant: TenantEntitlementsExample
-): { allowed: boolean; maxAllowed: number; current: number } {
-    const maxAllowed = tenant.basePlanPosRegisters + tenant.addonPosRegisters;
-    return {
-        allowed: tenant.activePosRegistersCount < maxAllowed,
-        maxAllowed,
-        current: tenant.activePosRegistersCount,
-    };
-}
-
-/**
- * Valida si el tenant tiene espacio de almacenamiento disponible para subir un archivo
- */
-export function canUploadFile(
-    tenant: TenantEntitlementsExample,
-    fileSizeBytes: number
-): { allowed: boolean; availableMb: number } {
-    const totalMb = tenant.basePlanStorageMb + tenant.addonStorageMb;
-    const availableMb = totalMb - tenant.usedStorageMb;
-    const fileMb = fileSizeBytes / (1024 * 1024);
-    return {
-        allowed: fileMb <= availableMb,
-        availableMb,
-    };
-}
-
-/**
- * Resultado estructurado de la validación de comprobantes SRI
- */
-export interface SriDocumentEmissionResult {
-    allowed: boolean;
-    source: 'PLAN_UNLIMITED' | 'PLAN' | 'PACK' | 'NONE';
-    availableCount: number;
-    isInGracePeriod?: boolean;
-    isFupWarning?: boolean; // Alerta preventiva de uso justo para planes ilimitados
-    message?: string;
-}
-
-/**
- * Valida la emisión de comprobantes electrónicos SRI:
- * - Si el tenant está en 'PAST_DUE' o 'SUSPENDED', se bloquea la emisión.
- * - Si está en 'GRACE_PERIOD' (ej. 3-5 días tras fallo de pago), se permite emitir pero con flag de advertencia.
- * - Si el plan tiene 'limit === -1', la emisión es ILIMITADA (Planes Pro y Corporativo con salvaguarda FUP).
- * - Si no, consume primero la cuota del periodo regular (Freemium: 15 docs/año, Emprendedor: 250 docs/mes) y luego los paquetes prepago activos.
- */
-export function canEmitSriDocument(
-    tenant: TenantEntitlementsExample
-): SriDocumentEmissionResult {
-    // 0. Validación de estado de cuenta
-    if (tenant.planStatus === 'SUSPENDED' || tenant.planStatus === 'PAST_DUE') {
-        return {
-            allowed: false,
-            source: 'NONE',
-            availableCount: 0,
-            message: 'Cuenta suspendida o con pago vencido. Por favor regularice su suscripción.',
-        };
-    }
-
-    const isInGracePeriod = tenant.planStatus === 'GRACE_PERIOD';
-    const limit = tenant.planSriLimit ?? tenant.planMonthlySriLimit ?? 0;
-    const used = tenant.planSriUsed ?? tenant.planMonthlySriUsed ?? 0;
-
-    // 1. Facturación Ilimitada (Planes Pro y Corporativo) con Política de Uso Justo (FUP)
-    if (limit === -1) {
-        // Soft limit de FUP: 3,000 docs/mes en Pro, 15,000 docs/mes en Corp para alertar anomalías o loops
-        const isFupWarning = used >= 3000;
-        return {
-            allowed: true,
-            source: 'PLAN_UNLIMITED',
-            availableCount: Infinity,
-            isInGracePeriod,
-            isFupWarning,
-            message: isFupWarning
-                ? 'Aviso de uso justo: El volumen mensual de emisión ha superado el umbral preventivo de 3,000 documentos.'
-                : undefined,
-        };
-    }
-
-    // 2. Cuota del periodo regular (Freemium: 15 docs/año, Emprendedor: 250 docs/mes)
-    const planRemaining = Math.max(0, limit - used);
-    const packsRemaining = tenant.purchasedDocumentPacks
-        .filter((p) => p.status === 'ACTIVE')
-        .reduce((sum, p) => sum + p.remainingCredits, 0);
-
-    const totalAvailable = planRemaining + packsRemaining;
-
-    if (planRemaining > 0) {
-        return {
-            allowed: true,
-            source: 'PLAN',
-            availableCount: totalAvailable,
-            isInGracePeriod,
-        };
-    }
-    if (packsRemaining > 0) {
-        return {
-            allowed: true,
-            source: 'PACK',
-            availableCount: totalAvailable,
-            isInGracePeriod,
-        };
-    }
-    return {
-        allowed: false,
-        source: 'NONE',
-        availableCount: 0,
-        isInGracePeriod,
-        message: 'Ha agotado su cuota de comprobantes. Adquiera un paquete de recarga o suba de plan.',
-    };
-}

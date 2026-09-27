@@ -14,7 +14,7 @@ import { SkeletonLoader } from '@display/SkeletonLoader';
 import { useUser, useRoles } from '../data/users.queries';
 import {
     useUpdateUser, useAssignUserRoles,
-    useSetUserEntity, useAdminResetPassword,
+    useSetUserEntity,
     useDeactivateUser, useRestoreUser,
 } from '../data/users.mutations';
 import { useAuth } from '@modules/auth/store/auth.store';
@@ -38,7 +38,6 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
     const updateMutation = useUpdateUser();
     const assignRolesMutation = useAssignUserRoles();
     const setEntityMutation = useSetUserEntity();
-    const resetPwMutation = useAdminResetPassword();
     const deactivateMut = useDeactivateUser();
     const restoreMut = useRestoreUser();
 
@@ -56,7 +55,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
 
     const canDeactivate = () => !isCurrentUser() && !isSuperadmin();
 
-    const handleSubmit = async (values: UserUpdateData & { newPassword?: string }) => {
+    const handleSubmit = async (values: UserUpdateData) => {
         const targetId = userId();
         if (!targetId) return;
 
@@ -85,20 +84,9 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
                 );
             }
 
-            // Password reset
-            if (values.newPassword) {
-                promises.push(
-                    resetPwMutation.mutateAsync({
-                        userId: targetId,
-                        newPassword: values.newPassword,
-                    })
-                );
-            }
-
             await Promise.all(promises);
 
             const msgs = ['Usuario actualizado correctamente'];
-            if (values.newPassword) msgs.push('Contraseña restablecida — sesiones cerradas');
             toast.success(msgs.join('. '));
             close();
         } catch (err: any) {
@@ -122,7 +110,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
 
     const isPending = () =>
         updateMutation.isPending || assignRolesMutation.isPending ||
-        setEntityMutation.isPending || resetPwMutation.isPending ||
+        setEntityMutation.isPending ||
         deactivateMut.isPending || restoreMut.isPending;
 
     return (

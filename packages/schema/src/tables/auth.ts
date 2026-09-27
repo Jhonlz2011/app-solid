@@ -109,12 +109,16 @@ export const member = pgTableV2("member", {
     organizationId: text("organization_id").references(() => organization.id, { onDelete: 'cascade' }).notNull(),
     userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
     role: text("role").default("member").notNull(),
+    status: text("status").default("ACTIVE").notNull(),
+    suspendedAt: timestamp("suspended_at", TZ),
+    suspendedBy: uuid("suspended_by").references(() => user.id, { onDelete: 'set null' }),
     createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
     // Per-org entity mapping: resolves user → entity (client/supplier/employee) per company
     entityId: uuid("entity_id").references(() => entities.id),
 }, (t) => [
     uniqueIndex("idx_member_org_user").on(t.organizationId, t.userId),
     index("idx_member_user").on(t.userId),
+    index("idx_member_org_status").on(t.organizationId, t.status),
 ]);
 
 export const invitation = pgTableV2("invitation", {
@@ -137,7 +141,7 @@ export const twoFactor = pgTableV2("two_factor", {
     backupCodes: text("backup_codes").notNull(),
     userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
 }, (t) => [
-    index("idx_two_factor_user").on(t.userId),
+    uniqueIndex("idx_two_factor_user_unique").on(t.userId),
 ]);
 
 export const passkey = pgTableV2("passkey", {
@@ -174,6 +178,7 @@ export const authRoles = pgTableV2("auth_roles", {
     createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
 }, (t) => [
     uniqueIndex("idx_auth_roles_name").on(t.company_id, t.name),
+    uniqueIndex("idx_auth_roles_id_company").on(t.id, t.company_id),
     tenantPolicy(),
 ]).enableRLS();
 
@@ -187,24 +192,35 @@ export const authPermissions = pgTableV2("auth_permissions", {
 ]);
 
 export const authRolePermissions = pgTableV2("auth_role_permissions", {
-    role_id: integer("role_id").references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
+    role_id: integer("role_id").notNull(),
     permission_slug: text("permission_slug").references(() => authPermissions.slug, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
     company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }).notNull(),
 }, (t) => [
     primaryKey({ columns: [t.role_id, t.permission_slug] }),
+    foreignKey({
+        columns: [t.role_id, t.company_id],
+        foreignColumns: [authRoles.id, authRoles.company_id],
+        name: 'auth_role_permissions_role_company_fk',
+    }).onDelete('cascade'),
     index("idx_role_perms_slug").on(t.permission_slug),
     index("idx_role_perms_company_role").on(t.company_id, t.role_id),
+    index("idx_role_perms_company_role_permission").on(t.company_id, t.role_id, t.permission_slug),
     tenantPolicy(),
 ]).enableRLS();
 
 export const authUserRoles = pgTableV2("auth_user_roles", {
     user_id: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
-    role_id: integer("role_id").references(() => authRoles.id, { onDelete: 'cascade' }).notNull(),
+    role_id: integer("role_id").notNull(),
     company_id: integer("company_id").references(() => companies.id).notNull(),
 }, (t) => [
     primaryKey({ columns: [t.company_id, t.user_id, t.role_id] }),
-    index("idx_user_roles_user").on(t.user_id),
-    index("idx_user_roles_by_role").on(t.role_id),
+    foreignKey({
+        columns: [t.role_id, t.company_id],
+        foreignColumns: [authRoles.id, authRoles.company_id],
+        name: 'auth_user_roles_role_company_fk',
+    }).onDelete('cascade'),
+    index("idx_user_roles_company_user").on(t.company_id, t.user_id),
+    index("idx_user_roles_company_role").on(t.company_id, t.role_id),
     tenantPolicy(),
 ]).enableRLS();
 

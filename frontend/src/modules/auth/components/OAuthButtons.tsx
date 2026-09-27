@@ -106,6 +106,9 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
         provider,
         callbackURL,
         errorCallbackURL,
+        // New OAuth users are only created from the explicit registration
+        // flow. Normal login never implicitly provisions an identity.
+        requestSignUp: props.mode === 'register',
       });
 
       if (res?.error) {

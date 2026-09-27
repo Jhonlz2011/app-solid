@@ -183,9 +183,9 @@ export const usersApi = {
     },
 
     // ─── Admin Password Reset ────────────────────────────────────
-    adminResetPassword: async (userId: string, newPassword: string) => {
+    adminResetPassword: async (userId: string) => {
         const userPath = api.rbac.users({ id: userId });
-        const { data, error } = await userPath['reset-password'].post({ newPassword });
+        const { data, error } = await userPath['reset-password'].post({});
         if (error) throwApiError(error);
         return data!;
     },

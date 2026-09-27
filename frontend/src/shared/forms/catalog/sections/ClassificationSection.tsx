@@ -197,15 +197,6 @@ const ClassificationSection: Component<ClassificationSectionProps> = (props) => 
                                                     <p class="text-[11px] text-muted leading-tight line-clamp-2">
                                                         {opt.description}
                                                     </p>
-
-                                                    {/* Selection Radio Indicator Dot */}
-                                                    <div 
-                                                        class="absolute top-2.5 right-2.5 size-2 rounded-full transition-all"
-                                                        classList={{
-                                                            'bg-primary ring-2 ring-primary/30 scale-100': isSelected(),
-                                                            'opacity-0 scale-50': !isSelected(),
-                                                        }}
-                                                    />
                                                 </div>
                                             );
                                         }}

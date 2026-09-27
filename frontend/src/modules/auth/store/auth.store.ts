@@ -10,6 +10,7 @@ import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
 import { brandingActions } from "./branding.store";
 import { getFriendlyErrorMessage } from "@shared/utils/api-errors";
 import { invalidateOrgCache } from "../utils/resolve-routing";
+import { authApi } from '../api/auth.api';
 
 // Prevent multiple initStore() calls
 let storeInitialized = false;
@@ -26,8 +27,8 @@ let currentSessionId: string | null = null;
 let currentActiveOrgId: string | null = null;
 
 // Helper to strip non-serializable fields from ProfileType before sending via BroadcastChannel
-const sanitizeUser = ({ id, username, email, roles, permissions, entity, image }: ProfileType): Partial<ProfileType> =>
-    ({ id, username, email, roles, permissions, entity, image });
+const sanitizeUser = ({ id, username, email, roles, permissions, entity, image, companyId, organizationId, membershipStatus }: ProfileType): Partial<ProfileType> =>
+    ({ id, username, email, roles, permissions, entity, image, companyId, organizationId, membershipStatus });
 
 // --- ESTADO REACTIVO ---
 interface AuthState {
@@ -50,21 +51,27 @@ const setSessionFlag = (active: boolean) => {
 // --- ACTIONS ---
 
 export const actions = {
-    login: async (credentials: { email: string; password: string }) => {
+    login: async (credentials: { email: string; password: string; turnstileToken?: string | null }) => {
         setState('status', 'loading');
         try {
+            invalidateOrgCache();
             const emailOrUsername = credentials.email.trim();
             const isEmail = emailOrUsername.includes('@');
+            const turnstileHeaders = credentials.turnstileToken
+                ? { 'x-turnstile-token': credentials.turnstileToken }
+                : {};
             let authRes;
             if (isEmail) {
                 authRes = await authClient.signIn.email({
                     email: emailOrUsername,
                     password: credentials.password,
+                    fetchOptions: { headers: turnstileHeaders },
                 });
             } else {
                 authRes = await authClient.signIn.username({
                     username: emailOrUsername,
                     password: credentials.password,
+                    fetchOptions: { headers: turnstileHeaders },
                 });
             }
 
@@ -250,6 +257,19 @@ export const actions = {
             setState('status', 'loading');
 
             try {
+                // A tenant handoff is an opaque, short-lived ticket. It is
+                // consumed before loading profile/RBAC so the active org is
+                // established on the API session first.
+                if (typeof window !== 'undefined') {
+                    const url = new URL(window.location.href);
+                    const handoff = url.searchParams.get('handoff');
+                    if (handoff) {
+                        await authApi.consumeTenantHandoff(handoff);
+                        url.searchParams.delete('handoff');
+                        window.history.replaceState({}, '', url.toString());
+                        invalidateOrgCache();
+                    }
+                }
                 // Cookie goes automatically via credentials: 'include'
                 const userData = await profileApi.getMe();
                 currentSessionId = userData.sessionId ?? null;
@@ -408,13 +428,18 @@ export const actions = {
             // Navigate if still on the login page
             // Preserve redirect param if present (e.g., /login?redirect=/suppliers → /suppliers)
             if (window.location.pathname.startsWith('/login')) {
-                const { isGlobalPortalHost, buildTenantUrl } = await import('@app/schema/utils');
+                const { isGlobalPortalHost } = await import('@app/schema/utils');
                 const params = new URLSearchParams(window.location.search);
                 const redirectTo = params.get('redirect');
                 const safePath = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
                 const isGlobal = isGlobalPortalHost(window.location.hostname);
                 if (isGlobal && data.user.companySlug) {
-                    window.location.href = buildTenantUrl(data.user.companySlug, safePath, { queryParams: { session: 'true' } });
+                    const organizations = await authClient.organization.list();
+                    const organization = organizations.data?.find((item) => item.slug === data.user.companySlug);
+                    if (organization?.slug) {
+                        const handoff = await authApi.requestTenantHandoff(organization.id, organization.slug);
+                        window.location.href = handoff.redirectUrl.replace('/dashboard', safePath);
+                    }
                 } else {
                     window.location.href = safePath;
                 }

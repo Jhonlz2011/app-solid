@@ -7,16 +7,67 @@ import {
   TenantRegisterResponseSchema,
   TenantBrandingResponseSchema,
   RbacAcceptInvitationBodySchema,
+  RbacAcceptInvitationResponseSchema,
+  TenantHandoffRequestBodySchema,
+  TenantHandoffRequestResponseSchema,
+  TenantHandoffConsumeQuerySchema,
+  TenantHandoffConsumeResponseSchema,
 } from '@app/schema/backend';
 import { registerRateLimit, checkRateLimit } from '../../plugins/rate-limit';
 import { ipPlugin, getIpAndUserAgent } from '../../plugins/ip';
 import { adminDb } from '../../core/db';
-import { companies, user } from '@app/schema/tables';
-import { eq } from '@app/schema';
-import { resolveSlugFromHost } from '@app/schema/utils';
+import { companies, user, member, sessions } from '@app/schema/tables';
+import { eq, and } from '@app/schema';
+import { resolveSlugFromHost, normalizeTenantSlug, buildTenantUrl } from '@app/schema/utils';
 import { getTenantBySlug } from '../../core/spa';
 import { auth } from '../../config/better-auth';
 import { UnauthorizedError, DomainError } from '../../core/errors';
+import { env } from '../../config/env';
+import { redis } from '../../core/cache/redis';
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+
+const HANDOFF_TTL_SECONDS = 60;
+const CONSUME_HANDOFF_SCRIPT = `
+local value = redis.call('GET', KEYS[1])
+if not value then return false end
+redis.call('DEL', KEYS[1])
+return value
+`;
+
+type HandoffPayload = {
+  userId: string;
+  organizationId: string;
+  destinationSlug: string;
+  nonce: string;
+  expiresAt: number;
+};
+
+function signHandoff(payload: HandoffPayload): string {
+  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = createHmac('sha256', env.BETTER_AUTH_SECRET)
+    .update(encoded)
+    .digest('base64url');
+  return `${encoded}.${signature}`;
+}
+
+function verifyHandoff(ticket: string): HandoffPayload | null {
+  const [encoded, signature] = ticket.split('.');
+  if (!encoded || !signature) return null;
+  const expected = createHmac('sha256', env.BETTER_AUTH_SECRET)
+    .update(encoded)
+    .digest('base64url');
+  if (expected.length !== signature.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString()) as HandoffPayload;
+    return payload.expiresAt > Date.now() ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+function handoffRedisKey(ticket: string): string {
+  return `auth:tenant-handoff:${createHash('sha256').update(ticket).digest('hex')}`;
+}
 
 export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   .use(ipPlugin)
@@ -33,12 +84,133 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
     },
     {
       body: RbacAcceptInvitationBodySchema,
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          email: t.String(),
-        }),
-      },
+      response: { 200: RbacAcceptInvitationResponseSchema },
+    }
+  )
+
+  // =========================================================================
+  // POST /handoff/request — short-lived, one-use tenant handoff ticket
+  // =========================================================================
+  .post(
+    '/handoff/request',
+    async ({ body, request }) => {
+      const sessionData = await auth.api.getSession({ headers: request.headers });
+      const sessionUser = sessionData?.user as (typeof sessionData extends null ? never : { isActive?: boolean; is_active?: boolean; emailVerified?: boolean });
+      if (!sessionData?.user || sessionUser?.isActive === false || sessionUser?.is_active === false || sessionUser?.emailVerified !== true) {
+        throw new UnauthorizedError('La sesión no está habilitada para cambiar de empresa');
+      }
+
+      const destinationSlug = normalizeTenantSlug(body.destinationSlug);
+      if (!destinationSlug) throw new DomainError('Destino de tenant inválido', 400);
+
+      const [company] = await adminDb
+        .select({ id: companies.id, organizationId: companies.organization_id, slug: companies.slug })
+        .from(companies)
+        .where(and(
+          eq(companies.organization_id, body.organizationId),
+          eq(companies.slug, destinationSlug),
+        ))
+        .limit(1);
+      if (!company?.organizationId) throw new DomainError('La empresa solicitada no existe', 404);
+
+      const [membership] = await adminDb
+        .select({ id: member.id })
+        .from(member)
+        .where(and(
+          eq(member.organizationId, company.organizationId),
+          eq(member.userId, sessionData.user.id),
+          eq(member.status, 'ACTIVE'),
+        ))
+        .limit(1);
+      if (!membership) throw new DomainError('No perteneces a esta empresa', 403);
+
+      const payload: HandoffPayload = {
+        userId: sessionData.user.id,
+        organizationId: company.organizationId,
+        destinationSlug,
+        nonce: randomUUID(),
+        expiresAt: Date.now() + HANDOFF_TTL_SECONDS * 1000,
+      };
+      const ticket = signHandoff(payload);
+      const stored = await redis.set(handoffRedisKey(ticket), JSON.stringify(payload), 'EX', HANDOFF_TTL_SECONDS, 'NX');
+      if (stored !== 'OK') throw new DomainError('No se pudo crear el handoff de tenant', 503);
+
+      return {
+        ticket,
+        redirectUrl: buildTenantUrl(destinationSlug, '/dashboard', { queryParams: { handoff: ticket } }),
+        expiresInSeconds: HANDOFF_TTL_SECONDS,
+      };
+    },
+    {
+      body: TenantHandoffRequestBodySchema,
+      response: TenantHandoffRequestResponseSchema,
+    }
+  )
+
+  // =========================================================================
+  // GET /handoff/consume — validates and consumes the ticket exactly once
+  // =========================================================================
+  .get(
+    '/handoff/consume',
+    async ({ query, request }) => {
+      const sessionData = await auth.api.getSession({ headers: request.headers });
+      if (!sessionData?.user || sessionData.user.emailVerified !== true) {
+        throw new UnauthorizedError('La sesión no está habilitada para cambiar de empresa');
+      }
+
+      const signedPayload = verifyHandoff(query.ticket);
+      if (!signedPayload || signedPayload.userId !== sessionData.user.id) {
+        throw new DomainError('El handoff es inválido o expiró', 401);
+      }
+
+      const key = handoffRedisKey(query.ticket);
+      // GET + DEL is not safe under concurrent requests. Consume atomically
+      // so the one-use guarantee survives races across API instances.
+      const storedRaw = await redis.eval(CONSUME_HANDOFF_SCRIPT, 1, key) as string | null | false;
+      if (!storedRaw) throw new DomainError('El handoff ya fue utilizado o expiró', 401);
+
+      const storedPayload = JSON.parse(String(storedRaw)) as HandoffPayload;
+      if (storedPayload.nonce !== signedPayload.nonce || storedPayload.organizationId !== signedPayload.organizationId) {
+        throw new DomainError('El handoff es inválido', 401);
+      }
+
+      const [company] = await adminDb
+        .select({ id: companies.id, slug: companies.slug, organizationId: companies.organization_id })
+        .from(companies)
+        .where(eq(companies.organization_id, signedPayload.organizationId))
+        .limit(1);
+      const [membership] = company?.organizationId
+        ? await adminDb
+          .select({ id: member.id })
+          .from(member)
+          .where(and(
+            eq(member.organizationId, company.organizationId),
+            eq(member.userId, sessionData.user.id),
+            eq(member.status, 'ACTIVE'),
+          ))
+          .limit(1)
+        : [];
+      if (!company?.organizationId || company.slug !== signedPayload.destinationSlug || !membership) {
+        throw new DomainError('La membresía del tenant no está activa', 403);
+      }
+
+      await adminDb
+        .update(sessions)
+        .set({ activeOrganizationId: company.organizationId })
+        .where(and(
+          eq(sessions.id, sessionData.session.id),
+          eq(sessions.userId, sessionData.user.id),
+        ));
+
+      return {
+        organizationId: company.organizationId,
+        companyId: company.id,
+        slug: company.slug,
+      };
+    },
+    {
+      query: TenantHandoffConsumeQuerySchema,
+      response: TenantHandoffConsumeResponseSchema,
     }
   )
 
@@ -49,7 +221,10 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
     '/register',
     async ({ body, request, set }) => {
       const { ipAddress, userAgent } = getIpAndUserAgent(request);
-      const result = await register(body, userAgent, ipAddress);
+      const expectedHostname = (() => {
+        try { return request.headers.get('origin') ? new URL(request.headers.get('origin')!).hostname : undefined; } catch { return undefined; }
+      })();
+      const result = await register(body, userAgent, ipAddress, expectedHostname, request.headers.get('x-request-id') ?? undefined);
       set.status = 201;
       return result;
     },
@@ -75,8 +250,15 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
         throw new UnauthorizedError('Debes haber iniciado sesión para registrar una empresa');
       }
 
+      if (sessionData.user.isActive === false || sessionData.user.emailVerified !== true) {
+        throw new UnauthorizedError('La cuenta debe estar activa y tener el correo verificado');
+      }
+
       const { ipAddress } = getIpAndUserAgent(request);
-      const result = await onboardTenant(sessionData.user.id, body, ipAddress);
+      const expectedHostname = (() => {
+        try { return request.headers.get('origin') ? new URL(request.headers.get('origin')!).hostname : undefined; } catch { return undefined; }
+      })();
+      const result = await onboardTenant(sessionData.user.id, body, ipAddress, expectedHostname, request.headers.get('x-request-id') ?? undefined);
       set.status = 201;
       return result;
     },
@@ -91,10 +273,12 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   // GET /check-slug/:slug — Slug availability check (global scope)
   // =========================================================================
   .get('/check-slug/:slug', async ({ params }) => {
+    const slug = normalizeTenantSlug(params.slug);
+    if (!slug) throw new DomainError('Slug inválido o reservado', 400);
     const [existing] = await adminDb
       .select({ id: companies.id })
       .from(companies)
-      .where(eq(companies.slug, params.slug))
+      .where(eq(companies.slug, slug))
       .limit(1);
     return { available: !existing };
   }, {
@@ -173,8 +357,8 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   // GET /tenant-info — Tenant branding for login page (public, cached)
   // =========================================================================
   .get('/tenant-info', async ({ query, request }) => {
-    const host = request.headers.get('x-original-host') || request.headers.get('origin') || request.headers.get('host') || '';
-    const slug = query.slug || request.headers.get('x-tenant-slug') || resolveSlugFromHost(host);
+    const host = request.headers.get('host') || '';
+    const slug = resolveSlugFromHost(host, env.NODE_ENV === 'production' ? null : query.slug);
 
     if (!slug) {
       throw new DomainError('No tenant slug resolved from query or Host header', 400);
@@ -208,8 +392,8 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   // GET /tenant-manifest — PWA manifest.json per tenant (public, cached)
   // =========================================================================
   .get('/tenant-manifest', async ({ query, request, set }) => {
-    const host = request.headers.get('x-original-host') || request.headers.get('origin') || request.headers.get('host') || '';
-    const slug = query.slug || request.headers.get('x-tenant-slug') || resolveSlugFromHost(host);
+    const host = request.headers.get('host') || '';
+    const slug = resolveSlugFromHost(host, env.NODE_ENV === 'production' ? null : query.slug);
 
     let companyName = 'Zelys ERP';
     let shortName = 'Zelys';

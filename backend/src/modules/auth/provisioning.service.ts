@@ -13,7 +13,7 @@ import {
     authMenuItems, warehouses, warehouseLocations, uom,
     saasTenantSubscriptions,
 } from '@app/schema/tables';
-import type { MenuItemStatus, RbacModule } from '@app/schema/enums';
+import type { MenuItemStatus, RbacModule, SaasPlanId } from '@app/schema/enums';
 import { resolveAllowedModulesForPlan } from '@app/schema/backend';
 import { cacheService } from '../../core/cache';
 
@@ -28,7 +28,7 @@ export async function seedCompanyRBAC(
     tx: Tx,
     companyId: number,
     ownerUserId: string | number,
-    planId: string = 'free'
+    planId: SaasPlanId = 'free'
 ) {
     const ownerUserIdStr = String(ownerUserId);
 
@@ -97,7 +97,8 @@ export async function seedCompanyRBAC(
 export async function seedCompanySubscription(
     tx: Tx,
     companyId: number,
-    planId: string = 'free',
+    planId: SaasPlanId = 'free',
+    status: 'ACTIVE' | 'TRIAL' | 'PENDING_PAYMENT' = 'ACTIVE',
     paymentMethod: string = 'FREE'
 ) {
     const normalizedPlanId = planId.toLowerCase().trim();
@@ -107,7 +108,7 @@ export async function seedCompanySubscription(
         .values({
             company_id: companyId,
             plan_id: normalizedPlanId,
-            status: 'ACTIVE',
+            status,
             payment_method_type: paymentMethod,
             current_period_start: new Date(),
         })

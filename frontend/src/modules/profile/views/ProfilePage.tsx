@@ -180,6 +180,7 @@ const ProfilePage: Component = () => {
                                     <SecuritySection
                                         onChangePassword={handleChangePassword}
                                         isChanging={changePasswordMutation.isPending}
+                                        twoFactorEnabled={profileData().twoFactorEnabled}
                                     />
                                 </TabsContent>
                                 <TabsContent value="sessions" forceMount>

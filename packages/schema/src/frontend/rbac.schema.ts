@@ -6,8 +6,7 @@ export const UserCreateSchema = object({
     roleIds: pipe(array(number()), minLength(1, 'Debes asignar al menos un rol al usuario')),
     entityId: optional(nullable(string())),
     username: optional(union([UsernameFormatSchema, literal('')])),
-    password: optional(union([pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres')), literal('')])),
-    mode: optional(union([literal('invite'), literal('direct')])),
+    mode: optional(literal('invite')),
     sendEmail: optional(boolean()),
 });
 export type UserCreateData = InferInput<typeof UserCreateSchema>;
@@ -33,9 +32,7 @@ export const UserUpdateSchema = object({
 export type UserUpdateData = InferInput<typeof UserUpdateSchema>;
 
 // --- PASSWORD RESET (Admin) ---
-export const UserPasswordResetSchema = object({
-    newPassword: pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres')),
-});
+export const UserPasswordResetSchema = object({});
 export type UserPasswordResetData = InferInput<typeof UserPasswordResetSchema>;
 
 // --- ENTITY ASSIGNMENT ---

@@ -50,9 +50,7 @@ function initAliases(): void {
     let storedAliases: Record<string, string> = {};
     if (typeof window !== 'undefined') {
         try {
-            const stored = localStorage.getItem(`${ALIAS_CACHE_PREFIX}${slug}`)
-                || localStorage.getItem(`${ALIAS_CACHE_PREFIX}latest`)
-                || localStorage.getItem(`${ALIAS_CACHE_PREFIX}default`);
+            const stored = localStorage.getItem(`${ALIAS_CACHE_PREFIX}${slug}`);
             if (stored) storedAliases = JSON.parse(stored);
         } catch {}
     }
@@ -206,7 +204,6 @@ export function setRouteAliases(tenantAliases: Record<string, string>, tenantSlu
         try {
             const aliasJson = JSON.stringify(tenantAliases);
             localStorage.setItem(`${ALIAS_CACHE_PREFIX}${slug}`, aliasJson);
-            localStorage.setItem(`${ALIAS_CACHE_PREFIX}latest`, aliasJson);
         } catch (e) {
             console.warn('Failed to persist route aliases to localStorage:', e);
         }
@@ -238,9 +235,7 @@ function initRouteLabels(): void {
     let storedLabels: Record<string, string> = {};
     if (typeof window !== 'undefined') {
         try {
-            const stored = localStorage.getItem(`${LABELS_CACHE_PREFIX}${slug}`)
-                || localStorage.getItem(`${LABELS_CACHE_PREFIX}latest`)
-                || localStorage.getItem(`${LABELS_CACHE_PREFIX}default`);
+            const stored = localStorage.getItem(`${LABELS_CACHE_PREFIX}${slug}`);
             if (stored) storedLabels = JSON.parse(stored);
         } catch {}
     }
@@ -296,7 +291,6 @@ export function setRouteLabels(tenantLabels: Record<string, string>, tenantSlug?
         try {
             const labelsJson = JSON.stringify(cachedRouteLabels);
             localStorage.setItem(`${LABELS_CACHE_PREFIX}${slug}`, labelsJson);
-            localStorage.setItem(`${LABELS_CACHE_PREFIX}latest`, labelsJson);
         } catch (e) {
             console.warn('Failed to persist route labels to localStorage:', e);
         }
@@ -322,10 +316,8 @@ export function clearTenantRouteAliases(slug?: string | null): void {
     if (typeof window !== 'undefined') {
         try {
             localStorage.removeItem(`${ALIAS_CACHE_PREFIX}${targetSlug}`);
-            localStorage.removeItem(`${ALIAS_CACHE_PREFIX}latest`);
             localStorage.removeItem(`${ALIAS_CACHE_PREFIX}default`);
             localStorage.removeItem(`${LABELS_CACHE_PREFIX}${targetSlug}`);
-            localStorage.removeItem(`${LABELS_CACHE_PREFIX}latest`);
             localStorage.removeItem(`${LABELS_CACHE_PREFIX}default`);
         } catch (e) {
             console.warn('Failed to clear tenant route aliases and labels from localStorage:', e);

@@ -1,5 +1,5 @@
 import { pipe, string, minLength, maxLength, trim, object, email, picklist, boolean, optional, regex, type InferInput } from 'valibot';
-import { TAX_REGIME_TYPES } from '../enums';
+import { SAAS_PLAN_IDS, TAX_REGIME_TYPES } from '../enums';
 
 // --- BASE FORMAT SCHEMAS (Used across Auth, Profile, RBAC & Pre-flight Availability Checks) ---
 export const UsernameFormatSchema = pipe(
@@ -57,7 +57,7 @@ export const RegisterStep2Schema = object({
     taxRegimeType: optional(picklist(TAX_REGIME_TYPES, 'Seleccione régimen tributario')),
     obligadoContabilidad: optional(boolean()),
     contribuyenteEspecial: optional(string()),
-    planId: optional(string()),
+    planId: optional(picklist(SAAS_PLAN_IDS, 'Selecciona un plan válido')),
 });
 
 export type AuthLoginFormData = InferInput<typeof AuthLoginSchema>;

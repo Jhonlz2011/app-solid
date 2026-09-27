@@ -56,9 +56,6 @@ export interface TenantRouteMetadata {
  * Invalidate Redis caches for menus and route aliases and broadcast SSE event
  */
 export async function invalidateMenuCaches(companyId?: number | null) {
-    await cacheService.invalidate('menus:*');
-    await cacheService.invalidate('aliases:*');
-    await cacheService.invalidate('route_meta:*');
     if (companyId) {
         await cacheService.del(
             `menus:${companyId}`,
@@ -69,7 +66,14 @@ export async function invalidateMenuCaches(companyId?: number | null) {
         broadcastToTenant(companyId, RealtimeEvents.MENU.UPDATED, { companyId }, RealtimeEvents.ROOMS.MENU).catch((err) => {
             console.error('Failed to broadcast MENU.UPDATED event:', err);
         });
+        return;
     }
+
+    // Global catalog mutations are system operations and intentionally flush
+    // all tenant projections. Tenant mutations use the branch above.
+    await cacheService.invalidate('menus:*');
+    await cacheService.invalidate('aliases:*');
+    await cacheService.invalidate('route_meta:*');
 }
 
 /**
@@ -163,19 +167,22 @@ function filterMenusByPlan(menus: DbMenuItem[], allowedModules: Set<RbacModule>)
  * Get menu tree for a specific user, filtered by their permissions and company plan.
  * Integrates tenant customizations over global system catalog.
  */
-export async function getMenuForUser(userId: string | number, companyId?: number | null): Promise<ModuleConfig[]> {
+export async function getMenuForUser(userId: string | number, companyId: number): Promise<ModuleConfig[]> {
     const [roles, permissions, allMenus, entitlements] = await Promise.all([
         getUserRoles(userId, companyId),
         getUserPermissions(userId, companyId),
-        cacheService.getOrSet(`menus:${companyId ?? 'global'}`, async () => {
+        cacheService.getOrSet(`menus:${companyId}`, async () => {
             return getTenantMenuItems(companyId);
         }, 86400),
-        companyId ? getTenantEntitlements(companyId) : null,
+        getTenantEntitlements(companyId),
     ]);
 
     // Step 1: Filter by company's plan features (Tenant Entitlement)
     let planFilteredMenus = allMenus as DbMenuItem[];
     if (entitlements) {
+        if (!['ACTIVE', 'TRIAL', 'GRACE_PERIOD'].includes(entitlements.status)) {
+            return [];
+        }
         const allowedModules = resolveAllowedModulesFromFeatures(entitlements.features);
         planFilteredMenus = filterMenusByPlan(planFilteredMenus, allowedModules);
     }
@@ -191,17 +198,20 @@ export async function getMenuForUser(userId: string | number, companyId?: number
 /**
  * Get full menu tree for admin panel (filtered by plan if companyId is provided)
  */
-export async function getFullMenuTree(companyId?: number | null): Promise<ModuleConfig[]> {
-    const cacheKey = `menus:all:${companyId ?? 'global'}`;
+export async function getFullMenuTree(companyId: number): Promise<ModuleConfig[]> {
+    const cacheKey = `menus:all:${companyId}`;
     const [allMenus, entitlements] = await Promise.all([
         cacheService.getOrSet(cacheKey, async () => {
             return getTenantMenuItems(companyId);
         }, 86400),
-        companyId ? getTenantEntitlements(companyId) : null,
+        getTenantEntitlements(companyId),
     ]);
 
     let planFilteredMenus = allMenus as DbMenuItem[];
     if (entitlements) {
+        if (!['ACTIVE', 'TRIAL', 'GRACE_PERIOD'].includes(entitlements.status)) {
+            return [];
+        }
         const allowedModules = resolveAllowedModulesFromFeatures(entitlements.features);
         planFilteredMenus = filterMenusByPlan(planFilteredMenus, allowedModules);
     }
@@ -221,7 +231,7 @@ export async function getAllMenuItems(companyId?: number | null) {
  */
 export async function updateTenantMenuItem(
     id: number,
-    companyId: number | null | undefined,
+    companyId: number,
     data: {
         label?: string;
         path_alias?: string | null;
@@ -231,6 +241,10 @@ export async function updateTenantMenuItem(
         status?: MenuItemStatus;
     }
 ) {
+    if (!Number.isInteger(companyId) || companyId <= 0) {
+        throw new DomainError('Empresa requerida para modificar el menú.', 400);
+    }
+
     // Validate path_alias if provided
     let cleanAlias: string | null | undefined = undefined;
     if (data.path_alias !== undefined) {
@@ -320,7 +334,7 @@ export async function updateTenantMenuItem(
 export async function updateMenuItem(
     id: number,
     data: { label?: string; path_alias?: string | null; icon?: string | null; sort_order?: number; parent_id?: number | null; status?: MenuItemStatus },
-    companyId?: number | null
+    companyId: number
 ) {
     return updateTenantMenuItem(id, companyId, data);
 }
@@ -329,9 +343,13 @@ export async function updateMenuItem(
  * Reorder multiple menu items for a tenant (and optionally reparent)
  */
 export async function reorderTenantMenuItems(
-    companyId: number | null | undefined,
+    companyId: number,
     items: { id: number; sort_order: number; parent_id?: number | null }[]
 ) {
+    if (!Number.isInteger(companyId) || companyId <= 0) {
+        throw new DomainError('Empresa requerida para reordenar el menú.', 400);
+    }
+
     if (items.length === 0) return [];
 
     if (companyId) {
@@ -379,7 +397,7 @@ export async function reorderTenantMenuItems(
 /**
  * Backward compatibility alias
  */
-export async function reorderMenuItems(items: { id: number; sort_order: number; parent_id?: number | null }[], companyId?: number | null) {
+export async function reorderMenuItems(items: { id: number; sort_order: number; parent_id?: number | null }[], companyId: number) {
     return reorderTenantMenuItems(companyId, items);
 }
 

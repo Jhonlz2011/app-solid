@@ -1,6 +1,6 @@
 import { authClient } from '@shared/lib/auth-client';
+import { authApi } from '../api/auth.api';
 import type { DiscoverTenantItemType } from '@app/schema/dto';
-import { buildTenantUrl } from '@app/schema/utils';
 import { redirect } from '@tanstack/solid-router';
 import { toRealPath } from '@shared/utils/route-alias';
 import { redirectSafely, navigateSafely } from '@shared/utils/navigation';
@@ -28,6 +28,14 @@ export function mapOrgToTenant(org: BetterAuthOrg): DiscoverTenantItemType {
         tradeName: org.name,
         logoUrl: org.logo || null,
     };
+}
+
+async function redirectToTenantWithHandoff(slug: string, path: string): Promise<void> {
+    const orgs = await fetchUserOrganizations();
+    const organization = orgs.find(org => org.slug === slug);
+    if (!organization) throw new Error('No tienes acceso a la empresa solicitada');
+    const handoff = await authApi.requestTenantHandoff(organization.id, slug);
+    window.location.href = handoff.redirectUrl.replace('/dashboard', path.startsWith('/') ? path : `/${path}`);
 }
 
 // ============================================================================
@@ -158,9 +166,7 @@ export async function executeAuthGuard(
             throw redirect({ to: '/login' });
 
         case 'redirect-tenant':
-            window.location.href = buildTenantUrl(decision.slug, decision.path, {
-                queryParams: { session: 'true' },
-            });
+            await redirectToTenantWithHandoff(decision.slug, decision.path);
             return;
 
         case 'stay':
@@ -188,9 +194,7 @@ export async function executeAuthNavigation(
 ): Promise<boolean> {
     switch (decision.action) {
         case 'redirect-tenant':
-            window.location.href = buildTenantUrl(decision.slug, decision.path, {
-                queryParams: { session: 'true' },
-            });
+            await redirectToTenantWithHandoff(decision.slug, decision.path);
             return true;
 
         case 'onboard':
@@ -238,7 +242,7 @@ export type RoutingDecision =
  * @param targetPath - Where the user intended to go (default: /dashboard)
  */
 export async function resolvePostAuthRouting(
-    user: { companySlug?: string | null; companyId?: number | null } | null,
+    user: { companySlug?: string | null } | null,
     isGlobalPortal: boolean,
     currentSlug: string | null,
     targetPath = '/dashboard',
@@ -286,7 +290,7 @@ export async function resolvePostAuthRouting(
     // ══════════════════════════════════════════════════════════════════════
 
     // Case 0: No organizations on global portal → onboarding required
-    if (orgs.length === 0 && (!user?.companySlug && (!user?.companyId || user.companyId === 0))) {
+    if (orgs.length === 0) {
         return { action: 'onboard' };
     }
 
@@ -298,11 +302,6 @@ export async function resolvePostAuthRouting(
     // Case 3: Exactly 1 org → fast-path redirect
     if (isGlobalPortal && orgs.length === 1 && orgs[0].slug) {
         return { action: 'redirect-tenant', slug: orgs[0].slug, path: targetPath };
-    }
-
-    // Case 4: Global portal with user.companySlug fallback
-    if (isGlobalPortal && user?.companySlug) {
-        return { action: 'redirect-tenant', slug: user.companySlug, path: targetPath };
     }
 
     // Default: stay on current page
@@ -331,20 +330,21 @@ export async function activateNewTenantAndRedirect(
 
     invalidateOrgCache();
     const orgs = await fetchUserOrganizations(true);
-    const matchingOrg = orgs.find(o => o.slug === slug) || orgs[0];
+    const matchingOrg = orgs.find(o => o.slug === slug);
 
-    if (matchingOrg) {
-        await authClient.organization.setActive({ organizationId: matchingOrg.id });
-    }
+    if (!matchingOrg) throw new Error('La empresa recién creada no está disponible para tu usuario');
 
     const { actions } = await import('@modules/auth/store/auth.store');
     await actions.initSession();
 
     const isGlobal = isGlobalPortalHost(window.location.hostname);
     if (isGlobal && slug) {
-        window.location.href = buildTenantUrl(slug, targetPath, { queryParams: { session: 'true' } });
+        const handoff = await authApi.requestTenantHandoff(matchingOrg.id, slug);
+        window.location.href = handoff.redirectUrl.replace('/dashboard', targetPath.startsWith('/') ? targetPath : `/${targetPath}`);
         return false; // navigation via full redirect
     }
+
+    await authClient.organization.setActive({ organizationId: matchingOrg.id });
 
     return true; // caller should navigate locally
 }

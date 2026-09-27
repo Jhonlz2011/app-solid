@@ -1,7 +1,6 @@
 import { eq, and, sql } from '@app/schema';
 import { adminDb, db } from '../../core/db';
 import {
-    companies,
     saasPlans,
     saasFeatures,
     saasPlanFeatures,
@@ -13,7 +12,7 @@ import {
     authPermissions,
     authRolePermissions,
 } from '@app/schema/tables';
-import type { RbacModule } from '@app/schema/enums';
+import { SAAS_PLAN_IDS, type RbacModule, type SaasPlanId } from '@app/schema/enums';
 import {
     resolveAllowedModulesForPlan,
     resolveAllowedModulesFromFeatures,
@@ -26,12 +25,13 @@ import { PERMISSIONS, ROLE_PERMISSIONS } from '../../seeds/seed-data';
 
 export interface TenantEntitlements {
     companyId: number;
-    planId: string;
+    planId: SaasPlanId;
     planName: string;
     planInterval: 'MONTHLY' | 'YEARLY' | 'ONE_TIME';
-    status: 'ACTIVE' | 'GRACE_PERIOD' | 'PAST_DUE' | 'SUSPENDED';
+    status: 'ACTIVE' | 'TRIAL' | 'PENDING_PAYMENT' | 'GRACE_PERIOD' | 'PAST_DUE' | 'SUSPENDED';
     features: Record<string, boolean | number>;
     sriDocumentsLimit: number; // -1 = ilimitado
+    sriInterval: 'MONTHLY' | 'YEARLY'; // Intervalo de la cuota SRI (Free=YEARLY, Starter+=MONTHLY)
     maxUsers: number;
     hasFreeAccountantSeat: boolean;
     maxPosRegisters: number;
@@ -46,7 +46,17 @@ export interface EntitlementCheckResult {
     remaining?: number;
 }
 
-const ENTITLEMENTS_CACHE_TTL = 86400; // 24 horas
+const USABLE_SUBSCRIPTION_STATUSES = new Set<TenantEntitlements['status']>([
+    'ACTIVE',
+    'TRIAL',
+    'GRACE_PERIOD',
+]);
+
+function hasUsableSubscription(entitlements: TenantEntitlements): boolean {
+    return USABLE_SUBSCRIPTION_STATUSES.has(entitlements.status);
+}
+
+const ENTITLEMENTS_CACHE_TTL = 3600; // 1 hora
 
 /**
  * Obtiene las entitlements consolidadas de una empresa (Plan + Add-ons + Packs prepago)
@@ -65,7 +75,10 @@ export async function getTenantEntitlements(companyId: number): Promise<TenantEn
                 .where(eq(saasTenantSubscriptions.company_id, companyId))
                 .limit(1);
 
-            let planId = subscription?.plan_id || 'free';
+            const requestedPlanId = subscription?.plan_id;
+            const planId: SaasPlanId = requestedPlanId && SAAS_PLAN_IDS.includes(requestedPlanId as SaasPlanId)
+                ? requestedPlanId as SaasPlanId
+                : 'free';
             const subStatus = (subscription?.status as TenantEntitlements['status']) || 'ACTIVE';
 
             // 2. Obtener los datos del plan base
@@ -103,25 +116,26 @@ export async function getTenantEntitlements(companyId: number): Promise<TenantEn
                 }
                 if (planId === 'free') {
                     features['max_users'] = 1;
-                    features['sri_documents_monthly'] = 15;
-                    features['storage_limit_gb'] = 1;
+                    features['sri_documents_yearly'] = 15;
+                    features['sri_documents_monthly'] = 0;
+                    features['max_storage_mb'] = 150; // 150 MB
                 } else if (planId.startsWith('starter')) {
                     features['max_users'] = 2;
-                    features['has_accountant_seat'] = true;
+                    features['free_accountant_seat'] = true;
                     features['sri_documents_monthly'] = 250;
-                    features['storage_limit_gb'] = 5;
+                    features['max_storage_mb'] = 1024; // 1 GB
                     features['max_pos_registers'] = 1;
                 } else if (planId.startsWith('pro')) {
                     features['max_users'] = 5;
-                    features['has_accountant_seat'] = true;
+                    features['free_accountant_seat'] = true;
                     features['sri_documents_monthly'] = -1;
-                    features['storage_limit_gb'] = 20;
-                    features['max_pos_registers'] = 2;
+                    features['max_storage_mb'] = 5120; // 5 GB
+                    features['max_pos_registers'] = 3;
                 } else if (planId.startsWith('enterprise')) {
                     features['max_users'] = 15;
-                    features['has_accountant_seat'] = true;
+                    features['free_accountant_seat'] = true;
                     features['sri_documents_monthly'] = -1;
-                    features['storage_limit_gb'] = 50;
+                    features['max_storage_mb'] = 51200; // 50 GB
                     features['max_pos_registers'] = 5;
                 }
             }
@@ -175,15 +189,20 @@ export async function getTenantEntitlements(companyId: number): Promise<TenantEn
             // 6. Consolidar límites
             const baseUsers = Number(features['max_users'] ?? 1);
             const totalMaxUsers = baseUsers + extraUsers;
-            const hasAccountantSeat = Boolean(features['has_accountant_seat'] ?? false);
+            const hasAccountantSeat = Boolean(features['free_accountant_seat'] ?? false);
 
             const basePos = features['modules.pos'] ? Number(features['max_pos_registers'] ?? 1) : 0;
             const totalMaxPos = basePos + extraPosRegisters;
 
-            const baseStorage = Number(features['storage_limit_gb'] ?? 1);
-            const totalStorageGb = baseStorage + extraStorageGb;
+            const baseStorageMb = Number(features['max_storage_mb'] ?? 150);
+            const totalStorageGb = (baseStorageMb / 1024) + extraStorageGb;
 
-            const baseDocs = Number(features['sri_documents_monthly'] ?? 15);
+            // SRI: Determinar intervalo y límite correcto
+            const sriMonthly = Number(features['sri_documents_monthly'] ?? 0);
+            const sriYearly = Number(features['sri_documents_yearly'] ?? 0);
+            // Si monthly es -1 (ilimitado), usar -1. Si monthly > 0, usar monthly. Si no, usar yearly.
+            const baseDocs = sriMonthly === -1 ? -1 : (sriMonthly > 0 ? sriMonthly : sriYearly);
+            const sriInterval: 'MONTHLY' | 'YEARLY' = sriMonthly === -1 || sriMonthly > 0 ? 'MONTHLY' : 'YEARLY';
             const sriLimit = baseDocs === -1 ? -1 : baseDocs + prepagoCredits;
 
             return {
@@ -194,6 +213,7 @@ export async function getTenantEntitlements(companyId: number): Promise<TenantEn
                 status: subStatus,
                 features,
                 sriDocumentsLimit: sriLimit,
+                sriInterval,
                 maxUsers: totalMaxUsers,
                 hasFreeAccountantSeat: hasAccountantSeat,
                 maxPosRegisters: totalMaxPos,
@@ -221,7 +241,7 @@ export async function canCreateUser(
 ): Promise<EntitlementCheckResult> {
     const ent = await getTenantEntitlements(companyId);
 
-    if (ent.status === 'SUSPENDED') {
+    if (!hasUsableSubscription(ent)) {
         return { allowed: false, reason: 'La suscripción de la empresa se encuentra suspendida.' };
     }
 
@@ -256,6 +276,10 @@ export async function canCreatePosRegister(
 ): Promise<EntitlementCheckResult> {
     const ent = await getTenantEntitlements(companyId);
 
+    if (!hasUsableSubscription(ent)) {
+        return { allowed: false, reason: 'La suscripción de la empresa no está activa.' };
+    }
+
     if (!ent.features['modules.pos']) {
         return {
             allowed: false,
@@ -289,7 +313,7 @@ export async function canEmitSriDocument(
 ): Promise<EntitlementCheckResult> {
     const ent = await getTenantEntitlements(companyId);
 
-    if (ent.status === 'SUSPENDED') {
+    if (!hasUsableSubscription(ent)) {
         return { allowed: false, reason: 'La cuenta se encuentra suspendida por falta de pago.' };
     }
 
@@ -325,6 +349,9 @@ export async function canUploadFile(
     newFileBytes: number
 ): Promise<EntitlementCheckResult> {
     const ent = await getTenantEntitlements(companyId);
+    if (!hasUsableSubscription(ent)) {
+        return { allowed: false, reason: 'La suscripción de la empresa no está activa.' };
+    }
     const maxBytes = ent.maxStorageGb * 1024 * 1024 * 1024;
 
     if (currentStorageBytes + newFileBytes > maxBytes) {
@@ -350,6 +377,7 @@ export async function canUploadFile(
  */
 export async function hasFeature(companyId: number, featureCode: string): Promise<boolean> {
     const ent = await getTenantEntitlements(companyId);
+    if (!hasUsableSubscription(ent)) return false;
     const val = ent.features[featureCode];
     if (typeof val === 'boolean') return val;
     if (typeof val === 'number') return val > 0 || val === -1;
@@ -361,6 +389,7 @@ export async function hasFeature(companyId: number, featureCode: string): Promis
  */
 export async function canAccessModule(companyId: number, moduleName: RbacModule): Promise<boolean> {
     const ent = await getTenantEntitlements(companyId);
+    if (!hasUsableSubscription(ent)) return false;
     const allowedModules = resolveAllowedModulesFromFeatures(ent.features);
     return allowedModules.has(moduleName);
 }
@@ -371,25 +400,20 @@ export async function canAccessModule(companyId: number, moduleName: RbacModule)
  */
 export async function upgradeCompanyPlan(
     companyId: number,
-    newPlanId: string,
+    newPlanId: SaasPlanId,
     paymentMethodType: string = 'CARD'
 ): Promise<void> {
-    const normalizedPlanId = newPlanId.toLowerCase().trim();
+    const normalizedPlanId = newPlanId;
+    const subscriptionStatus = normalizedPlanId === 'free' ? 'ACTIVE' : 'PENDING_PAYMENT';
 
     await db.transaction(async (tx) => {
-        // 1. Actualizar plan en la tabla companies
-        await tx
-            .update(companies)
-            .set({ plan: normalizedPlanId, updated_at: new Date() })
-            .where(eq(companies.id, companyId));
-
-        // 2. Upsert en saas_tenant_subscriptions
+        // 1. Upsert en saas_tenant_subscriptions (fuente de verdad única)
         await tx
             .insert(saasTenantSubscriptions)
             .values({
                 company_id: companyId,
                 plan_id: normalizedPlanId,
-                status: 'ACTIVE',
+                status: subscriptionStatus,
                 payment_method_type: paymentMethodType,
                 current_period_start: new Date(),
                 updated_at: new Date(),
@@ -398,7 +422,7 @@ export async function upgradeCompanyPlan(
                 target: saasTenantSubscriptions.company_id,
                 set: {
                     plan_id: normalizedPlanId,
-                    status: 'ACTIVE',
+                    status: subscriptionStatus,
                     payment_method_type: paymentMethodType,
                     updated_at: new Date(),
                 },

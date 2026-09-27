@@ -1,19 +1,39 @@
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isProduction = nodeEnv === 'production';
+
 if (!process.env.DATABASE_URL || !process.env.FRONTEND_URL || !process.env.SRI_DATABASE_URL) {
   throw new Error('Variables de entorno requeridas no encontradas (DATABASE_URL, FRONTEND_URL, SRI_DATABASE_URL)');
 }
 
+if (isProduction) {
+  if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 32) {
+    throw new Error('BETTER_AUTH_SECRET debe existir y tener al menos 32 caracteres en producción');
+  }
+  if (!process.env.ADMIN_DATABASE_URL) {
+    throw new Error('ADMIN_DATABASE_URL debe apuntar a un pool administrativo separado en producción');
+  }
+  if (!process.env.TURNSTILE_SECRET_KEY || !process.env.TURNSTILE_SITE_KEY) {
+    throw new Error('TURNSTILE_SECRET_KEY y TURNSTILE_SITE_KEY son obligatorios en producción');
+  }
+  if (process.env.TRUSTED_PROXY_HEADERS !== 'true') {
+    throw new Error('TRUSTED_PROXY_HEADERS=true es obligatorio cuando la aplicación está detrás de un proxy confiable');
+  }
+  if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_TENANT_ID === 'common') {
+    throw new Error('MICROSOFT_TENANT_ID debe ser explícito en producción');
+  }
+}
+
 export const env = {
   DATABASE_URL: process.env.DATABASE_URL,
-  ADMIN_DATABASE_URL: process.env.ADMIN_DATABASE_URL || process.env.DATABASE_URL,
+  ADMIN_DATABASE_URL: process.env.ADMIN_DATABASE_URL || (isProduction ? '' : process.env.DATABASE_URL),
   SRI_DATABASE_URL: process.env.SRI_DATABASE_URL,
   FRONTEND_URL: process.env.FRONTEND_URL,
   FRONTEND_INTERNAL_URL: process.env.FRONTEND_INTERNAL_URL || '',
   API_PUBLIC_URL: process.env.API_PUBLIC_URL || '',
   PORT: process.env.PORT ? parseInt(process.env.PORT) : 3000,
-  NODE_ENV: (process.env.NODE_ENV || 'development') as 'development' | 'production' | 'test',
+  NODE_ENV: nodeEnv as 'development' | 'production' | 'test',
   BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET || 'zelys-erp-better-auth-secret-key-development-mode-2026',
   BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || `http://localhost:${process.env.PORT || 3000}`,
-  COOKIE_DOMAIN: process.env.COOKIE_DOMAIN || '',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   GEONAMES_USERNAME: process.env.GEONAMES_USERNAME || '',
   // Cloudflare R2
@@ -39,4 +59,5 @@ export const env = {
   MICROSOFT_CLIENT_ID: process.env.MICROSOFT_CLIENT_ID || '',
   MICROSOFT_CLIENT_SECRET: process.env.MICROSOFT_CLIENT_SECRET || '',
   MICROSOFT_TENANT_ID: process.env.MICROSOFT_TENANT_ID || 'common',
+  TRUSTED_PROXY_HEADERS: process.env.TRUSTED_PROXY_HEADERS === 'true',
 };

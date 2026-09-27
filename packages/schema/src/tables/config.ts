@@ -1,6 +1,7 @@
-import { text, integer, boolean, timestamp, numeric, customType, index, unique } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, numeric, customType, index, unique, foreignKey } from 'drizzle-orm/pg-core';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { taxRegimeTypeEnum } from '../enums';
+import { organization } from './auth';
 
 // =============================================================================
 // Custom PostgreSQL Types
@@ -29,18 +30,15 @@ export const ltree = customType<{ data: string }>({
  */
 export const companies = pgTableV2("companies", {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    // 1:1 link to Better Auth Organization. FK constraint enforced at DB level.
+    // 1:1 link to Better Auth Organization.
     // Text matches organization.id type (UUIDv7 stored as text by Better Auth).
-    organization_id: text("organization_id").unique(),
+    organization_id: text("organization_id").notNull().unique(),
     slug: text("slug").notNull().unique(),                    // URL identifier: zelys.app/{slug}
     ruc: text("ruc").notNull().unique(),
     business_name: text("business_name").notNull(),        // Razón social
     trade_name: text("trade_name"),                        // Nombre comercial
     main_address: text("main_address").notNull(),          // Dirección matriz
     business_type: text("business_type"),                  // 'COMERCIO' | 'OPTICA' | 'CLINICA' | etc.
-    // SaaS plan
-    plan: text("plan").default('free').notNull(),           // 'free' | 'starter' | 'pro' | 'enterprise'
-    plan_expires_at: timestamp("plan_expires_at", TZ),     // null = no expiry (free tier)
     // Fiscal flags (required for every SRI XML)
     obligado_contabilidad: boolean("obligado_contabilidad").default(false).notNull(),
     contribuyente_especial: text("contribuyente_especial"),  // Resolución SRI (null = no es)
@@ -60,8 +58,12 @@ export const companies = pgTableV2("companies", {
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
+    foreignKey({
+        columns: [t.organization_id],
+        foreignColumns: [organization.id],
+        name: 'companies_organization_id_organization_fk',
+    }).onDelete('restrict'),
     index("idx_companies_slug").on(t.slug),
-    index("idx_companies_plan").on(t.plan),
     index("idx_companies_org_id").on(t.organization_id),
 ]);
 

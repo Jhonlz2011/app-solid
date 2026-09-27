@@ -1,5 +1,5 @@
 import { db, adminDb } from '../../core/db';
-import { authUserRoles, authRoles, authRolePermissions, authUsers, sessions, member, companies } from '@app/schema/tables';
+import { authUserRoles, authRoles, authRolePermissions, sessions } from '@app/schema/tables';
 import { eq, and } from '@app/schema';
 import { redis } from '../../core/cache/redis';
 import { cacheService } from '../../core/cache';
@@ -15,73 +15,58 @@ import { SYSTEM_ROLES } from '@app/schema/enums';
 /**
  * Get all roles for a user (cached per tenant)
  */
-export async function getUserRoles(userId: string | number, companyId?: number | null): Promise<string[]> {
+export async function getUserRoles(userId: string | number, companyId: number): Promise<string[]> {
     const userIdStr = String(userId);
-    const cacheKey = companyId ? `rbac:roles:${userIdStr}:${companyId}` : `rbac:roles:${userIdStr}`;
+    const cacheKey = `rbac:roles:${userIdStr}:${companyId}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
-        const conditions = [eq(authUserRoles.user_id, userIdStr)];
-        if (companyId) {
-            conditions.push(eq(authUserRoles.company_id, companyId));
-        }
+        const conditions = [
+            eq(authUserRoles.user_id, userIdStr),
+            eq(authUserRoles.company_id, companyId),
+        ];
 
         const userRoles = await adminDb
             .select({ roleName: authRoles.name })
             .from(authUserRoles)
-            .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
+            .innerJoin(authRoles, and(
+                eq(authUserRoles.role_id, authRoles.id),
+                eq(authUserRoles.company_id, authRoles.company_id),
+            ))
             .where(and(...conditions));
 
         if (userRoles.length > 0) {
             return userRoles.map(r => r.roleName);
         }
 
-        // Fallback: check Better-Auth member table for owner role IN THIS SPECIFIC COMPANY CONTEXT
-        if (companyId) {
-            const [memberRow] = await adminDb
-                .select({ role: member.role })
-                .from(member)
-                .innerJoin(companies, eq(companies.organization_id, member.organizationId))
-                .where(and(eq(member.userId, userIdStr), eq(companies.id, companyId)))
-                .limit(1);
-
-            if (memberRow?.role === 'owner') {
-                return ['superadmin'];
-            }
-        }
-
         return [];
-    }, 300);
+    }, 120);
 }
 
 /**
  * Get all permissions for a user based on their roles (cached per tenant)
  * Optimized: Single query with JOIN
  */
-export async function getUserPermissions(userId: string | number, companyId?: number | null): Promise<string[]> {
+export async function getUserPermissions(userId: string | number, companyId: number): Promise<string[]> {
     const userIdStr = String(userId);
-    const cacheKey = companyId ? `rbac:permissions:${userIdStr}:${companyId}` : `rbac:permissions:${userIdStr}`;
+    const cacheKey = `rbac:permissions:${userIdStr}:${companyId}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
-        const conditions = [eq(authUserRoles.user_id, userIdStr)];
-        if (companyId) conditions.push(eq(authUserRoles.company_id, companyId));
+        const conditions = [
+            eq(authUserRoles.user_id, userIdStr),
+            eq(authUserRoles.company_id, companyId),
+        ];
 
         const result = await adminDb
             .selectDistinct({ slug: authRolePermissions.permission_slug })
             .from(authUserRoles)
-            .innerJoin(authRolePermissions, eq(authUserRoles.role_id, authRolePermissions.role_id))
+            .innerJoin(authRolePermissions, and(
+                eq(authUserRoles.role_id, authRolePermissions.role_id),
+                eq(authUserRoles.company_id, authRolePermissions.company_id),
+            ))
             .where(and(...conditions));
 
-        const perms = result.map(r => r.slug);
-        if (perms.length > 0) return perms;
-
-        // Fallback: if user is superadmin / owner, give full wildcard access
-        const roles = await getUserRoles(userId, companyId);
-        if (roles.includes(SYSTEM_ROLES.SUPERADMIN)) {
-            return ['*'];
-        }
-
-        return [];
-    }, 300);
+        return result.map(r => r.slug);
+    }, 120);
 }
 
 /**
@@ -93,49 +78,31 @@ export interface UserAuthContext {
     permissions: string[];
 }
 
-export async function getUserAuthContext(userId: string | number, companyId?: number | null): Promise<UserAuthContext> {
+export async function getUserAuthContext(userId: string | number, companyId: number): Promise<UserAuthContext> {
     const userIdStr = String(userId);
-    const cacheKey = companyId ? `rbac:auth_ctx:${userIdStr}:${companyId}` : `rbac:auth_ctx:${userIdStr}`;
+    const cacheKey = `rbac:auth_ctx:${userIdStr}:${companyId}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
         const roles = await getUserRoles(userId, companyId);
         
-        let permissions: string[] = [];
-        if (roles.includes(SYSTEM_ROLES.SUPERADMIN)) {
-            permissions = ['*'];
-        } else {
-            permissions = await getUserPermissions(userId, companyId);
-        }
+        const permissions = await getUserPermissions(userId, companyId);
 
         return { roles, permissions };
-    }, 300);
+    }, 120);
 }
 
 /**
  * Invalidate RBAC cache for a user — direct DEL (O(1) vs SCAN O(N))
  */
-export async function invalidateUserRbacCache(userId: string | number, companyId?: number | null): Promise<void> {
+export async function invalidateUserRbacCache(userId: string | number, companyId: number): Promise<void> {
     const userIdStr = String(userId);
     try {
         const keysToDelete = [
-            `rbac:roles:${userIdStr}`,
-            `rbac:permissions:${userIdStr}`,
-            `rbac:auth_ctx:${userIdStr}`,
+            `rbac:roles:${userIdStr}:${companyId}`,
+            `rbac:permissions:${userIdStr}:${companyId}`,
+            `rbac:auth_ctx:${userIdStr}:${companyId}`,
         ];
-        if (companyId) {
-            keysToDelete.push(
-                `rbac:roles:${userIdStr}:${companyId}`,
-                `rbac:permissions:${userIdStr}:${companyId}`,
-                `rbac:auth_ctx:${userIdStr}:${companyId}`,
-            );
-        }
         await redis.del(...keysToDelete);
-
-        // If companyId is not provided (e.g. user bulk deactivation),
-        // also invalidate all tenant-scoped entries for this user
-        if (!companyId) {
-            await cacheService.invalidate(`rbac:*:${userIdStr}:*`);
-        }
 
         // Usar adminDb — sessions de Better-Auth no tienen RLS, pero esta es una operación
         // administrativa que debe funcionar independientemente del contexto de tenant activo
@@ -168,7 +135,7 @@ export async function revokeAllUserSessions(userId: string | number): Promise<vo
 /**
  * Checks if a user has the superadmin role in the given company context (or globally).
  */
-export async function isUserSuperadmin(userId: string | number, companyId?: number | null): Promise<boolean> {
+export async function isUserSuperadmin(userId: string | number, companyId: number): Promise<boolean> {
     const roles = await getUserRoles(userId, companyId);
     return roles.includes(SYSTEM_ROLES.SUPERADMIN);
 }
@@ -180,7 +147,7 @@ export async function isUserSuperadmin(userId: string | number, companyId?: numb
  */
 export async function assertNotSuperadmin(
     userId: string | number,
-    companyId?: number | null,
+    companyId: number,
     action: string = 'modificar'
 ): Promise<void> {
     const isSuper = await isUserSuperadmin(userId, companyId);

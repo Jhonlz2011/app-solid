@@ -69,7 +69,7 @@ export const getApiUrl = (): string => {
     if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
         // Production multi-tenant domain (*.zelys.app or root zelys.app)
-        if (hostname.endsWith('zelys.app') || hostname === 'zelys.app' || hostname === 'www.zelys.app') {
+        if (hostname === 'zelys.app' || hostname.endsWith('.zelys.app')) {
             return 'https://api.zelys.app';
         }
     }
@@ -87,7 +87,7 @@ export const getSseUrl = (): string => {
 
     if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
-        if (hostname.endsWith('zelys.app') || hostname === 'zelys.app' || hostname === 'www.zelys.app') {
+        if (hostname === 'zelys.app' || hostname.endsWith('.zelys.app')) {
             return 'https://api.zelys.app/api/sse';
         }
     }
@@ -104,7 +104,7 @@ export const getTurnstileSiteKey = (): string => {
     const injected = getInjected();
     if (injected?.turnstileSiteKey) return injected.turnstileSiteKey;
 
-    return import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADisKN0OYEK9RMwL';
+    return import.meta.env.VITE_TURNSTILE_SITE_KEY || (import.meta.env.DEV ? '0x4AAAAAADisKN0OYEK9RMwL' : '');
 };
 
 export const runtimeConfig = {

@@ -1,7 +1,8 @@
 import { db, adminDb } from '../../core/db';
-import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, authRolePermissions, account, organization, member } from '@app/schema/tables';
+import { authUsers as users, companies, sriEstablishments, entities, authUserRoles, authRoles, authRolePermissions, organization, member, saasPlans, saasPlanFeatures } from '@app/schema/tables';
 import { eq, and, sql } from '@app/schema';
-import type { TaxRegimeType } from '@app/schema/enums';
+import { SAAS_PLAN_IDS, type SaasPlanId, type TaxRegimeType } from '@app/schema/enums';
+import { normalizeTenantSlug } from '@app/schema/utils';
 import { DomainError } from '../../core/errors';
 import {
   seedCompanyRBAC,
@@ -11,6 +12,7 @@ import {
   seedCompanyWarehouse,
 } from './provisioning.service';
 import { verifyTurnstileToken, hashPassword } from '../../core/security';
+import { createCredentialIdentity } from './identity.service';
 import { v7 as uuidv7 } from 'uuid';
 import { mapEntity } from '../profile/profile.service';
 import { auth } from '../../config/better-auth';
@@ -33,7 +35,7 @@ interface CompanyData {
   taxRegimeType?: TaxRegimeType;
   cedula?: string;
   phone?: string;
-  planId?: string;
+  planId?: SaasPlanId;
 }
 
 interface ProvisionResult {
@@ -75,11 +77,48 @@ async function provisionTenant(
     fullName: string;
     email: string;
     entityId?: string | null;
-    companyId?: number | null;
   },
 ): Promise<ProvisionResult> {
+  const slug = normalizeTenantSlug(data.slug);
+  if (!slug) throw new DomainError('El slug de la empresa es inválido o está reservado', 400);
+
+  const requestedPlanId: SaasPlanId = data.planId ?? 'free';
+  if (!SAAS_PLAN_IDS.includes(requestedPlanId)) {
+    throw new DomainError('El plan solicitado no es válido', 400);
+  }
+
+  const [plan] = await tx
+    .select({ id: saasPlans.id, isActive: saasPlans.is_active })
+    .from(saasPlans)
+    .where(eq(saasPlans.id, requestedPlanId))
+    .limit(1);
+  if (!plan || !plan.isActive) {
+    throw new DomainError('El plan solicitado no está disponible', 400);
+  }
+
+  // Serialize tenant creation per user so concurrent onboarding cannot
+  // bypass max_companies.
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`tenant-quota:${ownerInfo.userId}`}))`);
+  const [maxCompaniesRow] = await tx
+    .select({ maxCompanies: saasPlanFeatures.value_numeric })
+    .from(saasPlanFeatures)
+    .where(and(
+      eq(saasPlanFeatures.plan_id, requestedPlanId),
+      eq(saasPlanFeatures.feature_code, 'max_companies'),
+    ))
+    .limit(1);
+  const [ownedCompanies] = await tx
+    .select({ count: sql<number>`count(distinct ${companies.id})::int` })
+    .from(member)
+    .innerJoin(companies, eq(companies.organization_id, member.organizationId))
+    .where(and(eq(member.userId, ownerInfo.userId), eq(member.status, 'ACTIVE')));
+  const maxCompanies = Number(maxCompaniesRow?.maxCompanies ?? 1);
+  if (Number(ownedCompanies?.count ?? 0) >= maxCompanies) {
+    throw new DomainError('Has alcanzado el límite de empresas permitido por el plan seleccionado', 403, { code: 'PLAN_LIMIT_EXCEEDED' });
+  }
+
   // 1. Validate slug & RUC uniqueness
-  const [existingSlug] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.slug, data.slug)).limit(1);
+  const [existingSlug] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.slug, slug)).limit(1);
   if (existingSlug) throw new DomainError('Este identificador (slug) ya está en uso', 409);
 
   const [existingRuc] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.ruc, data.ruc)).limit(1);
@@ -94,16 +133,16 @@ async function provisionTenant(
   await tx.insert(organization).values({
     id: orgId,
     name: orgDisplayName,
-    slug: data.slug,
+    slug,
   });
 
   // 3. Create company with organization_id link
-  const companyPlan = (data.planId || 'free').toLowerCase().trim();
+  const companyPlan = requestedPlanId;
   const [company] = await tx
     .insert(companies)
     .values({
       organization_id: orgId,
-      slug: data.slug,
+      slug,
       ruc: data.ruc,
       business_name: data.businessName,
       trade_name: data.tradeName || null,
@@ -112,7 +151,6 @@ async function provisionTenant(
       obligado_contabilidad: data.obligadoContabilidad ?? false,
       contribuyente_especial: data.contribuyenteEspecial || null,
       rimpe_type: data.taxRegimeType || 'GENERAL',
-      plan: companyPlan,
     })
     .returning();
 
@@ -157,12 +195,13 @@ async function provisionTenant(
     organizationId: orgId,
     userId: ownerInfo.userId,
     role: 'owner',
+    status: 'ACTIVE',
     entityId: ownerEntity.id,
   });
 
   // 9. Seed initial system data (Plan-aware RBAC + Subscription)
   await seedCompanyRBAC(tx, company.id, ownerInfo.userId, companyPlan);
-  await seedCompanySubscription(tx, company.id, companyPlan);
+  await seedCompanySubscription(tx, company.id, companyPlan, companyPlan === 'free' ? 'ACTIVE' : 'PENDING_PAYMENT');
   await seedCompanyUOMs(tx, company.id);
   await seedCompanyVirtualLocations(tx, company.id);
   await seedCompanyWarehouse(tx, company.id, company.main_address, ownerEntity.id);
@@ -171,14 +210,26 @@ async function provisionTenant(
   const txRoles = await tx
     .select({ roleName: authRoles.name })
     .from(authUserRoles)
-    .innerJoin(authRoles, eq(authUserRoles.role_id, authRoles.id))
-    .where(eq(authUserRoles.user_id, ownerInfo.userId));
+    .innerJoin(authRoles, and(
+      eq(authUserRoles.role_id, authRoles.id),
+      eq(authUserRoles.company_id, authRoles.company_id),
+    ))
+    .where(and(
+      eq(authUserRoles.user_id, ownerInfo.userId),
+      eq(authUserRoles.company_id, company.id),
+    ));
 
   const txPermissions = await tx
     .selectDistinct({ slug: authRolePermissions.permission_slug })
     .from(authUserRoles)
-    .innerJoin(authRolePermissions, eq(authUserRoles.role_id, authRolePermissions.role_id))
-    .where(eq(authUserRoles.user_id, ownerInfo.userId));
+    .innerJoin(authRolePermissions, and(
+      eq(authUserRoles.role_id, authRolePermissions.role_id),
+      eq(authUserRoles.company_id, authRolePermissions.company_id),
+    ))
+    .where(and(
+      eq(authUserRoles.user_id, ownerInfo.userId),
+      eq(authUserRoles.company_id, company.id),
+    ));
 
   const roles = txRoles.map(r => r.roleName);
   const permissions = txPermissions.map(r => r.slug);
@@ -223,9 +274,11 @@ export async function register(
     turnstileToken?: string;
   },
   _userAgent?: string,
-  ipAddress?: string
+  ipAddress?: string,
+  expectedHostname?: string,
+  requestId?: string,
 ) {
-  await verifyTurnstileToken(data.turnstileToken, ipAddress);
+  await verifyTurnstileToken(data.turnstileToken, { action: 'register', expectedHostname, ipAddress, requestId });
 
   const normalizedUsername = data.username.trim().toLowerCase();
   const normalizedEmail = data.email.trim().toLowerCase();
@@ -248,37 +301,18 @@ export async function register(
   const isAlreadyVerified = Boolean(globallyVerifiedUser);
 
   const result = await db.transaction(async (tx) => {
-    // ⚠️ CRITICAL: hashPassword() is called MANUALLY here because this flow
-    // bypasses Better Auth's signUp.email() — which would hash via argon2PasswordConfig.
-    // If migrating to signUp.email(), remove this manual hash.
+    // Credential writes are centralized in identity.service so registration,
+    // invitations and tenant-admin creation share one Better Auth-compatible
+    // password/account boundary.
     const password_hash = await hashPassword(data.password);
 
-    // Create user with explicit username and displayUsername
-    const [user] = await tx
-      .insert(users)
-      .values({
+    const user = await createCredentialIdentity(tx, {
         name: data.fullName,
         email: normalizedEmail,
         username: normalizedUsername,
         displayUsername: data.username.trim(),
-        is_active: true,
+        passwordHash: password_hash,
         emailVerified: isAlreadyVerified,
-      })
-      .returning({
-        id: users.id,
-        username: users.username,
-        email: users.email,
-        is_active: users.is_active,
-        last_login: users.last_login,
-        emailVerified: users.emailVerified,
-      });
-
-    // Create Better-Auth credential account
-    await tx.insert(account).values({
-      accountId: user.id,
-      providerId: 'credential',
-      userId: user.id,
-      password: password_hash,
     });
 
     // Provision tenant (company, org, entities, RBAC seeds)
@@ -321,6 +355,11 @@ export async function register(
       });
     } catch (err) {
       console.error('[Register] Error sending verification email:', err);
+      throw new DomainError(
+        'La cuenta fue creada, pero no se pudo enviar el correo de verificación. Solicita un reenvío antes de continuar.',
+        503,
+        { code: 'INTERNAL_ERROR' },
+      );
     }
   }
 
@@ -339,15 +378,23 @@ export async function register(
 export async function onboardTenant(
   userId: string,
   data: CompanyData & { turnstileToken?: string },
-  ipAddress?: string
+  ipAddress?: string,
+  expectedHostname?: string,
+  requestId?: string,
 ) {
-  await verifyTurnstileToken(data.turnstileToken, ipAddress);
+  await verifyTurnstileToken(data.turnstileToken, { action: 'tenant_onboarding', expectedHostname, ipAddress, requestId });
 
   const existingUser = await adminDb.query.authUsers.findFirst({
     where: eq(users.id, userId),
   });
   if (!existingUser) {
     throw new DomainError('Usuario no encontrado', 404);
+  }
+  if (!existingUser.is_active) {
+    throw new DomainError('La cuenta está bloqueada', 403);
+  }
+  if (!existingUser.emailVerified) {
+    throw new DomainError('Debes verificar tu correo antes de crear una empresa', 403);
   }
 
   const result = await db.transaction(async (tx) => {
@@ -356,7 +403,6 @@ export async function onboardTenant(
       userId: existingUser.id,
       fullName: existingUser.name,
       email: existingUser.email,
-      companyId: existingUser.company_id,
     });
 
     // Update user with company_id (if not set yet)

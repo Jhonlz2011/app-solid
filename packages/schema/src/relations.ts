@@ -81,7 +81,10 @@ export const employeeDetailsRelations = relations(tables.employeeDetails, ({ one
 
 export const authUserRolesRelations = relations(tables.authUserRoles, ({ one }) => ({
     user: one(tables.authUsers, { fields: [tables.authUserRoles.user_id], references: [tables.authUsers.id] }),
-    role: one(tables.authRoles, { fields: [tables.authUserRoles.role_id], references: [tables.authRoles.id] }),
+    role: one(tables.authRoles, {
+        fields: [tables.authUserRoles.role_id, tables.authUserRoles.company_id],
+        references: [tables.authRoles.id, tables.authRoles.company_id],
+    }),
 }));
 
 export const authRolesRelations = relations(tables.authRoles, ({ many }) => ({
@@ -94,7 +97,10 @@ export const authPermissionsRelations = relations(tables.authPermissions, ({ man
 }));
 
 export const authRolePermissionsRelations = relations(tables.authRolePermissions, ({ one }) => ({
-    role: one(tables.authRoles, { fields: [tables.authRolePermissions.role_id], references: [tables.authRoles.id] }),
+    role: one(tables.authRoles, {
+        fields: [tables.authRolePermissions.role_id, tables.authRolePermissions.company_id],
+        references: [tables.authRoles.id, tables.authRoles.company_id],
+    }),
     permission: one(tables.authPermissions, { fields: [tables.authRolePermissions.permission_slug], references: [tables.authPermissions.slug] }),
 }));
 

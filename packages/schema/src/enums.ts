@@ -107,8 +107,26 @@ export const BUSINESS_TYPES = [
 export const MENU_ITEM_STATUSES = ['active', 'development', 'deprecated'] as const;
 
 
-// SaaS plans
-export const SAAS_PLANS = ['free', 'starter', 'pro', 'enterprise'] as const;
+// SaaS plan IDs — these are the canonical catalog keys used by saas_plans.
+export const SAAS_PLAN_IDS = [
+    'free',
+    'starter_monthly',
+    'starter_yearly',
+    'pro_monthly',
+    'pro_yearly',
+    'enterprise_monthly',
+    'enterprise_yearly',
+] as const;
+export type SaasPlanId = typeof SAAS_PLAN_IDS[number];
+
+export const SAAS_PLAN_FAMILIES = ['free', 'starter', 'pro', 'enterprise'] as const;
+export type SaasPlanFamily = typeof SAAS_PLAN_FAMILIES[number];
+
+export const MEMBERSHIP_STATUSES = ['ACTIVE', 'SUSPENDED', 'REMOVED'] as const;
+export type MembershipStatus = typeof MEMBERSHIP_STATUSES[number];
+
+/** Backward-compatible alias for code that imports the SaaS catalog constant. */
+export const SAAS_PLANS = SAAS_PLAN_IDS;
 
 // Tool Crib / Equipment Custody enums (Odoo Standard)
 export const TOOL_LOAN_STATUSES = ['DRAFT', 'DISPATCHED', 'PARTIALLY_RETURNED', 'COMPLETED', 'OVERDUE', 'CANCELLED'] as const;
@@ -242,7 +260,7 @@ export type PaymentStatus = typeof PAYMENT_STATUSES[number];
 export type PriceChangeType = typeof PRICE_CHANGE_TYPES[number];
 export type PriceChangeSource = typeof PRICE_CHANGE_SOURCES[number];
 export type BusinessType = typeof BUSINESS_TYPES[number];
-export type SaasPlan = typeof SAAS_PLANS[number];
+export type SaasPlan = SaasPlanId;
 export type MenuItemStatus = typeof MENU_ITEM_STATUSES[number];
 
 export type ContractType = typeof CONTRACT_TYPES[number];

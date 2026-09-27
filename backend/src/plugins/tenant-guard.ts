@@ -9,10 +9,10 @@ import { ForbiddenError } from '../core/errors';
  */
 export const tenantGuard = (app: Elysia) => app
     .use(authGuard)
-    .derive(({ currentCompanyId, set }) => {
-        if (!currentCompanyId) {
+    .derive(({ currentCompanyId, membershipStatus, set }) => {
+        if (!currentCompanyId || membershipStatus !== 'ACTIVE') {
             set.status = 403;
-            throw new ForbiddenError('Se requiere seleccionar una empresa activa');
+            throw new ForbiddenError('Se requiere una membresía activa en una empresa');
         }
         return {
             currentCompanyId: currentCompanyId as number,

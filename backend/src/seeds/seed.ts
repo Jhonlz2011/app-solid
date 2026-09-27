@@ -215,17 +215,17 @@ async function seed() {
         const [devCompany] = await db
             .insert(companies)
             .values({
+                organization_id: uuidv7(),
                 slug: 'dev',
                 ruc: '9999999999001',
                 business_name: 'Empresa de Desarrollo',
                 trade_name: 'DevCo',
                 main_address: 'Dirección de prueba',
                 business_type: 'COMERCIO',
-                plan: 'enterprise_yearly',
             })
             .onConflictDoUpdate({
                 target: companies.ruc,
-                set: { business_name: 'Empresa de Desarrollo', slug: 'dev', plan: 'enterprise_yearly' },
+                set: { business_name: 'Empresa de Desarrollo', slug: 'dev' },
             })
             .returning();
         console.log(`   ✅ Company verified: ${devCompany.business_name} (id: ${devCompany.id}, slug: ${devCompany.slug})`);

@@ -13,6 +13,7 @@ import { env } from './env';
 import { hashPassword, verifyPassword } from '../core/security';
 import { extractIpFromHeaders } from '../plugins/ip';
 import { buildTenantUrl } from '@app/schema/utils';
+import { markMfaStepUp } from '../plugins/mfa-step-up';
 
 // ============================================================================
 // 1. TENANT URL RESOLVER
@@ -29,29 +30,10 @@ export function resolveTenantUrl(slug?: string | null): string {
 }
 
 /**
- * Resuelve el slug del tenant y nombre del destinatario para emails.
- * Intenta primero con user.company_id (cache desnormalizado) y hace fallback a member → org → company.
+ * Resuelve el slug del tenant y nombre del destinatario para emails desde membresías activas.
  */
 export async function getTenantInfoForEmail(email: string) {
     try {
-        const [row] = await adminDb
-            .select({
-                name: schema.user.name,
-                companySlug: schema.companies.slug,
-            })
-            .from(schema.user)
-            .leftJoin(schema.companies, eq(schema.user.company_id, schema.companies.id))
-            .where(eq(schema.user.email, email.toLowerCase()))
-            .limit(1);
-
-        if (row?.companySlug) {
-            return {
-                tenantSlug: row.companySlug,
-                recipientName: row.name || email.split('@')[0],
-            };
-        }
-
-        // Fallback: buscar vía member → organization → company
         const [orgRow] = await adminDb
             .select({
                 name: schema.user.name,
@@ -61,12 +43,15 @@ export async function getTenantInfoForEmail(email: string) {
             .innerJoin(schema.member, eq(schema.member.userId, schema.user.id))
             .innerJoin(schema.organization, eq(schema.organization.id, schema.member.organizationId))
             .innerJoin(schema.companies, eq(schema.companies.organization_id, schema.organization.id))
-            .where(eq(schema.user.email, email.toLowerCase()))
+            .where(and(
+                eq(schema.user.email, email.toLowerCase()),
+                eq(schema.member.status, 'ACTIVE'),
+            ))
             .limit(1);
 
         return {
             tenantSlug: orgRow?.companySlug || null,
-            recipientName: orgRow?.name || row?.name || email.split('@')[0],
+            recipientName: orgRow?.name || email.split('@')[0],
         };
     } catch (err) {
         console.error('[BetterAuth] Error resolving tenant info for email:', err);
@@ -88,7 +73,10 @@ export async function resolveCompanyIdFromOrg(organizationId: string): Promise<n
     const [company] = await adminDb
         .select({ id: schema.companies.id })
         .from(schema.companies)
-        .where(eq(schema.companies.organization_id, organizationId))
+        .where(and(
+            eq(schema.companies.organization_id, organizationId),
+            eq(schema.companies.is_active, true),
+        ))
         .limit(1);
 
     if (company) {
@@ -229,6 +217,22 @@ export async function enforceMaxActiveSessions(userId: string, maxSessions = 5):
     }
 }
 
+async function revokeAllSessionsForGlobalUser(userId: string): Promise<void> {
+    const rows = await adminDb
+        .select({ id: schema.session.id, token: schema.session.token })
+        .from(schema.session)
+        .where(eq(schema.session.userId, userId));
+    if (rows.length === 0) return;
+
+    await adminDb.delete(schema.session).where(eq(schema.session.userId, userId));
+    await Promise.all(rows.flatMap(row => [
+        redis.del(`session:${row.token}`),
+        redis.del(`better-auth:session:${row.token}`),
+        redis.del(`session:${row.id}`),
+    ]));
+    broadcastToUser(userId, RealtimeEvents.USER.SESSION_REVOKED, { userId, reason: 'GLOBAL_ACCOUNT_DISABLED' });
+}
+
 // ============================================================================
 // 5. BETTER AUTH INSTANCE
 // ============================================================================
@@ -258,36 +262,24 @@ export const auth = betterAuth({
     },
     secondaryStorage: {
         get: async (key: string) => {
-            try {
-                return await redis.get(key);
-            } catch {
-                return null;
-            }
+            return await redis.get(key);
         },
         set: async (key: string, value: string, ttl?: number) => {
-            try {
-                if (ttl) {
-                    await redis.set(key, value, 'EX', ttl);
-                } else {
-                    await redis.set(key, value);
-                }
-            } catch { /* Redis best effort */ }
+            if (ttl) {
+                await redis.set(key, value, 'EX', ttl);
+            } else {
+                await redis.set(key, value);
+            }
         },
         delete: async (key: string) => {
-            try {
-                await redis.del(key);
-            } catch { /* Redis best effort */ }
+            await redis.del(key);
         },
         increment: async (key: string, ttl?: number) => {
-            try {
-                const count = await redis.incr(key);
-                if (count === 1 && ttl) {
-                    await redis.expire(key, ttl);
-                }
-                return count;
-            } catch {
-                return 1;
+            const count = await redis.incr(key);
+            if (count === 1 && ttl) {
+                await redis.expire(key, ttl);
             }
+            return count;
         },
     },
     rateLimit: {
@@ -318,7 +310,7 @@ export const auth = betterAuth({
                         image: profile.picture || undefined,
                         username,
                         displayUsername: profile.name || username,
-                        emailVerified: profile.email_verified ?? true,
+                    emailVerified: profile.email_verified === true,
                     };
                 },
             },
@@ -332,6 +324,9 @@ export const auth = betterAuth({
                 mapProfileToUser: (profile) => {
                     const rawEmail = profile.email || (profile as any).userPrincipalName || (profile as any).mail || '';
                     const rawName = profile.name || (profile as any).displayName || '';
+                    if (!rawEmail) {
+                        throw new Error('Microsoft OAuth profile did not include a usable email address');
+                    }
                     const username = generateUsername(rawEmail, rawName);
                     return {
                         name: rawName || username,
@@ -339,7 +334,7 @@ export const auth = betterAuth({
                         image: (profile as any).picture || undefined,
                         username,
                         displayUsername: rawName || username,
-                        emailVerified: true,
+                        emailVerified: (profile as any).email_verified === true,
                     };
                 },
             },
@@ -347,8 +342,10 @@ export const auth = betterAuth({
     },
     account: {
         accountLinking: {
-            enabled: true,
-            trustedProviders: ['google', 'microsoft'],
+            // Provider linking must be an explicit, re-authenticated action;
+            // no provider is trusted merely because its email matches.
+            enabled: false,
+            trustedProviders: [],
         },
     },
     databaseHooks: {
@@ -366,13 +363,17 @@ export const auth = betterAuth({
                             id: (user as any).id || uuidv7(),
                             username,
                             displayUsername: (user as any).displayUsername || user.name || username,
-                            emailVerified: (user as any).emailVerified ?? true,
+                            emailVerified: (user as any).emailVerified === true,
                         },
                     };
                 },
             },
             update: {
                 after: async (user) => {
+                    const securityUser = user as typeof user & { isActive?: boolean; is_active?: boolean };
+                    if (securityUser.isActive === false || securityUser.is_active === false) {
+                        await revokeAllSessionsForGlobalUser(user.id);
+                    }
                     // Emitir actualización de perfil en tiempo real para todos los dispositivos del usuario vía SSE
                     broadcastToUser(
                         user.id,
@@ -413,6 +414,26 @@ export const auth = betterAuth({
                     const headers = ((context as any)?.headers || (context as any)?.request?.headers) as Headers | undefined;
                     const extracted = headers ? extractIpFromHeaders(headers) : null;
 
+                    // Turnstile validation on login (x-turnstile-token header)
+                    const turnstileToken = headers?.get('x-turnstile-token');
+                    if (turnstileToken) {
+                        const { verifyTurnstileToken } = await import('../core/security/turnstile.service');
+                        await verifyTurnstileToken(
+                            turnstileToken,
+                            {
+                                action: 'login',
+                                ipAddress: extracted?.ipAddress ?? undefined,
+                                requestId: headers?.get('x-request-id') ?? undefined,
+                                expectedHostname: (() => {
+                                    try {
+                                        const origin = headers?.get('origin');
+                                        return origin ? new URL(origin).hostname : undefined;
+                                    } catch { return undefined; }
+                                })(),
+                            },
+                        );
+                    }
+
                     return {
                         data: {
                             ...sess,
@@ -424,6 +445,19 @@ export const auth = betterAuth({
                 },
                 after: async (sess) => {
                     if (sess.userId) {
+                        const [securityUser] = await adminDb
+                            .select({ twoFactorEnabled: schema.user.twoFactorEnabled })
+                            .from(schema.user)
+                            .where(eq(schema.user.id, sess.userId))
+                            .limit(1);
+
+                        // Better Auth creates the final session only after its
+                        // two-factor challenge succeeds. Mark that session as
+                        // recently step-up verified for sensitive mutations.
+                        if (securityUser?.twoFactorEnabled) {
+                            await markMfaStepUp(sess.id);
+                        }
+
                         try {
                             await adminDb
                                 .update(schema.user)
@@ -448,8 +482,8 @@ export const auth = betterAuth({
     },
     emailAndPassword: {
         enabled: true,
-        autoSignIn: true,
-        requireEmailVerification: false,
+        autoSignIn: false,
+        requireEmailVerification: true,
         password: argon2PasswordConfig,
         sendResetPassword: async ({ user, url, token }) => {
             const { tenantSlug, recipientName } = await getTenantInfoForEmail(user.email);
@@ -459,7 +493,7 @@ export const auth = betterAuth({
         },
     },
     emailVerification: {
-        sendOnSignUp: false,
+        sendOnSignUp: true,
         autoSignInAfterVerification: true,
         sendVerificationEmail: async ({ user, token }) => {
             // Throttle: máximo 1 email por minuto por dirección
@@ -506,10 +540,9 @@ export const auth = betterAuth({
             generateId: () => uuidv7(),
         },
         generateId: () => uuidv7(),
+        // Session cookies remain host-only. Tenant switches use an authenticated handoff.
         crossSubDomainCookies: {
-            enabled: Boolean(env.COOKIE_DOMAIN),
-            // Better-Auth espera el dominio sin punto inicial
-            domain: env.COOKIE_DOMAIN ? env.COOKIE_DOMAIN.replace(/^\./, '') : undefined,
+            enabled: false,
         },
         defaultCookieAttributes: {
             secure: env.NODE_ENV === 'production',
@@ -523,7 +556,7 @@ export const auth = betterAuth({
             maxUsernameLength: 30,
         }),
         organization({
-            allowUserToCreateOrganization: true,
+            allowUserToCreateOrganization: false,
         }),
         twoFactor(),
     ],

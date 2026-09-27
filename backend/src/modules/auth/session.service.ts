@@ -1,5 +1,5 @@
 import { adminDb } from '../../core/db';
-import { sessions } from '@app/schema/tables';
+import { sessions, companies, member } from '@app/schema/tables';
 import { eq, and, or, sql } from '@app/schema';
 import { cacheService } from '../../core/cache';
 import { broadcastToUser } from '../../core/sse';
@@ -35,9 +35,34 @@ function resolveLocation(ipAddress: string | null): string | null {
 
 export async function getActiveSessions(
   userId: string | number,
-  currentSessionId?: string
+  companyId?: number,
+  currentSessionId?: string,
 ) {
   const userIdStr = String(userId);
+  let organizationId: string | null = null;
+
+  if (companyId !== undefined) {
+    const [company] = await adminDb
+      .select({ organizationId: companies.organization_id })
+      .from(companies)
+      .where(eq(companies.id, companyId))
+      .limit(1);
+    if (!company?.organizationId) throw new AuthError('Empresa no encontrada', 404);
+    const [membership] = await adminDb
+      .select({ id: member.id })
+      .from(member)
+      .where(and(
+        eq(member.userId, userIdStr),
+        eq(member.organizationId, company.organizationId),
+      ))
+      .limit(1);
+    if (!membership) throw new AuthError('El usuario no pertenece a esta empresa', 404);
+    organizationId = company.organizationId;
+  }
+
+  const tenantCondition = organizationId
+    ? eq(sessions.activeOrganizationId, organizationId)
+    : undefined;
 
   const activeSessions = await adminDb
     .select({
@@ -51,6 +76,7 @@ export async function getActiveSessions(
     .where(
       and(
         eq(sessions.userId, userIdStr),
+        ...(tenantCondition ? [tenantCondition] : []),
         or(
           sql`${sessions.expiresAt} > NOW()`,
           currentSessionId ? eq(sessions.id, currentSessionId) : sql`false`
@@ -78,11 +104,25 @@ export async function getActiveSessions(
 /**
  * Revoke single user session
  */
-export async function revokeSession(sessionId: string, userId: string | number) {
+export async function revokeSession(sessionId: string, userId: string | number, companyId?: number) {
   const userIdStr = String(userId);
+  let tenantCondition;
+  if (companyId !== undefined) {
+    const [company] = await adminDb
+      .select({ organizationId: companies.organization_id })
+      .from(companies)
+      .where(eq(companies.id, companyId))
+      .limit(1);
+    if (!company?.organizationId) throw new AuthError('Empresa no encontrada', 404);
+    tenantCondition = eq(sessions.activeOrganizationId, company.organizationId);
+  }
   const deleted = await adminDb
     .delete(sessions)
-    .where(and(eq(sessions.id, sessionId), eq(sessions.userId, userIdStr)))
+    .where(and(
+      eq(sessions.id, sessionId),
+      eq(sessions.userId, userIdStr),
+      ...(tenantCondition ? [tenantCondition] : []),
+    ))
     .returning({ id: sessions.id, token: sessions.token });
 
   if (deleted.length === 0) throw new AuthError('Sesión no encontrada', 404);

@@ -12,7 +12,7 @@ import { TaxRegimeTypeSchema } from './entities.dto';
  * Single source of truth for tenant provisioning validation.
  */
 const CompanyDataSchema = Type.Object({
-    slug: Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9-]+$' }),
+    slug: Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$' }),
     ruc: Type.String({ minLength: 13, maxLength: 13 }),
     businessName: Type.String({ minLength: 3 }),
     tradeName: Type.Optional(Type.String()),
@@ -23,7 +23,15 @@ const CompanyDataSchema = Type.Object({
     taxRegimeType: Type.Optional(TaxRegimeTypeSchema),
     phone: Type.Optional(Type.String()),
     cedula: Type.Optional(Type.String()),
-    planId: Type.Optional(Type.String()),
+    planId: Type.Optional(Type.Union([
+        Type.Literal('free'),
+        Type.Literal('starter_monthly'),
+        Type.Literal('starter_yearly'),
+        Type.Literal('pro_monthly'),
+        Type.Literal('pro_yearly'),
+        Type.Literal('enterprise_monthly'),
+        Type.Literal('enterprise_yearly'),
+    ])),
     turnstileToken: Type.Optional(Type.String()),
 });
 
@@ -38,6 +46,27 @@ export const TenantRegisterBodySchema = Type.Composite([
 ]);
 
 export const TenantOnboardBodySchema = CompanyDataSchema;
+
+export const TenantHandoffRequestBodySchema = Type.Object({
+    organizationId: Type.String({ minLength: 1 }),
+    destinationSlug: Type.String({ minLength: 3, maxLength: 30 }),
+});
+
+export const TenantHandoffRequestResponseSchema = Type.Object({
+    ticket: Type.String({ minLength: 1 }),
+    redirectUrl: Type.String({ format: 'uri' }),
+    expiresInSeconds: Type.Number(),
+});
+
+export const TenantHandoffConsumeQuerySchema = Type.Object({
+    ticket: Type.String({ minLength: 1 }),
+});
+
+export const TenantHandoffConsumeResponseSchema = Type.Object({
+    organizationId: Type.String(),
+    companyId: Type.Number(),
+    slug: Type.String(),
+});
 
 // ============================================================================
 // RESPONSE SCHEMAS

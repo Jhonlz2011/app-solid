@@ -16,6 +16,7 @@ import AuthStepper from '../components/AuthStepper';
 import { ScrollArea } from '@/layout/components/ScrollArea';
 import { Badge } from '@shared/ui/display/Badge';
 import { PlanSelector } from '../components/PlanSelector';
+import type { SaasPlanId } from '@app/schema/enums';
 
 export const CreateCompany: Component = () => {
     const navigate = useNavigate();
@@ -29,7 +30,7 @@ export const CreateCompany: Component = () => {
     const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
     let turnstileActions: { reset: () => void } | undefined;
 
-    const [selectedPlanId, setSelectedPlanId] = createSignal<string>('starter_yearly');
+    const [selectedPlanId, setSelectedPlanId] = createSignal<SaasPlanId>('free');
 
     const form = createForm(() => ({
         defaultValues: {
@@ -171,7 +172,7 @@ export const CreateCompany: Component = () => {
 
                             {/* Cloudflare Turnstile */}
                             <Turnstile
-                                action="register"
+                                action="tenant_onboarding"
                                 ref={(act) => { turnstileActions = act; }}
                                 onToken={(token) => setTurnstileToken(token)}
                                 onExpire={() => setTurnstileToken(null)}

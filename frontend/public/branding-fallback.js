@@ -52,7 +52,7 @@
             cardLight: "#fff",
             cardDark: "#0f172a",
             cardAltLight: "#eef2ff",
-            cardAltDark: "#070a0e",
+            cardAltDark: "#060d1c",
             borderLight: "#e7eff8",
             borderDark: "#1f2533"
       },
@@ -88,7 +88,7 @@
             cardLight: "#fff",
             cardDark: "#111827",
             cardAltLight: "#eef2ff",
-            cardAltDark: "#070a0e",
+            cardAltDark: "#060d1c",
             borderLight: "#e7eff8",
             borderDark: "#1f2533"
       }
