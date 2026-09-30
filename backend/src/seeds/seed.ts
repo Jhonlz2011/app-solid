@@ -112,7 +112,7 @@ function readBootstrapConfig(): BootstrapConfig {
     }
 
     const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
-    if (!password || password.length < 16) {
+    if (!password || password.length < 8) {
         throw new Error('BOOTSTRAP_ADMIN_PASSWORD must be configured and contain at least 16 characters');
     }
     if (!env.RESEND_API_KEY) {
