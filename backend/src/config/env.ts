@@ -1,5 +1,10 @@
+import { resolveDatabaseSslMode, type DatabaseSslMode } from '../core/db/postgres-options';
+
 const nodeEnv = process.env.NODE_ENV || 'development';
 const isProduction = nodeEnv === 'production';
+const databaseSslMode = resolveDatabaseSslMode(process.env.DATABASE_SSL_MODE);
+const referenceDatabaseSslMode = resolveDatabaseSslMode(process.env.REF_DATABASE_SSL_MODE, databaseSslMode);
+const adminDatabaseSslMode = resolveDatabaseSslMode(process.env.ADMIN_DATABASE_SSL_MODE, databaseSslMode);
 
 if (!process.env.DATABASE_URL || !process.env.FRONTEND_URL || !process.env.REF_DATABASE_URL) {
   throw new Error('Variables de entorno requeridas no encontradas (DATABASE_URL, FRONTEND_URL, REF_DATABASE_URL)');
@@ -22,6 +27,9 @@ if (isProduction) {
 
 export const env = {
   DATABASE_URL: process.env.DATABASE_URL,
+  DATABASE_SSL_MODE: databaseSslMode as DatabaseSslMode,
+  REF_DATABASE_SSL_MODE: referenceDatabaseSslMode as DatabaseSslMode,
+  ADMIN_DATABASE_SSL_MODE: adminDatabaseSslMode as DatabaseSslMode,
   // Keep a separate pool for global workers. Production validates that this
   // URL is explicitly configured instead of silently connecting to localhost.
   ADMIN_DATABASE_URL: process.env.ADMIN_DATABASE_URL || process.env.DATABASE_URL,

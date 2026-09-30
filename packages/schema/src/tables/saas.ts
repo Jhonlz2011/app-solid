@@ -1,7 +1,9 @@
-import { text, integer, boolean, timestamp, numeric, uuid, primaryKey, index, uniqueIndex, unique } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, timestamp, numeric, uuid, primaryKey, index, unique, check } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { companies } from './config';
+import type { SaasAddonStatus, SaasDocumentPackStatus, SaasPaymentMethodType, SaasPlanInterval, SaasSubscriptionStatus } from '../enums';
 
 // ============================================================================
 // 1. CATÁLOGOS MAESTROS GLOBALES (Sin RLS — Disponibles para todo el sistema)
@@ -14,7 +16,7 @@ export const saasPlans = pgTableV2("saas_plans", {
     id: text("id").primaryKey(), // 'free', 'starter_monthly', 'starter_yearly', 'pro_monthly', 'pro_yearly', 'enterprise_monthly', 'enterprise_yearly'
     name: text("name").notNull(),
     description: text("description").notNull(),
-    interval: text("interval").notNull(), // 'MONTHLY' | 'YEARLY' | 'ONE_TIME'
+    interval: text("interval").$type<SaasPlanInterval>().notNull(),
     price_usd: numeric("price_usd", { precision: 10, scale: 2 }).default('0.00').notNull(),
     annual_discount_percent: integer("annual_discount_percent").default(0),
     trial_days: integer("trial_days").default(0).notNull(),
@@ -24,6 +26,7 @@ export const saasPlans = pgTableV2("saas_plans", {
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
+    check("saas_plans_interval_check", sql`${t.interval} IN ('MONTHLY', 'YEARLY')`),
     index("idx_saas_plans_order").on(t.sort_order),
     index("idx_saas_plans_interval").on(t.interval),
 ]);
@@ -107,16 +110,19 @@ export const saasTenantSubscriptions = pgTableV2("saas_tenant_subscriptions", {
     id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
     company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }).notNull().unique(),
     plan_id: text("plan_id").references(() => saasPlans.id).notNull(),
-    status: text("status").default('ACTIVE').notNull(), // 'ACTIVE' | 'GRACE_PERIOD' | 'PAST_DUE' | 'SUSPENDED'
+    // Callers must choose ACTIVE/TRIAL/PENDING_PAYMENT explicitly; no implicit paid activation.
+    status: text("status").$type<SaasSubscriptionStatus>().notNull(),
     current_period_start: timestamp("current_period_start", TZ).defaultNow().notNull(),
     current_period_end: timestamp("current_period_end", TZ),
     grace_period_ends_at: timestamp("grace_period_ends_at", TZ), // Fecha límite si falla cobro recurrente
     cancel_at_period_end: boolean("cancel_at_period_end").default(false).notNull(),
-    payment_method_type: text("payment_method_type").default('FREE').notNull(), // 'TRANSFER' | 'CARD' | 'FREE'
+    payment_method_type: text("payment_method_type").$type<SaasPaymentMethodType | null>().default('FREE'),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
-    index("idx_saas_sub_company").on(t.company_id),
+    check("saas_tenant_subscriptions_status_check", sql`${t.status} IN ('ACTIVE', 'TRIAL', 'PENDING_PAYMENT', 'GRACE_PERIOD', 'PAST_DUE', 'SUSPENDED')`),
+    check("saas_tenant_subscriptions_payment_method_check", sql`${t.payment_method_type} IS NULL OR ${t.payment_method_type} IN ('FREE', 'TRANSFER', 'CARD')`),
+    check("saas_tenant_subscriptions_plan_payment_check", sql`(${t.plan_id} = 'free' AND ${t.payment_method_type} IS NOT NULL AND ${t.payment_method_type} = 'FREE') OR (${t.plan_id} <> 'free' AND ${t.payment_method_type} IS DISTINCT FROM 'FREE')`),
     index("idx_saas_sub_status").on(t.status),
     tenantPolicy(),
 ]).enableRLS();
@@ -129,10 +135,11 @@ export const saasTenantAddons = pgTableV2("saas_tenant_addons", {
     company_id: integer("company_id").references(() => companies.id, { onDelete: 'cascade' }).notNull(),
     addon_id: text("addon_id").references(() => saasAddons.id).notNull(),
     quantity: integer("quantity").default(1).notNull(),
-    status: text("status").default('ACTIVE').notNull(), // 'ACTIVE' | 'CANCELLED'
+    status: text("status").$type<SaasAddonStatus>().default('ACTIVE').notNull(),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
+    check("saas_tenant_addons_status_check", sql`${t.status} IN ('ACTIVE', 'CANCELLED')`),
     index("idx_saas_tenant_addons_company").on(t.company_id),
     tenantPolicy(),
 ]).enableRLS();
@@ -147,10 +154,11 @@ export const saasTenantDocumentPacks = pgTableV2("saas_tenant_document_packs", {
     total_credits: integer("total_credits").notNull(),
     remaining_credits: integer("remaining_credits").notNull(),
     expires_at: timestamp("expires_at", TZ), // null = no expira
-    status: text("status").default('ACTIVE').notNull(), // 'ACTIVE' | 'DEPLETED' | 'EXPIRED'
+    status: text("status").$type<SaasDocumentPackStatus>().default('ACTIVE').notNull(),
     created_at: timestamp("created_at", TZ).defaultNow().notNull(),
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
+    check("saas_tenant_document_packs_status_check", sql`${t.status} IN ('ACTIVE', 'DEPLETED', 'EXPIRED')`),
     index("idx_saas_tenant_doc_packs_company").on(t.company_id),
     index("idx_saas_tenant_doc_packs_status").on(t.status),
     tenantPolicy(),

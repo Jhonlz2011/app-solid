@@ -1,4 +1,4 @@
-import { text, integer, boolean, jsonb, foreignKey, index, unique, timestamp, numeric, pgPolicy } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, jsonb, foreignKey, index, unique, uniqueIndex, timestamp, numeric, pgPolicy } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { attributeDataTypeEnum, uomGroupEnum } from '../enums';
@@ -125,8 +125,8 @@ export const uom = pgTableV2("uom", {
     updated_at: timestamp("updated_at", TZ).defaultNow().notNull(),
 }, (t) => [
     unique("unq_uom_code_company").on(t.code, t.company_id),
+    uniqueIndex("unq_uom_global_code").on(t.code).where(sql`${t.company_id} IS NULL`),
     index("idx_uom_company").on(t.company_id),
-    index("idx_uom_code").on(t.code),
     pgPolicy('tenant_isolation', {
         as: 'permissive',
         for: 'all',

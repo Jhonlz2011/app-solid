@@ -201,7 +201,13 @@ async function provisionTenant(
 
   // 9. Seed initial system data (Plan-aware RBAC + Subscription)
   await seedCompanyRBAC(tx, company.id, ownerInfo.userId, companyPlan);
-  await seedCompanySubscription(tx, company.id, companyPlan, companyPlan === 'free' ? 'ACTIVE' : 'PENDING_PAYMENT');
+  await seedCompanySubscription(
+    tx,
+    company.id,
+    companyPlan,
+    companyPlan === 'free' ? 'ACTIVE' : 'PENDING_PAYMENT',
+    companyPlan === 'free' ? 'FREE' : null,
+  );
   await seedCompanyUOMs(tx, company.id);
   await seedCompanyVirtualLocations(tx, company.id);
   await seedCompanyWarehouse(tx, company.id, company.main_address, ownerEntity.id);

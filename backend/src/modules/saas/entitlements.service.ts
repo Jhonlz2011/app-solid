@@ -12,7 +12,7 @@ import {
     authPermissions,
     authRolePermissions,
 } from '@app/schema/tables';
-import { SAAS_PLAN_IDS, type RbacModule, type SaasPlanId } from '@app/schema/enums';
+import { SAAS_PLAN_IDS, type RbacModule, type SaasPaymentMethodType, type SaasPlanId } from '@app/schema/enums';
 import {
     resolveAllowedModulesForPlan,
     resolveAllowedModulesFromFeatures,
@@ -401,10 +401,11 @@ export async function canAccessModule(companyId: number, moduleName: RbacModule)
 export async function upgradeCompanyPlan(
     companyId: number,
     newPlanId: SaasPlanId,
-    paymentMethodType: string = 'CARD'
+    paymentMethodType: SaasPaymentMethodType | null = null
 ): Promise<void> {
     const normalizedPlanId = newPlanId;
     const subscriptionStatus = normalizedPlanId === 'free' ? 'ACTIVE' : 'PENDING_PAYMENT';
+    const normalizedPaymentMethod = normalizedPlanId === 'free' ? 'FREE' : paymentMethodType;
 
     await db.transaction(async (tx) => {
         // 1. Upsert en saas_tenant_subscriptions (fuente de verdad única)
@@ -414,7 +415,7 @@ export async function upgradeCompanyPlan(
                 company_id: companyId,
                 plan_id: normalizedPlanId,
                 status: subscriptionStatus,
-                payment_method_type: paymentMethodType,
+                payment_method_type: normalizedPaymentMethod,
                 current_period_start: new Date(),
                 updated_at: new Date(),
             })
@@ -423,7 +424,7 @@ export async function upgradeCompanyPlan(
                 set: {
                     plan_id: normalizedPlanId,
                     status: subscriptionStatus,
-                    payment_method_type: paymentMethodType,
+                    payment_method_type: normalizedPaymentMethod,
                     updated_at: new Date(),
                 },
             });

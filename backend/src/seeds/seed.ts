@@ -1,490 +1,627 @@
-// src/seeds/seed.ts
 // Run with: bun run db:seed
-import { db, withTenantContext } from '../core/db';
+import { and, eq, sql } from '@app/schema';
+import { normalizeTenantSlug } from '@app/schema/utils';
+import { SAAS_PLAN_IDS, BUSINESS_TYPES, type BusinessType, type SaasPlanId } from '@app/schema/enums';
 import {
+    account,
+    authMenuItems,
     authPermissions,
     authRoles,
-    authUserRoles,
     authUsers,
-    account,
-    organization,
-    member,
-    uom,
-    entities,
     companies,
-    sriEstablishments,
-    authMenuItems,
-    saasPlans,
-    saasFeatures,
-    saasPlanFeatures,
+    entities,
+    member,
+    organization,
     saasAddons,
     saasDocumentPackages,
+    saasFeatures,
+    saasPlanFeatures,
+    saasPlans,
+    saasTenantSubscriptions,
+    sriEstablishments,
+    uom,
 } from '@app/schema/tables';
-import { sql, eq, and } from '@app/schema';
+import { v7 as uuidv7 } from 'uuid';
+import { auth } from '../config/better-auth';
+import { env } from '../config/env';
 import {
+    applyTenantContextToTransaction,
+    closeDatabaseConnections,
+    db,
+    type Tx,
+} from '../core/db';
+import { disconnectRedis } from '../core/cache/redis';
+import { hashPassword } from '../core/security';
+import { createCredentialIdentity } from '../modules/auth/identity.service';
+import {
+    seedCompanyMenus,
     seedCompanyRBAC,
     seedCompanySubscription,
-    seedCompanyMenus,
     seedCompanyUOMs,
     seedCompanyVirtualLocations,
     seedCompanyWarehouse,
 } from '../modules/auth/provisioning.service';
-import { hashPassword } from '../core/security';
+import { DOCUMENT_PACKAGES, SAAS_ADDONS, SAAS_FEATURES, SAAS_PLAN_FEATURES, SAAS_PLANS } from './saas-seed-data';
 import { UOM_DATA } from './seed-data';
-import {
-    SAAS_FEATURES,
-    SAAS_PLANS,
-    SAAS_PLAN_FEATURES,
-    SAAS_ADDONS,
-    DOCUMENT_PACKAGES,
-} from './saas-seed-data';
-import { v7 as uuidv7 } from 'uuid';
 
-/**
- * Sembrado de Catálogos Maestros de SaaS (Planes, Features, Add-ons, Packs Prepago)
- */
-async function seedSaasCatalogs(database: typeof db) {
-    console.log('\n📦 Sembrando Catálogos Maestros SaaS...');
-
-    // 1. Features maestras
-    console.log(`   ⚙️ Insertando ${SAAS_FEATURES.length} features y límites...`);
-    for (const f of SAAS_FEATURES) {
-        await database
-            .insert(saasFeatures)
-            .values({
-                code: f.code,
-                name: f.name,
-                description: f.description,
-                type: f.type,
-                category: f.category,
-                unit_label: f.unitLabel || null,
-            })
-            .onConflictDoUpdate({
-                target: saasFeatures.code,
-                set: {
-                    name: f.name,
-                    description: f.description,
-                    type: f.type,
-                    category: f.category,
-                    unit_label: f.unitLabel || null,
-                },
-            });
-    }
-
-    // 2. Planes SaaS
-    console.log(`   🏷️ Insertando ${SAAS_PLANS.length} planes comerciales...`);
-    for (const p of SAAS_PLANS) {
-        await database
-            .insert(saasPlans)
-            .values({
-                id: p.id,
-                name: p.name,
-                description: p.description,
-                interval: p.interval,
-                price_usd: p.priceUsd.toFixed(2),
-                annual_discount_percent: p.annualDiscountPercent || 0,
-                trial_days: p.trialDays,
-                is_popular: p.isPopular ?? false,
-                sort_order: p.sortOrder,
-                is_active: true,
-                updated_at: new Date(),
-            })
-            .onConflictDoUpdate({
-                target: saasPlans.id,
-                set: {
-                    name: p.name,
-                    description: p.description,
-                    interval: p.interval,
-                    price_usd: p.priceUsd.toFixed(2),
-                    annual_discount_percent: p.annualDiscountPercent || 0,
-                    trial_days: p.trialDays,
-                    is_popular: p.isPopular ?? false,
-                    sort_order: p.sortOrder,
-                    is_active: true,
-                    updated_at: new Date(),
-                },
-            });
-    }
-
-    // 3. Matriz Plan - Features
-    console.log(`   🔗 Insertando ${SAAS_PLAN_FEATURES.length} relaciones plan-feature...`);
-    for (const pf of SAAS_PLAN_FEATURES) {
-        await database
-            .insert(saasPlanFeatures)
-            .values({
-                plan_id: pf.planId,
-                feature_code: pf.featureCode,
-                value_boolean: pf.valueBoolean ?? null,
-                value_numeric: pf.valueNumeric ?? null,
-            })
-            .onConflictDoUpdate({
-                target: [saasPlanFeatures.plan_id, saasPlanFeatures.feature_code],
-                set: {
-                    value_boolean: pf.valueBoolean ?? null,
-                    value_numeric: pf.valueNumeric ?? null,
-                },
-            });
-    }
-
-    // 4. Catálogo de Add-ons recurrentes
-    console.log(`   🧩 Insertando ${SAAS_ADDONS.length} add-ons...`);
-    for (const a of SAAS_ADDONS) {
-        await database
-            .insert(saasAddons)
-            .values({
-                id: a.id,
-                name: a.name,
-                description: a.description,
-                addon_type: a.addonType,
-                billing_type: a.billingType,
-                price_usd: a.priceUsd.toFixed(2),
-                quantity: a.quantity,
-                unit_label: a.unitLabel,
-                validity_days: a.validityDays ?? null,
-                is_popular: a.isPopular ?? false,
-                sort_order: a.sortOrder,
-                is_active: true,
-            })
-            .onConflictDoUpdate({
-                target: saasAddons.id,
-                set: {
-                    name: a.name,
-                    description: a.description,
-                    addon_type: a.addonType,
-                    billing_type: a.billingType,
-                    price_usd: a.priceUsd.toFixed(2),
-                    quantity: a.quantity,
-                    unit_label: a.unitLabel,
-                    validity_days: a.validityDays ?? null,
-                    is_popular: a.isPopular ?? false,
-                    sort_order: a.sortOrder,
-                    is_active: true,
-                },
-            });
-    }
-
-    // 5. Catálogo de Paquetes de Documentos Prepago SRI
-    console.log(`   📄 Insertando ${DOCUMENT_PACKAGES.length} paquetes de comprobantes SRI...`);
-    for (const dp of DOCUMENT_PACKAGES) {
-        await database
-            .insert(saasDocumentPackages)
-            .values({
-                id: dp.id,
-                name: dp.name,
-                description: dp.description,
-                document_count: dp.documentCount,
-                price_usd: dp.priceUsd.toFixed(2),
-                unit_cost_usd: dp.unitCostUsd.toFixed(4),
-                validity_days: dp.validityDays ?? null,
-                is_popular: dp.isPopular ?? false,
-                sort_order: dp.sortOrder,
-                is_active: true,
-            })
-            .onConflictDoUpdate({
-                target: saasDocumentPackages.id,
-                set: {
-                    name: dp.name,
-                    description: dp.description,
-                    document_count: dp.documentCount,
-                    price_usd: dp.priceUsd.toFixed(2),
-                    unit_cost_usd: dp.unitCostUsd.toFixed(4),
-                    validity_days: dp.validityDays ?? null,
-                    is_popular: dp.isPopular ?? false,
-                    sort_order: dp.sortOrder,
-                    is_active: true,
-                },
-            });
-    }
-
-    console.log('   ✅ Catálogos maestros SaaS sembrados exitosamente.');
+interface BootstrapConfig {
+    company: {
+        slug: string;
+        ruc: string;
+        businessName: string;
+        tradeName: string | null;
+        mainAddress: string;
+        businessType: BusinessType;
+    };
+    owner: {
+        name: string;
+        email: string;
+        username: string;
+        password: string;
+    };
 }
 
-async function seed() {
-    console.log('🌱 Iniciando Sembrado Completo del Sistema Zelys ERP...\n');
+type BootstrapCompany = Pick<
+    typeof companies.$inferSelect,
+    'id' | 'organization_id' | 'slug' | 'business_name' | 'main_address'
+>;
 
-    try {
-        // =========================================================================
-        // 0. SEED SAAS MASTER CATALOGS (Planes, Features, Add-ons, Packs)
-        // =========================================================================
-        await seedSaasCatalogs(db as any);
+interface SeedSummary {
+    company: BootstrapCompany;
+    ownerId: string;
+    ownerEmailVerified: boolean;
+    counts: {
+        plans: number;
+        features: number;
+        addons: number;
+        documentPackages: number;
+        users: number;
+        members: number;
+        roles: number;
+        permissions: number;
+        menuItems: number;
+    };
+}
 
-        // =========================================================================
-        // 0.1 CREATE / VERIFY DEFAULT DEV COMPANY & BETTER-AUTH ORGANIZATION
-        // =========================================================================
-        console.log('\n🏢 Creating / verifying default dev company...');
-        const [devCompany] = await db
-            .insert(companies)
-            .values({
-                organization_id: uuidv7(),
-                slug: 'dev',
-                ruc: '9999999999001',
-                business_name: 'Empresa de Desarrollo',
-                trade_name: 'DevCo',
-                main_address: 'Dirección de prueba',
-                business_type: 'COMERCIO',
-            })
-            .onConflictDoUpdate({
-                target: companies.ruc,
-                set: { business_name: 'Empresa de Desarrollo', slug: 'dev' },
-            })
-            .returning();
-        console.log(`   ✅ Company verified: ${devCompany.business_name} (id: ${devCompany.id}, slug: ${devCompany.slug})`);
+function requiredText(name: string): string {
+    const value = process.env[name]?.trim();
+    if (!value) throw new Error(`Missing required seed configuration: ${name}`);
+    return value;
+}
 
-        // Register organization in Better-Auth for multi-tenancy & company switching
-        console.log('🏢 Creating / verifying Better-Auth organization...');
-        const orgId = devCompany.organization_id || uuidv7();
-        await db
-            .insert(organization)
-            .values({
-                id: orgId,
-                name: devCompany.business_name,
-                slug: devCompany.slug,
-            })
-            .onConflictDoUpdate({
-                target: organization.slug,
-                set: { name: devCompany.business_name },
-            });
-        
-        // Link company to organization
-        await db
-            .update(companies)
-            .set({ organization_id: orgId })
-            .where(eq(companies.id, devCompany.id));
-        console.log(`   ✅ Better-Auth Organization verified: ${devCompany.slug} (org: ${orgId})`);
+function readBootstrapConfig(): BootstrapConfig {
+    const slug = normalizeTenantSlug(requiredText('BOOTSTRAP_COMPANY_SLUG'));
+    if (!slug) throw new Error('BOOTSTRAP_COMPANY_SLUG is invalid or reserved');
 
-        // =========================================================================
-        // 1. SYSTEM GLOBAL UOMs (company_id = null)
-        // =========================================================================
-        console.log('\n📏 Inserting global system UOMs...');
-        for (const unit of UOM_DATA) {
-            await db
-                .insert(uom)
-                .values({ ...unit, company_id: null, is_system: true })
-                .onConflictDoNothing();
+    const ruc = requiredText('BOOTSTRAP_COMPANY_RUC');
+    if (!/^\d{13}$/.test(ruc)) throw new Error('BOOTSTRAP_COMPANY_RUC must contain exactly 13 digits');
+
+    const businessType = requiredText('BOOTSTRAP_COMPANY_BUSINESS_TYPE').toUpperCase();
+    if (!(BUSINESS_TYPES as readonly string[]).includes(businessType)) {
+        throw new Error(`BOOTSTRAP_COMPANY_BUSINESS_TYPE must be one of: ${BUSINESS_TYPES.join(', ')}`);
+    }
+
+    const email = requiredText('BOOTSTRAP_ADMIN_EMAIL').toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new Error('BOOTSTRAP_ADMIN_EMAIL is not a valid email address');
+    }
+
+    const username = requiredText('BOOTSTRAP_ADMIN_USERNAME').toLowerCase();
+    if (!/^[a-z0-9_-]{3,30}$/.test(username)) {
+        throw new Error('BOOTSTRAP_ADMIN_USERNAME must be 3-30 lowercase letters, digits, _ or -');
+    }
+
+    const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+    if (!password || password.length < 16) {
+        throw new Error('BOOTSTRAP_ADMIN_PASSWORD must be configured and contain at least 16 characters');
+    }
+    if (!env.RESEND_API_KEY) {
+        throw new Error('RESEND_API_KEY is required to deliver the mandatory bootstrap email verification');
+    }
+
+    return {
+        company: {
+            slug,
+            ruc,
+            businessName: requiredText('BOOTSTRAP_COMPANY_NAME'),
+            tradeName: process.env.BOOTSTRAP_COMPANY_TRADE_NAME?.trim() || null,
+            mainAddress: requiredText('BOOTSTRAP_COMPANY_MAIN_ADDRESS'),
+            businessType: businessType as BusinessType,
+        },
+        owner: {
+            name: requiredText('BOOTSTRAP_ADMIN_NAME'),
+            email,
+            username,
+            password,
+        },
+    };
+}
+
+function validateCatalogDefinitions(): void {
+    const featureCodes = new Set(SAAS_FEATURES.map((feature) => feature.code));
+    const planIds = new Set(SAAS_PLANS.map((plan) => plan.id));
+    const featurePairs = new Set<string>();
+
+    if (featureCodes.size !== SAAS_FEATURES.length) throw new Error('Duplicate feature code in SaaS seed catalog');
+    if (planIds.size !== SAAS_PLANS.length) throw new Error('Duplicate plan id in SaaS seed catalog');
+
+    for (const plan of SAAS_PLANS) {
+        if (!(SAAS_PLAN_IDS as readonly string[]).includes(plan.id)) {
+            throw new Error(`Unknown SaaS plan id in seed catalog: ${plan.id}`);
         }
-        console.log(`   ✅ ${UOM_DATA.length} global system UOMs processed`);
-
-        // =========================================================================
-        // 2. SYSTEM GLOBAL MENUS (Parent & Children dynamic navigation tree)
-        // =========================================================================
-        console.log('\n📂 Seeding global system menu items...');
-        await seedCompanyMenus(db as any);
-        console.log('   ✅ Global system menus seeded/updated');
-
-        // =========================================================================
-        // 3. TENANT-SCOPED INITIALIZATION (DEV COMPANY)
-        // =========================================================================
-        await withTenantContext({ companyId: devCompany.id }, async () => {
-            // 3.1 Derived UOMs
-            console.log('\n📏 Seeding derived UOMs for dev company...');
-            await seedCompanyUOMs(db as any, devCompany.id);
-            console.log('   ✅ Derived UOMs processed');
-
-            // 3.2 SRI Establishment
-            console.log('\n🏗️ Creating default SRI establishment (Matriz 001)...');
-            await db
-                .insert(sriEstablishments)
-                .values({
-                    company_id: devCompany.id,
-                    code: '001',
-                    name: 'Matriz',
-                    address: devCompany.main_address,
-                    emission_points: ['001'],
-                })
-                .onConflictDoNothing();
-            console.log('   ✅ SRI establishment verified');
-
-            // 3.3 Consumidor Final Client Entity
-            console.log('\n👤 Creating default CONSUMIDOR FINAL client...');
-            const [consumidorFinal] = await db
-                .insert(entities)
-                .values({
-                    company_id: devCompany.id,
-                    tax_id: '9999999999999',
-                    tax_id_type: 'CONSUMIDOR_FINAL',
-                    person_type: 'NATURAL',
-                    business_name: 'CONSUMIDOR FINAL',
-                    is_client: true,
-                    is_system: true,
-                    obligado_contabilidad: false,
-                })
-                .onConflictDoUpdate({
-                    target: [entities.company_id, entities.tax_id],
-                    set: { business_name: 'CONSUMIDOR FINAL', is_system: true }
-                })
-                .returning();
-            console.log(`   ✅ Entity verified: ${consumidorFinal.business_name}`);
-
-            // 3.4 Virtual Locations (SUPPLIER, CUSTOMER, ADJUSTMENT, PRODUCTION)
-            console.log('\n📍 Seeding virtual warehouse locations...');
-            await seedCompanyVirtualLocations(db as any, devCompany.id);
-            console.log('   ✅ Virtual locations verified');
-
-            // 3.5 Physical Warehouse (BOD-001) & Default Location (General)
-            console.log('\n📦 Seeding default physical warehouse & location...');
-            await seedCompanyWarehouse(db as any, devCompany.id, devCompany.main_address);
-            console.log('   ✅ Default warehouse & location verified');
-
-            // =====================================================================
-            // 4. SEED USERS & BETTER-AUTH CREDENTIALS (user, account, member)
-            // =====================================================================
-            console.log('\n👥 Seeding Better-Auth users & credentials...');
-
-            const defaultPassword = 'password123';
-            const hashedPassword = await hashPassword(defaultPassword);
-
-            const usersToCreate = [
-                {
-                    username: 'superadmin',
-                    name: 'Super Administrador',
-                    email: 'superadmin@zelys.app',
-                    role: 'superadmin',
-                },
-                {
-                    username: 'admin',
-                    name: 'Administrador',
-                    email: 'admin@zelys.app',
-                    role: 'admin',
-                }
-            ];
-
-            const userIds = new Map<string, string>();
-
-            for (const userData of usersToCreate) {
-                // 1. Insert / Upsert into Better-Auth 'user' table
-                const [userRecord] = await db
-                    .insert(authUsers)
-                    .values({
-                        name: userData.name,
-                        email: userData.email.toLowerCase(),
-                        username: userData.username.toLowerCase(),
-                        displayUsername: userData.username,
-                        company_id: devCompany.id,
-                        is_active: true,
-                        emailVerified: true,
-                    })
-                    .onConflictDoUpdate({
-                        target: authUsers.username,
-                        set: {
-                            name: userData.name,
-                            email: userData.email.toLowerCase(),
-                            displayUsername: userData.username,
-                            company_id: devCompany.id,
-                            is_active: true,
-                            emailVerified: true,
-                        }
-                    })
-                    .returning({ id: authUsers.id, email: authUsers.email, username: authUsers.username });
-
-                const userId = userRecord.id;
-                userIds.set(userData.username, userId);
-                console.log(`   ✅ User verified: ${userData.username} (${userData.email}) [id: ${userId}]`);
-
-                // 2. Insert / Update Better-Auth 'account' (Password Credential)
-                const existingAccount = await db
-                    .select({ id: account.id })
-                    .from(account)
-                    .where(and(eq(account.userId, userId), eq(account.providerId, 'credential')))
-                    .limit(1);
-
-                if (existingAccount.length === 0) {
-                    await db.insert(account).values({
-                        accountId: userId,
-                        providerId: 'credential',
-                        userId: userId,
-                        password: hashedPassword,
-                    });
-                    console.log(`      🔑 Created Better-Auth credential account for ${userData.username}`);
-                } else {
-                    await db
-                        .update(account)
-                        .set({ password: hashedPassword })
-                        .where(eq(account.id, existingAccount[0].id));
-                    console.log(`      🔑 Updated Better-Auth credential password for ${userData.username}`);
-                }
-
-                // 3. Insert Better-Auth 'member' (Organization Membership)
-                await db
-                    .insert(member)
-                    .values({
-                        organizationId: orgId,
-                        userId: userId,
-                        role: userData.role === 'superadmin' ? 'owner' : 'admin',
-                    })
-                    .onConflictDoNothing();
-                console.log(`      🏢 Added to Better-Auth organization membership: role ${userData.role}`);
-            }
-
-            // =====================================================================
-            // 5. SEED RBAC ROLES & PERMISSIONS FOR DEV COMPANY (Plan-Aware)
-            // =====================================================================
-            console.log('\n🛡️ Seeding company RBAC roles & permissions...');
-            const superadminId = userIds.get('superadmin') || '';
-            const roleMap = await seedCompanyRBAC(db as any, devCompany.id, superadminId, 'enterprise_yearly');
-            await seedCompanySubscription(db as any, devCompany.id, 'enterprise_yearly');
-            console.log(`   ✅ Roles, permissions & SaaS subscription linked (owner assigned to superadmin)`);
-
-            // Assign admin role to admin user
-            const adminId = userIds.get('admin');
-            const adminRoleId = roleMap.get('admin');
-            if (adminId && adminRoleId) {
-                await db
-                    .insert(authUserRoles)
-                    .values({ user_id: adminId, role_id: adminRoleId, company_id: devCompany.id })
-                    .onConflictDoNothing();
-                console.log(`   🔗 Assigned admin role to admin user`);
-            }
-
-            // =====================================================================
-            // 5.1 SEED DEV COMPANY MENUS & ROUTE ALIASES
-            // =====================================================================
-            console.log('\n📂 Seeding tenant menu items for dev company...');
-            await seedCompanyMenus(db as any, devCompany.id);
-            console.log('   ✅ Dev company menus seeded');
-
-            // =====================================================================
-            // 6. SUMMARY & VERIFICATION
-            // =====================================================================
-            const planCount = await db.select({ count: sql<number>`count(*)` }).from(saasPlans);
-            const featureCount = await db.select({ count: sql<number>`count(*)` }).from(saasFeatures);
-            const addonCount = await db.select({ count: sql<number>`count(*)` }).from(saasAddons);
-            const packCount = await db.select({ count: sql<number>`count(*)` }).from(saasDocumentPackages);
-            const permCount = await db.select({ count: sql<number>`count(*)` }).from(authPermissions);
-            const roleCount = await db.select({ count: sql<number>`count(*)` }).from(authRoles);
-            const userCount = await db.select({ count: sql<number>`count(*)` }).from(authUsers);
-            const companyCount = await db.select({ count: sql<number>`count(*)` }).from(companies);
-            const menuCount = await db.select({ count: sql<number>`count(*)` }).from(authMenuItems);
-            const memberCount = await db.select({ count: sql<number>`count(*)` }).from(member);
-            const accountCount = await db.select({ count: sql<number>`count(*)` }).from(account);
-
-            console.log('\n=============================================================');
-            console.log('🎉 SEED COMPLETED SUCCESSFULLY!');
-            console.log('=============================================================');
-            console.log(`📊 SaaS Master Catalogs:`);
-            console.log(`   - Plans:                    ${planCount[0].count}`);
-            console.log(`   - Features & Limits:        ${featureCount[0].count}`);
-            console.log(`   - Add-ons:                  ${addonCount[0].count}`);
-            console.log(`   - Document Packages (SRI):  ${packCount[0].count}`);
-            console.log(`📊 Tenant & System Statistics:`);
-            console.log(`   - Companies:                ${companyCount[0].count}`);
-            console.log(`   - Total Users:              ${userCount[0].count}`);
-            console.log(`   - Better-Auth Accounts:     ${accountCount[0].count}`);
-            console.log(`   - Organization Members:     ${memberCount[0].count}`);
-            console.log(`   - RBAC Roles:               ${roleCount[0].count}`);
-            console.log(`   - Permissions:              ${permCount[0].count}`);
-            console.log(`   - Dynamic Menu Items:       ${menuCount[0].count}`);
-            console.log('\n🔑 Default Credentials:');
-            console.log('   - Superadmin: superadmin@zelys.app / password123');
-            console.log('   - Admin:      admin@zelys.app      / password123');
-            console.log('=============================================================\n');
-        });
-
-    } catch (error) {
-        console.error('❌ Seed failed:', error);
-        process.exit(1);
     }
 
-    process.exit(0);
+    for (const item of SAAS_PLAN_FEATURES) {
+        if (!planIds.has(item.planId)) throw new Error(`Plan-feature references unknown plan: ${item.planId}`);
+        if (!featureCodes.has(item.featureCode)) throw new Error(`Plan-feature references unknown feature: ${item.featureCode}`);
+        const key = `${item.planId}\u0000${item.featureCode}`;
+        if (featurePairs.has(key)) throw new Error(`Duplicate plan-feature mapping: ${item.planId}/${item.featureCode}`);
+        featurePairs.add(key);
+    }
 }
 
-seed();
+/** Seed global SaaS catalogs in five batched, idempotent statements. */
+async function seedSaasCatalogs(tx: Tx): Promise<void> {
+    const now = new Date();
+
+    await tx.insert(saasFeatures).values(SAAS_FEATURES.map((feature) => ({
+        code: feature.code,
+        name: feature.name,
+        description: feature.description,
+        type: feature.type,
+        category: feature.category,
+        unit_label: feature.unitLabel ?? null,
+    }))).onConflictDoUpdate({
+        target: saasFeatures.code,
+        set: {
+            name: sql`excluded.name`,
+            description: sql`excluded.description`,
+            type: sql`excluded.type`,
+            category: sql`excluded.category`,
+            unit_label: sql`excluded.unit_label`,
+        },
+    });
+
+    await tx.insert(saasPlans).values(SAAS_PLANS.map((plan) => ({
+        id: plan.id,
+        name: plan.name,
+        description: plan.description,
+        interval: plan.interval,
+        price_usd: plan.priceUsd.toFixed(2),
+        annual_discount_percent: plan.annualDiscountPercent ?? 0,
+        trial_days: plan.trialDays,
+        is_popular: plan.isPopular ?? false,
+        sort_order: plan.sortOrder,
+        is_active: true,
+        updated_at: now,
+    }))).onConflictDoUpdate({
+        target: saasPlans.id,
+        set: {
+            name: sql`excluded.name`,
+            description: sql`excluded.description`,
+            interval: sql`excluded.interval`,
+            price_usd: sql`excluded.price_usd`,
+            annual_discount_percent: sql`excluded.annual_discount_percent`,
+            trial_days: sql`excluded.trial_days`,
+            is_popular: sql`excluded.is_popular`,
+            sort_order: sql`excluded.sort_order`,
+            updated_at: now,
+        },
+    });
+
+    await tx.insert(saasPlanFeatures).values(SAAS_PLAN_FEATURES.map((item) => ({
+        plan_id: item.planId,
+        feature_code: item.featureCode,
+        value_boolean: item.valueBoolean ?? null,
+        value_numeric: item.valueNumeric ?? null,
+    }))).onConflictDoUpdate({
+        target: [saasPlanFeatures.plan_id, saasPlanFeatures.feature_code],
+        set: {
+            value_boolean: sql`excluded.value_boolean`,
+            value_numeric: sql`excluded.value_numeric`,
+        },
+    });
+
+    await tx.insert(saasAddons).values(SAAS_ADDONS.map((addon) => ({
+        id: addon.id,
+        name: addon.name,
+        description: addon.description,
+        addon_type: addon.addonType,
+        billing_type: addon.billingType,
+        price_usd: addon.priceUsd.toFixed(2),
+        quantity: addon.quantity,
+        unit_label: addon.unitLabel,
+        validity_days: addon.validityDays ?? null,
+        is_popular: addon.isPopular ?? false,
+        sort_order: addon.sortOrder,
+        is_active: true,
+    }))).onConflictDoUpdate({
+        target: saasAddons.id,
+        set: {
+            name: sql`excluded.name`,
+            description: sql`excluded.description`,
+            addon_type: sql`excluded.addon_type`,
+            billing_type: sql`excluded.billing_type`,
+            price_usd: sql`excluded.price_usd`,
+            quantity: sql`excluded.quantity`,
+            unit_label: sql`excluded.unit_label`,
+            validity_days: sql`excluded.validity_days`,
+            is_popular: sql`excluded.is_popular`,
+            sort_order: sql`excluded.sort_order`,
+        },
+    });
+
+    await tx.insert(saasDocumentPackages).values(DOCUMENT_PACKAGES.map((item) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        document_count: item.documentCount,
+        price_usd: item.priceUsd.toFixed(2),
+        unit_cost_usd: item.unitCostUsd.toFixed(4),
+        validity_days: item.validityDays,
+        is_popular: item.isPopular ?? false,
+        sort_order: item.sortOrder,
+        is_active: true,
+    }))).onConflictDoUpdate({
+        target: saasDocumentPackages.id,
+        set: {
+            name: sql`excluded.name`,
+            description: sql`excluded.description`,
+            document_count: sql`excluded.document_count`,
+            price_usd: sql`excluded.price_usd`,
+            unit_cost_usd: sql`excluded.unit_cost_usd`,
+            validity_days: sql`excluded.validity_days`,
+            is_popular: sql`excluded.is_popular`,
+            sort_order: sql`excluded.sort_order`,
+        },
+    });
+}
+
+async function seedGlobalUnitsOfMeasure(tx: Tx): Promise<void> {
+    await tx.insert(uom).values(UOM_DATA.map((unit) => ({
+        ...unit,
+        company_id: null,
+        is_system: true,
+    }))).onConflictDoNothing();
+}
+
+async function ensureBootstrapCompany(tx: Tx, config: BootstrapConfig['company']): Promise<BootstrapCompany> {
+    const [existingByRuc] = await tx.select({
+        id: companies.id,
+        organization_id: companies.organization_id,
+        slug: companies.slug,
+        business_name: companies.business_name,
+        main_address: companies.main_address,
+    }).from(companies).where(eq(companies.ruc, config.ruc)).limit(1);
+
+    if (existingByRuc) {
+        if (existingByRuc.slug !== config.slug) {
+            throw new Error('BOOTSTRAP_COMPANY_RUC already belongs to a different company slug; refusing to relink tenants');
+        }
+        const [linkedOrganization] = await tx.select({ id: organization.id })
+            .from(organization)
+            .where(eq(organization.id, existingByRuc.organization_id))
+            .limit(1);
+        if (!linkedOrganization) throw new Error('Existing bootstrap company has no Better Auth organization');
+        return existingByRuc;
+    }
+
+    const [existingBySlug] = await tx.select({ id: companies.id, ruc: companies.ruc })
+        .from(companies)
+        .where(eq(companies.slug, config.slug))
+        .limit(1);
+    if (existingBySlug) throw new Error('BOOTSTRAP_COMPANY_SLUG is already assigned to a different RUC');
+
+    let [tenantOrganization] = await tx.select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.slug, config.slug))
+        .limit(1);
+
+    if (tenantOrganization) {
+        const [linkedCompany] = await tx.select({ id: companies.id })
+            .from(companies)
+            .where(eq(companies.organization_id, tenantOrganization.id))
+            .limit(1);
+        const [existingMember] = await tx.select({ id: member.id })
+            .from(member)
+            .where(eq(member.organizationId, tenantOrganization.id))
+            .limit(1);
+        if (linkedCompany || existingMember) {
+            throw new Error('The bootstrap organization slug is already in use; refusing to adopt an existing tenant');
+        }
+    } else {
+        [tenantOrganization] = await tx.insert(organization).values({
+            id: uuidv7(),
+            name: config.tradeName ?? config.businessName,
+            slug: config.slug,
+        }).onConflictDoNothing({ target: organization.slug }).returning({ id: organization.id });
+
+        // A concurrent seed may have inserted the unique slug while this transaction waited.
+        if (!tenantOrganization) {
+            [tenantOrganization] = await tx.select({ id: organization.id })
+                .from(organization)
+                .where(eq(organization.slug, config.slug))
+                .limit(1);
+        }
+    }
+
+    if (!tenantOrganization) throw new Error('Unable to create or resolve the bootstrap organization');
+
+    const [createdCompany] = await tx.insert(companies).values({
+        organization_id: tenantOrganization.id,
+        slug: config.slug,
+        ruc: config.ruc,
+        business_name: config.businessName,
+        trade_name: config.tradeName,
+        main_address: config.mainAddress,
+        business_type: config.businessType,
+    }).onConflictDoNothing({ target: companies.ruc }).returning({
+        id: companies.id,
+        organization_id: companies.organization_id,
+        slug: companies.slug,
+        business_name: companies.business_name,
+        main_address: companies.main_address,
+    });
+
+    if (createdCompany) return createdCompany;
+
+    // Resolve an idempotent concurrent insert without changing tenant ownership or branding.
+    const [concurrentCompany] = await tx.select({
+        id: companies.id,
+        organization_id: companies.organization_id,
+        slug: companies.slug,
+        business_name: companies.business_name,
+        main_address: companies.main_address,
+    }).from(companies).where(eq(companies.ruc, config.ruc)).limit(1);
+    if (!concurrentCompany || concurrentCompany.slug !== config.slug || concurrentCompany.organization_id !== tenantOrganization.id) {
+        throw new Error('A conflicting company was created during bootstrap; refusing to attach the wrong organization');
+    }
+    return concurrentCompany;
+}
+
+async function ensureBootstrapIdentity(
+    tx: Tx,
+    company: BootstrapCompany,
+    config: BootstrapConfig['owner'],
+    passwordHash: string,
+): Promise<{ id: string; emailVerified: boolean }> {
+    const [existingUser] = await tx.select({
+        id: authUsers.id,
+        is_active: authUsers.is_active,
+        emailVerified: authUsers.emailVerified,
+    }).from(authUsers).where(eq(authUsers.email, config.email)).limit(1);
+
+    let userId: string;
+    let emailVerified: boolean;
+
+    const isExistingUser = Boolean(existingUser);
+    if (existingUser) {
+        if (existingUser.is_active === false) throw new Error('Bootstrap user exists but is globally disabled');
+        const [existingAccount] = await tx.select({ id: account.id })
+            .from(account)
+            .where(eq(account.userId, existingUser.id))
+            .limit(1);
+        if (!existingAccount) {
+            throw new Error('Bootstrap email belongs to an identity without an auth account; use the established recovery flow');
+        }
+        userId = existingUser.id;
+        emailVerified = existingUser.emailVerified === true;
+    } else {
+        const [usernameOwner] = await tx.select({ id: authUsers.id })
+            .from(authUsers)
+            .where(eq(authUsers.username, config.username))
+            .limit(1);
+        if (usernameOwner) throw new Error('BOOTSTRAP_ADMIN_USERNAME is already taken; choose another username');
+
+        const user = await createCredentialIdentity(tx, {
+            name: config.name,
+            email: config.email,
+            username: config.username,
+            displayUsername: config.name,
+            passwordHash,
+            emailVerified: false,
+            companyId: company.id,
+        });
+        userId = user.id;
+        emailVerified = false;
+    }
+
+    const [existingMembership] = await tx.select({
+        role: member.role,
+        status: member.status,
+    }).from(member).where(and(
+        eq(member.organizationId, company.organization_id),
+        eq(member.userId, userId),
+    )).limit(1);
+
+    if (existingMembership) {
+        if (existingMembership.status !== 'ACTIVE') {
+            throw new Error('Bootstrap user has a suspended or removed membership; refusing to reactivate it automatically');
+        }
+        if (existingMembership.role !== 'owner') {
+            throw new Error('Existing bootstrap identity is not already an owner; use the audited tenant invitation/role workflow');
+        }
+    } else {
+        if (isExistingUser) {
+            throw new Error('Bootstrap email already belongs to an identity outside this tenant; use the audited tenant invitation workflow');
+        }
+        await tx.insert(member).values({
+            organizationId: company.organization_id,
+            userId,
+            role: 'owner',
+            status: 'ACTIVE',
+        });
+    }
+
+    return { id: userId, emailVerified };
+}
+
+async function seedTenantData(
+    tx: Tx,
+    company: BootstrapCompany,
+    config: BootstrapConfig,
+    passwordHash: string,
+): Promise<SeedSummary> {
+    await applyTenantContextToTransaction(tx, { companyId: company.id });
+
+    await seedCompanyUOMs(tx, company.id);
+
+    await tx.insert(sriEstablishments).values({
+        company_id: company.id,
+        code: '001',
+        name: 'Matriz',
+        address: company.main_address,
+        emission_points: ['001'],
+    }).onConflictDoNothing({ target: [sriEstablishments.company_id, sriEstablishments.code] });
+
+    await tx.insert(entities).values({
+        company_id: company.id,
+        tax_id: '9999999999999',
+        tax_id_type: 'CONSUMIDOR_FINAL',
+        person_type: 'NATURAL',
+        business_name: 'CONSUMIDOR FINAL',
+        is_client: true,
+        is_system: true,
+        obligado_contabilidad: false,
+    }).onConflictDoUpdate({
+        target: [entities.company_id, entities.tax_id],
+        set: { business_name: 'CONSUMIDOR FINAL', is_system: true, is_client: true },
+    });
+
+    await seedCompanyVirtualLocations(tx, company.id);
+    await seedCompanyWarehouse(tx, company.id, company.main_address);
+
+    const owner = await ensureBootstrapIdentity(tx, company, config.owner, passwordHash);
+
+    const [existingSubscription] = await tx.select({
+        plan_id: saasTenantSubscriptions.plan_id,
+        status: saasTenantSubscriptions.status,
+        payment_method_type: saasTenantSubscriptions.payment_method_type,
+    }).from(saasTenantSubscriptions)
+        .where(eq(saasTenantSubscriptions.company_id, company.id))
+        .limit(1);
+
+    let planId: SaasPlanId = 'free';
+    if (!existingSubscription) {
+        await seedCompanySubscription(tx, company.id, 'free', 'ACTIVE', 'FREE');
+    } else {
+        if (!(SAAS_PLAN_IDS as readonly string[]).includes(existingSubscription.plan_id)) {
+            throw new Error(`Tenant subscription references an unknown plan: ${existingSubscription.plan_id}`);
+        }
+        if (existingSubscription.plan_id !== 'free' && existingSubscription.payment_method_type === 'FREE') {
+            throw new Error('Paid plan has FREE payment method; reconcile billing state before running the bootstrap seed');
+        }
+        planId = existingSubscription.plan_id as SaasPlanId;
+    }
+
+    await seedCompanyRBAC(tx, company.id, owner.id, planId);
+
+    const [userCount] = await tx.select({ count: sql<number>`count(*)::int` }).from(authUsers);
+    const [memberCount] = await tx.select({ count: sql<number>`count(*)::int` }).from(member)
+        .where(eq(member.organizationId, company.organization_id));
+    const [roleCount] = await tx.select({ count: sql<number>`count(*)::int` }).from(authRoles)
+        .where(eq(authRoles.company_id, company.id));
+    const [permissionCount] = await tx.select({ count: sql<number>`count(*)::int` }).from(authPermissions);
+    const [menuCount] = await tx.select({ count: sql<number>`count(*)::int` }).from(authMenuItems);
+    const [planCount] = await tx.select({ count: sql<number>`count(*)::int` }).from(saasPlans);
+    const [featureCount] = await tx.select({ count: sql<number>`count(*)::int` }).from(saasFeatures);
+    const [addonCount] = await tx.select({ count: sql<number>`count(*)::int` }).from(saasAddons);
+    const [packageCount] = await tx.select({ count: sql<number>`count(*)::int` }).from(saasDocumentPackages);
+
+    return {
+        company,
+        ownerId: owner.id,
+        ownerEmailVerified: owner.emailVerified,
+        counts: {
+            plans: planCount.count,
+            features: featureCount.count,
+            addons: addonCount.count,
+            documentPackages: packageCount.count,
+            users: userCount.count,
+            members: memberCount.count,
+            roles: roleCount.count,
+            permissions: permissionCount.count,
+            menuItems: menuCount.count,
+        },
+    };
+}
+
+function describeSafeError(error: unknown): string {
+    let current: unknown = error;
+    const visited = new Set<unknown>();
+    for (let depth = 0; depth < 8 && current && typeof current === 'object' && 'cause' in current; depth++) {
+        if (visited.has(current)) break;
+        visited.add(current);
+        const cause = (current as { cause?: unknown }).cause;
+        if (!cause) break;
+        current = cause;
+    }
+
+    if (current && typeof current === 'object') {
+        const detail = current as { code?: unknown; message?: unknown };
+        const code = typeof detail.code === 'string' ? `${detail.code}: ` : '';
+        const message = typeof detail.message === 'string' ? detail.message : 'Unknown error';
+        return `${code}${message}`;
+    }
+    return String(current ?? error);
+}
+
+async function seed(): Promise<void> {
+    const config = readBootstrapConfig();
+    validateCatalogDefinitions();
+
+    console.log('🌱 Iniciando seed transaccional de Zelys ERP...');
+    console.log(`📦 SaaS: ${SAAS_FEATURES.length} features, ${SAAS_PLANS.length} planes, ${SAAS_PLAN_FEATURES.length} reglas plan-feature`);
+    console.log(`🏢 Preparando tenant bootstrap: ${config.company.slug}`);
+
+    // Compute the expensive password hash before acquiring database locks.
+    const passwordHash = await hashPassword(config.owner.password);
+
+    const summary = await db.transaction(async (tx) => {
+        await seedSaasCatalogs(tx);
+        await seedGlobalUnitsOfMeasure(tx);
+        await seedCompanyMenus(tx);
+
+        const company = await ensureBootstrapCompany(tx, config.company);
+        return seedTenantData(tx, company, config, passwordHash);
+    });
+
+    // Email delivery is outside the DB transaction. A mail outage does not lose
+    // the committed bootstrap records; rerunning safely retries verification.
+    if (!summary.ownerEmailVerified) {
+        const verification = await auth.api.sendVerificationEmail({
+            body: { email: config.owner.email, callbackURL: '/verify-email' },
+            headers: new Headers({ origin: env.BETTER_AUTH_URL }),
+        });
+        if (!verification.status) throw new Error('Better Auth did not confirm bootstrap verification email delivery');
+        console.log('✉️ Email de verificación enviado al usuario bootstrap.');
+    }
+
+    console.log('\n✅ Seed completado');
+    console.log(`   Tenant: ${summary.company.slug} (company ${summary.company.id})`);
+    console.log(`   Owner ID: ${summary.ownerId}`);
+    console.log(`   Email verificado: ${summary.ownerEmailVerified ? 'sí' : 'pendiente'}`);
+    console.log(`   Planes/features/add-ons/paquetes: ${summary.counts.plans}/${summary.counts.features}/${summary.counts.addons}/${summary.counts.documentPackages}`);
+    console.log(`   Usuarios/membresías/roles/permisos: ${summary.counts.users}/${summary.counts.members}/${summary.counts.roles}/${summary.counts.permissions}`);
+    console.log(`   Menús globales: ${summary.counts.menuItems}`);
+    console.log('   No se imprimen contraseñas ni se restablecen credenciales existentes.');
+}
+
+async function main(): Promise<void> {
+    try {
+        await seed();
+    } catch (error) {
+        console.error(`❌ Seed failed: ${describeSafeError(error)}`);
+        process.exitCode = 1;
+    } finally {
+        const shutdown = await Promise.allSettled([disconnectRedis(), closeDatabaseConnections()]);
+        for (const result of shutdown) {
+            if (result.status === 'rejected') {
+                console.error(`⚠️ Seed shutdown warning: ${describeSafeError(result.reason)}`);
+                process.exitCode = 1;
+            }
+        }
+    }
+}
+
+void main();

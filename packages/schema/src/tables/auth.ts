@@ -204,7 +204,6 @@ export const authRolePermissions = pgTableV2("auth_role_permissions", {
         name: 'auth_role_permissions_role_company_fk',
     }).onDelete('cascade'),
     index("idx_role_perms_slug").on(t.permission_slug),
-    index("idx_role_perms_company_role").on(t.company_id, t.role_id),
     index("idx_role_perms_company_role_permission").on(t.company_id, t.role_id, t.permission_slug),
     tenantPolicy(),
 ]).enableRLS();
@@ -220,7 +219,6 @@ export const authUserRoles = pgTableV2("auth_user_roles", {
         foreignColumns: [authRoles.id, authRoles.company_id],
         name: 'auth_user_roles_role_company_fk',
     }).onDelete('cascade'),
-    index("idx_user_roles_company_user").on(t.company_id, t.user_id),
     index("idx_user_roles_company_role").on(t.company_id, t.role_id),
     tenantPolicy(),
 ]).enableRLS();

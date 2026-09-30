@@ -63,8 +63,6 @@ export const companies = pgTableV2("companies", {
         foreignColumns: [organization.id],
         name: 'companies_organization_id_organization_fk',
     }).onDelete('restrict'),
-    index("idx_companies_slug").on(t.slug),
-    index("idx_companies_org_id").on(t.organization_id),
 ]);
 
 // =============================================================================

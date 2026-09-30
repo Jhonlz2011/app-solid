@@ -498,15 +498,22 @@ export const auth = betterAuth({
         sendVerificationEmail: async ({ user, token }) => {
             // Throttle: máximo 1 email por minuto por dirección
             const cooldownKey = `email_cooldown:${user.email.toLowerCase()}`;
+            let cooldownClaimed = false;
             try {
-                if (await redis.get(cooldownKey)) return;
-                await redis.set(cooldownKey, '1', 'EX', 60);
-            } catch { /* Redis no disponible — dejar pasar */ }
+                const result = await redis.set(cooldownKey, '1', 'EX', 60, 'NX');
+                if (result !== 'OK') return;
+                cooldownClaimed = true;
+            } catch { /* Redis no disponible — intentar el envío; Better Auth conserva rate limits */ }
 
-            const { tenantSlug, recipientName } = await getTenantInfoForEmail(user.email);
-            const baseUrl = resolveTenantUrl(tenantSlug);
-            const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
-            await emailService.sendVerificationEmail(user.email, verificationUrl, recipientName);
+            try {
+                const { tenantSlug, recipientName } = await getTenantInfoForEmail(user.email);
+                const baseUrl = resolveTenantUrl(tenantSlug);
+                const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
+                await emailService.sendVerificationEmail(user.email, verificationUrl, recipientName);
+            } catch (error) {
+                if (cooldownClaimed) await redis.del(cooldownKey).catch(() => {});
+                throw error;
+            }
         },
     },
     user: {

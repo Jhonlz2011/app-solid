@@ -3,6 +3,7 @@ import postgres from 'postgres';
 import { env } from '../../config/env';
 import * as schema from '@app/schema';
 import { AsyncLocalStorage } from 'async_hooks';
+import { toPostgresSslOption } from './postgres-options';
 
 export interface TenantContext {
   companyId?: number;
@@ -20,12 +21,14 @@ const queryClient = postgres(env.DATABASE_URL, {
   max: 10,
   idle_timeout: 20,
   connect_timeout: 10,
-  ssl: env.NODE_ENV === 'production' ? 'require' : false,
+  ssl: toPostgresSslOption(env.DATABASE_SSL_MODE),
 });
 
 const queryClientSri = postgres(env.REF_DATABASE_URL, { 
     max: 10, // Límite estricto para proteger la RAM del Droplet
-    idle_timeout: 20 // Cierra conexiones inactivas rápido
+    idle_timeout: 20, // Cierra conexiones inactivas rápido
+    connect_timeout: 10,
+    ssl: toPostgresSslOption(env.REF_DATABASE_SSL_MODE),
 });
 
 export const referenceDb = drizzle(queryClientSri, { logger: env.NODE_ENV === 'development' });
@@ -34,7 +37,8 @@ export const referenceDb = drizzle(queryClientSri, { logger: env.NODE_ENV === 'd
 export const listener = postgres(env.DATABASE_URL, {
   max: 1,
   idle_timeout: 0, // Keep connection alive for LISTEN
-  ssl: env.NODE_ENV === 'production' ? 'require' : false,
+  connect_timeout: 10,
+  ssl: toPostgresSslOption(env.DATABASE_SSL_MODE),
 });
 
 // =============================================================================
@@ -46,13 +50,23 @@ const adminQueryClient = postgres(env.ADMIN_DATABASE_URL, {
   max: 3,
   idle_timeout: 20,
   connect_timeout: 10,
-  ssl: env.NODE_ENV === 'production' ? 'require' : false,
+  ssl: toPostgresSslOption(env.ADMIN_DATABASE_SSL_MODE),
 });
 
 export const adminDb = drizzle(adminQueryClient, {
   schema,
   logger: env.NODE_ENV === 'development',
 });
+
+/** Close every Postgres.js pool for one-shot commands such as seeds and migrations. */
+export async function closeDatabaseConnections(): Promise<void> {
+  await Promise.all([
+    queryClient.end({ timeout: 5 }),
+    queryClientSri.end({ timeout: 5 }),
+    listener.end({ timeout: 5 }),
+    adminQueryClient.end({ timeout: 5 }),
+  ]);
+}
 
 // =============================================================================
 // Main Database — All tenant-scoped queries flow through this Proxy
@@ -108,6 +122,17 @@ export const db = new Proxy(rawDb, {
 
 export type Tx = Parameters<Parameters<typeof rawDb.transaction>[0]>[0];
 
+/** Apply PostgreSQL RLS settings to an existing transaction-scoped client. */
+export async function applyTenantContextToTransaction(
+  tx: Tx,
+  context: Pick<TenantContext, 'companyId' | 'userId' | 'ipAddress'>,
+): Promise<void> {
+  if (!Number.isSafeInteger(context.companyId) || (context.companyId ?? 0) <= 0) {
+    throw new Error('A valid companyId is required to establish tenant database context');
+  }
+  await injectTenantConfig(tx, context);
+}
+
 /**
  * Explicit tenant context wrapper. Opens a transaction, sets PostgreSQL session
  * variables for RLS, and stores the context in AsyncLocalStorage so nested
@@ -118,17 +143,20 @@ export type Tx = Parameters<Parameters<typeof rawDb.transaction>[0]>[0];
  */
 export async function withTenantContext<T>(
   context: { companyId: number; userId?: string | number; ipAddress?: string },
-  operation: () => Promise<T>
+  operation: (tx: Tx) => Promise<T>
 ): Promise<T> {
   const store = tenantStorage.getStore();
   
   if (store?.tx) {
-    return await operation();
+    if (store.companyId !== context.companyId) {
+      throw new Error('Cannot switch tenant inside an existing database transaction');
+    }
+    return await operation(store.tx);
   }
 
   return await rawDb.transaction(async (tx) => {
-    await injectTenantConfig(tx, context);
-    return await tenantStorage.run({ ...context, tx }, operation);
+    await applyTenantContextToTransaction(tx, context);
+    return await tenantStorage.run({ ...context, tx }, () => operation(tx));
   });
 }
 

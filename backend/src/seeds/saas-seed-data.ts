@@ -15,9 +15,9 @@
 // 1. TIPOS Y ESTRUCTURAS DE DATOS SAAS
 // ============================================================================
 
-import type { SaasPlanId } from '@app/schema/enums';
+import type { SaasPlanId, SaasPlanInterval } from '@app/schema/enums';
 
-export type BillingInterval = 'MONTHLY' | 'YEARLY' | 'ONE_TIME';
+export type BillingInterval = SaasPlanInterval;
 export type FeatureValueType = 'BOOLEAN' | 'NUMERIC';
 export type FeatureCategory = 'core' | 'modules' | 'limits' | 'storage' | 'integrations' | 'compliance';
 export type AddonType = 'USER_SEATS' | 'STORAGE_GB' | 'BRANCHES' | 'SRI_DOCUMENTS' | 'INTEGRATION' | 'POS_REGISTERS';

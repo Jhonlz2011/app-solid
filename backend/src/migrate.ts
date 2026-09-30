@@ -2,6 +2,7 @@ import { drizzlePostgres as drizzle, migrate } from '@app/schema';
 import postgres from 'postgres';
 import fs from 'fs';
 import path from 'path';
+import { resolveDatabaseSslMode, toPostgresSslOption } from './core/db/postgres-options';
 
 async function ensureAuditPartitions(connection: postgres.Sql) {
   console.log('⏳ Ensuring audit_logs partitions exist...');
@@ -36,7 +37,12 @@ const runMigration = async () => {
     process.exit(1);
   }
 
-  const connection = postgres(process.env.DATABASE_URL!, { max: 1 });
+  const sslMode = resolveDatabaseSslMode(process.env.DATABASE_SSL_MODE);
+  const connection = postgres(process.env.DATABASE_URL!, {
+    max: 1,
+    connect_timeout: 10,
+    ssl: toPostgresSslOption(sslMode),
+  });
   const db = drizzle(connection);
 
   try {
@@ -81,7 +87,7 @@ const runMigration = async () => {
 
   } catch (error) {
     console.error('❌ Migration failed:', error);
-    process.exit(1); // Exit with error code for CI/CD
+    process.exitCode = 1;
   } finally {
     await connection.end();
     console.log('🔌 Database connection closed');

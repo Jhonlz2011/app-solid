@@ -122,6 +122,23 @@ export type SaasPlanId = typeof SAAS_PLAN_IDS[number];
 export const SAAS_PLAN_FAMILIES = ['free', 'starter', 'pro', 'enterprise'] as const;
 export type SaasPlanFamily = typeof SAAS_PLAN_FAMILIES[number];
 
+export const SAAS_PLAN_INTERVALS = ['MONTHLY', 'YEARLY'] as const;
+export type SaasPlanInterval = typeof SAAS_PLAN_INTERVALS[number];
+
+export const SAAS_SUBSCRIPTION_STATUSES = [
+    'ACTIVE', 'TRIAL', 'PENDING_PAYMENT', 'GRACE_PERIOD', 'PAST_DUE', 'SUSPENDED',
+] as const;
+export type SaasSubscriptionStatus = typeof SAAS_SUBSCRIPTION_STATUSES[number];
+
+export const SAAS_PAYMENT_METHOD_TYPES = ['FREE', 'TRANSFER', 'CARD'] as const;
+export type SaasPaymentMethodType = typeof SAAS_PAYMENT_METHOD_TYPES[number];
+
+export const SAAS_ADDON_STATUSES = ['ACTIVE', 'CANCELLED'] as const;
+export type SaasAddonStatus = typeof SAAS_ADDON_STATUSES[number];
+
+export const SAAS_DOCUMENT_PACK_STATUSES = ['ACTIVE', 'DEPLETED', 'EXPIRED'] as const;
+export type SaasDocumentPackStatus = typeof SAAS_DOCUMENT_PACK_STATUSES[number];
+
 export const MEMBERSHIP_STATUSES = ['ACTIVE', 'SUSPENDED', 'REMOVED'] as const;
 export type MembershipStatus = typeof MEMBERSHIP_STATUSES[number];
 

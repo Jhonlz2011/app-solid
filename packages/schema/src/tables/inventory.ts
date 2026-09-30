@@ -1,4 +1,5 @@
-import { text, integer, boolean, numeric, timestamp, bigint, index, primaryKey, unique, foreignKey, uuid } from 'drizzle-orm/pg-core';
+import { text, integer, boolean, numeric, timestamp, bigint, index, unique, uniqueIndex, primaryKey, foreignKey, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { pgTableV2, TZ, tenantPolicy } from '../utils';
 import { movementTypeEnum, movementReferenceTypeEnum, locationTypeEnum } from '../enums';
 import { entities } from './entities';
@@ -48,6 +49,14 @@ export const warehouseLocations = pgTableV2("warehouse_locations", {
     unique("unq_location_id_company").on(t.id, t.company_id),
     // Supports composite FK from productVariantWarehouseLocations (location ↔ warehouse integrity)
     unique("unq_location_id_warehouse").on(t.id, t.warehouse_id),
+    // NULL warehouse_id denotes virtual locations; enforce seed idempotency per company/name.
+    uniqueIndex("unq_virtual_location_company_name")
+        .on(t.company_id, t.name)
+        .where(sql`${t.warehouse_id} IS NULL`),
+    // Physical location paths are unique within a warehouse/company.
+    uniqueIndex("unq_physical_location_company_warehouse_path")
+        .on(t.company_id, t.warehouse_id, t.path)
+        .where(sql`${t.warehouse_id} IS NOT NULL`),
     index("idx_locations_company").on(t.company_id),
     index("idx_locations_warehouse").on(t.warehouse_id),
     index("idx_locations_parent").on(t.parent_id),
