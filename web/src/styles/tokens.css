@@ -7,9 +7,10 @@
   color-scheme: light dark;
 
   /* ─── FONDOS & SUPERFICIES (Modo Claro por defecto en :root) ─ */
-  --bg-base:      #f8fafc;
-  --bg-surface:   #ffffff;
-  --bg-elevated:  #f1f5f9;
+  --bg-base:        #f8fafc;
+  --bg-surface:     #ffffff;
+  --bg-surface-alt: rgba(255, 255, 255, 0.78);
+  --bg-elevated:    #f1f5f9;
 
   /* ─── TEXTO (Modo Claro) ──────────────────────────────────── */
   --text-primary:   #0f172a;
@@ -82,9 +83,10 @@
 :root.dark,
 html.dark {
   /* ─── FONDOS & SUPERFICIES (Modo Oscuro) ─────────────────── */
-  --bg-base:      #020617;
-  --bg-surface:   #0a0e1a;
-  --bg-elevated:  #0f172a;
+  --bg-base:        #040812;
+  --bg-surface:     #0a0e1a;
+  --bg-surface-alt: rgba(8, 13, 25, 0.74);
+  --bg-elevated:    #0f172a;
 
   /* ─── TEXTO (Modo Oscuro) ─────────────────────────────────── */
   --text-primary:   #f8fafc;

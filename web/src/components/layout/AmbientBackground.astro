@@ -1,31 +1,33 @@
 ---
 /**
  * AmbientBackground.astro
- * Motor de Fondo Ambiental Aurora FX de Alto Rendimiento (HTML5 Canvas 2D + Fallback CSS)
- * 5 Capas: Gradientes Atmosféricos Duales, Matriz de Puntos 40px, Orbes Volumétricos, Estrellas y Luz Reactiva.
- * Optimizado para 60 FPS, pausa en segundo plano, soporte Light/Dark y Reduced Motion.
+ * Motor de Fondo Celeste "Cielo Ecuatorial Zelys" (HTML5 Canvas 2D + Fallback CSS)
+ * Capas:
+ *  1. Bóveda celeste profunda + viñeta periférica + micro-grano anti-banding (cache offscreen)
+ *  2. Velos nebulares elípticos multi-parada en paleta profunda Zelys
+ *  3. Campo estelar determinista en 3 planos de profundidad con paleta espectral natural
+ *  4. Constelación propia "Zelys Z" + micro-asterismo ecuatorial secundario con aristas capilares
+ *  5. Pulso de telemetría celeste esporádico + paralaje suave (cursor y scroll)
+ *  6. Brisa lumínica ambiental del puntero
+ * Optimizado para 60 FPS, pausa en pestaña oculta, soporte Light/Dark y Reduced Motion (0 FPS en reposo).
  */
 ---
 
 <div class="ambient-background-root fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
-  <!-- Fallback CSS Puro (visible si JS no estuviera disponible o mientras carga) -->
+  <!-- Fallback CSS Atmosférico (sin matriz de puntos; coincide con el estado inicial del canvas) -->
   <div class="ambient-css-fallback absolute inset-0 -z-10">
-    <div class="absolute inset-0 bg-gradient-to-b from-slate-50 via-blue-50/80 to-indigo-100/50 dark:from-[#020617] dark:via-[#0a0e1a] dark:to-[#0f172a] transition-colors duration-500"></div>
-    <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-blue-100/30 to-cyan-100/20 dark:via-blue-950/20 dark:to-cyan-950/10"></div>
-    <div class="absolute inset-0 opacity-20 dark:opacity-30 bg-dot-matrix"></div>
+    <div class="ambient-sky-base absolute inset-0 transition-colors duration-500"></div>
+    <div class="ambient-nebula-fallback absolute inset-0"></div>
   </div>
 
-  <!-- Canvas Interactivo Acelerado por GPU -->
+  <!-- Canvas Celeste Acelerado -->
   <canvas id="ambient-canvas" class="w-full h-full block opacity-0 transition-opacity duration-700"></canvas>
 </div>
 
 <style>
   .ambient-background-root {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     width: 100vw;
     height: 100vh;
     pointer-events: none;
@@ -41,10 +43,31 @@
     z-index: -1;
   }
 
+  .ambient-sky-base {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f6fd 52%, #e7f0fb 100%);
+  }
+
+  :global(.dark) .ambient-sky-base {
+    background: linear-gradient(180deg, #040812 0%, #070d1b 52%, #0b1324 100%);
+  }
+
+  .ambient-nebula-fallback {
+    background:
+      radial-gradient(ellipse 46% 36% at 12% 16%, rgba(0, 192, 232, 0.09), transparent 72%),
+      radial-gradient(ellipse 42% 48% at 90% 62%, rgba(30, 114, 212, 0.08), transparent 72%),
+      radial-gradient(ellipse 48% 34% at 44% 94%, rgba(0, 192, 232, 0.06), transparent 70%);
+  }
+
+  :global(.dark) .ambient-nebula-fallback {
+    background:
+      radial-gradient(ellipse 48% 36% at 12% 16%, rgba(8, 86, 108, 0.22), transparent 72%),
+      radial-gradient(ellipse 42% 50% at 90% 62%, rgba(24, 62, 134, 0.20), transparent 72%),
+      radial-gradient(ellipse 50% 34% at 44% 94%, rgba(8, 74, 98, 0.16), transparent 70%);
+  }
+
   #ambient-canvas {
     position: absolute;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
     display: block;
@@ -54,112 +77,818 @@
   #ambient-canvas.is-ready {
     opacity: 1;
   }
-
-  .bg-dot-matrix {
-    background-image: radial-gradient(circle at center, rgba(59, 130, 246, 0.25) 1.2px, transparent 1.2px);
-    background-size: 40px 40px;
-  }
-  :global(.dark) .bg-dot-matrix {
-    background-image: radial-gradient(circle at center, rgba(59, 130, 246, 0.3) 1.2px, transparent 1.2px);
-  }
 </style>
 
 <script>
+  type SpectralKey = 'white' | 'iceBlue' | 'zelysCyan' | 'periwinkle' | 'warmAmber';
+
+  interface RgbColor {
+    r: number;
+    g: number;
+    b: number;
+  }
+
+  interface NebulaDef {
+    relX: number;
+    relY: number;
+    radiusRatio: number;
+    scaleX: number;
+    scaleY: number;
+    rotation: number;
+    darkColor: RgbColor & { alpha: number };
+    lightColor: RgbColor & { alpha: number };
+    driftX: number;
+    driftY: number;
+    phase: number;
+    parallax: number;
+  }
+
+  interface Star {
+    x: number;
+    y: number;
+    radius: number;
+    tier: 0 | 1 | 2;
+    baseAlpha: number;
+    twinkleAmp: number;
+    phase1: number;
+    phase2: number;
+    speed1: number;
+    speed2: number;
+    spectral: SpectralKey;
+    parallax: number;
+    scrollFactor: number;
+  }
+
+  interface ConstellationNode {
+    x: number;
+    y: number;
+    mobileX?: number;
+    mobileY?: number;
+    radius: number;
+    spectral: SpectralKey;
+    baseAlpha: number;
+    phase: number;
+    highlight: number;
+  }
+
+  interface ConstellationDef {
+    id: string;
+    nodes: ConstellationNode[];
+    edges: [number, number][];
+    baseEdgeAlphaDark: number;
+    baseEdgeAlphaLight: number;
+    parallax: number;
+    scrollShiftMax: number;
+  }
+
+  interface TelemetryPulse {
+    active: boolean;
+    edges: [number, number][];
+    progress: number;
+    duration: number;
+    nextTriggerAt: number;
+  }
+
+  const DARK_SPECTRAL: Record<SpectralKey, RgbColor> = {
+    white:      { r: 238, g: 244, b: 255 },
+    iceBlue:    { r: 196, g: 222, b: 255 },
+    zelysCyan:  { r: 122, g: 226, b: 248 },
+    periwinkle: { r: 176, g: 192, b: 252 },
+    warmAmber:  { r: 244, g: 184, b: 122 },
+  };
+
+  const LIGHT_SPECTRAL: Record<SpectralKey, RgbColor> = {
+    white:      { r: 71,  g: 98,  b: 142 },
+    iceBlue:    { r: 30,  g: 114, b: 212 },
+    zelysCyan:  { r: 6,   g: 156, b: 194 },
+    periwinkle: { r: 79,  g: 108, b: 184 },
+    warmAmber:  { r: 194, g: 128, b: 64  },
+  };
+
+  function createMulberry32(seed: number) {
+    let a = seed >>> 0;
+    return () => {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function pickSpectral(rand: () => number, tier: 0 | 1 | 2): SpectralKey {
+    const v = rand();
+    if (tier === 0) {
+      if (v < 0.56) return 'white';
+      if (v < 0.80) return 'iceBlue';
+      if (v < 0.92) return 'zelysCyan';
+      return 'periwinkle';
+    }
+    if (v < 0.46) return 'white';
+    if (v < 0.70) return 'iceBlue';
+    if (v < 0.86) return 'zelysCyan';
+    if (v < 0.94) return 'periwinkle';
+    return 'warmAmber';
+  }
+
+  function easeInOutCubic(t: number): number {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
   function initAmbientCanvas() {
     const canvas = document.getElementById('ambient-canvas') as HTMLCanvasElement | null;
-    if (!canvas) return;
+    if (!canvas || canvas.dataset.initialized === 'true') return;
+    canvas.dataset.initialized = 'true';
 
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
 
-    // Estado del motor
     let isDark = document.documentElement.classList.contains('dark');
     let prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let isTabVisible = !document.hidden;
     let animationFrameId: number | null = null;
-    let time = 0;
     let width = 0;
     let height = 0;
     let dpr = 1;
+    let elapsedSec = 0;
+    let lastFrameTime = performance.now();
 
     const mouse = {
-      x: window.innerWidth / 2,
-      y: window.innerHeight / 2,
-      targetX: window.innerWidth / 2,
-      targetY: window.innerHeight / 2,
-      active: false
+      x: window.innerWidth * 0.5,
+      y: window.innerHeight * 0.5,
+      targetX: window.innerWidth * 0.5,
+      targetY: window.innerHeight * 0.5,
+      active: false,
+      alpha: 0,
     };
 
-    // Definición de Orbes de Luz (Aurora Blobs) acordes a la identidad Zelys
-    const orbs = [
+    const scroll = {
+      current: window.scrollY || 0,
+      target: window.scrollY || 0,
+    };
+
+    // ==========================================
+    // Definición de Nebulosas Elípticas (Paleta Zelys)
+    // ==========================================
+    const nebulae: NebulaDef[] = [
       {
-        relX: 0.15, relY: 0.25, radius: 300,
-        lightColor: { r: 0, g: 192, b: 232, alpha: 0.16 }, // Cyan Zelys
-        darkColor:  { r: 0, g: 192, b: 232, alpha: 0.26 },
-        vx: 0.08, vy: 0.05, phase: 0
+        relX: 0.11, relY: 0.16, radiusRatio: 0.46,
+        scaleX: 1.24, scaleY: 0.86, rotation: -0.24,
+        darkColor:  { r: 8,  g: 96,  b: 122, alpha: 0.215 }, // Petróleo / Teal profundo
+        lightColor: { r: 0,  g: 192, b: 232, alpha: 0.095 }, // Cyan Zelys suave
+        driftX: 22, driftY: 16, phase: 0.0, parallax: 14,
       },
       {
-        relX: 0.85, relY: 0.58, radius: 260,
-        lightColor: { r: 30, g: 114, b: 212, alpha: 0.14 }, // Azul profundo
-        darkColor:  { r: 30, g: 114, b: 212, alpha: 0.22 },
-        vx: -0.06, vy: -0.07, phase: Math.PI / 2
+        relX: 0.91, relY: 0.62, radiusRatio: 0.48,
+        scaleX: 0.90, scaleY: 1.30, rotation: 0.20,
+        darkColor:  { r: 26, g: 68,  b: 148, alpha: 0.195 }, // Zafiro / Azul profundo
+        lightColor: { r: 30, g: 114, b: 212, alpha: 0.085 }, // Azul Zelys
+        driftX: -20, driftY: -18, phase: 1.8, parallax: 18,
       },
       {
-        relX: 0.72, relY: 0.18, radius: 170,
-        lightColor: { r: 0, g: 232, b: 204, alpha: 0.12 }, // Mint
-        darkColor:  { r: 0, g: 232, b: 204, alpha: 0.18 },
-        vx: 0.05, vy: -0.04, phase: Math.PI
+        relX: 0.45, relY: 0.95, radiusRatio: 0.46,
+        scaleX: 1.32, scaleY: 0.78, rotation: 0.08,
+        darkColor:  { r: 8,  g: 82,  b: 110, alpha: 0.165 }, // Teal noche
+        lightColor: { r: 0,  g: 214, b: 198, alpha: 0.070 }, // Mint atmosférico
+        driftX: -16, driftY: 14, phase: 3.4, parallax: 12,
       },
       {
-        relX: 0.42, relY: 0.88, radius: 320,
-        lightColor: { r: 26, g: 56, b: 112, alpha: 0.10 }, // Navy
-        darkColor:  { r: 0, g: 192, b: 232, alpha: 0.15 },
-        vx: -0.04, vy: 0.05, phase: Math.PI * 1.5
-      }
+        relX: 0.72, relY: 0.17, radiusRatio: 0.36,
+        scaleX: 1.12, scaleY: 0.88, rotation: -0.15,
+        darkColor:  { r: 16, g: 76,  b: 118, alpha: 0.095 }, // Susurro cian superior
+        lightColor: { r: 56, g: 189, b: 248, alpha: 0.060 }, // Sky muy tenue
+        driftX: 14, driftY: -12, phase: 4.9, parallax: 10,
+      },
     ];
 
-    // Definición de estrellas titilantes
-    interface Star {
-      x: number;
-      y: number;
-      radius: number;
-      phase: number;
-      speed: number;
-      colorType: 'cyan' | 'blue';
+    // ==========================================
+    // Constelación Propia "Zelys Z" + Micro-Asterismo Ecuatorial
+    // ==========================================
+    const constellations: ConstellationDef[] = [
+      {
+        id: 'zelys-primary',
+        baseEdgeAlphaDark: 0.155,
+        baseEdgeAlphaLight: 0.135,
+        parallax: 11,
+        scrollShiftMax: 34,
+        // Trazo astronómico orgánico inspirado en la "Z" arquitectónica de Zelys
+        // Ubicado en cielo abierto superior derecho (visible sobre el mockup en el Hero)
+        nodes: [
+          { x: 0.625, y: 0.132, mobileX: 0.58, mobileY: 0.12, radius: 1.72, spectral: 'warmAmber',  baseAlpha: 0.92, phase: 0.4, highlight: 0 },
+          { x: 0.692, y: 0.118, mobileX: 0.70, mobileY: 0.108, radius: 1.25, spectral: 'white',      baseAlpha: 0.76, phase: 1.7, highlight: 0 },
+          { x: 0.758, y: 0.138, mobileX: 0.83, mobileY: 0.128, radius: 1.64, spectral: 'zelysCyan',  baseAlpha: 0.90, phase: 2.9, highlight: 0 },
+          { x: 0.688, y: 0.200, mobileX: 0.70, mobileY: 0.184, radius: 1.50, spectral: 'white',      baseAlpha: 0.88, phase: 4.1, highlight: 0 },
+          { x: 0.618, y: 0.262, mobileX: 0.58, mobileY: 0.240, radius: 1.62, spectral: 'iceBlue',    baseAlpha: 0.88, phase: 5.2, highlight: 0 },
+          { x: 0.688, y: 0.275, mobileX: 0.70, mobileY: 0.252, radius: 1.24, spectral: 'white',      baseAlpha: 0.74, phase: 0.9, highlight: 0 },
+          { x: 0.760, y: 0.256, mobileX: 0.84, mobileY: 0.236, radius: 1.68, spectral: 'periwinkle', baseAlpha: 0.92, phase: 2.3, highlight: 0 },
+        ],
+        edges: [
+          [0, 1],
+          [1, 2],
+          [2, 3],
+          [3, 4],
+          [4, 5],
+          [5, 6],
+        ],
+      },
+      {
+        id: 'equatorial-micro',
+        baseEdgeAlphaDark: 0.10,
+        baseEdgeAlphaLight: 0.09,
+        parallax: 7,
+        scrollShiftMax: 22,
+        // Micro-asterismo ecuatorial asimétrico en cielo abierto inferior central
+        nodes: [
+          { x: 0.456, y: 0.745, mobileX: 0.14, mobileY: 0.76, radius: 1.35, spectral: 'iceBlue',   baseAlpha: 0.78, phase: 1.1, highlight: 0 },
+          { x: 0.502, y: 0.782, mobileX: 0.24, mobileY: 0.79, radius: 1.12, spectral: 'white',     baseAlpha: 0.66, phase: 2.6, highlight: 0 },
+          { x: 0.468, y: 0.848, mobileX: 0.18, mobileY: 0.85, radius: 1.46, spectral: 'zelysCyan', baseAlpha: 0.82, phase: 4.4, highlight: 0 },
+          { x: 0.428, y: 0.812, mobileX: 0.10, mobileY: 0.82, radius: 1.08, spectral: 'white',     baseAlpha: 0.64, phase: 5.7, highlight: 0 },
+        ],
+        edges: [
+          [0, 1],
+          [1, 2],
+          [2, 3],
+          [3, 0],
+        ],
+      },
+    ];
+
+    // Estado del pulso de telemetría celeste sobre la constelación principal
+    const pulse: TelemetryPulse = {
+      active: false,
+      edges: [[0, 1], [1, 2]],
+      progress: 0,
+      duration: 2.6,
+      nextTriggerAt: 4.2,
+    };
+
+    const pulsePaths: [number, number][][] = [
+      [[0, 1], [1, 2], [2, 3]],
+      [[2, 3], [3, 4], [4, 5]],
+      [[3, 4], [4, 5], [5, 6]],
+      [[6, 5], [5, 4], [4, 3]],
+      [[4, 3], [3, 2], [2, 1]],
+    ];
+
+    // ==========================================
+    // Caches Offscreen: Micro-grano, Bóveda Base y Sprites de Estrellas
+    // ==========================================
+    const grainTile = document.createElement('canvas');
+    grainTile.width = 128;
+    grainTile.height = 128;
+    const grainCtx = grainTile.getContext('2d');
+    if (grainCtx) {
+      const imgData = grainCtx.createImageData(128, 128);
+      const grainRand = createMulberry32(90210);
+      for (let i = 0; i < imgData.data.length; i += 4) {
+        const shade = Math.floor(grainRand() * 255);
+        imgData.data[i] = shade;
+        imgData.data[i + 1] = shade;
+        imgData.data[i + 2] = shade;
+        imgData.data[i + 3] = 255;
+      }
+      grainCtx.putImageData(imgData, 0, 0);
     }
 
-    const starCount = 26;
-    const stars: Star[] = [];
-    for (let i = 0; i < starCount; i++) {
-      stars.push({
-        x: Math.random(),
-        y: Math.random(),
-        radius: Math.random() * 1.4 + 0.8,
-        phase: Math.random() * Math.PI * 2,
-        speed: 0.02 + Math.random() * 0.03,
-        colorType: Math.random() > 0.4 ? 'cyan' : 'blue'
-      });
+    const backdropCanvas = document.createElement('canvas');
+    const backdropCtx = backdropCanvas.getContext('2d', { alpha: false });
+
+    const spriteCache: Partial<Record<SpectralKey, HTMLCanvasElement>> = {};
+
+    function rebuildStarSprites() {
+      const palette = isDark ? DARK_SPECTRAL : LIGHT_SPECTRAL;
+      const keys = Object.keys(palette) as SpectralKey[];
+      const size = 64;
+      const half = size / 2;
+
+      for (const key of keys) {
+        const sprite = document.createElement('canvas');
+        sprite.width = size;
+        sprite.height = size;
+        const sctx = sprite.getContext('2d');
+        if (!sctx) continue;
+
+        const { r, g, b } = palette[key];
+        const grad = sctx.createRadialGradient(half, half, 0, half, half, half);
+        if (isDark) {
+          grad.addColorStop(0.0,  `rgba(255, 255, 255, 0.92)`);
+          grad.addColorStop(0.14, `rgba(${r}, ${g}, ${b}, 0.56)`);
+          grad.addColorStop(0.36, `rgba(${r}, ${g}, ${b}, 0.16)`);
+          grad.addColorStop(0.68, `rgba(${r}, ${g}, ${b}, 0.035)`);
+          grad.addColorStop(1.0,  `rgba(${r}, ${g}, ${b}, 0)`);
+        } else {
+          grad.addColorStop(0.0,  `rgba(${r}, ${g}, ${b}, 0.72)`);
+          grad.addColorStop(0.24, `rgba(${r}, ${g}, ${b}, 0.24)`);
+          grad.addColorStop(0.58, `rgba(${r}, ${g}, ${b}, 0.05)`);
+          grad.addColorStop(1.0,  `rgba(${r}, ${g}, ${b}, 0)`);
+        }
+
+        sctx.fillStyle = grad;
+        sctx.fillRect(0, 0, size, size);
+        spriteCache[key] = sprite;
+      }
     }
 
-    // Redimensionado con DPR limitado a 2 para evitar saturación de VRAM
+    function rebuildStaticBackdrop() {
+      if (!backdropCtx || width === 0 || height === 0) return;
+
+      backdropCanvas.width = Math.max(1, Math.floor(width * dpr));
+      backdropCanvas.height = Math.max(1, Math.floor(height * dpr));
+      backdropCtx.setTransform(1, 0, 0, 1, 0, 0);
+      backdropCtx.scale(dpr, dpr);
+
+      // 1. Degradado vertical de bóveda celeste
+      const skyGrad = backdropCtx.createLinearGradient(0, 0, 0, height);
+      if (isDark) {
+        skyGrad.addColorStop(0.0,  '#040812');
+        skyGrad.addColorStop(0.48, '#070d1b');
+        skyGrad.addColorStop(1.0,  '#0b1324');
+      } else {
+        skyGrad.addColorStop(0.0,  '#f8fafc');
+        skyGrad.addColorStop(0.52, '#f1f6fd');
+        skyGrad.addColorStop(1.0,  '#e7f0fb');
+      }
+      backdropCtx.fillStyle = skyGrad;
+      backdropCtx.fillRect(0, 0, width, height);
+
+      // 2. Viñeta periférica suave para profundidad espacial
+      const maxDim = Math.max(width, height);
+      const vignette = backdropCtx.createRadialGradient(
+        width * 0.5, height * 0.46, maxDim * 0.18,
+        width * 0.5, height * 0.5,  maxDim * 0.82
+      );
+      if (isDark) {
+        vignette.addColorStop(0.0, 'rgba(12, 22, 42, 0.14)');
+        vignette.addColorStop(0.55, 'rgba(4, 8, 18, 0.0)');
+        vignette.addColorStop(1.0, 'rgba(2, 4, 10, 0.42)');
+      } else {
+        vignette.addColorStop(0.0, 'rgba(255, 255, 255, 0.25)');
+        vignette.addColorStop(0.6, 'rgba(241, 246, 253, 0.0)');
+        vignette.addColorStop(1.0, 'rgba(191, 219, 254, 0.18)');
+      }
+      backdropCtx.fillStyle = vignette;
+      backdropCtx.fillRect(0, 0, width, height);
+
+      // 3. Micro-grano anti-banding (eliminación de bandas 8-bit sin ruido visible)
+      const pattern = backdropCtx.createPattern(grainTile, 'repeat');
+      if (pattern) {
+        backdropCtx.save();
+        backdropCtx.globalAlpha = isDark ? 0.013 : 0.008;
+        backdropCtx.fillStyle = pattern;
+        backdropCtx.fillRect(0, 0, width, height);
+        backdropCtx.restore();
+      }
+    }
+
+    // ==========================================
+    // Generador Determinista del Campo Estelar (3 Planos)
+    // ==========================================
+    let stars: Star[] = [];
+
+    function generateStars() {
+      const targetCount = width >= 1024 ? 180 : width >= 640 ? 125 : 85;
+      const rand = createMulberry32(202607);
+      const nextStars: Star[] = [];
+      const brightAnchors: { x: number; y: number }[] = [];
+
+      // Registrar nodos de constelaciones para no encimar estrellas brillantes sobre ellos
+      const isCompact = width < 768;
+      for (const c of constellations) {
+        for (const n of c.nodes) {
+          brightAnchors.push({
+            x: isCompact && n.mobileX !== undefined ? n.mobileX : n.x,
+            y: isCompact && n.mobileY !== undefined ? n.mobileY : n.y,
+          });
+        }
+      }
+
+      for (let i = 0; i < targetCount; i++) {
+        const tierRoll = rand();
+        const tier: 0 | 1 | 2 = tierRoll < 0.64 ? 0 : tierRoll < 0.92 ? 1 : 2;
+
+        let sx = rand();
+        let sy = rand();
+
+        // Separación armónica para estrellas guía (tier 2)
+        if (tier === 2) {
+          for (let attempt = 0; attempt < 8; attempt++) {
+            const tooClose = brightAnchors.some((a) => {
+              const dx = a.x - sx;
+              const dy = a.y - sy;
+              return dx * dx + dy * dy < 0.0085;
+            });
+            if (!tooClose) break;
+            sx = rand();
+            sy = rand();
+          }
+          brightAnchors.push({ x: sx, y: sy });
+        }
+
+        const radius =
+          tier === 0 ? 0.36 + rand() * 0.30 :
+          tier === 1 ? 0.70 + rand() * 0.48 :
+                       1.22 + rand() * 0.62;
+
+        const baseAlpha =
+          tier === 0 ? 0.14 + rand() * 0.24 :
+          tier === 1 ? 0.34 + rand() * 0.34 :
+                       0.62 + rand() * 0.28;
+
+        nextStars.push({
+          x: sx,
+          y: sy,
+          radius,
+          tier,
+          baseAlpha,
+          twinkleAmp: tier === 0 ? 0.08 + rand() * 0.10 : tier === 1 ? 0.14 + rand() * 0.14 : 0.12 + rand() * 0.14,
+          phase1: rand() * Math.PI * 2,
+          phase2: rand() * Math.PI * 2,
+          speed1: (tier === 0 ? 0.35 : 0.55) + rand() * 0.75,
+          speed2: 0.20 + rand() * 0.45,
+          spectral: pickSpectral(rand, tier),
+          parallax: tier === 0 ? 3.5 : tier === 1 ? 7.5 : 13.0,
+          scrollFactor: tier === 0 ? 0.012 : tier === 1 ? 0.026 : 0.044,
+        });
+      }
+
+      stars = nextStars;
+    }
+
     function resize() {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       width = window.innerWidth;
       height = window.innerHeight;
-      canvas!.width = Math.floor(width * dpr);
-      canvas!.height = Math.floor(height * dpr);
+      canvas!.width = Math.max(1, Math.floor(width * dpr));
+      canvas!.height = Math.max(1, Math.floor(height * dpr));
       ctx!.setTransform(1, 0, 0, 1, 0, 0);
       ctx!.scale(dpr, dpr);
+
+      rebuildStaticBackdrop();
+      generateStars();
+
+      if (prefersReducedMotion) {
+        render(0);
+      }
     }
 
-    window.addEventListener('resize', resize, { passive: true });
-    resize();
+    // ==========================================
+    // Dibujo de Capas
+    // ==========================================
+    function drawNebulae(normMouseX: number, normMouseY: number) {
+      const maxDim = Math.max(width, height);
+      const motion = prefersReducedMotion ? 0 : 1;
 
-    // Eventos del mouse / touch con lerp suave
+      for (const neb of nebulae) {
+        const driftX = Math.sin(elapsedSec * 0.09 + neb.phase) * neb.driftX * motion;
+        const driftY = Math.cos(elapsedSec * 0.075 + neb.phase) * neb.driftY * motion;
+        const px = normMouseX * neb.parallax * motion;
+        const py = normMouseY * neb.parallax * motion;
+
+        const cx = neb.relX * width + driftX + px;
+        const cy = neb.relY * height + driftY + py;
+        const r = maxDim * neb.radiusRatio * (1 + Math.sin(elapsedSec * 0.06 + neb.phase) * 0.03 * motion);
+        const col = isDark ? neb.darkColor : neb.lightColor;
+
+        ctx!.save();
+        ctx!.translate(cx, cy);
+        ctx!.rotate(neb.rotation);
+        ctx!.scale(neb.scaleX, neb.scaleY);
+
+        const grad = ctx!.createRadialGradient(0, 0, 0, 0, 0, r);
+        grad.addColorStop(0.0,  `rgba(${col.r}, ${col.g}, ${col.b}, ${col.alpha})`);
+        grad.addColorStop(0.26, `rgba(${col.r}, ${col.g}, ${col.b}, ${col.alpha * 0.50})`);
+        grad.addColorStop(0.55, `rgba(${col.r}, ${col.g}, ${col.b}, ${col.alpha * 0.17})`);
+        grad.addColorStop(0.80, `rgba(${col.r}, ${col.g}, ${col.b}, ${col.alpha * 0.04})`);
+        grad.addColorStop(1.0,  `rgba(${col.r}, ${col.g}, ${col.b}, 0)`);
+
+        ctx!.fillStyle = grad;
+        ctx!.beginPath();
+        ctx!.arc(0, 0, r, 0, Math.PI * 2);
+        ctx!.fill();
+        ctx!.restore();
+      }
+    }
+
+    function drawStar(
+      x: number,
+      y: number,
+      radius: number,
+      alpha: number,
+      spectral: SpectralKey,
+      withHalo: boolean
+    ) {
+      const palette = isDark ? DARK_SPECTRAL : LIGHT_SPECTRAL;
+      const { r, g, b } = palette[spectral];
+      const themeAlphaScale = isDark ? 1.0 : 0.44;
+      const finalAlpha = Math.min(1, Math.max(0, alpha * themeAlphaScale));
+
+      if (withHalo) {
+        const sprite = spriteCache[spectral];
+        if (sprite) {
+          const haloRadius = radius * (isDark ? 6.2 : 4.8);
+          ctx!.save();
+          ctx!.globalAlpha = finalAlpha * (isDark ? 0.78 : 0.65);
+          ctx!.drawImage(sprite, x - haloRadius, y - haloRadius, haloRadius * 2, haloRadius * 2);
+          ctx!.restore();
+        }
+      }
+
+      ctx!.fillStyle = `rgba(${r}, ${g}, ${b}, ${finalAlpha})`;
+      ctx!.beginPath();
+      ctx!.arc(x, y, radius, 0, Math.PI * 2);
+      ctx!.fill();
+    }
+
+    function drawStarfield(normMouseX: number, normMouseY: number) {
+      const motion = prefersReducedMotion ? 0 : 1;
+
+      for (const star of stars) {
+        const wave =
+          Math.sin(elapsedSec * star.speed1 + star.phase1) * 0.65 +
+          Math.cos(elapsedSec * star.speed2 + star.phase2) * 0.35;
+        const alpha = star.baseAlpha * (1 + wave * star.twinkleAmp * motion);
+
+        const rawX = star.x * width + normMouseX * star.parallax * motion;
+        const rawY = star.y * height + normMouseY * star.parallax * motion - scroll.current * star.scrollFactor;
+
+        const sx = ((rawX % width) + width) % width;
+        const sy = ((rawY % height) + height) % height;
+
+        drawStar(sx, sy, star.radius, alpha, star.spectral, star.tier === 2);
+      }
+    }
+
+    function drawFadedEdge(
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      alpha: number,
+      rgb: RgbColor,
+      lineWidth = 0.65
+    ) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 16) return;
+
+      const gap = 6.5;
+      const ux = dx / dist;
+      const uy = dy / dist;
+      const sx = x1 + ux * gap;
+      const sy = y1 + uy * gap;
+      const ex = x2 - ux * gap;
+      const ey = y2 - uy * gap;
+
+      const grad = ctx!.createLinearGradient(sx, sy, ex, ey);
+      grad.addColorStop(0.0,  `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+      grad.addColorStop(0.18, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`);
+      grad.addColorStop(0.82, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`);
+      grad.addColorStop(1.0,  `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+
+      ctx!.strokeStyle = grad;
+      ctx!.lineWidth = lineWidth;
+      ctx!.beginPath();
+      ctx!.moveTo(sx, sy);
+      ctx!.lineTo(ex, ey);
+      ctx!.stroke();
+    }
+
+    function drawConstellations(normMouseX: number, normMouseY: number, dtSec: number) {
+      const isCompact = width < 768;
+      const motion = prefersReducedMotion ? 0 : 1;
+      const edgeRgb: RgbColor = isDark ? { r: 175, g: 218, b: 245 } : { r: 30, g: 114, b: 212 };
+
+      // Actualizar estado del pulso de telemetría celeste
+      if (!prefersReducedMotion) {
+        if (!pulse.active && elapsedSec >= pulse.nextTriggerAt) {
+          pulse.active = true;
+          pulse.progress = 0;
+          pulse.duration = 2.4 + Math.random() * 0.7;
+          pulse.edges = pulsePaths[Math.floor(Math.random() * pulsePaths.length)];
+        } else if (pulse.active) {
+          pulse.progress += dtSec / pulse.duration;
+          if (pulse.progress >= 1) {
+            pulse.active = false;
+            pulse.nextTriggerAt = elapsedSec + 10 + Math.random() * 4;
+          }
+        }
+      }
+
+      for (const c of constellations) {
+        const scrollShift = Math.min(scroll.current * 0.024, c.scrollShiftMax);
+        const px = normMouseX * c.parallax * motion;
+        const py = normMouseY * c.parallax * motion - scrollShift;
+
+        const positions = c.nodes.map((node) => {
+          const nx = isCompact && node.mobileX !== undefined ? node.mobileX : node.x;
+          const ny = isCompact && node.mobileY !== undefined ? node.mobileY : node.y;
+          return {
+            x: nx * width + px,
+            y: ny * height + py,
+          };
+        });
+
+        // Proximidad suave del cursor a cada nodo
+        c.nodes.forEach((node, idx) => {
+          const pos = positions[idx];
+          let targetHighlight = 0;
+          if (mouse.active && !prefersReducedMotion) {
+            const dist = Math.hypot(mouse.x - pos.x, mouse.y - pos.y);
+            if (dist < 150) {
+              targetHighlight = (1 - dist / 150) * 0.85;
+            }
+          }
+          node.highlight += (targetHighlight - node.highlight) * (prefersReducedMotion ? 1 : 0.08);
+        });
+
+        const baseEdgeAlpha = isDark ? c.baseEdgeAlphaDark : c.baseEdgeAlphaLight;
+
+        // 1. Aristas capilares
+        for (const [a, b] of c.edges) {
+          const pA = positions[a];
+          const pB = positions[b];
+          const edgeBoost = Math.max(c.nodes[a].highlight, c.nodes[b].highlight) * 0.085;
+          drawFadedEdge(pA.x, pA.y, pB.x, pB.y, baseEdgeAlpha + edgeBoost, edgeRgb, 0.65);
+        }
+
+        // 2. Pulso de telemetría celeste (solo en la constelación principal)
+        let pulseNodeIndex = -1;
+        let pulseNodeBoost = 0;
+
+        if (c.id === 'zelys-primary' && pulse.active && !prefersReducedMotion) {
+          const eased = easeInOutCubic(Math.min(1, Math.max(0, pulse.progress)));
+          const totalEdges = pulse.edges.length;
+          const scaled = eased * totalEdges;
+          const edgeIdx = Math.min(totalEdges - 1, Math.floor(scaled));
+          const localT = scaled - edgeIdx;
+
+          const [startIdx, endIdx] = pulse.edges[edgeIdx];
+          const pA = positions[startIdx];
+          const pB = positions[endIdx];
+
+          const headX = pA.x + (pB.x - pA.x) * localT;
+          const headY = pA.y + (pB.y - pA.y) * localT;
+          const tailT = Math.max(0, localT - 0.28);
+          const tailX = pA.x + (pB.x - pA.x) * tailT;
+          const tailY = pA.y + (pB.y - pA.y) * tailT;
+
+          // Envolvente suave al entrar y salir del recorrido completo
+          const envelope = Math.sin(pulse.progress * Math.PI);
+          const pulseColor = isDark ? { r: 120, g: 228, b: 250 } : { r: 0, g: 162, b: 210 };
+
+          const trailGrad = ctx!.createLinearGradient(tailX, tailY, headX, headY);
+          trailGrad.addColorStop(0, `rgba(${pulseColor.r}, ${pulseColor.g}, ${pulseColor.b}, 0)`);
+          trailGrad.addColorStop(1, `rgba(${pulseColor.r}, ${pulseColor.g}, ${pulseColor.b}, ${0.34 * envelope})`);
+
+          ctx!.strokeStyle = trailGrad;
+          ctx!.lineWidth = 1.15;
+          ctx!.beginPath();
+          ctx!.moveTo(tailX, tailY);
+          ctx!.lineTo(headX, headY);
+          ctx!.stroke();
+
+          // Pequeño destello viajero
+          const sprite = spriteCache.zelysCyan;
+          if (sprite) {
+            const glowSize = 7.5;
+            ctx!.save();
+            ctx!.globalAlpha = 0.42 * envelope;
+            ctx!.drawImage(sprite, headX - glowSize, headY - glowSize, glowSize * 2, glowSize * 2);
+            ctx!.restore();
+          }
+
+          if (localT > 0.78) {
+            pulseNodeIndex = endIdx;
+            pulseNodeBoost = ((localT - 0.78) / 0.22) * 0.24 * envelope;
+          }
+        }
+
+        // 3. Estrellas ancla de la constelación
+        c.nodes.forEach((node, idx) => {
+          const pos = positions[idx];
+          const breathe = Math.sin(elapsedSec * 0.7 + node.phase) * 0.08 * motion;
+          const extra = node.highlight * 0.16 + (idx === pulseNodeIndex ? pulseNodeBoost : 0);
+          drawStar(
+            pos.x,
+            pos.y,
+            node.radius * (1 + extra * 0.25),
+            Math.min(1, node.baseAlpha + breathe + extra),
+            node.spectral,
+            true
+          );
+        });
+      }
+    }
+
+    function drawCursorBreeze() {
+      const targetAlpha = mouse.active && !prefersReducedMotion ? 1 : 0;
+      mouse.alpha += (targetAlpha - mouse.alpha) * 0.05;
+      if (mouse.alpha < 0.01) return;
+
+      const glowRadius = 280;
+      const grad = ctx!.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, glowRadius);
+      if (isDark) {
+        grad.addColorStop(0.0, `rgba(0, 192, 232, ${0.055 * mouse.alpha})`);
+        grad.addColorStop(0.45, `rgba(30, 114, 212, ${0.022 * mouse.alpha})`);
+        grad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+      } else {
+        grad.addColorStop(0.0, `rgba(0, 192, 232, ${0.055 * mouse.alpha})`);
+        grad.addColorStop(0.45, `rgba(30, 114, 212, ${0.018 * mouse.alpha})`);
+        grad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
+      }
+
+      ctx!.fillStyle = grad;
+      ctx!.beginPath();
+      ctx!.arc(mouse.x, mouse.y, glowRadius, 0, Math.PI * 2);
+      ctx!.fill();
+    }
+
+    function render(dtSec: number) {
+      if (!ctx || width === 0 || height === 0) return;
+
+      if (!prefersReducedMotion) {
+        elapsedSec += dtSec;
+        mouse.x += (mouse.targetX - mouse.x) * 0.045;
+        mouse.y += (mouse.targetY - mouse.y) * 0.045;
+        scroll.current += (scroll.target - scroll.current) * 0.08;
+      }
+
+      const normMouseX = width > 0 ? (mouse.x / width - 0.5) * 2 : 0;
+      const normMouseY = height > 0 ? (mouse.y / height - 0.5) * 2 : 0;
+
+      // Capa 1 + 3: Bóveda celeste base + viñeta + micro-grano (blit desde cache offscreen)
+      ctx.drawImage(backdropCanvas, 0, 0, width, height);
+
+      // Capa 2: Velos nebulares elípticos
+      drawNebulae(normMouseX, normMouseY);
+
+      // Capa 4: Campo estelar multi-profundidad
+      drawStarfield(normMouseX, normMouseY);
+
+      // Capa 5: Constelación Zelys + Micro-asterismo ecuatorial + Pulso celeste
+      drawConstellations(normMouseX, normMouseY, dtSec);
+
+      // Capa 6: Brisa lumínica sutil del puntero
+      drawCursorBreeze();
+    }
+
+    function loop(now: number) {
+      if (!isTabVisible || prefersReducedMotion) {
+        animationFrameId = null;
+        return;
+      }
+
+      const dtSec = Math.min(Math.max((now - lastFrameTime) / 1000, 0.004), 0.05);
+      lastFrameTime = now;
+
+      render(dtSec);
+      animationFrameId = requestAnimationFrame(loop);
+    }
+
+    function startOrRenderOnce() {
+      if (prefersReducedMotion) {
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+          animationFrameId = null;
+        }
+        render(0);
+      } else if (isTabVisible && animationFrameId === null) {
+        lastFrameTime = performance.now();
+        animationFrameId = requestAnimationFrame(loop);
+      }
+    }
+
+    function syncTheme() {
+      const nextDark = document.documentElement.classList.contains('dark');
+      if (nextDark !== isDark) {
+        isDark = nextDark;
+        rebuildStarSprites();
+        rebuildStaticBackdrop();
+        if (prefersReducedMotion) {
+          render(0);
+        }
+      }
+    }
+
+    // Listeners pasivos
+    window.addEventListener('resize', resize, { passive: true });
+    window.addEventListener('scroll', () => {
+      scroll.target = window.scrollY || 0;
+      if (prefersReducedMotion) {
+        scroll.current = scroll.target;
+        render(0);
+      }
+    }, { passive: true });
+
     window.addEventListener('mousemove', (e) => {
       mouse.targetX = e.clientX;
       mouse.targetY = e.clientY;
       mouse.active = true;
+    }, { passive: true });
+
+    window.addEventListener('mouseleave', () => {
+      mouse.active = false;
     }, { passive: true });
 
     window.addEventListener('touchmove', (e) => {
@@ -170,208 +899,33 @@
       }
     }, { passive: true });
 
-    // Observar cambio de tema (Light / Dark)
-    const themeObserver = new MutationObserver(() => {
-      isDark = document.documentElement.classList.contains('dark');
-    });
+    const themeObserver = new MutationObserver(syncTheme);
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('themechange', syncTheme);
 
-    window.addEventListener('themechange', () => {
-      isDark = document.documentElement.classList.contains('dark');
-    });
-
-    // Pausar render si la pestaña está en segundo plano (ahorro de batería)
     document.addEventListener('visibilitychange', () => {
       isTabVisible = !document.hidden;
-      if (isTabVisible && !animationFrameId) {
-        lastFrameTime = performance.now();
-        loop(lastFrameTime);
+      if (isTabVisible) {
+        startOrRenderOnce();
       }
     });
 
-    // Detección de reduced motion
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     motionQuery.addEventListener('change', (e) => {
       prefersReducedMotion = e.matches;
+      startOrRenderOnce();
     });
 
-    // Bucle de renderizado a 60 FPS
-    let lastFrameTime = performance.now();
+    // Inicialización
+    rebuildStarSprites();
+    resize();
+    render(0);
 
-    function render(deltaRatio: number) {
-      if (!ctx || width === 0 || height === 0) return;
-
-      // Suavizado del puntero con interpolación
-      mouse.x += (mouse.targetX - mouse.x) * 0.05;
-      mouse.y += (mouse.targetY - mouse.y) * 0.05;
-
-      if (!prefersReducedMotion) {
-        time += 0.012 * deltaRatio;
-      }
-
-      ctx.clearRect(0, 0, width, height);
-
-      // ==========================================
-      // CAPA 1 & 2: Gradientes Atmosféricos Base
-      // ==========================================
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
-      if (isDark) {
-        bgGrad.addColorStop(0, '#020617');    // slate-950
-        bgGrad.addColorStop(0.5, '#070c18');  // atmósfera noche
-        bgGrad.addColorStop(1, '#0b1324');    // slate-900
-      } else {
-        bgGrad.addColorStop(0, '#f8fafc');    // slate-50
-        bgGrad.addColorStop(0.5, '#f0f7ff');  // blue-50
-        bgGrad.addColorStop(1, '#e0e7ff');    // indigo-100
-      }
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, width, height);
-
-      // Gradiente diagonal secundario
-      const diagGrad = ctx.createLinearGradient(0, height, width, 0);
-      if (isDark) {
-        diagGrad.addColorStop(0, 'rgba(0,0,0,0)');
-        diagGrad.addColorStop(0.6, 'rgba(0, 192, 232, 0.07)'); // Cyan Zelys
-        diagGrad.addColorStop(1, 'rgba(30, 114, 212, 0.05)');  // Azul Zelys
-      } else {
-        diagGrad.addColorStop(0, 'rgba(255,255,255,0)');
-        diagGrad.addColorStop(0.6, 'rgba(219, 234, 254, 0.22)');
-        diagGrad.addColorStop(1, 'rgba(207, 250, 254, 0.18)');
-      }
-      ctx.fillStyle = diagGrad;
-      ctx.fillRect(0, 0, width, height);
-
-      // ==========================================
-      // CAPA 3: Matriz de Puntos (Dot Matrix 40px)
-      // ==========================================
-      const gridSize = 40;
-      const gridOpacity = isDark ? 0.25 : 0.20;
-      ctx.fillStyle = isDark
-        ? `rgba(0, 192, 232, ${gridOpacity})`
-        : `rgba(30, 114, 212, ${gridOpacity})`;
-
-      for (let x = 0; x < width; x += gridSize) {
-        for (let y = 0; y < height; y += gridSize) {
-          ctx.beginPath();
-          ctx.arc(x, y, 1, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      // ==========================================
-      // CAPA 4: Orbes Volumétricos de Aurora (Blobs)
-      // ==========================================
-      orbs.forEach((orb, i) => {
-        const motionFactor = prefersReducedMotion ? 0 : 1;
-        const posX = (orb.relX * width) + Math.sin(time + orb.phase) * (35 * motionFactor);
-        const posY = (orb.relY * height) + Math.cos(time * 0.8 + orb.phase) * (30 * motionFactor);
-
-        // Paralaje sutil con el cursor
-        const parallaxX = (mouse.x - width / 2) * (0.015 * (i + 1));
-        const parallaxY = (mouse.y - height / 2) * (0.015 * (i + 1));
-
-        const currentX = posX + parallaxX;
-        const currentY = posY + parallaxY;
-        const currentRadius = orb.radius + (Math.sin(time * 0.5 + orb.phase) * 15 * motionFactor);
-
-        const color = isDark ? orb.darkColor : orb.lightColor;
-
-        const orbGrad = ctx.createRadialGradient(
-          currentX, currentY, 0,
-          currentX, currentY, Math.max(10, currentRadius)
-        );
-
-        orbGrad.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${color.alpha})`);
-        orbGrad.addColorStop(0.45, `rgba(${color.r}, ${color.g}, ${color.b}, ${color.alpha * 0.35})`);
-        orbGrad.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
-
-        ctx.fillStyle = orbGrad;
-        ctx.beginPath();
-        ctx.arc(currentX, currentY, Math.max(10, currentRadius), 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // Luz suave de cursor
-      if (mouse.active) {
-        const mouseGlowRadius = 240;
-        const mouseGrad = ctx.createRadialGradient(
-          mouse.x, mouse.y, 0,
-          mouse.x, mouse.y, mouseGlowRadius
-        );
-        if (isDark) {
-          mouseGrad.addColorStop(0, 'rgba(0, 192, 232, 0.12)');
-          mouseGrad.addColorStop(0.5, 'rgba(30, 114, 212, 0.04)');
-          mouseGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        } else {
-          mouseGrad.addColorStop(0, 'rgba(0, 192, 232, 0.10)');
-          mouseGrad.addColorStop(0.5, 'rgba(30, 114, 212, 0.03)');
-          mouseGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        }
-        ctx.fillStyle = mouseGrad;
-        ctx.beginPath();
-        ctx.arc(mouse.x, mouse.y, mouseGlowRadius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // ==========================================
-      // CAPA 5: Estrellas Titilantes (Twinkling Stardust)
-      // ==========================================
-      stars.forEach(star => {
-        if (!prefersReducedMotion) {
-          star.phase += star.speed * deltaRatio;
-        }
-        const pulse = (Math.sin(star.phase) + 1) / 2;
-        const alpha = 0.2 + pulse * 0.7;
-
-        const sx = star.x * width;
-        const sy = star.y * height;
-
-        let r = 0, g = 192, b = 232;
-        if (isDark) {
-          if (star.colorType === 'cyan') { r = 0; g = 232; b = 204; } // mint
-          else { r = 0; g = 192; b = 232; } // cyan
-        } else {
-          if (star.colorType === 'cyan') { r = 0; g = 160; b = 210; }
-          else { r = 30; g = 114; b = 212; }
-        }
-
-        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, star.radius * (0.8 + pulse * 0.4), 0, Math.PI * 2);
-        ctx.fill();
-
-        // Halo suave en picos de brillo
-        if (pulse > 0.8) {
-          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${(pulse - 0.8) * 0.35})`;
-          ctx.beginPath();
-          ctx.arc(sx, sy, star.radius * 3.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      });
-    }
-
-    function loop(now: number) {
-      if (!isTabVisible) {
-        animationFrameId = null;
-        return;
-      }
-
-      const elapsed = now - lastFrameTime;
-      lastFrameTime = now;
-      const deltaRatio = Math.min(Math.max(elapsed / 16.666, 0.5), 3.0);
-
-      render(deltaRatio);
-      animationFrameId = requestAnimationFrame(loop);
-    }
-
-    // Revelar canvas suavemente
     canvas.classList.remove('opacity-0');
     canvas.classList.add('is-ready');
-    lastFrameTime = performance.now();
-    animationFrameId = requestAnimationFrame(loop);
+    startOrRenderOnce();
   }
 
-  // Inicializar tras DOM
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAmbientCanvas);
   } else {

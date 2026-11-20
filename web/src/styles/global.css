@@ -120,16 +120,6 @@ ul, ol {
   box-shadow: var(--shadow-card);
 }
 
-/* Patrón de matriz de puntos Tailwind */
-.bg-dot-matrix-light {
-  background-image: radial-gradient(circle at center, rgba(30, 114, 212, 0.22) 1.2px, transparent 1.2px);
-  background-size: 40px 40px;
-}
-.bg-dot-matrix-dark {
-  background-image: radial-gradient(circle at center, rgba(0, 192, 232, 0.25) 1.2px, transparent 1.2px);
-  background-size: 40px 40px;
-}
-
 /* ─── Estructuras de Secciones y Contenedores ────────────── */
 .section {
   padding: 6rem 2rem;
@@ -137,7 +127,9 @@ ul, ol {
 }
 
 .section--alt {
-  background-color: var(--bg-surface);
+  background-color: var(--bg-surface-alt);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   border-top: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
 }
