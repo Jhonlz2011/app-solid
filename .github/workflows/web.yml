@@ -62,8 +62,26 @@ jobs:
             echo "::error::COOLIFY_WEB_WEBHOOK secret is missing"
             exit 1
           fi
+          if [[ "$WEBHOOK_URL" == *"/api/v1/deploy"* ]] && [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::error::COOLIFY_API_TOKEN secret is missing for Coolify v4 API webhook"
+            exit 1
+          fi
+          AUTH_ARGS=()
           if [ -n "$COOLIFY_TOKEN" ]; then
-            curl -fsSL -H "Authorization: Bearer $COOLIFY_TOKEN" "$WEBHOOK_URL"
-          else
-            curl -fsSL "$WEBHOOK_URL"
+            AUTH_ARGS=(-H "Authorization: Bearer $COOLIFY_TOKEN")
+          fi
+          HTTP_RESPONSE=$(curl -sS -L -X POST \
+            "${AUTH_ARGS[@]}" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: GitHub-Actions-Zelys-Deploy/1.0" \
+            -w "\nHTTP_STATUS:%{http_code}" \
+            "$WEBHOOK_URL")
+          HTTP_STATUS=$(printf '%s\n' "$HTTP_RESPONSE" | tail -n1 | sed 's/HTTP_STATUS://')
+          HTTP_BODY=$(printf '%s\n' "$HTTP_RESPONSE" | sed '$d')
+          echo "HTTP Status: $HTTP_STATUS"
+          echo "Response Body: $HTTP_BODY"
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "::error::Coolify deploy webhook failed with HTTP $HTTP_STATUS"
+            exit 1
           fi
