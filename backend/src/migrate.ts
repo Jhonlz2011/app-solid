@@ -2,7 +2,41 @@ import { drizzlePostgres as drizzle, migrate } from '@app/schema';
 import postgres from 'postgres';
 import fs from 'fs';
 import path from 'path';
-import { resolveDatabaseSslMode, toPostgresSslOption } from './core/db/postgres-options';
+import {
+  resolveDatabaseSslMode,
+  toPostgresSslOption,
+  type DatabaseSslMode,
+} from './core/db/postgres-options';
+
+async function ensureReferenceSchema(defaultSslMode: DatabaseSslMode) {
+  const refUrl = process.env.REF_DATABASE_URL;
+  if (!refUrl) {
+    console.log('ℹ️ REF_DATABASE_URL is not defined (skipping reference DB schema)');
+    return;
+  }
+
+  const refSchemaPath = path.join(process.cwd(), 'src', 'migrations', 'references-schema.sql');
+  if (!fs.existsSync(refSchemaPath)) {
+    console.log('ℹ️ No references-schema.sql found (skipping reference DB schema)');
+    return;
+  }
+
+  const refSslMode = resolveDatabaseSslMode(process.env.REF_DATABASE_SSL_MODE, defaultSslMode);
+  const refConnection = postgres(refUrl, {
+    max: 1,
+    connect_timeout: 10,
+    ssl: toPostgresSslOption(refSslMode),
+  });
+
+  try {
+    console.log('⏳ Ensuring reference database schema...');
+    const refSql = fs.readFileSync(refSchemaPath, 'utf8');
+    await refConnection.unsafe(refSql);
+    console.log('✅ Reference database schema ensured!');
+  } finally {
+    await refConnection.end();
+  }
+}
 
 async function ensureAuditPartitions(connection: postgres.Sql) {
   console.log('⏳ Ensuring audit_logs partitions exist...');
@@ -55,8 +89,7 @@ const runMigration = async () => {
     // Check if migrations folder exists
     const migrationsFolder = path.join(process.cwd(), 'drizzle');
     if (!fs.existsSync(migrationsFolder)) {
-      console.warn(`⚠️ Migrations folder not found at: ${migrationsFolder}`);
-      console.warn('   Did you run "bun run db:generate"?');
+      throw new Error(`Migrations folder not found at: ${migrationsFolder}. Run "bun run db:generate" and commit backend/drizzle.`);
     } else {
       await migrate(db, { migrationsFolder: 'drizzle' });
       console.log('✅ Drizzle migrations completed!');
@@ -84,6 +117,9 @@ const runMigration = async () => {
 
     // Ensure partitions are created dynamically
     await ensureAuditPartitions(connection);
+
+    // Ensure reference database (dbReferences) extensions, functions, and tables exist
+    await ensureReferenceSchema(sslMode);
 
   } catch (error) {
     console.error('❌ Migration failed:', error);

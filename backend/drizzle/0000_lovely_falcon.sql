@@ -342,7 +342,8 @@ CREATE TABLE "auth_roles" (
 	"description" text,
 	"is_system" boolean DEFAULT false,
 	"priority" smallint DEFAULT 0,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "auth_roles_id_company_unique" UNIQUE("id","company_id")
 );
 --> statement-breakpoint
 ALTER TABLE "auth_roles" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -1452,7 +1453,8 @@ CREATE TABLE "saas_plans" (
 	"sort_order" integer DEFAULT 0 NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "saas_plans_interval_check" CHECK ("saas_plans"."interval" IN ('MONTHLY', 'YEARLY'))
 );
 --> statement-breakpoint
 CREATE TABLE "saas_tenant_addons" (
@@ -1462,7 +1464,8 @@ CREATE TABLE "saas_tenant_addons" (
 	"quantity" integer DEFAULT 1 NOT NULL,
 	"status" text DEFAULT 'ACTIVE' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "saas_tenant_addons_status_check" CHECK ("saas_tenant_addons"."status" IN ('ACTIVE', 'CANCELLED'))
 );
 --> statement-breakpoint
 ALTER TABLE "saas_tenant_addons" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -1475,7 +1478,8 @@ CREATE TABLE "saas_tenant_document_packs" (
 	"expires_at" timestamp with time zone,
 	"status" text DEFAULT 'ACTIVE' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "saas_tenant_document_packs_status_check" CHECK ("saas_tenant_document_packs"."status" IN ('ACTIVE', 'DEPLETED', 'EXPIRED'))
 );
 --> statement-breakpoint
 ALTER TABLE "saas_tenant_document_packs" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -1483,15 +1487,18 @@ CREATE TABLE "saas_tenant_subscriptions" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"company_id" integer NOT NULL,
 	"plan_id" text NOT NULL,
-	"status" text DEFAULT 'ACTIVE' NOT NULL,
+	"status" text NOT NULL,
 	"current_period_start" timestamp with time zone DEFAULT now() NOT NULL,
 	"current_period_end" timestamp with time zone,
 	"grace_period_ends_at" timestamp with time zone,
 	"cancel_at_period_end" boolean DEFAULT false NOT NULL,
-	"payment_method_type" text DEFAULT 'FREE' NOT NULL,
+	"payment_method_type" text DEFAULT 'FREE',
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "saas_tenant_subscriptions_company_id_unique" UNIQUE("company_id")
+	CONSTRAINT "saas_tenant_subscriptions_company_id_unique" UNIQUE("company_id"),
+	CONSTRAINT "saas_tenant_subscriptions_status_check" CHECK ("saas_tenant_subscriptions"."status" IN ('ACTIVE', 'TRIAL', 'PENDING_PAYMENT', 'GRACE_PERIOD', 'PAST_DUE', 'SUSPENDED')),
+	CONSTRAINT "saas_tenant_subscriptions_payment_method_check" CHECK ("saas_tenant_subscriptions"."payment_method_type" IS NULL OR "saas_tenant_subscriptions"."payment_method_type" IN ('FREE', 'TRANSFER', 'CARD')),
+	CONSTRAINT "saas_tenant_subscriptions_plan_payment_check" CHECK (("saas_tenant_subscriptions"."plan_id" = 'free' AND "saas_tenant_subscriptions"."payment_method_type" IS NOT NULL AND "saas_tenant_subscriptions"."payment_method_type" = 'FREE') OR ("saas_tenant_subscriptions"."plan_id" <> 'free' AND "saas_tenant_subscriptions"."payment_method_type" IS DISTINCT FROM 'FREE'))
 );
 --> statement-breakpoint
 ALTER TABLE "saas_tenant_subscriptions" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -1813,8 +1820,6 @@ CREATE INDEX "idx_entity_contacts_entity_id" ON "entity_contacts" USING btree ("
 CREATE UNIQUE INDEX "idx_job_titles_company_name" ON "job_titles" USING btree ("company_id","name");--> statement-breakpoint
 CREATE INDEX "idx_job_titles_company" ON "job_titles" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_job_titles_department" ON "job_titles" USING btree ("department_id");--> statement-breakpoint
-CREATE INDEX "idx_companies_slug" ON "companies" USING btree ("slug");--> statement-breakpoint
-CREATE INDEX "idx_companies_org_id" ON "companies" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "idx_sri_certs_company" ON "sri_certificates" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_sri_certs_active" ON "sri_certificates" USING btree ("company_id","is_active");--> statement-breakpoint
 CREATE INDEX "idx_sri_estab_company" ON "sri_establishments" USING btree ("company_id");--> statement-breakpoint
@@ -1825,8 +1830,8 @@ CREATE INDEX "idx_categories_active" ON "categories" USING btree ("is_active");-
 CREATE INDEX "idx_categories_company" ON "categories" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_categories_path_gist" ON "categories" USING gist ("path");--> statement-breakpoint
 CREATE INDEX "idx_cat_attrs_company" ON "category_attributes" USING btree ("company_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "unq_uom_global_code" ON "uom" USING btree ("code") WHERE "uom"."company_id" IS NULL;--> statement-breakpoint
 CREATE INDEX "idx_uom_company" ON "uom" USING btree ("company_id");--> statement-breakpoint
-CREATE INDEX "idx_uom_code" ON "uom" USING btree ("code");--> statement-breakpoint
 CREATE INDEX "idx_account_user" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_account_provider_unique" ON "account" USING btree ("provider_id","account_id");--> statement-breakpoint
 CREATE INDEX "idx_auth_menu_company" ON "auth_menu_custom" USING btree ("company_id");--> statement-breakpoint
@@ -1834,11 +1839,8 @@ CREATE INDEX "idx_menu_order" ON "auth_menu_items" USING btree ("parent_id","sor
 CREATE INDEX "idx_menu_active" ON "auth_menu_items" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "idx_perm_module" ON "auth_permissions" USING btree ("module");--> statement-breakpoint
 CREATE INDEX "idx_role_perms_slug" ON "auth_role_permissions" USING btree ("permission_slug");--> statement-breakpoint
-CREATE INDEX "idx_role_perms_company_role" ON "auth_role_permissions" USING btree ("company_id","role_id");--> statement-breakpoint
 CREATE INDEX "idx_role_perms_company_role_permission" ON "auth_role_permissions" USING btree ("company_id","role_id","permission_slug");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_auth_roles_name" ON "auth_roles" USING btree ("company_id","name");--> statement-breakpoint
-CREATE UNIQUE INDEX "idx_auth_roles_id_company" ON "auth_roles" USING btree ("id","company_id");--> statement-breakpoint
-CREATE INDEX "idx_user_roles_company_user" ON "auth_user_roles" USING btree ("company_id","user_id");--> statement-breakpoint
 CREATE INDEX "idx_user_roles_company_role" ON "auth_user_roles" USING btree ("company_id","role_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_user_email_unique" ON "user" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "idx_user_company" ON "user" USING btree ("company_id");--> statement-breakpoint
@@ -1894,6 +1896,8 @@ CREATE INDEX "idx_movements_product" ON "inventory_movements" USING btree ("prod
 CREATE INDEX "idx_movements_company" ON "inventory_movements" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_inv_stock_variant" ON "inventory_stock" USING btree ("variant_id");--> statement-breakpoint
 CREATE INDEX "idx_inv_stock_company" ON "inventory_stock" USING btree ("company_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "unq_virtual_location_company_name" ON "warehouse_locations" USING btree ("company_id","name") WHERE "warehouse_locations"."warehouse_id" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "unq_physical_location_company_warehouse_path" ON "warehouse_locations" USING btree ("company_id","warehouse_id","path") WHERE "warehouse_locations"."warehouse_id" IS NOT NULL;--> statement-breakpoint
 CREATE INDEX "idx_locations_company" ON "warehouse_locations" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_locations_warehouse" ON "warehouse_locations" USING btree ("warehouse_id");--> statement-breakpoint
 CREATE INDEX "idx_locations_parent" ON "warehouse_locations" USING btree ("parent_id");--> statement-breakpoint
@@ -2017,7 +2021,6 @@ CREATE INDEX "idx_saas_plans_interval" ON "saas_plans" USING btree ("interval");
 CREATE INDEX "idx_saas_tenant_addons_company" ON "saas_tenant_addons" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_saas_tenant_doc_packs_company" ON "saas_tenant_document_packs" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_saas_tenant_doc_packs_status" ON "saas_tenant_document_packs" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "idx_saas_sub_company" ON "saas_tenant_subscriptions" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_saas_sub_status" ON "saas_tenant_subscriptions" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "idx_saas_tenant_usage_company" ON "saas_tenant_usage" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "idx_tax_val_attr" ON "taxonomy_attribute_values" USING btree ("attribute_id");--> statement-breakpoint

@@ -1,5 +1,5 @@
 {
-  "id": "74ff4c96-2a69-4dcc-bd62-cd9c407c58fe",
+  "id": "26a6cda3-e65a-4acd-9e38-67a759220ab5",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1532,38 +1532,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "idx_companies_slug": {
-          "name": "idx_companies_slug",
-          "columns": [
-            {
-              "expression": "slug",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_companies_org_id": {
-          "name": "idx_companies_org_id",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "companies_organization_id_organization_fk": {
           "name": "companies_organization_id_organization_fk",
@@ -2586,26 +2555,27 @@
         }
       },
       "indexes": {
-        "idx_uom_company": {
-          "name": "idx_uom_company",
+        "unq_uom_global_code": {
+          "name": "unq_uom_global_code",
           "columns": [
             {
-              "expression": "company_id",
+              "expression": "code",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
+          "where": "\"uom\".\"company_id\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "idx_uom_code": {
-          "name": "idx_uom_code",
+        "idx_uom_company": {
+          "name": "idx_uom_company",
           "columns": [
             {
-              "expression": "code",
+              "expression": "company_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3202,27 +3172,6 @@
           "method": "btree",
           "with": {}
         },
-        "idx_role_perms_company_role": {
-          "name": "idx_role_perms_company_role",
-          "columns": [
-            {
-              "expression": "company_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "role_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "idx_role_perms_company_role_permission": {
           "name": "idx_role_perms_company_role_permission",
           "columns": [
@@ -3401,27 +3350,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "idx_auth_roles_id_company": {
-          "name": "idx_auth_roles_id_company",
-          "columns": [
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "company_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -3440,7 +3368,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "auth_roles_id_company_unique": {
+          "name": "auth_roles_id_company_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "company_id"
+          ]
+        }
+      },
       "policies": {
         "tenant_isolation": {
           "name": "tenant_isolation",
@@ -3480,27 +3417,6 @@
         }
       },
       "indexes": {
-        "idx_user_roles_company_user": {
-          "name": "idx_user_roles_company_user",
-          "columns": [
-            {
-              "expression": "company_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "idx_user_roles_company_role": {
           "name": "idx_user_roles_company_role",
           "columns": [
@@ -7603,6 +7519,56 @@
         }
       },
       "indexes": {
+        "unq_virtual_location_company_name": {
+          "name": "unq_virtual_location_company_name",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"warehouse_locations\".\"warehouse_id\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "unq_physical_location_company_warehouse_path": {
+          "name": "unq_physical_location_company_warehouse_path",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "warehouse_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"warehouse_locations\".\"warehouse_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "idx_locations_company": {
           "name": "idx_locations_company",
           "columns": [
@@ -16559,7 +16525,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "saas_plans_interval_check": {
+          "name": "saas_plans_interval_check",
+          "value": "\"saas_plans\".\"interval\" IN ('MONTHLY', 'YEARLY')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.saas_tenant_addons": {
@@ -16672,7 +16643,12 @@
           "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
         }
       },
-      "checkConstraints": {},
+      "checkConstraints": {
+        "saas_tenant_addons_status_check": {
+          "name": "saas_tenant_addons_status_check",
+          "value": "\"saas_tenant_addons\".\"status\" IN ('ACTIVE', 'CANCELLED')"
+        }
+      },
       "isRLSEnabled": true
     },
     "public.saas_tenant_document_packs": {
@@ -16811,7 +16787,12 @@
           "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
         }
       },
-      "checkConstraints": {},
+      "checkConstraints": {
+        "saas_tenant_document_packs_status_check": {
+          "name": "saas_tenant_document_packs_status_check",
+          "value": "\"saas_tenant_document_packs\".\"status\" IN ('ACTIVE', 'DEPLETED', 'EXPIRED')"
+        }
+      },
       "isRLSEnabled": true
     },
     "public.saas_tenant_subscriptions": {
@@ -16840,8 +16821,7 @@
           "name": "status",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'ACTIVE'"
+          "notNull": true
         },
         "current_period_start": {
           "name": "current_period_start",
@@ -16873,7 +16853,7 @@
           "name": "payment_method_type",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "default": "'FREE'"
         },
         "created_at": {
@@ -16892,21 +16872,6 @@
         }
       },
       "indexes": {
-        "idx_saas_sub_company": {
-          "name": "idx_saas_sub_company",
-          "columns": [
-            {
-              "expression": "company_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "idx_saas_sub_status": {
           "name": "idx_saas_sub_status",
           "columns": [
@@ -16973,7 +16938,20 @@
           "withCheck": "company_id = current_setting('app.current_company_id', true)::integer"
         }
       },
-      "checkConstraints": {},
+      "checkConstraints": {
+        "saas_tenant_subscriptions_status_check": {
+          "name": "saas_tenant_subscriptions_status_check",
+          "value": "\"saas_tenant_subscriptions\".\"status\" IN ('ACTIVE', 'TRIAL', 'PENDING_PAYMENT', 'GRACE_PERIOD', 'PAST_DUE', 'SUSPENDED')"
+        },
+        "saas_tenant_subscriptions_payment_method_check": {
+          "name": "saas_tenant_subscriptions_payment_method_check",
+          "value": "\"saas_tenant_subscriptions\".\"payment_method_type\" IS NULL OR \"saas_tenant_subscriptions\".\"payment_method_type\" IN ('FREE', 'TRANSFER', 'CARD')"
+        },
+        "saas_tenant_subscriptions_plan_payment_check": {
+          "name": "saas_tenant_subscriptions_plan_payment_check",
+          "value": "(\"saas_tenant_subscriptions\".\"plan_id\" = 'free' AND \"saas_tenant_subscriptions\".\"payment_method_type\" IS NOT NULL AND \"saas_tenant_subscriptions\".\"payment_method_type\" = 'FREE') OR (\"saas_tenant_subscriptions\".\"plan_id\" <> 'free' AND \"saas_tenant_subscriptions\".\"payment_method_type\" IS DISTINCT FROM 'FREE')"
+        }
+      },
       "isRLSEnabled": true
     },
     "public.saas_tenant_usage": {
