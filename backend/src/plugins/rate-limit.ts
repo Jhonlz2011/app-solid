@@ -12,6 +12,7 @@ import { API_ERROR_CODES, ERROR_MESSAGES_ES } from '@app/schema/errors';
 // ============================================================================
 const SLIDING_WINDOW_LUA = `
 local key = KEYS[1]
+local seqKey = KEYS[2]
 local now = tonumber(ARGV[1])
 local window = tonumber(ARGV[2])
 local max = tonumber(ARGV[3])
@@ -21,11 +22,11 @@ redis.call('ZREMRANGEBYSCORE', key, 0, clearBefore)
 local count = redis.call('ZCARD', key)
 
 if count < max then
-    local seq = redis.call('INCR', key .. ':seq')
+    local seq = redis.call('INCR', seqKey)
     local member = tostring(now) .. ':' .. tostring(seq)
     redis.call('ZADD', key, now, member)
     redis.call('PEXPIRE', key, window)
-    redis.call('PEXPIRE', key .. ':seq', window)
+    redis.call('PEXPIRE', seqKey, window)
     return { 1, max - count - 1, 0 }
 else
     local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
@@ -74,14 +75,16 @@ export function createRateLimitGuard(options: RateLimitOptions) {
         if (skipIf?.(request)) return;
 
         const clientKey = keyGenerator(request);
-        const key = `${prefix}:${clientKey}`;
+        const key = `${prefix}:{${clientKey}}`;
+        const seqKey = `${key}:seq`;
         const now = Date.now();
 
         try {
             const rawResult = (await redis.eval(
                 SLIDING_WINDOW_LUA,
-                1,
+                2,
                 key,
+                seqKey,
                 now,
                 windowMs,
                 max

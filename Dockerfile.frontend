@@ -9,7 +9,7 @@ COPY frontend/package.json ./frontend/package.json
 COPY web/package.json ./web/package.json
 
 # Install dependencies (cached)
-RUN bun install
+RUN bun install --frozen-lockfile
 
 # Copy source code (this layer changes frequently)
 COPY packages ./packages
@@ -18,7 +18,13 @@ COPY scripts ./scripts
 
 # Build frontend
 WORKDIR /app/frontend
+ARG VITE_TURNSTILE_SITE_KEY
+ARG VITE_API_URL=https://api.zelys.app
+ARG VITE_SSE_URL=https://api.zelys.app/api/sse
 ENV NODE_ENV=production
+ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_SSE_URL=$VITE_SSE_URL
 RUN bun run build
 
 # Production stage

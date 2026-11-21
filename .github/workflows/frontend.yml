@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/crud-layout-pilot
     paths:
       - 'frontend/**'
       - 'packages/**'
@@ -14,6 +13,10 @@ on:
       - 'package.json'
       - 'bun.lock'
   workflow_dispatch:
+
+concurrency:
+  group: deploy-frontend-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
@@ -39,39 +42,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compute image tags
-        id: tags
-        run: |
-          if [ "${{ github.ref_name }}" = "main" ]; then
-            echo "DOCKER_TAGS=${{ env.REGISTRY }}/${{ env.OWNER }}/zelys-frontend:latest,${{ env.REGISTRY }}/${{ env.OWNER }}/zelys-frontend:${{ github.sha }}" >> $GITHUB_OUTPUT
-          else
-            echo "DOCKER_TAGS=${{ env.REGISTRY }}/${{ env.OWNER }}/zelys-frontend:pilot,${{ env.REGISTRY }}/${{ env.OWNER }}/zelys-frontend:${{ github.sha }}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Build and Push Frontend
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile.frontend
           push: true
-          tags: ${{ steps.tags.outputs.DOCKER_TAGS }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/zelys-frontend:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/zelys-frontend:${{ github.sha }}
+          build-args: |
+            VITE_TURNSTILE_SITE_KEY=${{ vars.VITE_TURNSTILE_SITE_KEY }}
+            VITE_API_URL=https://api.zelys.app
+            VITE_SSE_URL=https://api.zelys.app/api/sse
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Trigger Coolify Production Deploy
-        if: github.ref == 'refs/heads/main'
         env:
           WEBHOOK_URL: ${{ secrets.COOLIFY_FRONTEND_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
         run: |
-          if [ -n "$WEBHOOK_URL" ]; then
-            curl -s -X GET "$WEBHOOK_URL"
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::error::COOLIFY_FRONTEND_WEBHOOK secret is missing"
+            exit 1
           fi
-
-      - name: Trigger Coolify Pilot Deploy
-        if: github.ref == 'refs/heads/feature/crud-layout-pilot'
-        env:
-          WEBHOOK_URL: ${{ secrets.COOLIFY_PILOT_WEBHOOK }}
-        run: |
-          if [ -n "$WEBHOOK_URL" ]; then
-            curl -s -X GET "$WEBHOOK_URL"
+          if [ -n "$COOLIFY_TOKEN" ]; then
+            curl -fsSL -H "Authorization: Bearer $COOLIFY_TOKEN" "$WEBHOOK_URL"
+          else
+            curl -fsSL "$WEBHOOK_URL"
           fi

@@ -91,6 +91,9 @@ async function getRawHtml(): Promise<string> {
     }
 
     const baseUrl = env.FRONTEND_INTERNAL_URL;
+    if (!baseUrl) {
+        throw new Error('FRONTEND_INTERNAL_URL is not configured');
+    }
 
     const response = await fetch(`${baseUrl}/index.html`, {
         headers: { 'X-Raw-Request': 'true' }
@@ -108,7 +111,11 @@ async function getRawHtml(): Promise<string> {
 
 // Helper: inject app-config JSON (deduplicated — was repeated 3x)
 function injectAppConfig(html: string, apiUrl: string, sseUrl: string): string {
-    const json = JSON.stringify({ apiUrl, sseUrl })
+    const json = JSON.stringify({
+        apiUrl,
+        sseUrl,
+        ...(env.TURNSTILE_SITE_KEY ? { turnstileSiteKey: env.TURNSTILE_SITE_KEY } : {}),
+    })
         .replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
     return html.replace('</head>', `\n<script id="app-config" type="application/json">\n  ${json}\n</script>\n</head>`);
 }
@@ -123,7 +130,9 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
         return { error: 'Not Found', details: 'Endpoint not registered under /api' };
     }
 
-    const originalHost = request.headers.get('host') || '';
+    const originalHost = (env.TRUSTED_PROXY_HEADERS ? request.headers.get('x-original-host') : null)
+        || request.headers.get('host')
+        || '';
     const slug = resolveSlugFromHost(originalHost, env.NODE_ENV === 'production' ? null : query.slug);
 
     let html: string;
@@ -189,6 +198,7 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                     loginBgUrl: company.loginBgUrl,
                     apiUrl,
                     sseUrl,
+                    ...(env.TURNSTILE_SITE_KEY ? { turnstileSiteKey: env.TURNSTILE_SITE_KEY } : {}),
                 };
 
                 // Escape < and > to prevent XSS script closing injections

@@ -10,6 +10,11 @@ on:
       - 'Dockerfile.backend'
       - 'package.json'
       - 'bun.lock'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
@@ -41,14 +46,23 @@ jobs:
           context: .
           file: ./Dockerfile.backend
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/zelys-backend:latest
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/zelys-backend:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/zelys-backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Trigger Coolify Backend Deploy
         env:
           WEBHOOK_URL: ${{ secrets.COOLIFY_BACKEND_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
         run: |
-          if [ -n "$WEBHOOK_URL" ]; then
-            curl -s -X GET "$WEBHOOK_URL"
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::error::COOLIFY_BACKEND_WEBHOOK secret is missing"
+            exit 1
+          fi
+          if [ -n "$COOLIFY_TOKEN" ]; then
+            curl -fsSL -H "Authorization: Bearer $COOLIFY_TOKEN" "$WEBHOOK_URL"
+          else
+            curl -fsSL "$WEBHOOK_URL"
           fi

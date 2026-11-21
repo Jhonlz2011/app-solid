@@ -109,6 +109,7 @@ export const TenantBrandingResponseSchema = Type.Object({
     loginBgUrl: Type.Union([Type.String(), Type.Null()]),
     apiUrl: Type.Optional(Type.String()),
     sseUrl: Type.Optional(Type.String()),
+    turnstileSiteKey: Type.Optional(Type.String()),
 });
 
 export const DiscoverTenantItemResponseSchema = Type.Object({

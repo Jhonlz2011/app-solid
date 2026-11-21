@@ -47,9 +47,9 @@
         }
     }
 
-    # 5. Navegación SPA directa para el Portal Global (in.zelys.app, zelys.app, www.zelys.app)
+    # 5. Navegación SPA directa para el Portal Global (in.zelys.app)
     # Entrega instantánea en 1ms desde disco local, eliminando cualquier bucle o bloqueo de Cloudflare
-    @portal host in.zelys.app zelys.app www.zelys.app
+    @portal host in.zelys.app
     handle @portal {
         try_files {path} /index.html
         file_server {
