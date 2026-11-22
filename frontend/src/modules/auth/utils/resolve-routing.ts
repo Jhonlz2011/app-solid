@@ -30,12 +30,43 @@ export function mapOrgToTenant(org: BetterAuthOrg): DiscoverTenantItemType {
     };
 }
 
+/**
+ * Safely merges a validated internal target path (including its query params and hash)
+ * into a tenant handoff redirect URL while preserving the `?handoff=<ticket>` parameter.
+ */
+export function buildHandoffTargetUrl(handoffRedirectUrl: string, targetPath: string): string {
+    const normalizedPath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
+    try {
+        const handoffUrl = new URL(handoffRedirectUrl);
+        const ticket = handoffUrl.searchParams.get('handoff');
+        const targetUrl = new URL(normalizedPath, 'http://dummy.local');
+        if (targetUrl.origin !== 'http://dummy.local') {
+            return handoffRedirectUrl;
+        }
+
+        handoffUrl.pathname = targetUrl.pathname;
+        handoffUrl.search = '';
+        targetUrl.searchParams.forEach((value, key) => {
+            if (key !== 'handoff') {
+                handoffUrl.searchParams.append(key, value);
+            }
+        });
+        if (ticket) {
+            handoffUrl.searchParams.set('handoff', ticket);
+        }
+        handoffUrl.hash = targetUrl.hash;
+        return handoffUrl.toString();
+    } catch {
+        return handoffRedirectUrl;
+    }
+}
+
 async function redirectToTenantWithHandoff(slug: string, path: string): Promise<void> {
     const orgs = await fetchUserOrganizations();
     const organization = orgs.find(org => org.slug === slug);
     if (!organization) throw new Error('No tienes acceso a la empresa solicitada');
     const handoff = await authApi.requestTenantHandoff(organization.id, slug);
-    window.location.href = handoff.redirectUrl.replace('/dashboard', path.startsWith('/') ? path : `/${path}`);
+    window.location.href = buildHandoffTargetUrl(handoff.redirectUrl, path);
 }
 
 // ============================================================================
@@ -122,14 +153,26 @@ export function getSafeRedirectPath(
         raw = new URLSearchParams(window.location.search).get('redirect');
     }
 
-    if (!raw || !raw.startsWith('/') || raw.startsWith('//')) {
+    if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) {
         return '/dashboard';
     }
 
     try {
         const url = new URL(raw, 'http://dummy.local');
+        // Strict same-origin guard against protocol-relative or backslash open redirects (e.g. /\evil.com)
+        if (url.origin !== 'http://dummy.local') {
+            return '/dashboard';
+        }
         const pathOnly = url.pathname;
-        const unsafePrefixes = ['/login', '/register', '/verify-email', '/create-company'];
+        const unsafePrefixes = [
+            '/login',
+            '/register',
+            '/verify-email',
+            '/accept-invitation',
+            '/forgot-password',
+            '/reset-password',
+            '/create-company',
+        ];
         if (!pathOnly || pathOnly === '/' || unsafePrefixes.some(prefix => pathOnly.startsWith(prefix))) {
             return '/dashboard';
         }
@@ -246,9 +289,17 @@ export async function resolvePostAuthRouting(
     isGlobalPortal: boolean,
     currentSlug: string | null,
     targetPath = '/dashboard',
+    currentPathname?: string,
 ): Promise<RoutingDecision> {
     // Special path: creating a new company is allowed for any authenticated user
-    if (targetPath === '/create-company' || targetPath.startsWith('/create-company')) {
+    // on either the global portal (in.zelys.app) or a tenant subdomain.
+    const activePath = currentPathname || targetPath;
+    if (
+        activePath === '/create-company' ||
+        activePath.startsWith('/create-company') ||
+        targetPath === '/create-company' ||
+        targetPath.startsWith('/create-company')
+    ) {
         return { action: 'stay' };
     }
 
@@ -326,7 +377,7 @@ export async function activateNewTenantAndRedirect(
     slug: string,
     targetPath = '/dashboard',
 ): Promise<boolean> {
-    const { isGlobalPortalHost } = await import('@app/schema/utils');
+    const { isGlobalPortalHost, resolveSlugFromHost } = await import('@app/schema/utils');
 
     invalidateOrgCache();
     const orgs = await fetchUserOrganizations(true);
@@ -337,10 +388,17 @@ export async function activateNewTenantAndRedirect(
     const { actions } = await import('@modules/auth/store/auth.store');
     await actions.initSession();
 
-    const isGlobal = isGlobalPortalHost(window.location.hostname);
-    if (isGlobal && slug) {
+    const hostname = window.location.hostname.toLowerCase();
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost')
+        || /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+    const isGlobal = isGlobalPortalHost(hostname);
+    const currentSlug = resolveSlugFromHost(hostname);
+
+    // Redirect via authenticated tenant handoff when on global portal (in.zelys.app)
+    // OR when creating a new company from a different tenant subdomain (e.g. empresa1.zelys.app -> empresa2.zelys.app)
+    if (slug && !isLocalHost && (isGlobal || currentSlug !== slug)) {
         const handoff = await authApi.requestTenantHandoff(matchingOrg.id, slug);
-        window.location.href = handoff.redirectUrl.replace('/dashboard', targetPath.startsWith('/') ? targetPath : `/${targetPath}`);
+        window.location.href = buildHandoffTargetUrl(handoff.redirectUrl, targetPath);
         return false; // navigation via full redirect
     }
 

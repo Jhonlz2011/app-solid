@@ -83,14 +83,20 @@ function loadTurnstileScript(onReady: () => void, onError: () => void) {
   document.head.appendChild(script);
 }
 
+const MAX_TURNSTILE_RETRIES = 3;
+
 const Turnstile: Component<TurnstileProps> = (props) => {
   let containerRef: HTMLDivElement | undefined;
   let widgetId: string | undefined;
+  let retryCount = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
   const siteKey = () =>
     props.siteKey ?? getTurnstileSiteKey();
 
   const resetWidget = () => {
+    clearTimeout(retryTimer);
+    retryCount = 0;
     if (widgetId && window.turnstile) {
       window.turnstile.reset(widgetId);
     }
@@ -106,8 +112,13 @@ const Turnstile: Component<TurnstileProps> = (props) => {
     }
 
     if (!siteKey()) {
-      console.warn('[Turnstile] No siteKey provided. Bypassing Turnstile for development.');
-      props.onToken('dev_bypass_token');
+      if (import.meta.env.DEV) {
+        console.warn('[Turnstile] No siteKey provided. Bypassing Turnstile for development.');
+        props.onToken('dev_bypass_token');
+      } else {
+        console.error('[Turnstile] Missing TURNSTILE siteKey in production.');
+        props.onError?.();
+      }
       return;
     }
 
@@ -124,15 +135,27 @@ const Turnstile: Component<TurnstileProps> = (props) => {
           theme: props.theme ?? 'auto',
           language: 'es',
           callback: (token: string) => {
+            retryCount = 0;
             props.onToken(token);
           },
           'expired-callback': () => {
             props.onExpire?.();
-            resetWidget(); // Si expira, genera uno nuevo en background automáticamente
+            if (widgetId && window.turnstile) {
+              window.turnstile.reset(widgetId);
+            }
           },
           'error-callback': () => {
             props.onError?.();
-            resetWidget();
+            if (retryCount < MAX_TURNSTILE_RETRIES && widgetId && window.turnstile) {
+              retryCount += 1;
+              const delayMs = 1500 * retryCount;
+              clearTimeout(retryTimer);
+              retryTimer = setTimeout(() => {
+                if (widgetId && window.turnstile) {
+                  window.turnstile.reset(widgetId);
+                }
+              }, delayMs);
+            }
           }
         });
       },
@@ -143,6 +166,7 @@ const Turnstile: Component<TurnstileProps> = (props) => {
   });
 
   onCleanup(() => {
+    clearTimeout(retryTimer);
     window.removeEventListener('online', handleOnline);
     if (widgetId && window.turnstile) {
       window.turnstile.remove(widgetId);

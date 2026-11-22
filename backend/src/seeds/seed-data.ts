@@ -107,15 +107,15 @@ export const PERMISSIONS: PermissionDef[] = (
 );
 
 export const ROLES = [
-    { name: 'superadmin', description: 'Super Administrador con acceso total al sistema', is_system: true },
-    { name: 'admin', description: 'Administrador del sistema' },
-    { name: 'contador', description: 'Contador Externo Certificado (Asiento Gratuito)', is_system: true },
-    { name: 'gerente', description: 'Gerente con acceso a reportes y aprobaciones' },
-    { name: 'ventas', description: 'Equipo de ventas y CRM' },
-    { name: 'produccion', description: 'Equipo de producción y manufactura' },
-    { name: 'inventario', description: 'Gestión de inventario y almacén' },
-    { name: 'contabilidad', description: 'Equipo de finanzas y contabilidad' },
-    { name: 'rrhh', description: 'Recursos Humanos' },
+    { name: 'superadmin', description: 'Super Administrador con acceso total al sistema', is_system: true, priority: 100 },
+    { name: 'admin', description: 'Administrador del sistema', is_system: true, priority: 80 },
+    { name: 'gerente', description: 'Gerente con acceso a reportes y aprobaciones', is_system: false, priority: 70 },
+    { name: 'contador', description: 'Contador Externo Certificado (Asiento Gratuito)', is_system: true, priority: 60 },
+    { name: 'contabilidad', description: 'Equipo de finanzas y contabilidad', is_system: false, priority: 50 },
+    { name: 'rrhh', description: 'Recursos Humanos', is_system: false, priority: 50 },
+    { name: 'ventas', description: 'Equipo de ventas y CRM', is_system: false, priority: 40 },
+    { name: 'inventario', description: 'Gestión de inventario y almacén', is_system: false, priority: 40 },
+    { name: 'produccion', description: 'Equipo de producción y manufactura', is_system: false, priority: 40 },
 ];
 
 export const ROLE_PERMISSIONS: Record<string, (slug: string) => boolean> = {

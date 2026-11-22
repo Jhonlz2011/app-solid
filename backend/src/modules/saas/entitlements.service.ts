@@ -20,6 +20,7 @@ import {
 } from '@app/schema/backend';
 import { cacheService } from '../../core/cache';
 import { invalidateMenuCaches } from '../settings/menu.service';
+import { invalidateCompanyRbacCache } from '../rbac/rbac.permission.service';
 // @ts-ignore
 import { PERMISSIONS, ROLE_PERMISSIONS } from '../../seeds/seed-data';
 
@@ -52,7 +53,7 @@ const USABLE_SUBSCRIPTION_STATUSES = new Set<TenantEntitlements['status']>([
     'GRACE_PERIOD',
 ]);
 
-function hasUsableSubscription(entitlements: TenantEntitlements): boolean {
+export function hasUsableSubscription(entitlements: TenantEntitlements): boolean {
     return USABLE_SUBSCRIPTION_STATUSES.has(entitlements.status);
 }
 
@@ -467,5 +468,6 @@ export async function upgradeCompanyPlan(
     // 4. Invalidar cachés y notificar a los clientes vía SSE
     await invalidateTenantEntitlements(companyId);
     await invalidateMenuCaches(companyId);
+    await invalidateCompanyRbacCache(companyId);
     await cacheService.invalidate(`tenant:${companyId}:*`);
 }

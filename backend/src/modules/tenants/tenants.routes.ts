@@ -24,6 +24,7 @@ import { auth } from '../../config/better-auth';
 import { UnauthorizedError, DomainError } from '../../core/errors';
 import { env } from '../../config/env';
 import { redis } from '../../core/cache/redis';
+import { verifyTurnstileToken } from '../../core/security';
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 const HANDOFF_TTL_SECONDS = 60;
@@ -73,18 +74,40 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   .use(ipPlugin)
 
   // =========================================================================
-  // POST /accept-invitation — Accept organization invitation & set password
+  // POST /accept-invitation — Accept organization invitation & activate membership
   // =========================================================================
   .post(
     '/accept-invitation',
-    async ({ body, set }) => {
-      const result = await acceptUserInvitation(body);
+    async ({ body, request, set }) => {
+      const { ipAddress } = getIpAndUserAgent(request);
+      const expectedHostname = (() => {
+        try {
+          const origin = request.headers.get('origin');
+          return origin ? new URL(origin).hostname : undefined;
+        } catch {
+          return undefined;
+        }
+      })();
+
+      await verifyTurnstileToken(body.turnstileToken, {
+        action: 'accept_invitation',
+        ipAddress: ipAddress ?? undefined,
+        requestId: request.headers.get('x-request-id') ?? undefined,
+        expectedHostname,
+      });
+
+      const result = await acceptUserInvitation({
+        token: body.token,
+        email: body.email,
+        password: body.password,
+      });
       set.status = 200;
       return result;
     },
     {
       body: RbacAcceptInvitationBodySchema,
       response: { 200: RbacAcceptInvitationResponseSchema },
+      beforeHandle: registerRateLimit as any,
     }
   )
 

@@ -1,4 +1,4 @@
-import { pipe, string, minLength, maxLength, trim, object, email, picklist, boolean, optional, regex, type InferInput } from 'valibot';
+import { pipe, string, minLength, maxLength, trim, object, email, picklist, boolean, optional, regex, union, literal, type InferInput } from 'valibot';
 import { SAAS_PLAN_IDS, TAX_REGIME_TYPES } from '../enums';
 
 // --- BASE FORMAT SCHEMAS (Used across Auth, Profile, RBAC & Pre-flight Availability Checks) ---
@@ -22,7 +22,7 @@ export const SlugFormatSchema = pipe(
     trim(),
     minLength(3, 'El subdominio debe tener al menos 3 caracteres'),
     maxLength(30, 'El subdominio no puede exceder 30 caracteres'),
-    regex(/^[a-z0-9-]+$/, 'Solo minúsculas, números y guiones')
+    regex(/^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/, 'Solo minúsculas, números y guiones (sin guion al inicio o final)')
 );
 
 export const RucFormatSchema = pipe(
@@ -34,7 +34,11 @@ export const RucFormatSchema = pipe(
 // --- AUTH LOGIN ---
 export const AuthLoginSchema = object({
     email: pipe(string(), minLength(1, 'Usuario o correo es requerido')),
-    password: pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres')),
+    password: pipe(
+        string(),
+        minLength(8, 'La contraseña debe tener al menos 8 caracteres'),
+        maxLength(128, 'La contraseña no puede exceder 128 caracteres')
+    ),
 });
 
 // --- REGISTRATION STEP SCHEMAS ---
@@ -42,9 +46,13 @@ export const RegisterStep1Schema = object({
     fullName: pipe(string(), trim(), minLength(3, 'Mínimo 3 caracteres')),
     username: UsernameFormatSchema,
     email: EmailFormatSchema,
-    password: pipe(string(), minLength(8, 'Mínimo 8 caracteres')),
-    phone: optional(pipe(string(), regex(/^09\d{8}$/, 'Celular inválido (09XXXXXXXX)'))),
-    cedula: optional(pipe(string(), regex(/^\d{10}$/, 'La cédula debe tener 10 dígitos'))),
+    password: pipe(
+        string(),
+        minLength(8, 'Mínimo 8 caracteres'),
+        maxLength(128, 'Máximo 128 caracteres')
+    ),
+    phone: optional(union([pipe(string(), regex(/^09\d{8}$/, 'Celular inválido (09XXXXXXXX)')), literal('')])),
+    cedula: optional(union([pipe(string(), regex(/^\d{10}$/, 'La cédula debe tener 10 dígitos')), literal('')])),
 });
 
 export const RegisterStep2Schema = object({

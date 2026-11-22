@@ -70,7 +70,10 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
       })
       .from(member)
       .innerJoin(companies, eq(companies.organization_id, member.organizationId))
-      .leftJoin(entities, eq(entities.id, member.entityId))
+      .leftJoin(entities, and(
+        eq(entities.id, member.entityId),
+        eq(entities.company_id, resolvedCompanyId),
+      ))
       .where(
         and(
           eq(member.userId, userIdStr),

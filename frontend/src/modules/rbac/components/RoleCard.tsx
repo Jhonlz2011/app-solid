@@ -11,6 +11,7 @@ import { ShieldIcon } from '@icons/ShieldIcon';
 import { EyeIcon } from '@icons/EyeIcon';
 import { Tooltip } from '@/shared/ui/overlay/Tooltip';
 import { DropdownMenu } from '@display/DropdownMenu';
+import { useAuth } from '@modules/auth/store/auth.store';
 
 // ── Reusable stat display (interactive with Link or static) ──
 const StatLink = (p: { icon: JSX.Element; count: number; label: string; to?: string; tooltip?: string }) => {
@@ -57,10 +58,16 @@ export interface RoleCardProps {
 }
 
 export const RoleCard: Component<RoleCardProps> = (props) => {
+    const auth = useAuth();
     const isSystem = () => props.role.is_system ?? false;
     const userCount = () => props.role.userCount ?? 0;
     const permCount = () => props.role.permissionCount ?? 0;
     const accentColor = () => ROLE_ACCENT_COLORS[props.role.name] ?? DEFAULT_ACCENT;
+    const canEditRole = () => auth.canEdit('roles');
+    const canEditPerms = () => auth.hasPermission('permissions.update');
+    const canReadPerms = () => auth.canRead('permissions') || canEditPerms();
+    const canDeleteRole = () => Boolean(props.onDelete) && auth.canDelete('roles');
+    const hasDropdownActions = () => canEditRole() || canReadPerms() || canDeleteRole();
 
     return (
         <div class="group relative bg-card border border-border/60 rounded-2xl shadow-card-soft overflow-hidden hover:shadow-lg">
@@ -80,8 +87,8 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                         </Show>
                     </div>
 
-                    {/* Actions dropdown — always visible for non-system */}
-                    <Show when={!isSystem()}>
+                    {/* Actions dropdown — visible for non-system when caller has at least one permitted action */}
+                    <Show when={!isSystem() && hasDropdownActions()}>
                         <DropdownMenu placement="bottom-end">
                             <DropdownMenu.Trigger
                                 variant="ghost"
@@ -91,22 +98,26 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                                 <MoreVerticalIcon class="size-4" />
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content class="min-w-40">
-                                <DropdownMenu.Item
-                                    to={`/users/role/${props.role.id}/edit`}
-                                    search={(prev: any) => ({ ...prev, tab: 'roles' })}
-                                    preload="intent"
-                                >
-                                    <EditIcon class="size-4 mr-2" />
-                                    Editar rol
-                                </DropdownMenu.Item>
-                                <DropdownMenu.Item
-                                    to={`/users/role/${props.role.id}/permissions`}
-                                    search={(prev: any) => ({ ...prev, tab: 'roles' })}
-                                    preload="intent"
-                                >
-                                    <KeyIcon class="size-4 mr-2" />
-                                    Permisos
-                                </DropdownMenu.Item>
+                                <Show when={canEditRole()}>
+                                    <DropdownMenu.Item
+                                        to={`/users/role/${props.role.id}/edit`}
+                                        search={(prev: any) => ({ ...prev, tab: 'roles' })}
+                                        preload="intent"
+                                    >
+                                        <EditIcon class="size-4 mr-2" />
+                                        Editar rol
+                                    </DropdownMenu.Item>
+                                </Show>
+                                <Show when={canReadPerms()}>
+                                    <DropdownMenu.Item
+                                        to={`/users/role/${props.role.id}/permissions`}
+                                        search={(prev: any) => ({ ...prev, tab: 'roles' })}
+                                        preload="intent"
+                                    >
+                                        <KeyIcon class="size-4 mr-2" />
+                                        Permisos
+                                    </DropdownMenu.Item>
+                                </Show>
                                 <DropdownMenu.Item
                                     to={`/users/role/${props.role.id}/users`}
                                     search={(prev: any) => ({ ...prev, tab: 'roles' })}
@@ -115,7 +126,7 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                                     <UsersIcon class="size-4 mr-2" />
                                     Usuarios
                                 </DropdownMenu.Item>
-                                <Show when={props.onDelete}>
+                                <Show when={canDeleteRole()}>
                                     <DropdownMenu.Separator />
                                     <DropdownMenu.Item onSelect={props.onDelete} destructive>
                                         <TrashIcon class="size-4 mr-2" />
@@ -125,7 +136,7 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                             </DropdownMenu.Content>
                         </DropdownMenu>
                     </Show>
-                    <Show when={isSystem()}>
+                    <Show when={isSystem() && canReadPerms()}>
                         <Tooltip content="Ver permisos del rol">
                             <Link
                                 to={`/users/role/${props.role.id}/permissions`}

@@ -13,8 +13,7 @@ import { RotateCcwIcon } from '@icons/RotateCcwIcon';
 import { SkeletonLoader } from '@display/SkeletonLoader';
 import { useUser, useRoles } from '../data/users.queries';
 import {
-    useUpdateUser, useAssignUserRoles,
-    useSetUserEntity,
+    useUpdateUser,
     useDeactivateUser, useRestoreUser,
 } from '../data/users.mutations';
 import { useAuth } from '@modules/auth/store/auth.store';
@@ -36,8 +35,6 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
     const userQuery = useUser(userId);
     const rolesQuery = useRoles();
     const updateMutation = useUpdateUser();
-    const assignRolesMutation = useAssignUserRoles();
-    const setEntityMutation = useSetUserEntity();
     const deactivateMut = useDeactivateUser();
     const restoreMut = useRestoreUser();
 
@@ -53,41 +50,24 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
         return u.roles?.some((r: any) => r.name === SYSTEM_ROLES.SUPERADMIN || r.name === 'superadmin') ?? false;
     };
 
-    const canDeactivate = () => !isCurrentUser() && !isSuperadmin();
+    const canDeactivate = () => !isCurrentUser() && !isSuperadmin() && (
+        (userQuery.data?.isActive ?? true) ? auth.canDelete('users') : auth.canRestore('users')
+    );
 
     const handleSubmit = async (values: UserUpdateData) => {
         const targetId = userId();
         if (!targetId) return;
 
         try {
-            const promises: Promise<unknown>[] = [
-                updateMutation.mutateAsync({
-                    id: targetId,
-                    isActive: values.isActive,
-                    roleIds: values.roleIds,
-                    entityId: values.entityId,
-                }),
-                assignRolesMutation.mutateAsync({
-                    userId: targetId,
-                    roleIds: values.roleIds,
-                }),
-            ];
+            // PUT /rbac/users/:id atomically updates isActive, roleIds, and entityId in a single transaction
+            await updateMutation.mutateAsync({
+                id: targetId,
+                isActive: values.isActive,
+                roleIds: values.roleIds,
+                entityId: values.entityId,
+            });
 
-            // Entity change fallback if needed
-            const currentEntityId = userQuery.data?.entityId ?? null;
-            if (values.entityId !== undefined && values.entityId !== currentEntityId) {
-                promises.push(
-                    setEntityMutation.mutateAsync({
-                        userId: targetId,
-                        entityId: values.entityId,
-                    })
-                );
-            }
-
-            await Promise.all(promises);
-
-            const msgs = ['Usuario actualizado correctamente'];
-            toast.success(msgs.join('. '));
+            toast.success('Usuario actualizado correctamente');
             close();
         } catch (err: any) {
             toast.error(err?.message || 'Error al actualizar usuario');
@@ -109,8 +89,7 @@ const UserEditSheet: Component<UserEditSheetProps> = (props) => {
     };
 
     const isPending = () =>
-        updateMutation.isPending || assignRolesMutation.isPending ||
-        setEntityMutation.isPending ||
+        updateMutation.isPending ||
         deactivateMut.isPending || restoreMut.isPending;
 
     return (

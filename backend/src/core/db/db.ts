@@ -8,7 +8,7 @@ import { toPostgresSslOption } from './postgres-options';
 export interface TenantContext {
   companyId?: number;
   organizationId?: string;
-  membershipStatus?: 'ACTIVE' | 'SUSPENDED' | 'REMOVED';
+  membershipStatus?: 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'REMOVED';
   userId?: string | number;
   sessionId?: string;
   ipAddress?: string;
@@ -97,12 +97,20 @@ export const db = new Proxy(rawDb, {
   get(target, prop, receiver) {
     if (prop === 'transaction') {
       return (originalFn: any, config: any) => {
-        return target.transaction(async (tx) => {
-          const store = tenantStorage.getStore() || {};
+        const store = tenantStorage.getStore() || {};
 
-          // Auto-inject tenant context into EVERY transaction
+        // If already inside a tenant transaction, create a nested savepoint
+        // on the same connection so app.current_company_id (RLS) stays intact.
+        if (store.tx) {
+          return store.tx.transaction(async (nestedTx: any) => {
+            return await tenantStorage.run({ ...store, tx: nestedTx }, () => originalFn(nestedTx));
+          }, config);
+        }
+
+        return target.transaction(async (tx) => {
+          // Auto-inject tenant context into EVERY top-level transaction
           // This ensures RLS policies are always enforced
-          if (store.companyId && !store.tx) {
+          if (store.companyId) {
             await injectTenantConfig(tx, store);
           }
 

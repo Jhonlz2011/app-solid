@@ -31,6 +31,7 @@ import {
     checkUserEmail,
 } from './rbac.service';
 import { getActiveSessions, revokeSession } from '../auth/session.service';
+import { assertCanManageTargetUser, assertNotSuperadmin } from './rbac.permission.service';
 import { mfaStepUp } from '../../plugins/mfa-step-up';
 import {
     RoleBodySchema,
@@ -120,8 +121,8 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
         params: IdParamSchema,
     })
 
-    .delete('/roles/:id/users/:userId', async ({ params, currentCompanyId }) => {
-        return await removeUserFromRole(params.userId, Number(params.id), currentCompanyId);
+    .delete('/roles/:id/users/:userId', async ({ params, currentUserId, currentCompanyId }) => {
+        return await removeUserFromRole(params.userId, Number(params.id), currentUserId, currentCompanyId);
     }, {
         permission: 'roles.update',
         params: t.Object({ id: t.Numeric(), userId: t.String() }),
@@ -254,7 +255,11 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     })
 
     // Admin: revoke a specific session for a user
-    .delete('/users/:id/sessions/:sessionId', async ({ params, currentCompanyId }) => {
+    .delete('/users/:id/sessions/:sessionId', async ({ params, currentUserId, currentCompanyId }) => {
+        if (params.id !== String(currentUserId)) {
+            await assertNotSuperadmin(params.id, currentCompanyId, 'revocar sesiones de');
+            await assertCanManageTargetUser(currentUserId, params.id, currentCompanyId, 'revocar sesiones de');
+        }
         return await revokeSession(params.sessionId, params.id, currentCompanyId);
     }, {
         permission: 'users.update',

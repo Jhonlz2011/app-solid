@@ -1,9 +1,9 @@
-import { Component, createSignal, Show, onMount, For } from 'solid-js';
+import { Component, createSignal, Show, For } from 'solid-js';
 import { useSearch, useNavigate } from '@tanstack/solid-router';
 import { createForm } from '@tanstack/solid-form';
 import { toast } from 'solid-sonner';
 import { authApi } from '../api/auth.api';
-import { actions } from '../store/auth.store';
+import { actions, useAuth } from '../store/auth.store';
 import { authClient } from '@shared/lib/auth-client';
 import { fetchUserOrganizations, invalidateOrgCache } from '../utils/resolve-routing';
 import { isGlobalPortalHost } from '@app/schema/utils';
@@ -45,16 +45,72 @@ const PasswordStrength: Component<{ password: string }> = (props) => {
 
 export const AcceptInvitation: Component = () => {
     const navigate = useNavigate();
+    const { user: currentUser } = useAuth();
     const search = useSearch({ from: '/auth-layout/accept-invitation' });
 
     const searchParams = () => typeof search === 'function' ? search() : search;
     const token = () => searchParams()?.token || '';
     const email = () => searchParams()?.email || '';
+    const isExistingUser = () => Boolean(searchParams()?.existing);
 
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const [submitting, setSubmitting] = createSignal(false);
     const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
     let turnstileActions: { reset: () => void } | undefined;
+
+    const completePostAcceptance = async (organizationId: string, existingAccount: boolean) => {
+        const loggedUser = currentUser();
+        const sameLoggedEmail = loggedUser?.email?.toLowerCase() === email().trim().toLowerCase();
+
+        if (existingAccount && sameLoggedEmail) {
+            invalidateOrgCache();
+            const orgs = await fetchUserOrganizations(true);
+            const matchingOrg = orgs.find(o => o.id === organizationId);
+            await actions.initSession();
+
+            toast.success('¡Invitación aceptada! Ya tienes acceso a la empresa.');
+            if (matchingOrg?.slug) {
+                const isGlobal = isGlobalPortalHost(window.location.hostname);
+                if (isGlobal) {
+                    const handoff = await authApi.requestTenantHandoff(matchingOrg.id, matchingOrg.slug);
+                    window.location.href = handoff.redirectUrl;
+                    return;
+                }
+                await authClient.organization.setActive({ organizationId: matchingOrg.id });
+                navigate({ to: '/dashboard', replace: true });
+                return;
+            }
+        }
+
+        toast.success(
+            existingAccount
+                ? '¡Invitación aceptada! Inicia sesión para entrar a la nueva empresa.'
+                : '¡Cuenta activada exitosamente! Inicia sesión con tu nueva contraseña.'
+        );
+        navigate({ to: '/login', search: { email: email() }, replace: true });
+    };
+
+    const handleAcceptExistingUser = async () => {
+        if (!token() || !email()) {
+            toast.error('Enlace de invitación inválido o incompleto');
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const accepted = await authApi.acceptInvitation({
+                token: token(),
+                email: email(),
+                turnstileToken: turnstileToken() || undefined,
+            });
+            await completePostAcceptance(accepted.organizationId, accepted.isExistingUser);
+        } catch (err: any) {
+            turnstileActions?.reset();
+            setTurnstileToken(null);
+            toast.error(getFriendlyErrorMessage(err, 'Error al aceptar la invitación'));
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     const form = createForm(() => ({
         defaultValues: {
@@ -80,37 +136,14 @@ export const AcceptInvitation: Component = () => {
 
             setSubmitting(true);
             try {
-                // 1. Set initial password & mark user as verified
                 const acceptedInvitation = await authApi.acceptInvitation({
                     token: token(),
-                    email: email(),
-                    password: value.password,
-                });
-
-                // 2. Sign in automatically (with Turnstile token for fail-closed login protection)
-                await actions.login({
                     email: email(),
                     password: value.password,
                     turnstileToken: turnstileToken() || undefined,
                 });
 
-                // 3. Resolve and activate tenant organization in Better-Auth session
-                invalidateOrgCache();
-                const orgs = await fetchUserOrganizations(true);
-                const matchingOrg = orgs.find(o => o.id === acceptedInvitation.organizationId);
-                if (!matchingOrg?.slug) throw new Error('La organización de la invitación no está disponible');
-
-                await actions.initSession();
-
-                toast.success('¡Cuenta activada exitosamente!');
-                const isGlobal = isGlobalPortalHost(window.location.hostname);
-                if (isGlobal) {
-                    const handoff = await authApi.requestTenantHandoff(matchingOrg.id, matchingOrg.slug);
-                    window.location.href = handoff.redirectUrl;
-                } else {
-                    await authClient.organization.setActive({ organizationId: matchingOrg.id });
-                    navigate({ to: '/dashboard', replace: true });
-                }
+                await completePostAcceptance(acceptedInvitation.organizationId, acceptedInvitation.isExistingUser);
             } catch (err: any) {
                 turnstileActions?.reset();
                 setTurnstileToken(null);
@@ -131,7 +164,9 @@ export const AcceptInvitation: Component = () => {
                 </div>
                 <h1 class="text-2xl font-bold text-heading">Bienvenido al equipo</h1>
                 <p class="text-muted text-sm mt-1">
-                    Configura tu contraseña para activar tu acceso a la organización
+                    {isExistingUser()
+                        ? 'Confirma tu consentimiento para unir tu cuenta de Zelys a esta empresa'
+                        : 'Configura tu contraseña para activar tu acceso a la organización'}
                 </p>
                 <Show when={email()}>
                     <div class="mt-3">
@@ -160,91 +195,121 @@ export const AcceptInvitation: Component = () => {
                     </div>
                 }
             >
-                {/* 1-Click OAuth Fast Pass */}
-                <div class="space-y-3 mb-6">
-                    <OAuthButtons mode="login" />
-                </div>
+                <Show
+                    when={!isExistingUser()}
+                    fallback={
+                        <div class="flex flex-col gap-4">
+                            <p class="text-sm text-muted">
+                                Mantendrás tu misma contraseña y configuración de seguridad actual de Zelys.
+                            </p>
 
-                <div class="relative flex items-center justify-center my-4">
-                    <div class="grow border-t border-border" />
-                    <span class="px-3 text-xs text-muted font-medium uppercase tracking-wider bg-card">o crea tu contraseña personal</span>
-                    <div class="grow border-t border-border" />
-                </div>
+                            <Turnstile
+                                action="accept_invitation"
+                                ref={(act) => { turnstileActions = act; }}
+                                onToken={(tok) => setTurnstileToken(tok)}
+                                onExpire={() => setTurnstileToken(null)}
+                                onError={() => setTurnstileToken(null)}
+                            />
 
-                {/* Password Setup Form */}
-                <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
-                    <form
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            setHasAttemptedSubmit(true);
-                            form.handleSubmit();
-                        }}
-                        class="flex flex-col gap-4"
-                        novalidate
-                    >
-                        <form.Field
-                            name="password"
-                            validators={{
-                                onChange: ({ value }) => (!value || value.length < 8) ? 'La contraseña debe tener al menos 8 caracteres' : undefined,
+                            <Button
+                                type="button"
+                                fullWidth
+                                onClick={handleAcceptExistingUser}
+                                disabled={submitting() || !turnstileToken()}
+                                loading={submitting() || !turnstileToken()}
+                                loadingText={!turnstileToken() ? 'Verificando seguridad…' : 'Aceptando invitación…'}
+                            >
+                                Aceptar invitación y unirme
+                            </Button>
+                        </div>
+                    }
+                >
+                    {/* 1-Click OAuth Fast Pass */}
+                    <div class="space-y-3 mb-6">
+                        <OAuthButtons mode="login" />
+                    </div>
+
+                    <div class="relative flex items-center justify-center my-4">
+                        <div class="grow border-t border-border" />
+                        <span class="px-3 text-xs text-muted font-medium uppercase tracking-wider bg-card">o crea tu contraseña personal</span>
+                        <div class="grow border-t border-border" />
+                    </div>
+
+                    {/* Password Setup Form */}
+                    <FormSubmissionContext.Provider value={hasAttemptedSubmit}>
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                setHasAttemptedSubmit(true);
+                                form.handleSubmit();
                             }}
+                            class="flex flex-col gap-4"
+                            novalidate
                         >
-                            {(f) => (
-                                <div class="flex flex-col gap-1">
+                            <form.Field
+                                name="password"
+                                validators={{
+                                    onChange: ({ value }) => (!value || value.length < 8) ? 'La contraseña debe tener al menos 8 caracteres' : undefined,
+                                }}
+                            >
+                                {(f) => (
+                                    <div class="flex flex-col gap-1">
+                                        <TextField.Root field={f} disabled={submitting()}>
+                                            <TextField.Label>Nueva contraseña *</TextField.Label>
+                                            <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+                                            <TextField.ErrorMessage />
+                                        </TextField.Root>
+                                        <PasswordStrength password={f().state.value} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="confirmPassword"
+                                validators={{
+                                    onChangeListenTo: ['password'],
+                                    onChange: ({ value, fieldApi }) => {
+                                        const pwd = fieldApi.form.getFieldValue('password');
+                                        if (value !== pwd) return 'Las contraseñas no coinciden';
+                                        return undefined;
+                                    },
+                                }}
+                            >
+                                {(f) => (
                                     <TextField.Root field={f} disabled={submitting()}>
-                                        <TextField.Label>Nueva contraseña *</TextField.Label>
-                                        <TextField.PasswordInput placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+                                        <TextField.Label>Confirmar contraseña *</TextField.Label>
+                                        <TextField.PasswordInput placeholder="Repite tu contraseña" autocomplete="new-password" />
                                         <TextField.ErrorMessage />
                                     </TextField.Root>
-                                    <PasswordStrength password={f().state.value} />
-                                </div>
-                            )}
-                        </form.Field>
+                                )}
+                            </form.Field>
 
-                        <form.Field
-                            name="confirmPassword"
-                            validators={{
-                                onChangeListenTo: ['password'],
-                                onChange: ({ value, fieldApi }) => {
-                                    const pwd = fieldApi.form.getFieldValue('password');
-                                    if (value !== pwd) return 'Las contraseñas no coinciden';
-                                    return undefined;
-                                },
-                            }}
-                        >
-                            {(f) => (
-                                <TextField.Root field={f} disabled={submitting()}>
-                                    <TextField.Label>Confirmar contraseña *</TextField.Label>
-                                    <TextField.PasswordInput placeholder="Repite tu contraseña" autocomplete="new-password" />
-                                    <TextField.ErrorMessage />
-                                </TextField.Root>
-                            )}
-                        </form.Field>
+                            <Turnstile
+                                action="accept_invitation"
+                                ref={(act) => { turnstileActions = act; }}
+                                onToken={(tok) => setTurnstileToken(tok)}
+                                onExpire={() => setTurnstileToken(null)}
+                                onError={() => setTurnstileToken(null)}
+                            />
 
-                        <Turnstile
-                            action="login"
-                            ref={(act) => { turnstileActions = act; }}
-                            onToken={(tok) => setTurnstileToken(tok)}
-                            onExpire={() => setTurnstileToken(null)}
-                            onError={() => setTurnstileToken(null)}
-                        />
-
-                        <form.Subscribe
-                            selector={(s) => ({ isSubmitting: s.isSubmitting })}
-                            children={(s) => (
-                                <Button
-                                    type="submit"
-                                    fullWidth
-                                    disabled={submitting() || s().isSubmitting || !turnstileToken()}
-                                    loading={submitting() || s().isSubmitting || !turnstileToken()}
-                                    loadingText={!turnstileToken() ? 'Verificando seguridad…' : 'Activando cuenta…'}
-                                    class="mt-2"
-                                >
-                                    Activar cuenta y entrar
-                                </Button>
-                            )}
-                        />
-                    </form>
-                </FormSubmissionContext.Provider>
+                            <form.Subscribe
+                                selector={(s) => ({ isSubmitting: s.isSubmitting })}
+                                children={(s) => (
+                                    <Button
+                                        type="submit"
+                                        fullWidth
+                                        disabled={submitting() || s().isSubmitting || !turnstileToken()}
+                                        loading={submitting() || s().isSubmitting || !turnstileToken()}
+                                        loadingText={!turnstileToken() ? 'Verificando seguridad…' : 'Activando cuenta…'}
+                                        class="mt-2"
+                                    >
+                                        Activar cuenta y entrar
+                                    </Button>
+                                )}
+                            />
+                        </form>
+                    </FormSubmissionContext.Provider>
+                </Show>
             </Show>
         </div>
     );

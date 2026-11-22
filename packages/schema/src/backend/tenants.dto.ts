@@ -13,7 +13,7 @@ import { TaxRegimeTypeSchema } from './entities.dto';
  */
 const CompanyDataSchema = Type.Object({
     slug: Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$' }),
-    ruc: Type.String({ minLength: 13, maxLength: 13 }),
+    ruc: Type.String({ minLength: 13, maxLength: 13, pattern: '^\\d{13}$' }),
     businessName: Type.String({ minLength: 3 }),
     tradeName: Type.Optional(Type.String()),
     businessType: Type.Optional(Type.String()),
@@ -41,7 +41,7 @@ export const TenantRegisterBodySchema = Type.Composite([
         fullName: Type.String({ minLength: 3 }),
         username: Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9._-]+$' }),
         email: Type.String({ format: 'email' }),
-        password: Type.String({ minLength: 8 }),
+        password: Type.String({ minLength: 8, maxLength: 128 }),
     }),
 ]);
 

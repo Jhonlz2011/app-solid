@@ -1,10 +1,17 @@
 import { createStore } from "solid-js/store";
 import { authApi } from "../api/auth.api";
 import type { TenantBrandingType } from '@app/schema/dto';
-import { getContrastColor } from '@app/schema/utils/color';
-import { THEME_PRESETS } from '@app/schema/utils';
-import { resolveSlugFromHost } from '@app/schema/utils';
+import { getContrastColor, isHexColor } from '@app/schema/utils/color';
+import { THEME_PRESETS, BRANDING_DEFAULTS, resolveSlugFromHost } from '@app/schema/utils';
 import { getApiUrl } from '@shared/config/runtime-env';
+
+/** Validates an asset URL (logoUrl / loginBgUrl) to block javascript:, data:, and CSS url() breakouts. */
+export function isSafeAssetUrl(url: string | null | undefined): url is string {
+    if (!url || typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    if (!trimmed || /["'()\s<>\\]/.test(trimmed)) return false;
+    return trimmed.startsWith('https://') || (trimmed.startsWith('/') && !trimmed.startsWith('//'));
+}
 
 // P1-8: AbortController for deduplicating concurrent branding API calls
 let activeBrandingAbort: AbortController | null = null;
@@ -54,13 +61,16 @@ export const applyBranding = (tenant: TenantBrandingType | null) => {
         setState('tenant', tenant);
         const root = document.documentElement;
         if (tenant) {
-            root.style.setProperty('--primary', tenant.primaryColor);
-            root.style.setProperty('--on-primary', getContrastColor(tenant.primaryColor));
-            root.style.setProperty('--secondary', tenant.themeColor);
-            root.style.setProperty('--on-secondary', getContrastColor(tenant.themeColor));
+            const safePrimary = isHexColor(tenant.primaryColor) ? tenant.primaryColor : BRANDING_DEFAULTS.primaryColor;
+            const safeTheme = isHexColor(tenant.themeColor) ? tenant.themeColor : BRANDING_DEFAULTS.themeColor;
+
+            root.style.setProperty('--primary', safePrimary);
+            root.style.setProperty('--on-primary', getContrastColor(safePrimary));
+            root.style.setProperty('--secondary', safeTheme);
+            root.style.setProperty('--on-secondary', getContrastColor(safeTheme));
 
             // Apply background theme variables based on secondary color
-            const theme = THEME_PRESETS[tenant.themeColor] || THEME_PRESETS['#64748b'];
+            const theme = THEME_PRESETS[safeTheme] || THEME_PRESETS['#64748b'];
             root.style.setProperty('--bg-light-val', theme.bgLight);
             root.style.setProperty('--bg-dark-val', theme.bgDark);
             root.style.setProperty('--surface-light-val', theme.surfaceLight);
@@ -73,7 +83,7 @@ export const applyBranding = (tenant: TenantBrandingType | null) => {
             root.style.setProperty('--border-dark-val', theme.borderDark);
             
             document.title = `${tenant.tradeName || tenant.businessName}`;
-            if (tenant.logoUrl) {
+            if (isSafeAssetUrl(tenant.logoUrl)) {
                 const iconLinks = document.querySelectorAll("link[rel*='icon'], link[rel='apple-touch-icon']");
                 if (iconLinks.length > 0) {
                     iconLinks.forEach(link => {
@@ -158,7 +168,7 @@ export const brandingActions = {
                 activeBrandingAbort?.abort();
                 activeBrandingAbort = new AbortController();
                 try {
-                    const tenantInfo = await authApi.getTenantInfo(slug);
+                    const tenantInfo = await authApi.getTenantInfo(slug, activeBrandingAbort.signal);
                     localStorage.setItem(`branding:${slug}`, JSON.stringify(tenantInfo));
                     if (JSON.stringify(tenantInfo) !== JSON.stringify(initialTenant)) {
                         applyBranding(tenantInfo);
@@ -179,7 +189,7 @@ export const brandingActions = {
         activeBrandingAbort = new AbortController();
         setState('loading', true);
         try {
-            const tenantInfo = await authApi.getTenantInfo(slug);
+            const tenantInfo = await authApi.getTenantInfo(slug, activeBrandingAbort.signal);
             setState({ tenant: tenantInfo, error: null });
             localStorage.setItem(`branding:${slug}`, JSON.stringify(tenantInfo));
             applyBranding(tenantInfo);

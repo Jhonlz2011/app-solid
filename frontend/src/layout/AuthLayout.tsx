@@ -1,21 +1,25 @@
 import { ParentComponent, Show } from 'solid-js';
 import { Outlet } from '@tanstack/solid-router';
-import { useBranding } from '@modules/auth/store/branding.store';
+import { useBranding, isSafeAssetUrl } from '@modules/auth/store/branding.store';
 
 const AuthLayout: ParentComponent = () => {
     const branding = useBranding();
+    const safeLoginBgUrl = () => {
+        const raw = branding.tenant()?.loginBgUrl;
+        return isSafeAssetUrl(raw) ? raw : null;
+    };
 
     return (
         <div 
             class="relative min-h-screen flex items-center justify-center bg-bg overflow-x-hidden overflow-y-auto transition-all duration-300"
-            style={branding.tenant()?.loginBgUrl ? { 
-                "background-image": `url(${branding.tenant()?.loginBgUrl})`,
+            style={safeLoginBgUrl() ? { 
+                "background-image": `url("${safeLoginBgUrl()}")`,
                 "background-size": "cover",
                 "background-position": "center"
             } : undefined}
         >
             {/* Gradient overlay for background images */}
-            <Show when={branding.tenant()?.loginBgUrl}>
+            <Show when={safeLoginBgUrl()}>
                 <div 
                     class="absolute inset-0 pointer-events-none z-0"
                     style={{
@@ -25,7 +29,7 @@ const AuthLayout: ParentComponent = () => {
             </Show>
 
             {/* Decorative background when no loginBgUrl */}
-            <Show when={!branding.tenant()?.loginBgUrl}>
+            <Show when={!safeLoginBgUrl()}>
                 <div class="absolute inset-0 pointer-events-none z-0 overflow-hidden">
                     {/* Subtle radial tint from primary color */}
                     <div 

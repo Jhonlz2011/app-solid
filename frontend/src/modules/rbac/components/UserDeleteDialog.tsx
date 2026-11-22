@@ -35,9 +35,9 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
     const hardDeleteMutation = useHardDeleteUser();
 
     const isLoading = () => deactivateMutation.isPending || hardDeleteMutation.isPending;
-    const hasReferences = () => {
+    const isHardDeleteBlocked = () => {
         if (refsQuery.isPending) return false;
-        return (refsQuery.data?.total ?? 0) > 0;
+        return refsQuery.data?.canDelete === false;
     };
 
     const handleConfirm = (confirmedMode: 'soft' | 'hard') => {
@@ -88,7 +88,7 @@ const UserDeleteDialog: Component<UserDeleteDialogProps> = (props) => {
             softLoadingText="Desactivando..."
             hardLoadingText="Eliminando..."
             isCheckingDependencies={refsQuery.isFetching}
-            hasDependencies={hasReferences()}
+            hasDependencies={isHardDeleteBlocked()}
             dependencyWarnings={referenceLines()}
             preventHardDeleteText="No se puede eliminar permanentemente"
             preventHardDeleteReason="Registros vinculados que lo impiden:"

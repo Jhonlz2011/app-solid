@@ -1,5 +1,5 @@
 import { db, adminDb } from '../../core/db';
-import { authUserRoles, authRoles, authRolePermissions, sessions } from '@app/schema/tables';
+import { authUserRoles, authRoles, authRolePermissions, sessions, companies } from '@app/schema/tables';
 import { eq, and } from '@app/schema';
 import { redis } from '../../core/cache/redis';
 import { cacheService } from '../../core/cache';
@@ -169,4 +169,189 @@ export async function assertNotSuperadmin(
     if (isSuper) {
         throw new DomainError(`No se puede ${action} al Superadmin / Propietario de la empresa`, 403);
     }
+}
+
+/**
+ * Returns the highest role priority held by a user in a company.
+ * Superadmin is always treated as >= 100 even if legacy DB rows had priority = 0.
+ */
+export async function getUserMaxRolePriority(userId: string | number, companyId: number): Promise<number> {
+    const userIdStr = String(userId);
+    const rows = await adminDb
+        .select({ name: authRoles.name, priority: authRoles.priority })
+        .from(authUserRoles)
+        .innerJoin(authRoles, and(
+            eq(authUserRoles.role_id, authRoles.id),
+            eq(authUserRoles.company_id, authRoles.company_id),
+        ))
+        .where(and(
+            eq(authUserRoles.user_id, userIdStr),
+            eq(authUserRoles.company_id, companyId),
+        ));
+
+    let maxPriority = -1;
+    for (const row of rows) {
+        let p = row.priority ?? 0;
+        if (row.name === SYSTEM_ROLES.SUPERADMIN) p = Math.max(p, 100);
+        else if (row.name === SYSTEM_ROLES.ADMIN) p = Math.max(p, 80);
+        if (p > maxPriority) maxPriority = p;
+    }
+    return maxPriority;
+}
+
+/**
+ * Effective priority of a role row (handles legacy rows whose priority may still be 0).
+ */
+export function getEffectiveRolePriority(role: { name: string; priority?: number | null }): number {
+    let p = role.priority ?? 0;
+    if (role.name === SYSTEM_ROLES.SUPERADMIN) p = Math.max(p, 100);
+    else if (role.name === SYSTEM_ROLES.ADMIN) p = Math.max(p, 80);
+    return p;
+}
+
+/**
+ * Ensures the caller is allowed to manage (edit/delete/assign/update permissions of) a target role.
+ * - Superadmin can manage any non-superadmin role.
+ * - Non-superadmin cannot manage system roles (superadmin, admin, contador) nor any role with priority >= their own.
+ */
+export async function assertCanManageRole(
+    callerUserId: string | number,
+    targetRole: { id: number; name: string; is_system?: boolean | null; priority?: number | null },
+    companyId: number,
+    action: string = 'gestionar'
+): Promise<void> {
+    const callerIsSuper = await isUserSuperadmin(callerUserId, companyId);
+    if (callerIsSuper) {
+        return;
+    }
+
+    const isProtectedSystem = targetRole.is_system === true
+        || targetRole.name === SYSTEM_ROLES.SUPERADMIN
+        || targetRole.name === SYSTEM_ROLES.ADMIN
+        || targetRole.name === SYSTEM_ROLES.CONTADOR;
+    if (isProtectedSystem) {
+        throw new DomainError(`Solo el Superadmin puede ${action} el rol de sistema '${targetRole.name}'`, 403);
+    }
+
+    const callerMaxPriority = await getUserMaxRolePriority(callerUserId, companyId);
+    const targetPriority = getEffectiveRolePriority(targetRole);
+    if (targetPriority >= callerMaxPriority) {
+        throw new DomainError(`No tienes jerarquía suficiente para ${action} el rol '${targetRole.name}'`, 403);
+    }
+}
+
+/**
+ * Ensures the caller has strictly higher role hierarchy than the target user in the company.
+ * Prevents non-superadmins from modifying/deactivating/resetting superadmin or peers of equal/higher rank.
+ */
+export async function assertCanManageTargetUser(
+    callerUserId: string | number,
+    targetUserId: string | number,
+    companyId: number,
+    action: string = 'gestionar'
+): Promise<void> {
+    if (String(callerUserId) === String(targetUserId)) {
+        return;
+    }
+    const callerIsSuper = await isUserSuperadmin(callerUserId, companyId);
+    if (callerIsSuper) {
+        return;
+    }
+
+    const targetIsSuper = await isUserSuperadmin(targetUserId, companyId);
+    if (targetIsSuper) {
+        throw new DomainError(`No se puede ${action} al Superadmin / Propietario de la empresa`, 403);
+    }
+
+    const [callerMaxPriority, targetMaxPriority] = await Promise.all([
+        getUserMaxRolePriority(callerUserId, companyId),
+        getUserMaxRolePriority(targetUserId, companyId),
+    ]);
+
+    if (targetMaxPriority >= callerMaxPriority) {
+        throw new DomainError(`No tienes jerarquía suficiente para ${action} a este usuario`, 403);
+    }
+}
+
+/**
+ * Revoke ONLY sessions belonging to a specific company/organization for a user.
+ * Deletes from Postgres, purges raw Better Auth tokens in Redis, prunes active-sessions index, and broadcasts SSE.
+ */
+export async function revokeTenantUserSessions(userId: string | number, companyId: number): Promise<void> {
+    const userIdStr = String(userId);
+    const [company] = await adminDb
+        .select({ organizationId: companies.organization_id })
+        .from(companies)
+        .where(eq(companies.id, companyId))
+        .limit(1);
+
+    if (!company?.organizationId) return;
+
+    const tenantSessions = await adminDb
+        .select({ id: sessions.id, token: sessions.token })
+        .from(sessions)
+        .where(and(
+            eq(sessions.userId, userIdStr),
+            eq(sessions.activeOrganizationId, company.organizationId),
+        ));
+
+    if (tenantSessions.length === 0) return;
+
+    await adminDb
+        .delete(sessions)
+        .where(and(
+            eq(sessions.userId, userIdStr),
+            eq(sessions.activeOrganizationId, company.organizationId),
+        ));
+
+    const revokedTokens = new Set(tenantSessions.map(s => s.token));
+    const keysToDelete = tenantSessions.flatMap(s => [
+        s.token,
+        `session:${s.token}`,
+        `better-auth:session:${s.token}`,
+        `session:${s.id}`,
+    ]);
+    await redis.del(...keysToDelete).catch(() => {});
+
+    try {
+        const activeListKey = `active-sessions-${userIdStr}`;
+        const listRaw = await redis.get(activeListKey);
+        if (listRaw) {
+            const parsed = JSON.parse(listRaw) as Array<{ token: string; expiresAt: number }>;
+            const remaining = parsed.filter(entry => !revokedTokens.has(entry.token));
+            if (remaining.length > 0) {
+                const ttl = await redis.ttl(activeListKey);
+                if (ttl > 0) {
+                    await redis.set(activeListKey, JSON.stringify(remaining), 'EX', ttl);
+                } else {
+                    await redis.set(activeListKey, JSON.stringify(remaining));
+                }
+            } else {
+                await redis.del(activeListKey);
+            }
+        }
+    } catch { /* Redis best effort */ }
+
+    for (const s of tenantSessions) {
+        broadcastToUser(userIdStr, RealtimeEvents.USER.SESSION_REVOKED, { id: userIdStr, sessionId: s.id, companyId });
+    }
+}
+
+/**
+ * Invalidate cached user facets for a company.
+ */
+export async function invalidateUserFacetsCache(companyId: number): Promise<void> {
+    await cacheService.invalidate(`rbac:facets:users:${companyId}:*`);
+}
+
+/**
+ * Invalidate all RBAC caches across an entire company (e.g. after a SaaS plan change).
+ */
+export async function invalidateCompanyRbacCache(companyId: number): Promise<void> {
+    await Promise.all([
+        cacheService.invalidate(`rbac:roles:*:${companyId}`),
+        cacheService.invalidate(`rbac:permissions:*:${companyId}`),
+        cacheService.invalidate(`rbac:auth_ctx:*:${companyId}`),
+        cacheService.invalidate(`rbac:facets:users:${companyId}:*`),
+    ]);
 }

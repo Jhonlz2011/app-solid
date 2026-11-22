@@ -1,4 +1,4 @@
-import { type Component, createSignal, onMount, onCleanup, createEffect, Switch, Match } from 'solid-js';
+import { type Component, createSignal, onMount, onCleanup, createEffect, Switch, Match, Show } from 'solid-js';
 import { useSearch, useNavigate } from '@tanstack/solid-router';
 import { toast } from 'solid-sonner';
 import { authClient } from '@shared/lib/auth-client';
@@ -6,6 +6,8 @@ import { actions, useAuth } from '../store/auth.store';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { broadcast, BroadcastEvents } from '@shared/store/broadcast.store';
+import { isGlobalPortalHost, resolveSlugFromHost } from '@app/schema/utils';
+import { resolvePostAuthRouting, executeAuthNavigation, invalidateOrgCache } from '../utils/resolve-routing';
 import Button from '@form/Button';
 import { MailIcon } from '@icons/MailIcon';
 import { CheckIcon } from '@icons/CheckIcon';
@@ -36,12 +38,21 @@ const VerifyEmail: Component = () => {
   const [status, setStatus] = createSignal<VerifyStatus>('waiting');
   const [resending, setResending] = createSignal(false);
   const [countdown, setCountdown] = createSignal(0);
+  const [manualEmail, setManualEmail] = createSignal('');
 
-  const token = () => (search() as { token?: string })?.token;
+  const token = () => (search() as { token?: string; email?: string })?.token;
+  const searchEmail = () => (search() as { token?: string; email?: string })?.email || '';
+  const targetEmail = () => auth.user()?.email || searchEmail() || manualEmail().trim();
 
   // ── Timers & Listeners cleanup ─────────────────────────────────────────
   let redirectTimer: ReturnType<typeof setTimeout> | undefined;
   let countdownInterval: ReturnType<typeof setInterval> | undefined;
+
+  // Register cleanup unconditionally so timers are cleared even in the ?token= flow
+  onCleanup(() => {
+    clearTimeout(redirectTimer);
+    clearInterval(countdownInterval);
+  });
 
   // ── Countdown logic ────────────────────────────────────────────────────
   const startCountdown = (seconds: number) => {
@@ -65,11 +76,11 @@ const VerifyEmail: Component = () => {
 
   // ── Redirect helper ────────────────────────────────────────────────────
   const redirectAfterSuccess = async () => {
+    invalidateOrgCache();
     // 1. Better-Auth autoSignInAfterVerification sets the session cookie.
-    // Ensure active organization is set so RLS and tenant routes function properly
     try {
       const orgList = await authClient.organization.list();
-      if (orgList?.data && orgList.data.length > 0) {
+      if (orgList?.data && orgList.data.length === 1) {
         await authClient.organization.setActive({ organizationId: orgList.data[0].id });
       }
     } catch { /* Org already active or unavailable */ }
@@ -80,9 +91,19 @@ const VerifyEmail: Component = () => {
     // 3. Clear verification cooldown
     sessionStorage.removeItem(COOLDOWN_STORAGE_KEY);
 
-    redirectTimer = setTimeout(() => {
-      if (sessionRestored || auth.isAuthenticated()) {
-        navigate({ to: '/dashboard', replace: true });
+    redirectTimer = setTimeout(async () => {
+      const currentUser = auth.user();
+      if (sessionRestored && currentUser) {
+        const isGlobal = isGlobalPortalHost(window.location.hostname);
+        const currentSlug = resolveSlugFromHost(window.location.hostname);
+        const decision = await resolvePostAuthRouting(currentUser, isGlobal, currentSlug, '/dashboard');
+        const navigated = await executeAuthNavigation(decision, {
+          safePath: '/dashboard',
+          switchOrg: actions.switchOrganization,
+        });
+        if (!navigated) {
+          navigate({ to: '/login', search: { redirect: undefined }, replace: true });
+        }
       } else {
         navigate({ to: '/login', search: { redirect: undefined }, replace: true });
       }
@@ -204,12 +225,16 @@ const VerifyEmail: Component = () => {
   // ── Handlers ───────────────────────────────────────────────────────────
   const handleResend = async () => {
     if (resending() || countdown() > 0) return;
+    const emailToSend = targetEmail();
+    if (!emailToSend || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToSend)) {
+      toast.error('Ingresa tu correo electrónico para reenviar el enlace de verificación');
+      return;
+    }
+
     setResending(true);
     try {
-      const user = auth.user();
-      if (!user?.email) throw new Error('No hay correo registrado');
       const res = await authClient.sendVerificationEmail({
-        email: user.email,
+        email: emailToSend,
         callbackURL: '/verify-email',
       });
       if (res.error) throw new Error(res.error.message || 'Error al reenviar');
@@ -270,11 +295,21 @@ const VerifyEmail: Component = () => {
               </p>
 
               <div class="flex flex-col gap-3 w-full mt-8">
+                <Show when={!auth.user()?.email && !searchEmail()}>
+                  <input
+                    type="email"
+                    placeholder="Ingresa tu correo electrónico"
+                    value={manualEmail()}
+                    onInput={(e) => setManualEmail(e.currentTarget.value)}
+                    class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+                </Show>
+
                 <Button
                   onClick={handleResend}
                   loading={resending()}
                   loadingText="Reenviando..."
-                  disabled={resending() || countdown() > 0}
+                  disabled={resending() || countdown() > 0 || !targetEmail()}
                   icon={<MailIcon class="size-4" />}
                 >
                   {countdown() > 0
@@ -289,7 +324,7 @@ const VerifyEmail: Component = () => {
                   onClick={handleLogout}
                   icon={<LogoutIcon class="size-4" />}
                 >
-                  Cerrar sesión
+                  {auth.isAuthenticated() ? 'Cerrar sesión' : 'Volver al inicio de sesión'}
                 </Button>
               </div>
             </div>

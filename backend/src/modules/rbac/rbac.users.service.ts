@@ -1,20 +1,25 @@
-import { db, adminDb } from '../../core/db';
+import { db, adminDb, withTenant } from '../../core/db';
 import { v7 as uuidv7 } from 'uuid';
-import { authUsers, authUserRoles, authRoles, entities, auditLogs, sessions, member, companies, verification } from '@app/schema/tables';
-import { eq, ne,sql, count, and, inArray, ilike, like, gt, or, asc, desc, type SQL } from '@app/schema';
+import { createHash, randomBytes } from 'node:crypto';
+import { authUsers, authUserRoles, authRoles, authRolePermissions, entities, auditLogs, sessions, member, companies, verification, account } from '@app/schema/tables';
+import { eq, ne, sql, count, and, inArray, ilike, like, gt, or, asc, desc, type SQL } from '@app/schema';
 import { cacheService } from '../../core/cache';
 import { DomainError } from '../../core/errors';
 import { broadcastToTenant, broadcastToUser } from '../../core/sse/events';
-import { RealtimeEvents, getTenantRoom } from '@app/schema/realtime-events';
+import { RealtimeEvents } from '@app/schema/realtime-events';
 import { SYSTEM_ROLES } from '@app/schema/enums';
 import { emailService } from '../../core/email';
 import { auth, resolveTenantUrl } from '../../config/better-auth';
 import {
     invalidateUserRbacCache,
+    invalidateUserFacetsCache,
     revokeAllUserSessions,
+    revokeTenantUserSessions,
     isUserSuperadmin,
     assertNotSuperadmin,
-    getUserRoles,
+    assertCanManageRole,
+    assertCanManageTargetUser,
+    getUserPermissions,
 } from './rbac.permission.service';
 import { logAudit } from './rbac.roles.service';
 import { canCreateUser } from '../saas/entitlements.service';
@@ -76,12 +81,40 @@ async function requireTenantMembership(
     return membership;
 }
 
-async function assertRolesBelongToTenant(roleIds: number[], companyId: number): Promise<void> {
+function hashInvitationToken(rawToken: string): string {
+    return createHash('sha256').update(rawToken).digest('hex');
+}
+
+async function assertEntityBelongsToCompany(
+    entityId: string | null | undefined,
+    companyId: number,
+): Promise<void> {
+    if (!entityId) return;
+    const [entity] = await adminDb
+        .select({ id: entities.id })
+        .from(entities)
+        .where(and(
+            eq(entities.id, entityId),
+            eq(entities.company_id, companyId),
+        ))
+        .limit(1);
+
+    if (!entity) {
+        throw new DomainError('La entidad especificada no existe o no pertenece a esta empresa', 404);
+    }
+}
+
+async function assertRolesBelongToTenant(roleIds: number[], companyId: number) {
     const uniqueRoleIds = [...new Set(roleIds)];
-    if (uniqueRoleIds.length === 0) return;
+    if (uniqueRoleIds.length === 0) return [];
 
     const roles = await adminDb
-        .select({ id: authRoles.id })
+        .select({
+            id: authRoles.id,
+            name: authRoles.name,
+            is_system: authRoles.is_system,
+            priority: authRoles.priority,
+        })
         .from(authRoles)
         .where(and(
             eq(authRoles.company_id, companyId),
@@ -91,13 +124,53 @@ async function assertRolesBelongToTenant(roleIds: number[], companyId: number): 
     if (roles.length !== uniqueRoleIds.length) {
         throw new DomainError('Uno o más roles no pertenecen a la empresa actual', 403);
     }
+    return roles;
 }
 
 /**
- * Light check to see if an email is already registered in Zelys or a member of the current company
+ * Verifies role hierarchy and anti-escalation before assigning roles to a user.
+ * - Non-superadmin cannot assign system roles or roles with priority >= their own.
+ * - Non-superadmin cannot assign a role containing permissions they do not possess.
+ */
+async function assertCallerCanAssignRoles(
+    callerUserId: string | number,
+    roleIds: number[],
+    companyId: number,
+): Promise<void> {
+    const roles = await assertRolesBelongToTenant(roleIds, companyId);
+    if (roles.length === 0) return;
+
+    const callerIsSuper = await isUserSuperadmin(callerUserId, companyId);
+    if (callerIsSuper) return;
+
+    for (const role of roles) {
+        await assertCanManageRole(callerUserId, role, companyId, 'asignar');
+    }
+
+    const callerPermissions = new Set(await getUserPermissions(callerUserId, companyId));
+    const rolePermRows = await adminDb
+        .selectDistinct({ slug: authRolePermissions.permission_slug })
+        .from(authRolePermissions)
+        .where(and(
+            eq(authRolePermissions.company_id, companyId),
+            inArray(authRolePermissions.role_id, roles.map(r => r.id)),
+        ));
+
+    const missingPerms = rolePermRows.map(r => r.slug).filter(slug => !callerPermissions.has(slug));
+    if (missingPerms.length > 0) {
+        throw new DomainError(
+            'No puedes asignar un rol que contiene permisos superiores a los tuyos',
+            403
+        );
+    }
+}
+
+/**
+ * Light check to see if an email is already registered in Zelys or a member of the current company.
+ * Never leaks PII (username/name) of global users who are not already members of this tenant.
  */
 export async function checkUserEmail(email: string, companyId: number) {
-    await getTenantOrganizationId(companyId);
+    const organizationId = await getTenantOrganizationId(companyId);
     const normalizedEmail = email.trim().toLowerCase();
     const existingUser = await adminDb.query.authUsers.findFirst({
         where: eq(authUsers.email, normalizedEmail),
@@ -108,25 +181,21 @@ export async function checkUserEmail(email: string, companyId: number) {
         return { exists: false, isAlreadyMember: false };
     }
 
-    let isAlreadyMember = false;
-    if (companyId) {
-        const [companyOrg] = await adminDb
-            .select({ organization_id: companies.organization_id })
-            .from(companies)
-            .where(eq(companies.id, companyId))
-            .limit(1);
+    const memberRow = await adminDb
+        .select({ id: member.id })
+        .from(member)
+        .where(and(
+            eq(member.userId, existingUser.id),
+            eq(member.organizationId, organizationId)
+        ))
+        .limit(1);
+    const isAlreadyMember = memberRow.length > 0;
 
-        if (companyOrg?.organization_id) {
-            const memberRow = await adminDb
-                .select({ id: member.id })
-                .from(member)
-                .where(and(
-                    eq(member.userId, existingUser.id),
-                    eq(member.organizationId, companyOrg.organization_id)
-                ))
-                .limit(1);
-            isAlreadyMember = memberRow.length > 0;
-        }
+    if (!isAlreadyMember) {
+        return {
+            exists: true,
+            isAlreadyMember: false,
+        };
     }
 
     return {
@@ -134,7 +203,7 @@ export async function checkUserEmail(email: string, companyId: number) {
         username: existingUser.username,
         displayUsername: existingUser.displayUsername || undefined,
         name: existingUser.name || undefined,
-        isAlreadyMember,
+        isAlreadyMember: true,
     };
 }
 
@@ -220,7 +289,7 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
         companyOrgId = companyRow?.orgId ?? null;
     }
 
-    const [totalResult, users] = await Promise.all([
+    const [totalResult, users] = await withTenant(async () => Promise.all([
         db.select({ count: count() }).from(authUsers).where(where),
         db.select({
             id: authUsers.id,
@@ -245,12 +314,12 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
                 ? and(eq(member.userId, authUsers.id), eq(member.organizationId, companyOrgId))
                 : eq(member.userId, authUsers.id)
         )
-        .leftJoin(entities, eq(entities.id, member.entityId))
+        .leftJoin(entities, and(eq(entities.id, member.entityId), eq(entities.company_id, companyId)))
         .where(where)
         .orderBy(orderFn(sortCol))
         .limit(limit)
         .offset(offset),
-    ]);
+    ]));
 
     const total = Number(totalResult[0]?.count ?? 0);
     const pageCount = Math.ceil(total / limit);
@@ -264,7 +333,7 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
             roleConditions.push(eq(authUserRoles.company_id, companyId));
         }
 
-        const userRoles = await db
+        const userRoles = await withTenant(async () => db
             .select({
                 userId: authUserRoles.user_id,
                 roleId: authRoles.id,
@@ -275,7 +344,7 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
                 eq(authUserRoles.role_id, authRoles.id),
                 eq(authUserRoles.company_id, authRoles.company_id),
             ))
-            .where(and(...roleConditions));
+            .where(and(...roleConditions)));
 
         for (const ur of userRoles) {
             if (!roleMap.has(ur.userId)) roleMap.set(ur.userId, []);
@@ -351,8 +420,8 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
             activeConditions.push(inArray(authUsers.id, rolesSubquery));
         }
         const activeWhere = activeConditions.length > 0 ? and(...activeConditions) : undefined;
-        
-        const activeRows = await db
+
+        const activeRows = await withTenant(async () => db
             .select({
                 value: sql<string>`CAST(${authUsers.is_active} AS TEXT)`,
                 count: count(),
@@ -360,8 +429,8 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
             .from(authUsers)
             .where(activeWhere)
             .groupBy(authUsers.is_active)
-            .orderBy(desc(count()));
-            
+            .orderBy(desc(count())));
+
         results['isActive'] = activeRows.filter(r => r.value !== null).map(r => ({ value: r.value, count: Number(r.count) }));
 
         const rolesConditions: SQL[] = [];
@@ -385,7 +454,7 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
         }
         const rolesWhere = rolesConditions.length > 0 ? and(...rolesConditions) : undefined;
 
-        const rolesRows = await db
+        const rolesRows = await withTenant(async () => db
             .select({
                 value: authRoles.name,
                 count: sql<number>`count(DISTINCT ${authUsers.id})`.mapWith(Number),
@@ -401,7 +470,7 @@ export async function getUserFacets(filters: { search?: string; isActive?: strin
             ))
             .where(rolesWhere)
             .groupBy(authRoles.name)
-            .orderBy(desc(sql`count(DISTINCT ${authUsers.id})`));
+            .orderBy(desc(sql`count(DISTINCT ${authUsers.id})`)));
 
         results['roles'] = rolesRows.filter(r => r.value !== null);
 
@@ -438,7 +507,7 @@ export async function getUserById(id: string | number, companyId: number) {
     if (companyId) {
         const [memberRow] = await adminDb
             .select({
-                entityId: member.entityId,
+                entityId: entities.id,
                 entityBusinessName: entities.business_name,
                 entityTaxId: entities.tax_id,
                 entityIsClient: entities.is_client,
@@ -447,7 +516,7 @@ export async function getUserById(id: string | number, companyId: number) {
             })
             .from(member)
             .innerJoin(companies, eq(companies.organization_id, member.organizationId))
-            .leftJoin(entities, eq(entities.id, member.entityId))
+            .leftJoin(entities, and(eq(entities.id, member.entityId), eq(entities.company_id, companyId)))
             .where(and(eq(member.userId, idStr), eq(companies.id, companyId)))
             .limit(1);
 
@@ -466,14 +535,14 @@ export async function getUserById(id: string | number, companyId: number) {
 
     const roleConditions = [eq(authUserRoles.user_id, idStr), eq(authUserRoles.company_id, companyId)];
 
-    const roles = await db
+    const roles = await withTenant(async () => db
         .select({ id: authRoles.id, name: authRoles.name, description: authRoles.description })
         .from(authUserRoles)
         .innerJoin(authRoles, and(
             eq(authUserRoles.role_id, authRoles.id),
             eq(authUserRoles.company_id, authRoles.company_id),
         ))
-        .where(and(...roleConditions));
+        .where(and(...roleConditions)));
 
     // Check if user belongs to more than 1 organization (multi-tenant global user)
     const [membershipCountRow] = await adminDb
@@ -505,7 +574,7 @@ export async function getUserRolesById(userId: string | number, companyId: numbe
     await requireTenantMembership(userIdStr, companyId, { active: false });
     const conditions = [eq(authUserRoles.user_id, userIdStr), eq(authUserRoles.company_id, companyId)];
 
-    const roles = await db
+    return withTenant(async () => db
         .select({
             id: authRoles.id,
             name: authRoles.name,
@@ -516,17 +585,20 @@ export async function getUserRolesById(userId: string | number, companyId: numbe
             eq(authUserRoles.role_id, authRoles.id),
             eq(authUserRoles.company_id, authRoles.company_id),
         ))
-        .where(and(...conditions));
-
-    return roles;
+        .where(and(...conditions)));
 }
 
 /**
- * Assign roles to a user
+ * Assign roles to a user (with hierarchy, anti-escalation, and min-1-role checks)
  */
 export async function assignUserRoles(userId: string | number, roleIds: number[], currentUserId: string | number, companyId: number) {
     const userIdStr = String(userId);
-    const user = await db.query.authUsers.findFirst({
+    const uniqueRoleIds = [...new Set(roleIds)];
+    if (uniqueRoleIds.length === 0) {
+        throw new DomainError('El usuario debe tener al menos un rol asignado', 400);
+    }
+
+    const user = await adminDb.query.authUsers.findFirst({
         where: eq(authUsers.id, userIdStr),
     });
 
@@ -534,22 +606,23 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
         throw new DomainError('Usuario no encontrado', 404);
     }
 
+    await requireTenantMembership(currentUserId, companyId);
     await requireTenantMembership(userIdStr, companyId);
-    await assertRolesBelongToTenant(roleIds, companyId);
+    await assertCanManageTargetUser(currentUserId, userIdStr, companyId, 'modificar roles de');
 
-    const oldRoles = await db
+    const oldRoles = await withTenant(async () => db
         .select({ id: authUserRoles.role_id })
         .from(authUserRoles)
-        .where(and(eq(authUserRoles.user_id, userIdStr), eq(authUserRoles.company_id, companyId)));
+        .where(and(eq(authUserRoles.user_id, userIdStr), eq(authUserRoles.company_id, companyId))));
     const oldRoleIds = oldRoles.map(r => r.id);
 
     // Superadmin protection: exactly 1 superadmin per company (the owner)
     const isTargetSuperadmin = await isUserSuperadmin(userIdStr, companyId);
-    const superadminRole = await db.query.authRoles.findFirst({
+    const superadminRole = await adminDb.query.authRoles.findFirst({
         where: and(eq(authRoles.company_id, companyId), eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN)),
     });
 
-    let finalRoleIds = [...roleIds];
+    const finalRoleIds = [...uniqueRoleIds];
     if (superadminRole) {
         if (isTargetSuperadmin) {
             // The owner can never lose their superadmin role
@@ -564,44 +637,34 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
         }
     }
 
-    if (finalRoleIds.length > 0) {
-        await requireTenantMembership(currentUserId, companyId);
-        const currentRoles = await getUserRoles(currentUserId, companyId);
-        if (!currentRoles.includes(SYSTEM_ROLES.SUPERADMIN)) {
-            const systemRoles = await db.select({ id: authRoles.id })
-                .from(authRoles)
-                .where(and(
-                    inArray(authRoles.id, finalRoleIds),
-                    eq(authRoles.company_id, companyId),
-                    eq(authRoles.is_system, true)
-                ));
-            if (systemRoles.length > 0) {
-                throw new DomainError('Solo superadmin puede asignar roles de sistema', 403);
-            }
-        }
-    }
+    await assertCallerCanAssignRoles(currentUserId, finalRoleIds, companyId);
 
-    await db.transaction(async (tx) => {
-        // Delete only the roles assigned in THIS company, preserving roles in other tenants
-        await tx.delete(authUserRoles).where(
-            and(
-                eq(authUserRoles.user_id, userIdStr),
-                eq(authUserRoles.company_id, companyId)
-            )
-        );
-
-        if (finalRoleIds.length > 0) {
-            await tx.insert(authUserRoles).values(
-                finalRoleIds.map(roleId => ({
-                    user_id: userIdStr,
-                    role_id: roleId,
-                    company_id: companyId,
-                }))
+    await withTenant(async () => {
+        await db.transaction(async (tx) => {
+            // Delete only the roles assigned in THIS company, preserving roles in other tenants
+            await tx.delete(authUserRoles).where(
+                and(
+                    eq(authUserRoles.user_id, userIdStr),
+                    eq(authUserRoles.company_id, companyId)
+                )
             );
-        }
+
+            if (finalRoleIds.length > 0) {
+                await tx.insert(authUserRoles).values(
+                    finalRoleIds.map(roleId => ({
+                        user_id: userIdStr,
+                        role_id: roleId,
+                        company_id: companyId,
+                    }))
+                );
+            }
+        });
     });
 
-    await invalidateUserRbacCache(userIdStr, companyId);
+    await Promise.all([
+        invalidateUserRbacCache(userIdStr, companyId),
+        invalidateUserFacetsCache(companyId),
+    ]);
     broadcastToUser(userIdStr, RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr });
     broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { id: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
@@ -687,7 +750,13 @@ export async function createUser(
     companyId: number
 ) {
     await requireTenantMembership(currentUserId, companyId);
-    await assertRolesBelongToTenant(data.roleIds ?? [], companyId);
+    const organizationId = await getTenantOrganizationId(companyId);
+
+    const uniqueRoleIds = [...new Set(data.roleIds ?? [])];
+    if (uniqueRoleIds.length === 0) {
+        throw new DomainError('Debes asignar al menos un rol al usuario', 400);
+    }
+
     const normalizedEmail = data.email.trim().toLowerCase();
     const baseUsername = normalizedEmail.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
     const normalizedUsername = (data.username?.trim() || baseUsername).toLowerCase();
@@ -696,10 +765,22 @@ export async function createUser(
         throw new DomainError('La creación de usuarios se realiza únicamente mediante invitación segura', 400);
     }
 
-    // 1. Validar que el username sea único globalmente (only if no existing user with this email)
+    // 1. Validar que el rol superadmin nunca se asigne y que el llamador pueda asignar los roles
+    const superadminRole = await adminDb.query.authRoles.findFirst({
+        where: and(eq(authRoles.company_id, companyId), eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN)),
+    });
+    if (superadminRole && uniqueRoleIds.includes(superadminRole.id)) {
+        throw new DomainError('El rol superadmin es exclusivo del propietario de la empresa y no puede ser asignado', 403);
+    }
+    await assertCallerCanAssignRoles(currentUserId, uniqueRoleIds, companyId);
+
+    // 2. Validar pertenencia de entityId a la empresa actual (cierre de IDOR)
+    await assertEntityBelongsToCompany(data.entityId, companyId);
+
+    // 3. Validar usuario global y unicidad de username / membresía en esta empresa
     const existingGlobalUser = await adminDb.query.authUsers.findFirst({
         where: eq(authUsers.email, normalizedEmail),
-        columns: { id: true, username: true, email: true },
+        columns: { id: true, username: true, email: true, name: true },
     });
 
     if (!existingGlobalUser) {
@@ -712,91 +793,65 @@ export async function createUser(
         }
     }
 
-    // 2. Validar que el email no tenga ya membresía en esta empresa (via org member table)
-    if (companyId) {
-        const [companyOrg] = await adminDb
-            .select({ organization_id: companies.organization_id })
-            .from(companies)
-            .where(eq(companies.id, companyId))
-            .limit(1);
+    const existingMember = await adminDb
+        .select({ id: member.id })
+        .from(member)
+        .innerJoin(authUsers, eq(authUsers.id, member.userId))
+        .where(and(
+            eq(authUsers.email, normalizedEmail),
+            eq(member.organizationId, organizationId)
+        ))
+        .limit(1);
 
-        if (companyOrg?.organization_id) {
-            const existingMember = await adminDb
-                .select({ id: member.id })
-                .from(member)
-                .innerJoin(authUsers, eq(authUsers.id, member.userId))
-                .where(and(
-                    eq(authUsers.email, normalizedEmail),
-                    eq(member.organizationId, companyOrg.organization_id)
-                ))
-                .limit(1);
-
-            if (existingMember.length > 0) {
-                throw new DomainError('Ya existe un usuario con ese email en esta empresa', 409);
-            }
-        }
-    }
-
-    // 3. Superadmin protection: prevent creating a second superadmin
-    if (data.roleIds && data.roleIds.length > 0 && companyId) {
-        const superadminRole = await db.query.authRoles.findFirst({
-            where: and(eq(authRoles.company_id, companyId), eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN)),
-        });
-        if (superadminRole && data.roleIds.includes(superadminRole.id)) {
-            throw new DomainError('El rol superadmin es exclusivo del propietario de la empresa y no puede ser asignado', 403);
-        }
+    if (existingMember.length > 0) {
+        throw new DomainError('Ya existe un usuario con ese email en esta empresa', 409);
     }
 
     // 4. Quota enforcement: check if tenant has available seats in their SaaS plan
-    if (companyId) {
-        await checkCompanySeatQuota(companyId, data.roleIds);
-    }
+    await checkCompanySeatQuota(companyId, uniqueRoleIds);
 
-    const newUser = await db.transaction(async (tx) => {
-        // ──────────────────────────────────────────────────────────────────
-        // CHECK: Does a user with this email already exist globally?
-        // If so, reuse that user record — add org membership + roles.
-        // ──────────────────────────────────────────────────────────────────
+    // 5. Generate cryptographic 256-bit invitation token and store only its SHA-256 hash inside the transaction
+    const rawActivationToken = randomBytes(32).toString('hex');
+    const tokenHash = hashInvitationToken(rawActivationToken);
+    const invitationExpiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+
+    const newUser = await withTenant(async () => db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(${companyId})`);
+
         if (existingGlobalUser) {
+            // Existing Zelys user: create PENDING membership requiring explicit invitation acceptance.
+            // Never auto-activate without user consent and never mutate their global profile.
             const memberId = uuidv7();
 
-            // Add org membership for the existing user in THIS tenant
-            if (companyId) {
-                const [company] = await tx
-                    .select({ organization_id: companies.organization_id })
-                    .from(companies)
-                    .where(eq(companies.id, companyId))
-                    .limit(1);
+            await tx.insert(member).values({
+                id: memberId,
+                organizationId,
+                userId: existingGlobalUser.id,
+                role: 'member',
+                status: 'PENDING',
+                entityId: data.entityId || null,
+            }).onConflictDoNothing();
 
-                if (company?.organization_id) {
-                    await tx.insert(member).values({
-                        id: memberId,
-                        organizationId: company.organization_id,
-                        userId: existingGlobalUser.id,
-                        role: 'member',
-                        entityId: data.entityId || null,
-                    }).onConflictDoNothing();
-                }
-            }
+            await tx.insert(authUserRoles).values(
+                uniqueRoleIds.map(roleId => ({
+                    user_id: existingGlobalUser.id,
+                    role_id: roleId,
+                    company_id: companyId,
+                }))
+            ).onConflictDoNothing();
 
-            // Assign roles to the existing user for this company
-            if (data.roleIds && data.roleIds.length > 0) {
-                await tx.insert(authUserRoles).values(
-                    data.roleIds.map(roleId => ({
-                        user_id: existingGlobalUser.id,
-                        role_id: roleId,
-                        company_id: companyId,
-                    }))
-                );
-            }
+            await tx.insert(verification).values({
+                id: uuidv7(),
+                identifier: `invitation:${normalizedEmail}:${organizationId}`,
+                value: tokenHash,
+                expiresAt: invitationExpiresAt,
+            });
 
             return { id: existingGlobalUser.id, username: existingGlobalUser.username, email: existingGlobalUser.email };
         }
 
-        // ──────────────────────────────────────────────────────────────────
-        // No existing user — create the identity without credentials. The
-        // invitation acceptance flow creates the credential after token proof.
-        // ──────────────────────────────────────────────────────────────────
+        // New user: create identity without credentials and PENDING membership.
+        // The invitation acceptance flow creates the credential and activates the membership.
         const userId = uuidv7();
         const memberId = uuidv7();
 
@@ -810,49 +865,54 @@ export async function createUser(
             emailVerified: false,
         });
 
-        // Better-Auth organization membership sync
-        if (companyId) {
-            const [company] = await tx
-                .select({ organization_id: companies.organization_id })
-                .from(companies)
-                .where(eq(companies.id, companyId))
-                .limit(1);
+        await tx.insert(member).values({
+            id: memberId,
+            organizationId,
+            userId: user.id,
+            role: 'member',
+            status: 'PENDING',
+            entityId: data.entityId || null,
+        }).onConflictDoNothing();
 
-            if (company?.organization_id) {
-                await tx.insert(member).values({
-                    id: memberId,
-                    organizationId: company.organization_id,
-                    userId: user.id,
-                    role: 'member',
-                    entityId: data.entityId || null,
-                }).onConflictDoNothing();
-            }
-        }
+        await tx.insert(authUserRoles).values(
+            uniqueRoleIds.map(roleId => ({
+                user_id: user.id,
+                role_id: roleId,
+                company_id: companyId,
+            }))
+        ).onConflictDoNothing();
 
-        if (data.roleIds && data.roleIds.length > 0) {
-            await tx.insert(authUserRoles).values(
-                data.roleIds.map(roleId => ({
-                    user_id: user.id,
-                    role_id: roleId,
-                    company_id: companyId,
-                }))
-            );
-        }
+        await tx.insert(verification).values({
+            id: uuidv7(),
+            identifier: `invitation:${normalizedEmail}:${organizationId}`,
+            value: tokenHash,
+            expiresAt: invitationExpiresAt,
+        });
 
         return user;
-    });
+    }));
 
-    if (companyId) {
-        await cacheService.invalidate(`tenant:member:${companyId}:${newUser.id}`);
-        broadcastToTenant(companyId, RealtimeEvents.USER.CREATED, { id: newUser.id }, RealtimeEvents.ROOMS.USERS);
+    await Promise.all([
+        cacheService.invalidate(`tenant:member:${companyId}:${newUser.id}`),
+        invalidateUserFacetsCache(companyId),
+    ]);
+    broadcastToTenant(companyId, RealtimeEvents.USER.CREATED, { id: newUser.id }, RealtimeEvents.ROOMS.USERS);
+
+    if (currentUserId) {
+        logAudit(currentUserId, 'INSERT', 'user', newUser.id, {
+            username: existingGlobalUser ? existingGlobalUser.username : displayName,
+            email: normalizedEmail,
+            roleIds: uniqueRoleIds,
+            entityId: data.entityId ?? null,
+            membershipStatus: 'PENDING',
+            existingGlobalUser: Boolean(existingGlobalUser),
+        });
     }
 
-    if (currentUserId) logAudit(currentUserId, 'INSERT', 'user', newUser.id, { username: displayName, email: normalizedEmail, roleIds: data.roleIds, entityId: data.entityId });
-
     // ──────────────────────────────────────────────────────────────────────────
-    // Send Context-Aware Email Notification (Asynchronous - Non Blocking)
+    // Send Invitation Email (Both new & existing global users must explicitly accept)
     // ──────────────────────────────────────────────────────────────────────────
-    if (companyId && data.sendEmail !== false) {
+    if (data.sendEmail !== false) {
         (async () => {
             try {
                 const [comp] = await adminDb
@@ -860,7 +920,6 @@ export async function createUser(
                         business_name: companies.business_name,
                         trade_name: companies.trade_name,
                         slug: companies.slug,
-                        organizationId: companies.organization_id,
                     })
                     .from(companies)
                     .where(eq(companies.id, companyId))
@@ -868,19 +927,15 @@ export async function createUser(
 
                 if (comp) {
                     const companyName = comp.trade_name || comp.business_name;
-                    const loginUrl = `${resolveTenantUrl(comp.slug)}/login?email=${encodeURIComponent(normalizedEmail)}`;
 
-                    let roleNames: string[] = [];
-                    if (data.roleIds && data.roleIds.length > 0) {
-                        const assignedRoles = await adminDb
-                            .select({ name: authRoles.name })
-                            .from(authRoles)
-                            .where(and(
-                                inArray(authRoles.id, data.roleIds),
-                                eq(authRoles.company_id, companyId),
-                            ));
-                        roleNames = assignedRoles.map(r => r.name);
-                    }
+                    const assignedRoles = await adminDb
+                        .select({ name: authRoles.name })
+                        .from(authRoles)
+                        .where(and(
+                            inArray(authRoles.id, uniqueRoleIds),
+                            eq(authRoles.company_id, companyId),
+                        ));
+                    const roleNames = assignedRoles.map(r => r.name);
 
                     let inviterName: string | undefined;
                     if (currentUserId) {
@@ -891,40 +946,19 @@ export async function createUser(
                         inviterName = inviter?.name || inviter?.displayUsername || inviter?.username;
                     }
 
-                    if (existingGlobalUser) {
-                        // Invitación a Usuario Existente en Zelys
-                        await emailService.sendOrganizationMemberAddedEmail(normalizedEmail, {
-                            companyName,
-                            loginUrl,
-                            roleNames,
-                            userName: displayName,
-                            inviterName,
-                        });
-                    } else {
-                        // Invitación a Usuario Nuevo (generar token seguro de 72h)
-                        const activationToken = uuidv7().replace(/-/g, '') + uuidv7().replace(/-/g, '');
-                        const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+                    const existingFlag = existingGlobalUser ? '&existing=1' : '';
+                    const inviteUrl = `${resolveTenantUrl(comp.slug)}/accept-invitation?token=${rawActivationToken}&email=${encodeURIComponent(normalizedEmail)}${existingFlag}`;
 
-                        await adminDb.insert(verification).values({
-                            id: uuidv7(),
-                            identifier: `invitation:${normalizedEmail}:${comp.organizationId}`,
-                            value: activationToken,
-                            expiresAt,
-                        });
-
-                        const inviteUrl = `${resolveTenantUrl(comp.slug)}/accept-invitation?token=${activationToken}&email=${encodeURIComponent(normalizedEmail)}`;
-
-                        await emailService.sendOrganizationInvitationEmail(normalizedEmail, {
-                            companyName,
-                            inviteUrl,
-                            roleNames,
-                            userName: displayName,
-                            inviterName,
-                        });
-                    }
+                    await emailService.sendOrganizationInvitationEmail(normalizedEmail, {
+                        companyName,
+                        inviteUrl,
+                        roleNames,
+                        userName: existingGlobalUser?.name || displayName,
+                        inviterName,
+                    });
                 }
             } catch (err) {
-                console.error('[RBAC] Error sending organization user onboarding email:', err);
+                console.error('[RBAC] Error sending organization user invitation email:', err);
             }
         })();
     }
@@ -933,14 +967,15 @@ export async function createUser(
 }
 
 /**
- * Accept user invitation: verifies secure activation token and sets initial password
+ * Accept user invitation: verifies SHA-256 hashed activation token, checks seat quota atomically,
+ * sets initial password for new users (without trimming) or activates consent-based membership for existing users.
  */
-export async function acceptUserInvitation(data: { token: string; email: string; password: string }) {
+export async function acceptUserInvitation(data: { token: string; email: string; password?: string }) {
     const normalizedEmail = data.email.trim().toLowerCase();
     const invitationPrefix = `invitation:${normalizedEmail}:`;
-    const newPasswordHash = await hashPassword(data.password.trim());
+    const tokenHash = hashInvitationToken(data.token.trim());
 
-    const organizationId = await adminDb.transaction(async (tx) => {
+    const result = await adminDb.transaction(async (tx) => {
         // Delete-and-return is the atomic one-use claim. If any subsequent
         // validation fails, the transaction rolls back and the invitation
         // remains available for a legitimate retry.
@@ -948,7 +983,7 @@ export async function acceptUserInvitation(data: { token: string; email: string;
             .delete(verification)
             .where(and(
                 like(verification.identifier, `${invitationPrefix}%`),
-                eq(verification.value, data.token),
+                eq(verification.value, tokenHash),
                 gt(verification.expiresAt, new Date()),
             ))
             .returning({ id: verification.id, identifier: verification.identifier });
@@ -962,14 +997,28 @@ export async function acceptUserInvitation(data: { token: string; email: string;
             throw new DomainError('La invitación no está vinculada a una organización válida', 400);
         }
 
+        const [company] = await tx
+            .select({ id: companies.id, isActive: companies.is_active })
+            .from(companies)
+            .where(eq(companies.organization_id, invitedOrganizationId))
+            .limit(1);
+        if (!company || !company.isActive) {
+            throw new DomainError('La empresa asociada a esta invitación no está disponible', 403);
+        }
+
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(${company.id})`);
+
         const targetUser = await tx.query.authUsers.findFirst({
             where: eq(authUsers.email, normalizedEmail),
-            columns: { id: true },
+            columns: { id: true, emailVerified: true, is_active: true },
         });
         if (!targetUser) throw new DomainError('Usuario no encontrado', 404);
+        if (targetUser.is_active === false) {
+            throw new DomainError('Esta cuenta se encuentra desactivada', 403);
+        }
 
         const [invitedMembership] = await tx
-            .select({ id: member.id })
+            .select({ id: member.id, status: member.status })
             .from(member)
             .where(and(
                 eq(member.userId, targetUser.id),
@@ -979,18 +1028,68 @@ export async function acceptUserInvitation(data: { token: string; email: string;
         if (!invitedMembership) {
             throw new DomainError('La invitación no pertenece a este usuario', 403);
         }
+        if (invitedMembership.status !== 'PENDING') {
+            throw new DomainError('Esta invitación ya fue procesada o la membresía fue revocada', 409);
+        }
 
-        await replaceCredentialPassword(tx, targetUser.id, newPasswordHash);
+        // Check if this user already has a verified identity or login account (existing global user)
+        const [existingAccount] = await tx
+            .select({ id: account.id })
+            .from(account)
+            .where(eq(account.userId, targetUser.id))
+            .limit(1);
+        const isExistingUser = Boolean(targetUser.emailVerified || existingAccount);
 
-        // Mark email as verified and user active
-        await tx.update(authUsers)
-            .set({ emailVerified: true, is_active: true, updatedAt: new Date() })
-            .where(eq(authUsers.id, targetUser.id));
+        // Enforce tenant seat quota right before activating the membership
+        const assignedRoles = await tx
+            .select({ roleId: authUserRoles.role_id })
+            .from(authUserRoles)
+            .where(and(
+                eq(authUserRoles.user_id, targetUser.id),
+                eq(authUserRoles.company_id, company.id),
+            ));
+        await checkCompanySeatQuota(company.id, assignedRoles.map(r => r.roleId));
 
-        return invitedOrganizationId;
+        if (!isExistingUser) {
+            // Preserve exact password bytes (never .trim() passwords)
+            if (typeof data.password !== 'string' || data.password.length < 8) {
+                throw new DomainError('Debes definir una contraseña de al menos 8 caracteres', 400);
+            }
+            const newPasswordHash = await hashPassword(data.password);
+            await replaceCredentialPassword(tx, targetUser.id, newPasswordHash);
+
+            await tx.update(authUsers)
+                .set({ emailVerified: true, is_active: true, updatedAt: new Date() })
+                .where(eq(authUsers.id, targetUser.id));
+        }
+
+        // Activate tenant membership
+        await tx.update(member)
+            .set({ status: 'ACTIVE', suspendedAt: null, suspendedBy: null })
+            .where(eq(member.id, invitedMembership.id));
+
+        return {
+            organizationId: invitedOrganizationId,
+            companyId: company.id,
+            userId: targetUser.id,
+            isExistingUser,
+        };
     });
 
-    return { success: true, email: normalizedEmail, organizationId };
+    await Promise.all([
+        invalidateUserRbacCache(result.userId, result.companyId),
+        cacheService.invalidate(`tenant:member:${result.companyId}:${result.userId}`),
+        invalidateUserFacetsCache(result.companyId),
+    ]);
+    broadcastToTenant(result.companyId, RealtimeEvents.USER.UPDATED, { userId: result.userId }, RealtimeEvents.ROOMS.USERS);
+
+    return {
+        success: true,
+        email: normalizedEmail,
+        organizationId: result.organizationId,
+        requiresLogin: true,
+        isExistingUser: result.isExistingUser,
+    };
 }
 
 /**
@@ -1000,7 +1099,7 @@ export async function getUsersByRole(roleId: number, companyId: number) {
     const conditions = [eq(authUserRoles.role_id, roleId), eq(authUserRoles.company_id, companyId)];
     await getTenantOrganizationId(companyId);
 
-    const usersInRole = await db
+    const usersInRole = await withTenant(async () => db
         .select({
             id: authUsers.id,
             username: authUsers.username,
@@ -1011,7 +1110,7 @@ export async function getUsersByRole(roleId: number, companyId: number) {
         })
         .from(authUserRoles)
         .innerJoin(authUsers, eq(authUserRoles.user_id, authUsers.id))
-        .where(and(...conditions));
+        .where(and(...conditions)));
 
     return usersInRole.map(u => ({ ...u, username: u.username || u.name, image: u.image ?? null }));
 }
@@ -1019,31 +1118,65 @@ export async function getUsersByRole(roleId: number, companyId: number) {
 /**
  * Remove a user from a specific role scoped to a company
  */
-export async function removeUserFromRole(userId: string | number, roleId: number, companyId: number) {
+export async function removeUserFromRole(
+    userId: string | number,
+    roleId: number,
+    currentUserId: string | number,
+    companyId: number,
+) {
     const userIdStr = String(userId);
-    await requireTenantMembership(userIdStr, companyId, { active: false });
-    
-    // Superadmin protection: owner cannot be removed from superadmin
-    const roleWhere = and(eq(authRoles.id, roleId), eq(authRoles.company_id, companyId));
-    const role = await db.query.authRoles.findFirst({ where: roleWhere });
-    if (role?.name === SYSTEM_ROLES.SUPERADMIN) {
-        throw new DomainError('No se puede remover el rol superadmin del propietario de la empresa', 403);
+    const currentUserIdStr = String(currentUserId);
+    if (userIdStr === currentUserIdStr) {
+        throw new DomainError('No puedes remover tus propios roles', 403);
     }
 
-    const deleteConditions = [
-        eq(authUserRoles.user_id, userIdStr),
-        eq(authUserRoles.role_id, roleId),
-    ];
-    deleteConditions.push(eq(authUserRoles.company_id, companyId));
+    await requireTenantMembership(currentUserIdStr, companyId);
+    await requireTenantMembership(userIdStr, companyId, { active: false });
+    await assertCanManageTargetUser(currentUserIdStr, userIdStr, companyId, 'remover roles de');
 
-    await db
-        .delete(authUserRoles)
-        .where(and(...deleteConditions))
-        .returning();
+    await withTenant(async () => {
+        const role = await db.query.authRoles.findFirst({
+            where: and(eq(authRoles.id, roleId), eq(authRoles.company_id, companyId)),
+        });
+        if (!role) {
+            throw new DomainError('Rol no encontrado', 404);
+        }
+        if (role.name === SYSTEM_ROLES.SUPERADMIN) {
+            throw new DomainError('No se puede remover el rol superadmin del propietario de la empresa', 403);
+        }
 
-    await invalidateUserRbacCache(userIdStr, companyId);
+        await assertCanManageRole(currentUserIdStr, role, companyId, 'remover');
+
+        const currentUserRoles = await db
+            .select({ roleId: authUserRoles.role_id })
+            .from(authUserRoles)
+            .where(and(
+                eq(authUserRoles.user_id, userIdStr),
+                eq(authUserRoles.company_id, companyId),
+            ));
+
+        if (currentUserRoles.length <= 1 && currentUserRoles.some(r => r.roleId === roleId)) {
+            throw new DomainError('No se puede dejar al usuario sin roles asignados en la empresa', 400);
+        }
+
+        await db
+            .delete(authUserRoles)
+            .where(and(
+                eq(authUserRoles.user_id, userIdStr),
+                eq(authUserRoles.role_id, roleId),
+                eq(authUserRoles.company_id, companyId),
+            ))
+            .returning();
+    });
+
+    await Promise.all([
+        invalidateUserRbacCache(userIdStr, companyId),
+        invalidateUserFacetsCache(companyId),
+    ]);
     broadcastToUser(userIdStr, RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr });
     broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { id: userIdStr }, RealtimeEvents.ROOMS.USERS);
+
+    logAudit(currentUserIdStr, 'DELETE', 'auth_user_roles', userIdStr, { removedRoleId: roleId, companyId });
 
     return { success: true };
 }
@@ -1058,8 +1191,9 @@ export async function updateUser(
     companyId: number
 ) {
     const userIdStr = String(userId);
+    const currentUserIdStr = String(currentUserId);
 
-    const user = await db.query.authUsers.findFirst({
+    const user = await adminDb.query.authUsers.findFirst({
         where: eq(authUsers.id, userIdStr),
         columns: { id: true, username: true, email: true, is_active: true },
     });
@@ -1068,12 +1202,17 @@ export async function updateUser(
         throw new DomainError('Usuario no encontrado', 404);
     }
 
+    await requireTenantMembership(currentUserIdStr, companyId);
     const membership = await requireTenantMembership(userIdStr, companyId, { active: false });
+    await assertCanManageTargetUser(currentUserIdStr, userIdStr, companyId, 'modificar');
 
-    // Resolve company organization ID
+    if (data.entityId !== undefined) {
+        await assertEntityBelongsToCompany(data.entityId, companyId);
+    }
+
     const companyOrgId = await getTenantOrganizationId(companyId);
 
-    await db.transaction(async (tx) => {
+    await withTenant(async () => db.transaction(async (tx) => {
         // 1. Update entity link in member table (scoped to this tenant)
         if (data.entityId !== undefined && companyOrgId) {
             await tx.update(member)
@@ -1084,44 +1223,66 @@ export async function updateUser(
                 ));
         }
 
-        // 2. Update roles in auth_user_roles (scoped to this company)
-        if (data.roleIds !== undefined) {
-            await assignUserRoles(userIdStr, data.roleIds, currentUserId, companyId);
-        }
+        // 2. If reactivating membership, check seat quota and activate BEFORE assigning roles
+        // so assignUserRoles sees an ACTIVE membership.
+        if (data.isActive === true && membership.status !== 'ACTIVE') {
+            await tx.execute(sql`SELECT pg_advisory_xact_lock(${companyId})`);
+            const userRolesRows = await tx
+                .select({ roleId: authUserRoles.role_id })
+                .from(authUserRoles)
+                .where(and(
+                    eq(authUserRoles.user_id, userIdStr),
+                    eq(authUserRoles.company_id, companyId)
+                ));
+            const roleIds = data.roleIds ?? userRolesRows.map(r => r.roleId);
+            await checkCompanySeatQuota(companyId, roleIds);
 
-        // 3. Update status
-        if (data.isActive !== undefined) {
-            if (data.isActive === false) {
-                if (currentUserId && userIdStr === String(currentUserId)) {
-                    throw new DomainError('No puedes desactivar tu propia cuenta', 403);
-                }
-                await assertNotSuperadmin(userIdStr, companyId, 'desactivar');
-            } else if (data.isActive === true && membership.status !== 'ACTIVE') {
-                const userRolesRows = await db
-                    .select({ roleId: authUserRoles.role_id })
-                    .from(authUserRoles)
-                    .where(and(
-                        eq(authUserRoles.user_id, userIdStr),
-                        eq(authUserRoles.company_id, companyId)
-                    ));
-                const roleIds = data.roleIds ?? userRolesRows.map(r => r.roleId);
-                await checkCompanySeatQuota(companyId, roleIds);
-            }
             await tx.update(member)
                 .set({
-                    status: data.isActive ? 'ACTIVE' : 'SUSPENDED',
-                    suspendedAt: data.isActive ? null : new Date(),
-                    suspendedBy: data.isActive ? null : String(currentUserId),
+                    status: 'ACTIVE',
+                    suspendedAt: null,
+                    suspendedBy: null,
                 })
                 .where(and(
                     eq(member.userId, userIdStr),
                     eq(member.organizationId, companyOrgId),
                 ));
         }
-    });
 
-    await invalidateUserRbacCache(userIdStr, companyId);
-    await cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`);
+        // 3. Update roles in auth_user_roles (scoped to this company)
+        if (data.roleIds !== undefined) {
+            await assignUserRoles(userIdStr, data.roleIds, currentUserIdStr, companyId);
+        }
+
+        // 4. If deactivating membership, validate and suspend
+        if (data.isActive === false) {
+            if (userIdStr === currentUserIdStr) {
+                throw new DomainError('No puedes desactivar tu propia cuenta', 403);
+            }
+            await assertNotSuperadmin(userIdStr, companyId, 'desactivar');
+
+            await tx.update(member)
+                .set({
+                    status: 'SUSPENDED',
+                    suspendedAt: new Date(),
+                    suspendedBy: currentUserIdStr,
+                })
+                .where(and(
+                    eq(member.userId, userIdStr),
+                    eq(member.organizationId, companyOrgId),
+                ));
+        }
+    }));
+
+    if (data.isActive === false) {
+        await revokeTenantUserSessions(userIdStr, companyId);
+    }
+
+    await Promise.all([
+        invalidateUserRbacCache(userIdStr, companyId),
+        cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`),
+        invalidateUserFacetsCache(companyId),
+    ]);
     broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
     if (currentUserId) {
@@ -1153,13 +1314,15 @@ export async function deactivateUser(userId: string | number, currentUserId: str
         throw new DomainError('No puedes desactivar tu propia cuenta', 403);
     }
 
-    const targetUser = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
+    const targetUser = await adminDb.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
     if (!targetUser) {
         throw new DomainError('Usuario no encontrado', 404);
     }
 
+    await requireTenantMembership(currentUserIdStr, companyId);
     const membership = await requireTenantMembership(userIdStr, companyId, { active: false });
     await assertNotSuperadmin(userIdStr, companyId, 'desactivar');
+    await assertCanManageTargetUser(currentUserIdStr, userIdStr, companyId, 'desactivar');
 
     const [updated] = await adminDb
         .update(member)
@@ -1171,8 +1334,13 @@ export async function deactivateUser(userId: string | number, currentUserId: str
         .returning();
 
     if (!updated) throw new DomainError('Membresía no encontrada', 404);
-    await invalidateUserRbacCache(userIdStr, companyId);
-    await cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`);
+
+    await revokeTenantUserSessions(userIdStr, companyId);
+    await Promise.all([
+        invalidateUserRbacCache(userIdStr, companyId),
+        cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`),
+        invalidateUserFacetsCache(companyId),
+    ]);
     broadcastToUser(userIdStr, RealtimeEvents.USER.SESSION_REVOKED, { userId: userIdStr });
     broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
@@ -1191,40 +1359,50 @@ export async function restoreUser(userId: string | number, currentUserId: string
         throw new DomainError('No puedes restaurar tu propia cuenta', 403);
     }
 
-    const targetUser = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
+    const targetUser = await adminDb.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
     if (!targetUser) {
         throw new DomainError('Usuario no encontrado', 404);
     }
 
+    await requireTenantMembership(currentUserIdStr, companyId);
     const membership = await requireTenantMembership(userIdStr, companyId, { active: false });
+    await assertCanManageTargetUser(currentUserIdStr, userIdStr, companyId, 'restaurar');
 
-    {
-        const userRolesRows = await db
+    if (membership.status === 'PENDING') {
+        throw new DomainError('El usuario tiene una invitación pendiente de aceptación', 409);
+    }
+
+    await adminDb.transaction(async (tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(${companyId})`);
+
+        const userRolesRows = await tx
             .select({ roleId: authUserRoles.role_id })
             .from(authUserRoles)
             .where(and(
                 eq(authUserRoles.user_id, userIdStr),
                 eq(authUserRoles.company_id, companyId)
             ));
-        const roleIds = userRolesRows.map(r => r.roleId);
-        await checkCompanySeatQuota(companyId, roleIds);
-    }
+        await checkCompanySeatQuota(companyId, userRolesRows.map(r => r.roleId));
 
-    const [updated] = await adminDb
-        .update(member)
-        .set({ status: 'ACTIVE', suspendedAt: null, suspendedBy: null })
-        .where(and(
-            eq(member.userId, userIdStr),
-            eq(member.organizationId, membership.organizationId),
-        ))
-        .returning();
+        const [updated] = await tx
+            .update(member)
+            .set({ status: 'ACTIVE', suspendedAt: null, suspendedBy: null })
+            .where(and(
+                eq(member.userId, userIdStr),
+                eq(member.organizationId, membership.organizationId),
+            ))
+            .returning();
 
-    if (!updated) {
-        throw new DomainError('Usuario no encontrado', 404);
-    }
+        if (!updated) {
+            throw new DomainError('Usuario no encontrado', 404);
+        }
+    });
 
-    await invalidateUserRbacCache(userIdStr, companyId);
-    await cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`);
+    await Promise.all([
+        invalidateUserRbacCache(userIdStr, companyId),
+        cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`),
+        invalidateUserFacetsCache(companyId),
+    ]);
     broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
     logAudit(currentUserId, 'UPDATE', 'member', userIdStr, { status: 'ACTIVE' }, { status: membership.status });
@@ -1242,18 +1420,20 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
         throw new DomainError('No puedes remover tu propia cuenta', 403);
     }
 
-    const targetUser = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
+    const targetUser = await adminDb.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
     if (!targetUser) {
         throw new DomainError('Usuario no encontrado', 404);
     }
 
+    await requireTenantMembership(currentUserIdStr, companyId);
     await requireTenantMembership(userIdStr, companyId, { active: false });
     await assertNotSuperadmin(userIdStr, companyId, 'remover');
+    await assertCanManageTargetUser(currentUserIdStr, userIdStr, companyId, 'remover');
 
-    // Resolve company organization ID
     const companyOrgId = await getTenantOrganizationId(companyId);
 
-    await db.transaction(async (tx) => {
+    let purgedGlobalAccount = false;
+    await withTenant(async () => db.transaction(async (tx) => {
         // 1. Remove roles assigned in THIS company
         await tx.delete(authUserRoles).where(
             and(
@@ -1277,15 +1457,23 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
             .from(member)
             .where(eq(member.userId, userIdStr));
 
-        // If user has NO other organizations anywhere, purge global record
         if (otherMemberships.length === 0) {
-            await revokeAllUserSessions(userIdStr);
+            purgedGlobalAccount = true;
             await tx.delete(authUsers).where(eq(authUsers.id, userIdStr));
         }
-    });
+    }));
 
-    await invalidateUserRbacCache(userIdStr, companyId);
-    await cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`);
+    if (purgedGlobalAccount) {
+        await revokeAllUserSessions(userIdStr);
+    } else {
+        await revokeTenantUserSessions(userIdStr, companyId);
+    }
+
+    await Promise.all([
+        invalidateUserRbacCache(userIdStr, companyId),
+        cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`),
+        invalidateUserFacetsCache(companyId),
+    ]);
     broadcastToTenant(companyId, RealtimeEvents.USER.DELETED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
     logAudit(currentUserId, 'DELETE', 'user', userIdStr, undefined, { username: targetUser.username, email: targetUser.email });
@@ -1298,24 +1486,25 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
  */
 export async function checkUserReferences(userId: string | number, companyId: number) {
     const userIdStr = String(userId);
-    const user = await db.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
+    const user = await adminDb.query.authUsers.findFirst({ where: eq(authUsers.id, userIdStr) });
     if (!user) throw new DomainError('Usuario no encontrado', 404);
     await requireTenantMembership(userIdStr, companyId, { active: false });
 
     const isSuper = await isUserSuperadmin(userIdStr, companyId);
+    const orgId = await getTenantOrganizationId(companyId);
 
-    const [rolesResult, sessionsResult] = await Promise.all([
+    const [rolesResult, sessionsResult] = await withTenant(async () => Promise.all([
         db.select({ count: count() }).from(authUserRoles).where(and(
             eq(authUserRoles.user_id, userIdStr),
             eq(authUserRoles.company_id, companyId),
         )),
-        db.select({ count: count() })
+        adminDb.select({ count: count() })
             .from(sessions)
             .where(and(
                 eq(sessions.userId, userIdStr),
-                eq(sessions.activeOrganizationId, await getTenantOrganizationId(companyId)),
+                eq(sessions.activeOrganizationId, orgId),
             )),
-    ]);
+    ]));
 
     const rolesCount = Number(rolesResult[0]?.count ?? 0);
     const activeSessionsCount = Number(sessionsResult[0]?.count ?? 0);
@@ -1333,7 +1522,7 @@ export async function getUserAuditLog(userId: string | number, companyId: number
     const offset = (page - 1) * limit;
     const condition = and(eq(auditLogs.userId, userIdStr), eq(auditLogs.company_id, companyId));
 
-    const [totalResult, entries] = await Promise.all([
+    const [totalResult, entries] = await withTenant(async () => Promise.all([
         db.select({ count: sql<number>`count(*)`.mapWith(Number) })
             .from(auditLogs)
             .where(condition),
@@ -1355,7 +1544,7 @@ export async function getUserAuditLog(userId: string | number, companyId: number
             .orderBy(desc(auditLogs.createdAt))
             .limit(limit)
             .offset(offset),
-    ]);
+    ]));
 
     const total = totalResult[0]?.count ?? 0;
     return {
@@ -1373,6 +1562,7 @@ export async function getUserAuditLog(userId: string | number, companyId: number
 /**
  * Request a Better Auth password reset for a tenant member.
  * Administrators never receive or write a user's password directly.
+ * Blocked on superadmin, peers of equal/higher rank, and multi-tenant global users.
  */
 export async function adminResetPassword(
     adminUserId: string | number,
@@ -1387,6 +1577,25 @@ export async function adminResetPassword(
 
     await requireTenantMembership(adminUserIdStr, companyId);
     await requireTenantMembership(targetUserIdStr, companyId);
+    await assertNotSuperadmin(targetUserIdStr, companyId, 'restablecer la contraseña de');
+    await assertCanManageTargetUser(adminUserIdStr, targetUserIdStr, companyId, 'restablecer la contraseña de');
+
+    const organizationId = await getTenantOrganizationId(companyId);
+    const otherMemberships = await adminDb
+        .select({ id: member.id })
+        .from(member)
+        .where(and(
+            eq(member.userId, targetUserIdStr),
+            ne(member.organizationId, organizationId),
+        ))
+        .limit(1);
+
+    if (otherMemberships.length > 0) {
+        throw new DomainError(
+            'Este usuario pertenece a múltiples empresas en Zelys. Por seguridad, debe restablecer su contraseña desde la opción de recuperación personal.',
+            403
+        );
+    }
 
     const user = await adminDb.query.authUsers.findFirst({
         where: eq(authUsers.id, targetUserIdStr),
@@ -1427,30 +1636,22 @@ export async function setUserEntity(
 ) {
     const userIdStr = String(userId);
 
-    // Validate entity exists (within tenant scope via RLS)
-    if (entityId !== null) {
-        const entity = await db.query.entities.findFirst({
-            where: eq(entities.id, entityId),
-        });
-        if (!entity) throw new DomainError('Entidad no encontrada', 404);
+    if (currentUserId) {
+        await requireTenantMembership(currentUserId, companyId);
+        await assertCanManageTargetUser(currentUserId, userIdStr, companyId, 'asignar entidad a');
     }
 
-    // Resolve the organization_id for this company
-    const [companyRow] = await adminDb
-        .select({ orgId: companies.organization_id })
-        .from(companies)
-        .where(eq(companies.id, companyId))
-        .limit(1);
+    // Explicitly validate entity belongs to current company (closes cross-tenant IDOR)
+    await assertEntityBelongsToCompany(entityId, companyId);
 
-    if (!companyRow?.orgId) throw new DomainError('Empresa no encontrada', 404);
+    const orgId = await getTenantOrganizationId(companyId);
 
-    // Find the member record for this user + organization
     const [memberRow] = await adminDb
         .select({ id: member.id, entityId: member.entityId })
         .from(member)
         .where(and(
             eq(member.userId, userIdStr),
-            eq(member.organizationId, companyRow.orgId),
+            eq(member.organizationId, orgId),
         ))
         .limit(1);
 
@@ -1458,7 +1659,6 @@ export async function setUserEntity(
 
     const oldEntityId = memberRow.entityId;
 
-    // Update member.entityId
     const [updated] = await adminDb
         .update(member)
         .set({ entityId })
@@ -1468,19 +1668,18 @@ export async function setUserEntity(
     if (!updated) throw new DomainError('No se pudo actualizar la entidad', 500);
 
     if (currentUserId) logAudit(currentUserId, 'UPDATE', 'member', memberRow.id, { entity_id: entityId }, { entity_id: oldEntityId ?? null });
-    if (companyId) {
-        broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
-    }
+    broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
     return { id: userIdStr, entityId };
 }
 
 /**
- * Batch deactivate multiple users
+ * Batch deactivate multiple users (revokes tenant sessions + invalidates facets)
  */
 export async function batchDeleteUsers(userIds: (string)[], currentUserId: string, companyId: number) {
     const currentUserIdStr = String(currentUserId);
-    const idsStr = userIds.map(id => String(id));
+    const idsStr = [...new Set(userIds.map(id => String(id)))];
+    await requireTenantMembership(currentUserIdStr, companyId);
     const organizationId = await getTenantOrganizationId(companyId);
     if (idsStr.includes(currentUserIdStr)) {
         throw new DomainError('No puedes desactivar tu propia cuenta', 403);
@@ -1493,6 +1692,7 @@ export async function batchDeleteUsers(userIds: (string)[], currentUserId: strin
         try {
             await requireTenantMembership(userId, companyId, { active: false });
             await assertNotSuperadmin(userId, companyId, 'desactivar');
+            await assertCanManageTargetUser(currentUserIdStr, userId, companyId, 'desactivar');
             safeIds.push(userId);
         } catch (error: any) {
             errors.push({ userId, success: false, error: error.message });
@@ -1507,10 +1707,14 @@ export async function batchDeleteUsers(userIds: (string)[], currentUserId: strin
                 inArray(member.userId, safeIds),
             ));
 
-        await Promise.all(safeIds.map(id => Promise.all([
-            invalidateUserRbacCache(id, companyId),
-            cacheService.invalidate(`tenant:member:${companyId}:${id}`),
-        ])));
+        await Promise.all([
+            ...safeIds.map(id => Promise.all([
+                revokeTenantUserSessions(id, companyId),
+                invalidateUserRbacCache(id, companyId),
+                cacheService.invalidate(`tenant:member:${companyId}:${id}`),
+            ])),
+            invalidateUserFacetsCache(companyId),
+        ]);
         broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userIds: safeIds }, RealtimeEvents.ROOMS.USERS);
 
         for (const id of safeIds) logAudit(currentUserId, 'UPDATE', 'member', id, { status: 'SUSPENDED', companyId }, { status: 'ACTIVE' });
@@ -1523,11 +1727,12 @@ export async function batchDeleteUsers(userIds: (string)[], currentUserId: strin
 }
 
 /**
- * Batch restore multiple users
+ * Batch restore multiple users with atomic seat quota enforcement
  */
 export async function batchRestoreUsers(userIds: (string)[], currentUserId: string, companyId: number) {
     const currentUserIdStr = String(currentUserId);
-    const idsStr = userIds.map(id => String(id));
+    const idsStr = [...new Set(userIds.map(id => String(id)))];
+    await requireTenantMembership(currentUserIdStr, companyId);
     const organizationId = await getTenantOrganizationId(companyId);
     const safeIds = idsStr.filter(id => id !== currentUserIdStr);
     const errors: { userId: string; success: false; error: string }[] = [];
@@ -1536,39 +1741,115 @@ export async function batchRestoreUsers(userIds: (string)[], currentUserId: stri
         errors.push({ userId: currentUserId, success: false, error: 'No puedes restaurar tu propia cuenta' });
     }
 
-    if (safeIds.length > 0) {
-        const restoreIds: string[] = [];
-        for (const id of safeIds) {
-            try {
-                await requireTenantMembership(id, companyId, { active: false });
-                await assertNotSuperadmin(id, companyId, 'restaurar');
-                await checkCompanySeatQuota(companyId);
-                restoreIds.push(id);
-            } catch (error: any) {
-                errors.push({ userId: id, success: false, error: error.message });
-            }
-        }
+    const restoredIds: string[] = [];
 
-        if (restoreIds.length > 0) {
-            await adminDb.update(member)
-                .set({ status: 'ACTIVE', suspendedAt: null, suspendedBy: null })
+    if (safeIds.length > 0) {
+        await adminDb.transaction(async (tx) => {
+            await tx.execute(sql`SELECT pg_advisory_xact_lock(${companyId})`);
+
+            const [countRow] = await tx
+                .select({ count: sql<number>`count(distinct ${member.userId})::int` })
+                .from(member)
+                .innerJoin(authUsers, eq(authUsers.id, member.userId))
                 .where(and(
                     eq(member.organizationId, organizationId),
-                    inArray(member.userId, restoreIds),
+                    eq(authUsers.is_active, true),
+                    eq(member.status, 'ACTIVE'),
                 ));
+            let activeCount = countRow?.count ?? 0;
 
-            await Promise.all(restoreIds.map(id => Promise.all([
-                invalidateUserRbacCache(id, companyId),
-                cacheService.invalidate(`tenant:member:${companyId}:${id}`),
-            ])));
-            broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userIds: restoreIds }, RealtimeEvents.ROOMS.USERS);
+            const accountantRole = await tx.query.authRoles.findFirst({
+                where: and(eq(authRoles.company_id, companyId), eq(authRoles.name, SYSTEM_ROLES.CONTADOR)),
+                columns: { id: true },
+            });
+            let freeAccountantSeatUsed = false;
+            if (accountantRole) {
+                const [accRow] = await tx
+                    .select({ count: sql<number>`count(*)::int` })
+                    .from(authUserRoles)
+                    .innerJoin(authUsers, eq(authUsers.id, authUserRoles.user_id))
+                    .innerJoin(member, and(
+                        eq(member.userId, authUserRoles.user_id),
+                        eq(member.organizationId, organizationId),
+                    ))
+                    .where(and(
+                        eq(authUserRoles.company_id, companyId),
+                        eq(authUserRoles.role_id, accountantRole.id),
+                        eq(authUsers.is_active, true),
+                        eq(member.status, 'ACTIVE'),
+                    ));
+                freeAccountantSeatUsed = (accRow?.count ?? 0) > 0;
+            }
 
-            for (const id of restoreIds) logAudit(currentUserId, 'UPDATE', 'member', id, { status: 'ACTIVE', companyId }, { status: 'SUSPENDED' });
+            for (const id of safeIds) {
+                try {
+                    const membership = await requireTenantMembership(id, companyId, { active: false });
+                    if (membership.status === 'ACTIVE') {
+                        continue;
+                    }
+                    if (membership.status === 'PENDING') {
+                        throw new DomainError('El usuario tiene una invitación pendiente de aceptación', 409);
+                    }
+                    await assertNotSuperadmin(id, companyId, 'restaurar');
+                    await assertCanManageTargetUser(currentUserIdStr, id, companyId, 'restaurar');
+
+                    const roleRows = await tx
+                        .select({ roleId: authUserRoles.role_id })
+                        .from(authUserRoles)
+                        .where(and(
+                            eq(authUserRoles.user_id, id),
+                            eq(authUserRoles.company_id, companyId),
+                        ));
+                    const usesFreeAccountant = Boolean(
+                        accountantRole
+                        && !freeAccountantSeatUsed
+                        && roleRows.some(r => r.roleId === accountantRole.id)
+                    );
+
+                    const check = await canCreateUser(companyId, activeCount, usesFreeAccountant);
+                    if (!check.allowed) {
+                        throw new DomainError(
+                            check.reason || 'Límite de usuarios alcanzado para tu plan actual.',
+                            403,
+                            { code: 'PLAN_LIMIT_EXCEEDED' }
+                        );
+                    }
+
+                    await tx.update(member)
+                        .set({ status: 'ACTIVE', suspendedAt: null, suspendedBy: null })
+                        .where(and(
+                            eq(member.organizationId, organizationId),
+                            eq(member.userId, id),
+                        ));
+
+                    if (usesFreeAccountant) {
+                        freeAccountantSeatUsed = true;
+                    } else {
+                        activeCount += 1;
+                    }
+                    restoredIds.push(id);
+                } catch (error: any) {
+                    errors.push({ userId: id, success: false, error: error.message });
+                }
+            }
+        });
+
+        if (restoredIds.length > 0) {
+            await Promise.all([
+                ...restoredIds.map(id => Promise.all([
+                    invalidateUserRbacCache(id, companyId),
+                    cacheService.invalidate(`tenant:member:${companyId}:${id}`),
+                ])),
+                invalidateUserFacetsCache(companyId),
+            ]);
+            broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userIds: restoredIds }, RealtimeEvents.ROOMS.USERS);
+
+            for (const id of restoredIds) logAudit(currentUserId, 'UPDATE', 'member', id, { status: 'ACTIVE', companyId }, { status: 'SUSPENDED' });
         }
     }
 
     return [
-        ...safeIds.filter(id => !errors.some(error => error.userId === id)).map(userId => ({ userId, success: true as const })),
+        ...restoredIds.map(userId => ({ userId, success: true as const })),
         ...errors,
     ];
 }

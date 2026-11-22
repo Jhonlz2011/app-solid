@@ -4,10 +4,9 @@ import { actions as authActions } from '@modules/auth/store/auth.store';
 
 import { resolveSlugFromHost } from '@app/schema/utils';
 
-// Helper to check for 401s from Eden clients
+// Helper to check for genuine HTTP 401s from Eden/BetterAuth clients
 const isUnauthorizedError = (error: any) => {
-  return error?.status === 401 || 
-         (typeof error?.message === 'string' && error.message.includes('401'));
+  return error?.status === 401 || error?.statusCode === 401;
 };
 
 export const getTenantCacheKey = (): string => {
@@ -35,13 +34,8 @@ export const persister = {
 // Global Error Handler for both Queries and Mutations
 const handleGlobalError = (error: any) => {
   if (isUnauthorizedError(error)) {
-    console.warn('[TanStack Query] Global 401 Unauthorized detected. Forcing logout...');
-    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-      queryClient.clear();
-      persister.removeClient();
-      authActions.logout(false);
-      window.location.href = '/login';
-    }
+    console.warn('[TanStack Query] Global 401 Unauthorized detected. Delegating to single-flight logout...');
+    void authActions.handleUnauthorizedDrop();
   }
 };
 

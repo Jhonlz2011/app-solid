@@ -128,6 +128,7 @@ export const invitation = pgTableV2("invitation", {
     role: text("role"),
     status: text("status").notNull(),
     expiresAt: timestamp("expires_at", TZ).notNull(),
+    createdAt: timestamp("created_at", TZ).defaultNow().notNull(),
     inviterId: uuid("inviter_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
 }, (t) => [
     index("idx_invitation_org").on(t.organizationId),
@@ -140,6 +141,9 @@ export const twoFactor = pgTableV2("two_factor", {
     secret: text("secret").notNull(),
     backupCodes: text("backup_codes").notNull(),
     userId: uuid("user_id").references(() => user.id, { onDelete: 'cascade' }).notNull(),
+    verified: boolean("verified").default(true),
+    failedVerificationCount: integer("failed_verification_count").default(0),
+    lockedUntil: timestamp("locked_until", TZ),
 }, (t) => [
     uniqueIndex("idx_two_factor_user_unique").on(t.userId),
 ]);

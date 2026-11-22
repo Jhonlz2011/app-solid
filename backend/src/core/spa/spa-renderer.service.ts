@@ -109,7 +109,15 @@ async function getRawHtml(): Promise<string> {
     return html;
 }
 
-// Helper: inject app-config JSON (deduplicated — was repeated 3x)
+// Helper to validate safe asset URLs (prevents javascript:, data:, quote/paren breakouts)
+function isSafeAssetUrl(url: string | null | undefined): url is string {
+    if (!url || typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    if (!trimmed || /["'()\s<>\\]/.test(trimmed)) return false;
+    return trimmed.startsWith('https://') || (trimmed.startsWith('/') && !trimmed.startsWith('//'));
+}
+
+// Helper: inject app-config JSON (deduplicated — uses callback to prevent $-pattern corruption)
 function injectAppConfig(html: string, apiUrl: string, sseUrl: string): string {
     const json = JSON.stringify({
         apiUrl,
@@ -117,7 +125,8 @@ function injectAppConfig(html: string, apiUrl: string, sseUrl: string): string {
         ...(env.TURNSTILE_SITE_KEY ? { turnstileSiteKey: env.TURNSTILE_SITE_KEY } : {}),
     })
         .replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
-    return html.replace('</head>', `\n<script id="app-config" type="application/json">\n  ${json}\n</script>\n</head>`);
+    const replacement = `\n<script id="app-config" type="application/json">\n  ${json}\n</script>\n</head>`;
+    return html.replace('</head>', () => replacement);
 }
 
 // Wildcard Elysia route handler for serving the branded SPA index.html
@@ -215,8 +224,8 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                 // 3. Dynamic manifest link (crossorigin API endpoint resolved dynamically)
                 // PWA-01: manifest link is REPLACED (not appended) to avoid duplicates — see below
 
-                // 4. Favicon and shortcut icons (html escaped to prevent attribute breakouts)
-                if (company.logoUrl) {
+                // 4. Favicon and shortcut icons (URL validated + html escaped to prevent attribute breakouts)
+                if (isSafeAssetUrl(company.logoUrl)) {
                     const escapedLogoUrl = escapeHtml(company.logoUrl);
                     headInjections += `
 <link rel="shortcut icon" href="${escapedLogoUrl}">
@@ -254,18 +263,20 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
                 // Remove existing static favicon tags to avoid duplicates
                 html = html.replace(/<link[^>]+rel=["']?(?:shortcut icon|icon|apple-touch-icon)["']?[^>]*>/gi, '');
 
-                // Inyectamos estilos, JSON y favicons en el head
-                html = html.replace('</head>', `${headInjections}\n</head>`);
+                // Strip client-side branding-fallback.js when SSR branding is injected
+                // so cached localStorage branding never races ahead of fresh SSR #tenant-branding
+                html = html.replace(/<script\s+src=["']\/branding-fallback\.js["']\s*><\/script>\s*/gi, '');
+
+                // Inyectamos estilos, JSON y favicons en el head (callback avoids $-pattern interpretation)
+                html = html.replace('</head>', () => `${headInjections}\n</head>`);
 
                 // 5. Replace manifest link (NOT append) to avoid duplicate <link rel="manifest"> — PWA-01
-                html = html.replace(
-                    /<link rel="manifest"[^>]*>/,
-                    `<link rel="manifest" crossorigin="use-credentials" href="${apiUrl}/api/tenants/tenant-manifest?slug=${company.slug}" />`
-                );
+                const manifestTag = `<link rel="manifest" crossorigin="use-credentials" href="${escapeHtml(apiUrl)}/api/tenants/tenant-manifest?slug=${encodeURIComponent(company.slug)}" />`;
+                html = html.replace(/<link rel="manifest"[^>]*>/, () => manifestTag);
 
-                // 6. Title tag dynamic replacement (escaped to prevent injection)
+                // 6. Title tag dynamic replacement (escaped + callback to prevent $-pattern & XSS injection)
                 const titleText = escapeHtml(`${company.tradeName || company.businessName}`);
-                html = html.replace(/<title>.*?<\/title>/, `<title>${titleText}</title>`);
+                html = html.replace(/<title>.*?<\/title>/, () => `<title>${titleText}</title>`);
             } else {
                 // Tenant not found or inactive
                 html = injectAppConfig(html, apiUrl, sseUrl);

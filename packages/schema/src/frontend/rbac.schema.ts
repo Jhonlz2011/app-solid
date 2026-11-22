@@ -1,4 +1,4 @@
-import { pipe, email, string, minLength, object, boolean, array, number, optional, nullable, union, literal, type InferInput } from 'valibot';
+import { pipe, email, string, minLength, maxLength, trim, object, boolean, array, number, optional, nullable, union, literal, type InferInput } from 'valibot';
 import { EmailFormatSchema, UsernameFormatSchema } from './auth.schema';
 
 export const UserCreateSchema = object({
@@ -15,8 +15,16 @@ export type UserCreateData = InferInput<typeof UserCreateSchema>;
 export const AcceptInvitationSchema = object({
     token: pipe(string(), minLength(10, 'Token de invitación inválido')),
     email: pipe(string(), email('Correo electrónico inválido')),
-    password: pipe(string(), minLength(8, 'La contraseña debe tener al menos 8 caracteres')),
-    confirmPassword: pipe(string(), minLength(8, 'Confirma tu contraseña')),
+    password: pipe(
+        string(),
+        minLength(8, 'La contraseña debe tener al menos 8 caracteres'),
+        maxLength(128, 'La contraseña no puede exceder 128 caracteres')
+    ),
+    confirmPassword: pipe(
+        string(),
+        minLength(8, 'Confirma tu contraseña'),
+        maxLength(128, 'La contraseña no puede exceder 128 caracteres')
+    ),
 });
 export type AcceptInvitationData = InferInput<typeof AcceptInvitationSchema>;
 
@@ -43,14 +51,14 @@ export type UserAssignEntityData = InferInput<typeof UserAssignEntitySchema>;
 
 // --- ROLE SCHEMAS ---
 export const RoleCreateSchema = object({
-    name: pipe(string(), minLength(2, 'El nombre del rol debe tener al menos 2 caracteres')),
+    name: pipe(string(), trim(), minLength(2, 'El nombre del rol debe tener al menos 2 caracteres')),
     description: optional(nullable(string())),
 });
 
 export type RoleCreateData = InferInput<typeof RoleCreateSchema>;
 
 export const RoleUpdateSchema = object({
-    name: pipe(string(), minLength(2, 'El nombre del rol debe tener al menos 2 caracteres')),
+    name: pipe(string(), trim(), minLength(2, 'El nombre del rol debe tener al menos 2 caracteres')),
     description: optional(nullable(string())),
 });
 export type RoleUpdateData = InferInput<typeof RoleUpdateSchema>;

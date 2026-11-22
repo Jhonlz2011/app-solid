@@ -15,13 +15,14 @@ cleanupOutdatedCaches();
 // 1. Precachear los assets del App Shell inyectados por Vite en el build
 precacheAndRoute(self.__WB_MANIFEST || []);
 
-// 2. Runtime Caching para Chunks Lazy-Loaded de JavaScript y CSS
-// Evita el error bad-precaching-response si un chunk cambió de hash en el nuevo build de AWS/GHCR
+// 2. Runtime Caching para Chunks Lazy-Loaded de JavaScript y CSS (solo mismo origen; nunca scripts externos como Turnstile)
 registerRoute(
   ({ request, url }) =>
-    request.destination === 'script' ||
-    request.destination === 'style' ||
-    url.pathname.startsWith('/assets/'),
+    url.origin === self.location.origin && (
+      request.destination === 'script' ||
+      request.destination === 'style' ||
+      url.pathname.startsWith('/assets/')
+    ),
   new StaleWhileRevalidate({
     cacheName: 'app-dynamic-chunks',
     plugins: [
@@ -33,10 +34,18 @@ registerRoute(
   })
 );
 
+const SENSITIVE_AUTH_PATHS = ['/verify-email', '/accept-invitation', '/reset-password', '/forgot-password'];
+
 // 3. OPT-05: Use NetworkFirst for navigation routes so the backend can inject
-// dynamic tenant branding into index.html. Falls back to cache when offline.
+// dynamic tenant branding into index.html. Never cache routes carrying auth tokens/handoffs.
 registerRoute(
-  ({ request }) => request.mode === 'navigate' && !new URL(request.url).pathname.startsWith('/api'),
+  ({ request, url }) => {
+    if (request.mode !== 'navigate') return false;
+    if (url.pathname.startsWith('/api')) return false;
+    if (SENSITIVE_AUTH_PATHS.some((p) => url.pathname.startsWith(p))) return false;
+    if (url.searchParams.has('handoff') || url.searchParams.has('token')) return false;
+    return true;
+  },
   new NetworkFirst({
     cacheName: 'branded-navigation',
     networkTimeoutSeconds: 5,

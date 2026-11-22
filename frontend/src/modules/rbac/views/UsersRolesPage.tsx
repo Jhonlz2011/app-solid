@@ -236,35 +236,39 @@ const UsersRolesPage: Component = () => {
             >
                 <SelectionBarAction icon={<CopyIcon class="size-4" />} label="Copiar" onClick={state.handleCopySelection} iconOnMobile />
                 <SelectionBarSeparator />
-                <Show when={state.selectedActiveCount() > 0 && state.selectedInactiveCount() === 0}>
+                <Show when={state.selectedActiveCount() > 0 && state.selectedInactiveCount() === 0 && state.auth.canDelete('users')}>
                     <SelectionBarAction
                         icon={<BanIcon class="size-4" />} label="Desactivar" variant="danger"
                         onClick={state.handleBulkDelete} loading={state.bulkDeleteMutation.isPending} loadingText="Desactivando..."
                     />
                 </Show>
-                <Show when={state.selectedInactiveCount() > 0 && state.selectedActiveCount() === 0}>
+                <Show when={state.selectedInactiveCount() > 0 && state.selectedActiveCount() === 0 && state.auth.canRestore('users')}>
                     <SelectionBarAction
                         icon={<RotateCcwIcon class="size-4" />} label="Restaurar" variant="success"
                         onClick={() => state.setShowBulkRestoreConfirm(true)} loading={state.bulkRestoreMutation.isPending} loadingText="Restaurando..."
                     />
                 </Show>
-                <Show when={state.selectedActiveCount() > 0 && state.selectedInactiveCount() > 0}>
+                <Show when={state.selectedActiveCount() > 0 && state.selectedInactiveCount() > 0 && (state.auth.canDelete('users') || state.auth.canRestore('users'))}>
                     <DropdownMenu placement="top-start">
                         <DropdownMenu.Trigger variant="ghost" size="sm" class="h-8 px-2.5 text-sm gap-1.5 focus-visible:ring-0">
                             <span>Acciones</span>
                             <ChevronsUpDownIcon class="size-3.5" />
                         </DropdownMenu.Trigger>
                         <DropdownMenu.Content class="min-w-45">
-                            <DropdownMenu.Item onSelect={state.handleBulkDelete} destructive>
-                                <BanIcon class="size-4 mr-2" />
-                                <span class="flex-1 font-medium">Desactivar Activos</span>
-                                <span class="bg-danger/20 text-danger font-bold text-xs px-1.5 py-0.5 rounded tabular-nums">{state.selectedActiveCount()}</span>
-                            </DropdownMenu.Item>
-                            <DropdownMenu.Item onSelect={() => state.setShowBulkRestoreConfirm(true)}>
-                                <RotateCcwIcon class="size-4 mr-2 text-emerald-500" />
-                                <span class="flex-1 text-emerald-500 font-medium">Restaurar Inactivos</span>
-                                <span class="bg-emerald-500/20 text-emerald-500 font-bold text-xs px-1.5 py-0.5 rounded tabular-nums">{state.selectedInactiveCount()}</span>
-                            </DropdownMenu.Item>
+                            <Show when={state.auth.canDelete('users')}>
+                                <DropdownMenu.Item onSelect={state.handleBulkDelete} destructive>
+                                    <BanIcon class="size-4 mr-2" />
+                                    <span class="flex-1 font-medium">Desactivar Activos</span>
+                                    <span class="bg-danger/20 text-danger font-bold text-xs px-1.5 py-0.5 rounded tabular-nums">{state.selectedActiveCount()}</span>
+                                </DropdownMenu.Item>
+                            </Show>
+                            <Show when={state.auth.canRestore('users')}>
+                                <DropdownMenu.Item onSelect={() => state.setShowBulkRestoreConfirm(true)}>
+                                    <RotateCcwIcon class="size-4 mr-2 text-emerald-500" />
+                                    <span class="flex-1 text-emerald-500 font-medium">Restaurar Inactivos</span>
+                                    <span class="bg-emerald-500/20 text-emerald-500 font-bold text-xs px-1.5 py-0.5 rounded tabular-nums">{state.selectedInactiveCount()}</span>
+                                </DropdownMenu.Item>
+                            </Show>
                         </DropdownMenu.Content>
                     </DropdownMenu>
                 </Show>

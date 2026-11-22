@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia';
 import { ForbiddenError, UnauthorizedError } from '../core/errors';
-import { auth, resolveCompanyIdFromOrg } from '../config/better-auth';
+import { auth, resolveCompanyIdFromOrg, isAllowedOriginUrl } from '../config/better-auth';
 import { adminDb, tenantStorage } from '../core/db';
 import { member } from '@app/schema/tables';
 import { companies } from '@app/schema/tables';
@@ -17,9 +17,6 @@ type AuthUserSecurityFields = {
 };
 
 function getRequestTenantHost(request: Request): string {
-  // The browser Origin identifies the caller, not the tenant API host. Never
-  // use it for authorization. Host is authoritative; Forwarded is only a
-  // sanitized fallback for deployments where the proxy removes Host.
   const host = request.headers.get('host');
   if (host) return host;
 
@@ -28,6 +25,25 @@ function getRequestTenantHost(request: Request): string {
   const forwarded = request.headers.get('forwarded');
   const forwardedHost = forwarded?.match(/(?:^|;)\s*host="?([^";,\s]+)"?/i)?.[1];
   return forwardedHost ?? '';
+}
+
+function getRequestTenantSlug(request: Request): string | null {
+  const host = getRequestTenantHost(request);
+  const hostSlug = resolveSlugFromHost(host);
+  if (hostSlug) return hostSlug;
+
+  // When requests hit the shared API host (api.zelys.app), check the browser's
+  // Origin header (only if it passes strict trusted-origin validation) to enforce
+  // subdomain-to-tenant isolation on cross-origin browser calls.
+  const origin = request.headers.get('origin');
+  if (origin && isAllowedOriginUrl(origin)) {
+    try {
+      const originSlug = resolveSlugFromHost(new URL(origin).hostname);
+      if (originSlug) return originSlug;
+    } catch { /* ignore invalid origin */ }
+  }
+
+  return null;
 }
 
 export const authGuard = (app: Elysia) => app
@@ -83,8 +99,7 @@ export const authGuard = (app: Elysia) => app
       }
 
       // 3. Validate subdomain matches active organization & verify user membership
-      const host = getRequestTenantHost(request);
-      const slug = resolveSlugFromHost(host);
+      const slug = getRequestTenantSlug(request);
 
       if (slug) {
         const hostCompany = await getTenantBySlug(slug);

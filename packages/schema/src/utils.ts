@@ -15,7 +15,7 @@ export function tenantPolicy(columnName = 'company_id') {
     as: 'permissive',
     for: 'all',
     to: 'public',
-    using: sql`${sql.raw(columnName)} = current_setting('app.current_company_id', true)::integer`,
-    withCheck: sql`${sql.raw(columnName)} = current_setting('app.current_company_id', true)::integer`,
+    using: sql`${sql.raw(columnName)} = NULLIF(current_setting('app.current_company_id', true), '')::integer`,
+    withCheck: sql`${sql.raw(columnName)} = NULLIF(current_setting('app.current_company_id', true), '')::integer`,
   });
 }

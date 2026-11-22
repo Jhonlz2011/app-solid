@@ -7,6 +7,7 @@
 import { createMutation, useQueryClient } from '@tanstack/solid-query';
 import { addOptimisticItem, removeCacheItems, updateCacheItem, type CacheShape } from '@shared/utils/query.utils';
 import { rbacKeys } from './users.keys';
+import { saasKeys } from '@modules/saas/data/saas.queries';
 import { usersApi } from './users.api';
 import type {
     UserListItemType,
@@ -19,12 +20,13 @@ import type { PermissionSlug } from '@app/schema/enums';
 // Shared Mutation Helpers
 // =============================================================================
 
-/** Standardized onSettled for user lifecycle mutations — invalidates lists, facets, roles */
+/** Standardized onSettled for user lifecycle mutations — invalidates lists, facets, roles & SaaS seat quota */
 function userOnSettled(queryClient: ReturnType<typeof useQueryClient>) {
     return () => {
         queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
         queryClient.invalidateQueries({ queryKey: [...rbacKeys.all, 'facets'], exact: false });
         queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
+        queryClient.invalidateQueries({ queryKey: saasKeys.subscription() });
     };
 }
 
@@ -229,6 +231,7 @@ export function useCreateUser() {
             queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
             queryClient.invalidateQueries({ queryKey: [...rbacKeys.all, 'facets'], exact: false });
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
+            queryClient.invalidateQueries({ queryKey: saasKeys.subscription() });
         },
     }));
 }
@@ -240,8 +243,12 @@ export function useUpdateUser() {
         mutationFn: ({ id, ...data }: { id: string } & Parameters<typeof usersApi.updateUser>[1]) =>
             usersApi.updateUser(id, data),
         onMutate: async ({ id, ...updates }) => {
-            await queryClient.cancelQueries({ queryKey: rbacKeys.user(id) });
+            await Promise.all([
+                queryClient.cancelQueries({ queryKey: rbacKeys.user(id) }),
+                queryClient.cancelQueries({ queryKey: rbacKeys.lists() }),
+            ]);
             const previousUser = queryClient.getQueryData(rbacKeys.user(id));
+            const previousLists = queryClient.getQueriesData({ queryKey: rbacKeys.lists() });
 
             if (previousUser) {
                 queryClient.setQueryData(rbacKeys.user(id), (old: unknown) => {
@@ -255,15 +262,18 @@ export function useUpdateUser() {
                 return updateCacheItem(old, { id, ...updates } as unknown as UserListItemType);
             });
 
-            return { previousUser };
+            return { previousUser, previousLists };
         },
         onError: (_err, { id }, context) => {
             if (context?.previousUser) queryClient.setQueryData(rbacKeys.user(id), context.previousUser);
+            context?.previousLists?.forEach(([key, data]) => queryClient.setQueryData(key, data));
         },
         onSettled: (_data, _err, { id }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
             queryClient.invalidateQueries({ queryKey: rbacKeys.user(id) });
             queryClient.invalidateQueries({ queryKey: [...rbacKeys.all, 'facets'], exact: false });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
+            queryClient.invalidateQueries({ queryKey: saasKeys.subscription() });
         },
     }));
 }

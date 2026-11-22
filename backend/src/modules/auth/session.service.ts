@@ -137,6 +137,24 @@ export async function revokeSession(sessionId: string, userId: string | number, 
         redis.del(token),
         redis.del(`session:${sessionId}`),
       ]);
+
+      // Prune revoked token from Better Auth secondaryStorage active-sessions index
+      const activeListKey = `active-sessions-${userIdStr}`;
+      const listRaw = await redis.get(activeListKey);
+      if (listRaw) {
+        const parsed = JSON.parse(listRaw) as Array<{ token: string; expiresAt: number }>;
+        const remaining = parsed.filter(entry => entry.token !== token);
+        if (remaining.length > 0) {
+          const ttl = await redis.ttl(activeListKey);
+          if (ttl > 0) {
+            await redis.set(activeListKey, JSON.stringify(remaining), 'EX', ttl);
+          } else {
+            await redis.set(activeListKey, JSON.stringify(remaining));
+          }
+        } else {
+          await redis.del(activeListKey);
+        }
+      }
     } catch { /* Redis delete best effort */ }
   }
 

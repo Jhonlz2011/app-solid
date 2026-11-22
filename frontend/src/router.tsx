@@ -66,6 +66,7 @@ const verifyEmailRoute = createRoute({
   path: 'verify-email',
   validateSearch: (search: Record<string, unknown>) => ({
     token: (search.token as string) || undefined,
+    email: (search.email as string) || undefined,
   }),
   beforeLoad: async ({ search }) => {
     // Si viene un token en los parámetros de búsqueda, permitir cargar para verificarlo
@@ -112,7 +113,7 @@ const layoutRoute = createRoute({
 
     const isGlobal = isGlobalPortalHost(window.location.hostname);
     const currentSlug = resolveSlugFromHost(window.location.hostname);
-    const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, safeTarget);
+    const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, safeTarget, location.pathname);
 
     await executeAuthGuard(decision, {
       targetPath: safeTarget,

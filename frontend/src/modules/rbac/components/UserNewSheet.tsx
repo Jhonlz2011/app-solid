@@ -8,7 +8,7 @@ import Button from '@form/Button';
 import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { MailIcon } from '@icons/MailIcon';
 import { useRoles } from '../data/users.queries';
-import { useCreateUser, useSetUserEntity } from '../data/users.mutations';
+import { useCreateUser } from '../data/users.mutations';
 import { UserCreateForm, type UserCreateFormState } from './UserCreateForm';
 
 interface UserNewSheetProps {
@@ -21,7 +21,6 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
     const initialRoleName = () => (search() as any)?.role as string | undefined;
     const createMutation = useCreateUser();
     const rolesQuery = useRoles();
-    const setEntityMutation = useSetUserEntity();
 
     const [formState, setFormState] = createSignal<UserCreateFormState>({
         mode: 'invite',
@@ -37,7 +36,8 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
 
     const handleSubmit = async (values: UserCreateData) => {
         const isInvite = isInviteFlow();
-        const created = await executeFormMutation({
+        // POST /rbac/users persists entityId atomically within the user/membership creation transaction
+        await executeFormMutation({
             mutation: createMutation,
             variables: values,
             successMessage: isInvite
@@ -45,17 +45,9 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
                 : `Usuario "${values.username || values.email}" creado correctamente`,
             onComplete: close,
         });
-
-        // Assign entity if selected
-        if (values.entityId && created?.id) {
-            await setEntityMutation.mutateAsync({
-                userId: created.id,
-                entityId: values.entityId,
-            });
-        }
     };
 
-    const isPending = () => createMutation.isPending || setEntityMutation.isPending;
+    const isPending = () => createMutation.isPending;
 
     return (
         <Sheet

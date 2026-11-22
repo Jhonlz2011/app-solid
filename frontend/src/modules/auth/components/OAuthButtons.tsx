@@ -2,7 +2,7 @@ import { Component, createSignal, onMount, onCleanup } from 'solid-js';
 import { toast } from 'solid-sonner';
 import { authClient } from '@shared/lib/auth-client';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
-import { isGlobalPortalHost } from '@app/schema/utils';
+import { getSafeRedirectPath } from '../utils/resolve-routing';
 import Button from '@form/Button';
 
 interface OAuthButtonsProps {
@@ -43,6 +43,7 @@ export const MicrosoftIcon: Component<{ class?: string }> = (props) => (
 
 export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
   const [loadingProvider, setLoadingProvider] = createSignal<'google' | 'microsoft' | null>(null);
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
   // Industry Standard: Reset loading state on mount, Back/Forward browser navigation (BFCache), or tab visibility
   onMount(() => {
@@ -63,6 +64,7 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     onCleanup(() => {
+      clearTimeout(timeoutId);
       window.removeEventListener('pageshow', handleReset);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     });
@@ -72,25 +74,23 @@ export const OAuthButtons: Component<OAuthButtonsProps> = (props) => {
     if (loadingProvider()) return;
 
     setLoadingProvider(provider);
-    const timeoutId = setTimeout(() => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
       setLoadingProvider(null);
     }, 15000);
     try {
-      // OAuth callback should ALWAYS return to the global portal (/login) so the
-      // tenant selector can resolve multi-org membership. If the user only has 1 org,
-      // the Login.tsx onMount fast-paths to the tenant subdomain automatically.
-      const isGlobal = isGlobalPortalHost(window.location.hostname);
-
-      // For global portal or login mode: always callback to /login for org resolution
-      // For register mode on a specific subdomain: callback to current origin
-      let callbackOrigin = window.location.origin;
+      const callbackOrigin = window.location.origin;
       let targetPath = '/login';
 
       if (props.mode === 'register') {
-        targetPath = props.redirectPath || '/register';
-      } else if (props.redirectPath && props.redirectPath !== '/dashboard' && props.redirectPath !== '/') {
-        // Preserve specific redirect paths (e.g. /suppliers) via ?redirect param
-        targetPath = `/login?redirect=${encodeURIComponent(props.redirectPath)}`;
+        targetPath = props.redirectPath && props.redirectPath.startsWith('/register')
+          ? props.redirectPath
+          : '/register';
+      } else if (props.redirectPath) {
+        const safeRedirect = getSafeRedirectPath(props.redirectPath);
+        if (safeRedirect !== '/dashboard') {
+          targetPath = `/login?redirect=${encodeURIComponent(safeRedirect)}`;
+        }
       }
 
       const targetWithParam = targetPath.includes('?')

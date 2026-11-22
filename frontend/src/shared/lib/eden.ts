@@ -30,7 +30,8 @@ const customFetcher = (async (url: RequestInfo | URL, options?: RequestInit) => 
         setOnlineStatus(true);
         // GLOBAL 401 INTERCEPTOR (Catches API drops before TanStack Query morphs them)
         if (response.status === 401) {
-            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+            const publicAuthPaths = ['/login', '/register', '/verify-email', '/accept-invitation', '/forgot-password', '/reset-password'];
+            if (typeof window !== 'undefined' && !publicAuthPaths.some(p => window.location.pathname.startsWith(p))) {
                 window.dispatchEvent(new CustomEvent('auth:unauthorized'));
             }
         }

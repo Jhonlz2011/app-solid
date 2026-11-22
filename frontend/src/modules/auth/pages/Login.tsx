@@ -9,7 +9,7 @@ import { authApi } from '../api/auth.api';
 import { useBranding, getSubdomain } from '../store/branding.store';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import { isGlobalPortalHost, resolveSlugFromHost } from '@app/schema/utils';
-import { resolvePostAuthRouting, getSafeRedirectPath, executeAuthNavigation } from '../utils/resolve-routing';
+import { resolvePostAuthRouting, getSafeRedirectPath, executeAuthNavigation, buildHandoffTargetUrl } from '../utils/resolve-routing';
 import TextField from '@form/TextField';
 import Button from '@form/Button';
 import Turnstile from '@shared/ui/Turnstile';
@@ -31,8 +31,16 @@ const Login: Component = () => {
   const [discoveredTenants, setDiscoveredTenants] = createSignal<DiscoverTenantItemType[]>([]);
   const [loadingTenants, setLoadingTenants] = createSignal(false);
 
+  // Two-factor challenge state
+  const [twoFactorRequired, setTwoFactorRequired] = createSignal(false);
+  const [twoFactorMode, setTwoFactorMode] = createSignal<'totp' | 'backup'>('totp');
+  const [twoFactorCode, setTwoFactorCode] = createSignal('');
+  const [trustDevice, setTrustDevice] = createSignal(false);
+  const [verifyingTwoFactor, setVerifyingTwoFactor] = createSignal(false);
+
   // Turnstile token state
   const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
+  let turnstileActions: { reset: () => void } | undefined;
 
   onMount(() => {
     // 1. Reactive check for OAuth error passed in search params (H-01)
@@ -71,11 +79,58 @@ const Login: Component = () => {
     try {
       const safePath = getSafeRedirectPath(search());
       const handoff = await authApi.requestTenantHandoff(tenant.organizationId, tenant.slug);
-      window.location.href = handoff.redirectUrl.replace('/dashboard', safePath);
+      window.location.href = buildHandoffTargetUrl(handoff.redirectUrl, safePath);
     } catch (err: any) {
       toast.error(err?.message || 'Error al seleccionar empresa');
     } finally {
       setLoadingTenants(false);
+    }
+  };
+
+  const completePostLoginNavigation = async (user: { companySlug?: string | null }) => {
+    const safePath = getSafeRedirectPath(search());
+    const isGlobal = isGlobalPortalHost(window.location.hostname);
+    const currentSlug = resolveSlugFromHost(window.location.hostname);
+    const decision = await resolvePostAuthRouting(user, isGlobal, currentSlug, safePath);
+
+    const navigated = await executeAuthNavigation(decision, {
+      safePath,
+      switchOrg: actions.switchOrganization,
+    });
+
+    if (!navigated) {
+      if (decision.action === 'no-access') {
+        toast.error('Acceso denegado a este inquilino.');
+      }
+      if ('tenants' in decision && decision.tenants.length > 0) {
+        setDiscoveredTenants(decision.tenants);
+        setShowTenants(true);
+      }
+    }
+  };
+
+  const handleTwoFactorSubmit = async (e: Event) => {
+    e.preventDefault();
+    const code = twoFactorCode().trim();
+    if (!code) {
+      toast.error(twoFactorMode() === 'backup' ? 'Ingresa un código de respaldo' : 'Ingresa el código de 6 dígitos');
+      return;
+    }
+
+    setVerifyingTwoFactor(true);
+    try {
+      const res = await actions.completeTwoFactorLogin({
+        code,
+        mode: twoFactorMode(),
+        trustDevice: trustDevice(),
+      });
+      setTwoFactorRequired(false);
+      setTwoFactorCode('');
+      await completePostLoginNavigation(res.user);
+    } catch (err) {
+      toast.error(getFriendlyErrorMessage(err, 'Código de verificación inválido'));
+    } finally {
+      setVerifyingTwoFactor(false);
     }
   };
 
@@ -100,28 +155,20 @@ const Login: Component = () => {
           turnstileToken: turnstileToken(),
         });
 
-        const safePath = getSafeRedirectPath(search());
-        const isGlobal = isGlobalPortalHost(window.location.hostname);
-        const currentSlug = resolveSlugFromHost(window.location.hostname);
-        const decision = await resolvePostAuthRouting(res.user, isGlobal, currentSlug, safePath);
-
-        const navigated = await executeAuthNavigation(decision, {
-          safePath,
-          switchOrg: actions.switchOrganization,
-        });
-
-        if (!navigated) {
-          if (decision.action === 'no-access') {
-            toast.error('Acceso denegado a este inquilino.');
-          }
-          if ('tenants' in decision && decision.tenants.length > 0) {
-            setDiscoveredTenants(decision.tenants);
-            setShowTenants(true);
-          }
+        if (res.requiresTwoFactor) {
+          setTwoFactorRequired(true);
+          setTwoFactorMode('totp');
+          setTwoFactorCode('');
+          toast.info('Ingresa el código de tu aplicación de autenticación para continuar.');
+          return;
         }
+
+        await completePostLoginNavigation(res.user);
       } catch (err) {
         setShowTenants(false);
         setDiscoveredTenants([]);
+        setTurnstileToken(null);
+        turnstileActions?.reset();
         toast.error(getFriendlyErrorMessage(err, 'Error al iniciar sesión'));
       }
     },
@@ -190,7 +237,7 @@ const Login: Component = () => {
       </div>
 
       {/* ── Main Login Form ── */}
-      <Show when={!showTenants()}>
+      <Show when={!showTenants() && !twoFactorRequired()}>
         <form
           id="login-form"
           onSubmit={(e) => {
@@ -254,6 +301,7 @@ const Login: Component = () => {
           <Turnstile
             class="-mt-5 pt-4"
             action="login"
+            ref={(act) => { turnstileActions = act; }}
             onToken={(token) => setTurnstileToken(token)}
             onExpire={() => setTurnstileToken(null)}
             onError={() => {
@@ -289,12 +337,7 @@ const Login: Component = () => {
           </div>
 
           <OAuthButtons
-            redirectPath={
-              (() => {
-              const redirectTo = search()?.redirect;
-                return typeof redirectTo === 'string' && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
-              })()
-            }
+            redirectPath={getSafeRedirectPath(search())}
           />
 
           <Show when={!branding.tenant()}>
@@ -309,6 +352,82 @@ const Login: Component = () => {
               </a>
             </p>
           </Show>
+        </form>
+      </Show>
+
+      {/* ── Two-Factor Challenge (TOTP / Backup Code) ── */}
+      <Show when={twoFactorRequired() && !showTenants()}>
+        <form onSubmit={handleTwoFactorSubmit} class="flex flex-col gap-4 animate-in fade-in duration-300" novalidate>
+          <div>
+            <h3 class="text-base font-semibold text-heading">Verificación en dos pasos (2FA)</h3>
+            <p class="text-xs text-muted mt-0.5">
+              {twoFactorMode() === 'totp'
+                ? 'Ingresa el código de 6 dígitos generado por tu aplicación de autenticación.'
+                : 'Ingresa uno de tus códigos de respaldo de un solo uso.'}
+            </p>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label for="login-2fa-code" class="text-xs font-medium text-heading">
+              {twoFactorMode() === 'totp' ? 'Código de autenticación *' : 'Código de respaldo *'}
+            </label>
+            <input
+              id="login-2fa-code"
+              type="text"
+              inputMode={twoFactorMode() === 'totp' ? 'numeric' : 'text'}
+              autocomplete="one-time-code"
+              placeholder={twoFactorMode() === 'totp' ? '000000' : 'xxxxx-xxxxx'}
+              value={twoFactorCode()}
+              onInput={(e) => setTwoFactorCode(e.currentTarget.value)}
+              disabled={verifyingTwoFactor()}
+              class="w-full px-3.5 py-2.5 text-center text-base tracking-widest font-mono rounded-xl border border-border bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:opacity-60"
+            />
+          </div>
+
+          <label class="flex items-center gap-2 text-xs text-muted cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={trustDevice()}
+              onChange={(e) => setTrustDevice(e.currentTarget.checked)}
+              class="rounded border-border text-primary focus:ring-primary/30"
+            />
+            Confiar en este dispositivo durante 30 días
+          </label>
+
+          <Button
+            type="submit"
+            fullWidth
+            loading={verifyingTwoFactor()}
+            loadingText="Verificando código…"
+          >
+            Verificar y continuar
+          </Button>
+
+          <div class="flex items-center justify-between text-xs pt-1">
+            <button
+              type="button"
+              class="text-primary hover:underline cursor-pointer"
+              onClick={() => {
+                setTwoFactorMode(prev => (prev === 'totp' ? 'backup' : 'totp'));
+                setTwoFactorCode('');
+              }}
+            >
+              {twoFactorMode() === 'totp' ? 'Usar código de respaldo' : 'Usar código de la app'}
+            </button>
+
+            <button
+              type="button"
+              class="text-muted hover:text-heading cursor-pointer"
+              onClick={() => {
+                setTwoFactorRequired(false);
+                setTwoFactorCode('');
+                setTurnstileToken(null);
+                turnstileActions?.reset();
+              }}
+            >
+              Volver
+            </button>
+          </div>
         </form>
       </Show>
 

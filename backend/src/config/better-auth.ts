@@ -424,7 +424,10 @@ export const auth = betterAuth({
     },
     hooks: {
         before: createAuthMiddleware(async (ctx) => {
-            if (ctx.path === '/sign-in/email' || ctx.path === '/sign-in/username') {
+            const isPasswordSignIn = ctx.path === '/sign-in/email' || ctx.path === '/sign-in/username';
+            const isPublicPasswordResetRequest = ctx.path === '/request-password-reset' && Boolean(ctx.request);
+
+            if (isPasswordSignIn || isPublicPasswordResetRequest) {
                 const headers = ctx.headers || ctx.request?.headers;
                 const extracted = headers ? extractIpFromHeaders(headers) : null;
                 const turnstileToken = headers?.get('x-turnstile-token');
@@ -440,7 +443,7 @@ export const auth = betterAuth({
                 const { verifyTurnstileToken } = await import('../core/security/turnstile.service');
                 try {
                     await verifyTurnstileToken(turnstileToken, {
-                        action: 'login',
+                        action: isPublicPasswordResetRequest ? 'forgot_password' : 'login',
                         ipAddress: extracted?.ipAddress ?? undefined,
                         requestId: headers?.get('x-request-id') ?? undefined,
                         expectedHostname,
@@ -588,10 +591,10 @@ export const auth = betterAuth({
         requireEmailVerification: true,
         revokeSessionsOnPasswordReset: true,
         password: argon2PasswordConfig,
-        sendResetPassword: async ({ user, url, token }) => {
+        sendResetPassword: async ({ user, token }) => {
             const { tenantSlug, recipientName } = await getTenantInfoForEmail(user.email);
             const baseUrl = resolveTenantUrl(tenantSlug);
-            const resetUrl = `${baseUrl}/reset-password?token=${token}&url=${encodeURIComponent(url)}`;
+            const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
             await emailService.sendPasswordResetEmail(user.email, resetUrl, recipientName);
         },
     },

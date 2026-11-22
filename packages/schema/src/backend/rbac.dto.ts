@@ -116,7 +116,7 @@ export const UserDetailResponseSchema = Type.Object({
 
 export const RbacUserCreateBodySchema = Type.Object({
     email: Type.String({ format: 'email' }),
-    username: Type.Optional(Type.String({ minLength: 3 })),
+    username: Type.Optional(Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9._-]+$' })),
     roleIds: Type.Array(Type.Number(), { minItems: 1 }),
     entityId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     mode: Type.Optional(Type.Literal('invite')),
@@ -126,13 +126,16 @@ export const RbacUserCreateBodySchema = Type.Object({
 export const RbacAcceptInvitationBodySchema = Type.Object({
     token: Type.String({ minLength: 10 }),
     email: Type.String({ format: 'email' }),
-    password: Type.String({ minLength: 8 }),
+    password: Type.Optional(Type.String({ minLength: 8, maxLength: 128 })),
+    turnstileToken: Type.Optional(Type.String()),
 });
 
 export const RbacAcceptInvitationResponseSchema = Type.Object({
     success: Type.Boolean(),
     email: Type.String({ format: 'email' }),
     organizationId: Type.String(),
+    requiresLogin: Type.Boolean(),
+    isExistingUser: Type.Boolean(),
 });
 
 export const RbacUserUpdateBodySchema = Type.Object({
@@ -152,7 +155,7 @@ export const RbacUserAssignEntityBodySchema = Type.Object({
 });
 
 export const UserRolesAssignBodySchema = Type.Object({
-    roleIds: Type.Array(Type.Number()),
+    roleIds: Type.Array(Type.Number(), { minItems: 1 }),
 });
 
 export const UserReferencesResponseSchema = Type.Object({

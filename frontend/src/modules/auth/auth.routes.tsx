@@ -8,6 +8,15 @@ export const createAuthRoutes = (rootRoute: any) => {
         getParentRoute: () => rootRoute,
         id: 'auth-layout',
         beforeLoad: async ({ location }): Promise<{ postAuthDecision?: RoutingDecision }> => {
+            // Allow invitation acceptance & password recovery pages without auto-redirecting away
+            if (
+                location.pathname.includes('/accept-invitation') ||
+                location.pathname.includes('/reset-password') ||
+                location.pathname.includes('/forgot-password')
+            ) {
+                return { postAuthDecision: undefined };
+            }
+
             const { actions } = await import('./store/auth.store');
             const user = await actions.ensureSession();
             if (!user) return { postAuthDecision: undefined };
@@ -65,10 +74,34 @@ export const createAuthRoutes = (rootRoute: any) => {
             return {
                 token: (search.token as string) || undefined,
                 email: (search.email as string) || undefined,
+                existing: search.existing === '1' || search.existing === 'true' || search.existing === true || undefined,
             };
         },
         component: lazyRouteComponent(() => import('./pages/AcceptInvitation')),
     });
 
-    return authRoute.addChildren([loginRoute, registerRoute, acceptInvitationRoute]);
+    const forgotPasswordRoute = createRoute({
+        getParentRoute: () => authRoute,
+        path: 'forgot-password',
+        component: lazyRouteComponent(() => import('./pages/ForgotPassword')),
+    });
+
+    const resetPasswordRoute = createRoute({
+        getParentRoute: () => authRoute,
+        path: 'reset-password',
+        validateSearch: (search: Record<string, unknown>) => {
+            return {
+                token: (search.token as string) || undefined,
+            };
+        },
+        component: lazyRouteComponent(() => import('./pages/ResetPassword')),
+    });
+
+    return authRoute.addChildren([
+        loginRoute,
+        registerRoute,
+        acceptInvitationRoute,
+        forgotPasswordRoute,
+        resetPasswordRoute,
+    ]);
 };

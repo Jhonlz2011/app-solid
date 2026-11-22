@@ -7,9 +7,9 @@ import { type RbacModule, type PermissionSlug, type AnyPermissionSlug, type Acti
 import { resolveAllowedModulesFromFeatures } from '@app/schema/backend';
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
-import { brandingActions } from "./branding.store";
+import { brandingActions, applyBranding, getSubdomain } from "./branding.store";
 import { getFriendlyErrorMessage } from "@shared/utils/api-errors";
-import { invalidateOrgCache } from "../utils/resolve-routing";
+import { invalidateOrgCache, buildHandoffTargetUrl, getSafeRedirectPath } from "../utils/resolve-routing";
 import { authApi } from '../api/auth.api';
 
 // Prevent multiple initStore() calls
@@ -19,6 +19,22 @@ let storeInitialized = false;
 // when auth.routes.tsx and router.tsx both call initSession() in sequence
 let initSessionPromise: Promise<boolean> | null = null;
 
+// Single-flight guard for global 401 handling
+let unauthorizedDropPromise: Promise<void> | null = null;
+
+const PUBLIC_AUTH_PATHS = [
+    '/login',
+    '/register',
+    '/verify-email',
+    '/accept-invitation',
+    '/forgot-password',
+    '/reset-password',
+];
+
+export function isPublicAuthPath(pathname: string): boolean {
+    return PUBLIC_AUTH_PATHS.some(prefix => pathname.startsWith(prefix));
+}
+
 // --- CONFIGURACIÓN ---
 const SESSION_FLAG_KEY = 'hasSession';
 
@@ -27,8 +43,43 @@ let currentSessionId: string | null = null;
 let currentActiveOrgId: string | null = null;
 
 // Helper to strip non-serializable fields from ProfileType before sending via BroadcastChannel
-const sanitizeUser = ({ id, username, email, roles, permissions, entity, image, companyId, organizationId, membershipStatus }: ProfileType): Partial<ProfileType> =>
-    ({ id, username, email, roles, permissions, entity, image, companyId, organizationId, membershipStatus });
+const sanitizeUser = ({
+    id,
+    username,
+    name,
+    email,
+    emailVerified,
+    twoFactorEnabled,
+    roles,
+    permissions,
+    entity,
+    image,
+    companyId,
+    companySlug,
+    organizationId,
+    membershipStatus,
+    plan,
+    planStatus,
+    features,
+}: ProfileType): Partial<ProfileType> => ({
+    id,
+    username,
+    name,
+    email,
+    emailVerified,
+    twoFactorEnabled,
+    roles,
+    permissions,
+    entity,
+    image,
+    companyId,
+    companySlug,
+    organizationId,
+    membershipStatus,
+    plan,
+    planStatus,
+    features,
+});
 
 // --- ESTADO REACTIVO ---
 interface AuthState {
@@ -46,6 +97,43 @@ const [state, setState] = createStore<AuthState>({
 const setSessionFlag = (active: boolean) => {
     if (active) localStorage.setItem(SESSION_FLAG_KEY, 'true');
     else localStorage.removeItem(SESSION_FLAG_KEY);
+};
+
+const hydrateAuthenticatedSession = async () => {
+    // Parallel: fetch user's organizations and full ERP profile simultaneously
+    const [orgListRes, profile] = await Promise.all([
+        authClient.organization.list(),
+        profileApi.getMe(),
+    ]);
+    const organizations = orgListRes?.data || [];
+    currentSessionId = profile.sessionId ?? null;
+    const user = profile as ProfileType;
+
+    batch(() => {
+        setState('user', user);
+        setState('status', 'authenticated');
+    });
+    setSessionFlag(true);
+
+    // WebSocket / SSE connection
+    enableReconnect();
+    connect(currentSessionId);
+
+    // Notify other tabs via centralized broadcast (remote only, leaving active tab navigation to Login.tsx)
+    broadcast.emit(BroadcastEvents.AUTH_LOGIN, { user: sanitizeUser(user), sessionId: currentSessionId }, { remoteOnly: true });
+
+    // Sync branding if user has a companySlug
+    if (user.companySlug) {
+        brandingActions.loadBrandingForSlug(user.companySlug);
+    }
+
+    // Atomic in-memory hydration of modules (0ms navigation)
+    if (Array.isArray(profile.modules)) {
+        const { actions: moduleActions } = await import('@shared/store/modules.store');
+        moduleActions.setModules(profile.modules, user);
+    }
+
+    return { requiresTwoFactor: false as const, user, sessionId: currentSessionId, organizations };
 };
 
 // --- ACTIONS ---
@@ -79,44 +167,74 @@ export const actions = {
                 throw new Error(getFriendlyErrorMessage(authRes.error, 'Error al iniciar sesión'));
             }
 
-            // Parallel: fetch user's organizations and full ERP profile simultaneously
-            const [orgListRes, profile] = await Promise.all([
-                authClient.organization.list(),
-                profileApi.getMe(),
-            ]);
-            const organizations = orgListRes?.data || [];
-            currentSessionId = profile.sessionId ?? null;
-            const user = profile as ProfileType;
-
-            batch(() => {
-                setState('user', user);
-                setState('status', 'authenticated');
-            });
-            setSessionFlag(true);
-
-            // WebSocket / SSE connection
-            enableReconnect();
-            connect(currentSessionId);
-
-            // Notify other tabs via centralized broadcast (remote only, leaving active tab navigation to Login.tsx)
-            broadcast.emit(BroadcastEvents.AUTH_LOGIN, { user: sanitizeUser(user), sessionId: currentSessionId }, { remoteOnly: true });
-
-            // Sync branding if user has a companySlug
-            if (user.companySlug) {
-                brandingActions.loadBrandingForSlug(user.companySlug);
+            // Better Auth twoFactor plugin returns { twoFactorRedirect: true } before creating a session
+            const responseData = authRes.data as { twoFactorRedirect?: boolean } | null | undefined;
+            if (responseData?.twoFactorRedirect) {
+                setState('status', 'unauthenticated');
+                return { requiresTwoFactor: true as const };
             }
 
-            // Atomic in-memory hydration of modules (0ms navigation)
-            if (Array.isArray(profile.modules)) {
-                const { actions: moduleActions } = await import('@shared/store/modules.store');
-                moduleActions.setModules(profile.modules, user);
-            }
-
-            return { user, sessionId: currentSessionId, organizations };
+            return await hydrateAuthenticatedSession();
         } catch (error) {
             setState('status', 'unauthenticated');
             throw error;
         }
+    },
+
+    /**
+     * Completes a pending Better Auth two-factor login challenge (TOTP or backup code)
+     * and hydrates the full ERP profile/session context.
+     */
+    completeTwoFactorLogin: async (payload: { code: string; mode: 'totp' | 'backup'; trustDevice?: boolean }) => {
+        setState('status', 'loading');
+        try {
+            invalidateOrgCache();
+            const cleanCode = payload.code.trim();
+            const res = payload.mode === 'backup'
+                ? await authClient.twoFactor.verifyBackupCode({
+                    code: cleanCode,
+                    trustDevice: Boolean(payload.trustDevice),
+                })
+                : await authClient.twoFactor.verifyTotp({
+                    code: cleanCode,
+                    trustDevice: Boolean(payload.trustDevice),
+                });
+
+            if (res.error) {
+                throw new Error(getFriendlyErrorMessage(res.error, 'Código de verificación inválido'));
+            }
+
+            return await hydrateAuthenticatedSession();
+        } catch (error) {
+            setState('status', 'unauthenticated');
+            throw error;
+        }
+    },
+
+    /**
+     * Single-flight 401 handler: cleanly awaits local logout/cache cleanup
+     * and redirects to /login preserving the intended ?redirect= destination.
+     */
+    handleUnauthorizedDrop: async () => {
+        if (typeof window === 'undefined') return;
+        if (isPublicAuthPath(window.location.pathname)) return;
+        if (unauthorizedDropPromise) return unauthorizedDropPromise;
+
+        unauthorizedDropPromise = (async () => {
+            try {
+                const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+                const safeRedirect = getSafeRedirectPath(currentHref);
+                await actions.logout(false);
+                const loginTarget = safeRedirect !== '/dashboard'
+                    ? `/login?redirect=${encodeURIComponent(safeRedirect)}`
+                    : '/login';
+                window.location.href = loginTarget;
+            } finally {
+                unauthorizedDropPromise = null;
+            }
+        })();
+
+        return unauthorizedDropPromise;
     },
 
     /**
@@ -206,6 +324,11 @@ export const actions = {
 
         // Invalidate cached org list
         invalidateOrgCache();
+
+        // Reset tenant branding on global portal (in.zelys.app) so previous company branding doesn't linger
+        if (typeof window !== 'undefined' && !getSubdomain()) {
+            applyBranding(null);
+        }
 
         // 3. Clear cached modules
         try {
@@ -429,16 +552,14 @@ export const actions = {
             // Preserve redirect param if present (e.g., /login?redirect=/suppliers → /suppliers)
             if (window.location.pathname.startsWith('/login')) {
                 const { isGlobalPortalHost } = await import('@app/schema/utils');
-                const params = new URLSearchParams(window.location.search);
-                const redirectTo = params.get('redirect');
-                const safePath = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
+                const safePath = getSafeRedirectPath(window.location.search);
                 const isGlobal = isGlobalPortalHost(window.location.hostname);
                 if (isGlobal && data.user.companySlug) {
                     const organizations = await authClient.organization.list();
                     const organization = organizations.data?.find((item) => item.slug === data.user.companySlug);
                     if (organization?.slug) {
                         const handoff = await authApi.requestTenantHandoff(organization.id, organization.slug);
-                        window.location.href = handoff.redirectUrl.replace('/dashboard', safePath);
+                        window.location.href = buildHandoffTargetUrl(handoff.redirectUrl, safePath);
                     }
                 } else {
                     window.location.href = safePath;
@@ -462,9 +583,8 @@ export const actions = {
         window.addEventListener('user:session_revoked', ((e: CustomEvent) => {
             const { sessionId } = e.detail ?? {};
             if (sessionId && sessionId === currentSessionId) {
-                // MY session was revoked by another device — force logout
-                actions.logout(false);
-                window.location.href = '/login';
+                // MY session was revoked by another device — force single-flight logout
+                void actions.handleUnauthorizedDrop();
             }
             // For other sessions: SessionsSection.tsx handles the list refresh via its own listener
         }) as EventListener);
@@ -472,11 +592,8 @@ export const actions = {
         // GLOBAL 401 AUTHORIZATION DROP
         // Triggered by either the WebSocket closing with 4001/1008 or the Eden API fetcher getting a 401.
         window.addEventListener('auth:unauthorized', () => {
-            console.warn('[Auth] Detected 401 drop. Executing clean auto-logout...');
-            if (window.location.pathname !== '/login') {
-                actions.logout(false);
-                window.location.href = '/login';
-            }
+            console.warn('[Auth] Detected 401 drop. Executing clean single-flight auto-logout...');
+            void actions.handleUnauthorizedDrop();
         });
     }
 };

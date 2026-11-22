@@ -28,7 +28,14 @@ if (typeof window !== 'undefined') {
     }
 
     // Auto-recover from stale dynamic chunk hashes after new deployments / builds
+    // Guarded by a 15-second cooldown to prevent infinite reload loops on persistent network errors
     window.addEventListener('vite:preloadError', () => {
+        try {
+            const key = 'vite_preload_reloaded_at';
+            const lastReload = Number(sessionStorage.getItem(key) || '0');
+            if (Date.now() - lastReload < 15_000) return;
+            sessionStorage.setItem(key, String(Date.now()));
+        } catch {}
         window.location.reload();
     });
 }
