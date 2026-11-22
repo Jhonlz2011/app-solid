@@ -451,7 +451,7 @@ const Register: Component = () => {
 
                 {/* Cloudflare Turnstile */}
                 <Turnstile
-                    action="register"
+                    action={isOAuthUser() ? 'tenant_onboarding' : 'register'}
                     ref={(act) => { turnstileActions = act; }}
                     onToken={(token) => setTurnstileToken(token)}
                     onExpire={() => setTurnstileToken(null)}
@@ -459,7 +459,17 @@ const Register: Component = () => {
                 />
 
                 <div class="flex items-center gap-3 pt-4 border-t border-border mt-4">
-                    <Button variant="outline" type="button" onClick={() => setStep(1)} disabled={submitting()}>Atrás</Button>
+                    <Button
+                        variant="outline"
+                        type="button"
+                        onClick={() => {
+                            setTurnstileToken(null);
+                            setStep(1);
+                        }}
+                        disabled={submitting()}
+                    >
+                        Atrás
+                    </Button>
                     <Button
                         fullWidth
                         disabled={submitting() || !turnstileToken()}

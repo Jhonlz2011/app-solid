@@ -44,7 +44,7 @@ export const RegisterStep1Schema = object({
     email: EmailFormatSchema,
     password: pipe(string(), minLength(8, 'Mínimo 8 caracteres')),
     phone: optional(pipe(string(), regex(/^09\d{8}$/, 'Celular inválido (09XXXXXXXX)'))),
-    cedula: optional(pipe(string(), regex(/^\d{10}$/, 'La cédula debe tener 10 dígitos numéricos'))),
+    cedula: optional(pipe(string(), regex(/^\d{10}$/, 'La cédula debe tener 10 dígitos'))),
 });
 
 export const RegisterStep2Schema = object({

@@ -4,7 +4,7 @@ import { swagger } from '@elysiajs/swagger';
 import { staticPlugin } from '@elysiajs/static';
 
 // Routes
-import { auth, isAllowedOrigin } from './config/better-auth';
+import { auth, isAllowedOriginUrl } from './config/better-auth';
 import { tenantRoutes } from './modules/tenants';
 import { profileRoutes } from './modules/profile';
 import { productRoutes } from './modules/products';
@@ -36,26 +36,20 @@ import { serveSpa } from './core/spa';
 import { startAuditWorker } from './modules/audit';
 
 // ============================================================================
-// 1. CORS — Delegates to shared isAllowedOrigin() from better-auth config
+// 1. CORS — Delegates to shared isAllowedOriginUrl() from better-auth config
 // ============================================================================
 
 const corsOriginValidator = (request: Request): boolean => {
   const origin = request.headers.get('origin');
   if (!origin) return false;
-
-  try {
-    const { hostname } = new URL(origin);
-    return isAllowedOrigin(hostname);
-  } catch {
-    return false;
-  }
+  return isAllowedOriginUrl(origin);
 };
 
 // ============================================================================
 // 2. API APP (Sub-aplicación con todas las rutas del dominio)
 // ============================================================================
 
-export const apiApp = new Elysia({ prefix: '/api', aot: false })
+const baseApiApp = new Elysia({ prefix: '/api', aot: false })
   .use(cors({
     origin: corsOriginValidator,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -69,8 +63,10 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
       message: t.String(),
       details: t.Optional(t.String()),
     }),
-  })
-  .use(swagger({
+  });
+
+if (env.NODE_ENV !== 'production') {
+  baseApiApp.use(swagger({
     documentation: {
       info: {
         title: 'Zelys ERP API',
@@ -93,10 +89,29 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
         { name: 'BOM', description: 'Lista de materiales' },
       ],
     },
-  }))
+  }));
+}
+
+export const apiApp = baseApiApp
   .use(errorHandlerPlugin)
   .get('/health', () => ({ status: 'ok', ts: Date.now() }))
-
+  // Rate limiting applied before auth/tenant/profile/domain routes
+  // (/api/auth/* uses Better Auth's own secondaryStorage rate limiter)
+  .use(rateLimit({
+    max: env.NODE_ENV === 'production' ? 100 : 1000,
+    windowMs: 60 * 1000,
+    message: 'Demasiadas peticiones. Por favor, intenta más tarde.',
+    skipIf: (request: Request) => {
+      const pathname = new URL(request.url).pathname;
+      return (
+        pathname.startsWith('/api/swagger') ||
+        pathname === '/api/health' ||
+        pathname.startsWith('/api/sse') ||
+        pathname.startsWith('/api/webhooks') ||
+        pathname.startsWith('/api/auth')
+      );
+    },
+  }))
   .get('/auth/*', ({ request }) => auth.handler(request))
   .post('/auth/*', ({ request }) => auth.handler(request))
   .put('/auth/*', ({ request }) => auth.handler(request))
@@ -110,20 +125,6 @@ export const apiApp = new Elysia({ prefix: '/api', aot: false })
   .use(webhooksRoutes)
   .use(rbac)
   .use(ssePlugin)
-  .use(rateLimit({
-    max: env.NODE_ENV === 'production' ? 100 : 1000,
-    windowMs: 60 * 1000,
-    message: 'Demasiadas peticiones. Por favor, intenta más tarde.',
-    skipIf: (request: Request) => {
-      const url = request.url;
-      return (
-        url.includes('/swagger') ||
-        url.includes('/health') ||
-        url.includes('/sse') ||
-        url.includes('/webhooks')
-      );
-    },
-  }))
   .use(clientRoutes)
   .use(supplierRoutes)
   .use(employeeRoutes)

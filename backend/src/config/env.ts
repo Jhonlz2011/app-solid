@@ -20,7 +20,7 @@ if (isProduction) {
   if (process.env.TRUSTED_PROXY_HEADERS !== 'true') {
     throw new Error('TRUSTED_PROXY_HEADERS=true es obligatorio cuando la aplicación está detrás de un proxy confiable');
   }
-  if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_TENANT_ID === 'common') {
+  if (process.env.MICROSOFT_CLIENT_ID && (!process.env.MICROSOFT_TENANT_ID || process.env.MICROSOFT_TENANT_ID === 'common')) {
     throw new Error('MICROSOFT_TENANT_ID debe ser explícito en producción');
   }
 }

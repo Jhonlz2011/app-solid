@@ -8,6 +8,7 @@ import {
     updateTenantMenuItem,
     reorderTenantMenuItems,
     resetTenantMenuToDefault,
+    invalidateMenuCaches,
 } from './menu.service';
 import { MenuItemUpdateBodySchema, MenuItemReorderBodySchema, IdParamSchema } from '@app/schema/backend';
 import { DomainError } from '../../core/errors';
@@ -86,16 +87,13 @@ export const modulesRoutes = new Elysia({ prefix: '/modules' })
         }
     )
     /**
-     * Invalidate menu cache — forces DB reload on next request
+     * Invalidate menu cache for current tenant — forces DB reload on next request
      */
     .post('/refresh-cache', async ({ currentCompanyId }) => {
-        const { cacheService } = await import('../../core/cache');
-        await cacheService.invalidate('menus:*');
-        await cacheService.invalidate('aliases:*');
-        if (currentCompanyId) {
-            await cacheService.invalidate(`menus:${currentCompanyId}`);
-            await cacheService.invalidate(`aliases:${currentCompanyId}`);
+        if (!currentCompanyId) {
+            throw new DomainError('Empresa requerida para invalidar el caché de menús.', 400);
         }
+        await invalidateMenuCaches(currentCompanyId);
         return { success: true, message: 'Caché de menús invalidado. Se recargará en el próximo request.' };
     }, {
         permission: 'menu.update',

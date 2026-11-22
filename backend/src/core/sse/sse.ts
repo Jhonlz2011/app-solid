@@ -2,7 +2,7 @@ import { Elysia, t } from 'elysia';
 import { auth, resolveCompanyIdFromOrg } from '../../config/better-auth';
 import { adminDb } from '../db';
 import { companies, member, session as sessionTable, user as schemaUser } from '@app/schema/tables';
-import { eq, and, or, sql } from '@app/schema';
+import { eq, and, sql } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
 import {
     clients,
@@ -26,7 +26,7 @@ export const ssePlugin = (app: Elysia) =>
             }).catch(() => null);
 
             // Resilient Session Fallback: If cookie/Bearer wasn't resolved by Better-Auth,
-            // check if query.token matches a valid session ID or session token in DB
+            // verify only the secret session token (never non-secret session.id)
             if (!sessionData && query.token) {
                 const [dbSession] = await adminDb
                     .select({
@@ -39,7 +39,7 @@ export const ssePlugin = (app: Elysia) =>
                     .from(sessionTable)
                     .where(
                         and(
-                            or(eq(sessionTable.id, query.token), eq(sessionTable.token, query.token)),
+                            eq(sessionTable.token, query.token),
                             sql`${sessionTable.expiresAt} > NOW()`
                         )
                     )
@@ -49,7 +49,11 @@ export const ssePlugin = (app: Elysia) =>
                     const [dbUser] = await adminDb
                         .select()
                         .from(schemaUser)
-                        .where(eq(schemaUser.id, dbSession.userId))
+                        .where(and(
+                            eq(schemaUser.id, dbSession.userId),
+                            eq(schemaUser.is_active, true),
+                            eq(schemaUser.emailVerified, true),
+                        ))
                         .limit(1);
 
                     if (dbUser) {
@@ -61,7 +65,8 @@ export const ssePlugin = (app: Elysia) =>
                 }
             }
 
-            if (!sessionData || !sessionData.user) {
+            const sessionUser = sessionData?.user as ({ isActive?: boolean; is_active?: boolean; emailVerified?: boolean } | undefined);
+            if (!sessionData?.user || sessionUser?.isActive === false || sessionUser?.is_active === false || sessionUser?.emailVerified !== true) {
                 set.status = 401;
                 return 'Sesión requerida';
             }
@@ -69,11 +74,22 @@ export const ssePlugin = (app: Elysia) =>
             const userId = sessionData.user.id;
             const clientId = query.clientId || `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
-            // Resolve company context for this SSE connection
+            // Resolve company context for this SSE connection (verifying active membership)
             let companyId: number | null = null;
             const activeOrgId = sessionData.session.activeOrganizationId;
             if (activeOrgId) {
-                companyId = await resolveCompanyIdFromOrg(activeOrgId);
+                const [activeMemberRow] = await adminDb
+                    .select({ id: member.id })
+                    .from(member)
+                    .where(and(
+                        eq(member.userId, userId),
+                        eq(member.organizationId, activeOrgId),
+                        eq(member.status, 'ACTIVE'),
+                    ))
+                    .limit(1);
+                if (activeMemberRow) {
+                    companyId = await resolveCompanyIdFromOrg(activeOrgId);
+                }
             }
 
             // Align with host subdomain if present
@@ -83,7 +99,10 @@ export const ssePlugin = (app: Elysia) =>
                 const [hostCompany] = await adminDb
                     .select({ id: companies.id, organization_id: companies.organization_id })
                     .from(companies)
-                    .where(eq(companies.slug, slug))
+                    .where(and(
+                        eq(companies.slug, slug),
+                        eq(companies.is_active, true),
+                    ))
                     .limit(1);
 
                 if (hostCompany?.organization_id) {

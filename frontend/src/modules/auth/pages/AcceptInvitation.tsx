@@ -13,6 +13,7 @@ import Button from '@form/Button';
 import { Badge } from '@shared/ui/display/Badge';
 import OAuthButtons from '../components/OAuthButtons';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
+import Turnstile from '@shared/ui/Turnstile';
 
 // ─── Password Strength Meter ───
 const PasswordStrength: Component<{ password: string }> = (props) => {
@@ -52,6 +53,8 @@ export const AcceptInvitation: Component = () => {
 
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const [submitting, setSubmitting] = createSignal(false);
+    const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
+    let turnstileActions: { reset: () => void } | undefined;
 
     const form = createForm(() => ({
         defaultValues: {
@@ -84,10 +87,11 @@ export const AcceptInvitation: Component = () => {
                     password: value.password,
                 });
 
-                // 2. Sign in automatically
+                // 2. Sign in automatically (with Turnstile token for fail-closed login protection)
                 await actions.login({
                     email: email(),
                     password: value.password,
+                    turnstileToken: turnstileToken() || undefined,
                 });
 
                 // 3. Resolve and activate tenant organization in Better-Auth session
@@ -108,6 +112,8 @@ export const AcceptInvitation: Component = () => {
                     navigate({ to: '/dashboard', replace: true });
                 }
             } catch (err: any) {
+                turnstileActions?.reset();
+                setTurnstileToken(null);
                 toast.error(getFriendlyErrorMessage(err, 'Error al activar la cuenta'));
             } finally {
                 setSubmitting(false);
@@ -214,14 +220,23 @@ export const AcceptInvitation: Component = () => {
                             )}
                         </form.Field>
 
+                        <Turnstile
+                            action="login"
+                            ref={(act) => { turnstileActions = act; }}
+                            onToken={(tok) => setTurnstileToken(tok)}
+                            onExpire={() => setTurnstileToken(null)}
+                            onError={() => setTurnstileToken(null)}
+                        />
+
                         <form.Subscribe
                             selector={(s) => ({ isSubmitting: s.isSubmitting })}
                             children={(s) => (
                                 <Button
                                     type="submit"
                                     fullWidth
-                                    loading={submitting() || s().isSubmitting}
-                                    loadingText="Activando cuenta…"
+                                    disabled={submitting() || s().isSubmitting || !turnstileToken()}
+                                    loading={submitting() || s().isSubmitting || !turnstileToken()}
+                                    loadingText={!turnstileToken() ? 'Verificando seguridad…' : 'Activando cuenta…'}
                                     class="mt-2"
                                 >
                                     Activar cuenta y entrar

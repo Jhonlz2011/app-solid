@@ -26,6 +26,7 @@ async function ensureReferenceSchema(defaultSslMode: DatabaseSslMode) {
     max: 1,
     connect_timeout: 10,
     ssl: toPostgresSslOption(refSslMode),
+    onnotice: () => {},
   });
 
   try {

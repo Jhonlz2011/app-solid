@@ -122,13 +122,28 @@ export async function invalidateUserRbacCache(userId: string | number, companyId
 export async function revokeAllUserSessions(userId: string | number): Promise<void> {
     const userIdStr = String(userId);
     // Usar adminDb — operación administrativa, independiente del contexto de tenant
-    const activeSessions = await adminDb.select({ id: sessions.id })
-        .from(sessions).where(eq(sessions.userId, userIdStr));
-    if (!activeSessions.length) return;
-    await adminDb.delete(sessions).where(eq(sessions.userId, userIdStr));
-    await redis.del(...activeSessions.map(s => `session:${s.id}`));
-    for (const s of activeSessions) {
-        broadcastToUser(userIdStr, RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId: s.id });
+    const activeSessions = await adminDb
+        .select({ id: sessions.id, token: sessions.token })
+        .from(sessions)
+        .where(eq(sessions.userId, userIdStr));
+
+    if (activeSessions.length > 0) {
+        await adminDb.delete(sessions).where(eq(sessions.userId, userIdStr));
+        const keysToDelete = [
+            `active-sessions-${userIdStr}`,
+            ...activeSessions.flatMap(s => [
+                s.token,
+                `session:${s.token}`,
+                `better-auth:session:${s.token}`,
+                `session:${s.id}`,
+            ]),
+        ];
+        await redis.del(...keysToDelete);
+        for (const s of activeSessions) {
+            broadcastToUser(userIdStr, RealtimeEvents.USER.SESSION_REVOKED, { id: userId, sessionId: s.id });
+        }
+    } else {
+        await redis.del(`active-sessions-${userIdStr}`).catch(() => {});
     }
 }
 

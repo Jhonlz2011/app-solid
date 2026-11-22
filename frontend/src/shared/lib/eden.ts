@@ -15,37 +15,38 @@ import { getApiUrl } from '../config/runtime-env';
 
 const rawBase = getApiUrl();
 
-// @ts-expect-error - Elysia package duplication in Bun resolution
-const client = treaty<App>(rawBase, {
-    fetcher: async (url, options) => {
-        // Automatically inject client ID and tenant context to all requests
-        const headers = new Headers(options?.headers);
-        headers.set('x-client-id', clientId);
+const customFetcher = (async (url: RequestInfo | URL, options?: RequestInit) => {
+    // Automatically inject client ID and tenant context to all requests
+    const headers = new Headers(options?.headers);
+    headers.set('x-client-id', clientId);
 
-        try {
-            const response = await fetch(url, {
-                ...options,
-                headers,
-                credentials: 'include',
-            });
-            // Si la llamada tuvo éxito, nos aseguramos de marcar el estado como conectado
-            setOnlineStatus(true);
-            // GLOBAL 401 INTERCEPTOR (Catches API drops before TanStack Query morphs them)
-            if (response.status === 401) {
-                if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
-                    window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-                }
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers,
+            credentials: 'include',
+        });
+        // Si la llamada tuvo éxito, nos aseguramos de marcar el estado como conectado
+        setOnlineStatus(true);
+        // GLOBAL 401 INTERCEPTOR (Catches API drops before TanStack Query morphs them)
+        if (response.status === 401) {
+            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+                window.dispatchEvent(new CustomEvent('auth:unauthorized'));
             }
-            return response;
-        } catch (error) {
-            // fetch() solo llega al catch con errores de red (TypeError: Failed to fetch),
-            // nunca con errores HTTP (4xx/5xx). Es seguro marcar offline aquí.
-            if (error instanceof TypeError) {
-                setOnlineStatus(false);
-            }
-            throw error;
         }
+        return response;
+    } catch (error) {
+        // fetch() solo llega al catch con errores de red (TypeError: Failed to fetch),
+        // nunca con errores HTTP (4xx/5xx). Es seguro marcar offline aquí.
+        if (error instanceof TypeError) {
+            setOnlineStatus(false);
+        }
+        throw error;
     }
+}) as typeof fetch;
+
+const client = treaty<App>(rawBase, {
+    fetcher: customFetcher,
 });
 
 export const api = client.api;

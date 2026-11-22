@@ -59,6 +59,7 @@ export async function invalidateMenuCaches(companyId?: number | null) {
     if (companyId) {
         await cacheService.del(
             `menus:${companyId}`,
+            `menus:all:${companyId}`,
             `menus:${companyId}:global`,
             `aliases:${companyId}`,
             `route_meta:${companyId}`
@@ -74,6 +75,42 @@ export async function invalidateMenuCaches(companyId?: number | null) {
     await cacheService.invalidate('menus:*');
     await cacheService.invalidate('aliases:*');
     await cacheService.invalidate('route_meta:*');
+}
+
+/**
+ * Validates that proposed parent_id overrides do not introduce self-parenting or cycles.
+ */
+function assertNoMenuCycles(
+    currentItems: DbMenuItem[],
+    parentOverrides: Map<number, number | null>,
+): void {
+    const parentById = new Map<number, number | null>();
+    for (const item of currentItems) {
+        parentById.set(item.id, item.parent_id ?? null);
+    }
+    for (const [id, parentId] of parentOverrides.entries()) {
+        if (parentId !== null) {
+            if (parentId === id) {
+                throw new DomainError('Un elemento de menú no puede ser su propio padre.', 400, { code: 'VALIDATION_ERROR' });
+            }
+            if (!parentById.has(parentId)) {
+                throw new DomainError('El elemento padre seleccionado no existe.', 400, { code: 'VALIDATION_ERROR' });
+            }
+        }
+        parentById.set(id, parentId);
+    }
+
+    for (const id of parentOverrides.keys()) {
+        const visited = new Set<number>([id]);
+        let cursor = parentById.get(id) ?? null;
+        while (cursor !== null) {
+            if (visited.has(cursor)) {
+                throw new DomainError('La jerarquía de menú contiene una referencia circular inválida.', 400, { code: 'VALIDATION_ERROR' });
+            }
+            visited.add(cursor);
+            cursor = parentById.get(cursor) ?? null;
+        }
+    }
 }
 
 /**
@@ -143,12 +180,14 @@ function filterMenusByPlan(menus: DbMenuItem[], allowedModules: Set<RbacModule>)
         }
     }
 
-    // Retain ancestors of allowed items
+    // Retain ancestors of allowed items (with cycle guard)
     const menuMap = new Map(menus.map(m => [m.id, m]));
     const finalIds = new Set<number>(allowedMenuIds);
     for (const id of allowedMenuIds) {
+        const visited = new Set<number>([id]);
         let currentParentId = menuMap.get(id)?.parent_id;
-        while (currentParentId) {
+        while (currentParentId && !visited.has(currentParentId)) {
+            visited.add(currentParentId);
             finalIds.add(currentParentId);
             currentParentId = menuMap.get(currentParentId)?.parent_id;
         }
@@ -279,6 +318,11 @@ export async function updateTenantMenuItem(
             throw new NotFoundError('Elemento de menú no encontrado en el catálogo maestro');
         }
 
+        if (data.parent_id !== undefined) {
+            const existingItems = await getTenantMenuItems(companyId);
+            assertNoMenuCycles(existingItems, new Map([[id, data.parent_id]]));
+        }
+
         const cleanLabel = data.label !== undefined ? data.label.trim() : null;
 
         await adminDb
@@ -351,6 +395,17 @@ export async function reorderTenantMenuItems(
     }
 
     if (items.length === 0) return [];
+
+    const parentOverrides = new Map<number, number | null>();
+    for (const item of items) {
+        if (item.parent_id !== undefined) {
+            parentOverrides.set(item.id, item.parent_id);
+        }
+    }
+    if (parentOverrides.size > 0) {
+        const existingItems = await getTenantMenuItems(companyId);
+        assertNoMenuCycles(existingItems, parentOverrides);
+    }
 
     if (companyId) {
         for (const item of items) {
@@ -441,13 +496,15 @@ function filterByPermissions(menus: DbMenuItem[], permissions: string[]): DbMenu
         }
     }
 
-    // Step 2: Ensure all ancestors (parents) of accessible menus are also included
+    // Step 2: Ensure all ancestors (parents) of accessible menus are also included (with cycle guard)
     const menuMap = new Map(menus.map(m => [m.id, m]));
     const finalMenuIds = new Set<number>(accessibleMenuIds);
 
     for (const id of accessibleMenuIds) {
+        const visited = new Set<number>([id]);
         let currentParentId = menuMap.get(id)?.parent_id;
-        while (currentParentId) {
+        while (currentParentId && !visited.has(currentParentId)) {
+            visited.add(currentParentId);
             finalMenuIds.add(currentParentId);
             currentParentId = menuMap.get(currentParentId)?.parent_id;
         }

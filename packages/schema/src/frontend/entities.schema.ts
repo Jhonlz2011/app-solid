@@ -101,7 +101,7 @@ export const EntityFormSchema = pipe(
         check((input) => {
             if (input.taxIdType === 'CEDULA') return /^\d{10}$/.test(input.taxId);
             return true;
-        }, 'La Cédula debe tener 10 dígitos numéricos'),
+        }, 'La Cédula debe tener 10 dígitos'),
         ['taxId']
     ),
     forward(

@@ -19,9 +19,14 @@ export const MfaSection: Component<MfaSectionProps> = (props) => {
     const enable = async () => {
         setPending(true);
         try {
-            const result = await authClient.twoFactor.enable({ password: password() });
-            if (result.error || !result.data) throw new Error(result.error?.message || 'No se pudo iniciar el enrolamiento MFA');
-            setSetup(result.data);
+            const result = await authClient.twoFactor.enable({ password: password(), method: 'totp' });
+            if (result.error || !result.data || !('totpURI' in result.data)) {
+                throw new Error(result.error?.message || 'No se pudo iniciar el enrolamiento MFA');
+            }
+            setSetup({
+                totpURI: result.data.totpURI,
+                backupCodes: result.data.backupCodes,
+            });
             toast.info('Escanea el URI TOTP y confirma el código generado por tu aplicación.');
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'No se pudo habilitar MFA');

@@ -109,9 +109,10 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
         .where(and(
           eq(companies.organization_id, body.organizationId),
           eq(companies.slug, destinationSlug),
+          eq(companies.is_active, true),
         ))
         .limit(1);
-      if (!company?.organizationId) throw new DomainError('La empresa solicitada no existe', 404);
+      if (!company?.organizationId) throw new DomainError('La empresa solicitada no existe o está inactiva', 404);
 
       const [membership] = await adminDb
         .select({ id: member.id })
@@ -154,7 +155,8 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
     '/handoff/consume',
     async ({ query, request }) => {
       const sessionData = await auth.api.getSession({ headers: request.headers });
-      if (!sessionData?.user || sessionData.user.emailVerified !== true) {
+      const sessionUser = sessionData?.user as ({ isActive?: boolean; is_active?: boolean; emailVerified?: boolean } | undefined);
+      if (!sessionData?.user || sessionUser?.isActive === false || sessionUser?.is_active === false || sessionUser?.emailVerified !== true) {
         throw new UnauthorizedError('La sesión no está habilitada para cambiar de empresa');
       }
 
@@ -177,7 +179,10 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
       const [company] = await adminDb
         .select({ id: companies.id, slug: companies.slug, organizationId: companies.organization_id })
         .from(companies)
-        .where(eq(companies.organization_id, signedPayload.organizationId))
+        .where(and(
+          eq(companies.organization_id, signedPayload.organizationId),
+          eq(companies.is_active, true),
+        ))
         .limit(1);
       const [membership] = company?.organizationId
         ? await adminDb
@@ -194,13 +199,47 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
         throw new DomainError('La membresía del tenant no está activa', 403);
       }
 
-      await adminDb
-        .update(sessions)
-        .set({ activeOrganizationId: company.organizationId })
-        .where(and(
-          eq(sessions.id, sessionData.session.id),
-          eq(sessions.userId, sessionData.user.id),
-        ));
+      // Sync both Postgres and Better Auth Redis secondaryStorage via Better Auth API,
+      // with direct Postgres + Redis fallback to guarantee immediate visibility on /me.
+      let syncedViaBetterAuth = false;
+      try {
+        await auth.api.setActiveOrganization({
+          headers: request.headers,
+          body: { organizationId: company.organizationId },
+        });
+        syncedViaBetterAuth = true;
+      } catch {
+        syncedViaBetterAuth = false;
+      }
+
+      if (!syncedViaBetterAuth) {
+        await adminDb
+          .update(sessions)
+          .set({ activeOrganizationId: company.organizationId })
+          .where(and(
+            eq(sessions.id, sessionData.session.id),
+            eq(sessions.userId, sessionData.user.id),
+          ));
+
+        const sessionToken = sessionData.session.token;
+        if (sessionToken) {
+          try {
+            const cachedRaw = await redis.get(sessionToken);
+            if (cachedRaw) {
+              const parsed = JSON.parse(cachedRaw) as { session?: Record<string, unknown>; user?: Record<string, unknown> };
+              if (parsed.session) {
+                parsed.session.activeOrganizationId = company.organizationId;
+                const ttl = await redis.ttl(sessionToken);
+                if (ttl > 0) {
+                  await redis.set(sessionToken, JSON.stringify(parsed), 'EX', ttl);
+                } else {
+                  await redis.set(sessionToken, JSON.stringify(parsed));
+                }
+              }
+            }
+          } catch { /* Redis best effort */ }
+        }
+      }
 
       return {
         organizationId: company.organizationId,
@@ -323,27 +362,28 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   // =========================================================================
   // GET /check-domain — Domain registration validation (Caddy/proxy use)
   // =========================================================================
-  .get('/check-domain', async ({ query, set }) => {
-    const domain = query.domain;
+  .get('/check-domain', async ({ query }) => {
+    const domain = query.domain?.trim();
     if (!domain) {
       throw new DomainError('domain query parameter is required', 400);
     }
 
-    const parts = domain.split('.');
-    const slug = parts[0];
-
-    if (slug === 'api' || parts.length < 3) {
-      throw new DomainError('System domain or main domain bypass', 400);
+    const slug = resolveSlugFromHost(domain);
+    if (!slug) {
+      throw new DomainError('System domain or invalid tenant host', 400);
     }
 
     const [existing] = await adminDb
       .select({ id: companies.id })
       .from(companies)
-      .where(eq(companies.slug, slug))
+      .where(and(
+        eq(companies.slug, slug),
+        eq(companies.is_active, true),
+      ))
       .limit(1);
 
     if (!existing) {
-      throw new DomainError('Domain not registered', 404);
+      throw new DomainError('Domain not registered or inactive', 404);
     }
 
     return { status: 'ok' };
@@ -358,7 +398,17 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   // =========================================================================
   .get('/tenant-info', async ({ query, request }) => {
     const host = request.headers.get('host') || '';
-    const slug = resolveSlugFromHost(host, env.NODE_ENV === 'production' ? null : query.slug);
+    const originHost = (() => {
+      try {
+        const origin = request.headers.get('origin');
+        return origin ? new URL(origin).hostname : '';
+      } catch {
+        return '';
+      }
+    })();
+    const slug = normalizeTenantSlug(query.slug ?? '')
+      || resolveSlugFromHost(host)
+      || resolveSlugFromHost(originHost);
 
     if (!slug) {
       throw new DomainError('No tenant slug resolved from query or Host header', 400);
@@ -393,22 +443,39 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
   // =========================================================================
   .get('/tenant-manifest', async ({ query, request, set }) => {
     const host = request.headers.get('host') || '';
-    const slug = resolveSlugFromHost(host, env.NODE_ENV === 'production' ? null : query.slug);
+    const originHost = (() => {
+      try {
+        const origin = request.headers.get('origin');
+        return origin ? new URL(origin).hostname : '';
+      } catch {
+        return '';
+      }
+    })();
+    const slug = normalizeTenantSlug(query.slug ?? '')
+      || resolveSlugFromHost(host)
+      || resolveSlugFromHost(originHost);
 
     let companyName = 'Zelys ERP';
     let shortName = 'Zelys';
     let primaryColor = '#2563eb';
-    let logoUrl = '/android-chrome-192x192.png';
+    let icon192 = '/icons/logo-blank-192x192.png';
+    let icon512 = '/icons/logo-blank-512x512.png';
 
     if (slug) {
       const company = await getTenantBySlug(slug);
-      if (company) {
+      if (company && company.isActive) {
         companyName = company.businessName;
         shortName = company.tradeName || company.businessName;
         primaryColor = company.primaryColor;
-        logoUrl = company.logoUrl || logoUrl;
+        if (company.logoUrl) {
+          icon192 = company.logoUrl;
+          icon512 = company.logoUrl;
+        }
       }
     }
+
+    const icon192Type = icon192.endsWith('.png') ? 'image/png' : 'image/webp';
+    const icon512Type = icon512.endsWith('.png') ? 'image/png' : 'image/webp';
 
     set.headers['content-type'] = 'application/manifest+json; charset=utf-8';
     set.headers['cache-control'] = 'public, max-age=3600, s-maxage=7200, stale-while-revalidate=86400';
@@ -422,15 +489,15 @@ export const tenantRoutes = new Elysia({ prefix: '/tenants' })
       theme_color: primaryColor,
       icons: [
         {
-          src: logoUrl,
+          src: icon192,
           sizes: '192x192',
-          type: 'image/webp',
+          type: icon192Type,
           purpose: 'any maskable'
         },
         {
-          src: logoUrl,
+          src: icon512,
           sizes: '512x512',
-          type: 'image/webp',
+          type: icon512Type,
           purpose: 'any maskable'
         }
       ]

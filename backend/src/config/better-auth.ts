@@ -1,4 +1,5 @@
 import { betterAuth } from 'better-auth';
+import { APIError, createAuthMiddleware, isAPIError } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, username, twoFactor } from 'better-auth/plugins';
 import { v7 as uuidv7 } from 'uuid';
@@ -11,6 +12,7 @@ import * as schema from '@app/schema/tables';
 import { emailService } from '../core/email';
 import { env } from './env';
 import { hashPassword, verifyPassword } from '../core/security';
+import { DomainError } from '../core/errors';
 import { extractIpFromHeaders } from '../plugins/ip';
 import { buildTenantUrl } from '@app/schema/utils';
 import { markMfaStepUp } from '../plugins/mfa-step-up';
@@ -100,25 +102,31 @@ const argon2PasswordConfig = {
 // 3. TRUSTED ORIGINS — zelys.app + *.zelys.app en prod; localhost en dev
 // ============================================================================
 
-const PRODUCTION_ORIGINS = ['https://zelys.app', 'https://api.zelys.app', 'https://in.zelys.app'];
+const PRODUCTION_ORIGINS = [
+    'https://zelys.app',
+    'https://api.zelys.app',
+    'https://in.zelys.app',
+    'https://*.zelys.app',
+];
 
 /**
  * Validates whether a hostname belongs to an allowed origin.
  * Shared logic for CORS (Elysia) and trustedOrigins (Better Auth).
  */
 export function isAllowedOrigin(hostname: string): boolean {
+    const normalized = hostname.trim().toLowerCase();
     // Producción: zelys.app y cualquier subdominio *.zelys.app
-    if (hostname === BASE_DOMAIN || hostname.endsWith(`.${BASE_DOMAIN}`)) return true;
+    if (normalized === BASE_DOMAIN || normalized.endsWith(`.${BASE_DOMAIN}`)) return true;
 
     // Desarrollo: localhost, *.localhost, 127.0.0.1 y subredes privadas
     if (env.NODE_ENV !== 'production') {
         if (
-            hostname === 'localhost' ||
-            hostname.endsWith('.localhost') ||
-            hostname === '127.0.0.1' ||
-            /^192\.168\.\d+\.\d+$/.test(hostname) ||
-            /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
-            /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(hostname)
+            normalized === 'localhost' ||
+            normalized.endsWith('.localhost') ||
+            normalized === '127.0.0.1' ||
+            /^192\.168\.\d+\.\d+$/.test(normalized) ||
+            /^10\.\d+\.\d+\.\d+$/.test(normalized) ||
+            /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(normalized)
         ) {
             return true;
         }
@@ -127,18 +135,40 @@ export function isAllowedOrigin(hostname: string): boolean {
     return false;
 }
 
+/**
+ * Validates a full Origin/Referer URL enforcing HTTPS in production.
+ */
+export function isAllowedOriginUrl(rawOrigin: string): boolean {
+    try {
+        const parsed = new URL(rawOrigin);
+        if (env.NODE_ENV === 'production' && parsed.protocol !== 'https:') {
+            return false;
+        }
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+            return false;
+        }
+        return isAllowedOrigin(parsed.hostname);
+    } catch {
+        return false;
+    }
+}
+
 async function dynamicTrustedOrigins(request?: Request): Promise<string[]> {
-    if (!request) return PRODUCTION_ORIGINS;
+    const baseOrigins = env.NODE_ENV === 'production'
+        ? PRODUCTION_ORIGINS
+        : [...PRODUCTION_ORIGINS, env.FRONTEND_URL.replace(/\/$/, '')];
+
+    if (!request) return baseOrigins;
 
     const rawOrigin = request.headers.get('origin') || request.headers.get('referer');
-    if (!rawOrigin) return PRODUCTION_ORIGINS;
+    if (!rawOrigin) return baseOrigins;
 
-    try {
-        const { hostname, origin } = new URL(rawOrigin);
-        if (isAllowedOrigin(hostname)) return [origin];
-    } catch { /* origen inválido */ }
+    if (isAllowedOriginUrl(rawOrigin)) {
+        const { origin } = new URL(rawOrigin);
+        return [...new Set([...baseOrigins, origin])];
+    }
 
-    return PRODUCTION_ORIGINS;
+    return baseOrigins;
 }
 
 // ============================================================================
@@ -191,13 +221,14 @@ export async function enforceMaxActiveSessions(userId: string, maxSessions = 5):
                 .where(inArray(schema.session.id, revokeIds));
 
             // 2. Invalidar caché en Redis y emitir SSE para cada sesión revocada
+            const revokedTokens = new Set(toRevoke.map(s => s.token));
             await Promise.all(
                 toRevoke.map(async (s) => {
                     try {
                         await Promise.all([
+                            redis.del(s.token),
                             redis.del(`session:${s.token}`),
                             redis.del(`better-auth:session:${s.token}`),
-                            redis.del(s.token),
                             redis.del(`session:${s.id}`),
                         ]);
                     } catch { /* Redis best effort */ }
@@ -209,6 +240,26 @@ export async function enforceMaxActiveSessions(userId: string, maxSessions = 5):
                     });
                 })
             );
+
+            // Prune revoked tokens from Better Auth secondaryStorage active-sessions index
+            try {
+                const activeListKey = `active-sessions-${userId}`;
+                const listRaw = await redis.get(activeListKey);
+                if (listRaw) {
+                    const parsed = JSON.parse(listRaw) as Array<{ token: string; expiresAt: number }>;
+                    const remaining = parsed.filter(entry => !revokedTokens.has(entry.token));
+                    if (remaining.length > 0) {
+                        const ttl = await redis.ttl(activeListKey);
+                        if (ttl > 0) {
+                            await redis.set(activeListKey, JSON.stringify(remaining), 'EX', ttl);
+                        } else {
+                            await redis.set(activeListKey, JSON.stringify(remaining));
+                        }
+                    } else {
+                        await redis.del(activeListKey);
+                    }
+                }
+            } catch { /* Redis best effort */ }
 
             console.info(`[BetterAuth] Límite de ${maxSessions} sesiones aplicado para usuario ${userId}: revocada(s) ${excessCount} sesión(es) antigua(s).`);
         }
@@ -222,20 +273,34 @@ async function revokeAllSessionsForGlobalUser(userId: string): Promise<void> {
         .select({ id: schema.session.id, token: schema.session.token })
         .from(schema.session)
         .where(eq(schema.session.userId, userId));
-    if (rows.length === 0) return;
 
-    await adminDb.delete(schema.session).where(eq(schema.session.userId, userId));
-    await Promise.all(rows.flatMap(row => [
-        redis.del(`session:${row.token}`),
-        redis.del(`better-auth:session:${row.token}`),
-        redis.del(`session:${row.id}`),
-    ]));
-    broadcastToUser(userId, RealtimeEvents.USER.SESSION_REVOKED, { userId, reason: 'GLOBAL_ACCOUNT_DISABLED' });
+    if (rows.length > 0) {
+        await adminDb.delete(schema.session).where(eq(schema.session.userId, userId));
+        const keysToDelete = [
+            `active-sessions-${userId}`,
+            ...rows.flatMap(row => [
+                row.token,
+                `session:${row.token}`,
+                `better-auth:session:${row.token}`,
+                `session:${row.id}`,
+            ]),
+        ];
+        await redis.del(...keysToDelete);
+        broadcastToUser(userId, RealtimeEvents.USER.SESSION_REVOKED, { userId, reason: 'GLOBAL_ACCOUNT_DISABLED' });
+    } else {
+        await redis.del(`active-sessions-${userId}`).catch(() => {});
+    }
 }
 
 // ============================================================================
 // 5. BETTER AUTH INSTANCE
 // ============================================================================
+
+const GET_AND_DELETE_SCRIPT = `
+local v = redis.call('GET', KEYS[1])
+if v then redis.call('DEL', KEYS[1]) end
+return v
+`;
 
 export const auth = betterAuth({
     database: drizzleAdapter(adminDb, {
@@ -273,6 +338,10 @@ export const auth = betterAuth({
         },
         delete: async (key: string) => {
             await redis.del(key);
+        },
+        getAndDelete: async (key: string) => {
+            const value = await redis.eval(GET_AND_DELETE_SCRIPT, 1, key);
+            return typeof value === 'string' ? value : null;
         },
         increment: async (key: string, ttl?: number) => {
             const count = await redis.incr(key);
@@ -328,13 +397,16 @@ export const auth = betterAuth({
                         throw new Error('Microsoft OAuth profile did not include a usable email address');
                     }
                     const username = generateUsername(rawEmail, rawName);
+                    const hasExplicitTenant = Boolean(env.MICROSOFT_TENANT_ID && env.MICROSOFT_TENANT_ID !== 'common');
+                    const emailVerified = (profile as any).email_verified === true
+                        || (hasExplicitTenant && (profile as any).email_verified !== false && Boolean(rawEmail));
                     return {
                         name: rawName || username,
                         email: rawEmail,
                         image: (profile as any).picture || undefined,
                         username,
                         displayUsername: rawName || username,
-                        emailVerified: (profile as any).email_verified === true,
+                        emailVerified,
                     };
                 },
             },
@@ -342,11 +414,74 @@ export const auth = betterAuth({
     },
     account: {
         accountLinking: {
-            // Provider linking must be an explicit, re-authenticated action;
-            // no provider is trusted merely because its email matches.
-            enabled: false,
+            // Explicit linkSocial() while authenticated is permitted;
+            // implicit linking on OAuth sign-in is strictly disabled.
+            enabled: true,
+            disableImplicitLinking: true,
+            requireLocalEmailVerified: true,
             trustedProviders: [],
         },
+    },
+    hooks: {
+        before: createAuthMiddleware(async (ctx) => {
+            if (ctx.path === '/sign-in/email' || ctx.path === '/sign-in/username') {
+                const headers = ctx.headers || ctx.request?.headers;
+                const extracted = headers ? extractIpFromHeaders(headers) : null;
+                const turnstileToken = headers?.get('x-turnstile-token');
+                const expectedHostname = (() => {
+                    try {
+                        const origin = headers?.get('origin');
+                        return origin ? new URL(origin).hostname : undefined;
+                    } catch {
+                        return undefined;
+                    }
+                })();
+
+                const { verifyTurnstileToken } = await import('../core/security/turnstile.service');
+                try {
+                    await verifyTurnstileToken(turnstileToken, {
+                        action: 'login',
+                        ipAddress: extracted?.ipAddress ?? undefined,
+                        requestId: headers?.get('x-request-id') ?? undefined,
+                        expectedHostname,
+                    });
+                } catch (err) {
+                    if (err instanceof DomainError) {
+                        const status = err.status === 503
+                            ? 'SERVICE_UNAVAILABLE'
+                            : err.status === 403
+                                ? 'FORBIDDEN'
+                                : 'BAD_REQUEST';
+                        throw new APIError(status, {
+                            message: err.message,
+                            code: 'TURNSTILE_VERIFICATION_FAILED',
+                        });
+                    }
+                    throw err;
+                }
+            }
+        }),
+        after: createAuthMiddleware(async (ctx) => {
+            if (ctx.path === '/two-factor/verify-totp' || ctx.path === '/two-factor/verify-backup-code') {
+                const returned = ctx.context.returned;
+                if (returned instanceof Error || isAPIError(returned)) {
+                    return;
+                }
+                let verifiedSessionId = ctx.context.newSession?.session?.id ?? ctx.context.session?.session?.id;
+                if (!verifiedSessionId && returned && typeof returned === 'object' && 'token' in returned && typeof (returned as { token?: unknown }).token === 'string') {
+                    const token = (returned as { token: string }).token;
+                    const [sessionRow] = await adminDb
+                        .select({ id: schema.session.id })
+                        .from(schema.session)
+                        .where(eq(schema.session.token, token))
+                        .limit(1);
+                    verifiedSessionId = sessionRow?.id;
+                }
+                if (verifiedSessionId) {
+                    await markMfaStepUp(verifiedSessionId);
+                }
+            }
+        }),
     },
     databaseHooks: {
         user: {
@@ -414,26 +549,6 @@ export const auth = betterAuth({
                     const headers = ((context as any)?.headers || (context as any)?.request?.headers) as Headers | undefined;
                     const extracted = headers ? extractIpFromHeaders(headers) : null;
 
-                    // Turnstile validation on login (x-turnstile-token header)
-                    const turnstileToken = headers?.get('x-turnstile-token');
-                    if (turnstileToken) {
-                        const { verifyTurnstileToken } = await import('../core/security/turnstile.service');
-                        await verifyTurnstileToken(
-                            turnstileToken,
-                            {
-                                action: 'login',
-                                ipAddress: extracted?.ipAddress ?? undefined,
-                                requestId: headers?.get('x-request-id') ?? undefined,
-                                expectedHostname: (() => {
-                                    try {
-                                        const origin = headers?.get('origin');
-                                        return origin ? new URL(origin).hostname : undefined;
-                                    } catch { return undefined; }
-                                })(),
-                            },
-                        );
-                    }
-
                     return {
                         data: {
                             ...sess,
@@ -445,19 +560,6 @@ export const auth = betterAuth({
                 },
                 after: async (sess) => {
                     if (sess.userId) {
-                        const [securityUser] = await adminDb
-                            .select({ twoFactorEnabled: schema.user.twoFactorEnabled })
-                            .from(schema.user)
-                            .where(eq(schema.user.id, sess.userId))
-                            .limit(1);
-
-                        // Better Auth creates the final session only after its
-                        // two-factor challenge succeeds. Mark that session as
-                        // recently step-up verified for sensitive mutations.
-                        if (securityUser?.twoFactorEnabled) {
-                            await markMfaStepUp(sess.id);
-                        }
-
                         try {
                             await adminDb
                                 .update(schema.user)
@@ -484,6 +586,7 @@ export const auth = betterAuth({
         enabled: true,
         autoSignIn: false,
         requireEmailVerification: true,
+        revokeSessionsOnPasswordReset: true,
         password: argon2PasswordConfig,
         sendResetPassword: async ({ user, url, token }) => {
             const { tenantSlug, recipientName } = await getTenantInfoForEmail(user.email);
@@ -543,10 +646,12 @@ export const auth = betterAuth({
         },
     },
     advanced: {
+        ipAddress: {
+            ipAddressHeaders: ['cf-connecting-ip', 'x-real-ip'],
+        },
         database: {
             generateId: () => uuidv7(),
         },
-        generateId: () => uuidv7(),
         // Session cookies remain host-only. Tenant switches use an authenticated handoff.
         crossSubDomainCookies: {
             enabled: false,

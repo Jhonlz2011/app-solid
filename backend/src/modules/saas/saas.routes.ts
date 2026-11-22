@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
 import { tenantGuard } from '../../plugins/tenant-guard';
+import { rbac } from '../../plugins/rbac';
 import { adminDb } from '../../core/db';
 import {
     saasPlans,
@@ -154,6 +155,7 @@ const publicSaasRoutes = new Elysia()
 // 2. PROTECTED TENANT ROUTES (Subscription status & upgrade)
 const protectedSaasRoutes = new Elysia()
     .use(tenantGuard)
+    .use(rbac)
     .use(mfaStepUp)
     /**
      * Get subscription details, limits, and live usage for current tenant
@@ -332,6 +334,7 @@ const protectedSaasRoutes = new Elysia()
     }, {
         body: UpgradePlanBodySchema,
         response: TenantSubscriptionDetailResponseSchema,
+        permission: 'companies.update',
     });
 
 export const saasRoutes = new Elysia({ prefix: '/saas' })

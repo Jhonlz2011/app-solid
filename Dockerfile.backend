@@ -1,6 +1,9 @@
 FROM oven/bun:1 AS base
 WORKDIR /app
 
+# Install curl for Coolify/Docker HTTP healthchecks (GET http://localhost:3000/health)
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
 ENV NODE_ENV=production
 # COPY ONLY package.json and lockfiles to cache dependencies
 COPY package.json bun.lock biome.json ./
