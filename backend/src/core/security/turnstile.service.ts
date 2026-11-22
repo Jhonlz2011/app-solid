@@ -2,7 +2,7 @@ import { env } from '../../config/env';
 import { DomainError } from '../errors';
 import { redis } from '../cache/redis';
 import { normalizeHost } from '@app/schema/utils';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 const VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TIMEOUT_MS = 5_000;
@@ -51,15 +51,16 @@ export async function verifyTurnstileToken(
   const body = new URLSearchParams({
     secret: env.TURNSTILE_SECRET_KEY,
     response: token,
+    idempotency_key: randomUUID(),
   });
   if (options.ipAddress) body.append('remoteip', options.ipAddress);
 
-  let result: TurnstileVerifyResponse;
+  let result!: TurnstileVerifyResponse;
+  let lastError: unknown;
 
-  try {
+  for (let attempt = 0; attempt < 2; attempt++) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
     try {
       const response = await fetch(VERIFY_URL, {
         method: 'POST',
@@ -68,15 +69,30 @@ export async function verifyTurnstileToken(
       });
 
       if (!response.ok) {
+        if (response.status >= 500 && attempt === 0) {
+          lastError = new Error(`Turnstile returned HTTP ${response.status}`);
+          await new Promise((r) => setTimeout(r, 250));
+          continue;
+        }
         throw new Error(`Turnstile returned HTTP ${response.status}`);
       }
 
       result = (await response.json()) as TurnstileVerifyResponse;
+      lastError = undefined;
+      break;
+    } catch (err) {
+      lastError = err;
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 250));
+        continue;
+      }
     } finally {
       clearTimeout(timeout);
     }
-  } catch (err) {
-    console.error(`[Turnstile] Verification request failed — failing closed${options.requestId ? ` (${options.requestId})` : ''}:`, err);
+  }
+
+  if (lastError) {
+    console.error(`[Turnstile] Verification request failed — failing closed${options.requestId ? ` (${options.requestId})` : ''}:`, lastError);
     throw new DomainError('El servicio de verificación no está disponible. Inténtalo de nuevo.', 503);
   }
 

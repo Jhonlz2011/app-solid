@@ -4,7 +4,7 @@ import { toast } from 'solid-sonner';
 import { authClient } from '@shared/lib/auth-client';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import Button from '@form/Button';
-import Turnstile from '@shared/ui/Turnstile';
+import Turnstile, { type TurnstileHandle } from '@shared/ui/Turnstile';
 import { MailIcon } from '@icons/MailIcon';
 import { CheckIcon } from '@icons/CheckIcon';
 
@@ -14,8 +14,7 @@ const ForgotPassword: Component = () => {
   const [email, setEmail] = createSignal('');
   const [submitting, setSubmitting] = createSignal(false);
   const [submitted, setSubmitted] = createSignal(false);
-  const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
-  let turnstileActions: { reset: () => void } | undefined;
+  let turnstileRef: TurnstileHandle | undefined;
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
@@ -27,15 +26,11 @@ const ForgotPassword: Component = () => {
 
     setSubmitting(true);
     try {
-      const headers: Record<string, string> = {};
-      if (turnstileToken()) {
-        headers['x-turnstile-token'] = turnstileToken()!;
-      }
-
+      const turnstileToken = await turnstileRef!.getToken();
       const res = await authClient.requestPasswordReset({
         email: cleanEmail,
         redirectTo: `${window.location.origin}/reset-password`,
-        fetchOptions: { headers },
+        fetchOptions: { headers: { 'x-turnstile-token': turnstileToken } },
       });
 
       if (res.error) {
@@ -45,8 +40,7 @@ const ForgotPassword: Component = () => {
       setSubmitted(true);
       toast.success('Si el correo está registrado, recibirás un enlace de recuperación.');
     } catch (err) {
-      turnstileActions?.reset();
-      setTurnstileToken(null);
+      turnstileRef?.reset();
       toast.error(getFriendlyErrorMessage(err, 'No se pudo enviar el correo de recuperación'));
     } finally {
       setSubmitting(false);
@@ -111,18 +105,15 @@ const ForgotPassword: Component = () => {
 
           <Turnstile
             action="forgot_password"
-            ref={(act) => { turnstileActions = act; }}
-            onToken={(tok) => setTurnstileToken(tok)}
-            onExpire={() => setTurnstileToken(null)}
-            onError={() => setTurnstileToken(null)}
+            ref={(handle) => { turnstileRef = handle; }}
           />
 
           <Button
             type="submit"
             fullWidth
-            disabled={submitting() || !turnstileToken()}
-            loading={submitting() || !turnstileToken()}
-            loadingText={!turnstileToken() ? 'Verificando seguridad…' : 'Enviando enlace…'}
+            disabled={submitting()}
+            loading={submitting()}
+            loadingText="Enviando enlace…"
           >
             Enviar enlace de recuperación
           </Button>

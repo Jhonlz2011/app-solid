@@ -54,7 +54,16 @@ export const ERROR_MESSAGES_ES: Record<string, string> = {
     ORGANIZATION_ALREADY_EXISTS: 'Ya existe una empresa registrada con estos datos',
     USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION: 'Acceso denegado a este inquilino.',
     USER_ALREADY_MEMBER: 'El usuario ya es miembro de esta empresa',
-    SIGNUP_DISABLED: 'Acceso denegado a este inquilino.',
+    SIGNUP_DISABLED: 'No encontramos una cuenta registrada con este proveedor. Si eres nuevo, regístrate primero.',
+    ACCOUNT_NOT_LINKED: 'Ya existe una cuenta con este correo usando otro método de acceso. Inicia sesión con tu contraseña para vincularla.',
+    ACCESS_DENIED: 'Inicio de sesión cancelado.',
+    UNABLE_TO_CREATE_USER: 'No se pudo crear la cuenta con este proveedor. Intenta nuevamente.',
+    STATE_MISMATCH: 'La sesión de autenticación expiró o es inválida. Intenta nuevamente.',
+    INVALID_CODE: 'La sesión de autenticación expiró o es inválida. Intenta nuevamente.',
+    PLEASE_RESTART_THE_PROCESS: 'La sesión de autenticación expiró o es inválida. Intenta nuevamente.',
+    EMAIL_DOESNT_MATCH: 'El correo del proveedor no coincide con el de tu cuenta.',
+    OAUTH_PROVIDER_NOT_FOUND: 'Este proveedor de inicio de sesión no está habilitado.',
+    BANNED: 'Tu cuenta se encuentra suspendida. Contacta al administrador.',
     TENANT_ACCESS_DENIED: 'Acceso denegado a este inquilino.',
     MEMBERSHIP_SUSPENDED: 'La membresía de este usuario está suspendida en la empresa.',
     YOU_ARE_NOT_ALLOWED_TO_INVITE_USER: 'No tienes permisos para invitar a otros usuarios',
@@ -74,13 +83,23 @@ export const ERROR_MESSAGES_ES: Record<string, string> = {
     INTERNAL_ERROR: 'Ocurrió un error inesperado en el servidor',
 };
 
+function normalizeErrorKey(value: string): string {
+    return value
+        .trim()
+        .replace(/['’]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, '_')
+        .replace(/^_|_$/g, '');
+}
+
 /**
  * Normaliza y traduce códigos o mensajes de error en inglés hacia español fluido.
  */
 export function translateError(code?: string | null, rawMessage?: string | null): string {
-    // 1. Coincidencia directa por código
-    if (code && ERROR_MESSAGES_ES[code]) {
-        return ERROR_MESSAGES_ES[code];
+    // 1. Coincidencia directa o normalizada por código (soporta snake_case minúsculas de Better Auth OAuth)
+    if (code) {
+        const direct = ERROR_MESSAGES_ES[code] ?? ERROR_MESSAGES_ES[normalizeErrorKey(code)];
+        if (direct) return direct;
     }
 
     if (!rawMessage) {
@@ -88,6 +107,11 @@ export function translateError(code?: string | null, rawMessage?: string | null)
     }
 
     const msg = rawMessage.trim();
+    const byMessageKey = ERROR_MESSAGES_ES[msg] ?? ERROR_MESSAGES_ES[normalizeErrorKey(msg)];
+    if (byMessageKey) {
+        return byMessageKey;
+    }
+
     const lower = msg.toLowerCase();
 
     // 2. Coincidencias comunes de Better Auth y servicios

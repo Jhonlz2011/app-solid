@@ -12,7 +12,7 @@ import { isGlobalPortalHost, resolveSlugFromHost } from '@app/schema/utils';
 import { resolvePostAuthRouting, getSafeRedirectPath, executeAuthNavigation, buildHandoffTargetUrl } from '../utils/resolve-routing';
 import TextField from '@form/TextField';
 import Button from '@form/Button';
-import Turnstile from '@shared/ui/Turnstile';
+import Turnstile, { type TurnstileHandle } from '@shared/ui/Turnstile';
 import OAuthButtons from '../components/OAuthButtons';
 import { MailIcon } from '@icons/MailIcon';
 import { LockIcon } from '@icons/LockIcon';
@@ -38,16 +38,19 @@ const Login: Component = () => {
   const [trustDevice, setTrustDevice] = createSignal(false);
   const [verifyingTwoFactor, setVerifyingTwoFactor] = createSignal(false);
 
-  // Turnstile token state
-  const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
-  let turnstileActions: { reset: () => void } | undefined;
+  // Turnstile handle (on-demand execution on submit)
+  let turnstileRef: TurnstileHandle | undefined;
 
   onMount(() => {
     // 1. Reactive check for OAuth error passed in search params (H-01)
     const searchParams = search();
     const errorParam = searchParams?.error;
     if (errorParam) {
-      toast.error(getFriendlyErrorMessage(errorParam, 'Acceso denegado a este inquilino.'));
+      const normalizedErr = errorParam.trim().toLowerCase();
+      const message = normalizedErr === 'signup_disabled' && branding.tenant()
+        ? 'No tienes una cuenta registrada para esta empresa. Solicita una invitación a tu administrador.'
+        : getFriendlyErrorMessage(errorParam, 'Acceso denegado a este inquilino.');
+      toast.error(message);
       navigate({
         to: '/login',
         search: (prev: any) => {
@@ -149,10 +152,11 @@ const Login: Component = () => {
     },
     onSubmit: async ({ value }) => {
       try {
+        const turnstileToken = await turnstileRef!.getToken();
         const res = await actions.login({
           email: value.email,
           password: value.password,
-          turnstileToken: turnstileToken(),
+          turnstileToken,
         });
 
         if (res.requiresTwoFactor) {
@@ -167,8 +171,7 @@ const Login: Component = () => {
       } catch (err) {
         setShowTenants(false);
         setDiscoveredTenants([]);
-        setTurnstileToken(null);
-        turnstileActions?.reset();
+        turnstileRef?.reset();
         toast.error(getFriendlyErrorMessage(err, 'Error al iniciar sesión'));
       }
     },
@@ -297,18 +300,10 @@ const Login: Component = () => {
             )}
           </form.Field>
 
-          {/* Cloudflare Turnstile */}
+          {/* Cloudflare Turnstile (on-demand invisible / interaction-only) */}
           <Turnstile
-            class="-mt-5 pt-4"
             action="login"
-            ref={(act) => { turnstileActions = act; }}
-            onToken={(token) => setTurnstileToken(token)}
-            onExpire={() => setTurnstileToken(null)}
-            onError={() => {
-              setTurnstileToken(null);
-              toast.error('Error en la verificación de seguridad. Desactiva tu bloqueador de anuncios.');
-              console.warn('[Login] Turnstile error — widget failed or will retry automatically');
-            }}
+            ref={(handle) => { turnstileRef = handle; }}
           />
 
           {/* Submit Button */}
@@ -320,9 +315,9 @@ const Login: Component = () => {
                 fullWidth
                 size="md"
                 class="font-semibold cursor-pointer"
-                disabled={state().isSubmitting || !turnstileToken()}
-                loading={state().isSubmitting || !turnstileToken()}
-                loadingText={!turnstileToken() ? "Verificando seguridad…" : "Accediendo…"}
+                disabled={state().isSubmitting}
+                loading={state().isSubmitting}
+                loadingText="Accediendo…"
               >
                 Iniciar sesión
               </Button>
@@ -421,8 +416,7 @@ const Login: Component = () => {
               onClick={() => {
                 setTwoFactorRequired(false);
                 setTwoFactorCode('');
-                setTurnstileToken(null);
-                turnstileActions?.reset();
+                turnstileRef?.reset();
               }}
             >
               Volver

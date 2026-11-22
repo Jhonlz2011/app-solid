@@ -13,7 +13,7 @@ import { FormSubmissionContext } from '@shared/ui/form/form.types';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import CompanyFields from '../components/CompanyFields';
 import AuthStepper from '../components/AuthStepper';
-import Turnstile from '@shared/ui/Turnstile';
+import Turnstile, { type TurnstileHandle } from '@shared/ui/Turnstile';
 import CompanySummaryCard from '../components/CompanySummaryCard';
 import { createUsernameAvailabilityValidator, createEmailAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
 import { PlanSelector } from '../components/PlanSelector';
@@ -58,9 +58,8 @@ const Register: Component = () => {
     const [step1Submitted, setStep1Submitted] = createSignal(false);
     const [step2Submitted, setStep2Submitted] = createSignal(false);
 
-    // Turnstile token — captured in step 3 (confirmation)
-    const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
-    let turnstileActions: { reset: () => void } | undefined;
+    // Turnstile handle — executed on-demand in step 3 (confirmation)
+    let turnstileRef: TurnstileHandle | undefined;
 
     const [selectedPlanId, setSelectedPlanId] = createSignal<SaasPlanId>('free');
     const [submitting, setSubmitting] = createSignal(false);
@@ -143,6 +142,8 @@ const Register: Component = () => {
         const s2 = step2Form.state.values;
         setSubmitting(true);
         try {
+            const turnstileToken = await turnstileRef!.getToken();
+
             if (isOAuthUser()) {
                 // Caso Onboarding: el usuario ya está autenticado con Google/Microsoft
                 const res = await authApi.createCompany({
@@ -158,7 +159,7 @@ const Register: Component = () => {
                     phone: s1.phone || undefined,
                     cedula: s1.cedula || undefined,
                     planId: selectedPlanId(),
-                    turnstileToken: turnstileToken() ?? undefined,
+                    turnstileToken,
                 });
 
                 toast.success('¡Empresa creada exitosamente!');
@@ -188,7 +189,7 @@ const Register: Component = () => {
                 contribuyenteEspecial: s2.contribuyenteEspecial || undefined,
                 taxRegimeType: s2.taxRegimeType || undefined,
                 planId: selectedPlanId(),
-                turnstileToken: turnstileToken() ?? undefined,
+                turnstileToken,
             });
 
             // Email verification is mandatory. Do not create an authenticated
@@ -197,8 +198,7 @@ const Register: Component = () => {
             toast.success('Cuenta creada. Verifica tu correo para iniciar sesión.');
             navigate({ to: '/login', search: { redirect: undefined }, replace: true });
         } catch (err: any) {
-            setTurnstileToken(null);
-            turnstileActions?.reset();
+            turnstileRef?.reset();
             toast.error(getFriendlyErrorMessage(err, 'Error al registrar la empresa'));
         } finally {
             setSubmitting(false);
@@ -452,29 +452,23 @@ const Register: Component = () => {
                 {/* Cloudflare Turnstile */}
                 <Turnstile
                     action={isOAuthUser() ? 'tenant_onboarding' : 'register'}
-                    ref={(act) => { turnstileActions = act; }}
-                    onToken={(token) => setTurnstileToken(token)}
-                    onExpire={() => setTurnstileToken(null)}
-                    onError={() => setTurnstileToken(null)}
+                    ref={(handle) => { turnstileRef = handle; }}
                 />
 
                 <div class="flex items-center gap-3 pt-4 border-t border-border mt-4">
                     <Button
                         variant="outline"
                         type="button"
-                        onClick={() => {
-                            setTurnstileToken(null);
-                            setStep(1);
-                        }}
+                        onClick={() => setStep(1)}
                         disabled={submitting()}
                     >
                         Atrás
                     </Button>
                     <Button
                         fullWidth
-                        disabled={submitting() || !turnstileToken()}
-                        loading={submitting() || !turnstileToken()}
-                        loadingText={!turnstileToken() ? "Verificando seguridad…" : "Creando cuenta…"}
+                        disabled={submitting()}
+                        loading={submitting()}
+                        loadingText="Creando cuenta…"
                         onClick={handleFinalSubmit}
                     >
                         Crear cuenta

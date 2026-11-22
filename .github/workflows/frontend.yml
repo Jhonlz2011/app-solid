@@ -42,6 +42,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify Turnstile Site Key variable
+        env:
+          SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+        run: |
+          if [ -z "$SITE_KEY" ]; then
+            echo "::error::GitHub Actions Variable VITE_TURNSTILE_SITE_KEY is missing"
+            exit 1
+          fi
+
       - name: Build and Push Frontend
         uses: docker/build-push-action@v5
         with:

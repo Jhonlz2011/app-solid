@@ -8,7 +8,7 @@ import { activateNewTenantAndRedirect } from '../utils/resolve-routing';
 import { useAuth } from '@modules/auth/store/auth.store';
 import Button from '@form/Button';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import Turnstile from '@shared/ui/Turnstile';
+import Turnstile, { type TurnstileHandle } from '@shared/ui/Turnstile';
 import { getFriendlyErrorMessage } from '@shared/utils/api-errors';
 import CompanyFields from '../components/CompanyFields';
 import CompanySummaryCard from '../components/CompanySummaryCard';
@@ -26,9 +26,8 @@ export const CreateCompany: Component = () => {
     const [stepSubmitted, setStepSubmitted] = createSignal(false);
     const [submitting, setSubmitting] = createSignal(false);
 
-    // Turnstile
-    const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
-    let turnstileActions: { reset: () => void } | undefined;
+    // Turnstile (on-demand execution on submit)
+    let turnstileRef: TurnstileHandle | undefined;
 
     const [selectedPlanId, setSelectedPlanId] = createSignal<SaasPlanId>('free');
 
@@ -57,6 +56,7 @@ export const CreateCompany: Component = () => {
         const values = form.state.values;
         setSubmitting(true);
         try {
+            const turnstileToken = await turnstileRef!.getToken();
             const res = await authApi.createCompany({
                 slug: values.slug,
                 ruc: values.ruc,
@@ -68,7 +68,7 @@ export const CreateCompany: Component = () => {
                 contribuyenteEspecial: values.contribuyenteEspecial || undefined,
                 taxRegimeType: values.taxRegimeType || undefined,
                 planId: selectedPlanId(),
-                turnstileToken: turnstileToken() ?? undefined,
+                turnstileToken,
             });
 
             // Force refresh cached organizations, activate, and redirect
@@ -79,8 +79,7 @@ export const CreateCompany: Component = () => {
                 navigate({ to: '/dashboard', replace: true });
             }
         } catch (err: any) {
-            setTurnstileToken(null);
-            turnstileActions?.reset();
+            turnstileRef?.reset();
             toast.error(getFriendlyErrorMessage(err, 'Error al registrar la nueva empresa'));
         } finally {
             setSubmitting(false);
@@ -173,10 +172,7 @@ export const CreateCompany: Component = () => {
                             {/* Cloudflare Turnstile */}
                             <Turnstile
                                 action="tenant_onboarding"
-                                ref={(act) => { turnstileActions = act; }}
-                                onToken={(token) => setTurnstileToken(token)}
-                                onExpire={() => setTurnstileToken(null)}
-                                onError={() => setTurnstileToken(null)}
+                                ref={(handle) => { turnstileRef = handle; }}
                             />
 
                             <div class="flex items-center justify-between gap-3 pt-4 border-t border-border mt-4">
@@ -189,9 +185,9 @@ export const CreateCompany: Component = () => {
                                     Atrás
                                 </Button>
                                 <Button
-                                    disabled={submitting() || !turnstileToken()}
-                                    loading={submitting() || !turnstileToken()}
-                                    loadingText={!turnstileToken() ? "Verificando seguridad…" : "Creando empresa…"}
+                                    disabled={submitting()}
+                                    loading={submitting()}
+                                    loadingText="Creando empresa…"
                                     onClick={handleCreateCompany}
                                 >
                                     Crear y activar empresa

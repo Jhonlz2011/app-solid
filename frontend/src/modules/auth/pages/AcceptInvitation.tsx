@@ -13,7 +13,7 @@ import Button from '@form/Button';
 import { Badge } from '@shared/ui/display/Badge';
 import OAuthButtons from '../components/OAuthButtons';
 import { FormSubmissionContext } from '@shared/ui/form/form.types';
-import Turnstile from '@shared/ui/Turnstile';
+import Turnstile, { type TurnstileHandle } from '@shared/ui/Turnstile';
 
 // ─── Password Strength Meter ───
 const PasswordStrength: Component<{ password: string }> = (props) => {
@@ -55,8 +55,7 @@ export const AcceptInvitation: Component = () => {
 
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = createSignal(false);
     const [submitting, setSubmitting] = createSignal(false);
-    const [turnstileToken, setTurnstileToken] = createSignal<string | null>(null);
-    let turnstileActions: { reset: () => void } | undefined;
+    let turnstileRef: TurnstileHandle | undefined;
 
     const completePostAcceptance = async (organizationId: string, existingAccount: boolean) => {
         const loggedUser = currentUser();
@@ -97,15 +96,15 @@ export const AcceptInvitation: Component = () => {
         }
         setSubmitting(true);
         try {
+            const turnstileToken = await turnstileRef!.getToken();
             const accepted = await authApi.acceptInvitation({
                 token: token(),
                 email: email(),
-                turnstileToken: turnstileToken() || undefined,
+                turnstileToken,
             });
             await completePostAcceptance(accepted.organizationId, accepted.isExistingUser);
         } catch (err: any) {
-            turnstileActions?.reset();
-            setTurnstileToken(null);
+            turnstileRef?.reset();
             toast.error(getFriendlyErrorMessage(err, 'Error al aceptar la invitación'));
         } finally {
             setSubmitting(false);
@@ -136,17 +135,17 @@ export const AcceptInvitation: Component = () => {
 
             setSubmitting(true);
             try {
+                const turnstileToken = await turnstileRef!.getToken();
                 const acceptedInvitation = await authApi.acceptInvitation({
                     token: token(),
                     email: email(),
                     password: value.password,
-                    turnstileToken: turnstileToken() || undefined,
+                    turnstileToken,
                 });
 
                 await completePostAcceptance(acceptedInvitation.organizationId, acceptedInvitation.isExistingUser);
             } catch (err: any) {
-                turnstileActions?.reset();
-                setTurnstileToken(null);
+                turnstileRef?.reset();
                 toast.error(getFriendlyErrorMessage(err, 'Error al activar la cuenta'));
             } finally {
                 setSubmitting(false);
@@ -205,19 +204,16 @@ export const AcceptInvitation: Component = () => {
 
                             <Turnstile
                                 action="accept_invitation"
-                                ref={(act) => { turnstileActions = act; }}
-                                onToken={(tok) => setTurnstileToken(tok)}
-                                onExpire={() => setTurnstileToken(null)}
-                                onError={() => setTurnstileToken(null)}
+                                ref={(handle) => { turnstileRef = handle; }}
                             />
 
                             <Button
                                 type="button"
                                 fullWidth
                                 onClick={handleAcceptExistingUser}
-                                disabled={submitting() || !turnstileToken()}
-                                loading={submitting() || !turnstileToken()}
-                                loadingText={!turnstileToken() ? 'Verificando seguridad…' : 'Aceptando invitación…'}
+                                disabled={submitting()}
+                                loading={submitting()}
+                                loadingText="Aceptando invitación…"
                             >
                                 Aceptar invitación y unirme
                             </Button>
@@ -286,10 +282,7 @@ export const AcceptInvitation: Component = () => {
 
                             <Turnstile
                                 action="accept_invitation"
-                                ref={(act) => { turnstileActions = act; }}
-                                onToken={(tok) => setTurnstileToken(tok)}
-                                onExpire={() => setTurnstileToken(null)}
-                                onError={() => setTurnstileToken(null)}
+                                ref={(handle) => { turnstileRef = handle; }}
                             />
 
                             <form.Subscribe
@@ -298,9 +291,9 @@ export const AcceptInvitation: Component = () => {
                                     <Button
                                         type="submit"
                                         fullWidth
-                                        disabled={submitting() || s().isSubmitting || !turnstileToken()}
-                                        loading={submitting() || s().isSubmitting || !turnstileToken()}
-                                        loadingText={!turnstileToken() ? 'Verificando seguridad…' : 'Activando cuenta…'}
+                                        disabled={submitting() || s().isSubmitting}
+                                        loading={submitting() || s().isSubmitting}
+                                        loadingText="Activando cuenta…"
                                         class="mt-2"
                                     >
                                         Activar cuenta y entrar
