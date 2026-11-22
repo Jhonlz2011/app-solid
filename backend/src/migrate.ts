@@ -77,6 +77,7 @@ const runMigration = async () => {
     max: 1,
     connect_timeout: 10,
     ssl: toPostgresSslOption(sslMode),
+    onnotice: () => {},
   });
   const db = drizzle(connection);
 

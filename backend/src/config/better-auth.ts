@@ -379,7 +379,7 @@ export const auth = betterAuth({
                         image: profile.picture || undefined,
                         username,
                         displayUsername: profile.name || username,
-                    emailVerified: profile.email_verified === true,
+                        emailVerified: profile.email_verified === true,
                     };
                 },
             },
@@ -388,7 +388,7 @@ export const auth = betterAuth({
             microsoft: {
                 clientId: env.MICROSOFT_CLIENT_ID,
                 clientSecret: env.MICROSOFT_CLIENT_SECRET,
-                tenantId: env.MICROSOFT_TENANT_ID || 'common',
+                tenantId: env.MICROSOFT_TENANT_ID,
                 disableImplicitSignUp: true,
                 mapProfileToUser: (profile) => {
                     const rawEmail = profile.email || (profile as any).userPrincipalName || (profile as any).mail || '';
@@ -397,16 +397,14 @@ export const auth = betterAuth({
                         throw new Error('Microsoft OAuth profile did not include a usable email address');
                     }
                     const username = generateUsername(rawEmail, rawName);
-                    const hasExplicitTenant = Boolean(env.MICROSOFT_TENANT_ID && env.MICROSOFT_TENANT_ID !== 'common');
-                    const emailVerified = (profile as any).email_verified === true
-                        || (hasExplicitTenant && (profile as any).email_verified !== false && Boolean(rawEmail));
+                    // emailVerified is left to Better Auth 1.7's built-in Microsoft verification
+                    // (strict email_verified / verified_primary_email / verified_secondary_email).
                     return {
                         name: rawName || username,
                         email: rawEmail,
                         image: (profile as any).picture || undefined,
                         username,
                         displayUsername: rawName || username,
-                        emailVerified,
                     };
                 },
             },

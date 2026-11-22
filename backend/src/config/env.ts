@@ -6,6 +6,13 @@ const databaseSslMode = resolveDatabaseSslMode(process.env.DATABASE_SSL_MODE);
 const referenceDatabaseSslMode = resolveDatabaseSslMode(process.env.REF_DATABASE_SSL_MODE, databaseSslMode);
 const adminDatabaseSslMode = resolveDatabaseSslMode(process.env.ADMIN_DATABASE_SSL_MODE, databaseSslMode);
 
+const googleClientId = (process.env.GOOGLE_CLIENT_ID || '').trim();
+const googleClientSecret = (process.env.GOOGLE_CLIENT_SECRET || '').trim();
+const microsoftClientId = (process.env.MICROSOFT_CLIENT_ID || '').trim();
+const microsoftClientSecret = (process.env.MICROSOFT_CLIENT_SECRET || '').trim();
+const microsoftTenantId = (process.env.MICROSOFT_TENANT_ID || 'common').trim();
+const VALID_MICROSOFT_TENANT_RE = /^(common|organizations|consumers|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
 if (!process.env.DATABASE_URL || !process.env.FRONTEND_URL || !process.env.REF_DATABASE_URL) {
   throw new Error('Variables de entorno requeridas no encontradas (DATABASE_URL, FRONTEND_URL, REF_DATABASE_URL)');
 }
@@ -20,8 +27,11 @@ if (isProduction) {
   if (process.env.TRUSTED_PROXY_HEADERS !== 'true') {
     throw new Error('TRUSTED_PROXY_HEADERS=true es obligatorio cuando la aplicación está detrás de un proxy confiable');
   }
-  if (process.env.MICROSOFT_CLIENT_ID && (!process.env.MICROSOFT_TENANT_ID || process.env.MICROSOFT_TENANT_ID === 'common')) {
-    throw new Error('MICROSOFT_TENANT_ID debe ser explícito en producción');
+  if (Boolean(microsoftClientId) !== Boolean(microsoftClientSecret)) {
+    throw new Error('MICROSOFT_CLIENT_ID y MICROSOFT_CLIENT_SECRET deben configurarse juntos (o ambos vacíos)');
+  }
+  if (microsoftClientId && !VALID_MICROSOFT_TENANT_RE.test(microsoftTenantId)) {
+    throw new Error('MICROSOFT_TENANT_ID inválido: usa common, organizations, consumers o un Tenant GUID válido');
   }
 }
 
@@ -61,10 +71,10 @@ export const env = {
   TURNSTILE_SITE_KEY: process.env.TURNSTILE_SITE_KEY || '',
   TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || '',
   // OAuth (Google & Microsoft Entra ID)
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
-  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
-  MICROSOFT_CLIENT_ID: process.env.MICROSOFT_CLIENT_ID || '',
-  MICROSOFT_CLIENT_SECRET: process.env.MICROSOFT_CLIENT_SECRET || '',
-  MICROSOFT_TENANT_ID: process.env.MICROSOFT_TENANT_ID || 'common',
+  GOOGLE_CLIENT_ID: googleClientId,
+  GOOGLE_CLIENT_SECRET: googleClientSecret,
+  MICROSOFT_CLIENT_ID: microsoftClientId,
+  MICROSOFT_CLIENT_SECRET: microsoftClientSecret,
+  MICROSOFT_TENANT_ID: microsoftTenantId,
   TRUSTED_PROXY_HEADERS: process.env.TRUSTED_PROXY_HEADERS === 'true',
 };
