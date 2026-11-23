@@ -2,6 +2,7 @@
     "name": "app-monorepo",
     "private": true,
     "scripts": {
+        "dev": "bun run --parallel dev:backend dev:frontend",
         "dev:web": "bun --filter web dev",
         "dev:backend": "bun --filter backend dev",
         "dev:frontend": "bun --filter frontend dev",

@@ -15,7 +15,7 @@ import CompanySummaryCard from '../components/CompanySummaryCard';
 import AuthStepper from '../components/AuthStepper';
 import { ScrollArea } from '@/layout/components/ScrollArea';
 import { Badge } from '@shared/ui/display/Badge';
-import { PlanSelector } from '../components/PlanSelector';
+import { PlanSelector, resolvePlanSummary } from '../components/PlanSelector';
 import type { SaasPlanId } from '@app/schema/enums';
 
 export const CreateCompany: Component = () => {
@@ -88,7 +88,7 @@ export const CreateCompany: Component = () => {
 
     return (
         <ScrollArea resetKey={step()}>
-            <div class="max-w-2xl mx-auto py-8 px-4 sm:px-6">
+            <div class={`mx-auto py-8 px-4 sm:px-6 transition-[max-width] duration-300 ease-out ${step() === 1 ? 'max-w-5xl' : 'max-w-2xl'}`}>
                 <div class="p-6 sm:p-8 bg-card border border-border rounded-2xl shadow-xl">
                     {/* Header */}
                     <div class="mb-6 pb-4 border-b border-border">
@@ -108,7 +108,7 @@ export const CreateCompany: Component = () => {
                         </div>
                     </div>
 
-                    <AuthStepper steps={['Datos de Empresa', 'Confirmar y Crear']} current={step()} />
+                    <AuthStepper steps={['Empresa', 'Plan', 'Confirmar']} current={step()} />
 
                     {/* ─── STEP 0: Company Info ─── */}
                     <Show when={step() === 0}>
@@ -126,13 +126,6 @@ export const CreateCompany: Component = () => {
                                     form={form}
                                     stepSubmitted={stepSubmitted}
                                 />
-
-                                <div class="mt-2 pt-4 border-t border-border">
-                                    <PlanSelector
-                                        selectedPlanId={selectedPlanId()}
-                                        onPlanChange={setSelectedPlanId}
-                                    />
-                                </div>
 
                                 <div class="flex items-center justify-end gap-3 mt-4 pt-4 border-t border-border">
                                     <Button
@@ -164,10 +157,42 @@ export const CreateCompany: Component = () => {
                         </FormSubmissionContext.Provider>
                     </Show>
 
-                    {/* ─── STEP 1: Confirmation & Creation ─── */}
+                    {/* ─── STEP 1: Plan Selection ─── */}
                     <Show when={step() === 1}>
+                        <div class="space-y-5">
+                            <PlanSelector
+                                selectedPlanId={selectedPlanId()}
+                                onPlanChange={setSelectedPlanId}
+                            />
+
+                            <div class="flex items-center justify-between gap-3 pt-4 border-t border-border">
+                                <Button
+                                    variant="outline"
+                                    type="button"
+                                    onClick={() => setStep(0)}
+                                >
+                                    Atrás
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={() => setStep(2)}
+                                >
+                                    Continuar
+                                </Button>
+                            </div>
+                        </div>
+                    </Show>
+
+                    {/* ─── STEP 2: Confirmation & Creation ─── */}
+                    <Show when={step() === 2}>
                         <div class="space-y-4">
-                            <CompanySummaryCard data={form.state.values} />
+                            <CompanySummaryCard
+                                data={form.state.values}
+                                plan={{
+                                    ...resolvePlanSummary(selectedPlanId()),
+                                    onEdit: () => setStep(1),
+                                }}
+                            />
 
                             {/* Cloudflare Turnstile */}
                             <Turnstile
@@ -179,7 +204,7 @@ export const CreateCompany: Component = () => {
                                 <Button
                                     variant="outline"
                                     type="button"
-                                    onClick={() => setStep(0)}
+                                    onClick={() => setStep(1)}
                                     disabled={submitting()}
                                 >
                                     Atrás

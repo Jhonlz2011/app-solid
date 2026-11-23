@@ -17,6 +17,11 @@ export interface CompanySummaryData {
 
 interface CompanySummaryCardProps {
     data: CompanySummaryData;
+    plan?: {
+        name: string;
+        priceLabel: string;
+        onEdit?: () => void;
+    };
 }
 
 export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) => {
@@ -112,6 +117,28 @@ export const CompanySummaryCard: Component<CompanySummaryCardProps> = (props) =>
                             {props.data.contribuyenteEspecial}
                         </Badge>
                     </div>
+                </Show>
+
+                <Show when={props.plan}>
+                    {(plan) => (
+                        <>
+                            <span class="text-muted pt-2 border-t border-border/60">Plan seleccionado:</span>
+                            <div class="pt-2 border-t border-border/60 flex items-center justify-between gap-2 flex-wrap">
+                                <Badge variant="primary" class="text-[11px] font-semibold">
+                                    {plan().name} · {plan().priceLabel}
+                                </Badge>
+                                <Show when={plan().onEdit}>
+                                    <button
+                                        type="button"
+                                        onClick={plan().onEdit}
+                                        class="text-xs text-primary hover:underline font-medium cursor-pointer"
+                                    >
+                                        Cambiar
+                                    </button>
+                                </Show>
+                            </div>
+                        </>
+                    )}
                 </Show>
             </div>
         </div>

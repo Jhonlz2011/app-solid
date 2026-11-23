@@ -7,10 +7,10 @@ import { ChevronsUpDownIcon } from '@icons/ChevronsUpDownIcon';
 import { CheckIcon } from '@icons/CheckIcon';
 import { PlusIcon } from '@icons/PlusIcon';
 import { DropdownMenu } from '@display/DropdownMenu';
-import { actions, useAuth } from '@modules/auth/store/auth.store';
+import { useAuth } from '@modules/auth/store/auth.store';
 import { useBranding } from '@modules/auth/store/branding.store';
-import { buildTenantUrl } from '@app/schema/utils';
-import { invalidateOrgCache } from '@modules/auth/utils/resolve-routing';
+import { authApi } from '@modules/auth/api/auth.api';
+import { invalidateOrgCache, buildHandoffTargetUrl } from '@modules/auth/utils/resolve-routing';
 import { useUserOrganizations, type UserOrganizationItem } from '@modules/auth/data/organizations.queries';
 
 interface SidebarHeaderProps {
@@ -47,14 +47,10 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
 
         setSwitchingId(org.id);
         try {
-            await actions.switchOrganization(org.id);
-            // Invalidate cached org list so next load reflects new active org
             invalidateOrgCache();
             toast.success(`Cambiando a ${org.name}...`);
-            // Use shared buildTenantUrl instead of manual host/port/IP parsing
-            window.location.href = buildTenantUrl(org.slug, '/dashboard', {
-                queryParams: { session: 'true' },
-            });
+            const handoff = await authApi.requestTenantHandoff(org.id, org.slug);
+            window.location.href = buildHandoffTargetUrl(handoff.redirectUrl, '/dashboard');
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : typeof err === 'object' && err !== null && 'message' in err ? String((err as { message: unknown }).message) : 'Error al cambiar de empresa';
             toast.error(message);

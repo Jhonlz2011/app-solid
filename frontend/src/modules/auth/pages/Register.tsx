@@ -16,7 +16,7 @@ import AuthStepper from '../components/AuthStepper';
 import Turnstile, { type TurnstileHandle } from '@shared/ui/Turnstile';
 import CompanySummaryCard from '../components/CompanySummaryCard';
 import { createUsernameAvailabilityValidator, createEmailAvailabilityValidator } from '@shared/ui/form/validators/availability.validators';
-import { PlanSelector } from '../components/PlanSelector';
+import { PlanSelector, resolvePlanSummary } from '../components/PlanSelector';
 import { Badge } from '@shared/ui/display/Badge';
 import type { SaasPlanId } from '@app/schema/enums';
 
@@ -205,7 +205,7 @@ const Register: Component = () => {
         }
     };
 
-    const stepperSteps = () => isOAuthUser() ? ['Empresa', 'Confirmar'] : ['Usuario', 'Empresa', 'Confirmar'];
+    const stepperSteps = () => isOAuthUser() ? ['Empresa', 'Plan', 'Confirmar'] : ['Usuario', 'Empresa', 'Plan', 'Confirmar'];
     const currentStepIndex = () => isOAuthUser() ? Math.max(0, step() - 1) : step();
 
     return (
@@ -379,13 +379,6 @@ const Register: Component = () => {
                             stepSubmitted={step2Submitted}
                         />
 
-                        <div class="mt-2 pt-4 border-t border-border">
-                            <PlanSelector
-                                selectedPlanId={selectedPlanId()}
-                                onPlanChange={setSelectedPlanId}
-                            />
-                        </div>
-
                         <div class="flex items-center gap-3 mt-4 pt-4 border-t border-border">
                             <Show
                                 when={!isOAuthUser()}
@@ -422,8 +415,27 @@ const Register: Component = () => {
                 </FormSubmissionContext.Provider>
             </Show>
 
-            {/* ─── STEP 3: Confirmation ─── */}
+            {/* ─── STEP 3: Plan Selection (adaptive wide step) ─── */}
             <Show when={step() === 2}>
+                <div data-wide-step="" class="space-y-5">
+                    <PlanSelector
+                        selectedPlanId={selectedPlanId()}
+                        onPlanChange={setSelectedPlanId}
+                    />
+
+                    <div class="flex items-center justify-between gap-3 pt-4 border-t border-border">
+                        <Button variant="outline" type="button" onClick={() => setStep(1)}>
+                            Atrás
+                        </Button>
+                        <Button type="button" onClick={() => setStep(3)}>
+                            Continuar
+                        </Button>
+                    </div>
+                </div>
+            </Show>
+
+            {/* ─── STEP 4: Confirmation ─── */}
+            <Show when={step() === 3}>
                 <div class="mb-4">
                     <h2 class="text-2xl font-bold text-heading">Confirmar registro</h2>
                     <p class="text-muted text-sm mt-1">Revisa los datos antes de crear y activar tu cuenta</p>
@@ -445,8 +457,14 @@ const Register: Component = () => {
                         </div>
                     </div>
 
-                    {/* Company Summary (DRY component) */}
-                    <CompanySummaryCard data={step2Form.state.values} />
+                    {/* Company + Plan Summary */}
+                    <CompanySummaryCard
+                        data={step2Form.state.values}
+                        plan={{
+                            ...resolvePlanSummary(selectedPlanId()),
+                            onEdit: () => setStep(2),
+                        }}
+                    />
                 </div>
 
                 {/* Cloudflare Turnstile */}
@@ -459,7 +477,7 @@ const Register: Component = () => {
                     <Button
                         variant="outline"
                         type="button"
-                        onClick={() => setStep(1)}
+                        onClick={() => setStep(2)}
                         disabled={submitting()}
                     >
                         Atrás

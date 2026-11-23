@@ -389,14 +389,14 @@ export async function activateNewTenantAndRedirect(
     await actions.initSession();
 
     const hostname = window.location.hostname.toLowerCase();
-    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost')
+    const isRawIpHost = hostname === '127.0.0.1'
         || /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
     const isGlobal = isGlobalPortalHost(hostname);
     const currentSlug = resolveSlugFromHost(hostname);
 
-    // Redirect via authenticated tenant handoff when on global portal (in.zelys.app)
-    // OR when creating a new company from a different tenant subdomain (e.g. empresa1.zelys.app -> empresa2.zelys.app)
-    if (slug && !isLocalHost && (isGlobal || currentSlug !== slug)) {
+    // Redirect via authenticated tenant handoff when on global portal (in.zelys.app / localhost)
+    // OR when creating a new company from a different tenant subdomain (e.g. empresa1 -> empresa2)
+    if (slug && !isRawIpHost && (isGlobal || currentSlug !== slug)) {
         const handoff = await authApi.requestTenantHandoff(matchingOrg.id, slug);
         window.location.href = buildHandoffTargetUrl(handoff.redirectUrl, targetPath);
         return false; // navigation via full redirect

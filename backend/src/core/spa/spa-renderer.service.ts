@@ -155,7 +155,7 @@ export async function serveSpa({ request, query, set }: { request: Request; quer
     }
 
     // Resolve API URL dynamically from env (no hardcoding)
-    const apiUrl = env.API_PUBLIC_URL || `https://api.zelys.app`;
+    const apiUrl = env.API_PUBLIC_URL || (env.NODE_ENV === 'production' ? 'https://api.zelys.app' : env.BETTER_AUTH_URL);
     const sseUrl = `${apiUrl}/api/sse`;
 
     if (slug) {

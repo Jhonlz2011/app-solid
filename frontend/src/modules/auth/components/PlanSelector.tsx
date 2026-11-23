@@ -6,19 +6,14 @@ import type { SaasPlanId } from '@app/schema/enums';
 export interface PlanSelectorProps {
     selectedPlanId: SaasPlanId;
     onPlanChange: (planId: SaasPlanId) => void;
-    compact?: boolean;
-    showAddons?: boolean;
 }
 
-// ─── API Types ───────────────────────────────────────────────────────────────
-
-interface PlanFeatureDetail {
-    code: string;
+export interface PlanSummaryInfo {
     name: string;
-    category: string;
-    value: boolean | number | string;
-    unit_label: string | null;
+    priceLabel: string;
 }
+
+// ─── API & Grouped Types ─────────────────────────────────────────────────────
 
 interface ApiPlan {
     id: SaasPlanId;
@@ -30,25 +25,12 @@ interface ApiPlan {
     is_popular: boolean;
     sort_order: number;
     features: Record<string, boolean | number | string>;
-    feature_details: PlanFeatureDetail[];
 }
-
-interface ApiAddon {
-    id: string;
-    name: string;
-    description: string;
-    addon_type: string;
-    billing_type: string;
-    price_usd: string;
-    quantity: number;
-    unit_label: string;
-}
-
-// ─── Grouped Plan (monthly + yearly merged) ──────────────────────────────────
 
 interface GroupedPlan {
     baseKey: string;
-    name: string;
+    title: string;
+    subtitle: string;
     isPopular: boolean;
     monthlyPrice: number;
     yearlyPrice: number;
@@ -64,28 +46,76 @@ interface GroupedPlan {
 
 const FALLBACK_PLANS: GroupedPlan[] = [
     {
-        baseKey: 'free', name: 'Freemium', isPopular: false,
-        monthlyPrice: 0, yearlyPrice: 0, monthlyPlanId: 'free', yearlyPlanId: 'free',
-        annualDiscountPercent: 0, freeAccountant: false, sortOrder: 0,
-        features: ['1 Usuario Operativo', '15 Comprobantes SRI / año', '150 MB Almacenamiento', 'Catálogo y Facturación Básica'],
+        baseKey: 'free',
+        title: 'Freemium',
+        subtitle: 'Para empezar',
+        isPopular: false,
+        monthlyPrice: 0,
+        yearlyPrice: 0,
+        monthlyPlanId: 'free',
+        yearlyPlanId: 'free',
+        annualDiscountPercent: 0,
+        freeAccountant: false,
+        sortOrder: 0,
+        features: ['1 Usuario Operativo', '15 Comprobantes SRI / año', '150 MB Almacenamiento'],
     },
     {
-        baseKey: 'starter', name: 'Emprendedor', isPopular: false,
-        monthlyPrice: 9.99, yearlyPrice: 99.00, monthlyPlanId: 'starter_monthly', yearlyPlanId: 'starter_yearly',
-        annualDiscountPercent: 17, freeAccountant: true, sortOrder: 1,
-        features: ['2 Usuarios Operativos', '250 Comprobantes SRI / mes', '1 Terminal de Caja POS', '1 GB Almacenamiento', 'Inventario y Compras'],
+        baseKey: 'starter',
+        title: 'Emprendedor',
+        subtitle: 'Starter + POS',
+        isPopular: false,
+        monthlyPrice: 9.99,
+        yearlyPrice: 99,
+        monthlyPlanId: 'starter_monthly',
+        yearlyPlanId: 'starter_yearly',
+        annualDiscountPercent: 17,
+        freeAccountant: true,
+        sortOrder: 1,
+        features: ['2 Usuarios Operativos', '250 Comprobantes SRI / mes', '1 Terminal POS', '1 GB Almacenamiento'],
     },
     {
-        baseKey: 'pro', name: 'Pro', isPopular: true,
-        monthlyPrice: 34.99, yearlyPrice: 349.00, monthlyPlanId: 'pro_monthly', yearlyPlanId: 'pro_yearly',
-        annualDiscountPercent: 17, freeAccountant: true, sortOrder: 2,
-        features: ['5 Usuarios Operativos', 'Comprobantes SRI ILIMITADOS', '3 Cajas POS Simultáneas', 'Contabilidad NIIF', '5 GB Almacenamiento'],
+        baseKey: 'pro',
+        title: 'Negocio Pro',
+        subtitle: 'ERP & Contable',
+        isPopular: true,
+        monthlyPrice: 34.99,
+        yearlyPrice: 349,
+        monthlyPlanId: 'pro_monthly',
+        yearlyPlanId: 'pro_yearly',
+        annualDiscountPercent: 17,
+        freeAccountant: true,
+        sortOrder: 2,
+        features: [
+            '5 Usuarios Operativos',
+            'Comprobantes SRI ilimitados',
+            '3 Cajas POS',
+            '5 GB Almacenamiento',
+            'Contabilidad NIIF y Retenciones',
+            'Nómina y Gestión de Empleados',
+        ],
     },
     {
-        baseKey: 'enterprise', name: 'Corporativo', isPopular: false,
-        monthlyPrice: 89.99, yearlyPrice: 899.00, monthlyPlanId: 'enterprise_monthly', yearlyPlanId: 'enterprise_yearly',
-        annualDiscountPercent: 17, freeAccountant: true, sortOrder: 3,
-        features: ['15 Usuarios Operativos', 'Comprobantes SRI ILIMITADOS', 'Manufactura y Nómina', '5 Cajas POS', '50 GB Almacenamiento'],
+        baseKey: 'enterprise',
+        title: 'Corporativo',
+        subtitle: 'Manufactura & Holding',
+        isPopular: false,
+        monthlyPrice: 89.99,
+        yearlyPrice: 899,
+        monthlyPlanId: 'enterprise_monthly',
+        yearlyPlanId: 'enterprise_yearly',
+        annualDiscountPercent: 17,
+        freeAccountant: true,
+        sortOrder: 3,
+        features: [
+            '15 Usuarios Operativos',
+            'Comprobantes SRI ilimitados',
+            '8 Cajas POS',
+            '20 GB Almacenamiento',
+            'Contabilidad NIIF y Retenciones',
+            'Nómina y Gestión de Empleados',
+            'Manufactura y Órdenes de Trabajo',
+            'CRM y Visitas Técnicas',
+        ],
     },
 ];
 
@@ -96,7 +126,30 @@ function resolveBaseKey(planId: SaasPlanId): string {
     return planId.replace('_monthly', '').replace('_yearly', '');
 }
 
-function buildFeatureLabels(plan: ApiPlan, allPlans: ApiPlan[]): string[] {
+function parsePlanTitle(rawName: string, baseKey: string): { title: string; subtitle: string } {
+    const parenMatch = rawName.match(/\(([^)]+)\)/);
+    const cleaned = rawName
+        .replace(/\([^)]*\)/g, '')
+        .replace(/^Plan\s+/i, '')
+        .trim();
+    const defaultSubtitles: Record<string, string> = {
+        free: 'Para empezar',
+        starter: 'Starter + POS',
+        pro: 'ERP & Contable',
+        enterprise: 'Manufactura & Holding',
+    };
+    return {
+        title: cleaned || rawName,
+        subtitle: parenMatch?.[1]?.trim() || defaultSubtitles[baseKey] || '',
+    };
+}
+
+function formatPrice(amount: number): string {
+    if (amount === 0) return '$0';
+    return Number.isInteger(amount) ? `$${amount}` : `$${amount.toFixed(2)}`;
+}
+
+function buildFeatureLabels(plan: ApiPlan): string[] {
     const f = plan.features;
     const labels: string[] = [];
 
@@ -106,7 +159,7 @@ function buildFeatureLabels(plan: ApiPlan, allPlans: ApiPlan[]): string[] {
     const sriMonthly = Number(f['sri_documents_monthly'] ?? 0);
     const sriYearly = Number(f['sri_documents_yearly'] ?? 0);
     if (sriMonthly === -1) {
-        labels.push('Comprobantes SRI ILIMITADOS');
+        labels.push('Comprobantes SRI ilimitados');
     } else if (sriMonthly > 0) {
         labels.push(`${sriMonthly} Comprobantes SRI / mes`);
     } else if (sriYearly > 0) {
@@ -138,7 +191,8 @@ function groupApiPlans(plans: ApiPlan[]): GroupedPlan[] {
     for (const p of plans) {
         const base = resolveBaseKey(p.id);
         if (!grouped.has(base)) {
-            grouped.set(base, { baseKey: base, name: p.name, isPopular: p.is_popular, sortOrder: p.sort_order });
+            const { title, subtitle } = parsePlanTitle(p.name, base);
+            grouped.set(base, { baseKey: base, title, subtitle, isPopular: p.is_popular, sortOrder: p.sort_order });
         }
         const g = grouped.get(base)!;
         const price = parseFloat(p.price_usd);
@@ -152,17 +206,18 @@ function groupApiPlans(plans: ApiPlan[]): GroupedPlan[] {
             g.monthlyPlanId = p.id;
             g.monthlyPlan = p;
         }
-        g.annualDiscountPercent = p.annual_discount_percent || 0;
+        g.annualDiscountPercent = p.annual_discount_percent || g.annualDiscountPercent || 0;
         g.freeAccountant = Boolean(p.features['free_accountant_seat']);
     }
 
     return Array.from(grouped.values())
-        .map(g => {
+        .map((g) => {
             const refPlan = g.monthlyPlan || g.yearlyPlan;
             const defaultPlanId: SaasPlanId = g.monthlyPlanId ?? g.yearlyPlanId ?? 'free';
             return {
                 baseKey: g.baseKey!,
-                name: g.name!,
+                title: g.title!,
+                subtitle: g.subtitle || '',
                 isPopular: g.isPopular ?? false,
                 monthlyPrice: g.monthlyPrice ?? 0,
                 yearlyPrice: g.yearlyPrice ?? 0,
@@ -170,37 +225,46 @@ function groupApiPlans(plans: ApiPlan[]): GroupedPlan[] {
                 yearlyPlanId: g.yearlyPlanId ?? defaultPlanId,
                 annualDiscountPercent: g.annualDiscountPercent ?? 0,
                 freeAccountant: g.freeAccountant ?? false,
-                features: refPlan ? buildFeatureLabels(refPlan, plans) : [],
+                features: refPlan ? buildFeatureLabels(refPlan) : [],
                 sortOrder: g.sortOrder ?? 0,
             } satisfies GroupedPlan;
         })
         .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
-// ─── Data Fetchers ───────────────────────────────────────────────────────────
+// ─── Module-level cached fetcher (single request shared across steps) ────────
 
-const apiBase = getApiUrl();
+let cachedPlans: GroupedPlan[] = FALLBACK_PLANS;
+let plansPromise: Promise<GroupedPlan[]> | null = null;
 
-async function fetchPlans(): Promise<GroupedPlan[]> {
-    try {
-        const res = await fetch(`${apiBase}/api/saas/plans`, { credentials: 'include' });
-        if (!res.ok) return FALLBACK_PLANS;
-        const data: ApiPlan[] = await res.json();
-        if (!data.length) return FALLBACK_PLANS;
-        return groupApiPlans(data);
-    } catch {
-        return FALLBACK_PLANS;
-    }
+function fetchPlans(): Promise<GroupedPlan[]> {
+    if (plansPromise) return plansPromise;
+
+    plansPromise = fetch(`${getApiUrl()}/api/saas/plans`, { credentials: 'include' })
+        .then(async (res) => {
+            if (!res.ok) return FALLBACK_PLANS;
+            const data: ApiPlan[] = await res.json();
+            if (!data.length) return FALLBACK_PLANS;
+            cachedPlans = groupApiPlans(data);
+            return cachedPlans;
+        })
+        .catch(() => FALLBACK_PLANS);
+
+    return plansPromise;
 }
 
-async function fetchAddons(): Promise<ApiAddon[]> {
-    try {
-        const res = await fetch(`${apiBase}/api/saas/addons`, { credentials: 'include' });
-        if (!res.ok) return [];
-        return await res.json();
-    } catch {
-        return [];
+export function resolvePlanSummary(planId: SaasPlanId): PlanSummaryInfo {
+    const base = resolveBaseKey(planId);
+    const plan = cachedPlans.find((p) => p.baseKey === base) ?? FALLBACK_PLANS[0];
+    if (plan.baseKey === 'free') {
+        return { name: plan.title, priceLabel: 'Gratis · de por vida' };
     }
+    const isYearly = planId.endsWith('_yearly');
+    const amount = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
+    return {
+        name: plan.title,
+        priceLabel: `${formatPrice(amount)}${isYearly ? '/año' : '/mes'}`,
+    };
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -210,15 +274,13 @@ export const PlanSelector: Component<PlanSelectorProps> = (props) => {
     const urlPlanParam = () => (search() as any)?.plan as string | undefined;
 
     const [plans] = createResource(fetchPlans);
-    const [addons] = createResource(() => props.showAddons !== false, (shouldFetch) => shouldFetch ? fetchAddons() : Promise.resolve([]));
 
-    const [billingInterval, setBillingInterval] = createSignal<'monthly' | 'yearly'>('monthly');
-
-    // Auto-select from URL param on mount
     const initialParam = urlPlanParam() || props.selectedPlanId;
-    if (initialParam) {
-        if (initialParam.endsWith('_yearly')) setBillingInterval('yearly');
-    }
+    const [billingInterval, setBillingInterval] = createSignal<'monthly' | 'yearly'>(
+        initialParam?.endsWith('_yearly') ? 'yearly' : 'monthly'
+    );
+
+    const resolvedPlans = () => plans() || cachedPlans;
 
     const handleSelectPlan = (plan: GroupedPlan) => {
         if (plan.baseKey === 'free') {
@@ -230,10 +292,9 @@ export const PlanSelector: Component<PlanSelectorProps> = (props) => {
 
     const handleToggleInterval = (interval: 'monthly' | 'yearly') => {
         setBillingInterval(interval);
-        const current = props.selectedPlanId;
-        if (current === 'free') return;
-        const currentBase = resolveBaseKey(current);
-        const target = (plans() || FALLBACK_PLANS).find(p => p.baseKey === currentBase);
+        if (props.selectedPlanId === 'free') return;
+        const currentBase = resolveBaseKey(props.selectedPlanId);
+        const target = resolvedPlans().find((p) => p.baseKey === currentBase);
         if (target) {
             props.onPlanChange(interval === 'yearly' ? target.yearlyPlanId : target.monthlyPlanId);
         }
@@ -244,46 +305,51 @@ export const PlanSelector: Component<PlanSelectorProps> = (props) => {
         return props.selectedPlanId === plan.monthlyPlanId || props.selectedPlanId === plan.yearlyPlanId;
     };
 
-    const maxDiscount = createMemo(() => {
-        const list = plans() || FALLBACK_PLANS;
-        return Math.max(...list.map(p => p.annualDiscountPercent || 0));
-    });
-
-    const resolvedPlans = () => plans() || FALLBACK_PLANS;
+    const maxDiscount = createMemo(() =>
+        Math.max(...resolvedPlans().map((p) => p.annualDiscountPercent || 0))
+    );
 
     return (
-        <div class="space-y-4">
-            {/* Header / Interval Toggle */}
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pb-1">
+        <div class="@container space-y-5">
+            {/* Header & Billing Interval Toggle */}
+            <div class="flex flex-col @xl:flex-row @xl:items-end justify-between gap-4">
                 <div>
-                    <span class="text-sm font-semibold text-foreground block">Planes y Beneficios</span>
-                    <span class="text-xs text-muted">Selecciona el plan que mejor se adapte a tu operación comercial.</span>
+                    <h2 class="text-xl sm:text-2xl font-bold text-heading tracking-tight">
+                        Elige el plan para tu empresa
+                    </h2>
+                    <p class="text-xs sm:text-sm text-muted mt-1">
+                        Comienza gratis o activa facturación electrónica y gestión ERP completa.
+                    </p>
                 </div>
 
-                <div class="flex items-center p-0.5 bg-surface/80 rounded-xl border border-border shrink-0">
+                <div
+                    role="group"
+                    aria-label="Frecuencia de facturación"
+                    class="inline-flex items-center p-1 bg-card-alt rounded-xl border border-border self-start @xl:self-auto shrink-0"
+                >
                     <button
                         type="button"
                         onClick={() => handleToggleInterval('monthly')}
-                        class={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        class={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
                             billingInterval() === 'monthly'
-                                ? 'bg-primary text-white shadow-sm'
-                                : 'text-muted hover:text-foreground'
+                                ? 'bg-card text-heading border-border-strong/70 shadow-xs'
+                                : 'text-muted border-transparent hover:text-heading'
                         }`}
                     >
-                        Facturación Mensual
+                        Mensual
                     </button>
                     <button
                         type="button"
                         onClick={() => handleToggleInterval('yearly')}
-                        class={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                        class={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 border ${
                             billingInterval() === 'yearly'
-                                ? 'bg-primary text-white shadow-sm'
-                                : 'text-muted hover:text-foreground'
+                                ? 'bg-card text-heading border-border-strong/70 shadow-xs'
+                                : 'text-muted border-transparent hover:text-heading'
                         }`}
                     >
                         <span>Anual</span>
                         <Show when={maxDiscount() > 0}>
-                            <span class="px-1.5 py-0.2 text-[10px] font-bold uppercase rounded bg-emerald-500 text-white">
+                            <span class="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-success/15 text-success border border-success/25 leading-none">
                                 -{maxDiscount()}%
                             </span>
                         </Show>
@@ -291,126 +357,134 @@ export const PlanSelector: Component<PlanSelectorProps> = (props) => {
                 </div>
             </div>
 
-            {/* Plan Cards Grid */}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Container-Aware 4-Column Pricing Grid */}
+            <div
+                role="radiogroup"
+                aria-label="Planes disponibles"
+                class="grid grid-cols-1 @md:grid-cols-2 @4xl:grid-cols-4 gap-3.5 items-stretch pt-2"
+            >
                 <For each={resolvedPlans()}>
                     {(plan) => {
                         const selected = () => isSelected(plan);
-                        const price = () => billingInterval() === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
-                        const periodLabel = () => plan.baseKey === 'free' ? 'gratis de por vida' : billingInterval() === 'yearly' ? '/año' : '/mes';
+                        const isYearly = () => billingInterval() === 'yearly';
+                        const price = () => (isYearly() ? plan.yearlyPrice : plan.monthlyPrice);
+                        const periodLabel = () =>
+                            plan.baseKey === 'free' ? '' : isYearly() ? '/año' : '/mes';
+                        const billingHint = () => {
+                            if (plan.baseKey === 'free') return 'Sin tarjeta · de por vida';
+                            if (isYearly()) return `$${(plan.yearlyPrice / 12).toFixed(2)}/mes facturado anual`;
+                            return plan.annualDiscountPercent > 0
+                                ? `Ahorra ${plan.annualDiscountPercent}% en plan anual`
+                                : 'Facturación mensual';
+                        };
 
                         return (
-                            <div
+                            <button
+                                type="button"
+                                role="radio"
+                                aria-checked={selected()}
                                 onClick={() => handleSelectPlan(plan)}
-                                class={`relative flex flex-col p-4 rounded-2xl border transition-all cursor-pointer ${
+                                class={`group relative flex flex-col text-left p-5 rounded-2xl border transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
                                     selected()
-                                        ? 'border-primary ring-2 ring-primary/20 bg-primary/[0.03] shadow-md'
-                                        : 'border-border/70 hover:border-border hover:bg-surface/30'
+                                        ? 'border-primary bg-primary-soft/25 ring-2 ring-primary/25 shadow-lg shadow-primary/5'
+                                        : plan.isPopular
+                                            ? 'border-primary/40 bg-card-alt/50 hover:border-primary/70 hover:bg-card-alt/80'
+                                            : 'border-border bg-card-alt/30 hover:border-border-strong hover:bg-card-alt/60'
                                 }`}
                             >
                                 {/* Popular badge */}
                                 <Show when={plan.isPopular}>
-                                    <div class="absolute -top-2.5 right-3">
-                                        <span class="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full bg-linear-to-r from-primary to-indigo-600 text-white shadow-xs">
-                                            Más Popular
-                                        </span>
-                                    </div>
+                                    <span class="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary text-white dark:text-slate-950 shadow-sm">
+                                        Más popular
+                                    </span>
                                 </Show>
 
-                                {/* Plan title & price */}
-                                <div class="mb-3">
-                                    <h4 class="font-bold text-base text-foreground flex items-center justify-between">
-                                        <span>{plan.name}</span>
-                                        <span class={`size-4 rounded-full border flex items-center justify-center transition-all ${
-                                            selected()
-                                                ? 'border-primary bg-primary text-white'
-                                                : 'border-border bg-background'
-                                        }`}>
-                                            <Show when={selected()}>
-                                                <svg class="size-2.5 stroke-current stroke-2" fill="none" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                                </svg>
-                                            </Show>
-                                        </span>
-                                    </h4>
-
-                                    <div class="mt-2 flex items-baseline gap-1">
-                                        <span class="text-2xl font-black text-foreground">
-                                            ${price() === 0 ? '0' : price().toFixed(2)}
-                                        </span>
-                                        <span class="text-xs text-muted">{periodLabel()}</span>
+                                {/* Title + Radio Indicator */}
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <h3 class="text-base font-bold text-heading leading-snug">
+                                            {plan.title}
+                                        </h3>
+                                        <Show when={plan.subtitle}>
+                                            <p class="text-[11px] text-muted mt-0.5 leading-snug">
+                                                {plan.subtitle}
+                                            </p>
+                                        </Show>
                                     </div>
+                                    <span
+                                        class={`size-4.5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                                            selected()
+                                                ? 'border-primary bg-primary text-white dark:text-slate-950'
+                                                : 'border-border-strong bg-surface'
+                                        }`}
+                                    >
+                                        <Show when={selected()}>
+                                            <svg class="size-2.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                            </svg>
+                                        </Show>
+                                    </span>
+                                </div>
+
+                                {/* Price */}
+                                <div class="mt-4 pb-3.5 border-b border-border/70">
+                                    <div class="flex items-baseline gap-1">
+                                        <span class="text-3xl font-extrabold tracking-tight text-heading tabular-nums">
+                                            {formatPrice(price())}
+                                        </span>
+                                        <Show when={periodLabel()}>
+                                            <span class="text-xs font-medium text-muted">{periodLabel()}</span>
+                                        </Show>
+                                    </div>
+                                    <p class="text-[11px] text-muted mt-1 leading-tight">
+                                        {billingHint()}
+                                    </p>
                                 </div>
 
                                 {/* Free Accountant Callout */}
                                 <Show when={plan.freeAccountant}>
-                                    <div class="mb-3 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                                        <span class="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                        <span>Incluye Asiento de Contador</span>
+                                    <div class="mt-3 px-2.5 py-1.5 rounded-lg bg-success/10 border border-success/20 text-[11px] font-medium text-success flex items-center gap-1.5 whitespace-nowrap">
+                                        <span class="size-1.5 rounded-full bg-success shrink-0" />
+                                        <span class="truncate">Asiento de contador gratis</span>
                                     </div>
                                 </Show>
 
-                                {/* Features List */}
-                                <ul class="space-y-1.5 text-xs text-muted flex-1 mt-1 border-t border-border/50 pt-2.5">
+                                {/* Features */}
+                                <ul class="mt-3.5 space-y-2 text-xs text-text/85 flex-1">
                                     <For each={plan.features}>
                                         {(feat) => (
-                                            <li class="flex items-start gap-1.5">
-                                                <svg class="size-3.5 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <li class="flex items-start gap-2">
+                                                <svg class="size-3.5 text-success shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4.5 12.75l6 6 9-13.5" />
                                                 </svg>
-                                                <span class="leading-tight">{feat}</span>
+                                                <span class="leading-snug">{feat}</span>
                                             </li>
                                         )}
                                     </For>
                                 </ul>
-                            </div>
+
+                                {/* Selection Footer Indicator */}
+                                <div class="mt-4 pt-3 border-t border-border/60">
+                                    <span
+                                        class={`block w-full py-1.5 rounded-lg text-xs font-semibold text-center transition-colors ${
+                                            selected()
+                                                ? 'bg-primary text-white dark:text-slate-950'
+                                                : 'bg-surface/80 text-muted border border-border group-hover:text-heading group-hover:border-border-strong'
+                                        }`}
+                                    >
+                                        {selected() ? 'Plan seleccionado' : 'Elegir plan'}
+                                    </span>
+                                </div>
+                            </button>
                         );
                     }}
                 </For>
             </div>
 
-            {/* Add-ons Section */}
-            <Show when={props.showAddons !== false && (addons() || []).length > 0}>
-                <div class="pt-3 border-t border-border/50">
-                    <div class="mb-2">
-                        <span class="text-sm font-semibold text-foreground">Add-ons Disponibles</span>
-                        <span class="text-xs text-muted ml-2">Complementos que puedes agregar a cualquier plan de pago.</span>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                        <For each={addons() || []}>
-                            {(addon) => (
-                                <div class="flex items-start gap-3 p-3 rounded-xl border border-border/60 bg-surface/20 hover:bg-surface/40 transition-colors">
-                                    <div class="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                                        <Show when={addon.addon_type === 'USER_SEATS'} fallback={
-                                            <Show when={addon.addon_type === 'POS_REGISTERS'} fallback={
-                                                <Show when={addon.addon_type === 'STORAGE_GB'} fallback={
-                                                    <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                                                }>
-                                                    <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z" /></svg>
-                                                </Show>
-                                            }>
-                                                <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                                            </Show>
-                                        }>
-                                            <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                        </Show>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-baseline justify-between gap-2">
-                                            <span class="text-xs font-semibold text-foreground truncate">{addon.name}</span>
-                                            <span class="text-xs font-bold text-primary whitespace-nowrap">
-                                                ${parseFloat(addon.price_usd).toFixed(2)}
-                                                <span class="text-[10px] text-muted font-normal">/{addon.billing_type === 'RECURRING' ? 'mes' : 'único'}</span>
-                                            </span>
-                                        </div>
-                                        <p class="text-[11px] text-muted mt-0.5 line-clamp-2">{addon.description}</p>
-                                    </div>
-                                </div>
-                            )}
-                        </For>
-                    </div>
-                </div>
-            </Show>
+            {/* Concise Reassurance Footnote */}
+            <p class="text-xs text-muted text-center pt-1">
+                ¿Necesitas más usuarios, cajas POS o almacenamiento? Podrás cambiar de plan o añadir complementos en cualquier momento desde Configuración.
+            </p>
         </div>
     );
 };

@@ -51,8 +51,8 @@ const AuthLayout: ParentComponent = () => {
                 </div>
             </Show>
 
-            {/* Main content */}
-            <div class="w-full max-w-xl p-8 relative z-10">
+            {/* Main content — expands smoothly when a child step sets data-wide-step */}
+            <div class="w-full max-w-xl has-[[data-wide-step]]:max-w-5xl px-4 sm:px-8 py-8 relative z-10 transition-[max-width] duration-300 ease-out">
                 <Outlet />
             </div>
 
