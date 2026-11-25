@@ -11,6 +11,7 @@ import { useAuth } from '@modules/auth/store/auth.store';
 import { connect as connectSSE, disconnect as disconnectSSE } from '@shared/store/sse.store';
 import { GlobalSearchPalette } from './components/search/GlobalSearchPalette';
 import { SubscriptionBanner, SubscriptionBlockedView } from './components/SubscriptionStatusGate';
+import { ForcePasswordChangeGate } from './components/ForcePasswordChangeGate';
 
 export const LayoutSkeleton: Component = () => {
     return (
@@ -75,6 +76,7 @@ export const LayoutSkeleton: Component = () => {
 const MainLayout: Component = () => {
     const isOnline = useOnlineStatus();
     const auth = useAuth();
+    const requiresPasswordChange = () => auth.mustChangePassword();
     const isBillingBlocked = () => !isUsableSubscriptionStatus(auth.planStatus());
 
     // Sincronizar el EventSource de Server-Sent Events con el estado de conexión
@@ -120,8 +122,10 @@ const MainLayout: Component = () => {
                     </Show>
                     <SubscriptionBanner />
                     <div class="flex-1 min-h-0 relative">
-                        <Show when={!isBillingBlocked()} fallback={<SubscriptionBlockedView />}>
-                            <Outlet />
+                        <Show when={!requiresPasswordChange()} fallback={<ForcePasswordChangeGate />}>
+                            <Show when={!isBillingBlocked()} fallback={<SubscriptionBlockedView />}>
+                                <Outlet />
+                            </Show>
                         </Show>
                     </div>
                 </div>

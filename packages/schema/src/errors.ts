@@ -16,6 +16,7 @@ export const API_ERROR_CODES = {
     PLAN_LIMIT_EXCEEDED: 'PLAN_LIMIT_EXCEEDED',
     FEATURE_NOT_IN_PLAN: 'FEATURE_NOT_IN_PLAN',
     SUBSCRIPTION_BLOCKED: 'SUBSCRIPTION_BLOCKED',
+    PASSWORD_CHANGE_REQUIRED: 'PASSWORD_CHANGE_REQUIRED',
     MEMBERSHIP_SUSPENDED: 'MEMBERSHIP_SUSPENDED',
     EMAIL_ALREADY_EXISTS: 'EMAIL_ALREADY_EXISTS',
 } as const;
@@ -69,6 +70,7 @@ export const ERROR_MESSAGES_ES: Record<string, string> = {
     TENANT_ACCESS_DENIED: 'Acceso denegado a este inquilino.',
     MEMBERSHIP_SUSPENDED: 'La membresía de este usuario está suspendida en la empresa.',
     SUBSCRIPTION_BLOCKED: 'La suscripción de la empresa requiere regularización para continuar.',
+    PASSWORD_CHANGE_REQUIRED: 'Debes actualizar tu contraseña temporal antes de continuar.',
     YOU_ARE_NOT_ALLOWED_TO_INVITE_USER: 'No tienes permisos para invitar a otros usuarios',
     INVITATION_EXPIRED: 'La invitación ha expirado',
     INVALID_INVITATION: 'La invitación es inválida',

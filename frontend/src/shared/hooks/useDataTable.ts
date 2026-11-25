@@ -14,20 +14,24 @@ export interface UseDataTableProps<TData> {
     data: () => TData[];
     meta: () => DataTableMeta | undefined;
     isCursorBased?: boolean;
+    initialPageSize?: number;
+    initialPage?: number;
+    initialSearch?: string;
+    initialSorting?: SortingState;
 }
 
 export function useDataTable<TData extends { id: number | string }>(props: UseDataTableProps<TData>) {
     // ─── Table Core State ───────────────────────────────
-    const [search, setSearch] = createSignal('');
-    const [pageSize, setPageSize] = createSignal(10);
-    const [page, setPage] = createSignal(1);
+    const [search, setSearch] = createSignal(props.initialSearch ?? '');
+    const [pageSize, setPageSize] = createSignal(props.initialPageSize ?? 10);
+    const [page, setPage] = createSignal(props.initialPage ?? 1);
     
     // Cursor Pagination (Optional)
     const [cursor, setCursor] = createSignal<string | undefined>(undefined);
     const [direction, setDirection] = createSignal<'first' | 'next' | 'prev' | 'last'>('first');
     
     // Feature States
-    const [sorting, setSorting] = createSignal<SortingState>([]);
+    const [sorting, setSorting] = createSignal<SortingState>(props.initialSorting ?? []);
     const [rowSelection, setRowSelection] = createSignal<RowSelectionState>({});
     const [columnVisibility, setColumnVisibility] = createSignal<VisibilityState>({});
     const [columnPinning, setColumnPinning] = createSignal<ColumnPinningState>({

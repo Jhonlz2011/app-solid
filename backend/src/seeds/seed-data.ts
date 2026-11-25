@@ -4,8 +4,9 @@
  */
 
 import { MODULE_ACTIONS_MAP, type RbacModule, type MenuItemStatus } from '@app/schema/enums';
+import { getRbacPermissionDescription } from '@app/schema/utils';
 
-interface MenuSeedItem {
+export interface MenuSeedItem {
     key: string;
     label: string;
     icon: string;
@@ -24,77 +25,6 @@ export interface PermissionDef {
     description: string;
 }
 
-const ACTION_LABELS: Record<string, string> = {
-    read: 'Ver',
-    create: 'Crear',
-    update: 'Editar',
-    delete: 'Desactivar',
-    restore: 'Restaurar',
-    destroy: 'Eliminar permanentemente',
-    export: 'Exportar',
-    import: 'Importar',
-    assign: 'Asignar',
-    unassign: 'Quitar',
-};
-
-const MODULE_LABELS: Record<RbacModule, string> = {
-    dashboard: 'panel de control',
-    audit: 'auditoría',
-    system: 'sistema',
-    config: 'configuración',
-    companies: 'empresas',
-    menu: 'menú y navegación',
-    permissions: 'permisos',
-    roles: 'roles',
-    crm: 'módulo CRM',
-    operations: 'operaciones',
-    production: 'producción',
-    pos: 'módulo POS',
-    hr: 'talento humano',
-    manufacturing: 'manufactura',
-    clients: 'clientes',
-    suppliers: 'proveedores',
-    employees: 'nómina de empleados',
-    products: 'productos',
-    services: 'servicios',
-    categories: 'categorías',
-    brands: 'marcas',
-    uom: 'unidades de medida',
-    attributes: 'atributos de producto',
-    locations: 'ubicaciones',
-    tools: 'inventario de herramientas',
-    users: 'usuarios',
-    visits: 'visitas técnicas',
-    budgets: 'presupuestos',
-    invoices: 'facturas',
-    inventory: 'inventario',
-    movements: 'movimientos de inventario',
-    orders: 'pedidos de material',
-    reception_materials: 'recepción de mercadería',
-    remission_guides: 'guías de remisión',
-    tool_loans: 'préstamos de herramientas',
-    work_orders: 'órdenes de trabajo',
-    schedule: 'cronograma',
-    projects: 'historial de proyectos',
-    planning: 'planificación',
-    bom: 'recetas de producción (BOM)',
-    dispatch_requests: 'solicitudes de despacho',
-    materials: 'solicitudes de materiales',
-    purchase_quotes: 'cotizaciones de compra',
-    purchase_orders: 'órdenes de compra',
-    purchase_invoices: 'facturas de compra',
-    retentions: 'retenciones',
-    documents: 'documentos electrónicos',
-    receivable: 'cuentas por cobrar',
-    payable: 'cuentas por pagar',
-    schedules: 'horarios',
-    hours: 'reporte de horas',
-    stock_taking: 'toma de inventario físico',
-    pos_sell: 'caja POS',
-    pos_sessions: 'sesiones POS',
-    pos_history: 'historial de ventas POS',
-};
-
 export const PERMISSIONS: PermissionDef[] = (
     Object.entries(MODULE_ACTIONS_MAP) as [RbacModule, readonly string[]][]
 ).flatMap(([mod, actions]) =>
@@ -102,7 +32,7 @@ export const PERMISSIONS: PermissionDef[] = (
         slug: `${mod}.${action}`,
         module: mod,
         action,
-        description: `${ACTION_LABELS[action] || action} ${MODULE_LABELS[mod] || mod}`,
+        description: getRbacPermissionDescription(mod, action),
     }))
 );
 

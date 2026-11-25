@@ -11,6 +11,7 @@ export type CreateCredentialIdentityInput = {
   displayUsername?: string;
   passwordHash?: string;
   emailVerified?: boolean;
+  mustChangePassword?: boolean;
   companyId?: number | null;
 };
 
@@ -31,6 +32,7 @@ export async function createCredentialIdentity(tx: Tx, input: CreateCredentialId
       company_id: input.companyId ?? null,
       is_active: true,
       emailVerified: input.emailVerified ?? false,
+      must_change_password: input.mustChangePassword ?? false,
     })
     .returning({
       id: authUsers.id,

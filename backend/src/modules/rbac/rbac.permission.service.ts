@@ -345,6 +345,13 @@ export async function invalidateUserFacetsCache(companyId: number): Promise<void
 }
 
 /**
+ * Invalidate cached tenant roles list for a company.
+ */
+export async function invalidateRolesListCache(companyId: number): Promise<void> {
+    await cacheService.del(`rbac:roles:list:${companyId}`);
+}
+
+/**
  * Invalidate all RBAC caches across an entire company (e.g. after a SaaS plan change).
  */
 export async function invalidateCompanyRbacCache(companyId: number): Promise<void> {
@@ -353,5 +360,6 @@ export async function invalidateCompanyRbacCache(companyId: number): Promise<voi
         cacheService.invalidate(`rbac:permissions:*:${companyId}`),
         cacheService.invalidate(`rbac:auth_ctx:*:${companyId}`),
         cacheService.invalidate(`rbac:facets:users:${companyId}:*`),
+        cacheService.del(`rbac:roles:list:${companyId}`),
     ]);
 }

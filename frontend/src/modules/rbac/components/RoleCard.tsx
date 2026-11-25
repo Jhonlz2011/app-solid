@@ -1,6 +1,8 @@
 import { Component, JSX, Show } from 'solid-js';
 import { Link } from '@tanstack/solid-router';
 import type { RoleType } from '@app/schema/dto';
+import { SYSTEM_ROLES } from '@app/schema/enums';
+import { ROLE_DISPLAY_META } from '@app/schema/utils';
 import { RoleBadge } from '@display/Badge';
 import { EditIcon } from '@icons/EditIcon';
 import { TrashIcon } from '@icons/TrashIcon';
@@ -45,32 +47,44 @@ const StatLink = (p: { icon: JSX.Element; count: number; label: string; to?: str
     );
 };
 
-// ── Badge-to-accent color map (mirrors rolePresentations in Badge.tsx) ──
-const ROLE_ACCENT_COLORS: Record<string, string> = {
-    superadmin: 'from-danger/70 via-danger/30',
-    admin: 'from-warning/70 via-warning/30',
-};
 const DEFAULT_ACCENT = 'from-info/70 via-info/30';
 
 export interface RoleCardProps {
     role: RoleType;
     onDelete?: () => void;
+    onPrefetch?: () => void;
 }
 
 export const RoleCard: Component<RoleCardProps> = (props) => {
     const auth = useAuth();
+    const isSuperadminRole = () => props.role.name === SYSTEM_ROLES.SUPERADMIN;
     const isSystem = () => props.role.is_system ?? false;
+    const isCallerSuperadmin = () => auth.hasRole(SYSTEM_ROLES.SUPERADMIN);
     const userCount = () => props.role.userCount ?? 0;
     const permCount = () => props.role.permissionCount ?? 0;
-    const accentColor = () => ROLE_ACCENT_COLORS[props.role.name] ?? DEFAULT_ACCENT;
-    const canEditRole = () => auth.canEdit('roles');
+
+    const accentColor = () =>
+        ROLE_DISPLAY_META[props.role.name.toLowerCase()]?.accent ?? DEFAULT_ACCENT;
+
+    const canEditRole = () => !isSystem() && auth.canEdit('roles');
     const canEditPerms = () => auth.hasPermission('permissions.update');
     const canReadPerms = () => auth.canRead('permissions') || canEditPerms();
-    const canDeleteRole = () => Boolean(props.onDelete) && auth.canDelete('roles');
-    const hasDropdownActions = () => canEditRole() || canReadPerms() || canDeleteRole();
+    const canEditSystemRole = () => isSystem() && !isSuperadminRole() && isCallerSuperadmin() && (auth.canEdit('roles') || canEditPerms());
+    const canDeleteRole = () => !isSystem() && Boolean(props.onDelete) && auth.canDelete('roles');
+    const showDropdown = () =>
+        (!isSystem() && (canEditRole() || canReadPerms() || canDeleteRole())) || canEditSystemRole();
+
+    const shieldTooltip = () => {
+        if (isSuperadminRole()) return 'Rol propietario del sistema (inmutable)';
+        if (isCallerSuperadmin()) return 'Rol protegido del sistema (solo Super Administrador puede ajustar sus permisos)';
+        return 'Rol protegido del sistema (solo lectura)';
+    };
 
     return (
-        <div class="group relative bg-card border border-border/60 rounded-2xl shadow-card-soft overflow-hidden hover:shadow-lg">
+        <div
+            onMouseEnter={() => props.onPrefetch?.()}
+            class="group relative bg-card border border-border/60 rounded-2xl shadow-card-soft overflow-hidden hover:shadow-lg transition-shadow"
+        >
             {/* Accent top bar — matches badge color */}
             <div class={`h-1 w-full bg-linear-to-r ${accentColor()} to-transparent`} />
 
@@ -81,14 +95,14 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                     <div class="flex items-center gap-2 min-w-0">
                         <RoleBadge name={props.role.name} />
                         <Show when={isSystem()}>
-                            <Tooltip content="Rol protegido del sistema">
-                                <ShieldIcon class="size-3.5 text-danger/60" />
+                            <Tooltip content={shieldTooltip()}>
+                                <ShieldIcon class="size-3.5 text-danger/60 shrink-0" />
                             </Tooltip>
                         </Show>
                     </div>
 
-                    {/* Actions dropdown — visible for non-system when caller has at least one permitted action */}
-                    <Show when={!isSystem() && hasDropdownActions()}>
+                    {/* Actions dropdown — custom roles OR admin/contador when caller is superadmin */}
+                    <Show when={showDropdown()}>
                         <DropdownMenu placement="bottom-end">
                             <DropdownMenu.Trigger
                                 variant="ghost"
@@ -97,15 +111,15 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                             >
                                 <MoreVerticalIcon class="size-4" />
                             </DropdownMenu.Trigger>
-                            <DropdownMenu.Content class="min-w-40">
-                                <Show when={canEditRole()}>
+                            <DropdownMenu.Content class="min-w-44">
+                                <Show when={canEditRole() || canEditSystemRole()}>
                                     <DropdownMenu.Item
                                         to={`/users/role/${props.role.id}/edit`}
                                         search={(prev: any) => ({ ...prev, tab: 'roles' })}
                                         preload="intent"
                                     >
                                         <EditIcon class="size-4 mr-2" />
-                                        Editar rol
+                                        {isSystem() ? 'Configurar rol' : 'Editar rol'}
                                     </DropdownMenu.Item>
                                 </Show>
                                 <Show when={canReadPerms()}>
@@ -136,7 +150,9 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                             </DropdownMenu.Content>
                         </DropdownMenu>
                     </Show>
-                    <Show when={isSystem() && canReadPerms()}>
+
+                    {/* Read-only eye button for superadmin role or non-superadmin viewing system roles */}
+                    <Show when={!showDropdown() && isSystem() && canReadPerms()}>
                         <Tooltip content="Ver permisos del rol">
                             <Link
                                 to={`/users/role/${props.role.id}/permissions`}
@@ -169,7 +185,7 @@ export const RoleCard: Component<RoleCardProps> = (props) => {
                         count={permCount()}
                         label="permiso"
                         to={`/users/role/${props.role.id}/permissions`}
-                        tooltip={isSystem() ? 'Ver permisos' : 'Editar permisos'}
+                        tooltip={isSuperadminRole() || (isSystem() && !isCallerSuperadmin()) ? 'Ver permisos' : 'Editar permisos'}
                     />
                 </div>
             </div>

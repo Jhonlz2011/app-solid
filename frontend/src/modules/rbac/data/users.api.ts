@@ -1,36 +1,32 @@
 /**
- * users.api.ts — Unified Data API
- *
- * Contains strictly the Eden API fetchers for the Users module.
- * All response types are inferred from backend response schemas — no `as any` casts.
+ * users.api.ts — Unified Data API with AbortSignal cancellation support
  */
 import { api } from '@shared/lib/eden';
 import { throwApiError } from '@shared/utils/api-errors';
-import type { RoleBody } from '../models/users.types';
-import { UsersFilters } from '@app/schema/dto';
+import type { RoleBodyType, UsersFilters, FacetData } from '@app/schema/dto';
 import type { PermissionSlug } from '@app/schema/enums';
 
 export const usersApi = {
     // ─── Roles ───────────────────────────────────────────────────
-    listRoles: async () => {
-        const { data, error } = await api.rbac.roles.get();
+    listRoles: async (signal?: AbortSignal) => {
+        const { data, error } = await api.rbac.roles.get({ fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },
 
-    getRole: async (id: number) => {
-        const { data, error } = await api.rbac.roles({ id }).get();
+    getRole: async (id: number, signal?: AbortSignal) => {
+        const { data, error } = await api.rbac.roles({ id }).get({ fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },
 
-    createRole: async (body: RoleBody) => {
+    createRole: async (body: RoleBodyType) => {
         const { data, error } = await api.rbac.roles.post(body);
         if (error) throwApiError(error);
         return data!;
     },
 
-    updateRole: async (id: number, body: RoleBody) => {
+    updateRole: async (id: number, body: RoleBodyType) => {
         const { data, error } = await api.rbac.roles({ id }).put(body);
         if (error) throwApiError(error);
         return data!;
@@ -43,14 +39,14 @@ export const usersApi = {
     },
 
     // ─── Permissions ─────────────────────────────────────────────
-    listPermissions: async () => {
-        const { data, error } = await api.rbac.permissions.get();
+    listPermissions: async (signal?: AbortSignal) => {
+        const { data, error } = await api.rbac.permissions.get({ fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },
 
-    getRolePermissions: async (roleId: number) => {
-        const { data, error } = await api.rbac.roles({ id: roleId }).permissions.get();
+    getRolePermissions: async (roleId: number, signal?: AbortSignal) => {
+        const { data, error } = await api.rbac.roles({ id: roleId }).permissions.get({ fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },
@@ -61,8 +57,8 @@ export const usersApi = {
         return data!;
     },
 
-    // ─── Users (paginated) ───────────────────────────────────────
-    listUsersWithRoles: async (filters: UsersFilters = {}) => {
+    // ─── Users (paginated + facets) ──────────────────────────────
+    listUsersWithRoles: async (filters: UsersFilters = {}, signal?: AbortSignal) => {
         const { data, error } = await api.rbac.users.get({
             query: {
                 search: filters.search,
@@ -70,23 +66,42 @@ export const usersApi = {
                 limit: filters.limit,
                 sortBy: filters.sortBy,
                 sortOrder: filters.sortOrder,
-                isActive: filters.isActive?.join(','),
-                roles: filters.roles?.join(','),
+                isActive: filters.isActive?.length ? filters.isActive.join(',') : undefined,
+                roles: filters.roles?.length ? filters.roles.join(',') : undefined,
             },
+            fetch: { signal },
         });
         if (error) throwApiError(error);
         return data!;
     },
 
-    getUser: async (id: string) => {
-        const { data, error } = await api.rbac.users({ id }).get();
+    getUserFacets: async (
+        search?: string,
+        columnFilters?: { isActive?: string[]; roles?: string[] },
+        signal?: AbortSignal,
+    ): Promise<FacetData> => {
+        const { data, error } = await api.rbac.users.facets.get({
+            query: {
+                search: search || undefined,
+                isActive: columnFilters?.isActive?.length ? columnFilters.isActive.join(',') : undefined,
+                roles: columnFilters?.roles?.length ? columnFilters.roles.join(',') : undefined,
+            },
+            fetch: { signal },
+        });
+        if (error) throwApiError(error);
+        return data as unknown as FacetData;
+    },
+
+    getUser: async (id: string, signal?: AbortSignal) => {
+        const { data, error } = await api.rbac.users({ id }).get({ fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },
 
-    checkEmail: async (email: string) => {
+    checkEmail: async (email: string, signal?: AbortSignal) => {
         const { data, error } = await api.rbac.users['check-email'].get({
             query: { email },
+            fetch: { signal },
         });
         if (error) throwApiError(error);
         return data!;
@@ -94,6 +109,12 @@ export const usersApi = {
 
     createUser: async (body: Parameters<typeof api.rbac.users.post>[0]) => {
         const { data, error } = await api.rbac.users.post(body);
+        if (error) throwApiError(error);
+        return data!;
+    },
+
+    resendInvitation: async (userId: string) => {
+        const { data, error } = await api.rbac.users({ id: userId })['resend-invitation'].post();
         if (error) throwApiError(error);
         return data!;
     },
@@ -143,8 +164,8 @@ export const usersApi = {
     },
 
     // ─── Role Users ──────────────────────────────────────────────
-    getRoleUsers: async (roleId: number) => {
-        const { data, error } = await api.rbac.roles({ id: roleId }).users.get();
+    getRoleUsers: async (roleId: number, signal?: AbortSignal) => {
+        const { data, error } = await api.rbac.roles({ id: roleId }).users.get({ fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },
@@ -168,9 +189,9 @@ export const usersApi = {
     },
 
     // ─── User Sessions (Admin) ───────────────────────────────────
-    getUserSessions: async (userId: string) => {
+    getUserSessions: async (userId: string, signal?: AbortSignal) => {
         const userPath = api.rbac.users({ id: userId });
-        const { data, error } = await userPath.sessions.get();
+        const { data, error } = await userPath.sessions.get({ fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },
@@ -199,9 +220,9 @@ export const usersApi = {
     },
 
     // ─── User Audit Log ──────────────────────────────────────────
-    getUserAuditLog: async (userId: string, page = 1, limit = 20) => {
+    getUserAuditLog: async (userId: string, page = 1, limit = 20, signal?: AbortSignal) => {
         const userPath = api.rbac.users({ id: userId });
-        const { data, error } = await userPath['audit-log'].get({ query: { page, limit } });
+        const { data, error } = await userPath['audit-log'].get({ query: { page, limit }, fetch: { signal } });
         if (error) throwApiError(error);
         return data!;
     },

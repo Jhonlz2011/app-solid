@@ -181,7 +181,7 @@ const UsersRolesPage: Component = () => {
                             columnPinning={state.columnPinning()}
                             onColumnPinningChange={state.setColumnPinning}
                             onRowHover={state.handlePrefetchUser}
-                            enableVirtualization={false}
+                            enableVirtualization={state.users().length > 25}
                             estimatedRowHeight={56}
                             emptyIcon={<UsersIcon />}
                             emptyMessage="No hay usuarios"
@@ -218,6 +218,7 @@ const UsersRolesPage: Component = () => {
                                     {(role) => (
                                         <RoleCard
                                             role={role}
+                                            onPrefetch={() => state.handlePrefetchRole(role)}
                                             onDelete={() => state.handleDeleteRole(role)}
                                         />
                                     )}

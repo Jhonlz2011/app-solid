@@ -2,8 +2,7 @@ import { Elysia } from 'elysia';
 import { ForbiddenError, UnauthorizedError } from '../core/errors';
 import { auth, resolveCompanyIdFromOrg, isAllowedOriginUrl } from '../config/better-auth';
 import { adminDb, tenantStorage } from '../core/db';
-import { member } from '@app/schema/tables';
-import { companies } from '@app/schema/tables';
+import { member, companies, authUsers } from '@app/schema/tables';
 import { eq, and, asc } from '@app/schema';
 import { resolveSlugFromHost } from '@app/schema/utils';
 import { getTenantBySlug } from '../core/spa/spa-renderer.service';
@@ -14,6 +13,8 @@ import { env } from '../config/env';
 type AuthUserSecurityFields = {
   isActive?: boolean | null;
   is_active?: boolean | null;
+  mustChangePassword?: boolean | null;
+  must_change_password?: boolean | null;
 };
 
 function getRequestTenantHost(request: Request): string {
@@ -165,6 +166,18 @@ export const authGuard = (app: Elysia) => app
         ? await getUserAuthContext(user.id, resolvedCompanyId)
         : { roles: [], permissions: [] };
 
+      // Only verify against Postgres when cached session flags mustChangePassword=true,
+      // so password change unlocks the user immediately with 0 overhead for normal requests.
+      let mustChangePassword = Boolean(rawUser.mustChangePassword || rawUser.must_change_password);
+      if (mustChangePassword) {
+        const [freshUser] = await adminDb
+          .select({ mustChangePassword: authUsers.must_change_password })
+          .from(authUsers)
+          .where(eq(authUsers.id, user.id))
+          .limit(1);
+        mustChangePassword = Boolean(freshUser?.mustChangePassword);
+      }
+
       return {
         currentUserId: user.id,
         currentCompanyId: resolvedCompanyId,
@@ -175,6 +188,7 @@ export const authGuard = (app: Elysia) => app
         currentRoles: roles,
         currentPermissions: permissions,
         currentUser: user,
+        mustChangePassword,
       };
     }
   );

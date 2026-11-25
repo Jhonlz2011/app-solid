@@ -17,8 +17,10 @@ import { DataTableColumnHeader } from '@shared/ui/DataTable/DataTableColumnHeade
 import type { FilterOption } from '@shared/ui/DataTable/DataTableColumnFilter';
 import ActionMenu from '@shared/ui/overlay/ActionMenu';
 import { BanIcon } from '@icons/BanIcon';
+import { MailIcon } from '@icons/MailIcon';
 import { useAuth } from '@/modules/auth/store/auth.store';
 import { SYSTEM_ROLES } from '@app/schema/enums';
+import { getRoleDisplayLabel } from '@app/schema/utils';
 
 /** Filter configuration for a single column - uses accessors for SolidJS reactivity */
 export interface ColumnFilterConfig {
@@ -31,6 +33,7 @@ export interface ColumnFilterConfig {
 export interface UserColumnHandlers {
     onDelete: (user: UserListItemType) => void;
     onRestore: (user: UserListItemType) => void;
+    onResendInvitation?: (user: UserListItemType) => void;
     onRoleBadgeClick?: (role: { id: number; name: string }) => void;
     filters?: {
         username?: ColumnFilterConfig;
@@ -144,7 +147,7 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
                                     search={(prev: any) => ({ ...prev, tab: 'users' })}
                                     preload="intent"
                                     class="cursor-pointer rounded-md hover:opacity-85 focus:outline-none focus:ring-2 focus:ring-primary/40 inline-block"
-                                    title={`Ver permisos de ${role.name}`}
+                                    title={`Ver permisos de ${getRoleDisplayLabel(role.name)}`}
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <RoleBadge name={role.name} />
@@ -240,7 +243,12 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
                     isFilterLoading={handlers.filters?.isActive?.isLoading()}
                 />
             ),
-            cell: (info) => <StatusBadge isActive={info.getValue<boolean | null>()} />,
+            cell: (info) => (
+                <StatusBadge
+                    isActive={info.getValue<boolean | null>()}
+                    membershipStatus={info.row.original.membershipStatus}
+                />
+            ),
         },
 
         // -------------------------------------------------------------------
@@ -283,6 +291,7 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
                 const isSuperadmin = user.roles?.some((r: any) => r.name === 'superadmin' || r.name === SYSTEM_ROLES.SUPERADMIN) ?? false;
                 const isSelf = user.id === auth.user()?.id;
                 const canDeactivate = !isSuperadmin && !isSelf;
+                const isPendingInvite = user.membershipStatus === 'PENDING';
                 return (
                     <ActionMenu
                         module="users"
@@ -291,9 +300,16 @@ export function createUserColumns(handlers: UserColumnHandlers): ColumnDef<UserL
                         editTo={`/users/${user.id}/edit`}
                         deleteLabel="Desactivar"
                         deleteIcon={<BanIcon class="size-4 mr-2" />}
-                        onRestore={isSuperadmin ? undefined : () => handlers.onRestore(user)}
+                        onRestore={isSuperadmin || isPendingInvite ? undefined : () => handlers.onRestore(user)}
                         onDelete={canDeactivate ? () => handlers.onDelete(user) : undefined}
-                    />
+                    >
+                        <Show when={isPendingInvite && handlers.onResendInvitation && auth.canEdit('users')}>
+                            <ActionMenu.Item onSelect={() => handlers.onResendInvitation?.(user)}>
+                                <MailIcon class="size-4 mr-2 text-primary" />
+                                <span class="text-primary font-medium">Reenviar invitación</span>
+                            </ActionMenu.Item>
+                        </Show>
+                    </ActionMenu>
                 );
             },
         },

@@ -34,6 +34,7 @@ export const user = pgTableV2("user", {
     // Source of truth: member.organizationId → organization → companies.organization_id
     company_id: integer("company_id").references(() => companies.id),
     is_active: boolean("is_active").default(true),
+    must_change_password: boolean("must_change_password").default(false).notNull(),
     last_login: timestamp("last_login", TZ),
 }, (t) => [
     uniqueIndex("idx_user_email_unique").on(t.email),

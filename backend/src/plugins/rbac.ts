@@ -25,14 +25,22 @@ export const rbac = (app: Elysia) => app
             const allowWhenBillingBlocked = typeof config === 'string' ? false : Boolean(config.allowWhenBillingBlocked);
             const moduleName = slug.split('.')[0] as RbacModule;
 
-            onBeforeHandle(async ({ currentUserId, currentCompanyId, currentRoles, currentPermissions }: {
+            onBeforeHandle(async ({ currentUserId, currentCompanyId, currentRoles, currentPermissions, mustChangePassword }: {
                 currentUserId?: string | number;
                 currentCompanyId?: number | null;
                 currentRoles?: string[];
                 currentPermissions?: string[];
+                mustChangePassword?: boolean;
             }) => {
                 if (!currentUserId) {
                     throw new UnauthorizedError('Usuario no autenticado');
+                }
+                if (mustChangePassword) {
+                    throw new DomainError(
+                        'Debes actualizar tu contraseña temporal antes de continuar.',
+                        403,
+                        { code: 'PASSWORD_CHANGE_REQUIRED' }
+                    );
                 }
 
                 if (currentCompanyId) {

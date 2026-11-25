@@ -13,10 +13,14 @@ import { KeyIcon } from '@icons/KeyIcon';
 import { InfoIcon } from '@icons/InfoIcon';
 import { DeviceIcon } from '@icons/DeviceIcon';
 import { UserHistoryIcon } from '@icons/UserHistoryIcon';
+import { MailIcon } from '@icons/MailIcon';
+import { toast } from 'solid-sonner';
+import { copyToClipboard } from '@shared/utils/clipboard';
 
 import { InfoRow } from '@/shared/ui/display/InfoRow';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { useUser } from '../data/users.queries';
+import { useResendUserInvitation } from '../data/users.mutations';
 
 // ── Extracted Sub-Components ──
 import UserSessionsTab from './show/UserSessionsTab';
@@ -36,8 +40,41 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
 
     const auth = useAuth();
     const userQuery = useUser(userId);
+    const resendMutation = useResendUserInvitation();
 
     const canUpdate = () => auth.canEdit?.('users') ?? false;
+
+    const handleResendInvitation = (id: string, email: string) => {
+        resendMutation.mutate(id, {
+            onSuccess: (res) => {
+                if (res.emailSent) {
+                    toast.success(`Invitación reenviada a ${email}`, {
+                        action: {
+                            label: 'Copiar enlace',
+                            onClick: () => {
+                                copyToClipboard(res.inviteUrl).then(ok => {
+                                    if (ok) toast.success('Enlace copiado');
+                                });
+                            },
+                        },
+                    });
+                } else {
+                    toast.warning(`No se entregó el correo (${res.emailError ?? 'error SMTP'}). Copia el enlace manualmente.`, {
+                        duration: 8000,
+                        action: {
+                            label: 'Copiar enlace',
+                            onClick: () => {
+                                copyToClipboard(res.inviteUrl).then(ok => {
+                                    if (ok) toast.success('Enlace copiado');
+                                });
+                            },
+                        },
+                    });
+                }
+            },
+            onError: (err: any) => toast.error(err?.message || 'Error al reenviar invitación'),
+        });
+    };
 
     return (
         <Sheet
@@ -87,22 +124,38 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                             <h3 class="text-xl font-bold text-text leading-tight">{user.username}</h3>
                                             <p class="text-sm text-muted font-medium">{user.email}</p>
                                             <div class="mt-1.5 flex items-center gap-2">
-                                                <StatusBadge isActive={user.isActive ?? true} />
+                                                <StatusBadge
+                                                    isActive={user.isActive ?? true}
+                                                    membershipStatus={user.membershipStatus}
+                                                />
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <Show when={canUpdate()}>
-                                        <LinkButton
-                                            variant="outline"
-                                            size="sm"
-                                            to={props.editTo ? props.editTo() : './edit'}
-                                            disabled={!userId()}
-                                        >
-                                            <EditIcon class="size-4 text-muted" />
-                                            Editar
-                                        </LinkButton>
-                                    </Show>
+                                    <div class="flex items-center gap-2">
+                                        <Show when={canUpdate() && user.membershipStatus === 'PENDING'}>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                loading={resendMutation.isPending}
+                                                onClick={() => handleResendInvitation(user.id, user.email)}
+                                            >
+                                                <MailIcon class="size-4 text-primary" />
+                                                Reenviar invitación
+                                            </Button>
+                                        </Show>
+                                        <Show when={canUpdate()}>
+                                            <LinkButton
+                                                variant="outline"
+                                                size="sm"
+                                                to={props.editTo ? props.editTo() : './edit'}
+                                                disabled={!userId()}
+                                            >
+                                                <EditIcon class="size-4 text-muted" />
+                                                Editar
+                                            </LinkButton>
+                                        </Show>
+                                    </div>
 
                                 </div>
 
@@ -129,7 +182,16 @@ const UserShowPanel: Component<UserShowPanelProps> = (props) => {
                                         <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-6">
                                             <InfoRow label="Usuario" value={user.username} />
                                             <InfoRow label="Correo electrónico" value={user.email} />
-                                            <InfoRow label="Estado" value={user.isActive ? 'Activo' : 'Inactivo'} />
+                                            <InfoRow
+                                                label="Estado"
+                                                value={
+                                                    user.membershipStatus === 'PENDING'
+                                                        ? 'Invitación pendiente'
+                                                        : user.isActive
+                                                            ? 'Activo'
+                                                            : 'Inactivo'
+                                                }
+                                            />
                                             <InfoRow
                                                 label="Último acceso"
                                                 value={

@@ -638,6 +638,13 @@ export const auth = betterAuth({
                 fieldName: 'is_active',
                 input: false,
             },
+            mustChangePassword: {
+                type: 'boolean',
+                required: false,
+                defaultValue: false,
+                fieldName: 'must_change_password',
+                input: false,
+            },
             lastLogin: {
                 type: 'date',
                 required: false,

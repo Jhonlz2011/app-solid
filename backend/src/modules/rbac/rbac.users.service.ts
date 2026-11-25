@@ -1,4 +1,4 @@
-import { db, adminDb, withTenant, type Tx } from '../../core/db';
+import { adminDb, withTenantContext, type Tx } from '../../core/db';
 import { v7 as uuidv7 } from 'uuid';
 import { createHash, randomBytes } from 'node:crypto';
 import { authUsers, authUserRoles, authRoles, authRolePermissions, entities, auditLogs, sessions, member, companies, verification, account } from '@app/schema/tables';
@@ -13,6 +13,7 @@ import { auth, resolveTenantUrl } from '../../config/better-auth';
 import {
     invalidateUserRbacCache,
     invalidateUserFacetsCache,
+    invalidateRolesListCache,
     revokeAllUserSessions,
     revokeTenantUserSessions,
     isUserSuperadmin,
@@ -29,8 +30,52 @@ import {
     isExclusiveAccountantRole,
 } from '../saas/entitlements.service';
 import { hashPassword } from '../../core/security';
-import type { RbacUserCreateType } from '@app/schema/backend';
+import type { RbacUserCreateType, RbacUserCreateResponseType, RbacResendInvitationResponseType } from '@app/schema/backend';
 import { createCredentialIdentity, replaceCredentialPassword } from '../auth/identity.service';
+
+async function sendEmailWithStatus(
+    sendFn: () => Promise<unknown>,
+    timeoutMs = 6000,
+): Promise<{ emailSent: boolean; emailError?: string }> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        const res = await Promise.race([
+            sendFn(),
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(() => reject(new Error('Tiempo de espera agotado al enviar el correo')), timeoutMs);
+            }),
+        ]);
+        if (res && typeof res === 'object' && 'id' in res && (res as { id?: unknown }).id === 'mock-id') {
+            return { emailSent: false, emailError: 'El servicio de correo (Resend) no está configurado en este entorno.' };
+        }
+        return { emailSent: true };
+    } catch (err: any) {
+        const msg = err?.message || 'No se pudo entregar el correo electrónico';
+        console.error('[RBAC] Email delivery failed:', err);
+        return { emailSent: false, emailError: msg };
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
+function buildEffectiveStatusCondition(values?: string[]): SQL | undefined {
+    if (!values || values.length === 0) return undefined;
+    const statusOrs: SQL[] = [];
+    for (const val of values) {
+        if (val === 'ACTIVE' || val === 'true') {
+            statusOrs.push(and(eq(member.status, 'ACTIVE'), eq(authUsers.is_active, true))!);
+        } else if (val === 'PENDING') {
+            statusOrs.push(eq(member.status, 'PENDING'));
+        } else if (val === 'SUSPENDED' || val === 'false') {
+            statusOrs.push(or(
+                and(ne(member.status, 'ACTIVE'), ne(member.status, 'PENDING')),
+                eq(authUsers.is_active, false),
+            )!);
+        }
+    }
+    if (statusOrs.length === 0) return undefined;
+    return statusOrs.length === 1 ? statusOrs[0] : or(...statusOrs)!;
+}
 
 export interface UsersListFilters {
     search?: string;
@@ -212,158 +257,141 @@ export async function checkUserEmail(email: string, companyId: number) {
     };
 }
 
-// Allowed columns for sorting (whitelist prevents SQL injection)
+// Allowed columns for sorting (whitelist prevents SQL injection; supports camelCase & snake_case)
 export const USERS_SORT_WHITELIST: Record<string, any> = {
     username: authUsers.username,
     email: authUsers.email,
-    created_at: authUsers.createdAt,
-    is_active: authUsers.is_active,
+    createdAt: member.createdAt,
+    created_at: member.createdAt,
+    lastLogin: authUsers.last_login,
+    last_login: authUsers.last_login,
+    isActive: sql`CASE WHEN ${member.status} = 'ACTIVE' AND ${authUsers.is_active} THEN 2 WHEN ${member.status} = 'PENDING' THEN 1 ELSE 0 END`,
+    is_active: sql`CASE WHEN ${member.status} = 'ACTIVE' AND ${authUsers.is_active} THEN 2 WHEN ${member.status} = 'PENDING' THEN 1 ELSE 0 END`,
 };
 
 /**
  * Get paginated users with their roles.
+ * Optimized: single tenant transaction driven from indexed `member.organization_id`,
+ * window function `COUNT(*) OVER()` (no separate COUNT query), and 1 batched role query.
  */
 export async function getAllUsersWithRoles(filters: UsersListFilters = {}, companyId: number) {
-    await getTenantOrganizationId(companyId);
+    const organizationId = await getTenantOrganizationId(companyId);
     const page = Math.max(1, filters.page ?? 1);
     const limit = Math.min(100, Math.max(1, filters.limit ?? 15));
     const offset = (page - 1) * limit;
-
-    const conditions: SQL[] = [];
-    if (companyId) {
-        // Filter by org membership (not denormalized company_id).
-        // With user reuse across tenants, a user's company_id may point to their
-        // original tenant, but they can be a member of multiple organizations.
-        const memberSubquery = adminDb
-            .select({ userId: member.userId })
-            .from(member)
-            .innerJoin(companies, eq(companies.organization_id, member.organizationId))
-            .where(eq(companies.id, companyId));
-        conditions.push(inArray(authUsers.id, memberSubquery));
-    }
-    if (filters.search) {
-        const term = `%${filters.search}%`;
-        const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term));
-        if (searchCond) conditions.push(searchCond);
-    }
-    if (filters.isActive && filters.isActive.length > 0) {
-        const boolValues = filters.isActive.map(v => v === 'true');
-        if (boolValues.length === 1) {
-            const statusSubquery = adminDb
-                .select({ userId: member.userId })
-                .from(member)
-                .innerJoin(companies, eq(companies.organization_id, member.organizationId))
-                .where(and(
-                    eq(companies.id, companyId),
-                    boolValues[0] ? eq(member.status, 'ACTIVE') : ne(member.status, 'ACTIVE'),
-                ));
-            conditions.push(inArray(authUsers.id, statusSubquery));
-        }
-    }
-    
-    if (filters.roles && filters.roles.length > 0) {
-        const rolesSubquery = db
-            .select({ userId: authUserRoles.user_id })
-            .from(authUserRoles)
-            .innerJoin(authRoles, and(
-                eq(authUserRoles.role_id, authRoles.id),
-                eq(authUserRoles.company_id, authRoles.company_id),
-            ))
-            .where(and(
-                eq(authUserRoles.company_id, companyId),
-                inArray(authRoles.name, filters.roles),
-            ));
-            
-        conditions.push(inArray(authUsers.id, rolesSubquery));
-    }
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const sortCol = filters.sortBy && USERS_SORT_WHITELIST[filters.sortBy]
         ? USERS_SORT_WHITELIST[filters.sortBy]
         : authUsers.username;
     const orderFn = filters.sortOrder === 'desc' ? desc : asc;
 
-    // Resolve organization_id for the company to join member → entity
-    let companyOrgId: string | null = null;
-    if (companyId) {
-        const [companyRow] = await adminDb
-            .select({ orgId: companies.organization_id })
-            .from(companies)
-            .where(eq(companies.id, companyId))
-            .limit(1);
-        companyOrgId = companyRow?.orgId ?? null;
-    }
+    const { rows, total, roleMap } = await withTenantContext({ companyId }, async (tx) => {
+        const conditions: SQL[] = [eq(member.organizationId, organizationId)];
 
-    const [totalResult, users] = await withTenant(async () => Promise.all([
-        db.select({ count: count() }).from(authUsers).where(where),
-        db.select({
-            id: authUsers.id,
-            username: authUsers.username,
-            name: authUsers.name,
-            email: authUsers.email,
-            image: authUsers.image,
-            isActive: authUsers.is_active,
-            membershipStatus: member.status,
-            lastLogin: authUsers.last_login,
-            entityId: entities.id,
-            entityName: entities.business_name,
-            entityTaxId: entities.tax_id,
-            entityIsClient: entities.is_client,
-            entityIsSupplier: entities.is_supplier,
-            entityIsEmployee: entities.is_employee,
-        })
-        .from(authUsers)
-        .leftJoin(
-            member,
-            companyOrgId
-                ? and(eq(member.userId, authUsers.id), eq(member.organizationId, companyOrgId))
-                : eq(member.userId, authUsers.id)
-        )
-        .leftJoin(entities, and(eq(entities.id, member.entityId), eq(entities.company_id, companyId)))
-        .where(where)
-        .orderBy(orderFn(sortCol))
-        .limit(limit)
-        .offset(offset),
-    ]));
+        if (filters.search) {
+            const term = `%${filters.search}%`;
+            const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term));
+            if (searchCond) conditions.push(searchCond);
+        }
 
-    const total = Number(totalResult[0]?.count ?? 0);
+        const statusCond = buildEffectiveStatusCondition(filters.isActive);
+        if (statusCond) conditions.push(statusCond);
+
+        if (filters.roles && filters.roles.length > 0) {
+            const rolesSubquery = tx
+                .select({ userId: authUserRoles.user_id })
+                .from(authUserRoles)
+                .innerJoin(authRoles, and(
+                    eq(authUserRoles.role_id, authRoles.id),
+                    eq(authUserRoles.company_id, authRoles.company_id),
+                ))
+                .where(and(
+                    eq(authUserRoles.company_id, companyId),
+                    inArray(authRoles.name, filters.roles),
+                ));
+            conditions.push(inArray(member.userId, rolesSubquery));
+        }
+
+        const where = and(...conditions);
+
+        const pageRows = await tx
+            .select({
+                id: authUsers.id,
+                username: authUsers.username,
+                name: authUsers.name,
+                email: authUsers.email,
+                image: authUsers.image,
+                isActive: authUsers.is_active,
+                membershipStatus: member.status,
+                lastLogin: authUsers.last_login,
+                entityId: entities.id,
+                entityName: entities.business_name,
+                entityTaxId: entities.tax_id,
+                entityIsClient: entities.is_client,
+                entityIsSupplier: entities.is_supplier,
+                entityIsEmployee: entities.is_employee,
+                totalCount: sql<number>`count(*) over()::int`,
+            })
+            .from(member)
+            .innerJoin(authUsers, eq(authUsers.id, member.userId))
+            .leftJoin(entities, and(eq(entities.id, member.entityId), eq(entities.company_id, companyId)))
+            .where(where)
+            .orderBy(orderFn(sortCol), asc(authUsers.id))
+            .limit(limit)
+            .offset(offset);
+
+        let computedTotal = pageRows[0]?.totalCount ?? 0;
+        if (pageRows.length === 0 && page > 1) {
+            const [fallbackCount] = await tx
+                .select({ count: sql<number>`count(*)::int` })
+                .from(member)
+                .innerJoin(authUsers, eq(authUsers.id, member.userId))
+                .where(where);
+            computedTotal = fallbackCount?.count ?? 0;
+        }
+
+        const map = new Map<string, { id: number; name: string }[]>();
+        if (pageRows.length > 0) {
+            const userIds = pageRows.map(u => u.id);
+            const userRoles = await tx
+                .select({
+                    userId: authUserRoles.user_id,
+                    roleId: authRoles.id,
+                    roleName: authRoles.name,
+                })
+                .from(authUserRoles)
+                .innerJoin(authRoles, and(
+                    eq(authUserRoles.role_id, authRoles.id),
+                    eq(authUserRoles.company_id, authRoles.company_id),
+                ))
+                .where(and(
+                    eq(authUserRoles.company_id, companyId),
+                    inArray(authUserRoles.user_id, userIds),
+                ))
+                .orderBy(desc(authRoles.priority), asc(authRoles.name));
+
+            for (const ur of userRoles) {
+                let list = map.get(ur.userId);
+                if (!list) {
+                    list = [];
+                    map.set(ur.userId, list);
+                }
+                list.push({ id: ur.roleId, name: ur.roleName });
+            }
+        }
+
+        return { rows: pageRows, total: computedTotal, roleMap: map };
+    });
+
     const pageCount = Math.ceil(total / limit);
 
-    const userIds = users.map(u => u.id);
-    let roleMap = new Map<string, { id: number; name: string }[]>();
-
-    if (userIds.length > 0) {
-        const roleConditions = [inArray(authUserRoles.user_id, userIds)];
-        if (companyId) {
-            roleConditions.push(eq(authUserRoles.company_id, companyId));
-        }
-
-        const userRoles = await withTenant(async () => db
-            .select({
-                userId: authUserRoles.user_id,
-                roleId: authRoles.id,
-                roleName: authRoles.name,
-            })
-            .from(authUserRoles)
-            .innerJoin(authRoles, and(
-                eq(authUserRoles.role_id, authRoles.id),
-                eq(authUserRoles.company_id, authRoles.company_id),
-            ))
-            .where(and(...roleConditions)));
-
-        for (const ur of userRoles) {
-            if (!roleMap.has(ur.userId)) roleMap.set(ur.userId, []);
-            roleMap.get(ur.userId)!.push({ id: ur.roleId, name: ur.roleName });
-        }
-    }
-
     return {
-        data: users.map(user => ({
+        data: rows.map(user => ({
             id: user.id,
             username: user.username || user.name,
             email: user.email,
             image: user.image ?? null,
-            isActive: user.isActive && user.membershipStatus === 'ACTIVE',
+            isActive: Boolean(user.isActive && user.membershipStatus === 'ACTIVE'),
             membershipStatus: user.membershipStatus,
             lastLogin: user.lastLogin,
             entityId: user.entityId,
@@ -388,98 +416,82 @@ export async function getAllUsersWithRoles(filters: UsersListFilters = {}, compa
 }
 
 /**
- * Get faceted filter values + counts for users (is_active, roles)
+ * Get faceted filter values + counts for users (effective 3-state status + roles).
+ * Driven from `member.organization_id` inside a single tenant transaction.
  */
 export async function getUserFacets(filters: { search?: string; isActive?: string[]; roles?: string[] }, companyId: number) {
-    await getTenantOrganizationId(companyId);
+    const organizationId = await getTenantOrganizationId(companyId);
     const cacheKey = `rbac:facets:users:${companyId}:${JSON.stringify(filters)}`;
 
     return cacheService.getOrSet(cacheKey, async () => {
-        const results: Record<string, { value: string; count: number }[]> = {};
+        return withTenantContext({ companyId }, async (tx) => {
+            const searchCond = filters.search
+                ? or(
+                    ilike(authUsers.username, `%${filters.search}%`),
+                    ilike(authUsers.email, `%${filters.search}%`),
+                    ilike(authUsers.name, `%${filters.search}%`),
+                )
+                : undefined;
 
-        const activeConditions: SQL[] = [];
-        if (companyId) {
-            const memberSub = adminDb.select({ userId: member.userId })
+            const statusConditions: SQL[] = [eq(member.organizationId, organizationId)];
+            if (searchCond) statusConditions.push(searchCond);
+            if (filters.roles && filters.roles.length > 0) {
+                const rolesSubquery = tx
+                    .select({ userId: authUserRoles.user_id })
+                    .from(authUserRoles)
+                    .innerJoin(authRoles, and(
+                        eq(authUserRoles.role_id, authRoles.id),
+                        eq(authUserRoles.company_id, authRoles.company_id),
+                    ))
+                    .where(and(
+                        eq(authUserRoles.company_id, companyId),
+                        inArray(authRoles.name, filters.roles),
+                    ));
+                statusConditions.push(inArray(member.userId, rolesSubquery));
+            }
+
+            const effectiveStatusExpr = sql<string>`CASE WHEN ${member.status} = 'PENDING' THEN 'PENDING' WHEN ${member.status} = 'ACTIVE' AND ${authUsers.is_active} THEN 'ACTIVE' ELSE 'SUSPENDED' END`;
+
+            const rolesConditions: SQL[] = [eq(member.organizationId, organizationId)];
+            if (searchCond) rolesConditions.push(searchCond);
+            const statusFilterCond = buildEffectiveStatusCondition(filters.isActive);
+            if (statusFilterCond) rolesConditions.push(statusFilterCond);
+
+            const [statusRows, rolesRows] = await Promise.all([
+                tx.select({
+                    value: effectiveStatusExpr,
+                    count: sql<number>`count(*)::int`,
+                })
                 .from(member)
-                .innerJoin(companies, eq(companies.organization_id, member.organizationId))
-                .where(and(eq(companies.id, companyId), eq(member.status, 'ACTIVE')));
-            activeConditions.push(inArray(authUsers.id, memberSub));
-        }
-        if (filters.search) {
-            const term = `%${filters.search}%`;
-            const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term));
-            if (searchCond) activeConditions.push(searchCond);
-        }
-        if (filters.roles && filters.roles.length > 0) {
-            const rolesSubquery = db
-                .select({ userId: authUserRoles.user_id })
-                .from(authUserRoles)
+                .innerJoin(authUsers, eq(authUsers.id, member.userId))
+                .where(and(...statusConditions))
+                .groupBy(effectiveStatusExpr)
+                .orderBy(desc(sql`count(*)`)),
+
+                tx.select({
+                    value: authRoles.name,
+                    count: sql<number>`count(DISTINCT ${member.userId})::int`,
+                })
+                .from(member)
+                .innerJoin(authUsers, eq(authUsers.id, member.userId))
+                .innerJoin(authUserRoles, and(
+                    eq(member.userId, authUserRoles.user_id),
+                    eq(authUserRoles.company_id, companyId),
+                ))
                 .innerJoin(authRoles, and(
                     eq(authUserRoles.role_id, authRoles.id),
                     eq(authUserRoles.company_id, authRoles.company_id),
                 ))
-                .where(and(
-                    eq(authUserRoles.company_id, companyId),
-                    inArray(authRoles.name, filters.roles),
-                ));
-            activeConditions.push(inArray(authUsers.id, rolesSubquery));
-        }
-        const activeWhere = activeConditions.length > 0 ? and(...activeConditions) : undefined;
+                .where(and(...rolesConditions))
+                .groupBy(authRoles.name)
+                .orderBy(desc(sql`count(DISTINCT ${member.userId})`)),
+            ]);
 
-        const activeRows = await withTenant(async () => db
-            .select({
-                value: sql<string>`CAST(${authUsers.is_active} AS TEXT)`,
-                count: count(),
-            })
-            .from(authUsers)
-            .where(activeWhere)
-            .groupBy(authUsers.is_active)
-            .orderBy(desc(count())));
-
-        results['isActive'] = activeRows.filter(r => r.value !== null).map(r => ({ value: r.value, count: Number(r.count) }));
-
-        const rolesConditions: SQL[] = [];
-        if (companyId) {
-            const memberSub = adminDb.select({ userId: member.userId })
-                .from(member)
-                .innerJoin(companies, eq(companies.organization_id, member.organizationId))
-                .where(and(eq(companies.id, companyId), eq(member.status, 'ACTIVE')));
-            rolesConditions.push(inArray(authUsers.id, memberSub));
-        }
-        if (filters.search) {
-            const term = `%${filters.search}%`;
-            const searchCond = or(ilike(authUsers.username, term), ilike(authUsers.email, term), ilike(authUsers.name, term));
-            if (searchCond) rolesConditions.push(searchCond);
-        }
-        if (filters.isActive && filters.isActive.length > 0) {
-            const boolValues = filters.isActive.map(v => v === 'true');
-            if (boolValues.length === 1) {
-                rolesConditions.push(eq(authUsers.is_active, boolValues[0]));
-            }
-        }
-        const rolesWhere = rolesConditions.length > 0 ? and(...rolesConditions) : undefined;
-
-        const rolesRows = await withTenant(async () => db
-            .select({
-                value: authRoles.name,
-                count: sql<number>`count(DISTINCT ${authUsers.id})`.mapWith(Number),
-            })
-            .from(authUsers)
-            .innerJoin(authUserRoles, and(
-                eq(authUsers.id, authUserRoles.user_id),
-                eq(authUserRoles.company_id, companyId),
-            ))
-            .innerJoin(authRoles, and(
-                eq(authUserRoles.role_id, authRoles.id),
-                eq(authUserRoles.company_id, authRoles.company_id),
-            ))
-            .where(rolesWhere)
-            .groupBy(authRoles.name)
-            .orderBy(desc(sql`count(DISTINCT ${authUsers.id})`)));
-
-        results['roles'] = rolesRows.filter(r => r.value !== null);
-
-        return results;
+            return {
+                isActive: statusRows.filter(r => r.value !== null).map(r => ({ value: r.value, count: Number(r.count) })),
+                roles: rolesRows.filter(r => r.value !== null).map(r => ({ value: r.value, count: Number(r.count) })),
+            };
+        });
     }, 120);
 }
 
@@ -490,7 +502,7 @@ export async function getUserById(id: string | number, companyId: number) {
     const idStr = String(id);
     const membership = await requireTenantMembership(idStr, companyId, { active: false });
 
-    const user = await db.query.authUsers.findFirst({
+    const user = await adminDb.query.authUsers.findFirst({
         where: eq(authUsers.id, idStr),
         columns: {
             id: true,
@@ -538,22 +550,21 @@ export async function getUserById(id: string | number, companyId: number) {
         }
     }
 
-    const roleConditions = [eq(authUserRoles.user_id, idStr), eq(authUserRoles.company_id, companyId)];
-
-    const roles = await withTenant(async () => db
-        .select({ id: authRoles.id, name: authRoles.name, description: authRoles.description })
-        .from(authUserRoles)
-        .innerJoin(authRoles, and(
-            eq(authUserRoles.role_id, authRoles.id),
-            eq(authUserRoles.company_id, authRoles.company_id),
-        ))
-        .where(and(...roleConditions)));
-
-    // Check if user belongs to more than 1 organization (multi-tenant global user)
-    const [membershipCountRow] = await adminDb
-        .select({ count: count() })
-        .from(member)
-        .where(eq(member.userId, idStr));
+    const [roles, [membershipCountRow]] = await Promise.all([
+        withTenantContext({ companyId }, async (tx) => tx
+            .select({ id: authRoles.id, name: authRoles.name, description: authRoles.description })
+            .from(authUserRoles)
+            .innerJoin(authRoles, and(
+                eq(authUserRoles.role_id, authRoles.id),
+                eq(authUserRoles.company_id, authRoles.company_id),
+            ))
+            .where(and(eq(authUserRoles.user_id, idStr), eq(authUserRoles.company_id, companyId)))
+            .orderBy(desc(authRoles.priority), asc(authRoles.name))),
+        adminDb
+            .select({ count: count() })
+            .from(member)
+            .where(eq(member.userId, idStr)),
+    ]);
     const isGlobalUser = Number(membershipCountRow?.count ?? 0) > 1;
 
     return {
@@ -579,7 +590,7 @@ export async function getUserRolesById(userId: string | number, companyId: numbe
     await requireTenantMembership(userIdStr, companyId, { active: false });
     const conditions = [eq(authUserRoles.user_id, userIdStr), eq(authUserRoles.company_id, companyId)];
 
-    return withTenant(async () => db
+    return withTenantContext({ companyId }, async (tx) => tx
         .select({
             id: authRoles.id,
             name: authRoles.name,
@@ -629,10 +640,15 @@ export async function assignUserRoles(
         await assertCanManageTargetUser(currentUserId, userIdStr, companyId, 'modificar roles de');
     }
 
-    const oldRoles = await withTenant(async () => db
-        .select({ id: authUserRoles.role_id })
-        .from(authUserRoles)
-        .where(and(eq(authUserRoles.user_id, userIdStr), eq(authUserRoles.company_id, companyId))));
+    const oldRoles = options.tx
+        ? await options.tx
+            .select({ id: authUserRoles.role_id })
+            .from(authUserRoles)
+            .where(and(eq(authUserRoles.user_id, userIdStr), eq(authUserRoles.company_id, companyId)))
+        : await withTenantContext({ companyId }, async (tx) => tx
+            .select({ id: authUserRoles.role_id })
+            .from(authUserRoles)
+            .where(and(eq(authUserRoles.user_id, userIdStr), eq(authUserRoles.company_id, companyId))));
     const oldRoleIds = oldRoles.map(r => r.id);
 
     // Superadmin protection: exactly 1 superadmin per company (the owner)
@@ -705,18 +721,17 @@ export async function assignUserRoles(
         return { success: true };
     }
 
-    await withTenant(async () => {
-        await db.transaction(persistRoles);
-    });
+    await withTenantContext({ companyId, userId: currentUserId }, persistRoles);
 
     await Promise.all([
         invalidateUserRbacCache(userIdStr, companyId),
         invalidateUserFacetsCache(companyId),
+        invalidateRolesListCache(companyId),
     ]);
     broadcastToUser(userIdStr, RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr });
     broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { id: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserId, 'UPDATE', 'auth_user_roles', userIdStr, { roleIds: finalRoleIds }, { roleIds: oldRoleIds });
+    logAudit(currentUserId, 'UPDATE', 'auth_user_roles', userIdStr, { roleIds: finalRoleIds }, { roleIds: oldRoleIds }, companyId);
 
     return { success: true };
 }
@@ -760,14 +775,17 @@ export async function checkCompanySeatQuota(
 }
 
 /**
- * Create a new user through secure invitation only. Tenant administrators never
- * choose or receive a password for another user.
+ * Create a new tenant user in dual mode:
+ * - `invite` (default): creates PENDING membership with 72h SHA-256 activation token + email + copyable inviteUrl.
+ * - `direct`: fast onboarding for new company employees with admin-assigned temporary password,
+ *   emailVerified=true, ACTIVE membership, and mandatory password change on first login (must_change_password=true).
+ *   Blocked if the email already belongs to an existing Zelys account (enforces multi-tenant consent).
  */
 export async function createUser(
     data: RbacUserCreateType,
     currentUserId: string | number,
     companyId: number
-) {
+): Promise<RbacUserCreateResponseType> {
     await requireTenantMembership(currentUserId, companyId);
     const organizationId = await getTenantOrganizationId(companyId);
 
@@ -776,15 +794,13 @@ export async function createUser(
         throw new DomainError('Debes asignar al menos un rol al usuario', 400);
     }
 
+    const mode: 'invite' | 'direct' = data.mode === 'direct' ? 'direct' : 'invite';
     const normalizedEmail = data.email.trim().toLowerCase();
     const baseUsername = normalizedEmail.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
     const normalizedUsername = (data.username?.trim() || baseUsername).toLowerCase();
     const displayName = data.username?.trim() || data.email.split('@')[0];
-    if (data.mode !== undefined && data.mode !== 'invite') {
-        throw new DomainError('La creación de usuarios se realiza únicamente mediante invitación segura', 400);
-    }
 
-    // 1. Validar que el rol superadmin nunca se asigne y que el llamador pueda asignar los roles
+    // 1. Validate superadmin role exclusion and caller role hierarchy
     const superadminRole = await adminDb.query.authRoles.findFirst({
         where: and(eq(authRoles.company_id, companyId), eq(authRoles.name, SYSTEM_ROLES.SUPERADMIN)),
     });
@@ -793,22 +809,36 @@ export async function createUser(
     }
     await assertCallerCanAssignRoles(currentUserId, uniqueRoleIds, companyId);
 
-    // 2. Validar pertenencia de entityId a la empresa actual (cierre de IDOR)
+    // 2. Validate entityId belongs to current company (IDOR guard)
     await assertEntityBelongsToCompany(data.entityId, companyId);
 
-    // 3. Validar usuario global y unicidad de username / membresía en esta empresa
+    // 3. Validate global user, username uniqueness, and tenant membership
     const existingGlobalUser = await adminDb.query.authUsers.findFirst({
         where: eq(authUsers.email, normalizedEmail),
         columns: { id: true, username: true, email: true, name: true },
     });
 
+    if (mode === 'direct') {
+        if (existingGlobalUser) {
+            throw new DomainError(
+                'Este correo ya tiene una cuenta en Zelys. Por seguridad multi-empresa, agrégalo mediante invitación para que confirme su acceso.',
+                409,
+                { code: 'CONFLICT' }
+            );
+        }
+        if (typeof data.temporaryPassword !== 'string' || data.temporaryPassword.length < 8 || data.temporaryPassword.length > 128) {
+            throw new DomainError('La contraseña temporal debe tener entre 8 y 128 caracteres', 400, { code: 'VALIDATION_ERROR' });
+        }
+    }
+
     if (!existingGlobalUser) {
         const existingUsername = await adminDb.query.authUsers.findFirst({
             where: eq(authUsers.username, normalizedUsername),
+            columns: { id: true },
         });
 
         if (existingUsername) {
-            throw new DomainError('Ya existe un usuario con ese nombre de usuario', 409);
+            throw new DomainError('Ya existe un usuario con ese nombre de usuario', 409, { code: 'CONFLICT' });
         }
     }
 
@@ -823,23 +853,59 @@ export async function createUser(
         .limit(1);
 
     if (existingMember.length > 0) {
-        throw new DomainError('Ya existe un usuario con ese email en esta empresa', 409);
+        throw new DomainError('Ya existe un usuario con ese email en esta empresa', 409, { code: 'CONFLICT' });
     }
 
-    // 4. Generate cryptographic 256-bit invitation token and store only its SHA-256 hash inside the transaction
-    const rawActivationToken = randomBytes(32).toString('hex');
-    const tokenHash = hashInvitationToken(rawActivationToken);
+    // 4. Prepare mode-specific credentials/tokens before entering transaction
+    const passwordHash = mode === 'direct' ? await hashPassword(data.temporaryPassword!) : undefined;
+    const rawActivationToken = mode === 'invite' ? randomBytes(32).toString('hex') : null;
+    const tokenHash = rawActivationToken ? hashInvitationToken(rawActivationToken) : null;
     const invitationExpiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    const mustChangePassword = mode === 'direct' ? (data.mustChangePassword !== false) : false;
 
-    const newUser = await withTenant(async () => db.transaction(async (tx) => {
+    const newUser = await withTenantContext({ companyId, userId: currentUserId }, async (tx) => {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(${companyId})`);
 
-        // Quota enforcement inside advisory lock: prevents concurrent invite race conditions
+        // Quota enforcement inside advisory lock: prevents concurrent race conditions
         await checkCompanySeatQuota(companyId, uniqueRoleIds, tx);
 
+        if (mode === 'direct') {
+            const userId = uuidv7();
+            const memberId = uuidv7();
+
+            const user = await createCredentialIdentity(tx, {
+                id: userId,
+                name: displayName,
+                username: normalizedUsername,
+                displayUsername: displayName,
+                email: normalizedEmail,
+                passwordHash,
+                companyId,
+                emailVerified: true,
+                mustChangePassword,
+            });
+
+            await tx.insert(member).values({
+                id: memberId,
+                organizationId,
+                userId: user.id,
+                role: 'member',
+                status: 'ACTIVE',
+                entityId: data.entityId || null,
+            }).onConflictDoNothing();
+
+            await tx.insert(authUserRoles).values(
+                uniqueRoleIds.map(roleId => ({
+                    user_id: user.id,
+                    role_id: roleId,
+                    company_id: companyId,
+                }))
+            ).onConflictDoNothing();
+
+            return { id: user.id, username: user.username || normalizedUsername, email: user.email };
+        }
+
         if (existingGlobalUser) {
-            // Existing Zelys user: create PENDING membership requiring explicit invitation acceptance.
-            // Never auto-activate without user consent and never mutate their global profile.
             const memberId = uuidv7();
 
             await tx.insert(member).values({
@@ -862,15 +928,13 @@ export async function createUser(
             await tx.insert(verification).values({
                 id: uuidv7(),
                 identifier: `invitation:${normalizedEmail}:${organizationId}`,
-                value: tokenHash,
+                value: tokenHash!,
                 expiresAt: invitationExpiresAt,
             });
 
-            return { id: existingGlobalUser.id, username: existingGlobalUser.username, email: existingGlobalUser.email };
+            return { id: existingGlobalUser.id, username: existingGlobalUser.username || normalizedUsername, email: existingGlobalUser.email };
         }
 
-        // New user: create identity without credentials and PENDING membership.
-        // The invitation acceptance flow creates the credential and activates the membership.
         const userId = uuidv7();
         const memberId = uuidv7();
 
@@ -882,6 +946,7 @@ export async function createUser(
             email: normalizedEmail,
             companyId,
             emailVerified: false,
+            mustChangePassword: false,
         });
 
         await tx.insert(member).values({
@@ -904,85 +969,204 @@ export async function createUser(
         await tx.insert(verification).values({
             id: uuidv7(),
             identifier: `invitation:${normalizedEmail}:${organizationId}`,
-            value: tokenHash,
+            value: tokenHash!,
             expiresAt: invitationExpiresAt,
         });
 
-        return user;
-    }));
+        return { id: user.id, username: user.username || normalizedUsername, email: user.email };
+    });
 
     await Promise.all([
         cacheService.invalidate(`tenant:member:${companyId}:${newUser.id}`),
         invalidateUserFacetsCache(companyId),
+        invalidateRolesListCache(companyId),
     ]);
     broadcastToTenant(companyId, RealtimeEvents.USER.CREATED, { id: newUser.id }, RealtimeEvents.ROOMS.USERS);
 
+    const membershipStatus: 'ACTIVE' | 'PENDING' = mode === 'direct' ? 'ACTIVE' : 'PENDING';
     if (currentUserId) {
         logAudit(currentUserId, 'INSERT', 'user', newUser.id, {
-            username: existingGlobalUser ? existingGlobalUser.username : displayName,
+            username: newUser.username,
             email: normalizedEmail,
             roleIds: uniqueRoleIds,
             entityId: data.entityId ?? null,
-            membershipStatus: 'PENDING',
+            mode,
+            membershipStatus,
+            mustChangePassword,
             existingGlobalUser: Boolean(existingGlobalUser),
+        }, undefined, companyId);
+    }
+
+    // Resolve company metadata & URLs for immediate admin feedback + optional email delivery
+    const [[comp], assignedRoles, inviter] = await Promise.all([
+        adminDb
+            .select({
+                business_name: companies.business_name,
+                trade_name: companies.trade_name,
+                slug: companies.slug,
+            })
+            .from(companies)
+            .where(eq(companies.id, companyId))
+            .limit(1),
+        adminDb
+            .select({ name: authRoles.name })
+            .from(authRoles)
+            .where(and(inArray(authRoles.id, uniqueRoleIds), eq(authRoles.company_id, companyId))),
+        currentUserId
+            ? adminDb.query.authUsers.findFirst({
+                where: eq(authUsers.id, String(currentUserId)),
+                columns: { name: true, displayUsername: true, username: true },
+            })
+            : Promise.resolve(null),
+    ]);
+
+    const companyName = comp ? (comp.trade_name || comp.business_name) : 'Zelys ERP';
+    const tenantBaseUrl = comp ? resolveTenantUrl(comp.slug) : resolveTenantUrl('');
+    const roleNames = assignedRoles.map(r => r.name);
+    const inviterName = inviter?.name || inviter?.displayUsername || inviter?.username || undefined;
+    const loginUrl = `${tenantBaseUrl}/login`;
+    const existingFlag = existingGlobalUser ? '&existing=1' : '';
+    const inviteUrl = rawActivationToken
+        ? `${tenantBaseUrl}/accept-invitation?token=${rawActivationToken}&email=${encodeURIComponent(normalizedEmail)}${existingFlag}`
+        : undefined;
+
+    let emailSent = false;
+    let emailError: string | undefined;
+
+    if (mode === 'invite' && data.sendEmail !== false && inviteUrl) {
+        const delivery = await sendEmailWithStatus(() =>
+            emailService.sendOrganizationInvitationEmail(normalizedEmail, {
+                companyName,
+                inviteUrl,
+                roleNames,
+                userName: existingGlobalUser?.name || displayName,
+                inviterName,
+            })
+        );
+        emailSent = delivery.emailSent;
+        emailError = delivery.emailError;
+    } else if (mode === 'direct' && data.sendEmail === true) {
+        const delivery = await sendEmailWithStatus(() =>
+            emailService.sendDirectCredentialsEmail(normalizedEmail, {
+                companyName,
+                loginUrl,
+                username: newUser.username,
+                roleNames,
+                userName: displayName,
+                inviterName,
+            })
+        );
+        emailSent = delivery.emailSent;
+        emailError = delivery.emailError;
+    }
+
+    return {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        mode,
+        membershipStatus,
+        emailSent,
+        ...(emailError ? { emailError } : {}),
+        ...(inviteUrl ? { inviteUrl } : {}),
+        loginUrl,
+    };
+}
+
+/**
+ * Regenerates a 72h SHA-256 invitation link for a PENDING member, attempts email delivery,
+ * and returns the copyable inviteUrl + delivery status.
+ */
+export async function resendUserInvitation(
+    userId: string | number,
+    currentUserId: string | number,
+    companyId: number,
+): Promise<RbacResendInvitationResponseType> {
+    const userIdStr = String(userId);
+    const currentUserIdStr = String(currentUserId);
+
+    await requireTenantMembership(currentUserIdStr, companyId);
+    const membership = await requireTenantMembership(userIdStr, companyId, { active: false });
+    if (membership.status !== 'PENDING') {
+        throw new DomainError('Este usuario ya aceptó su invitación o no se encuentra pendiente', 409, { code: 'CONFLICT' });
+    }
+    await assertCanManageTargetUser(currentUserIdStr, userIdStr, companyId, 'reenviar la invitación de');
+
+    const targetUser = await adminDb.query.authUsers.findFirst({
+        where: eq(authUsers.id, userIdStr),
+        columns: { id: true, email: true, name: true, username: true, emailVerified: true },
+    });
+    if (!targetUser) {
+        throw new DomainError('Usuario no encontrado', 404);
+    }
+
+    const normalizedEmail = targetUser.email.trim().toLowerCase();
+    const identifier = `invitation:${normalizedEmail}:${membership.organizationId}`;
+    const rawActivationToken = randomBytes(32).toString('hex');
+    const tokenHash = hashInvitationToken(rawActivationToken);
+    const invitationExpiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+
+    await adminDb.transaction(async (tx) => {
+        await tx.delete(verification).where(eq(verification.identifier, identifier));
+        await tx.insert(verification).values({
+            id: uuidv7(),
+            identifier,
+            value: tokenHash,
+            expiresAt: invitationExpiresAt,
         });
-    }
+    });
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // Send Invitation Email (Both new & existing global users must explicitly accept)
-    // ──────────────────────────────────────────────────────────────────────────
-    if (data.sendEmail !== false) {
-        (async () => {
-            try {
-                const [comp] = await adminDb
-                    .select({
-                        business_name: companies.business_name,
-                        trade_name: companies.trade_name,
-                        slug: companies.slug,
-                    })
-                    .from(companies)
-                    .where(eq(companies.id, companyId))
-                    .limit(1);
+    const [[comp], assignedRoles, [existingAccount], inviter] = await Promise.all([
+        adminDb
+            .select({ business_name: companies.business_name, trade_name: companies.trade_name, slug: companies.slug })
+            .from(companies)
+            .where(eq(companies.id, companyId))
+            .limit(1),
+        withTenantContext({ companyId }, async (tx) => tx
+            .select({ name: authRoles.name })
+            .from(authUserRoles)
+            .innerJoin(authRoles, and(
+                eq(authUserRoles.role_id, authRoles.id),
+                eq(authUserRoles.company_id, authRoles.company_id),
+            ))
+            .where(and(eq(authUserRoles.user_id, userIdStr), eq(authUserRoles.company_id, companyId)))),
+        adminDb
+            .select({ id: account.id })
+            .from(account)
+            .where(eq(account.userId, targetUser.id))
+            .limit(1),
+        adminDb.query.authUsers.findFirst({
+            where: eq(authUsers.id, currentUserIdStr),
+            columns: { name: true, displayUsername: true, username: true },
+        }),
+    ]);
 
-                if (comp) {
-                    const companyName = comp.trade_name || comp.business_name;
+    const companyName = comp ? (comp.trade_name || comp.business_name) : 'Zelys ERP';
+    const tenantBaseUrl = comp ? resolveTenantUrl(comp.slug) : resolveTenantUrl('');
+    const isExisting = Boolean(targetUser.emailVerified || existingAccount);
+    const existingFlag = isExisting ? '&existing=1' : '';
+    const inviteUrl = `${tenantBaseUrl}/accept-invitation?token=${rawActivationToken}&email=${encodeURIComponent(normalizedEmail)}${existingFlag}`;
+    const inviterName = inviter?.name || inviter?.displayUsername || inviter?.username || undefined;
 
-                    const assignedRoles = await adminDb
-                        .select({ name: authRoles.name })
-                        .from(authRoles)
-                        .where(and(
-                            inArray(authRoles.id, uniqueRoleIds),
-                            eq(authRoles.company_id, companyId),
-                        ));
-                    const roleNames = assignedRoles.map(r => r.name);
+    const delivery = await sendEmailWithStatus(() =>
+        emailService.sendOrganizationInvitationEmail(normalizedEmail, {
+            companyName,
+            inviteUrl,
+            roleNames: assignedRoles.map(r => r.name),
+            userName: targetUser.name || targetUser.username,
+            inviterName,
+        })
+    );
 
-                    let inviterName: string | undefined;
-                    if (currentUserId) {
-                        const inviter = await adminDb.query.authUsers.findFirst({
-                            where: eq(authUsers.id, String(currentUserId)),
-                            columns: { name: true, displayUsername: true, username: true },
-                        });
-                        inviterName = inviter?.name || inviter?.displayUsername || inviter?.username;
-                    }
+    logAudit(currentUserIdStr, 'UPDATE', 'verification', userIdStr, { action: 'resend_invitation', emailSent: delivery.emailSent }, undefined, companyId);
 
-                    const existingFlag = existingGlobalUser ? '&existing=1' : '';
-                    const inviteUrl = `${resolveTenantUrl(comp.slug)}/accept-invitation?token=${rawActivationToken}&email=${encodeURIComponent(normalizedEmail)}${existingFlag}`;
-
-                    await emailService.sendOrganizationInvitationEmail(normalizedEmail, {
-                        companyName,
-                        inviteUrl,
-                        roleNames,
-                        userName: existingGlobalUser?.name || displayName,
-                        inviterName,
-                    });
-                }
-            } catch (err) {
-                console.error('[RBAC] Error sending organization user invitation email:', err);
-            }
-        })();
-    }
-
-    return newUser;
+    return {
+        success: true,
+        email: normalizedEmail,
+        emailSent: delivery.emailSent,
+        ...(delivery.emailError ? { emailError: delivery.emailError } : {}),
+        inviteUrl,
+    };
 }
 
 /**
@@ -1099,6 +1283,7 @@ export async function acceptUserInvitation(data: { token: string; email: string;
         invalidateUserRbacCache(result.userId, result.companyId),
         cacheService.invalidate(`tenant:member:${result.companyId}:${result.userId}`),
         invalidateUserFacetsCache(result.companyId),
+        invalidateRolesListCache(result.companyId),
     ]);
     broadcastToTenant(result.companyId, RealtimeEvents.USER.UPDATED, { userId: result.userId }, RealtimeEvents.ROOMS.USERS);
 
@@ -1118,7 +1303,7 @@ export async function getUsersByRole(roleId: number, companyId: number) {
     const conditions = [eq(authUserRoles.role_id, roleId), eq(authUserRoles.company_id, companyId)];
     await getTenantOrganizationId(companyId);
 
-    const usersInRole = await withTenant(async () => db
+    const usersInRole = await withTenantContext({ companyId }, async (tx) => tx
         .select({
             id: authUsers.id,
             username: authUsers.username,
@@ -1153,8 +1338,8 @@ export async function removeUserFromRole(
     await requireTenantMembership(userIdStr, companyId, { active: false });
     await assertCanManageTargetUser(currentUserIdStr, userIdStr, companyId, 'remover roles de');
 
-    await withTenant(async () => {
-        const role = await db.query.authRoles.findFirst({
+    await withTenantContext({ companyId, userId: currentUserIdStr }, async (tx) => {
+        const role = await tx.query.authRoles.findFirst({
             where: and(eq(authRoles.id, roleId), eq(authRoles.company_id, companyId)),
         });
         if (!role) {
@@ -1166,7 +1351,7 @@ export async function removeUserFromRole(
 
         await assertCanManageRole(currentUserIdStr, role, companyId, 'remover');
 
-        const currentUserRoles = await db
+        const currentUserRoles = await tx
             .select({ roleId: authUserRoles.role_id })
             .from(authUserRoles)
             .where(and(
@@ -1178,7 +1363,7 @@ export async function removeUserFromRole(
             throw new DomainError('No se puede dejar al usuario sin roles asignados en la empresa', 400);
         }
 
-        await db
+        await tx
             .delete(authUserRoles)
             .where(and(
                 eq(authUserRoles.user_id, userIdStr),
@@ -1191,11 +1376,12 @@ export async function removeUserFromRole(
     await Promise.all([
         invalidateUserRbacCache(userIdStr, companyId),
         invalidateUserFacetsCache(companyId),
+        invalidateRolesListCache(companyId),
     ]);
     broadcastToUser(userIdStr, RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr });
     broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { id: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserIdStr, 'DELETE', 'auth_user_roles', userIdStr, { removedRoleId: roleId, companyId });
+    logAudit(currentUserIdStr, 'DELETE', 'auth_user_roles', userIdStr, { removedRoleId: roleId, companyId }, undefined, companyId);
 
     return { success: true };
 }
@@ -1231,7 +1417,7 @@ export async function updateUser(
 
     const companyOrgId = await getTenantOrganizationId(companyId);
 
-    await withTenant(async () => db.transaction(async (tx) => {
+    await withTenantContext({ companyId, userId: currentUserIdStr }, async (tx) => {
         // 1. Update entity link in member table (scoped to this tenant)
         if (data.entityId !== undefined && companyOrgId) {
             await tx.update(member)
@@ -1295,7 +1481,7 @@ export async function updateUser(
                     eq(member.organizationId, companyOrgId),
                 ));
         }
-    }));
+    });
 
     if (data.isActive === false) {
         await revokeTenantUserSessions(userIdStr, companyId);
@@ -1305,6 +1491,7 @@ export async function updateUser(
         invalidateUserRbacCache(userIdStr, companyId),
         cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`),
         invalidateUserFacetsCache(companyId),
+        invalidateRolesListCache(companyId),
     ]);
     if (data.roleIds !== undefined) {
         broadcastToUser(userIdStr, RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr });
@@ -1317,7 +1504,7 @@ export async function updateUser(
             email: user.email,
             is_active: user.is_active,
             membership_status: membership.status,
-        });
+        }, companyId);
     }
 
     return {
@@ -1366,11 +1553,12 @@ export async function deactivateUser(userId: string | number, currentUserId: str
         invalidateUserRbacCache(userIdStr, companyId),
         cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`),
         invalidateUserFacetsCache(companyId),
+        invalidateRolesListCache(companyId),
     ]);
     broadcastToUser(userIdStr, RealtimeEvents.USER.SESSION_REVOKED, { userId: userIdStr });
     broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserId, 'UPDATE', 'member', userIdStr, { status: 'SUSPENDED' }, { status: membership.status });
+    logAudit(currentUserId, 'UPDATE', 'member', userIdStr, { status: 'SUSPENDED' }, { status: membership.status }, companyId);
 
     return { success: true };
 }
@@ -1428,10 +1616,11 @@ export async function restoreUser(userId: string | number, currentUserId: string
         invalidateUserRbacCache(userIdStr, companyId),
         cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`),
         invalidateUserFacetsCache(companyId),
+        invalidateRolesListCache(companyId),
     ]);
     broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserId, 'UPDATE', 'member', userIdStr, { status: 'ACTIVE' }, { status: membership.status });
+    logAudit(currentUserId, 'UPDATE', 'member', userIdStr, { status: 'ACTIVE' }, { status: membership.status }, companyId);
 
     return { success: true };
 }
@@ -1459,7 +1648,7 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
     const companyOrgId = await getTenantOrganizationId(companyId);
 
     let purgedGlobalAccount = false;
-    await withTenant(async () => db.transaction(async (tx) => {
+    await withTenantContext({ companyId, userId: currentUserIdStr }, async (tx) => {
         // 1. Remove roles assigned in THIS company
         await tx.delete(authUserRoles).where(
             and(
@@ -1487,7 +1676,7 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
             purgedGlobalAccount = true;
             await tx.delete(authUsers).where(eq(authUsers.id, userIdStr));
         }
-    }));
+    });
 
     if (purgedGlobalAccount) {
         await revokeAllUserSessions(userIdStr);
@@ -1499,10 +1688,11 @@ export async function hardDeleteUser(userId: string | number, currentUserId: str
         invalidateUserRbacCache(userIdStr, companyId),
         cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`),
         invalidateUserFacetsCache(companyId),
+        invalidateRolesListCache(companyId),
     ]);
     broadcastToTenant(companyId, RealtimeEvents.USER.DELETED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
-    logAudit(currentUserId, 'DELETE', 'user', userIdStr, undefined, { username: targetUser.username, email: targetUser.email });
+    logAudit(currentUserId, 'DELETE', 'user', userIdStr, undefined, { username: targetUser.username, email: targetUser.email }, companyId);
 
     return { success: true };
 }
@@ -1519,18 +1709,21 @@ export async function checkUserReferences(userId: string | number, companyId: nu
     const isSuper = await isUserSuperadmin(userIdStr, companyId);
     const orgId = await getTenantOrganizationId(companyId);
 
-    const [rolesResult, sessionsResult] = await withTenant(async () => Promise.all([
-        db.select({ count: count() }).from(authUserRoles).where(and(
-            eq(authUserRoles.user_id, userIdStr),
-            eq(authUserRoles.company_id, companyId),
-        )),
+    const [rolesResult, sessionsResult] = await Promise.all([
+        withTenantContext({ companyId }, async (tx) => tx
+            .select({ count: count() })
+            .from(authUserRoles)
+            .where(and(
+                eq(authUserRoles.user_id, userIdStr),
+                eq(authUserRoles.company_id, companyId),
+            ))),
         adminDb.select({ count: count() })
             .from(sessions)
             .where(and(
                 eq(sessions.userId, userIdStr),
                 eq(sessions.activeOrganizationId, orgId),
             )),
-    ]));
+    ]);
 
     const rolesCount = Number(rolesResult[0]?.count ?? 0);
     const activeSessionsCount = Number(sessionsResult[0]?.count ?? 0);
@@ -1548,11 +1741,11 @@ export async function getUserAuditLog(userId: string | number, companyId: number
     const offset = (page - 1) * limit;
     const condition = and(eq(auditLogs.userId, userIdStr), eq(auditLogs.company_id, companyId));
 
-    const [totalResult, entries] = await withTenant(async () => Promise.all([
-        db.select({ count: sql<number>`count(*)`.mapWith(Number) })
+    const [totalResult, entries] = await withTenantContext({ companyId }, async (tx) => Promise.all([
+        tx.select({ count: sql<number>`count(*)`.mapWith(Number) })
             .from(auditLogs)
             .where(condition),
-        db.select({
+        tx.select({
             id: auditLogs.id,
             tableName: auditLogs.tableName,
             recordId: auditLogs.recordId,
@@ -1645,7 +1838,7 @@ export async function adminResetPassword(
         throw new DomainError('No se pudo solicitar el restablecimiento de contraseña', 503);
     }
 
-    logAudit(adminUserId, 'UPDATE', 'user', targetUserIdStr, { field: 'password', action: 'reset_requested', companyId });
+    logAudit(adminUserId, 'UPDATE', 'user', targetUserIdStr, { field: 'password', action: 'reset_requested', companyId }, undefined, companyId);
 
     return { success: true };
 }
@@ -1693,7 +1886,7 @@ export async function setUserEntity(
 
     if (!updated) throw new DomainError('No se pudo actualizar la entidad', 500);
 
-    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'member', memberRow.id, { entity_id: entityId }, { entity_id: oldEntityId ?? null });
+    if (currentUserId) logAudit(currentUserId, 'UPDATE', 'member', memberRow.id, { entity_id: entityId }, { entity_id: oldEntityId ?? null }, companyId);
     broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
     return { id: userIdStr, entityId };
@@ -1740,10 +1933,11 @@ export async function batchDeleteUsers(userIds: (string)[], currentUserId: strin
                 cacheService.invalidate(`tenant:member:${companyId}:${id}`),
             ])),
             invalidateUserFacetsCache(companyId),
+            invalidateRolesListCache(companyId),
         ]);
         broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userIds: safeIds }, RealtimeEvents.ROOMS.USERS);
 
-        for (const id of safeIds) logAudit(currentUserId, 'UPDATE', 'member', id, { status: 'SUSPENDED', companyId }, { status: 'ACTIVE' });
+        for (const id of safeIds) logAudit(currentUserId, 'UPDATE', 'member', id, { status: 'SUSPENDED', companyId }, { status: 'ACTIVE' }, companyId);
     }
 
     return [
@@ -1840,10 +2034,11 @@ export async function batchRestoreUsers(userIds: (string)[], currentUserId: stri
                     cacheService.invalidate(`tenant:member:${companyId}:${id}`),
                 ])),
                 invalidateUserFacetsCache(companyId),
+                invalidateRolesListCache(companyId),
             ]);
             broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userIds: restoredIds }, RealtimeEvents.ROOMS.USERS);
 
-            for (const id of restoredIds) logAudit(currentUserId, 'UPDATE', 'member', id, { status: 'ACTIVE', companyId }, { status: 'SUSPENDED' });
+            for (const id of restoredIds) logAudit(currentUserId, 'UPDATE', 'member', id, { status: 'ACTIVE', companyId }, { status: 'SUSPENDED' }, companyId);
         }
     }
 

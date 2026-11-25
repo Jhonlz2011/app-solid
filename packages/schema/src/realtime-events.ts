@@ -20,6 +20,11 @@ export const RealtimeEvents = {
         RBAC_CHANGED: 'user:rbac_changed',
         EMAIL_VERIFIED: 'user:email_verified',
     },
+    ROLE: {
+        CREATED: 'role:created',
+        UPDATED: 'role:updated',
+        DELETED: 'role:deleted',
+    },
     COMPANY: {
         BRANDING_UPDATED: 'company:branding_updated',
         PROFILE_UPDATED: 'company:profile_updated',

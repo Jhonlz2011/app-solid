@@ -1,25 +1,92 @@
 /**
- * users.queries.ts — TanStack Query Hooks (read-only) for Users/RBAC module
- *
- * Only `useQuery` / `createQuery` hooks live here.
- * All mutations are in `users.mutations.ts`.
+ * users.queries.ts — TanStack Query v5 `queryOptions` factory + reactive hooks for Users/RBAC.
+ * Shared across Router loaders, hover prefetches, next-page prefetches, and UI components.
  */
-import { createQuery, keepPreviousData, useQueryClient } from '@tanstack/solid-query';
-import { api } from '@shared/lib/eden';
-import { throwApiError } from '@shared/utils/api-errors';
+import { createQuery, keepPreviousData, queryOptions, useQueryClient } from '@tanstack/solid-query';
 import { STALE_TIME, GC_TIME } from '@shared/constants/cache.constants';
-import { rbacKeys } from './users.keys';
+import { rbacKeys, normalizeUsersFilters } from './users.keys';
 import { usersApi } from './users.api';
 import type {
     UsersFilters,
     UserReferencesType,
-    FacetData,
     UserListItemType,
     RoleType,
 } from '@app/schema/dto';
 
 // =============================================================================
-// User Queries
+// Canonical TanStack Query v5 `queryOptions` Factory
+// =============================================================================
+
+export const rbacQueries = {
+    list: (filters: UsersFilters = {}) => {
+        const normalized = normalizeUsersFilters(filters);
+        return queryOptions({
+            queryKey: rbacKeys.list(normalized),
+            queryFn: ({ signal }) => usersApi.listUsersWithRoles(normalized, signal),
+            staleTime: STALE_TIME.SHORT,
+            gcTime: GC_TIME.DEFAULT,
+        });
+    },
+
+    facets: (search?: string, columnFilters?: { isActive?: string[]; roles?: string[] }) =>
+        queryOptions({
+            queryKey: rbacKeys.facets(search, columnFilters),
+            queryFn: ({ signal }) => usersApi.getUserFacets(search, columnFilters, signal),
+            staleTime: STALE_TIME.MEDIUM,
+            gcTime: GC_TIME.DEFAULT,
+        }),
+
+    user: (id: string) =>
+        queryOptions({
+            queryKey: rbacKeys.user(id),
+            queryFn: ({ signal }) => usersApi.getUser(id, signal),
+            staleTime: STALE_TIME.MEDIUM,
+            gcTime: GC_TIME.DEFAULT,
+        }),
+
+    roles: () =>
+        queryOptions({
+            queryKey: rbacKeys.roles(),
+            queryFn: ({ signal }) => usersApi.listRoles(signal),
+            staleTime: STALE_TIME.MEDIUM,
+            gcTime: GC_TIME.DEFAULT,
+        }),
+
+    role: (id: number) =>
+        queryOptions({
+            queryKey: rbacKeys.role(id),
+            queryFn: ({ signal }) => usersApi.getRole(id, signal),
+            staleTime: STALE_TIME.MEDIUM,
+            gcTime: GC_TIME.DEFAULT,
+        }),
+
+    permissions: () =>
+        queryOptions({
+            queryKey: rbacKeys.permissions(),
+            queryFn: ({ signal }) => usersApi.listPermissions(signal),
+            staleTime: STALE_TIME.LONG,
+            gcTime: GC_TIME.DEFAULT,
+        }),
+
+    rolePermissions: (roleId: number) =>
+        queryOptions({
+            queryKey: rbacKeys.rolePermissions(roleId),
+            queryFn: ({ signal }) => usersApi.getRolePermissions(roleId, signal),
+            staleTime: STALE_TIME.MEDIUM,
+            gcTime: GC_TIME.DEFAULT,
+        }),
+
+    roleUsers: (roleId: number) =>
+        queryOptions({
+            queryKey: rbacKeys.roleUsers(roleId),
+            queryFn: ({ signal }) => usersApi.getRoleUsers(roleId, signal),
+            staleTime: STALE_TIME.SHORT,
+            gcTime: GC_TIME.DEFAULT,
+        }),
+};
+
+// =============================================================================
+// Reactive Hooks
 // =============================================================================
 
 export function useUserFacets(
@@ -30,21 +97,7 @@ export function useUserFacets(
     }
 ) {
     return createQuery(() => ({
-        queryKey: rbacKeys.facets(search(), columnFilters?.()),
-        queryFn: async (): Promise<FacetData> => {
-            const cf = columnFilters?.();
-            const { data, error } = await api.rbac.users.facets.get({
-                query: {
-                    search: search(),
-                    isActive: cf?.isActive?.length ? cf.isActive.join(',') : undefined,
-                    roles: cf?.roles?.length ? cf.roles.join(',') : undefined,
-                },
-            });
-            if (error) throwApiError(error);
-            return data as unknown as FacetData;
-        },
-        staleTime: STALE_TIME.MEDIUM,
-        gcTime: GC_TIME.DEFAULT,
+        ...rbacQueries.facets(search(), columnFilters?.()),
         retry: 2,
         placeholderData: keepPreviousData,
     }));
@@ -52,10 +105,7 @@ export function useUserFacets(
 
 export function useUsers(filters: () => UsersFilters, enabled?: () => boolean) {
     return createQuery(() => ({
-        queryKey: rbacKeys.list(filters()),
-        queryFn: () => usersApi.listUsersWithRoles(filters()),
-        staleTime: STALE_TIME.SHORT,
-        gcTime: GC_TIME.DEFAULT,
+        ...rbacQueries.list(filters()),
         placeholderData: keepPreviousData,
         enabled: enabled ? enabled() : true,
     }));
@@ -65,11 +115,8 @@ export function useUser(id: () => string | null | undefined) {
     const queryClient = useQueryClient();
 
     return createQuery(() => ({
-        queryKey: rbacKeys.user(id() ?? ''),
-        queryFn: () => usersApi.getUser(id()!),
+        ...rbacQueries.user(id() ?? ''),
         enabled: Boolean(id()),
-        staleTime: STALE_TIME.MEDIUM,
-        gcTime: GC_TIME.DEFAULT,
         placeholderData: (previousData) => {
             if (previousData) return previousData;
             const targetId = id();
@@ -109,16 +156,9 @@ export function useUser(id: () => string | null | undefined) {
     }));
 }
 
-// =============================================================================
-// Role Queries
-// =============================================================================
-
 export function useRoles() {
     return createQuery(() => ({
-        queryKey: rbacKeys.roles(),
-        queryFn: () => usersApi.listRoles(),
-        staleTime: STALE_TIME.MEDIUM,
-        gcTime: GC_TIME.DEFAULT,
+        ...rbacQueries.roles(),
         placeholderData: keepPreviousData,
     }));
 }
@@ -127,11 +167,8 @@ export function useRole(id: () => number | null | undefined) {
     const queryClient = useQueryClient();
 
     return createQuery(() => ({
-        queryKey: rbacKeys.role(id() ?? 0),
-        queryFn: () => usersApi.getRole(id()!),
+        ...rbacQueries.role(id() ?? 0),
         enabled: Boolean(id() && id()! > 0),
-        staleTime: STALE_TIME.MEDIUM,
-        gcTime: GC_TIME.DEFAULT,
         placeholderData: (previousData) => {
             if (previousData) return previousData;
             const roleId = id();
@@ -145,9 +182,10 @@ export function useRole(id: () => number | null | undefined) {
                     name: found.name,
                     description: found.description,
                     is_system: found.is_system,
-                    priority: 0,
+                    priority: found.priority ?? 0,
                     createdAt: new Date(),
-                    company_id: 0,
+                    userCount: found.userCount,
+                    permissionCount: found.permissionCount,
                 };
             }
             return undefined;
@@ -155,48 +193,33 @@ export function useRole(id: () => number | null | undefined) {
     }));
 }
 
-// =============================================================================
-// Permission Queries
-// =============================================================================
-
 export function usePermissions() {
     return createQuery(() => ({
-        queryKey: rbacKeys.permissions(),
-        queryFn: () => usersApi.listPermissions(),
-        staleTime: STALE_TIME.LONG,
-        gcTime: GC_TIME.DEFAULT,
+        ...rbacQueries.permissions(),
         placeholderData: keepPreviousData,
     }));
 }
 
 export function useRolePermissions(roleId: () => number | null | undefined) {
     return createQuery(() => ({
-        queryKey: rbacKeys.rolePermissions(roleId() ?? 0),
-        queryFn: () => usersApi.getRolePermissions(roleId()!),
+        ...rbacQueries.rolePermissions(roleId() ?? 0),
         enabled: Boolean(roleId() && roleId()! > 0),
-        staleTime: STALE_TIME.MEDIUM,
         placeholderData: keepPreviousData,
     }));
 }
 
 export function useRoleUsers(roleId: () => number | null | undefined) {
     return createQuery(() => ({
-        queryKey: rbacKeys.roleUsers(roleId() ?? 0),
-        queryFn: () => usersApi.getRoleUsers(roleId()!),
+        ...rbacQueries.roleUsers(roleId() ?? 0),
         enabled: Boolean(roleId() && roleId()! > 0),
-        staleTime: STALE_TIME.SHORT,
         placeholderData: keepPreviousData,
     }));
 }
 
-// =============================================================================
-// User Detail Queries (Sessions, References, Audit)
-// =============================================================================
-
 export function useUserSessions(userId: () => string | null | undefined) {
     return createQuery(() => ({
         queryKey: rbacKeys.userSessions(userId() ?? ''),
-        queryFn: () => usersApi.getUserSessions(userId()!),
+        queryFn: ({ signal }) => usersApi.getUserSessions(userId()!, signal),
         enabled: Boolean(userId()),
         staleTime: 60_000,
         gcTime: STALE_TIME.MEDIUM,
@@ -219,7 +242,7 @@ export function useCheckUserReferences(id: () => string | null | undefined, enab
 export function useUserAuditLog(userId: () => string | null | undefined, page: () => number) {
     return createQuery(() => ({
         queryKey: rbacKeys.userAuditLog(userId() ?? '', page()),
-        queryFn: () => usersApi.getUserAuditLog(userId()!, page()),
+        queryFn: ({ signal }) => usersApi.getUserAuditLog(userId()!, page(), 20, signal),
         enabled: Boolean(userId()),
         staleTime: STALE_TIME.SHORT,
         gcTime: STALE_TIME.LONG,
@@ -234,7 +257,7 @@ export function useCheckUserEmail(email: () => string | undefined, enabled: () =
 
         return {
             queryKey: ['rbac', 'users', 'check-email', rawEmail],
-            queryFn: () => usersApi.checkEmail(rawEmail),
+            queryFn: ({ signal }) => usersApi.checkEmail(rawEmail, signal),
             enabled: enabled() && isValidEmail,
             staleTime: 30_000,
             gcTime: 60_000,

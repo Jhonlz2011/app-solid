@@ -12,6 +12,7 @@ import { usersApi } from './users.api';
 import type {
     UserListItemType,
     RoleType,
+    RoleBodyType,
     RoleUserType,
 } from '@app/schema/dto';
 import type { PermissionSlug } from '@app/schema/enums';
@@ -24,7 +25,7 @@ import type { PermissionSlug } from '@app/schema/enums';
 function userOnSettled(queryClient: ReturnType<typeof useQueryClient>) {
     return () => {
         queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
-        queryClient.invalidateQueries({ queryKey: [...rbacKeys.all, 'facets'], exact: false });
+        queryClient.invalidateQueries({ queryKey: rbacKeys.facetsAll(), exact: false });
         queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
         queryClient.invalidateQueries({ queryKey: saasKeys.subscription() });
     };
@@ -53,13 +54,21 @@ export function useCreateRole() {
     const queryClient = useQueryClient();
 
     return createMutation(() => ({
-        mutationFn: (data: { name: string; description?: string }) => usersApi.createRole(data),
+        mutationFn: (data: RoleBodyType) => usersApi.createRole(data),
         onMutate: async (newRole) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.roles() });
             const previous = queryClient.getQueryData<RoleType[]>(rbacKeys.roles());
             queryClient.setQueryData<RoleType[]>(rbacKeys.roles(), (old) => [
                 ...(old ?? []),
-                { id: -Date.now(), name: newRole.name, description: newRole.description ?? null, userCount: 0, is_system: false, permissionCount: 0 } as RoleType,
+                {
+                    id: -Date.now(),
+                    name: newRole.name,
+                    description: newRole.description ?? null,
+                    userCount: 0,
+                    is_system: false,
+                    priority: 0,
+                    permissionCount: newRole.permissionSlugs?.length ?? 0,
+                } as RoleType,
             ]);
             return { previous };
         },
@@ -75,13 +84,21 @@ export function useCreateRole() {
 export function useUpdateRole() {
     const queryClient = useQueryClient();
     return createMutation(() => ({
-        mutationFn: ({ id, ...data }: { id: number; name: string; description?: string }) =>
+        mutationFn: ({ id, ...data }: { id: number } & RoleBodyType) =>
             usersApi.updateRole(id, data),
-        onMutate: async ({ id, name, description }) => {
+        onMutate: async ({ id, name, description, permissionSlugs }) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.roles() });
             const previous = queryClient.getQueryData<RoleType[]>(rbacKeys.roles());
             queryClient.setQueryData<RoleType[]>(rbacKeys.roles(), (old) =>
-                old?.map(r => r.id === id ? { ...r, name, description: description ?? null } : r) ?? []
+                old?.map(r => r.id === id
+                    ? {
+                        ...r,
+                        name,
+                        description: description ?? null,
+                        permissionCount: permissionSlugs !== undefined ? permissionSlugs.length : r.permissionCount,
+                    }
+                    : r
+                ) ?? []
             );
             return { previous };
         },
@@ -91,6 +108,7 @@ export function useUpdateRole() {
         onSettled: (_data, _err, { id }) => {
             queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
             queryClient.invalidateQueries({ queryKey: rbacKeys.role(id) });
+            queryClient.invalidateQueries({ queryKey: rbacKeys.rolePermissions(id) });
         },
     }));
 }
@@ -208,6 +226,12 @@ export function useCreateUser() {
         onMutate: async (newUser) => {
             await queryClient.cancelQueries({ queryKey: rbacKeys.lists() });
             const previousLists = queryClient.getQueriesData({ queryKey: rbacKeys.lists() });
+            const cachedRoles = queryClient.getQueryData<RoleType[]>(rbacKeys.roles()) ?? [];
+            const assignedRoles = (newUser.roleIds ?? [])
+                .map(id => cachedRoles.find(r => r.id === id))
+                .filter((r): r is RoleType => Boolean(r))
+                .map(r => ({ id: r.id, name: r.name, description: r.description ?? null }));
+            const isDirect = newUser.mode === 'direct';
 
             queryClient.setQueriesData<CacheShape<UserListItemType>>({ queryKey: rbacKeys.lists() }, (old) => {
                 if (!old) return old;
@@ -215,9 +239,13 @@ export function useCreateUser() {
                     id: String(-Date.now()),
                     username: newUser.username || newUser.email.split('@')[0],
                     email: newUser.email,
-                    isActive: true,
+                    image: null,
+                    isActive: isDirect,
+                    membershipStatus: isDirect ? 'ACTIVE' : 'PENDING',
                     lastLogin: null,
-                    roles: [],
+                    entityId: newUser.entityId ?? null,
+                    entity: null,
+                    roles: assignedRoles,
                 } as unknown as UserListItemType;
                 return addOptimisticItem(old, optimistic);
             });
@@ -227,12 +255,13 @@ export function useCreateUser() {
         onError: (_err, _vars, context) => {
             context?.previousLists?.forEach(([key, data]) => queryClient.setQueryData(key, data));
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: rbacKeys.lists() });
-            queryClient.invalidateQueries({ queryKey: [...rbacKeys.all, 'facets'], exact: false });
-            queryClient.invalidateQueries({ queryKey: rbacKeys.roles() });
-            queryClient.invalidateQueries({ queryKey: saasKeys.subscription() });
-        },
+        onSettled: userOnSettled(queryClient),
+    }));
+}
+
+export function useResendUserInvitation() {
+    return createMutation(() => ({
+        mutationFn: (userId: string) => usersApi.resendInvitation(userId),
     }));
 }
 

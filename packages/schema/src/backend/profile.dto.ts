@@ -56,6 +56,7 @@ export const ProfileResponseSchema = Type.Object({
     twoFactorEnabled: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
     entityId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     isActive: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+    mustChangePassword: Type.Optional(Type.Boolean()),
     lastLogin: Type.Optional(Type.Union([Type.Date(), Type.Null()])),
     emailVerified: Type.Optional(Type.Boolean()),
     emailVerifiedAt: Type.Optional(Type.Union([Type.String(), Type.Date(), Type.Null()])),

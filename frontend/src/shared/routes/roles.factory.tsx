@@ -1,8 +1,6 @@
 import { createRoute, redirect, lazyRouteComponent, useNavigate } from '@tanstack/solid-router';
 import { queryClient } from '@shared/lib/queryClient';
-import { rbacKeys } from '@/modules/rbac/data/users.keys';
-import { usersApi } from '@/modules/rbac/data/users.api';
-import { STALE_TIME } from '@shared/constants/cache.constants';
+import { rbacQueries } from '@/modules/rbac/data/users.queries';
 
 const LazyRoleNewRoute = lazyRouteComponent(() =>
     import('@/modules/rbac/components/RoleFormDialog').then(m => ({ default: (props: any) => <m.default mode="create" isOpen={true} {...props} /> }))
@@ -44,11 +42,10 @@ export const createRoleModals = (parentRoute: any, basePath = 'role') => {
             }
         },
         loader: async () => {
-            await queryClient.ensureQueryData({
-                queryKey: rbacKeys.permissions(),
-                queryFn: () => usersApi.listPermissions(),
-                staleTime: STALE_TIME.LONG,
-            });
+            await Promise.all([
+                queryClient.ensureQueryData(rbacQueries.permissions()),
+                queryClient.ensureQueryData(rbacQueries.roles()),
+            ]);
         },
         component: wrapRoleRouteComponent(LazyRoleNewRoute),
     });
@@ -84,21 +81,9 @@ export const createRoleModals = (parentRoute: any, basePath = 'role') => {
             const roleId = Number(params.roleId);
             if (!isNaN(roleId) && roleId > 0) {
                 await Promise.all([
-                    queryClient.ensureQueryData({
-                        queryKey: rbacKeys.role(roleId),
-                        queryFn: () => usersApi.getRole(roleId),
-                        staleTime: STALE_TIME.MEDIUM,
-                    }),
-                    queryClient.ensureQueryData({
-                        queryKey: rbacKeys.rolePermissions(roleId),
-                        queryFn: () => usersApi.getRolePermissions(roleId),
-                        staleTime: STALE_TIME.MEDIUM,
-                    }),
-                    queryClient.ensureQueryData({
-                        queryKey: rbacKeys.permissions(),
-                        queryFn: () => usersApi.listPermissions(),
-                        staleTime: STALE_TIME.LONG,
-                    }),
+                    queryClient.ensureQueryData(rbacQueries.role(roleId)),
+                    queryClient.ensureQueryData(rbacQueries.rolePermissions(roleId)),
+                    queryClient.ensureQueryData(rbacQueries.permissions()),
                 ]);
             }
         },
@@ -119,21 +104,9 @@ export const createRoleModals = (parentRoute: any, basePath = 'role') => {
             const roleId = Number(params.roleId);
             if (!isNaN(roleId) && roleId > 0) {
                 await Promise.all([
-                    queryClient.ensureQueryData({
-                        queryKey: rbacKeys.role(roleId),
-                        queryFn: () => usersApi.getRole(roleId),
-                        staleTime: STALE_TIME.MEDIUM,
-                    }),
-                    queryClient.ensureQueryData({
-                        queryKey: rbacKeys.rolePermissions(roleId),
-                        queryFn: () => usersApi.getRolePermissions(roleId),
-                        staleTime: STALE_TIME.MEDIUM,
-                    }),
-                    queryClient.ensureQueryData({
-                        queryKey: rbacKeys.permissions(),
-                        queryFn: () => usersApi.listPermissions(),
-                        staleTime: STALE_TIME.LONG,
-                    }),
+                    queryClient.ensureQueryData(rbacQueries.role(roleId)),
+                    queryClient.ensureQueryData(rbacQueries.rolePermissions(roleId)),
+                    queryClient.ensureQueryData(rbacQueries.permissions()),
                 ]);
             }
         },
@@ -154,16 +127,8 @@ export const createRoleModals = (parentRoute: any, basePath = 'role') => {
             const roleId = Number(params.roleId);
             if (!isNaN(roleId) && roleId > 0) {
                 await Promise.all([
-                    queryClient.ensureQueryData({
-                        queryKey: rbacKeys.role(roleId),
-                        queryFn: () => usersApi.getRole(roleId),
-                        staleTime: STALE_TIME.MEDIUM,
-                    }),
-                    queryClient.ensureQueryData({
-                        queryKey: rbacKeys.roleUsers(roleId),
-                        queryFn: () => usersApi.getRoleUsers(roleId),
-                        staleTime: STALE_TIME.SHORT,
-                    }),
+                    queryClient.ensureQueryData(rbacQueries.role(roleId)),
+                    queryClient.ensureQueryData(rbacQueries.roleUsers(roleId)),
                 ]);
             }
         },

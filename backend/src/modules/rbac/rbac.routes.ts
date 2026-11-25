@@ -29,6 +29,7 @@ import {
     adminResetPassword,
     setUserEntity,
     checkUserEmail,
+    resendUserInvitation,
 } from './rbac.service';
 import { getActiveSessions, revokeSession } from '../auth/session.service';
 import { assertCanManageTargetUser, assertNotSuperadmin } from './rbac.permission.service';
@@ -37,6 +38,8 @@ import {
     RoleBodySchema,
     RolePermissionsUpdateBodySchema,
     RbacUserCreateBodySchema,
+    RbacUserCreateResponseSchema,
+    RbacResendInvitationResponseSchema,
     RbacUserUpdateBodySchema,
     RbacUserResetPasswordBodySchema,
     RbacUserAssignEntityBodySchema,
@@ -64,14 +67,14 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     }, { permission: 'roles.read' })
 
     .post('/roles', async ({ body, currentUserId, currentCompanyId }) => {
-        return await createRole(body.name, body.description, currentUserId, currentCompanyId);
+        return await createRole(body.name, body.description, currentUserId, currentCompanyId, body.permissionSlugs);
     }, {
         permission: 'roles.create',
         body: RoleBodySchema,
     })
 
     .put('/roles/:id', async ({ params, body, currentUserId, currentCompanyId }) => {
-        return await updateRole(Number(params.id), body.name, body.description, currentUserId, currentCompanyId);
+        return await updateRole(Number(params.id), body.name, body.description, currentUserId, currentCompanyId, body.permissionSlugs);
     }, {
         permission: 'roles.update',
         params: IdParamSchema,
@@ -180,6 +183,15 @@ export const rbacRoutes = new Elysia({ prefix: '/rbac' })
     }, {
         permission: 'users.create',
         body: RbacUserCreateBodySchema,
+        response: RbacUserCreateResponseSchema,
+    })
+
+    .post('/users/:id/resend-invitation', async ({ params, currentUserId, currentCompanyId }) => {
+        return await resendUserInvitation(params.id, currentUserId, currentCompanyId);
+    }, {
+        permission: 'users.update',
+        params: IdStringParamSchema,
+        response: RbacResendInvitationResponseSchema,
     })
 
     .put('/users/:id', async ({ params, body, currentUserId, currentCompanyId }) => {

@@ -4,7 +4,7 @@ import { getActiveSessions, revokeSession } from '../auth/session.service';
 import { auth } from '../../config/better-auth';
 import { markMfaStepUp, mfaStepUp } from '../../plugins/mfa-step-up';
 import { adminDb } from '../../core/db';
-import { sessions } from '@app/schema/tables';
+import { sessions, authUsers } from '@app/schema/tables';
 import { eq } from '@app/schema';
 import {
   UpdateProfileBodySchema,
@@ -85,7 +85,7 @@ export const profileRoutes = new Elysia({ prefix: '/profile' })
     body: MfaVerifyBodySchema,
     response: MfaVerifyResponseSchema,
   })
-  .post('/security/password', async ({ body, request, set }) => {
+  .post('/security/password', async ({ body, request, currentUserId, set }) => {
     const result = await auth.api.changePassword({
       headers: request.headers,
       body: {
@@ -96,6 +96,10 @@ export const profileRoutes = new Elysia({ prefix: '/profile' })
       returnHeaders: true,
     });
     forwardSetCookies(result.headers, set);
+    await adminDb
+      .update(authUsers)
+      .set({ must_change_password: false, updatedAt: new Date() })
+      .where(eq(authUsers.id, String(currentUserId)));
     return { success: true };
   }, {
     body: ChangePasswordBodySchema,

@@ -2,6 +2,7 @@ import { Component, JSX, splitProps, Show } from 'solid-js';
 import { cn } from '../../lib/utils';
 import { UI_RADII, type UiRadius } from '../tokens';
 import { EntityType } from '@app/schema/enums';
+import { RBAC_ACTION_LABELS, ROLE_DISPLAY_META, getRoleDisplayLabel } from '@app/schema/utils';
 
 export const BADGE_SIZES = {
     sm: "text-[10px] px-1.5 py-0.5 gap-1",
@@ -119,29 +120,35 @@ export const CounterBadge: Component<CounterBadgeProps> = (props) => {
 };
 
 // ── Role & Status Badges ──
-const rolePresentations: Record<string, BadgeVariant> = {
-    superadmin: 'danger',
-    admin: 'warning',
+export const RoleBadge: Component<{ name: string; onClick?: () => void }> = (props) => {
+    const meta = () => ROLE_DISPLAY_META[props.name.toLowerCase()];
+    return (
+        <Badge variant={meta()?.variant || 'info'} onClick={props.onClick}>
+            {getRoleDisplayLabel(props.name)}
+        </Badge>
+    );
 };
 
-export const RoleBadge: Component<{ name: string; onClick?: () => void }> = (props) => (
-    <Badge variant={rolePresentations[props.name] || 'info'} onClick={props.onClick}>
-        {props.name}
-    </Badge>
-);
-
-export const StatusBadge: Component<{ isActive: boolean | null }> = (props) => (
-    <Badge variant={props.isActive ? 'success' : 'danger'}>
-        {props.isActive ? 'Activo' : 'Inactivo'}
-    </Badge>
-);
+export const StatusBadge: Component<{ isActive: boolean | null; membershipStatus?: string | null }> = (props) => {
+    const isPending = () => props.membershipStatus === 'PENDING';
+    const variant = (): BadgeVariant => {
+        if (isPending()) return 'warning';
+        return props.isActive ? 'success' : 'danger';
+    };
+    const label = () => {
+        if (isPending()) return 'Invitación pendiente';
+        return props.isActive ? 'Activo' : 'Inactivo';
+    };
+    return <Badge variant={variant()}>{label()}</Badge>;
+};
 
 // ── Action Badge ──
 const ACTION_LABELS: Record<string, string> = {
-    read: 'Ver', create: 'Crear', add: 'Agregar', update: 'Editar',
-    edit: 'Editar', delete: 'Desactivar', restore: 'Restaurar',
-    destroy: 'Eliminar', export: 'Exportar', import: 'Importar',
-    approve: 'Aprobar', assign: 'Asignar', audit: 'Auditar',
+    ...RBAC_ACTION_LABELS,
+    add: 'Agregar',
+    edit: 'Editar',
+    approve: 'Aprobar',
+    audit: 'Auditar',
 };
 
 // 3. OPTIMIZACIÓN: Se reemplazó el Switch por un diccionario constante
@@ -149,7 +156,7 @@ const ACTION_VARIANTS: Record<string, BadgeVariant> = {
     read: 'info', create: 'success', add: 'success',
     update: 'warning', edit: 'warning', approve: 'warning',
     delete: 'danger', destroy: 'destructive', restore: 'primary',
-    assign: 'primary', export: 'info', import: 'success',
+    assign: 'primary', unassign: 'warning', export: 'info', import: 'success',
 };
 
 export const ActionBadge: Component<{ action: string }> = (props) => {

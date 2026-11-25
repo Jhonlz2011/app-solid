@@ -40,6 +40,7 @@ export const RoleResponseSchema = Type.Object({
     name: Type.String(),
     description: Type.Union([Type.String(), Type.Null()]),
     is_system: Type.Union([Type.Boolean(), Type.Null()]),
+    priority: Type.Number(),
     userCount: Type.Number(),
     permissionCount: Type.Number(),
 });
@@ -50,7 +51,7 @@ export const RoleDetailResponseSchema = Type.Object({
     description: Type.Union([Type.String(), Type.Null()]),
     is_system: Type.Union([Type.Boolean(), Type.Null()]),
     priority: Type.Union([Type.Number(), Type.Null()]),
-    created_at: Type.Date(),
+    createdAt: Type.Date(),
     permissionCount: Type.Number(),
     userCount: Type.Number(),
 });
@@ -66,6 +67,7 @@ export const RoleUserResponseSchema = Type.Object({
 export const RoleBodySchema = Type.Object({
     name: Type.String({ minLength: 2 }),
     description: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    permissionSlugs: Type.Optional(Type.Array(PermissionSlugSchema)),
 });
 
 export const RolePermissionsUpdateBodySchema = Type.Object({
@@ -119,8 +121,30 @@ export const RbacUserCreateBodySchema = Type.Object({
     username: Type.Optional(Type.String({ minLength: 3, maxLength: 30, pattern: '^[a-z0-9._-]+$' })),
     roleIds: Type.Array(Type.Number(), { minItems: 1 }),
     entityId: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-    mode: Type.Optional(Type.Literal('invite')),
+    mode: Type.Optional(Type.Union([Type.Literal('invite'), Type.Literal('direct')])),
+    temporaryPassword: Type.Optional(Type.String({ minLength: 8, maxLength: 128 })),
+    mustChangePassword: Type.Optional(Type.Boolean()),
     sendEmail: Type.Optional(Type.Boolean()),
+});
+
+export const RbacUserCreateResponseSchema = Type.Object({
+    id: Type.String(),
+    username: Type.String(),
+    email: Type.String({ format: 'email' }),
+    mode: Type.Union([Type.Literal('invite'), Type.Literal('direct')]),
+    membershipStatus: Type.Union([Type.Literal('ACTIVE'), Type.Literal('PENDING')]),
+    emailSent: Type.Boolean(),
+    emailError: Type.Optional(Type.String()),
+    inviteUrl: Type.Optional(Type.String()),
+    loginUrl: Type.Optional(Type.String()),
+});
+
+export const RbacResendInvitationResponseSchema = Type.Object({
+    success: Type.Boolean(),
+    email: Type.String({ format: 'email' }),
+    emailSent: Type.Boolean(),
+    emailError: Type.Optional(Type.String()),
+    inviteUrl: Type.String(),
 });
 
 export const RbacAcceptInvitationBodySchema = Type.Object({
@@ -236,6 +260,8 @@ export type UserDetailType = Static<typeof UserDetailResponseSchema>;
 export type UserEntityReferenceType = Static<typeof UserEntityReferenceSchema>;
 
 export type RbacUserCreateType = Static<typeof RbacUserCreateBodySchema>;
+export type RbacUserCreateResponseType = Static<typeof RbacUserCreateResponseSchema>;
+export type RbacResendInvitationResponseType = Static<typeof RbacResendInvitationResponseSchema>;
 export type RbacAcceptInvitationType = Static<typeof RbacAcceptInvitationBodySchema>;
 export type RbacUserUpdateType = Static<typeof RbacUserUpdateBodySchema>;
 export type RbacUserResetPasswordType = Static<typeof RbacUserResetPasswordBodySchema>;

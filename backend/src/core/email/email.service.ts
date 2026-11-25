@@ -371,8 +371,8 @@ export const emailService = {
           </div>
 
           <div class="oauth-box">
-            ⚡ <strong>Acceso rápido con un clic:</strong><br>
-            Si utilizas <strong>Google</strong> o <strong>Microsoft</strong>, podrás acceder inmediatamente con 1-Click o definir tu contraseña personal de acceso.
+            🔐 <strong>Activación segura en un solo paso:</strong><br>
+            Abre el enlace inferior para confirmar tu acceso a <strong>${payload.companyName}</strong> y definir tu contraseña personal.
           </div>
 
           <div class="btn-container">

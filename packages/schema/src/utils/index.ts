@@ -11,4 +11,16 @@ export {
     SLUG_REGEX,
 } from './resolve-slug';
 export { BRANDING_DEFAULTS } from './branding-defaults';
+export {
+    RBAC_ACTION_LABELS,
+    RBAC_MODULE_LABELS,
+    RBAC_MODULE_CATEGORIES,
+    ROLE_DISPLAY_META,
+    getRbacModuleLabel,
+    getRbacActionLabel,
+    getRbacPermissionDescription,
+    getRoleDisplayLabel,
+    type RbacModuleCategory,
+    type RoleBadgeTone,
+} from './rbac-labels';
 
