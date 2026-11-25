@@ -1,10 +1,22 @@
-import { MODULE_ACTIONS_MAP, type RbacModule, type SaasPlanId } from '../enums';
+import { type RbacModule, type SaasPlanId, type SaasSubscriptionStatus } from '../enums';
+
+export const USABLE_SUBSCRIPTION_STATUSES = new Set<string>([
+    'ACTIVE',
+    'TRIAL',
+    'GRACE_PERIOD',
+]);
+
+export function isUsableSubscriptionStatus(status?: SaasSubscriptionStatus | string | null): boolean {
+    if (!status) return true;
+    return USABLE_SUBSCRIPTION_STATUSES.has(status);
+}
 
 /**
  * Módulos Core disponibles en TODOS los planes (incluso Freemium)
  */
 export const CORE_MODULES: readonly RbacModule[] = [
     'dashboard',
+    'audit',
     'companies',
     'config',
     'users',
@@ -20,7 +32,13 @@ export const CORE_MODULES: readonly RbacModule[] = [
     'uom',
     'attributes',
     'inventory',
+    'movements',
+    'orders',
+    'reception_materials',
     'locations',
+    'purchase_quotes',
+    'purchase_orders',
+    'purchase_invoices',
     'documents',
     'invoices',
 ] as const;
@@ -35,7 +53,7 @@ export const FEATURE_TO_MODULES_MAP: Record<string, readonly RbacModule[]> = {
     'modules.pos': ['pos', 'pos_sell', 'pos_sessions', 'pos_history'],
     'modules.accounting': ['receivable', 'payable'],
     'modules.hr_payroll': ['hr', 'employees', 'schedules', 'hours'],
-    'modules.manufacturing': ['manufacturing', 'bom', 'work_orders', 'materials', 'production'],
+    'modules.manufacturing': ['manufacturing', 'bom', 'work_orders', 'materials', 'production', 'operations', 'planning', 'dispatch_requests', 'schedule', 'projects'],
     'modules.tools': ['tools', 'tool_loans'],
     'modules.crm': ['crm', 'visits', 'budgets'],
     // sri_received_sync no mapea a módulos RBAC directos — es un feature flag de sistema

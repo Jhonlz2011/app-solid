@@ -113,6 +113,7 @@ export async function seedCompanySubscription(
     planId: SaasPlanId,
     status: SaasSubscriptionStatus,
     paymentMethod: SaasPaymentMethodType | null,
+    currentPeriodEnd: Date | null = null,
 ) {
     await tx
         .insert(saasTenantSubscriptions)
@@ -122,6 +123,7 @@ export async function seedCompanySubscription(
             status,
             payment_method_type: paymentMethod,
             current_period_start: new Date(),
+            current_period_end: currentPeriodEnd,
         })
         .onConflictDoNothing();
 }

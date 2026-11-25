@@ -6,8 +6,11 @@ import { Skeleton } from '@display/Skeleton';
 import { useOnlineStatus } from '@shared/hooks/useOnlineStatus';
 import { OfflineBanner } from '@/shared/ui/display/OfflineBanner';
 import { toast } from 'solid-sonner';
+import { isUsableSubscriptionStatus } from '@app/schema/backend';
+import { useAuth } from '@modules/auth/store/auth.store';
 import { connect as connectSSE, disconnect as disconnectSSE } from '@shared/store/sse.store';
 import { GlobalSearchPalette } from './components/search/GlobalSearchPalette';
+import { SubscriptionBanner, SubscriptionBlockedView } from './components/SubscriptionStatusGate';
 
 export const LayoutSkeleton: Component = () => {
     return (
@@ -71,6 +74,8 @@ export const LayoutSkeleton: Component = () => {
 
 const MainLayout: Component = () => {
     const isOnline = useOnlineStatus();
+    const auth = useAuth();
+    const isBillingBlocked = () => !isUsableSubscriptionStatus(auth.planStatus());
 
     // Sincronizar el EventSource de Server-Sent Events con el estado de conexión
     createEffect(() => {
@@ -113,8 +118,11 @@ const MainLayout: Component = () => {
                     <Show when={!isOnline()}>
                         <OfflineBanner />
                     </Show>
+                    <SubscriptionBanner />
                     <div class="flex-1 min-h-0 relative">
-                        <Outlet />
+                        <Show when={!isBillingBlocked()} fallback={<SubscriptionBlockedView />}>
+                            <Outlet />
+                        </Show>
                     </div>
                 </div>
             </main>

@@ -8,18 +8,10 @@ import {
     saasPlanFeatures,
     saasAddons,
     saasDocumentPackages,
-    saasTenantSubscriptions,
-    saasTenantDocumentPacks,
-    saasTenantUsage,
-    companies,
-    authUsers,
-    authUserRoles,
-    authRoles,
-    member,
 } from '@app/schema/tables';
-import { eq, and, sql, asc } from '@app/schema';
+import { eq, and, asc } from '@app/schema';
 import {
-    getTenantEntitlements,
+    getTenantSubscriptionDetail,
     upgradeCompanyPlan,
 } from './entitlements.service';
 import {
@@ -161,125 +153,15 @@ const protectedSaasRoutes = new Elysia()
      * Get subscription details, limits, and live usage for current tenant
      */
     .get('/subscription/me', async ({ currentCompanyId }): Promise<TenantSubscriptionDetailResponseType> => {
-        const ent = await getTenantEntitlements(currentCompanyId);
-
-        // 1. Subscription DB row
-        const [subRow] = await adminDb
-            .select()
-            .from(saasTenantSubscriptions)
-            .where(eq(saasTenantSubscriptions.company_id, currentCompanyId))
-            .limit(1);
-
-        // 2. Active users count in tenant
-        const [companyOrg] = await adminDb
-            .select({ organization_id: companies.organization_id })
-            .from(companies)
-            .where(eq(companies.id, currentCompanyId))
-            .limit(1);
-
-        let activeUsersCount = 1;
-        if (companyOrg?.organization_id) {
-            const [countRow] = await adminDb
-                .select({ count: sql<number>`count(distinct ${member.userId})::int` })
-                .from(member)
-                .innerJoin(authUsers, eq(authUsers.id, member.userId))
-                .where(and(
-                    eq(member.organizationId, companyOrg.organization_id),
-                    eq(authUsers.is_active, true),
-                    eq(member.status, 'ACTIVE')
-                ));
-            activeUsersCount = countRow?.count ?? 1;
-        }
-
-        // 3. Check if company has an assigned accountant
-        const accountantRoles = await adminDb
-            .select({ id: authRoles.id })
-            .from(authRoles)
-            .where(and(
-                eq(authRoles.company_id, currentCompanyId),
-                eq(authRoles.name, 'contador')
-            ));
-
-        let accountantAssigned = false;
-        if (accountantRoles.length > 0) {
-            const [accRow] = await adminDb
-                .select({ count: sql<number>`count(*)::int` })
-                .from(authUserRoles)
-                .innerJoin(authUsers, eq(authUsers.id, authUserRoles.user_id))
-                .innerJoin(member, and(
-                    eq(member.userId, authUserRoles.user_id),
-                    eq(member.organizationId, companyOrg.organization_id),
-                ))
-                .where(and(
-                    eq(authUserRoles.company_id, currentCompanyId),
-                    eq(authUserRoles.role_id, accountantRoles[0].id),
-                    eq(authUsers.is_active, true),
-                    eq(member.status, 'ACTIVE')
-                ));
-            accountantAssigned = (accRow?.count ?? 0) > 0;
-        }
-
-        // 4. Usage counters
-        const now = new Date();
-        const periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-        const [usageRow] = await adminDb
-            .select()
-            .from(saasTenantUsage)
-            .where(and(
-                eq(saasTenantUsage.company_id, currentCompanyId),
-                eq(saasTenantUsage.period_key, periodKey)
-            ))
-            .limit(1);
-
-        // 5. Prepaid SRI packs balance
-        const [packsRow] = await adminDb
-            .select({ remaining: sql<number>`COALESCE(sum(${saasTenantDocumentPacks.remaining_credits}), 0)::int` })
-            .from(saasTenantDocumentPacks)
-            .where(and(
-                eq(saasTenantDocumentPacks.company_id, currentCompanyId),
-                eq(saasTenantDocumentPacks.status, 'ACTIVE')
-            ));
-
-        return {
-            companyId: currentCompanyId,
-            plan: ent.planId,
-            planName: ent.planName,
-            planInterval: ent.planInterval,
-            status: ent.status,
-            currentPeriodStart: subRow?.current_period_start ? subRow.current_period_start.toISOString() : null,
-            currentPeriodEnd: subRow?.current_period_end ? subRow.current_period_end.toISOString() : null,
-            gracePeriodEndsAt: subRow?.grace_period_ends_at ? subRow.grace_period_ends_at.toISOString() : null,
-            users: {
-                active: activeUsersCount,
-                max: ent.maxUsers,
-                hasFreeAccountantSeat: ent.hasFreeAccountantSeat,
-                accountantAssigned,
-            },
-            sriDocuments: {
-                monthlyLimit: ent.sriDocumentsLimit,
-                monthlyUsed: usageRow?.sri_documents_used ?? 0,
-                prepaidBalance: packsRow?.remaining ?? 0,
-                unlimited: ent.sriDocumentsLimit === -1,
-            },
-            storage: {
-                usedBytes: Number(usageRow?.storage_bytes_used ?? 0),
-                limitGb: ent.maxStorageGb,
-            },
-            pos: {
-                maxRegisters: ent.maxPosRegisters,
-            },
-            features: ent.features,
-        };
+        return getTenantSubscriptionDetail(currentCompanyId);
     }, {
         response: TenantSubscriptionDetailResponseSchema,
     })
 
     /**
-     * Upgrade or modify company plan
+     * Upgrade or modify company plan (allowed even when billing is blocked so owner can recover/switch to Free)
      */
     .post('/subscription/upgrade', async ({ body, currentCompanyId }): Promise<TenantSubscriptionDetailResponseType> => {
-        // Validate plan exists
         const [targetPlan] = await adminDb
             .select()
             .from(saasPlans)
@@ -292,49 +174,17 @@ const protectedSaasRoutes = new Elysia()
 
         await upgradeCompanyPlan(currentCompanyId, body.planId);
 
-        // Broadcast real-time update to all active users of this tenant
         broadcastToTenant(currentCompanyId, RealtimeEvents.MENU.UPDATED, {
             action: 'PLAN_UPGRADED',
             newPlan: body.planId,
             timestamp: new Date().toISOString(),
         });
 
-        // Return fresh details
-        const ent = await getTenantEntitlements(currentCompanyId);
-        return {
-            companyId: currentCompanyId,
-            plan: ent.planId,
-            planName: ent.planName,
-            planInterval: ent.planInterval,
-            status: ent.status,
-            currentPeriodStart: new Date().toISOString(),
-            currentPeriodEnd: null,
-            gracePeriodEndsAt: null,
-            users: {
-                active: 1,
-                max: ent.maxUsers,
-                hasFreeAccountantSeat: ent.hasFreeAccountantSeat,
-                accountantAssigned: false,
-            },
-            sriDocuments: {
-                monthlyLimit: ent.sriDocumentsLimit,
-                monthlyUsed: 0,
-                prepaidBalance: 0,
-                unlimited: ent.sriDocumentsLimit === -1,
-            },
-            storage: {
-                usedBytes: 0,
-                limitGb: ent.maxStorageGb,
-            },
-            pos: {
-                maxRegisters: ent.maxPosRegisters,
-            },
-            features: ent.features,
-        };
+        return getTenantSubscriptionDetail(currentCompanyId);
     }, {
         body: UpgradePlanBodySchema,
         response: TenantSubscriptionDetailResponseSchema,
-        permission: 'companies.update',
+        permission: { slug: 'companies.update', allowWhenBillingBlocked: true },
     });
 
 export const saasRoutes = new Elysia({ prefix: '/saas' })

@@ -1,22 +1,35 @@
-import { eq, and, sql } from '@app/schema';
-import { adminDb, db } from '../../core/db';
+import { eq, and, inArray, sql } from '@app/schema';
+import { adminDb, db, type Tx } from '../../core/db';
 import {
     saasPlans,
-    saasFeatures,
     saasPlanFeatures,
     saasAddons,
     saasTenantSubscriptions,
     saasTenantAddons,
     saasTenantDocumentPacks,
+    saasTenantUsage,
+    companies,
+    member,
+    authUsers,
+    authUserRoles,
     authRoles,
     authPermissions,
     authRolePermissions,
 } from '@app/schema/tables';
-import { SAAS_PLAN_IDS, type RbacModule, type SaasPaymentMethodType, type SaasPlanId } from '@app/schema/enums';
+import {
+    SAAS_PLAN_IDS,
+    SYSTEM_ROLES,
+    type RbacModule,
+    type SaasPaymentMethodType,
+    type SaasPlanId,
+    type SaasSubscriptionStatus,
+} from '@app/schema/enums';
 import {
     resolveAllowedModulesForPlan,
     resolveAllowedModulesFromFeatures,
     PLAN_DEFAULT_ENABLED_FEATURES,
+    isUsableSubscriptionStatus,
+    type TenantSubscriptionDetailResponseType,
 } from '@app/schema/backend';
 import { cacheService } from '../../core/cache';
 import { invalidateMenuCaches } from '../settings/menu.service';
@@ -29,7 +42,10 @@ export interface TenantEntitlements {
     planId: SaasPlanId;
     planName: string;
     planInterval: 'MONTHLY' | 'YEARLY' | 'ONE_TIME';
-    status: 'ACTIVE' | 'TRIAL' | 'PENDING_PAYMENT' | 'GRACE_PERIOD' | 'PAST_DUE' | 'SUSPENDED';
+    status: SaasSubscriptionStatus;
+    currentPeriodStart: string | null;
+    currentPeriodEnd: string | null;
+    gracePeriodEndsAt: string | null;
     features: Record<string, boolean | number>;
     sriDocumentsLimit: number; // -1 = ilimitado
     sriInterval: 'MONTHLY' | 'YEARLY'; // Intervalo de la cuota SRI (Free=YEARLY, Starter+=MONTHLY)
@@ -37,6 +53,14 @@ export interface TenantEntitlements {
     hasFreeAccountantSeat: boolean;
     maxPosRegisters: number;
     maxStorageGb: number;
+}
+
+export interface CompanySeatUsage {
+    regularActiveUsers: number;
+    totalActiveUsers: number;
+    accountantRoleId: number | null;
+    freeAccountantUserId: string | null;
+    accountantAssigned: boolean;
 }
 
 export interface EntitlementCheckResult {
@@ -47,182 +71,382 @@ export interface EntitlementCheckResult {
     remaining?: number;
 }
 
-const USABLE_SUBSCRIPTION_STATUSES = new Set<TenantEntitlements['status']>([
-    'ACTIVE',
-    'TRIAL',
-    'GRACE_PERIOD',
-]);
+export function hasUsableSubscription(entitlements: Pick<TenantEntitlements, 'status'>): boolean {
+    return isUsableSubscriptionStatus(entitlements.status);
+}
 
-export function hasUsableSubscription(entitlements: TenantEntitlements): boolean {
-    return USABLE_SUBSCRIPTION_STATUSES.has(entitlements.status);
+export function isExclusiveAccountantRole(roleIds: number[], accountantRoleId: number | null): boolean {
+    return Boolean(accountantRoleId && roleIds.length === 1 && roleIds[0] === accountantRoleId);
 }
 
 const ENTITLEMENTS_CACHE_TTL = 3600; // 1 hora
 
 /**
+ * Evaluates effective subscription status against period/grace deadlines in real time
+ * so expired trials or grace periods transition cleanly without requiring a cron job.
+ */
+export function resolveEffectiveSubscriptionStatus(
+    rawStatus: SaasSubscriptionStatus,
+    currentPeriodEnd: Date | null | undefined,
+    gracePeriodEndsAt: Date | null | undefined,
+    nowMs = Date.now(),
+): SaasSubscriptionStatus {
+    if (rawStatus === 'TRIAL' && currentPeriodEnd && currentPeriodEnd.getTime() <= nowMs) {
+        return 'PENDING_PAYMENT';
+    }
+    if (rawStatus === 'GRACE_PERIOD' && gracePeriodEndsAt && gracePeriodEndsAt.getTime() <= nowMs) {
+        return 'PAST_DUE';
+    }
+    return rawStatus;
+}
+
+/**
+ * Single source of truth for tenant seat consumption.
+ * - Counts active members (member.status = 'ACTIVE' AND authUsers.is_active = true).
+ * - At most ONE active user whose ONLY role is 'contador' occupies the free accountant seat
+ *   (when the plan includes free_accountant_seat) and does NOT count against regularActiveUsers.
+ */
+export async function getCompanySeatUsage(
+    companyId: number,
+    organizationId: string | null | undefined,
+    dbClient: typeof adminDb | Tx = adminDb,
+): Promise<CompanySeatUsage> {
+    if (!organizationId) {
+        return {
+            regularActiveUsers: 0,
+            totalActiveUsers: 0,
+            accountantRoleId: null,
+            freeAccountantUserId: null,
+            accountantAssigned: false,
+        };
+    }
+
+    const [ent, [accountantRole], activeRows] = await Promise.all([
+        getTenantEntitlements(companyId),
+        dbClient
+            .select({ id: authRoles.id })
+            .from(authRoles)
+            .where(and(eq(authRoles.company_id, companyId), eq(authRoles.name, SYSTEM_ROLES.CONTADOR)))
+            .limit(1),
+        dbClient
+            .select({
+                userId: member.userId,
+                roleId: authUserRoles.role_id,
+            })
+            .from(member)
+            .innerJoin(authUsers, eq(authUsers.id, member.userId))
+            .leftJoin(
+                authUserRoles,
+                and(
+                    eq(authUserRoles.user_id, member.userId),
+                    eq(authUserRoles.company_id, companyId),
+                ),
+            )
+            .where(and(
+                eq(member.organizationId, organizationId),
+                eq(authUsers.is_active, true),
+                eq(member.status, 'ACTIVE'),
+            )),
+    ]);
+
+    const rolesByUser = new Map<string, number[]>();
+    for (const row of activeRows) {
+        let userRoles = rolesByUser.get(row.userId);
+        if (!userRoles) {
+            userRoles = [];
+            rolesByUser.set(row.userId, userRoles);
+        }
+        if (row.roleId !== null && !userRoles.includes(row.roleId)) {
+            userRoles.push(row.roleId);
+        }
+    }
+
+    const accountantRoleId = accountantRole?.id ?? null;
+    let freeAccountantUserId: string | null = null;
+
+    if (ent.hasFreeAccountantSeat && accountantRoleId !== null) {
+        for (const [userId, userRoles] of rolesByUser.entries()) {
+            if (isExclusiveAccountantRole(userRoles, accountantRoleId)) {
+                freeAccountantUserId = userId;
+                break;
+            }
+        }
+    }
+
+    const totalActiveUsers = rolesByUser.size;
+    const regularActiveUsers = totalActiveUsers - (freeAccountantUserId ? 1 : 0);
+
+    return {
+        regularActiveUsers,
+        totalActiveUsers,
+        accountantRoleId,
+        freeAccountantUserId,
+        accountantAssigned: freeAccountantUserId !== null,
+    };
+}
+
+/**
  * Obtiene las entitlements consolidadas de una empresa (Plan + Add-ons + Packs prepago)
- * con caché de 24 horas en Redis para garantizar latencia ultra baja.
+ * con caché en Redis acotado automáticamente si un trial o periodo de gracia vence pronto.
  */
 export async function getTenantEntitlements(companyId: number): Promise<TenantEntitlements> {
     const cacheKey = `tenant:entitlements:${companyId}`;
+    const cached = await cacheService.get<TenantEntitlements>(cacheKey);
+    if (cached) {
+        const effectiveStatus = resolveEffectiveSubscriptionStatus(
+            cached.status,
+            cached.currentPeriodEnd ? new Date(cached.currentPeriodEnd) : null,
+            cached.gracePeriodEndsAt ? new Date(cached.gracePeriodEndsAt) : null,
+        );
+        if (effectiveStatus === cached.status) {
+            return cached;
+        }
+        return { ...cached, status: effectiveStatus };
+    }
 
-    return await cacheService.getOrSet(
-        cacheKey,
-        async () => {
-            // 1. Obtener la suscripción del tenant (o fallback a 'free')
-            const [subscription] = await adminDb
-                .select()
-                .from(saasTenantSubscriptions)
-                .where(eq(saasTenantSubscriptions.company_id, companyId))
-                .limit(1);
+    // 1. Obtener la suscripción del tenant (o fallback a 'free')
+    const [subscription] = await adminDb
+        .select()
+        .from(saasTenantSubscriptions)
+        .where(eq(saasTenantSubscriptions.company_id, companyId))
+        .limit(1);
 
-            const requestedPlanId = subscription?.plan_id;
-            const planId: SaasPlanId = requestedPlanId && SAAS_PLAN_IDS.includes(requestedPlanId as SaasPlanId)
-                ? requestedPlanId as SaasPlanId
-                : 'free';
-            const subStatus = (subscription?.status as TenantEntitlements['status']) || 'ACTIVE';
-
-            // 2. Obtener los datos del plan base
-            const [plan] = await adminDb
-                .select()
-                .from(saasPlans)
-                .where(eq(saasPlans.id, planId))
-                .limit(1);
-
-            const planName = plan?.name || (planId === 'free' ? 'Plan Freemium Emprendedor' : planId);
-            const planInterval = (plan?.interval as TenantEntitlements['planInterval']) || 'MONTHLY';
-
-            // 3. Obtener features asignadas al plan en la matriz saas_plan_features
-            const planFeaturesRows = await adminDb
-                .select()
-                .from(saasPlanFeatures)
-                .where(eq(saasPlanFeatures.plan_id, planId));
-
-            const features: Record<string, boolean | number> = {};
-
-            // Si existen en DB, cargarlas
-            if (planFeaturesRows.length > 0) {
-                for (const row of planFeaturesRows) {
-                    if (row.value_boolean !== null) {
-                        features[row.feature_code] = row.value_boolean;
-                    } else if (row.value_numeric !== null) {
-                        features[row.feature_code] = row.value_numeric;
-                    }
-                }
-            } else {
-                // Fallback en memoria si la tabla maestra aún no se ha sembrado
-                const defaultEnabled = PLAN_DEFAULT_ENABLED_FEATURES[planId] || PLAN_DEFAULT_ENABLED_FEATURES.free;
-                for (const code of defaultEnabled) {
-                    features[code] = true;
-                }
-                if (planId === 'free') {
-                    features['max_users'] = 1;
-                    features['sri_documents_yearly'] = 15;
-                    features['sri_documents_monthly'] = 0;
-                    features['max_storage_mb'] = 150; // 150 MB
-                } else if (planId.startsWith('starter')) {
-                    features['max_users'] = 2;
-                    features['free_accountant_seat'] = true;
-                    features['sri_documents_monthly'] = 250;
-                    features['max_storage_mb'] = 1024; // 1 GB
-                    features['max_pos_registers'] = 1;
-                } else if (planId.startsWith('pro')) {
-                    features['max_users'] = 5;
-                    features['free_accountant_seat'] = true;
-                    features['sri_documents_monthly'] = -1;
-                    features['max_storage_mb'] = 5120; // 5 GB
-                    features['max_pos_registers'] = 3;
-                } else if (planId.startsWith('enterprise')) {
-                    features['max_users'] = 15;
-                    features['free_accountant_seat'] = true;
-                    features['sri_documents_monthly'] = -1;
-                    features['max_storage_mb'] = 51200; // 50 GB
-                    features['max_pos_registers'] = 5;
-                }
-            }
-
-            // 4. Sumar Add-ons activos contratados por el tenant
-            const tenantAddonsRows = await adminDb
-                .select({
-                    quantity: saasTenantAddons.quantity,
-                    addonType: saasAddons.addon_type,
-                    addonQuantity: saasAddons.quantity,
-                })
-                .from(saasTenantAddons)
-                .innerJoin(saasAddons, eq(saasTenantAddons.addon_id, saasAddons.id))
-                .where(
-                    and(
-                        eq(saasTenantAddons.company_id, companyId),
-                        eq(saasTenantAddons.status, 'ACTIVE')
-                    )
-                );
-
-            let extraUsers = 0;
-            let extraStorageGb = 0;
-            let extraPosRegisters = 0;
-
-            for (const addon of tenantAddonsRows) {
-                const totalUnits = (addon.quantity ?? 1) * (addon.addonQuantity ?? 1);
-                if (addon.addonType === 'USER_SEATS') {
-                    extraUsers += totalUnits;
-                } else if (addon.addonType === 'STORAGE_GB') {
-                    extraStorageGb += totalUnits;
-                } else if (addon.addonType === 'POS_REGISTERS') {
-                    extraPosRegisters += totalUnits;
-                }
-            }
-
-            // 5. Sumar paquetes prepago de comprobantes SRI activos con saldo
-            const docPacks = await adminDb
-                .select({
-                    remaining: saasTenantDocumentPacks.remaining_credits,
-                })
-                .from(saasTenantDocumentPacks)
-                .where(
-                    and(
-                        eq(saasTenantDocumentPacks.company_id, companyId),
-                        eq(saasTenantDocumentPacks.status, 'ACTIVE')
-                    )
-                );
-
-            const prepagoCredits = docPacks.reduce((acc, p) => acc + (p.remaining || 0), 0);
-
-            // 6. Consolidar límites
-            const baseUsers = Number(features['max_users'] ?? 1);
-            const totalMaxUsers = baseUsers + extraUsers;
-            const hasAccountantSeat = Boolean(features['free_accountant_seat'] ?? false);
-
-            const basePos = features['modules.pos'] ? Number(features['max_pos_registers'] ?? 1) : 0;
-            const totalMaxPos = basePos + extraPosRegisters;
-
-            const baseStorageMb = Number(features['max_storage_mb'] ?? 150);
-            const totalStorageGb = (baseStorageMb / 1024) + extraStorageGb;
-
-            // SRI: Determinar intervalo y límite correcto
-            const sriMonthly = Number(features['sri_documents_monthly'] ?? 0);
-            const sriYearly = Number(features['sri_documents_yearly'] ?? 0);
-            // Si monthly es -1 (ilimitado), usar -1. Si monthly > 0, usar monthly. Si no, usar yearly.
-            const baseDocs = sriMonthly === -1 ? -1 : (sriMonthly > 0 ? sriMonthly : sriYearly);
-            const sriInterval: 'MONTHLY' | 'YEARLY' = sriMonthly === -1 || sriMonthly > 0 ? 'MONTHLY' : 'YEARLY';
-            const sriLimit = baseDocs === -1 ? -1 : baseDocs + prepagoCredits;
-
-            return {
-                companyId,
-                planId,
-                planName,
-                planInterval,
-                status: subStatus,
-                features,
-                sriDocumentsLimit: sriLimit,
-                sriInterval,
-                maxUsers: totalMaxUsers,
-                hasFreeAccountantSeat: hasAccountantSeat,
-                maxPosRegisters: totalMaxPos,
-                maxStorageGb: totalStorageGb,
-            };
-        },
-        ENTITLEMENTS_CACHE_TTL
+    const requestedPlanId = subscription?.plan_id;
+    const planId: SaasPlanId = requestedPlanId && SAAS_PLAN_IDS.includes(requestedPlanId as SaasPlanId)
+        ? requestedPlanId as SaasPlanId
+        : 'free';
+    const rawStatus = (subscription?.status as SaasSubscriptionStatus) || 'ACTIVE';
+    const subStatus = resolveEffectiveSubscriptionStatus(
+        rawStatus,
+        subscription?.current_period_end,
+        subscription?.grace_period_ends_at,
     );
+
+    // 2. Obtener los datos del plan base
+    const [plan] = await adminDb
+        .select()
+        .from(saasPlans)
+        .where(eq(saasPlans.id, planId))
+        .limit(1);
+
+    const planName = plan?.name || (planId === 'free' ? 'Plan Freemium' : planId);
+    const planInterval = (plan?.interval as TenantEntitlements['planInterval']) || 'MONTHLY';
+
+    // 3. Obtener features asignadas al plan en la matriz saas_plan_features
+    const planFeaturesRows = await adminDb
+        .select()
+        .from(saasPlanFeatures)
+        .where(eq(saasPlanFeatures.plan_id, planId));
+
+    const features: Record<string, boolean | number> = {};
+
+    // Si existen en DB, cargarlas
+    if (planFeaturesRows.length > 0) {
+        for (const row of planFeaturesRows) {
+            if (row.value_boolean !== null) {
+                features[row.feature_code] = row.value_boolean;
+            } else if (row.value_numeric !== null) {
+                features[row.feature_code] = row.value_numeric;
+            }
+        }
+    } else {
+        // Fallback en memoria si la tabla maestra aún no se ha sembrado
+        const defaultEnabled = PLAN_DEFAULT_ENABLED_FEATURES[planId] || PLAN_DEFAULT_ENABLED_FEATURES.free;
+        for (const code of defaultEnabled) {
+            features[code] = true;
+        }
+        if (planId === 'free') {
+            features['max_users'] = 1;
+            features['sri_documents_yearly'] = 15;
+            features['sri_documents_monthly'] = 0;
+            features['max_storage_mb'] = 150;
+        } else if (planId.startsWith('starter')) {
+            features['max_users'] = 2;
+            features['free_accountant_seat'] = true;
+            features['sri_documents_monthly'] = 250;
+            features['max_storage_mb'] = 1024;
+            features['max_pos_registers'] = 1;
+        } else if (planId.startsWith('pro')) {
+            features['max_users'] = 5;
+            features['free_accountant_seat'] = true;
+            features['sri_documents_monthly'] = -1;
+            features['max_storage_mb'] = 5120;
+            features['max_pos_registers'] = 3;
+        } else if (planId.startsWith('enterprise')) {
+            features['max_users'] = 15;
+            features['free_accountant_seat'] = true;
+            features['sri_documents_monthly'] = -1;
+            features['max_storage_mb'] = 51200;
+            features['max_pos_registers'] = 5;
+        }
+    }
+
+    // 4. Sumar Add-ons activos contratados por el tenant
+    const tenantAddonsRows = await adminDb
+        .select({
+            quantity: saasTenantAddons.quantity,
+            addonType: saasAddons.addon_type,
+            addonQuantity: saasAddons.quantity,
+        })
+        .from(saasTenantAddons)
+        .innerJoin(saasAddons, eq(saasTenantAddons.addon_id, saasAddons.id))
+        .where(
+            and(
+                eq(saasTenantAddons.company_id, companyId),
+                eq(saasTenantAddons.status, 'ACTIVE')
+            )
+        );
+
+    let extraUsers = 0;
+    let extraStorageGb = 0;
+    let extraPosRegisters = 0;
+
+    for (const addon of tenantAddonsRows) {
+        const totalUnits = (addon.quantity ?? 1) * (addon.addonQuantity ?? 1);
+        if (addon.addonType === 'USER_SEATS') {
+            extraUsers += totalUnits;
+        } else if (addon.addonType === 'STORAGE_GB') {
+            extraStorageGb += totalUnits;
+        } else if (addon.addonType === 'POS_REGISTERS') {
+            extraPosRegisters += totalUnits;
+        }
+    }
+
+    // 5. Sumar paquetes prepago de comprobantes SRI activos con saldo
+    const docPacks = await adminDb
+        .select({
+            remaining: saasTenantDocumentPacks.remaining_credits,
+        })
+        .from(saasTenantDocumentPacks)
+        .where(
+            and(
+                eq(saasTenantDocumentPacks.company_id, companyId),
+                eq(saasTenantDocumentPacks.status, 'ACTIVE')
+            )
+        );
+
+    const prepagoCredits = docPacks.reduce((acc, p) => acc + (p.remaining || 0), 0);
+
+    // 6. Consolidar límites
+    const baseUsers = Number(features['max_users'] ?? 1);
+    const totalMaxUsers = baseUsers + extraUsers;
+    const hasAccountantSeat = Boolean(features['free_accountant_seat'] ?? false);
+
+    const basePos = features['modules.pos'] ? Number(features['max_pos_registers'] ?? 1) : 0;
+    const totalMaxPos = basePos + extraPosRegisters;
+
+    const baseStorageMb = Number(features['max_storage_mb'] ?? 150);
+    const totalStorageGb = (baseStorageMb / 1024) + extraStorageGb;
+
+    // SRI: Determinar intervalo y límite correcto
+    const sriMonthly = Number(features['sri_documents_monthly'] ?? 0);
+    const sriYearly = Number(features['sri_documents_yearly'] ?? 0);
+    const baseDocs = sriMonthly === -1 ? -1 : (sriMonthly > 0 ? sriMonthly : sriYearly);
+    const sriInterval: 'MONTHLY' | 'YEARLY' = sriMonthly === -1 || sriMonthly > 0 ? 'MONTHLY' : 'YEARLY';
+    const sriLimit = baseDocs === -1 ? -1 : baseDocs + prepagoCredits;
+
+    const result: TenantEntitlements = {
+        companyId,
+        planId,
+        planName,
+        planInterval,
+        status: subStatus,
+        currentPeriodStart: subscription?.current_period_start ? subscription.current_period_start.toISOString() : null,
+        currentPeriodEnd: subscription?.current_period_end ? subscription.current_period_end.toISOString() : null,
+        gracePeriodEndsAt: subscription?.grace_period_ends_at ? subscription.grace_period_ends_at.toISOString() : null,
+        features,
+        sriDocumentsLimit: sriLimit,
+        sriInterval,
+        maxUsers: totalMaxUsers,
+        hasFreeAccountantSeat: hasAccountantSeat,
+        maxPosRegisters: totalMaxPos,
+        maxStorageGb: totalStorageGb,
+    };
+
+    // Clamp TTL if a trial or grace deadline approaches within ENTITLEMENTS_CACHE_TTL
+    let ttl = ENTITLEMENTS_CACHE_TTL;
+    const deadline = subStatus === 'TRIAL'
+        ? subscription?.current_period_end
+        : subStatus === 'GRACE_PERIOD'
+            ? subscription?.grace_period_ends_at
+            : null;
+    if (deadline) {
+        const secondsRemaining = Math.ceil((deadline.getTime() - Date.now()) / 1000);
+        if (secondsRemaining > 0 && secondsRemaining < ttl) {
+            ttl = secondsRemaining;
+        }
+    }
+
+    await cacheService.set(cacheKey, result, ttl);
+    return result;
+}
+
+/**
+ * Single consolidated builder for tenant subscription details + real-time usage.
+ * Shared by GET /api/saas/subscription/me and POST /api/saas/subscription/upgrade.
+ */
+export async function getTenantSubscriptionDetail(
+    companyId: number,
+): Promise<TenantSubscriptionDetailResponseType> {
+    const now = new Date();
+    const periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const [ent, [companyOrg], [usageRow], [packsRow]] = await Promise.all([
+        getTenantEntitlements(companyId),
+        adminDb
+            .select({ organization_id: companies.organization_id })
+            .from(companies)
+            .where(eq(companies.id, companyId))
+            .limit(1),
+        adminDb
+            .select()
+            .from(saasTenantUsage)
+            .where(and(
+                eq(saasTenantUsage.company_id, companyId),
+                eq(saasTenantUsage.period_key, periodKey),
+            ))
+            .limit(1),
+        adminDb
+            .select({ remaining: sql<number>`COALESCE(sum(${saasTenantDocumentPacks.remaining_credits}), 0)::int` })
+            .from(saasTenantDocumentPacks)
+            .where(and(
+                eq(saasTenantDocumentPacks.company_id, companyId),
+                eq(saasTenantDocumentPacks.status, 'ACTIVE'),
+            )),
+    ]);
+
+    const seatUsage = await getCompanySeatUsage(companyId, companyOrg?.organization_id);
+
+    return {
+        companyId,
+        plan: ent.planId,
+        planName: ent.planName,
+        planInterval: ent.planInterval,
+        status: ent.status,
+        currentPeriodStart: ent.currentPeriodStart,
+        currentPeriodEnd: ent.currentPeriodEnd,
+        gracePeriodEndsAt: ent.gracePeriodEndsAt,
+        users: {
+            active: seatUsage.regularActiveUsers,
+            max: ent.maxUsers,
+            hasFreeAccountantSeat: ent.hasFreeAccountantSeat,
+            accountantAssigned: seatUsage.accountantAssigned,
+        },
+        sriDocuments: {
+            monthlyLimit: ent.sriDocumentsLimit,
+            monthlyUsed: usageRow?.sri_documents_used ?? 0,
+            prepaidBalance: packsRow?.remaining ?? 0,
+            unlimited: ent.sriDocumentsLimit === -1,
+        },
+        storage: {
+            usedBytes: Number(usageRow?.storage_bytes_used ?? 0),
+            limitGb: ent.maxStorageGb,
+        },
+        pos: {
+            maxRegisters: ent.maxPosRegisters,
+        },
+        features: ent.features,
+    };
 }
 
 /**
@@ -405,11 +629,12 @@ export async function upgradeCompanyPlan(
     paymentMethodType: SaasPaymentMethodType | null = null
 ): Promise<void> {
     const normalizedPlanId = newPlanId;
-    const subscriptionStatus = normalizedPlanId === 'free' ? 'ACTIVE' : 'PENDING_PAYMENT';
-    const normalizedPaymentMethod = normalizedPlanId === 'free' ? 'FREE' : paymentMethodType;
+    const isFreePlan = normalizedPlanId === 'free';
+    const subscriptionStatus: SaasSubscriptionStatus = isFreePlan ? 'ACTIVE' : 'PENDING_PAYMENT';
+    const normalizedPaymentMethod: SaasPaymentMethodType | null = isFreePlan ? 'FREE' : paymentMethodType;
 
     await db.transaction(async (tx) => {
-        // 1. Upsert en saas_tenant_subscriptions (fuente de verdad única)
+        // 1. Upsert en saas_tenant_subscriptions (fuente de verdad única; nunca reinicia trials al hacer upgrade)
         await tx
             .insert(saasTenantSubscriptions)
             .values({
@@ -418,6 +643,8 @@ export async function upgradeCompanyPlan(
                 status: subscriptionStatus,
                 payment_method_type: normalizedPaymentMethod,
                 current_period_start: new Date(),
+                current_period_end: null,
+                grace_period_ends_at: null,
                 updated_at: new Date(),
             })
             .onConflictDoUpdate({
@@ -426,12 +653,26 @@ export async function upgradeCompanyPlan(
                     plan_id: normalizedPlanId,
                     status: subscriptionStatus,
                     payment_method_type: normalizedPaymentMethod,
+                    current_period_end: null,
+                    grace_period_ends_at: null,
                     updated_at: new Date(),
                 },
             });
 
-        // 3. Sincronizar permisos de RBAC para los roles existentes de la empresa
+        // 2. Sincronizar permisos de RBAC (Upgrade + Downgrade real)
         const allowedModules = resolveAllowedModulesForPlan(normalizedPlanId);
+        const disallowedSlugs = (PERMISSIONS as { slug: string; module: RbacModule }[])
+            .filter(p => !allowedModules.has(p.module))
+            .map(p => p.slug);
+
+        if (disallowedSlugs.length > 0) {
+            await tx
+                .delete(authRolePermissions)
+                .where(and(
+                    eq(authRolePermissions.company_id, companyId),
+                    inArray(authRolePermissions.permission_slug, disallowedSlugs),
+                ));
+        }
 
         // Obtener los roles existentes de esta empresa
         const companyRoles = await tx
@@ -439,7 +680,7 @@ export async function upgradeCompanyPlan(
             .from(authRoles)
             .where(eq(authRoles.company_id, companyId));
 
-        // Para cada rol del sistema, determinar los permisos que deben estar presentes
+        // Para cada rol del sistema, asegurar los permisos permitidos en el nuevo plan
         const newPermRows: { role_id: number; permission_slug: string; company_id: number }[] = [];
 
         for (const role of companyRoles) {

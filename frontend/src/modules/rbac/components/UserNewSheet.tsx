@@ -9,6 +9,7 @@ import { FloppyDiskIcon } from '@icons/FloppyDiskIcon';
 import { MailIcon } from '@icons/MailIcon';
 import { useRoles } from '../data/users.queries';
 import { useCreateUser } from '../data/users.mutations';
+import { useTenantSubscription } from '@modules/saas/data/saas.queries';
 import { UserCreateForm, type UserCreateFormState } from './UserCreateForm';
 
 interface UserNewSheetProps {
@@ -21,6 +22,7 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
     const initialRoleName = () => (search() as any)?.role as string | undefined;
     const createMutation = useCreateUser();
     const rolesQuery = useRoles();
+    const subscriptionQuery = useTenantSubscription();
 
     const [formState, setFormState] = createSignal<UserCreateFormState>({
         mode: 'invite',
@@ -80,6 +82,11 @@ const UserNewSheet: Component<UserNewSheetProps> = (props) => {
                 roles={rolesQuery.data ?? []}
                 rolesLoading={rolesQuery.isPending}
                 initialRoleName={initialRoleName()}
+                hasFreeAccountantSeat={Boolean(subscriptionQuery.data?.users.hasFreeAccountantSeat)}
+                freeAccountantSeatAvailable={Boolean(
+                    subscriptionQuery.data?.users.hasFreeAccountantSeat
+                    && !subscriptionQuery.data?.users.accountantAssigned
+                )}
                 onSubmit={handleSubmit}
                 isSubmitting={isPending()}
                 onStateChange={setFormState}

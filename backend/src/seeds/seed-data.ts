@@ -127,6 +127,9 @@ export const ROLE_PERMISSIONS: Record<string, (slug: string) => boolean> = {
     },
 
     contador: (slug) => {
+        if (slug.endsWith('.delete') || slug.endsWith('.destroy')) {
+            return false;
+        }
         return slug === 'dashboard.read' ||
             slug.startsWith('invoices.') ||
             slug.startsWith('documents.') ||

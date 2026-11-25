@@ -366,7 +366,7 @@ export const SAAS_PLANS: SaasPlanDef[] = [
         description: 'Ideal para comercios, minimarkets y profesionales con punto de venta activo y facturación recurrente.',
         interval: 'MONTHLY',
         priceUsd: 9.99,
-        trialDays: 0,
+        trialDays: 14,
         sortOrder: 2,
     },
     {
@@ -376,7 +376,7 @@ export const SAAS_PLANS: SaasPlanDef[] = [
         interval: 'YEARLY',
         priceUsd: 99.00,
         annualDiscountPercent: 17,
-        trialDays: 0,
+        trialDays: 14,
         sortOrder: 3,
     },
 
@@ -388,7 +388,7 @@ export const SAAS_PLANS: SaasPlanDef[] = [
         description: 'El ERP completo para distribuidoras, almacenes y ferreterías con contabilidad NIIF, nómina, WhatsApp y facturación sin límite.',
         interval: 'MONTHLY',
         priceUsd: 34.99,
-        trialDays: 0,
+        trialDays: 14,
         isPopular: true,
         sortOrder: 4,
     },
@@ -399,7 +399,7 @@ export const SAAS_PLANS: SaasPlanDef[] = [
         interval: 'YEARLY',
         priceUsd: 349.00,
         annualDiscountPercent: 17,
-        trialDays: 0,
+        trialDays: 14,
         isPopular: true,
         sortOrder: 5,
     },
@@ -412,7 +412,7 @@ export const SAAS_PLANS: SaasPlanDef[] = [
         description: 'Para industrias manufactureras y holdings con órdenes de producción (BOM), múltiples RUCs y facturación sin límite.',
         interval: 'MONTHLY',
         priceUsd: 89.99,
-        trialDays: 0,
+        trialDays: 14,
         sortOrder: 6,
     },
     {
@@ -422,7 +422,7 @@ export const SAAS_PLANS: SaasPlanDef[] = [
         interval: 'YEARLY',
         priceUsd: 899.00,
         annualDiscountPercent: 17,
-        trialDays: 0,
+        trialDays: 14,
         sortOrder: 7,
     },
 ];

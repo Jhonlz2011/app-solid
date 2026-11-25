@@ -1,10 +1,10 @@
 import { createStore } from "solid-js/store";
-import { batch } from "solid-js";
+import { batch, createMemo, createRoot } from "solid-js";
 import { authClient } from "@shared/lib/auth-client";
 import { profileApi } from "@modules/profile/data/profile.api";
 import type { ProfileType } from '@app/schema/dto';
 import { type RbacModule, type PermissionSlug, type AnyPermissionSlug, type ActionsForModule, SYSTEM_ROLES } from '@app/schema/enums';
-import { resolveAllowedModulesFromFeatures } from '@app/schema/backend';
+import { resolveAllowedModulesFromFeatures, isUsableSubscriptionStatus } from '@app/schema/backend';
 import { connect, disconnect, enableReconnect } from "@shared/store/sse.store";
 import { broadcast, BroadcastEvents } from "@shared/store/broadcast.store";
 import { brandingActions, applyBranding, getSubdomain } from "./branding.store";
@@ -59,7 +59,10 @@ const sanitizeUser = ({
     organizationId,
     membershipStatus,
     plan,
+    planName,
     planStatus,
+    planPeriodEnd,
+    gracePeriodEndsAt,
     features,
 }: ProfileType): Partial<ProfileType> => ({
     id,
@@ -77,7 +80,10 @@ const sanitizeUser = ({
     organizationId,
     membershipStatus,
     plan,
+    planName,
     planStatus,
+    planPeriodEnd,
+    gracePeriodEndsAt,
     features,
 });
 
@@ -466,6 +472,10 @@ export const actions = {
             const userData = await profileApi.getMe();
             // Store is reactively updated, keeping the currentSessionId and authenticated status intact
             setState('user', userData as ProfileType);
+            if (Array.isArray(userData.modules)) {
+                const { actions: moduleActions } = await import('@shared/store/modules.store');
+                moduleActions.setModules(userData.modules, userData as ProfileType);
+            }
             return true;
         } catch (error) {
             console.error('[Auth] Failed to refresh session:', error);
@@ -548,6 +558,9 @@ export const actions = {
             setSessionFlag(true);
             enableReconnect();
             connect(currentSessionId);
+            import('@shared/store/modules.store')
+                .then((m) => m.actions.fetchModules())
+                .catch(() => {});
             // Navigate if still on the login page
             // Preserve redirect param if present (e.g., /login?redirect=/suppliers → /suppliers)
             if (window.location.pathname.startsWith('/login')) {
@@ -600,13 +613,32 @@ export const actions = {
 
 // --- GETTERS (Selectors) ---
 
+const allowedModulesMemo = createRoot(() =>
+    createMemo(() => resolveAllowedModulesFromFeatures(state.user?.features || {}))
+);
+
+const canModuleAction = (module: RbacModule, action?: string): boolean => {
+    const u = state.user;
+    if (!u || !isUsableSubscriptionStatus(u.planStatus)) return false;
+    if (!allowedModulesMemo().has(module)) return false;
+    if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
+    if (!action) {
+        return Boolean(u.permissions?.some(p => p.startsWith(`${module}.`)));
+    }
+    return u.permissions?.includes(`${module}.${action}`) || false;
+};
+
 export const useAuth = () => {
     return {
         user: () => state.user,
         isAuthenticated: () => state.status === 'authenticated',
         isLoading: () => state.status === 'loading',
         plan: () => state.user?.plan || 'free',
+        planName: () => state.user?.planName ?? null,
         planStatus: () => state.user?.planStatus || 'ACTIVE',
+        planPeriodEnd: () => state.user?.planPeriodEnd ?? null,
+        gracePeriodEndsAt: () => state.user?.gracePeriodEndsAt ?? null,
+        isSubscriptionUsable: () => isUsableSubscriptionStatus(state.user?.planStatus),
         features: () => state.user?.features || {},
         hasFeature: (featureCode: string): boolean => {
             const val = state.user?.features?.[featureCode];
@@ -614,77 +646,21 @@ export const useAuth = () => {
             if (typeof val === 'number') return val > 0 || val === -1;
             return false;
         },
-        canAccessModule: (module: RbacModule): boolean => {
-            const u = state.user;
-            if (!u) return false;
-            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
-            if (!allowedModules.has(module)) return false;
-            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
-            return Boolean(u.permissions?.some(p => p.startsWith(`${module}.`)));
-        },
+        canAccessModule: (module: RbacModule): boolean => canModuleAction(module),
         hasPermission: (perm: AnyPermissionSlug) => {
             const u = state.user;
-            if (!u?.permissions) return false;
+            if (!u || !isUsableSubscriptionStatus(u.planStatus)) return false;
             if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
-            return u.permissions.includes(perm);
+            return u.permissions?.includes(perm) || false;
         },
         isAdmin: () => state.user?.roles?.includes(SYSTEM_ROLES.SUPERADMIN) || false,
         hasRole: (role: string) => state.user?.roles?.includes(role) || false,
-        canRead: (module: RbacModule) => {
-            const u = state.user;
-            if (!u) return false;
-            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
-            if (!allowedModules.has(module)) return false;
-            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
-            return u.permissions?.includes(`${module}.read`) || false;
-        },
-        canAdd: (module: RbacModule) => {
-            const u = state.user;
-            if (!u) return false;
-            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
-            if (!allowedModules.has(module)) return false;
-            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
-            return u.permissions?.includes(`${module}.create`) || false;
-        },
-        canEdit: (module: RbacModule) => {
-            const u = state.user;
-            if (!u) return false;
-            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
-            if (!allowedModules.has(module)) return false;
-            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
-            return u.permissions?.includes(`${module}.update`) || false;
-        },
-        canDelete: (module: RbacModule) => {
-            const u = state.user;
-            if (!u) return false;
-            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
-            if (!allowedModules.has(module)) return false;
-            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
-            return u.permissions?.includes(`${module}.delete`) || false;
-        },
-        canRestore: (module: RbacModule) => {
-            const u = state.user;
-            if (!u) return false;
-            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
-            if (!allowedModules.has(module)) return false;
-            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
-            return u.permissions?.includes(`${module}.restore`) || false;
-        },
-        canDestroy: (module: RbacModule) => {
-            const u = state.user;
-            if (!u) return false;
-            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
-            if (!allowedModules.has(module)) return false;
-            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
-            return u.permissions?.includes(`${module}.destroy`) || false;
-        },
-        can: <M extends RbacModule>(module: M, action: ActionsForModule<M>) => {
-            const u = state.user;
-            if (!u) return false;
-            const allowedModules = resolveAllowedModulesFromFeatures(u.features || {});
-            if (!allowedModules.has(module)) return false;
-            if (u.roles?.includes(SYSTEM_ROLES.SUPERADMIN)) return true;
-            return u.permissions?.includes(`${module}.${action}`) || false;
-        },
+        canRead: (module: RbacModule) => canModuleAction(module, 'read'),
+        canAdd: (module: RbacModule) => canModuleAction(module, 'create'),
+        canEdit: (module: RbacModule) => canModuleAction(module, 'update'),
+        canDelete: (module: RbacModule) => canModuleAction(module, 'delete'),
+        canRestore: (module: RbacModule) => canModuleAction(module, 'restore'),
+        canDestroy: (module: RbacModule) => canModuleAction(module, 'destroy'),
+        can: <M extends RbacModule>(module: M, action: ActionsForModule<M>) => canModuleAction(module, action),
     };
 };

@@ -27,6 +27,8 @@ export interface UserCreateFormProps {
     rolesLoading?: boolean;
     initialEntity?: { id: string; businessName: string; taxId: string } | null;
     initialRoleName?: string;
+    hasFreeAccountantSeat?: boolean;
+    freeAccountantSeatAvailable?: boolean;
     onSubmit: (values: UserCreateData) => void | Promise<void>;
     isSubmitting?: boolean;
     onStateChange?: (state: UserCreateFormState) => void;
@@ -174,9 +176,24 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                     {(field) => {
                         const hasError = () => hasFieldError(field(), hasAttemptedSubmit());
                         const errorMsg = () => getFieldError(field()) || 'Debes asignar al menos un rol al usuario';
-                        const isAccountantSelected = () => {
-                            const selectedIds = field().state.value ?? [];
-                            return props.roles.some(r => r.name.toLowerCase() === 'contador' && selectedIds.includes(r.id));
+                        const selectedIds = () => field().state.value ?? [];
+                        const accountantRoleId = () =>
+                            props.roles.find(r => r.name.toLowerCase() === 'contador')?.id;
+                        const isAccountantIncluded = () => {
+                            const id = accountantRoleId();
+                            return id !== undefined && selectedIds().includes(id);
+                        };
+                        const isExclusiveAccountant = () => isAccountantIncluded() && selectedIds().length === 1;
+                        const qualifiesForFreeSeat = () =>
+                            Boolean(props.freeAccountantSeatAvailable && isExclusiveAccountant());
+                        const regularSeatReason = () => {
+                            if (!props.hasFreeAccountantSeat) {
+                                return 'Tu plan actual no incluye asiento de cortesía para contador externo; este usuario ocupará un asiento operativo regular.';
+                            }
+                            if (!isExclusiveAccountant()) {
+                                return 'El asiento gratuito aplica únicamente si el usuario tiene el rol Contador como único rol. Al combinar roles ocupará un asiento operativo regular.';
+                            }
+                            return 'El asiento gratuito de contador externo ya está ocupado en esta empresa; este usuario ocupará un asiento operativo regular.';
                         };
 
                         return (
@@ -184,7 +201,7 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                 <UserRolePicker
                                     roles={props.roles}
                                     rolesLoading={props.rolesLoading}
-                                    selectedRoleIds={field().state.value ?? []}
+                                    selectedRoleIds={selectedIds()}
                                     onChange={(ids: number[]) => {
                                         field().handleChange(ids);
                                         field().handleBlur();
@@ -192,12 +209,22 @@ export const UserCreateForm: Component<UserCreateFormProps> = (props) => {
                                     disabled={props.isSubmitting || isAlreadyMember()}
                                 />
 
-                                <Show when={isAccountantSelected()}>
+                                <Show when={qualifiesForFreeSeat()}>
                                     <div class="p-3 bg-primary/10 border border-primary/25 rounded-xl flex items-start gap-2.5 text-xs text-primary animate-in fade-in slide-in-from-top-1 duration-200 mt-2">
                                         <SparklesIcon class="size-4 shrink-0 mt-0.5 text-primary" />
                                         <div>
                                             <strong class="font-semibold block">Asiento Gratuito de Contador Externo</strong>
-                                            <span>Este usuario ocupará el slot de cortesía incluido en tu plan para tu contador externo y no consumirá asientos operativos regulares.</span>
+                                            <span>Este usuario ocupará el slot de cortesía incluido en tu plan y no consumirá asientos operativos regulares.</span>
+                                        </div>
+                                    </div>
+                                </Show>
+
+                                <Show when={isAccountantIncluded() && !qualifiesForFreeSeat()}>
+                                    <div class="p-3 bg-surface border border-border rounded-xl flex items-start gap-2.5 text-xs text-muted animate-in fade-in slide-in-from-top-1 duration-200 mt-2">
+                                        <AlertTriangleIcon class="size-4 shrink-0 mt-0.5 text-amber-500" />
+                                        <div>
+                                            <strong class="font-semibold text-heading block">Asiento operativo regular</strong>
+                                            <span>{regularSeatReason()}</span>
                                         </div>
                                     </div>
                                 </Show>

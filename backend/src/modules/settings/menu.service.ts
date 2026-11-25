@@ -7,7 +7,7 @@ import { cacheService } from '../../core/cache';
 import { DomainError, NotFoundError } from '../../core/errors';
 import { RealtimeEvents } from '@app/schema/realtime-events';
 import { broadcastToTenant } from '../../core/sse/events';
-import { getTenantEntitlements } from '../saas/entitlements.service';
+import { getTenantEntitlements, hasUsableSubscription } from '../saas/entitlements.service';
 import { resolveAllowedModulesFromFeatures, FEATURE_TO_MODULES_MAP} from '@app/schema/backend';
 
 
@@ -210,16 +210,14 @@ export async function getMenuForUser(userId: string | number, companyId: number)
     const [roles, permissions, allMenus, entitlements] = await Promise.all([
         getUserRoles(userId, companyId),
         getUserPermissions(userId, companyId),
-        cacheService.getOrSet(`menus:${companyId}`, async () => {
-            return getTenantMenuItems(companyId);
-        }, 86400),
+        cacheService.getOrSet(`menus:${companyId}`, () => getTenantMenuItems(companyId), 86400),
         getTenantEntitlements(companyId),
     ]);
 
     // Step 1: Filter by company's plan features (Tenant Entitlement)
-    let planFilteredMenus = allMenus as DbMenuItem[];
+    let planFilteredMenus = allMenus;
     if (entitlements) {
-        if (!['ACTIVE', 'TRIAL', 'GRACE_PERIOD'].includes(entitlements.status)) {
+        if (!hasUsableSubscription(entitlements)) {
             return [];
         }
         const allowedModules = resolveAllowedModulesFromFeatures(entitlements.features);
@@ -238,17 +236,14 @@ export async function getMenuForUser(userId: string | number, companyId: number)
  * Get full menu tree for admin panel (filtered by plan if companyId is provided)
  */
 export async function getFullMenuTree(companyId: number): Promise<ModuleConfig[]> {
-    const cacheKey = `menus:all:${companyId}`;
     const [allMenus, entitlements] = await Promise.all([
-        cacheService.getOrSet(cacheKey, async () => {
-            return getTenantMenuItems(companyId);
-        }, 86400),
+        cacheService.getOrSet(`menus:all:${companyId}`, () => getTenantMenuItems(companyId), 86400),
         getTenantEntitlements(companyId),
     ]);
 
-    let planFilteredMenus = allMenus as DbMenuItem[];
+    let planFilteredMenus = allMenus;
     if (entitlements) {
-        if (!['ACTIVE', 'TRIAL', 'GRACE_PERIOD'].includes(entitlements.status)) {
+        if (!hasUsableSubscription(entitlements)) {
             return [];
         }
         const allowedModules = resolveAllowedModulesFromFeatures(entitlements.features);

@@ -1,5 +1,7 @@
 import { Component, createSignal, Show, createEffect, createMemo, untrack } from 'solid-js';
 import { useNavigate, useLocation } from '@tanstack/solid-router';
+import { isUsableSubscriptionStatus } from '@app/schema/backend';
+import { LockIcon } from '@icons/LockIcon';
 import { useAuth } from '@modules/auth/store/auth.store';
 import { useModules, type ModuleConfig } from '@shared/store/modules.store';
 import { SidebarHeader } from './SidebarHeader';
@@ -148,11 +150,31 @@ export const Sidebar: Component = () => {
             >
                 <SidebarHeader toggleCollapse={toggleCollapse} />
 
-                <Show when={!isMobileViewport()}>
+                <Show when={!isMobileViewport() && isUsableSubscriptionStatus(auth.planStatus())}>
                     <SidebarSearch />
                 </Show>
 
-                <SidebarNav items={menuItems()} />
+                <Show
+                    when={isUsableSubscriptionStatus(auth.planStatus())}
+                    fallback={
+                        <div class="flex-1 flex flex-col items-center justify-center px-4 py-6 text-center select-none">
+                            <div
+                                class="size-10 rounded-xl bg-surface border border-border flex items-center justify-center text-muted"
+                                title="Módulos pausados por suscripción pendiente"
+                            >
+                                <LockIcon class="size-4" />
+                            </div>
+                            <Show when={!effectiveCollapsed()}>
+                                <p class="mt-3 text-xs font-semibold text-heading">Módulos pausados</p>
+                                <p class="mt-1 text-[11px] leading-relaxed text-muted max-w-[180px]">
+                                    Regulariza la suscripción o activa el Plan Freemium para habilitar la navegación.
+                                </p>
+                            </Show>
+                        </div>
+                    }
+                >
+                    <SidebarNav items={menuItems()} />
+                </Show>
 
                 <SidebarFooter
                     userName={auth.user()?.name || auth.user()?.username || auth.user()?.email?.split('@')[0] || 'Usuario'}

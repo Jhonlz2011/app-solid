@@ -1,6 +1,27 @@
 import { redis } from './redis';
 
 export const cacheService = {
+    async get<T>(key: string): Promise<T | null> {
+        try {
+            const cached = await redis.get(key);
+            return cached ? (JSON.parse(cached) as T) : null;
+        } catch (error) {
+            console.error('Cache read error:', error);
+            return null;
+        }
+    },
+
+    async set<T>(key: string, value: T, ttl: number = 3600): Promise<void> {
+        try {
+            const shouldCache = Array.isArray(value) ? value.length > 0 : value != null;
+            if (shouldCache) {
+                await redis.set(key, JSON.stringify(value), 'EX', ttl);
+            }
+        } catch (error) {
+            console.error('Cache write error:', error);
+        }
+    },
+
     /**
      * Get data from cache or fetch it from source and cache it.
      * @param key Cache key
@@ -8,28 +29,13 @@ export const cacheService = {
      * @param ttl Time to live in seconds (default 1 hour)
      */
     async getOrSet<T>(key: string, fetcher: () => Promise<T>, ttl: number = 3600): Promise<T> {
-        try {
-            const cached = await redis.get(key);
-            if (cached) {
-                return JSON.parse(cached);
-            }
-        } catch (error) {
-            console.error('Cache read error:', error);
+        const cached = await cacheService.get<T>(key);
+        if (cached !== null) {
+            return cached;
         }
 
         const data = await fetcher();
-
-        try {
-            // No cachear arrays vacíos ni valores null/undefined
-            // Un array vacío [] es truthy pero indica tabla vacía — no cachear para forzar retry
-            const shouldCache = Array.isArray(data) ? (data as any[]).length > 0 : data != null;
-            if (shouldCache) {
-                await redis.set(key, JSON.stringify(data), 'EX', ttl);
-            }
-        } catch (error) {
-            console.error('Cache write error:', error);
-        }
-
+        await cacheService.set(key, data, ttl);
         return data;
     },
 

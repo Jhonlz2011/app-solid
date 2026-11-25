@@ -1,4 +1,4 @@
-import { db, adminDb, withTenant } from '../../core/db';
+import { db, adminDb, withTenant, type Tx } from '../../core/db';
 import { v7 as uuidv7 } from 'uuid';
 import { createHash, randomBytes } from 'node:crypto';
 import { authUsers, authUserRoles, authRoles, authRolePermissions, entities, auditLogs, sessions, member, companies, verification, account } from '@app/schema/tables';
@@ -22,7 +22,12 @@ import {
     getUserPermissions,
 } from './rbac.permission.service';
 import { logAudit } from './rbac.roles.service';
-import { canCreateUser } from '../saas/entitlements.service';
+import {
+    canCreateUser,
+    getCompanySeatUsage,
+    getTenantEntitlements,
+    isExclusiveAccountantRole,
+} from '../saas/entitlements.service';
 import { hashPassword } from '../../core/security';
 import type { RbacUserCreateType } from '@app/schema/backend';
 import { createCredentialIdentity, replaceCredentialPassword } from '../auth/identity.service';
@@ -589,9 +594,17 @@ export async function getUserRolesById(userId: string | number, companyId: numbe
 }
 
 /**
- * Assign roles to a user (with hierarchy, anti-escalation, and min-1-role checks)
+ * Assign roles to a user (with hierarchy, anti-escalation, seat quota transition, and min-1-role checks).
+ * When `options.tx` is supplied (e.g. from `updateUser`), runs atomically inside the caller's transaction
+ * to avoid nested transaction self-deadlocks on `pg_advisory_xact_lock`.
  */
-export async function assignUserRoles(userId: string | number, roleIds: number[], currentUserId: string | number, companyId: number) {
+export async function assignUserRoles(
+    userId: string | number,
+    roleIds: number[],
+    currentUserId: string | number,
+    companyId: number,
+    options: { tx?: Tx; skipSeatQuotaCheck?: boolean } = {},
+) {
     const userIdStr = String(userId);
     const uniqueRoleIds = [...new Set(roleIds)];
     if (uniqueRoleIds.length === 0) {
@@ -606,9 +619,15 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
         throw new DomainError('Usuario no encontrado', 404);
     }
 
-    await requireTenantMembership(currentUserId, companyId);
-    await requireTenantMembership(userIdStr, companyId);
-    await assertCanManageTargetUser(currentUserId, userIdStr, companyId, 'modificar roles de');
+    let organizationId: string;
+    if (options.tx) {
+        organizationId = await getTenantOrganizationId(companyId);
+    } else {
+        await requireTenantMembership(currentUserId, companyId);
+        const membership = await requireTenantMembership(userIdStr, companyId);
+        organizationId = membership.organizationId;
+        await assertCanManageTargetUser(currentUserId, userIdStr, companyId, 'modificar roles de');
+    }
 
     const oldRoles = await withTenant(async () => db
         .select({ id: authUserRoles.role_id })
@@ -639,26 +658,55 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
 
     await assertCallerCanAssignRoles(currentUserId, finalRoleIds, companyId);
 
-    await withTenant(async () => {
-        await db.transaction(async (tx) => {
-            // Delete only the roles assigned in THIS company, preserving roles in other tenants
-            await tx.delete(authUserRoles).where(
-                and(
-                    eq(authUserRoles.user_id, userIdStr),
-                    eq(authUserRoles.company_id, companyId)
-                )
-            );
+    const persistRoles = async (tx: Tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(${companyId})`);
 
-            if (finalRoleIds.length > 0) {
-                await tx.insert(authUserRoles).values(
-                    finalRoleIds.map(roleId => ({
-                        user_id: userIdStr,
-                        role_id: roleId,
-                        company_id: companyId,
-                    }))
-                );
+        // If this user currently occupies the free exclusive accountant seat and is
+        // changing to any non-exclusive role set (e.g. adding admin or switching to vendedor),
+        // enforce regular user seat quota atomically before mutating roles.
+        if (!options.skipSeatQuotaCheck) {
+            const usage = await getCompanySeatUsage(companyId, organizationId, tx);
+            if (
+                usage.freeAccountantUserId === userIdStr
+                && !isExclusiveAccountantRole(finalRoleIds, usage.accountantRoleId)
+            ) {
+                const check = await canCreateUser(companyId, usage.regularActiveUsers, false);
+                if (!check.allowed) {
+                    throw new DomainError(
+                        check.reason || 'Límite de usuarios alcanzado para tu plan actual. Actualiza tu plan para cambiar el rol de este usuario.',
+                        403,
+                        { code: 'PLAN_LIMIT_EXCEEDED' }
+                    );
+                }
             }
-        });
+        }
+
+        // Delete only the roles assigned in THIS company, preserving roles in other tenants
+        await tx.delete(authUserRoles).where(
+            and(
+                eq(authUserRoles.user_id, userIdStr),
+                eq(authUserRoles.company_id, companyId)
+            )
+        );
+
+        if (finalRoleIds.length > 0) {
+            await tx.insert(authUserRoles).values(
+                finalRoleIds.map(roleId => ({
+                    user_id: userIdStr,
+                    role_id: roleId,
+                    company_id: companyId,
+                }))
+            );
+        }
+    };
+
+    if (options.tx) {
+        await persistRoles(options.tx);
+        return { success: true };
+    }
+
+    await withTenant(async () => {
+        await db.transaction(persistRoles);
     });
 
     await Promise.all([
@@ -675,62 +723,33 @@ export async function assignUserRoles(userId: string | number, roleIds: number[]
 
 /**
  * Validates tenant seat quota before user creation or activation.
- * The external accountant role occupies a dedicated free seat and does not consume regular user quotas.
+ * At most 1 active user whose ONLY role is 'contador' occupies the free accountant seat
+ * (when included in the plan) and does not consume regular user quotas.
  */
-export async function checkCompanySeatQuota(companyId: number, roleIds?: number[]): Promise<void> {
-    const [companyOrg] = await adminDb
+export async function checkCompanySeatQuota(
+    companyId: number,
+    roleIds?: number[],
+    dbClient: typeof adminDb | Tx = adminDb,
+): Promise<void> {
+    const [companyOrg] = await dbClient
         .select({ organization_id: companies.organization_id })
         .from(companies)
         .where(eq(companies.id, companyId))
         .limit(1);
 
-    // 1. Check if user is being assigned accountant role
-    let isAccountant = false;
-    if (roleIds && roleIds.length > 0 && companyOrg?.organization_id) {
-        const accountantRole = await db.query.authRoles.findFirst({
-            where: and(eq(authRoles.company_id, companyId), eq(authRoles.name, SYSTEM_ROLES.CONTADOR)),
-        });
-        if (accountantRole && roleIds.includes(accountantRole.id)) {
-            isAccountant = true;
-            // Check if another active accountant already exists in this tenant
-            const [existingAccountant] = await adminDb
-                .select({ count: sql<number>`count(*)::int` })
-                .from(authUserRoles)
-                .innerJoin(authUsers, eq(authUsers.id, authUserRoles.user_id))
-                .innerJoin(member, and(
-                    eq(member.userId, authUserRoles.user_id),
-                    eq(member.organizationId, companyOrg.organization_id),
-                ))
-                .where(and(
-                    eq(authUserRoles.company_id, companyId),
-                    eq(authUserRoles.role_id, accountantRole.id),
-                    eq(authUsers.is_active, true),
-                    eq(member.status, 'ACTIVE'),
-                ));
-            if ((existingAccountant?.count ?? 0) > 0) {
-                // Already used the free accountant seat -> falls back to standard user seat
-                isAccountant = false;
-            }
-        }
-    }
+    const [ent, usage] = await Promise.all([
+        getTenantEntitlements(companyId),
+        getCompanySeatUsage(companyId, companyOrg?.organization_id, dbClient),
+    ]);
 
-    // 2. Count active users in company
-    let currentActiveUsers = 1;
-    if (companyOrg?.organization_id) {
-        const [countRow] = await adminDb
-            .select({ count: sql<number>`count(distinct ${member.userId})::int` })
-            .from(member)
-            .innerJoin(authUsers, eq(authUsers.id, member.userId))
-            .where(and(
-                eq(member.organizationId, companyOrg.organization_id),
-                eq(authUsers.is_active, true),
-                eq(member.status, 'ACTIVE')
-            ));
-        currentActiveUsers = countRow?.count ?? 1;
-    }
+    const uniqueRoleIds = roleIds ? [...new Set(roleIds)] : [];
+    const usesFreeAccountant = Boolean(
+        ent.hasFreeAccountantSeat
+        && !usage.accountantAssigned
+        && isExclusiveAccountantRole(uniqueRoleIds, usage.accountantRoleId)
+    );
 
-    // 3. Check entitlements
-    const check = await canCreateUser(companyId, currentActiveUsers, isAccountant);
+    const check = await canCreateUser(companyId, usage.regularActiveUsers, usesFreeAccountant);
     if (!check.allowed) {
         throw new DomainError(
             check.reason || 'Límite de usuarios alcanzado para tu plan actual. Actualiza tu plan para agregar más usuarios.',
@@ -807,16 +826,16 @@ export async function createUser(
         throw new DomainError('Ya existe un usuario con ese email en esta empresa', 409);
     }
 
-    // 4. Quota enforcement: check if tenant has available seats in their SaaS plan
-    await checkCompanySeatQuota(companyId, uniqueRoleIds);
-
-    // 5. Generate cryptographic 256-bit invitation token and store only its SHA-256 hash inside the transaction
+    // 4. Generate cryptographic 256-bit invitation token and store only its SHA-256 hash inside the transaction
     const rawActivationToken = randomBytes(32).toString('hex');
     const tokenHash = hashInvitationToken(rawActivationToken);
     const invitationExpiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
 
     const newUser = await withTenant(async () => db.transaction(async (tx) => {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(${companyId})`);
+
+        // Quota enforcement inside advisory lock: prevents concurrent invite race conditions
+        await checkCompanySeatQuota(companyId, uniqueRoleIds, tx);
 
         if (existingGlobalUser) {
             // Existing Zelys user: create PENDING membership requiring explicit invitation acceptance.
@@ -1048,7 +1067,7 @@ export async function acceptUserInvitation(data: { token: string; email: string;
                 eq(authUserRoles.user_id, targetUser.id),
                 eq(authUserRoles.company_id, company.id),
             ));
-        await checkCompanySeatQuota(company.id, assignedRoles.map(r => r.roleId));
+        await checkCompanySeatQuota(company.id, assignedRoles.map(r => r.roleId), tx);
 
         if (!isExistingUser) {
             // Preserve exact password bytes (never .trim() passwords)
@@ -1225,7 +1244,8 @@ export async function updateUser(
 
         // 2. If reactivating membership, check seat quota and activate BEFORE assigning roles
         // so assignUserRoles sees an ACTIVE membership.
-        if (data.isActive === true && membership.status !== 'ACTIVE') {
+        const isReactivating = data.isActive === true && membership.status !== 'ACTIVE';
+        if (isReactivating) {
             await tx.execute(sql`SELECT pg_advisory_xact_lock(${companyId})`);
             const userRolesRows = await tx
                 .select({ roleId: authUserRoles.role_id })
@@ -1235,7 +1255,7 @@ export async function updateUser(
                     eq(authUserRoles.company_id, companyId)
                 ));
             const roleIds = data.roleIds ?? userRolesRows.map(r => r.roleId);
-            await checkCompanySeatQuota(companyId, roleIds);
+            await checkCompanySeatQuota(companyId, roleIds, tx);
 
             await tx.update(member)
                 .set({
@@ -1249,9 +1269,12 @@ export async function updateUser(
                 ));
         }
 
-        // 3. Update roles in auth_user_roles (scoped to this company)
+        // 3. Update roles in auth_user_roles (scoped to this company, sharing the same tx)
         if (data.roleIds !== undefined) {
-            await assignUserRoles(userIdStr, data.roleIds, currentUserIdStr, companyId);
+            await assignUserRoles(userIdStr, data.roleIds, currentUserIdStr, companyId, {
+                tx,
+                skipSeatQuotaCheck: isReactivating,
+            });
         }
 
         // 4. If deactivating membership, validate and suspend
@@ -1283,6 +1306,9 @@ export async function updateUser(
         cacheService.invalidate(`tenant:member:${companyId}:${userIdStr}`),
         invalidateUserFacetsCache(companyId),
     ]);
+    if (data.roleIds !== undefined) {
+        broadcastToUser(userIdStr, RealtimeEvents.USER.RBAC_CHANGED, { userId: userIdStr });
+    }
     broadcastToTenant(companyId, RealtimeEvents.USER.UPDATED, { userId: userIdStr }, RealtimeEvents.ROOMS.USERS);
 
     if (currentUserId) {
@@ -1382,7 +1408,7 @@ export async function restoreUser(userId: string | number, currentUserId: string
                 eq(authUserRoles.user_id, userIdStr),
                 eq(authUserRoles.company_id, companyId)
             ));
-        await checkCompanySeatQuota(companyId, userRolesRows.map(r => r.roleId));
+        await checkCompanySeatQuota(companyId, userRolesRows.map(r => r.roleId), tx);
 
         const [updated] = await tx
             .update(member)
@@ -1747,39 +1773,12 @@ export async function batchRestoreUsers(userIds: (string)[], currentUserId: stri
         await adminDb.transaction(async (tx) => {
             await tx.execute(sql`SELECT pg_advisory_xact_lock(${companyId})`);
 
-            const [countRow] = await tx
-                .select({ count: sql<number>`count(distinct ${member.userId})::int` })
-                .from(member)
-                .innerJoin(authUsers, eq(authUsers.id, member.userId))
-                .where(and(
-                    eq(member.organizationId, organizationId),
-                    eq(authUsers.is_active, true),
-                    eq(member.status, 'ACTIVE'),
-                ));
-            let activeCount = countRow?.count ?? 0;
-
-            const accountantRole = await tx.query.authRoles.findFirst({
-                where: and(eq(authRoles.company_id, companyId), eq(authRoles.name, SYSTEM_ROLES.CONTADOR)),
-                columns: { id: true },
-            });
-            let freeAccountantSeatUsed = false;
-            if (accountantRole) {
-                const [accRow] = await tx
-                    .select({ count: sql<number>`count(*)::int` })
-                    .from(authUserRoles)
-                    .innerJoin(authUsers, eq(authUsers.id, authUserRoles.user_id))
-                    .innerJoin(member, and(
-                        eq(member.userId, authUserRoles.user_id),
-                        eq(member.organizationId, organizationId),
-                    ))
-                    .where(and(
-                        eq(authUserRoles.company_id, companyId),
-                        eq(authUserRoles.role_id, accountantRole.id),
-                        eq(authUsers.is_active, true),
-                        eq(member.status, 'ACTIVE'),
-                    ));
-                freeAccountantSeatUsed = (accRow?.count ?? 0) > 0;
-            }
+            const [ent, seatUsage] = await Promise.all([
+                getTenantEntitlements(companyId),
+                getCompanySeatUsage(companyId, organizationId, tx),
+            ]);
+            let regularActiveCount = seatUsage.regularActiveUsers;
+            let freeAccountantSeatUsed = seatUsage.accountantAssigned;
 
             for (const id of safeIds) {
                 try {
@@ -1801,12 +1800,12 @@ export async function batchRestoreUsers(userIds: (string)[], currentUserId: stri
                             eq(authUserRoles.company_id, companyId),
                         ));
                     const usesFreeAccountant = Boolean(
-                        accountantRole
+                        ent.hasFreeAccountantSeat
                         && !freeAccountantSeatUsed
-                        && roleRows.some(r => r.roleId === accountantRole.id)
+                        && isExclusiveAccountantRole(roleRows.map(r => r.roleId), seatUsage.accountantRoleId)
                     );
 
-                    const check = await canCreateUser(companyId, activeCount, usesFreeAccountant);
+                    const check = await canCreateUser(companyId, regularActiveCount, usesFreeAccountant);
                     if (!check.allowed) {
                         throw new DomainError(
                             check.reason || 'Límite de usuarios alcanzado para tu plan actual.',
@@ -1825,7 +1824,7 @@ export async function batchRestoreUsers(userIds: (string)[], currentUserId: stri
                     if (usesFreeAccountant) {
                         freeAccountantSeatUsed = true;
                     } else {
-                        activeCount += 1;
+                        regularActiveCount += 1;
                     }
                     restoredIds.push(id);
                 } catch (error: any) {

@@ -88,7 +88,7 @@ async function provisionTenant(
   }
 
   const [plan] = await tx
-    .select({ id: saasPlans.id, isActive: saasPlans.is_active })
+    .select({ id: saasPlans.id, isActive: saasPlans.is_active, trialDays: saasPlans.trial_days })
     .from(saasPlans)
     .where(eq(saasPlans.id, requestedPlanId))
     .limit(1);
@@ -97,7 +97,7 @@ async function provisionTenant(
   }
 
   // Serialize tenant creation per user so concurrent onboarding cannot
-  // bypass max_companies.
+  // bypass max_companies. Only count organizations owned by this user (not invited memberships).
   await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`tenant-quota:${ownerInfo.userId}`}))`);
   const [maxCompaniesRow] = await tx
     .select({ maxCompanies: saasPlanFeatures.value_numeric })
@@ -111,7 +111,11 @@ async function provisionTenant(
     .select({ count: sql<number>`count(distinct ${companies.id})::int` })
     .from(member)
     .innerJoin(companies, eq(companies.organization_id, member.organizationId))
-    .where(and(eq(member.userId, ownerInfo.userId), eq(member.status, 'ACTIVE')));
+    .where(and(
+      eq(member.userId, ownerInfo.userId),
+      eq(member.role, 'owner'),
+      eq(member.status, 'ACTIVE'),
+    ));
   const maxCompanies = Number(maxCompaniesRow?.maxCompanies ?? 1);
   if (Number(ownedCompanies?.count ?? 0) >= maxCompanies) {
     throw new DomainError('Has alcanzado el límite de empresas permitido por el plan seleccionado', 403, { code: 'PLAN_LIMIT_EXCEEDED' });
@@ -199,14 +203,19 @@ async function provisionTenant(
     entityId: ownerEntity.id,
   });
 
-  // 9. Seed initial system data (Plan-aware RBAC + Subscription)
+  // 9. Seed initial system data (Plan-aware RBAC + Subscription with Trial support)
   await seedCompanyRBAC(tx, company.id, ownerInfo.userId, companyPlan);
+  const isFreePlan = companyPlan === 'free';
+  const trialDays = !isFreePlan ? Number(plan.trialDays ?? 0) : 0;
+  const initialStatus = isFreePlan ? 'ACTIVE' : trialDays > 0 ? 'TRIAL' : 'PENDING_PAYMENT';
+  const initialPeriodEnd = trialDays > 0 ? new Date(Date.now() + trialDays * 86_400_000) : null;
   await seedCompanySubscription(
     tx,
     company.id,
     companyPlan,
-    companyPlan === 'free' ? 'ACTIVE' : 'PENDING_PAYMENT',
-    companyPlan === 'free' ? 'FREE' : null,
+    initialStatus,
+    isFreePlan ? 'FREE' : null,
+    initialPeriodEnd,
   );
   await seedCompanyUOMs(tx, company.id);
   await seedCompanyVirtualLocations(tx, company.id);
@@ -289,22 +298,23 @@ export async function register(
   const normalizedUsername = data.username.trim().toLowerCase();
   const normalizedEmail = data.email.trim().toLowerCase();
 
-  // Validate global username uniqueness
-  const existingUsername = await adminDb.query.authUsers.findFirst({
-    where: eq(users.username, normalizedUsername),
-  });
+  // Validate global username and email uniqueness before password hashing
+  const [existingUsername, existingEmail] = await Promise.all([
+    adminDb.query.authUsers.findFirst({
+      where: eq(users.username, normalizedUsername),
+      columns: { id: true },
+    }),
+    adminDb.query.authUsers.findFirst({
+      where: eq(users.email, normalizedEmail),
+      columns: { id: true },
+    }),
+  ]);
   if (existingUsername) {
     throw new DomainError('Este nombre de usuario ya está registrado en el sistema', 409);
   }
-
-  // Check if the email was already verified globally in any previous account
-  const globallyVerifiedUser = await adminDb.query.authUsers.findFirst({
-    where: and(
-      eq(users.email, normalizedEmail),
-      eq(users.emailVerified, true)
-    ),
-  });
-  const isAlreadyVerified = Boolean(globallyVerifiedUser);
+  if (existingEmail) {
+    throw new DomainError('Este correo electrónico ya está registrado', 409, { code: 'EMAIL_ALREADY_EXISTS' });
+  }
 
   const result = await db.transaction(async (tx) => {
     // Credential writes are centralized in identity.service so registration,
@@ -318,7 +328,7 @@ export async function register(
         username: normalizedUsername,
         displayUsername: data.username.trim(),
         passwordHash: password_hash,
-        emailVerified: isAlreadyVerified,
+        emailVerified: false,
     });
 
     // Provision tenant (company, org, entities, RBAC seeds)
@@ -345,28 +355,26 @@ export async function register(
     };
   });
 
-  // If email hasn't been verified globally, trigger verification email
-  if (!isAlreadyVerified) {
-    await redis.del(`email_cooldown:${result.user.email.toLowerCase()}`).catch(() => {});
+  // Trigger verification email for the new unverified credential identity
+  await redis.del(`email_cooldown:${result.user.email.toLowerCase()}`).catch(() => {});
 
-    try {
-      await auth.api.sendVerificationEmail({
-        body: {
-          email: result.user.email,
-          callbackURL: '/verify-email',
-        },
-        headers: new Headers({
-          origin: env.BETTER_AUTH_URL,
-        }),
-      });
-    } catch (err) {
-      console.error('[Register] Error sending verification email:', err);
-      throw new DomainError(
-        'La cuenta fue creada, pero no se pudo enviar el correo de verificación. Solicita un reenvío antes de continuar.',
-        503,
-        { code: 'INTERNAL_ERROR' },
-      );
-    }
+  try {
+    await auth.api.sendVerificationEmail({
+      body: {
+        email: result.user.email,
+        callbackURL: '/verify-email',
+      },
+      headers: new Headers({
+        origin: env.BETTER_AUTH_URL,
+      }),
+    });
+  } catch (err) {
+    console.error('[Register] Error sending verification email:', err);
+    throw new DomainError(
+      'La cuenta fue creada, pero no se pudo enviar el correo de verificación. Solicita un reenvío antes de continuar.',
+      503,
+      { code: 'INTERNAL_ERROR' },
+    );
   }
 
   return result;

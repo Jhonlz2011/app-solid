@@ -140,7 +140,10 @@ export async function getMe(userId: string | number, activeCompanyId?: number | 
     entity: mapEntity(resolvedEntity),
     modules,
     plan: entitlements?.planId ?? 'free',
+    planName: entitlements?.planName ?? null,
     planStatus: entitlements?.status ?? 'ACTIVE',
+    planPeriodEnd: entitlements?.currentPeriodEnd ?? null,
+    gracePeriodEndsAt: entitlements?.gracePeriodEndsAt ?? null,
     features: entitlements?.features ?? {},
   };
 }
